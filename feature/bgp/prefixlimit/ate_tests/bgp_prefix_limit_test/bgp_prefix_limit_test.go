@@ -554,7 +554,6 @@ func TestTrafficBGPPrefixLimit(t *testing.T) {
 			// ATE Configuration.
 			t.Log("Start ATE Config")
 			conf := configureATE(t, ate, tc.numRoutes)
-			time.Sleep(1 * time.Minute)
 			tc.run(t, conf, dut, ate)
 		})
 	}
