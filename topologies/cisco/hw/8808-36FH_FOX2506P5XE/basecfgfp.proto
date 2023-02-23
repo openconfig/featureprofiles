@@ -189,6 +189,8 @@ replace: {
   "!\n"
   "ssh server v2\n"
   "ssh server vrf default\n"
+  "cef proactive-arp-nd enable\n"
+  "hw-module profile pbr vrf-redirect\n"
   "interface HundredGigE0/0/0/34\n"
   " description not connected interface\n"
   " shutdown\n"
