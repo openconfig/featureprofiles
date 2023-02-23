@@ -908,7 +908,7 @@ func testFlow(
 	t.Logf("Loss Packet %v ", lossPct)
 	return lossPct
 }
-func JTestForwardingUnviableFP(t *testing.T) {
+func TestForwardingUnviableFP(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	// Configure the DUT
 	configureDUT(t, dut)
