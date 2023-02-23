@@ -27,7 +27,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -36,6 +38,8 @@ const (
 	dstPfx        = "203.0.113.0/24"
 	dstPfxMin     = "203.0.113.0"
 	dstPfxMask    = "24"
+	vrf1          = "VRF-A"
+	vrf2          = "VRF-B"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -160,12 +164,29 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
+// Configure Network instance
+func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfname ...string) {
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(vrfname)
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	if len(intfname) != 0 {
+		intf := ni.GetOrCreateInterface(intfname[0])
+		intf.Interface = ygot.String(intfname[0])
+	}
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), ni)
+}
+
 // configureDUT configures port1, port2, port3 and port4 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	// create VRF "VRF-A" and assign incoming port under it
+	configNetworkInstance(t, dut, vrf1, p1.Name())
+	// create VRF "VRF-B"
+	configNetworkInstance(t, dut, vrf2)
+
+	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
 
 	p2 := dut.Port(t, "port2")
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
@@ -209,7 +230,7 @@ func TestBackup(t *testing.T) {
 		// Configure the gRIBI client clientA
 		client := gribi.Client{
 			DUT:         dut,
-			FIBACK:      false,
+			FIBACK:      true,
 			Persistence: true,
 		}
 		defer client.Close(t)
@@ -262,43 +283,47 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 
 	const (
 		// Next hop group adjacency identifier.
-		NHGID = 100
+		NHGID1, NHGID2 = 100, 200
 		// Backup next hop group ID that the dstPfx will forward to.
-		BackupNHGID = 200
+		BackupNHGID = 500
 
-		NH1ID, NH2ID, NH3ID = 1001, 1002, 1003
+		NH1ID, NH2ID, NH3ID, NH4ID = 1001, 1002, 1003, 1004
 	)
-	t.Logf("Program a backup pointing to ATE port-4 via gRIBI")
-	args.client.AddNH(t, NH3ID, atePort4.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.client.AddNHG(t, BackupNHGID, map[uint64]uint64{NH3ID: 10}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	t.Logf("Program a backup pointing to VRF-B via gRIBI")
+	args.client.AddNH(t, NH3ID, "", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: "VRF-B"})
+	args.client.AddNHG(t, BackupNHGID, map[uint64]uint64{NH3ID: 10}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("an IPv4Entry for %s pointing to ATE port-2 and port-3 via gRIBI", dstPfx)
-	args.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.client.AddNH(t, NH2ID, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.client.AddNHG(t, NHGID, map[uint64]uint64{NH1ID: 80, NH2ID: 20}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB, &gribi.NHGOptions{BackupNHG: BackupNHGID})
-	args.client.AddIPv4(t, dstPfx, NHGID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	t.Logf("an IPv4Entry for %s in %s pointing to ATE port-2 and port-3 via gRIBI", dstPfx, vrf1)
+	args.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNH(t, NH2ID, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNHG(t, NHGID1, map[uint64]uint64{NH1ID: 80, NH2ID: 20}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: BackupNHGID})
+	args.client.AddIPv4(t, dstPfx, NHGID1, vrf1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+
+	t.Logf("an IPv4Entry for %s in %s pointing to ATE port-4 via gRIBI", dstPfx, vrf2)
+	args.client.AddNH(t, NH4ID, atePort4.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNHG(t, NHGID2, map[uint64]uint64{NH4ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddIPv4(t, dstPfx, NHGID2, vrf2, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	// create flow
 	BaseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
 
 	// validate programming using AFT
-	aftCheck(t, args.dut, dstPfx, []string{"192.0.2.6", "192.0.2.10"})
+	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
+	aftCheck(t, args.dut, dstPfx, vrf1)
 	// Validate traffic over primary path port2, port3
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port2", "port3"})
 
 	//shutdown port2
 	flapinterface(t, args.ate, "port2", false)
 	defer flapinterface(t, args.ate, "port2", true)
-	// validate programming using AFT
-	aftCheck(t, args.dut, dstPfx, []string{"192.0.2.10"})
+	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	// Validate traffic over primary path port3
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
 
 	//shutdown port3
 	flapinterface(t, args.ate, "port3", false)
 	defer flapinterface(t, args.ate, "port3", true)
-	// validate programming using AFT
-	aftCheck(t, args.dut, dstPfx, []string{"192.0.2.14"})
+	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	// validate traffic over backup
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port4"})
 }
@@ -348,10 +373,11 @@ func flapinterface(t *testing.T, ate *ondatra.ATEDevice, port string, action boo
 }
 
 // aftCheck does ipv4, NHG and NH aft check
-func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []string) {
+// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
+func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, instance string) {
 	// check prefix and get NHG ID
-	aftPfxNHG := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).NextHopGroup()
-	aftPfxNHGVal, found := gnmi.Watch(t, dut, aftPfxNHG.State(), 10*time.Second, func(val *ygnmi.Value[uint64]) bool {
+	aftPfxNHG := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix).NextHopGroup()
+	aftPfxNHGVal, found := gnmi.Watch(t, dut, aftPfxNHG.State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		return val.IsPresent()
 	}).Await(t)
 	if !found {
@@ -363,20 +389,5 @@ func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []
 	aftNHG := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhg).State())
 	if len(aftNHG.NextHop) == 0 && aftNHG.BackupNextHopGroup == nil {
 		t.Fatalf("Prefix %s references a NHG that has neither NH or backup NHG", prefix)
-	}
-	if len(aftNHG.NextHop) != 0 {
-		for k := range aftNHG.NextHop {
-			aftnh := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).State())
-			totalIPs := len(expectedNH)
-			for _, ip := range expectedNH {
-				if ip == aftnh.GetIpAddress() {
-					break
-				}
-				totalIPs--
-			}
-			if totalIPs == 0 {
-				t.Fatalf("No matching NH found")
-			}
-		}
 	}
 }
