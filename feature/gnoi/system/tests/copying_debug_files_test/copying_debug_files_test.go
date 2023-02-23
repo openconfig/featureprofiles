@@ -29,7 +29,6 @@ import (
 // Name of the process to be killed
 var processNames = map[ondatra.Vendor]string{
 	ondatra.ARISTA:  "bgp",
-	ondatra.CISCO:   "bgp",
 	ondatra.JUNIPER: "rpd",
 	ondatra.NOKIA:   "sr_bgp_mgr",
 }
