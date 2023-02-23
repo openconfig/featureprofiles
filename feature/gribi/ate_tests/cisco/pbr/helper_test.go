@@ -19,13 +19,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-const (
-	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-)
-
-var intType oc.E_IETFInterfaces_InterfaceType
-
 func flushServer(t *testing.T, args *testArgs) {
 	c := args.clientA.Fluent(t)
 	if _, err := c.Flush().
