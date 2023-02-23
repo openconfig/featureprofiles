@@ -115,7 +115,7 @@ func TestQoSCounters(t *testing.T) {
 			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: "a_NC1"},
 			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "b_AF4"},
 			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: "c_AF3"},
-			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 19, queue: "d_AF2"},
+			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: "d_AF2"},
 			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: "e_AF1"},
 			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: "f_BE0"},
 			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: "g_BE1"},
