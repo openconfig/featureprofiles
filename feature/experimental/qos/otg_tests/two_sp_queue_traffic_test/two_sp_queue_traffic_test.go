@@ -169,13 +169,13 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 
 	queueMap := map[ondatra.Vendor]map[string]string{
 		ondatra.ARISTA: {
-			"NC1": dp3.Name() + "-6",
-			"AF4": dp3.Name() + "-5",
-			"AF3": dp3.Name() + "-4",
-			"AF2": dp3.Name() + "-3",
-			"AF1": dp3.Name() + "-2",
-			"BE1": dp3.Name() + "-1",
-			"BE0": dp3.Name() + "-0",
+			"NC1": "NC1",
+			"AF4": "AF4",
+			"AF3": "AF3",
+			"AF2": "AF2",
+			"AF1": "AF1",
+			"BE1": "BE1",
+			"BE0": "BE0",
 		},
 		ondatra.CISCO: {
 			"NC1": "7",
