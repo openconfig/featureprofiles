@@ -32,6 +32,7 @@ func TestInterfaceCfgs(t *testing.T) {
 		obj := &oc.Interface{
 			Name:        ygot.String(iut.Name()),
 			Description: ygot.String("randstr"),
+			Type:        oc.IETFInterfaces_InterfaceType_ieee8023adLag,
 		}
 		defer observer.RecordYgot(t, "REPLACE", path)
 		gnmi.Replace(t, dut, path.Config(), obj)
@@ -122,6 +123,17 @@ func TestInterfaceCfgs(t *testing.T) {
 
 	})
 	// port-speed and duplex-mode supported for GigabitEthernet/FastEthernet type interfaces
+	t.Run("configInterface", func(t *testing.T) {
+		path := gnmi.OC().Interface("GigabitEthernet0/0/0/1")
+		obj := &oc.Interface{
+			Name:        ygot.String("GigabitEthernet0/0/0/1"),
+			Description: ygot.String("randstr"),
+			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		}
+		defer observer.RecordYgot(t, "REPLACE", path)
+		gnmi.Replace(t, dut, path.Config(), obj)
+
+	})
 	t.Run("Replace//interfaces/interface/ethernet/config/port-speed", func(t *testing.T) {
 		path := gnmi.OC().Interface("GigabitEthernet0/0/0/1").Ethernet().PortSpeed()
 		defer observer.RecordYgot(t, "REPLACE", path)
@@ -472,6 +484,7 @@ func TestInterfaceState(t *testing.T) {
 		Name:        ygot.String(iut.Name()),
 		Description: ygot.String(randstr),
 		Mtu:         randmtu,
+		Type:        oc.IETFInterfaces_InterfaceType_ieee8023adLag,
 	}
 	gnmi.Replace(t, dut, path.Config(), obj)
 
@@ -664,6 +677,17 @@ func TestInterfaceHoldTime(t *testing.T) {
 	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
 	hlt := uint32(30)
 	member := iut.Members()[0]
+	t.Run("configInterface", func(t *testing.T) {
+		path := gnmi.OC().Interface(iut.Name())
+		obj := &oc.Interface{
+			Name:        ygot.String(iut.Name()),
+			Description: ygot.String("randstr"),
+			Type:        oc.IETFInterfaces_InterfaceType_ieee8023adLag,
+		}
+		defer observer.RecordYgot(t, "UPDATE", path)
+		gnmi.Update(t, dut, path.Config(), obj)
+
+	})
 	t.Run("Update//interfaces/interface/hold-time/config/up", func(t *testing.T) {
 		config := gnmi.OC().Interface(member).HoldTime().Up()
 		defer observer.RecordYgot(t, "UPDATE", config)
