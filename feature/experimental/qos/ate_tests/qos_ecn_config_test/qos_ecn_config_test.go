@@ -58,13 +58,13 @@ const (
 	dropProfile               = "DropProfile"
 	forwardingGroup           = "fc"
 	schedulerMap              = "smap"
-	sequeneId                 = 1
+	sequenceID                = 1
 	schedulerPriority         = 1
 	queueName                 = "0"
-	minThresholdPerecent      = 10
+	minThresholdPercent       = 10
 	maxThresholdPercent       = 70
 	maxDropProbabilityPercent = 1
-	enableEcn                 = true
+	enableECN                 = true
 )
 
 func TestECNConfig(t *testing.T) {
@@ -88,8 +88,8 @@ func TestECNConfig(t *testing.T) {
 		t.Logf("Scheduler config required for binding with queue management profile")
 		schedulerPolicy := q.GetOrCreateSchedulerPolicy(schedulerMap)
 		schedulerPolicy.SetName(schedulerMap)
-		s := schedulerPolicy.GetOrCreateScheduler(sequeneId)
-		s.SetSequence(sequeneId)
+		s := schedulerPolicy.GetOrCreateScheduler(sequenceID)
+		s.SetSequence(sequenceID)
 		s.SetPriority(schedulerPriority)
 		Output := s.GetOrCreateOutput()
 		Output.SetOutputFwdGroup(forwardingGroup)
@@ -242,8 +242,8 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 		queueMgmtProfile.SetName(dropProfile)
 		wred := queueMgmtProfile.GetOrCreateWred()
 		uniform := wred.GetOrCreateUniform()
-		uniform.SetEnableEcn(enableEcn)
-		uniform.SetMinThreshold(minThresholdPerecent)
+		uniform.SetEnableEcn(enableECN)
+		uniform.SetMinThreshold(minThresholdPercent)
 		uniform.SetMaxThreshold(maxThresholdPercent)
 		uniform.SetMaxDropProbabilityPercent(maxDropProbabilityPercent)
 	}
@@ -263,7 +263,7 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 				fwdGroup.SetOutputQueue(tc.queue)
 				CreateSchedulerPolicy := q.GetOrCreateSchedulerPolicy(tc.scheduler)
 				CreateSchedulerPolicy.SetName(tc.scheduler)
-				s := CreateSchedulerPolicy.GetOrCreateScheduler(sequeneId)
+				s := CreateSchedulerPolicy.GetOrCreateScheduler(sequenceID)
 				s.SetSequence(tc.sequence)
 				s.SetPriority(schedulerPriority)
 				SchedulerOutput := s.GetOrCreateOutput()
