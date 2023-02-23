@@ -85,6 +85,8 @@ func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) 
 		}
 		if strings.Contains(port.Name(), "Bundle") {
 			conf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		} else {
+			conf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		}
 		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), conf)
 		// dut.Config().Interface(port.Name()).Update(t, conf)

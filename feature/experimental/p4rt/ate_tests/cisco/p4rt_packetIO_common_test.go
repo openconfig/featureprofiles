@@ -287,6 +287,11 @@ func configureInterface(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 			},
 		},
 	}
+	if strings.Contains(interfaceName, "Bundle") {
+		config.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		config.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 	if subInterface > 0 {
 		config.Subinterface[subInterface].Vlan = &oc.Interface_Subinterface_Vlan{
 			Match: &oc.Interface_Subinterface_Vlan_Match{
@@ -616,15 +621,23 @@ func testEntryProgrammingPacketInAndChangePortID(ctx context.Context, t *testing
 	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.packetIO.SetIngressPorts(t, fmt.Sprint(newPortID))
+	var intType oc.E_IETFInterfaces_InterfaceType
+	if strings.Contains(portName, "Bundle") {
+		intType = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		intType = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 	gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(newPortID),
+		Type: intType,
 	})
 
 	defer args.packetIO.SetIngressPorts(t, fmt.Sprint(portID))
 	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
+		Type: intType,
 	})
 
 	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
@@ -892,10 +905,17 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 
 func testEntryProgrammingPacketInWithouthPortID(ctx context.Context, t *testing.T, args *testArgs) {
 	portName := sortPorts(args.dut.Ports())[0].Name()
+	var intType oc.E_IETFInterfaces_InterfaceType
+	if strings.Contains(portName, "Bundle") {
+		intType = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		intType = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 	gnmi.Delete(t, args.dut, gnmi.OC().Interface(portName).Id().Config())
 	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
+		Type: intType,
 	})
 
 	client := args.p4rtClientA
@@ -921,10 +941,17 @@ func testEntryProgrammingPacketInWithouthPortID(ctx context.Context, t *testing.
 
 func testEntryProgrammingPacketInWithouthPortIDThenAddPortID(ctx context.Context, t *testing.T, args *testArgs) {
 	portName := sortPorts(args.dut.Ports())[0].Name()
+	var intType oc.E_IETFInterfaces_InterfaceType
+	if strings.Contains(portName, "Bundle") {
+		intType = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		intType = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 	gnmi.Delete(t, args.dut, gnmi.OC().Interface(portName).Id().Config())
 	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
+		Type: intType,
 	})
 
 	client := args.p4rtClientA
@@ -946,10 +973,15 @@ func testEntryProgrammingPacketInWithouthPortIDThenAddPortID(ctx context.Context
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received.")
 	}
-
+	if strings.Contains(portName, "Bundle") {
+		intType = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		intType = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 	gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
+		Type: intType,
 	})
 
 	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
@@ -1023,10 +1055,17 @@ func testEntryProgrammingPacketInWithInnerTTL(ctx context.Context, t *testing.T,
 
 func testEntryProgrammingPacketInWithMalformedPacket(ctx context.Context, t *testing.T, args *testArgs) {
 	portName := sortPorts(args.dut.Ports())[0].Name()
+	var intType oc.E_IETFInterfaces_InterfaceType
+	if strings.Contains(portName, "Bundle") {
+		intType = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		intType = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 	gnmi.Delete(t, args.dut, gnmi.OC().Interface(portName).Id().Config())
 	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
+		Type: intType,
 	})
 
 	client := args.p4rtClientA
@@ -2018,14 +2057,22 @@ func testPacketOutEgressWithChangePortId(ctx context.Context, t *testing.T, args
 
 	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
+	var intType oc.E_IETFInterfaces_InterfaceType
+	if strings.Contains(portName, "Bundle") {
+		intType = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		intType = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 	gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(newPortID),
+		Type: intType,
 	})
 
 	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
+		Type: intType,
 	})
 
 	// Check initial packet counters
@@ -2063,14 +2110,22 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 
 	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
+	var intType oc.E_IETFInterfaces_InterfaceType
+	if strings.Contains(portName, "Bundle") {
+		intType = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		intType = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 	gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(newPortID),
+		Type: intType,
 	})
 
 	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), &oc.Interface{
 		Name: ygot.String(portName),
 		Id:   ygot.Uint32(portID),
+		Type: intType,
 	})
 
 	// Check initial packet counters
