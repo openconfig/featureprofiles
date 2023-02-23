@@ -35,11 +35,12 @@ import (
 )
 
 const (
-	ipv4PrefixLen = 30
-	ipv6PrefixLen = 126
-	dstPfx        = "203.0.113.0/24"
-	dstPfxMin     = "203.0.113.0"
-	dstPfxMask    = "24"
+	ipv4PrefixLen  = 30
+	ipv6PrefixLen  = 126
+	dstPfx         = "203.0.113.0/24"
+	dstPfxMin      = "203.0.113.0"
+	dstPfxMask     = "24"
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
 // testArgs holds the objects needed by a test case.
@@ -335,6 +336,8 @@ func flapinterface(t *testing.T, dut *ondatra.DUTDevice, port string, action boo
 	dc := gnmi.OC()
 	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(action)
+	i.Type = ethernetCsmacd
+	i.Name = ygot.String(dutP.Name())
 	gnmi.Update(t, dut, dc.Interface(dutP.Name()).Config(), i)
 }
 
