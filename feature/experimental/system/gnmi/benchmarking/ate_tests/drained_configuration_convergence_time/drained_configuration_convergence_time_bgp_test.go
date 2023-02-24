@@ -38,9 +38,9 @@ const (
 	asPathRepeatValue      = 3
 	aclStatement2          = "20"
 	aclStatement3          = "30"
-	setAspathPrependPolicy = "SET-ASPATH-PREPEND"
-	setMedPolicy           = "SET-MED"
-	bgpMed                 = 25
+	setASpathPrependPolicy = "SET-ASPATH-PREPEND"
+	setMEDPolicy           = "SET-MED"
+	bgpMED                 = 25
 )
 
 // setMED is used to configure routing policy to set BGP MED on DUT.
@@ -52,12 +52,12 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure SetMED on DUT.
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
-	pdef5 := rp.GetOrCreatePolicyDefinition(setMedPolicy)
+	pdef5 := rp.GetOrCreatePolicyDefinition(setMEDPolicy)
 	actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
 	// TODO: Below code will be uncommented once configuring MED in DUT as referred in below issue is supported.
 	// Ref: https://github.com/openconfig/featureprofiles/issues/759
 	// setMedBGP := actions5.GetOrCreateBgpActions().GetOrCreateSetMed()
-	// setMedBGP.SetMed = ygot.Uint32(bgpMed)
+	// setMedBGP.SetMed = ygot.Uint32(bgpMED)
 	actions5.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(100)
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -71,7 +71,7 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure SetASPATH routing policy on DUT.
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
-	pdef5 := rp.GetOrCreatePolicyDefinition(setAspathPrependPolicy)
+	pdef5 := rp.GetOrCreatePolicyDefinition(setASpathPrependPolicy)
 	actions5 := pdef5.GetOrCreateStatement(aclStatement2).GetOrCreateActions()
 	aspend := actions5.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
 	aspend.Asn = ygot.Uint32(setup.DUTAs)
@@ -87,14 +87,14 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 		PeerGroup(setup.PeerGrpName).ApplyPolicy().ExportPolicy()
 
 	// Build wantAsPath to compare the diff.
-	var wantAsPath []uint32
+	var wantASPath []uint32
 	for i := 0; i < setup.RouteCount; i++ {
-		wantAsPath = append(wantAsPath, setup.DUTAs, setup.DUTAs, setup.DUTAs, setup.DUTAs, setup.ATEAs2)
+		wantASPath = append(wantASPath, setup.DUTAs, setup.DUTAs, setup.DUTAs, setup.DUTAs, setup.ATEAs2)
 	}
 
 	// Start the timer.
 	start := time.Now()
-	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setAspathPrependPolicy})
+	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setASpathPrependPolicy})
 	t.Run("BGP-AS-PATH Verification", func(t *testing.T) {
 		at := gnmi.OC()
 		for _, ap := range ate.Ports() {
@@ -128,12 +128,12 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			pref := gnmi.GetAll(t, ate, prefixPath.State())
 			asPath := gnmi.GetAll(t, ate, rib.AttrSetAny().AsSegmentAny().State())
 
-			var gotAsPath []uint32
+			var gotASPath []uint32
 			for _, v := range asPath {
-				gotAsPath = append(gotAsPath, v.GetMember()...)
+				gotASPath = append(gotASPath, v.GetMember()...)
 			}
-			if diff := cmp.Diff(wantAsPath, gotAsPath); diff != "" {
-				t.Errorf("obtained AS path on ATE is not as expected, got %v, want %v, prefixes %v", gotAsPath, wantAsPath, pref)
+			if diff := cmp.Diff(wantASPath, gotASPath); diff != "" {
+				t.Errorf("obtained AS path on ATE is not as expected, got %v, want %v, prefixes %v", gotASPath, wantASPath, pref)
 			}
 		}
 	})
@@ -152,15 +152,15 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 
 	// TODO: Below code will be uncommented once configuring MED in DUT as referred in below issue is supported.
 	// Ref: https://github.com/openconfig/featureprofiles/issues/759
-	// Build wantSetMed to compare the diff.
-	// var wantSetMed []uint32
+	// Build wantSetMED to compare the diff.
+	// var wantSetMED []uint32
 	// for i := 0; i < setup.RouteCount; i++ {
-	// wantSetMed = append(wantSetMed, bgpMed)
+	// wantSetMED = append(wantSetMED, bgpMED)
 	// }
 
 	// Start the timer.
 	start := time.Now()
-	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setMedPolicy})
+	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setMEDPolicy})
 
 	t.Run("BGP-MED-Verification", func(t *testing.T) {
 		// TODO: Below code will be uncommented once SetMED is supported.
@@ -196,9 +196,9 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			// prefixPath := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
 			// NeighborAny().AdjRibInPre().RouteAny().WithPathId(0).Prefix()
 			// pref := gnmi.GetAll(t, ate, prefixPath.State())
-			// gotSetMed := gnmi.GetAll(t, ate, rib.AttrSetAny().Med().State())
-			// if diff := cmp.Diff(wantSetMed, gotSetMed); diff != "" {
-			// t.Errorf("obtained MED on ATE is not as expected, got %v, want %v, Prefixes %v", gotSetMed, wantSetMed, pref)
+			// gotSetMED := gnmi.GetAll(t, ate, rib.AttrSetAny().Med().State())
+			// if diff := cmp.Diff(wantSetMED, gotSetMED); diff != "" {
+			// t.Errorf("obtained MED on ATE is not as expected, got %v, want %v, Prefixes %v", gotSetMED, wantSetMED, pref)
 			// }
 		}
 	})
