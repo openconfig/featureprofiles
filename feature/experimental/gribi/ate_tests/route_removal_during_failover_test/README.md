@@ -24,7 +24,7 @@ Validate gRIBI route flush during SSO
 
 *   Following reconnection of the `gRIBI client` to a new master supervisor, validate if partially deleted entries of IPBlock1  are not present in the FIB using a get RPC.
 
-*   TODO: Check for coredumps in the DUT and validate that none are present post failover.
+*   Check for coredumps in the DUT and validate that none are present post failover.
 
 *   Re-inject IPBlock1 in default VRF with NHGID: `1`.
 
