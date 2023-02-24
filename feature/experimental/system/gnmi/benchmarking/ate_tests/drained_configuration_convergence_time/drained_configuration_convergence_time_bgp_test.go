@@ -44,13 +44,9 @@ const (
 )
 
 // setMED is used to configure routing policy to set BGP MED on DUT.
-func setMED(t *testing.T, dut *ondatra.DUTDevice) {
-
-	// Clear existing routing policies on DUT.
-	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
+func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 
 	// Configure SetMED on DUT.
-	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setMEDPolicy)
 	actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
@@ -63,13 +59,9 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // setASPath is used to configure route policy set-as-path prepend on DUT.
-func setASPath(t *testing.T, dut *ondatra.DUTDevice) {
-
-	// Clear existing policies on dut.
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), nil)
+func setASPath(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 
 	// Configure SetASPATH routing policy on DUT.
-	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setASpathPrependPolicy)
 	actions5 := pdef5.GetOrCreateStatement(aclStatement2).GetOrCreateActions()
@@ -77,6 +69,31 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice) {
 	aspend.Asn = ygot.Uint32(setup.DUTAs)
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+}
+
+// isConverged function is used to check if ATE has received all the prefixes.
+func isConverged(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, ap *ondatra.Port) {
+
+	// Check if all prefixes are learned at ATE.
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+prefixLoop:
+	for repeat := 4; repeat > 0; repeat-- {
+		prefixesv4 := statePath.Neighbor(setup.ATEIPList[ap.ID()].String()).
+			AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
+		gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State())
+		switch {
+		case gotSent == setup.RouteCount:
+			t.Logf("Prefixes sent from ingress port are learnt at ATE dst port : %v are %v", setup.ATEIPList[ap.ID()].String(), setup.RouteCount)
+			break prefixLoop
+		case repeat > 0 && gotSent < setup.RouteCount:
+			t.Logf("All the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
+			time.Sleep(time.Second * 5)
+		case repeat == 0 && gotSent < setup.RouteCount:
+			t.Errorf("sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.ATEIPList[ap.ID()].String(), gotSent, setup.RouteCount)
+		}
+	}
+
 }
 
 // verifyBGPAsPath is to Validate AS Path attribute using bgp rib telemetry on ATE.
@@ -103,24 +120,8 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 				continue
 			}
 
-			statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
-				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		prefixLoop:
-			for repeat := 4; repeat > 0; repeat-- {
-				prefixesv4 := statePath.Neighbor(setup.ATEIPList[ap.ID()].String()).
-					AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-				gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State())
-				switch {
-				case gotSent == setup.RouteCount:
-					t.Logf("Prefixes sent from ingress port are learnt at ATE dst port : %v are %v", setup.ATEIPList[ap.ID()].String(), setup.RouteCount)
-					break prefixLoop
-				case repeat > 0 && gotSent < setup.RouteCount:
-					t.Logf("All the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
-					time.Sleep(time.Second * 5)
-				case repeat == 0 && gotSent < setup.RouteCount:
-					t.Errorf("sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.ATEIPList[ap.ID()].String(), gotSent, setup.RouteCount)
-				}
-			}
+			// Validate if all prefixes are received by ATE.
+			isConverged(t, dut, ate, ap)
 
 			rib := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "0").Bgp().Rib()
 			prefixPath := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
@@ -171,24 +172,9 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 				continue
 			}
 
-			statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
-				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		prefixLoop:
-			for repeat := 4; repeat > 0; repeat-- {
-				prefixesv4 := statePath.Neighbor(setup.ATEIPList[ap.ID()].String()).
-					AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-				gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State())
-				switch {
-				case gotSent == setup.RouteCount:
-					t.Logf("Prefixes sent from ingress port are learnt at ATE dst port : %v are %v", setup.ATEIPList[ap.ID()].String(), setup.RouteCount)
-					break prefixLoop
-				case repeat > 0 && gotSent < setup.RouteCount:
-					t.Logf("All the prefixes are not learnt , wait for 5 secs before retry.. got %v, want %v", gotSent, setup.RouteCount)
-					time.Sleep(time.Second * 5)
-				case repeat == 0 && gotSent < setup.RouteCount:
-					t.Errorf("Sent prefixes from DUT to neighbor %v is mismatch: got %v, want %v", setup.ATEIPList[ap.ID()].String(), gotSent, setup.RouteCount)
-				}
-			}
+			// Validate if all prefixes are received by ATE.
+			isConverged(t, dut, ate, ap)
+
 			// TODO: Below code will be uncommented once configuring MED in DUT as referred in below issue is supported.
 			// Ref: https://github.com/openconfig/featureprofiles/issues/759
 
@@ -241,16 +227,16 @@ func TestEstablish(t *testing.T) {
 // rib table.
 func TestBGPBenchmarking(t *testing.T) {
 
+	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	// Cleanup existing policy details.
 	dutPolicyConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).ApplyPolicy()
 	gnmi.Delete(t, dut, dutPolicyConfPath.ExportPolicy().Config())
-
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
 
 	t.Logf("Configure MED routing policy.")
-	setMED(t, dut)
+	setMED(t, dut, d)
 
 	t.Logf("Verify time taken to apply MED to all routes in bgp rib.")
 	verifyBGPSetMED(t, dut, ate)
@@ -260,7 +246,7 @@ func TestBGPBenchmarking(t *testing.T) {
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
 
 	t.Logf("Configure SET-AS-PATH routing policy.")
-	setASPath(t, dut)
+	setASPath(t, dut, d)
 
 	t.Logf("Verify time taken to apply SET-AS-PATH to all routes in bgp rib.")
 	verifyBGPAsPath(t, dut, ate)
