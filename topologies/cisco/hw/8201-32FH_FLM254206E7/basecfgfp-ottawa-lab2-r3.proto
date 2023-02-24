@@ -213,6 +213,7 @@ replace: {
 "ssh server v2\n"
 "ssh server vrf default\n"
 "hw-module profile pbr vrf-redirect\n"
+"hw-module profile qos qos-stats-push-collection\n"
 "cef proactive-arp-nd enable\n"
 "end\n"
   }
