@@ -57,6 +57,7 @@ const (
 var (
 	dutIPs = attrs.Attributes{
 		Name:    "dutip",
+		Desc:    "LAG To ATE",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
 		IPv4Len: plen4,
@@ -194,6 +195,27 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
 	}
 
+	agg := &oc.Interface{Name: ygot.String(tc.aggID)}
+	tc.configAggregateDUT(agg, &dutIPs)
+	aggPath := d.Interface(tc.aggID)
+	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
+	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, *deviations.DefaultNetworkInstance, 0)
+	}
+	t.Cleanup(func() {
+		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().MinLinks().Config())
+		for _, port := range tc.dutPorts {
+			iName := port.Name()
+			iPath := d.Interface(iName)
+			gnmi.Replace(t, tc.dut, iPath.Config(), &oc.Interface{Name: ygot.String(iName), Type: ethernetCsmacd})
+		}
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			gnmi.Delete(t, tc.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Interface(tc.aggID+".0").Config())
+		}
+		gnmi.Delete(t, tc.dut, aggPath.Config())
+	})
+
 	if tc.lagType == lagTypeLACP {
 		lacp := &oc.Lacp_Interface{Name: ygot.String(tc.aggID)}
 		lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
@@ -205,22 +227,6 @@ func (tc *testCase) configureDUT(t *testing.T) {
 			gnmi.Delete(t, tc.dut, lacpPath.Config())
 		})
 	}
-
-	agg := &oc.Interface{Name: ygot.String(tc.aggID)}
-	tc.configAggregateDUT(agg, &dutIPs)
-	aggPath := d.Interface(tc.aggID)
-	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
-	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
-	t.Cleanup(func() {
-		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().MinLinks().Config())
-		for _, port := range tc.dutPorts {
-			iName := port.Name()
-			iPath := d.Interface(iName)
-			gnmi.Replace(t, tc.dut, iPath.Config(), &oc.Interface{Name: ygot.String(iName), Type: ethernetCsmacd})
-		}
-		gnmi.Delete(t, tc.dut, aggPath.Config())
-	})
-
 }
 
 func (tc *testCase) configureATE(t *testing.T) {
