@@ -173,10 +173,8 @@ var (
 	BGPStateActiveACLDeny = flag.Bool("deviation_bgp_state_active_acl_deny", false,
 		"Device requires bgp state to be active after ACL deny policy")
 
-
 	BGPPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
 
 	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
-
 )
