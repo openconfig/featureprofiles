@@ -86,13 +86,13 @@ const (
 	dropProfile               = "DropProfile"
 	forwardingGroup           = "fc"
 	schedulerMap              = "smap"
-	sequeneId                 = 1
+	sequenceID                = 1
 	schedulerPriority         = 1
 	queueName                 = "0"
-	minThresholdPerecent      = 10
+	minThresholdPercent       = 10
 	maxThresholdPercent       = 70
 	maxDropProbabilityPercent = 1
-	enableEcn                 = true
+	enableECN                 = true
 )
 
 func TestQoSForwadingGroupsConfig(t *testing.T) {
@@ -144,9 +144,6 @@ func TestQoSForwadingGroupsConfig(t *testing.T) {
 			queue.SetName(tc.queueName)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
-
-		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		//t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
 		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGroup)
@@ -313,9 +310,6 @@ func TestQoSClassifierConfig(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
-		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		//t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
-
 		// Verify the Classifier is applied by checking the telemetry path state values.
 		classifier := gnmi.OC().Qos().Classifier(tc.name)
 		term := classifier.Term(tc.termID)
@@ -432,9 +426,6 @@ func TestQoSInputIntfClassifierConfig(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
-		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		//t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
-
 		// Verify the Classifier is applied on interface by checking the telemetry path state values.
 		classifier := gnmi.OC().Qos().Interface(dp.Name()).Input().Classifier(tc.inputClassifierType)
 		if got, want := gnmi.Get(t, dut, classifier.Name().State()), tc.classifier; got != want {
@@ -547,9 +538,6 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
-		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		//t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
-
 		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
 		scheduler := gnmi.OC().Qos().SchedulerPolicy(schedulerMap).Scheduler(tc.sequence)
 		input := scheduler.Input(tc.inputID)
@@ -598,8 +586,8 @@ func TestECNConfig(t *testing.T) {
 		t.Logf("Scheduler config required for binding with queue management profile")
 		schedulerPolicy := q.GetOrCreateSchedulerPolicy(schedulerMap)
 		schedulerPolicy.SetName(schedulerMap)
-		s := schedulerPolicy.GetOrCreateScheduler(sequeneId)
-		s.SetSequence(sequeneId)
+		s := schedulerPolicy.GetOrCreateScheduler(sequenceID)
+		s.SetSequence(sequenceID)
 		s.SetPriority(schedulerPriority)
 		Output := s.GetOrCreateOutput()
 		Output.SetOutputFwdGroup(forwardingGroup)
@@ -752,8 +740,8 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 		queueMgmtProfile.SetName(dropProfile)
 		wred := queueMgmtProfile.GetOrCreateWred()
 		uniform := wred.GetOrCreateUniform()
-		uniform.SetEnableEcn(enableEcn)
-		uniform.SetMinThreshold(minThresholdPerecent)
+		uniform.SetEnableEcn(enableECN)
+		uniform.SetMinThreshold(minThresholdPercent)
 		uniform.SetMaxThreshold(maxThresholdPercent)
 		uniform.SetMaxDropProbabilityPercent(maxDropProbabilityPercent)
 	}
@@ -773,7 +761,7 @@ func TestQoSOutputIntfConfig(t *testing.T) {
 				fwdGroup.SetOutputQueue(tc.queue)
 				CreateSchedulerPolicy := q.GetOrCreateSchedulerPolicy(tc.scheduler)
 				CreateSchedulerPolicy.SetName(tc.scheduler)
-				s := CreateSchedulerPolicy.GetOrCreateScheduler(sequeneId)
+				s := CreateSchedulerPolicy.GetOrCreateScheduler(sequenceID)
 				s.SetSequence(tc.sequence)
 				s.SetPriority(schedulerPriority)
 				SchedulerOutput := s.GetOrCreateOutput()
