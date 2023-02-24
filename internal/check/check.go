@@ -427,9 +427,9 @@ func NotPresent[T any, QT ygnmi.SingletonQuery[T]](query QT) Validator {
 }
 
 // UnorderedEqual function is used to compare slices in un ordered way.
-func UnorderedEqual[T any, QT ygnmi.SingletonQuery[T]](query QT, want T) Validator {
+func UnorderedEqual[T any, QT ygnmi.SingletonQuery[T]](query QT, want T, sortSliceCompFunc interface{}) Validator {
 	return Predicate(query, fmt.Sprintf("want %#v", want), func(got T) bool {
 		// Sort slices to compare them in unorderd way.
-		return cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b }))
+		return cmp.Equal(got, want, cmpopts.SortSlices(sortSliceCompFunc))
 	})
 }
