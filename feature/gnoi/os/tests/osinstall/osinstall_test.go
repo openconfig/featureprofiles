@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	closer "github.com/openconfig/gocloser"
 	"github.com/openconfig/ondatra"
@@ -86,19 +87,30 @@ func TestOSInstall(t *testing.T) {
 	tc.fetchStandbySupervisorStatus(ctx, t)
 	tc.transferOS(ctx, t, false)
 	tc.activateOS(ctx, t, false)
-	if tc.dualSup {
+
+	if *deviations.InstallOSForStandbyRP && tc.dualSup {
 		tc.transferOS(ctx, t, true)
 		tc.activateOS(ctx, t, true)
 	}
-	tc.rebootDUT(ctx, t)
+
+	if *deviations.OSActivateNoReboot {
+		tc.rebootDUT(ctx, t)
+	}
+
 	tc.verifyInstall(ctx, t)
 }
 
 func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) {
+	t.Helper()
+	if standby {
+		t.Log("OS.Activate is started for standby RP.")
+	} else {
+		t.Log("OS.Activate is started for active RP.")
+	}
 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
 		StandbySupervisor: standby,
 		Version:           *osVersion,
-		NoReboot:          true,
+		NoReboot:          *deviations.OSActivateNoReboot,
 	})
 	if err != nil {
 		t.Fatalf("OS.Activate request failed: %s", err)
