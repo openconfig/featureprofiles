@@ -9,6 +9,7 @@ Measure performance of drained configuration being applied.
 Configure DUT with maximum number of IS-IS adjacencies, and BGP
 peers - with physical interfaces between ATE and DUT for IS-IS
 peers.
+
 First port is used as ingress port to send routes from ATE to DUT.
 For each of the following configurations, generate complete device
 configuration and measure time for the operation to complete (as
