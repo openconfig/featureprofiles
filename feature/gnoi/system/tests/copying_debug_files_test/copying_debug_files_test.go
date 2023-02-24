@@ -31,7 +31,6 @@ var (
 		ondatra.ARISTA: "bgp",
 		ondatra.JUNIPER: "rpd",
 	}
-	
 	components = map[ondatra.Vendor]string{
 		ondatra.ARISTA:  "Chassis",
 		ondatra.CISCO:   "Chassis",
