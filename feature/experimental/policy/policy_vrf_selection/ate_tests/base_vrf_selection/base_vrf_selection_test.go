@@ -32,13 +32,21 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	trafficDuration = 1 * time.Minute
-	sleepOnChange   = 10 * time.Second
-	plen4           = 30
-	plen6           = 126
-	vlan10          = 10
-	vlan20          = 20
-	ipipProtocol    = 4
+	trafficDuration   = 1 * time.Minute
+	sleepOnChange     = 10 * time.Second
+	plen4             = 30
+	plen6             = 126
+	vlan10            = 10
+	vlan20            = 20
+	ipipProtocol      = 4
+	ipv6ipProtocol    = 41
+	ipv4Address       = "222.222.222.222/32"
+	ATEDESTIPv4VLAN10 = "203.0.113.0/30"
+	ATEDESTIPv4VLAN20 = "203.0.113.4/30"
+	ATEDESTIPv6       = "2001:DB8:2::/64"
+	defaultNHv4       = "192.0.2.10"
+	defaultNHv6       = "2001:db8::a"
+	vrfNH             = "192.0.2.6"
 )
 
 var (
@@ -90,14 +98,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	d := gnmi.OC()
 
 	// Configure ingress interface
-	t.Logf("*** Configuring interfaces on DUT ...")
+	t.Logf("*** Configuring Interfaces on DUT ...")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, 0, 0))
 
 	// Configure egress interface
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, 1, vlan10))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst2, &ateDst2, 2, vlan20))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, 10, vlan10))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst2, &ateDst2, 20, vlan20))
 
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, p1)
@@ -106,19 +114,20 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 
 	// Configure network instance
 	t.Logf("*** Configuring network instance on DUT ... ")
-	niConfPath := gnmi.OC().NetworkInstance("10")
-	niConf := configNetworkInstance("10", &ateDst)
-	gnmi.Replace(t, dut, niConfPath.Config(), niConf)
-	niConfPath = gnmi.OC().NetworkInstance("20")
-	niConf = configNetworkInstance("20", &ateDst2)
+	niConfPath := gnmi.OC().NetworkInstance("VRF-10")
+	Intfname := *i2.Name + ".10"
+	niConf := configNetworkInstance("VRF-10", Intfname, "10")
 	gnmi.Replace(t, dut, niConfPath.Config(), niConf)
 
 	// Configure default NI and forwarding policy
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
 	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
 	policyDutConf := configForwardingPolicy()
 	gnmi.Replace(t, dut, dutConfPath.PolicyForwarding().Config(), policyDutConf)
+
+	// CALL static route config
 }
 
 func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, subintfindex uint32, vlan uint16) *oc.Interface {
@@ -155,72 +164,71 @@ func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, subintfinde
 }
 
 // Configure Network instance on the DUT
-func configNetworkInstance(name string, peer *attrs.Attributes) *oc.NetworkInstance {
+func configNetworkInstance(name string, intf string, id string) *oc.NetworkInstance {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(name)
 
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop("0")
-	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv4)
-	ipv6Nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("0")
-	ipv6Nh.NextHop, _ = ipv6Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(peer.IPv6)
-	ipv4Nh.Recurse = ygot.Bool(true)
-	ipv6Nh.Recurse = ygot.Bool(true)
+	niIntf := ni.GetOrCreateInterface(intf)
+	niIntf.Id = ygot.String(id)
+	niIntf.Interface = ygot.String(intf)
 
 	return ni
+}
+
+// configdefaultRoute configures a static route in DEFAULT network-instance.
+func configdefaultRoute(t *testing.T, dut *ondatra.DUTDevice, v4prefix string, v4nexthop string, v6prefix string, v6nexthop string) {
+	t.Logf("*** Configuring static route in DEFAULT network-instance ...")
+	ni := oc.NetworkInstance{Name: deviations.DefaultNetworkInstance}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	sr := static.GetOrCreateStatic(v4prefix)
+	nh := sr.GetOrCreateNextHop("0")
+	nh.NextHop = oc.UnionString(v4nexthop)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
+	sr = static.GetOrCreateStatic(v6prefix)
+	nh = sr.GetOrCreateNextHop("0")
+	nh.NextHop = oc.UnionString(v6nexthop)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
+}
+
+// configvrfRoute configures a static route.
+func configvrfRoute(t *testing.T, dut *ondatra.DUTDevice, v4prefix string, v4nexthop string) {
+	t.Logf("*** Configuring static route in VRF-10 network-instance ...")
+	ni := oc.NetworkInstance{Name: ygot.String("VRF-10")}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	sr := static.GetOrCreateStatic(v4prefix)
+	nh := sr.GetOrCreateNextHop("0")
+	nh.NextHop = oc.UnionString(v4nexthop)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance("VRF-10").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
 func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
-	ipv4Address := "0.0.0.0/0"
-	ipv6Address := "::/0"
-	ipv6dest := "2001:db8::1/128"
-
 	// Match policy
 	policyFwding := ni.GetOrCreatePolicyForwarding()
 
-	fwdPolicy1 := policyFwding.GetOrCreatePolicy("match-ipv4")
-	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
-	fwdPolicy1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy1.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6dest)
-	fwdPolicy1.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(false)
-	fwdPolicy1.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
-	fwdPolicy1.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
-	fwdPolicy1.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
+	fwdPolicy1 := policyFwding.GetOrCreatePolicy("match-ipip")
+	fwdPolicy1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+	fwdPolicy1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
+	fwdPolicy1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("VRF-10")
 
-	fwdPolicy2 := policyFwding.GetOrCreatePolicy("match-ipip")
+	fwdPolicy2 := policyFwding.GetOrCreatePolicy("match-ipip-src")
+	fwdPolicy2.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
-	fwdPolicy2.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
-	fwdPolicy2.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(true)
+	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
+	fwdPolicy2.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("VRF-10")
 
-	fwdPolicy3 := policyFwding.GetOrCreatePolicy("match-ip4ip6")
-	fwdPolicy3.GetOrCreateRule(1).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
-	fwdPolicy3.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy3.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
-	fwdPolicy3.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("20")
+	fwdPolicy3 := policyFwding.GetOrCreatePolicy("match-ipv6inipv4")
+	fwdPolicy3.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+	fwdPolicy3.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipv6ipProtocol)
+	fwdPolicy3.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("VRF-10")
 
-	fwdPolicy4 := policyFwding.GetOrCreatePolicy("match-ipip-dscp46")
-	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
-	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
-	fwdPolicy4.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy4.GetOrCreateRule(2).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
-	fwdPolicy4.GetOrCreateRule(2).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
-	fwdPolicy4.GetOrCreateRule(2).GetOrCreateAction().Discard = ygot.Bool(true)
-
-	fwdPolicy5 := policyFwding.GetOrCreatePolicy("match-ipip-dscp42or46")
-	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
-	fwdPolicy5.GetOrCreateRule(1).GetOrCreateIpv4().Dscp = ygot.Uint8(42)
-	fwdPolicy5.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
-	fwdPolicy5.GetOrCreateRule(2).GetOrCreateIpv4().Dscp = ygot.Uint8(46)
-	fwdPolicy5.GetOrCreateRule(2).GetOrCreateAction().NetworkInstance = ygot.String("10")
-	fwdPolicy5.GetOrCreateRule(3).GetOrCreateIpv4().DestinationAddress = ygot.String(ipv4Address)
-	fwdPolicy5.GetOrCreateRule(3).GetOrCreateIpv6().DestinationAddress = ygot.String(ipv6Address)
-	fwdPolicy3.GetOrCreateRule(3).GetOrCreateAction().Discard = ygot.Bool(true)
+	fwdPolicy4 := policyFwding.GetOrCreatePolicy("match-ipv6inipv4-src")
+	fwdPolicy4.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipv6ipProtocol)
+	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
+	fwdPolicy4.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("VRF-10")
 
 	return policyFwding
 }
@@ -231,12 +239,15 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort str
 
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
+	pfpath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
+	gnmi.Delete(t, dut, pfpath.Config())
 
 	intf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
-	intf.ApplyForwardingPolicy = ygot.String(matchType)
-	intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-
+	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
+	if *deviations.ExplicitInterfaceRefDefinition {
+		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+		intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	}
 	// Configure default NI and forwarding policy
 	intfConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
 	gnmi.Replace(t, dut, intfConfPath.Config(), intf)
@@ -246,9 +257,10 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort str
 	time.Sleep(sleepOnChange)
 	ate.Topology().New().StartProtocols(t)
 	time.Sleep(sleepOnChange)
+
 }
 
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Logf("*** Configuring ATE interfaces ...")
 	topo := ate.Topology().New()
 
@@ -269,33 +281,43 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 	i3.IPv4().WithAddress(ateDst2.IPv4CIDR()).WithDefaultGateway(dutDst2.IPv4)
 	i3.IPv6().WithAddress(ateDst2.IPv6CIDR()).WithDefaultGateway(dutDst2.IPv6)
 
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipipHeader := ondatra.NewIPv4Header()
-	ipv6Header := ondatra.NewIPv6Header()
-	ipipDscp46Header := ondatra.NewIPv4Header().WithDSCP(46)
-	ipipDscp42Header := ondatra.NewIPv4Header().WithDSCP(42)
-
-	// Create traffic flows
-	t.Logf("*** Configuring ATE flows ...")
-	ipv4FlowVlan10 := ate.Traffic().NewFlow("Ipv4Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipv6FlowVlan10 := ate.Traffic().NewFlow("Ipv6Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipv6Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipFlowVlan10 := ate.Traffic().NewFlow("IpipVlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipipHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipDscp46FlowVlan10 := ate.Traffic().NewFlow("IpipDscp46Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipipDscp46Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipDscp42FlowVlan10 := ate.Traffic().NewFlow("IpipDscp42Vlan10").WithSrcEndpoints(i1).WithDstEndpoints(i2).WithHeaders(ethHeader, ipipDscp42Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipv4FlowVlan20 := ate.Traffic().NewFlow("Ipv4Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipv6FlowVlan20 := ate.Traffic().NewFlow("Ipv6Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipv6Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipFlowVlan20 := ate.Traffic().NewFlow("IpipVlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipipHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipDscp46FlowVlan20 := ate.Traffic().NewFlow("IpipDscp46Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipipDscp46Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-	ipipDscp42FlowVlan20 := ate.Traffic().NewFlow("IpipDscp42Vlan20").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipipDscp42Header, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
-
 	t.Logf("Pushing config to ATE and starting protocols...")
 	topo.Push(t)
 	topo.StartProtocols(t)
-	return []*ondatra.Flow{ipv4FlowVlan10, ipv6FlowVlan10, ipipFlowVlan10, ipipDscp46FlowVlan10, ipipDscp42FlowVlan10,
-		ipv4FlowVlan20, ipv6FlowVlan20, ipipFlowVlan20, ipipDscp46FlowVlan20, ipipDscp42FlowVlan20}
+	//return topo
 }
 
+func createTraffic(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
+	topo := ate.Topology().New()
+	p1 := ate.Port(t, "port1")
+	p2 := ate.Port(t, "port2")
+	i1 := topo.AddInterface(ateSrc.Name).WithPort(p1)
+	i2 := topo.AddInterface(ateDst.Name).WithPort(p2)
+	i3 := topo.AddInterface(ateDst2.Name).WithPort(p2)
+	ethHeader := ondatra.NewEthernetHeader()
+	ipv4Header := ondatra.NewIPv4Header()
+	ipipHeader := ondatra.NewIPv4Header().WithSrcAddress("222.222.222.222").WithDstAddress("203.0.113.0")
+	ipipHeader2 := ondatra.NewIPv4Header().WithSrcAddress("9.9.9.9").WithDstAddress("203.0.113.0")
+	ipipHeader4 := ondatra.NewIPv4Header().WithSrcAddress("222.222.222.222").WithDstAddress("203.0.113.4")
+	ipipHeader3 := ondatra.NewIPv4Header().WithSrcAddress("9.9.9.9").WithDstAddress("203.0.113.4")
+	ipv6Header := ondatra.NewIPv6Header()
+
+	// Create traffic flows
+	t.Logf("*** Configuring ATE flows ...")
+	IPinIPFlow1 := ate.Traffic().NewFlow("IPinIPFlow1").WithSrcEndpoints(i1).WithHeaders(ethHeader, ipipHeader2, ipv4Header).WithFrameSize(512).WithFrameRatePct(5).WithDstEndpoints(i2)
+	IPinIPFlow2 := ate.Traffic().NewFlow("IPinIPFlow2").WithSrcEndpoints(i1).WithHeaders(ethHeader, ipipHeader3, ipv4Header).WithFrameSize(512).WithFrameRatePct(5).WithDstEndpoints(i3)
+	IPinIPFlow3 := ate.Traffic().NewFlow("IPinIPFlow3").WithSrcEndpoints(i1).WithHeaders(ethHeader, ipipHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5).WithDstEndpoints(i2)
+	IPinIPFlow4 := ate.Traffic().NewFlow("IPinIPFlow4").WithSrcEndpoints(i1).WithHeaders(ethHeader, ipipHeader4, ipv4Header).WithFrameSize(512).WithFrameRatePct(5).WithDstEndpoints(i3)
+	IPv6inIPFlow5 := ate.Traffic().NewFlow("IPv6inIPFlow5").WithSrcEndpoints(i1).WithHeaders(ethHeader, ipipHeader2, ipv6Header).WithFrameSize(512).WithFrameRatePct(5).WithDstEndpoints(i2)
+	IPv6inIPFlow6 := ate.Traffic().NewFlow("IPv6inIPFlow6").WithSrcEndpoints(i1).WithHeaders(ethHeader, ipipHeader3, ipv6Header).WithFrameSize(512).WithFrameRatePct(5).WithDstEndpoints(i3)
+	IPv6inIPFlow7 := ate.Traffic().NewFlow("IPv6inIPFlow7").WithSrcEndpoints(i1).WithHeaders(ethHeader, ipipHeader, ipv6Header).WithFrameSize(512).WithFrameRatePct(5).WithDstEndpoints(i2)
+	IPv6inIPFlow8 := ate.Traffic().NewFlow("IPv6inIPFlow8").WithSrcEndpoints(i1).WithHeaders(ethHeader, ipipHeader4, ipv6Header).WithFrameSize(512).WithFrameRatePct(5).WithDstEndpoints(i3)
+	NativeIPv4 := ate.Traffic().NewFlow("NativeIPv4").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipv4Header).WithFrameSize(512).WithFrameRatePct(5)
+	NativeIPv6 := ate.Traffic().NewFlow("NativeIPv6").WithSrcEndpoints(i1).WithDstEndpoints(i3).WithHeaders(ethHeader, ipv6Header).WithFrameSize(512).WithFrameRatePct(5)
+
+	return []*ondatra.Flow{IPinIPFlow1, IPinIPFlow2, IPinIPFlow3, IPinIPFlow4, IPv6inIPFlow5, IPv6inIPFlow6, IPv6inIPFlow7, IPv6inIPFlow8, NativeIPv4, NativeIPv6}
+
+}
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
 	t.Logf("*** Sending traffic from ATE ...")
 	t.Logf("*** Starting traffic ...")
@@ -335,7 +357,7 @@ func contains(item string, items []string) bool {
 	return flag
 }
 
-// verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%
+// verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%)
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, passFlows []string) {
 	for _, flow := range flows {
 		t.Logf("*** Verifying %v traffic on ATE ... ", flow.Name())
@@ -364,47 +386,52 @@ func TestVrfPolicy(t *testing.T) {
 
 	// Configure DUT interfaces and forwarding policy
 	configureDUT(t, dut, p1, p2)
+	configdefaultRoute(t, dut, ATEDESTIPv4VLAN20, defaultNHv4, ATEDESTIPv6, defaultNHv6)
+	configvrfRoute(t, dut, ATEDESTIPv4VLAN10, vrfNH)
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
-	allFlows := configureATE(t, ate)
+	configureATE(t, ate)
+
+	allFlows := createTraffic(t, ate)
 
 	tcs := []struct {
-		desc      string
-		policy    string
-		passFlows []string
+		desc           string
+		policy         string
+		endpoints      []string
+		passFlowsnames []string
+		passFlows      []*ondatra.Flow
 	}{
 		{
-			desc:      "Match IPv4",
-			policy:    "match-ipv4",
-			passFlows: []string{"Ipv4Vlan10", "IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10"},
+			desc:           "Match IP in IP",
+			policy:         "match-ipip",
+			passFlows:      []*ondatra.Flow{allFlows[0], allFlows[2], allFlows[5], allFlows[7], allFlows[8], allFlows[9]},
+			passFlowsnames: []string{"IPinIPFlow1", "IPinIPFlow3", "IPv6inIPFlow6", "IPv6inIPFlow8", "NativeIPv4", "NativeIPv6"},
 		},
 		{
-			desc:      "Match IPinIP",
-			policy:    "match-ipip",
-			passFlows: []string{"IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10"},
+			desc:           "Match IPinIP with Source IP",
+			policy:         "match-ipip-src",
+			passFlows:      []*ondatra.Flow{allFlows[1], allFlows[2], allFlows[5], allFlows[7], allFlows[8], allFlows[9]},
+			passFlowsnames: []string{"IPinIPFlow2", "IPinIPFlow3", "IPv6inIPFlow6", "IPv6inIPFlow8", "NativeIPv4", "NativeIPv6"},
 		},
 		{
-			desc:      "Match IPv4 and IPv6",
-			policy:    "match-ip4ip6",
-			passFlows: []string{"Ipv4Vlan10", "IpipVlan10", "IpipDscp46Vlan10", "IpipDscp42Vlan10", "Ipv6Vlan20"},
+			desc:           "Match IPv6 in IP",
+			policy:         "match-ipv6inipv4",
+			passFlows:      []*ondatra.Flow{allFlows[1], allFlows[3], allFlows[4], allFlows[6], allFlows[8], allFlows[9]},
+			passFlowsnames: []string{"IPinIPFlow2", "IPinIPFlow4", "IPv6inIPFlow5", "IPv6inIPFlow7", "NativeIPv4", "NativeIPv6"},
 		},
 		{
-			desc:      "Match IPinIP DSCP 46",
-			policy:    "match-ipip-dscp46",
-			passFlows: []string{"IpipDscp46Vlan10"},
-		},
-		{
-			desc:      "Match IPinIP DSCP 42 or 46",
-			policy:    "match-ipip-dscp42or46",
-			passFlows: []string{"IpipDscp46Vlan10", "IpipDscp46Vlan10"},
+			desc:           "Match IPv6 in IP with Source IP",
+			policy:         "match-ipv6inipv4-src",
+			passFlows:      []*ondatra.Flow{allFlows[1], allFlows[3], allFlows[5], allFlows[6], allFlows[8], allFlows[9]},
+			passFlowsnames: []string{"IPinIPFlow2", "IPinIPFlow4", "IPv6inIPFlow6", "IPv6inIPFlow7", "NativeIPv4", "NativeIPv6"},
 		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
 			applyForwardingPolicy(t, ate, p1.Name(), tc.policy)
-			sendTraffic(t, ate, allFlows)
-			verifyTraffic(t, ate, allFlows, tc.passFlows)
+			sendTraffic(t, ate, tc.passFlows)
+			verifyTraffic(t, ate, tc.passFlows, tc.passFlowsnames)
 		})
 	}
 }
