@@ -43,6 +43,10 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp.conf
+  - id: 8808-1DUT-1ATE-vrf-mgmt
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp-mgmt-vrf.conf
   - id: 8808_FOX2625PLW8
     owner: arvbaska
     testbed: topologies/cisco/hw/8808_FOX2625PLW8/testbed
