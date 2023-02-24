@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -28,15 +29,18 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	gpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/raw"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
+	fpb "github.com/openconfig/gnoi/file"
 	spb "github.com/openconfig/gnoi/system"
 )
 
@@ -44,8 +48,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Settings for configuring the baseline testbed with the test
-// topology.
+// Settings for configuring the baseline testbed with the test topology.
 //
 // The testbed consists of ate:port1 -> dut:port1
 // and dut:port2 -> ate:port2.
@@ -60,8 +63,8 @@ func TestMain(m *testing.M) {
 //   - ate:port2.i -> dut:port2.i VLAN-ID i subnet 198.51.100.(4*i)/30
 //   - ate:port2.63 -> dut:port2.63 VLAN-ID 63 subnet 198.51.100.252/30
 const (
-	ipv4PrefixLen       = 30              // ipv4PrefixLen is the ATE and DUT interface IP prefix length.
-	IPBlock1            = "198.18.0.1/18" // IPBlock1 represents the ipv4 entries in VRF1
+	ipv4PrefixLen       = 30                // ipv4PrefixLen is the ATE and DUT interface IP prefix length.
+	ipBlock1            = "198.18.196.1/22" // ipBlock1 represents the ipv4 entries in VRF1
 	nhgID               = 1
 	controlcardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	primaryController   = oc.Platform_ComponentRedundantRole_PRIMARY
@@ -82,18 +85,55 @@ var (
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
+	vendorCoreFilePath = map[ondatra.Vendor]string{
+		ondatra.JUNIPER: "/var/core/",
+	}
+	vendorCoreProcName = map[ondatra.Vendor]string{
+		ondatra.JUNIPER: "rpd",
+	}
 )
 
-// createIPv4Entries creates IPv4 Entries given the totalCount and starting prefix
+// coreFileCheck function is used to check if any cores found during test execution.
+func coreFilecheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64) {
+	// vendorCoreFilePath and vendorCoreProcName should be provided to fetch core file on dut.
+	if _, ok := vendorCoreFilePath[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var vendorCoreFilePath ", dut.Vendor())
+	}
+	if _, ok := vendorCoreProcName[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var vendorCoreProcName.", dut.Vendor())
+	}
+
+	in := &fpb.StatRequest{
+		Path: vendorCoreFilePath[dut.Vendor()],
+	}
+	validResponse, err := gnoiClient.File().Stat(context.Background(), in)
+	if err != nil {
+		t.Errorf("Unable to stat path %v for core files on DUT.", vendorCoreFilePath[dut.Vendor()])
+	}
+	// Check cores creation time is greater than test start time.
+	for _, fileStatsInfo := range validResponse.GetStats() {
+		if fileStatsInfo.GetLastModified() > sysConfigTime {
+			coreFileName, err := filepath.Abs(fileStatsInfo.GetPath())
+			if err != nil {
+				t.Errorf("Error while getting core file absolute path %v", err)
+			}
+			if strings.Contains(coreFileName, vendorCoreProcName[dut.Vendor()]) {
+				t.Errorf("Found core %v on DUT post switchover.", coreFileName)
+			}
+		}
+	}
+}
+
+// createIPv4Entries creates IPv4 Entries given the totalCount and starting prefix.
 func createIPv4Entries(t *testing.T, startIP string) []string {
 	_, netCIDR, err := net.ParseCIDR(startIP)
 	if err != nil {
-		t.Fatalf("failed to parse prefix: %v", err)
+		t.Fatalf("Failed to parse prefix: %v", err)
 	}
 	netMask := binary.BigEndian.Uint32(netCIDR.Mask)
 	firstIP := binary.BigEndian.Uint32(netCIDR.IP)
 	lastIP := (firstIP & netMask) | (netMask ^ 0xffffffff)
-	entries := []string{}
+	var entries []string
 	for i := firstIP; i <= lastIP; i++ {
 		ip := make(net.IP, 4)
 		binary.BigEndian.PutUint32(ip, i)
@@ -153,7 +193,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 		WithAFT(fluent.IPv4).
 		Send()
 	if err != nil {
-		t.Fatalf("got unexpected error from get, got: %v", err)
+		t.Fatalf("Got unexpected error from get, got: %v", err)
 	}
 
 	for ip := range virtualVIPs {
@@ -190,8 +230,8 @@ func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc
 }
 
 // generateSubIntfPair takes the number of subInterfaces, dut,ate,ports and Ixia topology.
-// It configures ATE/DUT SubInterfaces on the target device
-// It returns a slice of the corresponding ATE IPAddresses.
+// This function configures ATE/DUT SubInterfaces on the target device and returns a slice of the
+// corresponding ATE IPAddresses.
 func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, ate *ondatra.ATEDevice, atePort *ondatra.Port, top *ondatra.ATETopology, d *oc.Root) []string {
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
@@ -266,9 +306,8 @@ type testArgs struct {
 	electionID gribi.Uint128
 }
 
-// createTrafficFlow generates traffic flow from source network to
-// destination network via srcEndPoint to dstEndPoint and checks for
-// packet loss.
+// createTrafficFlow generates traffic flow from source network to destination network via
+// srcEndPoint to dstEndPoint and checks for packet loss.
 func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology) *ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
@@ -289,39 +328,22 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETop
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...).
 		WithHeaders(ethHeader, ipv4Header)
-
 	return flow
 }
 
-// Function to send traffic
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
-	t.Logf("Starting traffic")
-	ate.Traffic().Start(t, flow)
-}
-
-// Function to verify traffic
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow) {
-	t.Helper()
-	flowPath := gnmi.OC().Flow(flow.Name())
-	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
-	} else {
-		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
-	}
-}
-
-// findSecondaryController finds out primary and secondary controllers
+// findSecondaryController finds out primary and secondary controllers.
 func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers []string) (string, string) {
 	t.Helper()
 	var primary, secondary string
 	for _, controller := range controllers {
 		role := gnmi.Get(t, dut, gnmi.OC().Component(controller).RedundantRole().State())
 		t.Logf("Component(controller).RedundantRole().Get(t): %v, Role: %v", controller, role)
-		if role == secondaryController {
+		switch role {
+		case secondaryController:
 			secondary = controller
-		} else if role == primaryController {
+		case primaryController:
 			primary = controller
-		} else {
+		default:
 			t.Fatalf("Expected controller %s to be active or standby, got %v", controller, role)
 		}
 	}
@@ -333,25 +355,19 @@ func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers [
 	return secondary, primary
 }
 
-// Function to stop traffic
-func stopTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	t.Logf("Stopping traffic")
-	ate.Traffic().Stop(t)
-}
-
-// switchoverReady is to check if controller is ready for switchover
+// switchoverReady is to check if controller is ready for switchover.
 func switchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) {
 	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 }
 
-// validateTelemetry validates telemetry sensors
+// validateTelemetry validates telemetry sensors.
 func validateSwitchoverTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch string) {
 	t.Helper()
 	t.Log("Validate OC Switchover time/reason.")
 	primary := gnmi.OC().Component(primaryAfterSwitch)
 	if !gnmi.Lookup(t, dut, primary.LastSwitchoverTime().State()).IsPresent() {
-		t.Errorf("primary.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true")
+		t.Errorf("primary.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true.")
 	} else {
 		t.Logf("Found primary.LastSwitchoverTime(): %v", gnmi.Get(t, dut, primary.LastSwitchoverTime().State()))
 	}
@@ -382,9 +398,17 @@ func checkNIHasNEntries(ctx context.Context, c *fluent.GRIBIClient, ni string, t
 
 // Send traffic and validate traffic.
 func testTraffic(t *testing.T, args testArgs, flow *ondatra.Flow) {
-	sendTraffic(t, args.ate, flow)
-	stopTraffic(t, args.ate)
-	verifyTraffic(t, args.ate, flow)
+	t.Helper()
+	args.ate.Traffic().Start(t, flow)
+	// Send traffic for 1 minute.
+	time.Sleep(1 * time.Minute)
+	args.ate.Traffic().Stop(t)
+	flowPath := gnmi.OC().Flow(flow.Name())
+	if got := gnmi.Get(t, args.ate, flowPath.LossPct().State()); got > 0 {
+		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
+	} else {
+		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2.")
+	}
 }
 
 // validateSwitchoverStatus is to validate switchover status.
@@ -409,7 +433,6 @@ func validateSwitchoverStatus(t *testing.T, dut *ondatra.DUTDevice, secondaryBef
 		}
 	}
 	t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
-
 	// Old secondary controller becomes primary after switchover.
 	return secondaryBeforeSwitch
 }
@@ -426,16 +449,19 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
 	top := ate.Topology().New()
-	// configure DUT port#1 - source port
+	// configure DUT port#1 - source port.
 	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4)
 	configureInterfaceDUT(t, dp1, d, "src")
 	configureATE(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4CIDR())
 	pushConfig(t, dut, dp1, d)
 	dp2 := dut.Port(t, "port2")
 	ap2 := ate.Port(t, "port2")
-	// Configure 64 subinterfaces on DUT-ATE- PORT#2
+	// Configure 64 subinterfaces on DUT-ATE- PORT#2.
 	subIntfIPs := generateSubIntfPair(t, dut, dp2, ate, ap2, top, d)
 	top.Push(t).StartProtocols(t)
+
+	dutPortName := dut.Port(t, "port1").Name()
+	sysConfigTime := gnmi.Get(t, dut, gnmi.OC().Interface(dutPortName).LastChange().State())
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
@@ -472,9 +498,9 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 		electionID: eID,
 	}
 
-	virtualIPs := createIPv4Entries(t, "198.18.196.1/22")
+	virtualIPs := createIPv4Entries(t, ipBlock1)
 
-	t.Log("inject routes from IPBlock1 in default VRF with NHGID: #1.")
+	t.Log("Inject routes from ipBlock1 in default VRF with NHGID: #1.")
 	pushDefaultEntries(t, args, subIntfIPs, virtualIPs)
 
 	gr, err := args.client.Get().
@@ -482,10 +508,9 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 		WithAFT(fluent.IPv4).
 		Send()
 	if err != nil {
-		t.Fatalf("got unexpected error from get, got: %v", err)
+		t.Fatalf("Got unexpected error from get, got: %v", err)
 	}
 
-	// entries := gr.GetEntry()
 	for _, r := range gr.GetEntry() {
 		entry := r.GetIpv4().Prefix
 		if got := r.GetFibStatus().String(); got != "PROGRAMMED" {
@@ -493,7 +518,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 		}
 	}
 
-	// Send traffic from ATE port-1 to prefixes in IPBlock1 and ensure traffic
+	// Send traffic from ATE port-1 to prefixes in ipBlock1 and ensure traffic
 	// flows 100% and reaches ATE port-2.
 	flow := createTrafficFlow(t, args.ate, args.top)
 	testTraffic(t, *args, flow)
@@ -518,11 +543,16 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	entriesBefore := checkNIHasNEntries(ctx, client, *deviations.DefaultNetworkInstance, t)
 
-	// Concurrently run switchover and gribi route flush
-	t.Log("Execute gRIBi flush and master switchover concurrently")
+	// Concurrently run switchover and gribi route flush.
+	var flushRes, wantFlushRes *gpb.FlushResponse
+	t.Log("Execute gRIBi flush and master switchover concurrently.")
 	go func(msg string) {
-		if _, err := gribi.Flush(client, eID, *deviations.DefaultNetworkInstance); err != nil {
-			t.Logf("Unexpected error from flush, got: %v", err)
+		flushRes, err := gribi.Flush(client, eID, *deviations.DefaultNetworkInstance)
+		if err != nil {
+			t.Logf("Unexpected error from flush, got: %v, %v", err, flushRes)
+		}
+		wantFlushRes = &gpb.FlushResponse{
+			Result: gpb.FlushResponse_OK,
 		}
 	}("gRIBi Flush")
 
@@ -534,20 +564,23 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 		t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
 	}("Master Switchover")
 
-	t.Log("Switchover/Flush is completed, validate switchoverStatus now")
+	// Check the response of gribi flush call. If-else loop for further verification
+	// set flag for flush status.
+
+	t.Log("Switchover/Flush is completed, validate switchoverStatus now.")
 
 	primaryAfterSwitch := validateSwitchoverStatus(t, dut, secondaryBeforeSwitch)
 
 	validateSwitchoverTelemetry(t, dut, primaryAfterSwitch)
 
 	// Following reconnection of the gRIBI client to a new master supervisor,
-	// validate if partially deleted entries of IPBlock1  are not present in the FIB
+	// validate if partially deleted entries of ipBlock1 are not present in the FIB
 	// using a get RPC.
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
-	// Check vars for WithInitialElectionID
+	// Check vars for WithInitialElectionID.
 
-	t.Log("Reconnect gRIBi client after switchover on new master")
+	t.Log("Reconnect gRIBi client after switchover on new master.")
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(eID.Low, eID.High).
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
 
@@ -560,7 +593,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 		}
 	}()
 
-	// Reconnect gribi client
+	// Reconnect gribi client.
 	client.StartSending(ctx, t)
 
 	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
@@ -574,7 +607,8 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 		}
 	}
 
-	t.Log("Compare route entries after switchover")
+	t.Log("Compare route entries after switchover based on flush response.")
+
 	gr, err = args.client.Get().
 		WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithAFT(fluent.IPv4).
@@ -583,26 +617,26 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 		t.Fatalf("got unexpected error from get, got: %v", err)
 	}
 
-	prefixEntryList := []string{}
+	var prefixEntryList []string
 	for _, r := range gr.GetEntry() {
 		entry := strings.Split(r.GetIpv4().Prefix, "/")
 		prefixEntryList = append(prefixEntryList, entry[0])
 	}
 
-	if len(prefixEntryList) == len(virtualIPs) {
-		t.Error("After switchover, on new master seeing unexpected number of route entries")
+	if len(prefixEntryList) != 0 && flushRes.Result == wantFlushRes.Result {
 		t.Errorf("Network instance has %d entries before switchover, found after switchover: %d", entriesBefore, len(prefixEntryList))
 	}
 
-	// TODO: Check for coredumps in the DUT and validate that none are present post failover
+	// Check for coredumps in the DUT and validate that none are present post failover.
+	coreFilecheck(t, dut, gnoiClient, sysConfigTime)
 
 	if *deviations.GRIBIDelayedAckResponse {
 		time.Sleep(3 * time.Minute)
 	}
-	t.Log("Re-inject routes from IPBlock1 in default VRF with NHGID: #1.")
+	t.Log("Re-inject routes from ipBlock1 in default VRF with NHGID: #1.")
 	pushDefaultEntries(t, args, subIntfIPs, virtualIPs)
 
-	t.Log("Send traffic and validate")
+	t.Log("Send and validate traffic after reinjecting routes in ipBlock1 post switchover.")
 	testTraffic(t, *args, flow)
 
 	top.StopProtocols(t)

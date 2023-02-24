@@ -12,7 +12,7 @@ Validate gRIBI route flush during SSO
 
 *   Establish `gRIBI client` connection with DUT negotiating `FIB_ACK` as the requested ack_type.
 
-*   Install 64 L3 sub-interfaces IP to NextHopGroup(NHGID: `1`) containing all of the nexthops specified to ATE port-2.
+*   Install 64 L3 sub-interfaces IP to NextHopGroup(NHGID: `1`) pointing to ATE port-2 as the nexthop.
 
 *   Inject `1000` IPv4Entries(IPBlock1: `198.18.196.1/22`) in default VRF with NHGID: `1`.
 
@@ -20,7 +20,7 @@ Validate gRIBI route flush during SSO
 
 *   Send traffic from ATE port-1 to prefixes in IPBlock1 and ensure traffic flows 100% and reaches ATE port-2.
 
-*   Start flushing  IPv4Entries((IPBlock1: `198.18.196.1/22`) in default VRF with NHGID: `1`. Concurrently, trigger a supervisor switchover using gNOI `SwitchControlProcessor`  while IPBlock1 entries are only partially flushed.
+*   Start flushing  IPv4Entries((IPBlock1: `198.18.196.1/22`) in default VRF with NHGID: `1`. Concurrently, trigger a supervisor switchover using gNOI `SwitchControlProcessor`  while IPBlock1 entries are only partially installed.
 
 *   Following reconnection of the `gRIBI client` to a new master supervisor, validate if partially deleted entries of IPBlock1  are not present in the FIB using a get RPC.
 
