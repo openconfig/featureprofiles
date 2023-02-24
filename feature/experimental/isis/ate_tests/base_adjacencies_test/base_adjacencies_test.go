@@ -208,18 +208,15 @@ func TestBasic(t *testing.T) {
 	}
 
 	// Allow 1 Minute of lag between adjacency appearing and all data being populated
-	// sortSliceCompFunc is to use for check.UnorderedEqual function.
-	var sortSliceCompFunc interface{}
 	t.Run("adjacency_state", func(t *testing.T) {
 		// There are about 16 RPCs executed in quick succession in this block.
 		// Increasing the wait-time value to accommodate this.
 		deadline = time.Now().Add(time.Minute)
 		adj := port1ISIS.Level(2).Adjacency(systemID)
-		sortSliceCompFunc = func(a, b string) bool { return a < b }
 		for _, vd := range []check.Validator{
 			check.Equal(adj.AdjacencyState().State(), oc.Isis_IsisInterfaceAdjState_UP),
 			check.Equal(adj.SystemId().State(), systemID),
-			check.UnorderedEqual(adj.AreaAddress().State(), []string{session.ATEAreaAddress, session.DUTAreaAddress}, sortSliceCompFunc),
+			check.UnorderedEqual(adj.AreaAddress().State(), []string{session.ATEAreaAddress, session.DUTAreaAddress}, func(a, b string) bool { return a < b }),
 			check.EqualOrNil(adj.DisSystemId().State(), "0000.0000.0000"),
 			check.NotEqual(adj.LocalExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.MultiTopology().State(), false),
