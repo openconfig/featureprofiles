@@ -7,8 +7,9 @@ Test gRIBI scaling.
 ## Topology
 
 *   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2.
-*   Create 528 L3 sub-interfaces under DUT port-2 and corresponding 528 L3
-    sub-interfaces on ATE port-2
+*   Create <DefaultVRFIPv4NHCount> number of L3 sub-interfaces under DUT port-2
+    and corresponding L3 sub-interfaces on ATE port-2, sequentially starting
+    from sub-interface unit 1.
 *   Create 3 non default L3 VRFs:
     *   VRF-A contains DUT port-1.
     *   VRF-B contains no interface.
