@@ -303,7 +303,7 @@ func verifyReadReceiveMatch(t *testing.T, expected_update []*p4_v1.Update, recei
 			delete(tableMap, "meter_config")
 			delete(tableMap, "counter_data")
 		default:
-			t.Logf("Not a table entry")
+			t.Logf("Not a table entry: %v", entry)
 		}
 		ent2, err3 := json.Marshal(expected_update[0].Entity.Entity)
 		if err3 != nil {
