@@ -20,32 +20,24 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	hpb "github.com/openconfig/gnoi/healthz"
-	gnps "github.com/openconfig/gnoi/system"
+	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
 )
 
-// Name of the process to be killed
-var processNames = map[ondatra.Vendor]string{
-	ondatra.ARISTA:  "bgp",
-	ondatra.JUNIPER: "rpd",
-	ondatra.NOKIA:   "sr_bgp_mgr",
-}
-
-// Name of the component to check the health of
-var components = map[ondatra.Vendor]string{
-	ondatra.ARISTA:  "Chassis",
-	ondatra.CISCO:   "Chassis",
-	ondatra.JUNIPER: "CHASSIS0",
-	ondatra.NOKIA:   "Chassis",
-}
-
-// testArgs holds the objects needed by the test case.
-type testArgs struct {
-	ctx context.Context
-	dut *ondatra.DUTDevice
-}
+var (
+	bgpProcName = map[ondatra.Vendor]string{
+		ondatra.NOKIA:  "sr_bgp_mgr",
+		ondatra.ARISTA: "bgp",
+		ondatra.JUNIPER: "rpd",
+	}
+	components = map[ondatra.Vendor]string{
+		ondatra.ARISTA:  "Chassis",
+		ondatra.CISCO:   "Chassis",
+		ondatra.JUNIPER: "CHASSIS0",
+		ondatra.NOKIA:   "Chassis",
+	}
+)
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -68,58 +60,25 @@ func TestMain(m *testing.M) {
 //    https://github.com/fullstorydev/grpcurl
 //
 
-// gNOIKillProcess kills a daemon on the DUT, given its name and pid.
-func gNOIKillProcess(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string, pID uint32) {
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
-	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM,
-		Restart: true}
-	killResponse, err := gnoiClient.System().KillProcess(ctx, killRequest)
-	t.Logf("Got kill process response: %v\n\n", killResponse)
-	if err != nil {
-		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
-	}
-}
-
-// findProcessByName uses telemetry to find out the PID of a process
-func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
-	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
-	var pID uint64
-	for _, proc := range pList {
-		if proc.GetName() == pName {
-			pID = proc.GetPid()
-			break
-		}
-	}
-	return pID
-}
-
 func TestCopyingDebugFiles(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
-
-	args := &testArgs{
-		ctx: ctx,
-		dut: dut,
+	if _, ok := bgpProcName[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var bgpProcName", dut.Vendor())
+	}
+	killProcessRequest := &spb.KillProcessRequest{
+		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
+		Name:    bgpProcName[dut.Vendor()],
+		Restart: true,
+	}
+	processKillResponse, err := gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+	if err != nil {
+		t.Fatalf("Failed to restart process %v with unexpected err: %v", bgpProcName[dut.Vendor()], err)
 	}
 
-	if _, ok := processNames[dut.Vendor()]; !ok {
-		t.Fatalf("Please add support for vendor %v in var processNames", dut.Vendor())
-	}
-
-	process := processNames[dut.Vendor()]
-
-	pId := findProcessByName(ctx, t, dut, process)
-	if pId == 0 {
-		t.Fatalf("Couldn't find pid for process '%s'", process)
-	} else {
-		t.Logf("Pid of process '%s' is '%d'", process, pId)
-	}
-
-	gNOIKillProcess(ctx, t, args.dut, process, uint32(pId))
-
-	// Wait for a bit for gRIBI daemon on the DUT to restart.
+	t.Logf("gnoiClient.System().KillProcess() response: %v, err: %v", processKillResponse, err)
+	t.Logf("Wait 60 seconds for process to restart ...")
 	time.Sleep(60 * time.Second)
 
 	componentName := map[string]string{"name": components[dut.Vendor()]}
@@ -140,6 +99,6 @@ func TestCopyingDebugFiles(t *testing.T) {
 	t.Logf("Error: %v", err)
 	t.Logf("Response: %v", (validResponse))
 	if err != nil {
-		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", process, err)
+		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", bgpProcName[dut.Vendor()], err)
 	}
 }
