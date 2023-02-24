@@ -93,6 +93,7 @@ replace: {
 "cef proactive-arp-nd enable\n"
 "hw-module profile pbr vrf-redirect\n"
 "hw-module local-station-mac 00ca.caca.caca\n"
+"hw-module profile qos qos-stats-push-collection\n"
 "ssh server v2\n"
 "ssh server vrf mgmt\n"
 "ssh server netconf vrf default\n"

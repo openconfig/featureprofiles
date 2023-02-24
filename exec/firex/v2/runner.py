@@ -12,11 +12,13 @@ from microservices.runners.runner_base import FireXRunnerBase
 from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
+from helper import CommandFailed
 from getpass import getuser
 from pathlib import Path
 import shutil
 import random
 import string
+import tempfile
 import time
 import json
 import yaml
@@ -36,7 +38,8 @@ INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
 whitelist_arguments([
-    'test_html_report'
+    'test_html_report',
+    'release_ixia_ports'
 ])
 
 class GoTestSegFaultException(Exception):
@@ -135,6 +138,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
+    if using_sim:
+        c |= ConfigureVirtualIP.s()
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s()
     if collect_tb_info:
@@ -178,6 +183,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         internal_test=False,
                         test_debug=True,
                         test_html_report=True,
+                        release_ixia_ports=True,
                         testbed=None,
                         **kwargs):
 
@@ -211,7 +217,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 
     chain |= GoTidy.s(repo=test_repo_dir)
 
-    if '/ate_tests/' in test_path:
+    if release_ixia_ports and '/ate_tests/' in test_path:
         chain |= ReleaseIxiaPorts.s()
 
     if fp_pre_tests:
@@ -239,8 +245,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
-        test_repo_dir, ondatra_binding_path, ondatra_testbed_path, test_path, test_args=None, 
-        test_timeout=0, test_debug=True, testbed_info_path = None):
+        test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
+        test_path, test_args=None, test_timeout=0, test_debug=False, testbed_info_path=None):
     
     logger.print('Running Go test...')
     json_results_file = Path(test_log_directory_path) / f'go_logs.json'
@@ -287,8 +293,16 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         if self.console_output_file and Path(self.console_output_file).is_file():
             shutil.copyfile(self.console_output_file, json_results_file)
             with open(json_results_file, 'r') as f:
-                if 'segmentation fault (core dumped)' in f.read():
+                content = f.read() 
+                if 'segmentation fault (core dumped)' in content:
                     raise GoTestSegFaultException
+                if test_debug and '"Action":"fail"' in content:
+                    self.enqueue_child(CollectDebugFiles.s(
+                        internal_fp_repo_dir=internal_fp_repo_dir, 
+                        ondatra_binding_path=ondatra_binding_path, 
+                        ondatra_testbed_path=ondatra_testbed_path, 
+                        test_log_directory_path=test_log_directory_path
+                    ))
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
@@ -429,6 +443,26 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
+def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path, 
+        ondatra_testbed_path, test_log_directory_path):
+    logger.print("Collecting debug files...")
+
+    collect_debug_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/debug ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-outDir {test_log_directory_path}/debug_files'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Failed to collect testbed information. Ignoring...') 
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
 def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
         ondatra_testbed_path, testbed_info_path):
     if os.path.exists(testbed_info_path):
@@ -449,6 +483,49 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
         logger.print(f'Testbed info file: {testbed_info_path}')
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...')
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
+        ondatra_testbed_path, testbed_logs_dir):
+    logger.print("Configuring Virtual IP...")
+
+    vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
+    with open(vxr_ports_file, "r") as fp:
+        try:
+            vxr_ports = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse vxr ports file...")
+            return
+
+    mgmt_ip = vxr_ports.get("dut", {}).get("xr_mgmt_ip", None)
+    if not mgmt_ip:
+        logger.warning("Could not find management ip for dut")
+        return
+    else: logger.info(f"Found dut manamgement ip: {mgmt_ip}")
+
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        conf_file = f.name
+
+    with open(conf_file, 'w') as fp:
+        fp.write(f'ipv4 virtual address {mgmt_ip}/24\nend')
+
+    set_conf_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/setconf ' \
+            f'-timeout 0 ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-conf {conf_file} ' \
+            f'-update'
+    try:
+        env = dict(os.environ)
+        env.update(_get_go_env())
+        check_output(set_conf_cmd, env=env, cwd=internal_fp_repo_dir)
+    except:
+        logger.warning(f'Failed to configure virtual ip. Ignoring...')
+    finally:
+        os.remove(conf_file)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)

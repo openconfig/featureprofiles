@@ -207,7 +207,7 @@ tests:
   owners:
     - sprem
   priority: 5
-  mustpass: false
+  mustpass: true
 - name: P4RT-5.1 (Traceroute Packetin)
   path: feature/experimental/p4rt/ate_tests/traceroute_packetin_test
   args:
@@ -215,7 +215,7 @@ tests:
   owners:
     - sprem
   priority: 5
-  mustpass: false
+  mustpass: true
 - name: gNMI-1.1 (cli Origin) 
   path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
   owners:
@@ -439,6 +439,9 @@ tests:
   mustpass: true
   priority: 54
   skip: false
+  args:
+    - '-deviation_bgp_state_active_acl_deny="true"'
+    - '-deviation_rpl_under_peergroup="true"'
 - name: RT-1.7 (Local BGP Test) 
   path: feature/bgp/tests/local_bgp_test
   owners:
