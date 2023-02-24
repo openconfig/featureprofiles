@@ -361,7 +361,7 @@ func switchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) {
 	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 }
 
-// validateTelemetry validates telemetry sensors.
+// validateSwitchoverTelemetry validates telemetry sensors.
 func validateSwitchoverTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch string) {
 	t.Helper()
 	t.Log("Validate OC Switchover time/reason.")
