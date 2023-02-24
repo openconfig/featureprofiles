@@ -313,7 +313,7 @@ func (s *TestSession) MustATEInterface(t testing.TB, portID string) gosnappi.Dev
 	}
 	for _, d := range s.ATETop.Devices().Items() {
 		Eth := d.Ethernets().Items()[0]
-		if Eth.PortName() == portID {
+		if Eth.Connection().PortName() == portID {
 			return d
 		}
 	}
