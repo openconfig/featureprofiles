@@ -208,6 +208,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	// Allow 1 Minute of lag between adjacency appearing and all data being populated
+
 	t.Run("adjacency_state", func(t *testing.T) {
 		// There are about 16 RPCs executed in quick succession in this block.
 		// Increasing the wait-time value to accommodate this.
