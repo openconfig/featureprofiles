@@ -121,6 +121,7 @@ func TestWrrTraffic(t *testing.T) {
 
 	queueMap := map[ondatra.Vendor]map[string]string{
 		ondatra.ARISTA: {
+<<<<<<< HEAD
 			"NC1": "NC1",
 			"AF4": "AF4",
 			"AF3": "AF3",
@@ -128,6 +129,15 @@ func TestWrrTraffic(t *testing.T) {
 			"AF1": "AF1",
 			"BE1": "BE1",
 			"BE0": "BE0",
+=======
+			"NC1": dp3.Name() + "-6",
+			"AF4": dp3.Name() + "-5",
+			"AF3": dp3.Name() + "-4",
+			"AF2": dp3.Name() + "-3",
+			"AF1": dp3.Name() + "-2",
+			"BE1": dp3.Name() + "-1",
+			"BE0": dp3.Name() + "-0",
+>>>>>>> fixed according to the Go initialism rule
 		},
 		ondatra.CISCO: {
 			"NC1": "7",
@@ -788,11 +798,19 @@ func TestWrrTraffic(t *testing.T) {
 	}, {
 		desc:            "Oversubscription AF2 and AF1 traffic with half AF1 dropped",
 		trafficFlows:    oversubscribedTrafficFlows5,
+<<<<<<< HEAD
 		trafficDuration: 120 * time.Second,
 	}, {
 		desc:            "Oversubscription AF2 and AF1 traffic with AF2 and AF1 dropped",
 		trafficFlows:    oversubscribedTrafficFlows6,
 		trafficDuration: 120 * time.Second,
+=======
+		trafficDuration: 20 * time.Second,
+	}, {
+		desc:            "Oversubscription AF2 and BE0 traffic with AF2 and AF1 dropped",
+		trafficFlows:    oversubscribedTrafficFlows6,
+		trafficDuration: 20 * time.Second,
+>>>>>>> fixed according to the Go initialism rule
 	}, {
 		desc:            "Oversubscription AF1 and BE0 traffic with half BE0 dropped",
 		trafficFlows:    oversubscribedTrafficFlows7,
@@ -800,11 +818,19 @@ func TestWrrTraffic(t *testing.T) {
 	}, {
 		desc:            "Oversubscription AF1 and BE0 traffic with half AF1 dropped",
 		trafficFlows:    oversubscribedTrafficFlows8,
+<<<<<<< HEAD
 		trafficDuration: 120 * time.Second,
 	}, {
 		desc:            "Oversubscription AF1 and BE0 traffic with AF1 and BE0 dropped",
 		trafficFlows:    oversubscribedTrafficFlows9,
 		trafficDuration: 120 * time.Second,
+=======
+		trafficDuration: 20 * time.Second,
+	}, {
+		desc:            "Oversubscription AF1 and BE0 traffic with AF1 and BE0 dropped",
+		trafficFlows:    oversubscribedTrafficFlows9,
+		trafficDuration: 20 * time.Second,
+>>>>>>> fixed according to the Go initialism rule
 	}, {
 		desc:            "Oversubscription BE0 and BE1 traffic with half BE0 dropped",
 		trafficFlows:    oversubscribedTrafficFlows10,
