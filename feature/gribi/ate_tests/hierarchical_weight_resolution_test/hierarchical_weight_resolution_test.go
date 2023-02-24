@@ -52,9 +52,9 @@ type nhInfo struct {
 
 const (
 	ipv4PrefixLen   = 30
-	ipv4EntryPrefix = "203.0.112.0/22"
-	ipv4FlowIPStart = "203.0.112.1"
-	ipv4FlowIPEnd   = "203.0.115.254"
+	ipv4EntryPrefix = "198.18.196.1/22"
+	ipv4FlowIPStart = "198.18.196.1"
+	ipv4FlowIPEnd   = "198.18.199.254"
 	nhEntryIP1      = "192.0.2.111"
 	nhEntryIP2      = "192.0.2.222"
 	nonDefaultVRF   = "VRF-1"
@@ -432,7 +432,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 
 	gRIBI.Modify().AddEntry(t, nh100, nh101, nhg3, ipEntry3)
 
-	// Set up NH#1, NH#2, NHG#1, IPv4Entry(203.0.113.0/24).
+	// Set up NH#1, NH#2, NHG#1, IPv4Entry(198.18.196.1/22).
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 3}})
@@ -518,7 +518,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 
 	gRIBI.Modify().AddEntry(t, gribiEntries...)
 
-	// Set up NH#1, NH#2, NHG#1, IPv4Entry(203.0.113.0/24).
+	// Set up NH#1, NH#2, NHG#1, IPv4Entry(198.18.196.1/22).
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 31}})
