@@ -112,7 +112,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	return i
 }
 
-// ConfigureDeviceIDs configures p4rt device-id on the DUT.
+// configureDeviceIDs configures p4rt device-id on the DUT.
 func configureDeviceIDs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	nodes := p4rtutils.P4RTNodesByPort(t, dut)
 	deviceIDs := []uint64{deviceId1, deviceId2}
