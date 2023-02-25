@@ -395,14 +395,15 @@ func TestComponentParent(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			t.Logf("Found card list for Component Type %v : %v", tc.componentType, cardList[tc.desc])
+			t.Logf("Found Component list for Type %v : %v", tc.componentType, cardList[tc.desc])
 			if len(cardList[tc.desc]) == 0 {
-				t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
+				t.Fatalf("Get Component list for %q: got 0, want > 0", dut.Model())
 			}
 			// Validate parent component
 			for _, card := range cardList[tc.desc] {
-				t.Logf("Validate card %s", card)
+				t.Logf("Validate component %s", card)
 				cardName := card
+				foundChassis := false
 				for {
 					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(cardName).Parent().State())
 					val, present := parent.Val()
@@ -410,25 +411,20 @@ func TestComponentParent(t *testing.T) {
 						t.Fatalf("Parent not present for %q: got %v, want true", card, parent.IsPresent())
 					} else {
 						got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
-						if tc.desc == "SwitchChip" || tc.desc == "FabricChip" {
-							if got == componentParent["FabricChip"] || got == componentParent["SwitchChip"] {
-								t.Logf("Got expected parent for card %s", card)
-								break
-							}
-						} else {
-							if got == tc.parent {
-								t.Logf("Got expected parent for card %s", card)
-								break
-							}
+						if got == chassisType {
+							foundChassis = true
+							t.Logf("Found chassis component in the hierarchy tree of component %s", card)
+							break
 						}
-
 					}
+					// Not reached chassis yet; go one level up
 					parentName := gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
 					cardName = parentName
 				}
-
+				if !foundChassis {
+					t.Fatalf("Chassis component NOT found in the hierarchy tree of component %s", card)
+				}
 			}
-
 		})
 	}
 }
