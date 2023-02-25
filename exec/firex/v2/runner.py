@@ -96,7 +96,8 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         return False
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
-@returns('internal_fp_repo_dir', 'reserved_testbed', FireX.DYNAMIC_RETURN)
+@returns('internal_fp_repo_dir', 'reserved_testbed', 'ondatra_binding_path', 
+		'ondatra_testbed_path', 'testbed_info_path', 'slurm_cluster_head')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
@@ -144,7 +145,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         c |= SoftwareUpgrade.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
-    return internal_fp_repo_dir, reserved_testbed, self.enqueue_child_and_get_results(c)
+    result = self.enqueue_child_and_get_results(c)
+    return internal_fp_repo_dir, reserved_testbed, result["ondatra_binding_path"], result["ondatra_testbed_path"], result["testbed_info_path"], result.get("slurm_cluster_head", None)
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, ws, testbed_logs_dir, 
@@ -166,7 +168,7 @@ def max_testbed_requests():
 def decommission_testbed_after_tests():
     if 'B4_FIREX_DECOMMISSION_TESTBED' in os.environ:
         return bool(int(os.environ.get('B4_FIREX_DECOMMISSION_TESTBED')))
-    return True
+    return False
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
