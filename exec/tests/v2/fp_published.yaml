@@ -148,7 +148,7 @@ tests:
   path: feature/gnoi/system/tests/ping_test
   owners:
     - arvbaska
-  priority: 5
+  priority: 8
   mustpass: true
 - name: P4RT-1.1 (Base P4RT Functionality)
   path: feature/experimental/p4rt/ate_tests/base_p4rt
