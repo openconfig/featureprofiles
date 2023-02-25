@@ -409,8 +409,9 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def SoftwareUpgrade(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
-        ondatra_testbed_path, install_lock_file, images, ignore_install_errors=True):
+def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir, 
+                    reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
+                    install_lock_file, images, ignore_install_errors=True):
     if os.path.exists(install_lock_file):
         return
     Path(install_lock_file).touch()
@@ -429,6 +430,7 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, ondatra_binding_path,
         check_output(su_command, env=env, cwd=internal_fp_repo_dir)
     except:
         if not ignore_install_errors:
+            _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
             raise
         else: logger.warning(f'Software upgrade failed. Ignoring...')
 
