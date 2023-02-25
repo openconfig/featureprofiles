@@ -550,7 +550,7 @@ tests:
   branch: main-google-traffic
   internal: true
   mustpass: true
-  - name: DP-1.9: (WRR traffic test_
+  - name: DP-1.9: (WRR traffic-test)
   path: feature/experimental/qos/ate_tests/wrr_traffic_test
   owners:
     - saarvind
