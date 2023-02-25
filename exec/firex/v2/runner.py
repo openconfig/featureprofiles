@@ -97,7 +97,8 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_dir', 'reserved_testbed', 'ondatra_binding_path', 
-		'ondatra_testbed_path', 'testbed_info_path', 'slurm_cluster_head', 'sim_working_dir')
+		'ondatra_testbed_path', 'testbed_info_path', 'slurm_cluster_head', 
+        'sim_working_dir', 'slurm_jobid', 'topo_path')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
@@ -149,7 +150,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
     result = self.enqueue_child_and_get_results(c)
     return (internal_fp_repo_dir, reserved_testbed, result["ondatra_binding_path"], 
             result["ondatra_testbed_path"], result["testbed_info_path"], 
-            result.get("slurm_cluster_head", None), result.get("sim_working_dir", None))
+            result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
+            result.get("slurm_jobid", None), result.get("topo_path", None))
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, ws, testbed_logs_dir, 
