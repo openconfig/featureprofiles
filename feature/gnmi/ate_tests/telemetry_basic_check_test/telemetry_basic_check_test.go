@@ -395,33 +395,32 @@ func TestComponentParent(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			t.Logf("Found Component list for Type %v : %v", tc.componentType, compList[tc.desc])
+			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
 			if len(compList[tc.desc]) == 0 {
-				t.Fatalf("Get Component list for %q: got 0, want > 0", dut.Model())
+				t.Fatalf("Get component list for %q: got 0, want > 0", dut.Model())
 			}
 			// Validate parent component
 			for _, comp := range compList[tc.desc] {
 				t.Logf("Validate component %s", comp)
-				compName := comp
+				curr := comp
 				foundChassis := false
 				for {
-					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).Parent().State())
+					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
 					val, present := parent.Val()
 					if !present {
 						t.Fatalf("Parent not present for %q: got %v, want true", comp, parent.IsPresent())
-					} else {
-						got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
-						if got == chassisType {
-							foundChassis = true
-							t.Logf("Found chassis component in the hierarchy tree of component %s", comp)
-							break
-						}
+					}
+					got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+					if got == chassisType {
+						foundChassis = true
+						t.Logf("Found chassis component in the hierarchy tree of component %s", comp)
+						break
 					}
 					// Not reached chassis yet; go one level up
-					compName = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
+					curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
 				}
 				if !foundChassis {
-					t.Fatalf("Chassis component NOT found in the hierarchy tree of component %s", comp)
+					t.Errorf("Chassis component NOT found in the hierarchy tree of component %s", comp)
 				}
 			}
 		})
