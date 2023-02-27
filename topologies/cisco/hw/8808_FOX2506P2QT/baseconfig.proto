@@ -333,6 +333,7 @@ replace: {
 "ssh server v2\n"
 "ssh server vrf default\n"
 "hw-module profile pbr vrf-redirect\n"
+"hw-module profile qos qos-stats-push-collection\n"
 "cef proactive-arp-nd enable\n"
 "ipv4 virtual address 5.78.26.26/16\n"
 "end\n"
