@@ -457,12 +457,17 @@ def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path,
         ondatra_testbed_path, test_log_directory_path):
     logger.print("Collecting debug files...")
 
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        tmp_binding_file = f.name
+        shutil.copyfile(ondatra_binding_path, tmp_binding_file)
+        check_output(f"sed -i 's|gnmi_set_file|//gnmi_set_file|g' {tmp_binding_file}")
+
     collect_debug_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/debug ' \
             f'-timeout 0 ' \
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
-            f'-binding {ondatra_binding_path} ' \
+            f'-binding {tmp_binding_file} ' \
             f'-outDir {test_log_directory_path}/debug_files'
     try:
         env = dict(os.environ)
@@ -470,6 +475,8 @@ def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path,
         check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
+    finally:
+        os.remove(tmp_binding_file)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
