@@ -405,7 +405,7 @@ func TestComponentParent(t *testing.T) {
 				visited := make(map[string]bool)
 				for curr := comp; ; {
 					if visited[curr] {
-						t.Errorf("Component %s already visited; likely loop detected in the hierarchy.", curr)
+						t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
 						break
 					}
 					visited[curr] = true
