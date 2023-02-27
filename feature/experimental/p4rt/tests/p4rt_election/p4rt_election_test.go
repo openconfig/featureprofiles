@@ -96,9 +96,11 @@ func configureDeviceId(t *testing.T, dut *ondatra.DUTDevice) {
 func configurePortId(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	portName := dut.Port(t, "port1").Name()
-	currIntf := &oc.Interface{Name: ygot.String(portName),
+	currIntf := &oc.Interface{
+		Name: ygot.String(portName),
 		Type: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
-		Id:   &portId}
+		Id:   &portId,
+	}
 	gnmi.Replace(t, dut, d.Interface(portName).Config(), currIntf)
 
 }
