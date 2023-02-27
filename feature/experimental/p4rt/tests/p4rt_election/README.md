@@ -73,6 +73,9 @@ Validate the P4RT server handles primary election and failover.
             client.
         6.  Verify new client's stream terminates with
             `google.rpc.INVALID_ARGUMENT`.
+    *   Zero Election
+        1.  Connect a single P4RT client with an election ID (high: 0, low: 0).
+        2.  Verify that the client is able to read and not write.
     *   Long Evolution
         1.  Connect five P4RT clients to the same device_id with election_id's
             1,2,3,4,5
