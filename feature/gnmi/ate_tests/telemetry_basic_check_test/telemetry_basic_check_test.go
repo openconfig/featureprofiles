@@ -399,15 +399,19 @@ func TestComponentParent(t *testing.T) {
 			if len(compList[tc.desc]) == 0 {
 				t.Fatalf("Get component list for %q: got 0, want > 0", dut.Model())
 			}
-			// Validate parent component
+			// Validate parent component.
 			for _, comp := range compList[tc.desc] {
 				t.Logf("Validate component %s", comp)
-				curr := comp
-				for {
+				visited := make(map[string]bool)
+				for curr := comp; ; {
+					if visited[curr] {
+						t.Errorf("Component %s already visited; likely loop detected in the hierarchy.", curr)
+						break
+					}
+					visited[curr] = true
 					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
 					val, present := parent.Val()
 					if !present {
-						t.Logf("Parent NOT present for %q: got %v, want true", comp, parent.IsPresent())
 						t.Errorf("Chassis component NOT found in the hierarchy tree of component %s", comp)
 						break
 					}
@@ -416,7 +420,7 @@ func TestComponentParent(t *testing.T) {
 						t.Logf("Found chassis component in the hierarchy tree of component %s", comp)
 						break
 					}
-					// Not reached chassis yet; go one level up
+					// Not reached chassis yet; go one level up.
 					curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
 				}
 			}
