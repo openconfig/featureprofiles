@@ -21,6 +21,10 @@ var (
 		"2.2.2.2",
 		"2000::1",
 	}
+	testSourceAddressInput []string = []string{
+		"2.2.2.2",
+		"2000::1",
+	}
 )
 
 func setupSampling(t *testing.T, dut *ondatra.DUTDevice) *oc.Sampling {

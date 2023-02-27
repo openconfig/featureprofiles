@@ -8,6 +8,7 @@
           "state": {
             "address": "1.1.1.2",
             "network-instance": "TE",
+            "source-address": "2.2.2.2",
             "port": 1025
           }
         }
@@ -19,14 +20,20 @@
           "name": "Bundle-Ether1",
           "state": {
             "enabled": true,
-            "name": "Bundle-Ether1"
+            "name": "Bundle-Ether1",
+            "ingress-sampling-rate": 80
           }
         }
       ]
     },
     "state": {
       "enabled": true,
-      "sample-size": 128
+      "sample-size": 128,
+      "agent-id-ipv4": "2.2.2.1",
+      "agent-id-ipv6": "2000::1",
+      "dscp":60,
+      "polling-interval":60,
+      "ingress-sampling-rate": 100
     }
   }
 }
