@@ -919,12 +919,15 @@ func TestAfiSafiEnabled(t *testing.T) {
 			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
-			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := gnmi.Get(t, dut, state.State())
-				if stateGot != input {
-					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/enabled: got %v, want %v", stateGot, input)
-				}
-			})
+			// CSCwe29261 : "config/enabled” is set to FALSE means neighbor under “router bgp <AS>” doesn’t have that AFI
+			if input == true {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := gnmi.Get(t, dut, state.State())
+					if stateGot != input {
+						t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/enabled: got %v, want %v", stateGot, input)
+					}
+				})
+			}
 		})
 	}
 }
