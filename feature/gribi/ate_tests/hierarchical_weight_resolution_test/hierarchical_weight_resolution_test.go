@@ -52,9 +52,10 @@ type nhInfo struct {
 
 const (
 	ipv4PrefixLen   = 30
-	ipv4EntryPrefix = "198.18.196.1/22"
-	ipv4FlowIPStart = "198.18.196.1"
-	ipv4FlowIPEnd   = "198.18.199.254"
+	ipv4EntryPrefix = "198.18.196.0/22"
+	ipv4FlowIPStart = "198.18.196.0"
+	ipv4FlowIPEnd   = "198.18.199.255"
+	ipv4FlowCount   = 1024
 	nhEntryIP1      = "192.0.2.111"
 	nhEntryIP2      = "192.0.2.222"
 	nonDefaultVRF   = "VRF-1"
@@ -358,7 +359,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	ipv4Header.DstAddressRange().
 		WithMin(ipv4FlowIPStart).
 		WithMax(ipv4FlowIPEnd).
-		WithCount(1022)
+		WithCount(ipv4FlowCount)
 
 	// Ethernet header:
 	//   - Destination MAC (6 octets)
