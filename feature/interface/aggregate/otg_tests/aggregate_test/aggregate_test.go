@@ -380,6 +380,8 @@ func (tc *testCase) setDutInterfaceWithState(t testing.TB, p *ondatra.Port, stat
 	dc := gnmi.OC()
 	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(state)
+	i.Type = ethernetCsmacd
+	i.Name = ygot.String(p.Name())
 	gnmi.Update(t, tc.dut, dc.Interface(p.Name()).Config(), i)
 }
 
