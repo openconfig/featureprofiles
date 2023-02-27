@@ -31,6 +31,7 @@ nodes: {
     model:"8201"
     os: "ios-xr"
     config: {
+        image: "8000e:latest"
         file: "cisco.config"
         init_image: "networkop/init-wait:latest"
     }
