@@ -290,14 +290,14 @@ func verifyReadReceiveMatch(t *testing.T, expected_update []*p4_v1.Update, recei
 		var tableMap map[string]any
 		switch entry := table.Entity.(type) {
 		case *p4_v1.Entity_TableEntry:
-			ent1, err1 := json.Marshal(entry)
-			if err1 != nil {
-				return errors.New("unable to convert table entry to json")
+			ent1, err := json.Marshal(entry)
+			if err != nil {
+				return fmt.Errorf("unable to convert table entry to json: %w", err)
 			}
 			var toMap map[string]any
-			err2 := json.Unmarshal([]byte(string(ent1)), &toMap)
-			if err2 != nil {
-				return errors.New("unable to unmarshal table entry to map")
+			err = json.Unmarshal([]byte(string(ent1)), &toMap)
+			if err != nil {
+				return fmt.Errorf("unable to unmarshal table entry to map: %w", err)
 			}
 			tableMap = toMap["TableEntry"].(map[string]any)
 			delete(tableMap, "meter_config")
@@ -305,15 +305,15 @@ func verifyReadReceiveMatch(t *testing.T, expected_update []*p4_v1.Update, recei
 		default:
 			t.Logf("Not a table entry: %v", entry)
 		}
-		ent2, err3 := json.Marshal(expected_update[0].Entity.Entity)
-		if err3 != nil {
-			return errors.New("Unable to convert table entry to json")
+		ent2, err := json.Marshal(expected_update[0].Entity.Entity)
+		if err != nil {
+			return fmt.Errorf("Unable to convert table entry to json: %w", err)
 		}
 		var toMap1 map[string]any
 
-		err4 := json.Unmarshal([]byte(string(ent2)), &toMap1)
-		if err4 != nil {
-			return errors.New("Unable to convert table entry to json")
+		err = json.Unmarshal([]byte(string(ent2)), &toMap1)
+		if err != nil {
+			return fmt.Errorf("Unable to convert table entry to json: %w", err)
 		}
 		tableMap1 := toMap1["TableEntry"].(map[string]any)
 
@@ -324,7 +324,7 @@ func verifyReadReceiveMatch(t *testing.T, expected_update []*p4_v1.Update, recei
 
 	}
 	if matches == 0 {
-		return errors.New("match unsuccesful")
+		return fmt.Errorf("match unsuccesful since number of matches: %d", matches)
 	}
 	return nil
 }
