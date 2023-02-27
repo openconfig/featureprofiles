@@ -403,24 +403,21 @@ func TestComponentParent(t *testing.T) {
 			for _, comp := range compList[tc.desc] {
 				t.Logf("Validate component %s", comp)
 				curr := comp
-				foundChassis := false
 				for {
 					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
 					val, present := parent.Val()
 					if !present {
-						t.Fatalf("Parent not present for %q: got %v, want true", comp, parent.IsPresent())
+						t.Logf("Parent NOT present for %q: got %v, want true", comp, parent.IsPresent())
+						t.Errorf("Chassis component NOT found in the hierarchy tree of component %s", comp)
+						break
 					}
 					got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
 					if got == chassisType {
-						foundChassis = true
 						t.Logf("Found chassis component in the hierarchy tree of component %s", comp)
 						break
 					}
 					// Not reached chassis yet; go one level up
 					curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
-				}
-				if !foundChassis {
-					t.Errorf("Chassis component NOT found in the hierarchy tree of component %s", comp)
 				}
 			}
 		})
