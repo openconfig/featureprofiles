@@ -182,6 +182,7 @@ func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, 
 			ondatra.ARISTA:  " transceiver",
 			ondatra.CISCO:   "",
 			ondatra.JUNIPER: "",
+			ondatra.NOKIA:   "-transceiver",
 		}
 	)
 	transceiverName := interfaceName
@@ -193,7 +194,9 @@ func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, 
 		interfaceSplit := strings.Split(interfaceName, "/")
 		interfaceSplitres := interfaceSplit[:len(interfaceSplit)-1]
 		transceiverName = strings.Join(interfaceSplitres, "/") + name
-
+		if dut.Vendor() == ondatra.NOKIA {
+			transceiverName = interfaceName + name
+		}
 	}
 	return transceiverName, nil
 }
