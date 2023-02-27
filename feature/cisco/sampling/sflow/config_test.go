@@ -190,7 +190,6 @@ func TestSampleSizeAtLeaf(t *testing.T) {
 	}
 }
 
-// NEW
 // /sampling/sflow/config/agent-id-ipv4
 func TestAgentIdIpv4(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
