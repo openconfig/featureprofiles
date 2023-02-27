@@ -97,13 +97,15 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_dir', 'reserved_testbed', 'ondatra_binding_path', 
-		'ondatra_testbed_path', 'testbed_info_path', 'slurm_cluster_head')
+		'ondatra_testbed_path', 'testbed_info_path', 'slurm_cluster_head', 
+        'sim_working_dir', 'slurm_jobid', 'topo_path')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
                         collect_tb_info=False,
-                        install_image=False):
+                        install_image=False,
+                        ignore_install_errors=True):
 
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
@@ -142,11 +144,14 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
     if using_sim:
         c |= ConfigureVirtualIP.s()
     if install_image and not using_sim:
-        c |= SoftwareUpgrade.s()
+        c |= SoftwareUpgrade.s(ignore_install_errors=ignore_install_errors)
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     result = self.enqueue_child_and_get_results(c)
-    return internal_fp_repo_dir, reserved_testbed, result["ondatra_binding_path"], result["ondatra_testbed_path"], result["testbed_info_path"], result.get("slurm_cluster_head", None)
+    return (internal_fp_repo_dir, reserved_testbed, result["ondatra_binding_path"], 
+            result["ondatra_testbed_path"], result["testbed_info_path"], 
+            result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
+            result.get("slurm_jobid", None), result.get("topo_path", None))
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, ws, testbed_logs_dir, 
@@ -408,8 +413,9 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def SoftwareUpgrade(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
-        ondatra_testbed_path, install_lock_file, images):
+def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir, 
+                    reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
+                    install_lock_file, images, ignore_install_errors=True):
     if os.path.exists(install_lock_file):
         return
     Path(install_lock_file).touch()
@@ -427,8 +433,10 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, ondatra_binding_path,
         env.update(_get_go_env())
         check_output(su_command, env=env, cwd=internal_fp_repo_dir)
     except:
-        logger.warning(f'Software upgrade failed. Ignoring...')
-
+        if not ignore_install_errors:
+            _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
+            raise
+        else: logger.warning(f'Software upgrade failed. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
