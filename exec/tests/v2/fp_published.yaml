@@ -130,7 +130,8 @@ tests:
 - name: TE-14.1 (gRIBI Scaling)
   path: feature/gribi/ate_tests/gribi_scaling
   timeout: 7200
-  #branch: moji/te14.1fix 
+  branch: moji/te14.1fix
+  internal: true
   owners:
     - mananpat
   mustpass: true
