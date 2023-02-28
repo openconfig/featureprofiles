@@ -467,7 +467,7 @@ def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path,
             f'-timeout 0 ' \
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
-            f'-binding {tmp_binding_file} ' \
+            f'-binding {ondatra_binding_path} ' \
             f'-outDir {test_log_directory_path}/debug_files'
     try:
         env = dict(os.environ)
