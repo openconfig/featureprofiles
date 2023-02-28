@@ -788,23 +788,23 @@ func TestWrrTraffic(t *testing.T) {
 	}, {
 		desc:            "Oversubscription AF2 and AF1 traffic with half AF1 dropped",
 		trafficFlows:    oversubscribedTrafficFlows5,
-		trafficDuration: 20 * time.Second,
+		trafficDuration: 120 * time.Second,
 	}, {
-		desc:            "Oversubscription AF2 and BE0 traffic with AF2 and AF1 dropped",
+		desc:            "Oversubscription AF2 and AF1 traffic with AF2 and AF1 dropped",
 		trafficFlows:    oversubscribedTrafficFlows6,
-		trafficDuration: 20 * time.Second,
-	}, {
-		desc:            "Oversubscription AF1 and BE0 traffic with half BE0 dropped",
-		trafficFlows:    oversubscribedTrafficFlows7,
 		trafficDuration: 120 * time.Second,
 	}, {
 		desc:            "Oversubscription AF1 and BE0 traffic with half AF1 dropped",
+		trafficFlows:    oversubscribedTrafficFlows7,
+		trafficDuration: 120 * time.Second,
+	}, {
+		desc:            "Oversubscription AF1 and BE0 traffic with half BE0 dropped",
 		trafficFlows:    oversubscribedTrafficFlows8,
-		trafficDuration: 20 * time.Second,
+		trafficDuration: 120 * time.Second,
 	}, {
 		desc:            "Oversubscription AF1 and BE0 traffic with AF1 and BE0 dropped",
 		trafficFlows:    oversubscribedTrafficFlows9,
-		trafficDuration: 20 * time.Second,
+		trafficDuration: 120 * time.Second,
 	}, {
 		desc:            "Oversubscription BE0 and BE1 traffic with half BE0 dropped",
 		trafficFlows:    oversubscribedTrafficFlows10,
