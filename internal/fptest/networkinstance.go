@@ -52,22 +52,43 @@ func EnableGribiUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni stri
 	if ni == "" {
 		t.Fatalf("Network instance not provided for protocol definition")
 	}
-	cliCmd := fmt.Sprintf("/set network-instance %s protocols gribi admin-state enable", ni)
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{{
-			Path: &gpb.Path{
-				Origin: "cli",
-				Elem:   []*gpb.PathElem{},
+
+	if d.Vendor() == ondatra.NOKIA {
+		gpbSetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "srl",
 			},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_AsciiVal{
-					AsciiVal: cliCmd,
+			Update: []*gpb.Update{{
+				Path: &gpb.Path{
+					Elem: []*gpb.PathElem{
+						{
+							Name: "network-instance",
+							Key:  map[string]string{"name": ni},
+						},
+						{
+							Name: "protocols",
+						},
+						{
+							Name: "gribi",
+						},
+						{
+							Name: "admin-state",
+						},
+					},
 				},
-			},
-		}},
-	}
-	gnmiClient := d.RawAPIs().GNMI().Default(t)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("Enabling Gribi on network-instance %s failed with unexpected error: %v", ni, err)
+				Val: &gpb.TypedValue{
+					Value: &gpb.TypedValue_JsonIetfVal{
+						JsonIetfVal: []byte(`"enable"`),
+					},
+				},
+			}},
+		}
+		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("Enabling Gribi on network-instance %s failed with unexpected error: %v", ni, err)
+		}
+	} else {
+		t.Logf("Skipping 'deviation_explicit_gribi_under_network_instance' as it is vendor specific")
+		return
 	}
 }
