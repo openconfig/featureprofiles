@@ -254,15 +254,7 @@ func (s *TestSession) PushDUT(ctx context.Context) error {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
-
-	// Clear ISIS Protocol
-	_, err := ygnmi.Delete(ctx, s.DUTClient, ProtocolPath().Config())
-	if err != nil {
-		return fmt.Errorf("deleting ISIS config before configuring test config: %w", err)
-	}
-
-	// Configure ISIS test config on DUT
-	_, err = ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
+	_, err := ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
 	if err != nil {
 		return fmt.Errorf("configuring ISIS: %w", err)
 	}
@@ -321,7 +313,7 @@ func (s *TestSession) MustATEInterface(t testing.TB, portID string) gosnappi.Dev
 	}
 	for _, d := range s.ATETop.Devices().Items() {
 		Eth := d.Ethernets().Items()[0]
-		if Eth.PortName() == portID {
+		if Eth.Connection().PortName() == portID {
 			return d
 		}
 	}
