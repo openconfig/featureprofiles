@@ -25,6 +25,7 @@ package fptest
 
 import (
 	"testing"
+	"time"
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -49,4 +50,16 @@ func SetPortSpeed(t *testing.T, p *ondatra.Port) {
 	}
 	t.Logf("Configuring %v port-speed to %v", p.Name(), speed)
 	gnmi.Update(t, p.Device(), gnmi.OC().Interface(p.Name()).Ethernet().PortSpeed().Config(), speed)
+	time.Sleep(time.Second * 3)
+}
+
+// GetIfSpeed returns an explicit speed of an interface in OC format
+func GetIfSpeed(t *testing.T, p *ondatra.Port) oc.E_IfEthernet_ETHERNET_SPEED {
+	speed, ok := portSpeed[p.Speed()]
+	if !ok {
+		t.Logf("Explicit port speed %v was not found in the map", speed)
+		return 0
+	}
+	t.Logf("Configuring interface %v speed %v", p.Name(), speed)
+	return speed
 }
