@@ -432,6 +432,7 @@ tests:
   skip: false
 - name: RT-1.5 (BGP Prefix Limit) 
   path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
+  pr: 1123
   owners:
     - sprem
   mustpass: true
