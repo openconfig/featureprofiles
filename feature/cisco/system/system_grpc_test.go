@@ -221,8 +221,6 @@ func TestGrpcListenAddress(t *testing.T) {
 			defer observer.RecordYgot(t, "SUBSCRIBE", path)
 			systemGet := gnmi.GetConfig(t, dut, path.Config())
 			got := systemGet.GrpcServer["DEFAULT"].GetListenAddresses()[0]
-			fmt.Printf("got this value %v ", got)
-			fmt.Printf("Want this value %v", tc.want)
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
 			}
