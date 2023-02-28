@@ -546,14 +546,14 @@ tests:
   path: feature/experimental/qos/ate_tests/one_sp_queue_traffic_test
   owners:
     - saarvind
-  branch: main-google-traffic
   pr: 1157
+  mustpass: true
 - name: DP-1.8 (Two strict priority queue traffic test)
   path: feature/experimental/qos/ate_tests/two_sp_queue_traffic_test
   owners:
       - saarvind
-  branch: main-google-traffic
   pr: 1152
+  mustpass: true
 - name: DP-1.9 (WRR traffic-test)
   path: feature/experimental/qos/ate_tests/wrr_traffic_test
   owners:
