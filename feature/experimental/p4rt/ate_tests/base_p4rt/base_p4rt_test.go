@@ -307,13 +307,13 @@ func verifyReadReceiveMatch(t *testing.T, expected_update []*p4_v1.Update, recei
 		}
 		ent2, err := json.Marshal(expected_update[0].Entity.Entity)
 		if err != nil {
-			return fmt.Errorf("Unable to convert table entry to json: %w", err)
+			return fmt.Errorf("unable to convert table entry to json: %w", err)
 		}
 		var toMap1 map[string]any
 
 		err = json.Unmarshal([]byte(string(ent2)), &toMap1)
 		if err != nil {
-			return fmt.Errorf("Unable to convert table entry to json: %w", err)
+			return fmt.Errorf("unable to convert table entry to json: %w", err)
 		}
 		tableMap1 := toMap1["TableEntry"].(map[string]any)
 
