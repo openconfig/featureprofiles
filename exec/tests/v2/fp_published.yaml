@@ -237,7 +237,7 @@ tests:
   priority: 6
 - name: DP-1.4 (QoS Interface Output Queue Counters) 
   path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
-  pr: 1000
+  pr: 1131
   owners:
     - arvbaska
   mustpass: true
@@ -540,27 +540,23 @@ tests:
   path: feature/experimental/qos/ate_tests/mixed_sp_wrr_traffic_test
   owners:
     - saarvind
-  branch: main-google-traffic
-  internal: true
+  pr: 1138
   mustpass: true
 - name: DP-1.7 (One strict priority queue traffic test)
   path: feature/experimental/qos/ate_tests/one_sp_queue_traffic_test
   owners:
     - saarvind
   branch: main-google-traffic
-  internal: true
-  mustpass: true
+  pr: 1157
 - name: DP-1.8 (Two strict priority queue traffic test)
   path: feature/experimental/qos/ate_tests/two_sp_queue_traffic_test
   owners:
       - saarvind
   branch: main-google-traffic
-  internal: true
-  mustpass: true
+  pr: 1152
 - name: DP-1.9 (WRR traffic-test)
   path: feature/experimental/qos/ate_tests/wrr_traffic_test
   owners:
       - saarvind
-  branch: main-google-traffic
-  internal: true
+  pr: 1156
   mustpass: true
