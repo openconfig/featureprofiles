@@ -56,7 +56,7 @@ var (
 		"show context location all",
 		"show logging",
 		"show processes blocked location all",
-		"show redundancy"
+		"show redundancy",
 	}
 )
 
