@@ -9,27 +9,35 @@ duts {
   vendor: CISCO
   ports {
     id: "port1"
+    speed: S_10GB
   }
   ports {
     id: "port2"
+    speed: S_10GB
   }
   ports {
     id: "port3"
+    speed: S_10GB
   }
   ports {
     id: "port4"
+    speed: S_10GB
   }
   ports {
     id: "port5"
+    speed: S_10GB
   }
   ports {
     id: "port6"
+    speed: S_10GB
   }
   ports {
     id: "port7"
+    speed: S_10GB
   }
   ports {
     id: "port8"
+    speed: S_10GB
   }
 }
 
