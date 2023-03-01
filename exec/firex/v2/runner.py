@@ -263,6 +263,15 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     check_output(f'rm -rf {test_logs_dir_in_ws}')
     silent_mkdir(test_logs_dir_in_ws)
 
+    shutil.copyfile(ondatra_binding_path,
+            os.path.join(test_log_directory_path, "ondatra_binding.txt"))
+    shutil.copyfile(ondatra_testbed_path,
+            os.path.join(test_log_directory_path, "ondatra_testbed.txt"))
+
+    if os.path.exists(testbed_info_path):
+        shutil.copyfile(testbed_info_path,
+            os.path.join(test_log_directory_path, "testbed_info.txt"))
+    
     go_args = ''
     test_args = test_args or ''
 
@@ -321,10 +330,6 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
     write_output_from_results_json(json_results_file, log_filepath)
     log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
-
-    if os.path.exists(testbed_info_path):
-        shutil.copyfile(testbed_info_path,
-            os.path.join(test_log_directory_path, "testbed_info.txt"))
     return None, xunit_results_filepath, log_file, start_time, stop_time
 
 @app.task(bind=True)
@@ -460,7 +465,7 @@ def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path,
     with tempfile.NamedTemporaryFile(delete=False) as f:
         tmp_binding_file = f.name
         shutil.copyfile(ondatra_binding_path, tmp_binding_file)
-        check_output(f"sed -i 's|gnmi_set_file:.*\".*\"|gnmi_set_file:\"\"|g' {tmp_binding_file}")
+        check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
     collect_debug_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/debug ' \

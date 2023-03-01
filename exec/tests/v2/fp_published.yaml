@@ -72,8 +72,9 @@ tests:
   path: feature/experimental/gribi/ate_tests/route_removal_during_failover_test/
   mustpass: true
   priority: 3
-  branch: 'moji/TE-13.2'
-  internal: true
+  pr: 1199
+  #branch: 'moji/TE-13.2'
+  #internal: true
   # need pr/branch
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
@@ -432,6 +433,7 @@ tests:
   skip: false
 - name: RT-1.5 (BGP Prefix Limit) 
   path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
+  pr: 1123
   owners:
     - sprem
   mustpass: true
@@ -439,6 +441,7 @@ tests:
   skip: false
   args:
     - '-deviation_rpl_under_neighbor_afisafi="true"'
+    - '-deviation_bgp_prefix_overlimit="true"'
 - name: RT-1.4 (BGP Graceful Restart) 
   path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
   owners:
@@ -546,14 +549,14 @@ tests:
   path: feature/experimental/qos/ate_tests/one_sp_queue_traffic_test
   owners:
     - saarvind
-  branch: main-google-traffic
   pr: 1157
+  mustpass: true
 - name: DP-1.8 (Two strict priority queue traffic test)
   path: feature/experimental/qos/ate_tests/two_sp_queue_traffic_test
   owners:
       - saarvind
-  branch: main-google-traffic
   pr: 1152
+  mustpass: true
 - name: DP-1.9 (WRR traffic-test)
   path: feature/experimental/qos/ate_tests/wrr_traffic_test
   owners:
