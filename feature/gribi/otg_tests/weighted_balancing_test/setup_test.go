@@ -104,7 +104,8 @@ const (
 	ateDstNetFirstIP = "203.0.113.1"
 	ateDstNetCount   = 250
 
-	nhgIndex = 42
+	nhgIndex       = 42
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
 var (
@@ -202,6 +203,8 @@ func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port,
 	dc := gnmi.OC()
 	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(state)
+	i.Type = ethernetCsmacd
+	i.Name = ygot.String(p.Name())
 	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }
 
