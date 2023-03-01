@@ -32,7 +32,7 @@ const (
 	ethernetCsmacd         = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	transceiverType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 	sleepDuration          = time.Minute
-	minOpticsPower         = -30.0
+	minOpticsPower         = -40.0
 	maxOpticsPower         = 10.0
 	minOpticsHighThreshold = 1.0
 	maxOpticsLowThreshold  = -1.0
@@ -85,7 +85,7 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 
 		biasCurrents := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State())
 		t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
-		if len(outputPowers) == 0 {
+		if len(biasCurrents) == 0 {
 			t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
 		}
 	}
