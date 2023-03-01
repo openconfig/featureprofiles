@@ -280,51 +280,47 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	return nil
 }
 
-// Function to compare and check if the expected table is present in RPC ReadResponse.
-func verifyReadReceiveMatch(t *testing.T, expected_update []*p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
-
-	matches := 0
-	for _, table := range received_entry.Entities {
-		// Added a switch case for the captured table entry.
-		// Switch case to remove the counter_data and meter_config from table entry returned by p4rt server.
-		var tableMap map[string]any
-		switch entry := table.Entity.(type) {
+func tableMapFromEntry(t *testing.T, table *p4_v1.Entity) (map[string]any, error) {
+	var toMap map[string]any
+	switch entry := table.Entity.(type) {
 		case *p4_v1.Entity_TableEntry:
-			ent1, err := json.Marshal(entry)
+			ent, err := json.Marshal(entry)
 			if err != nil {
-				return fmt.Errorf("unable to convert table entry to json: %w", err)
+				return nil, fmt.Errorf("unable to convert table entry to json: %w", err)
 			}
-			var toMap map[string]any
-			err = json.Unmarshal([]byte(string(ent1)), &toMap)
+			err = json.Unmarshal([]byte(string(ent)), &toMap)
 			if err != nil {
-				return fmt.Errorf("unable to unmarshal table entry to map: %w", err)
+				return nil, fmt.Errorf("unable to unmarshal table entry to map: %w", err)
 			}
-			tableMap = toMap["TableEntry"].(map[string]any)
-			delete(tableMap, "meter_config")
-			delete(tableMap, "counter_data")
 		default:
 			t.Logf("Not a table entry: %v", entry)
-		}
-		ent2, err := json.Marshal(expected_update[0].Entity.Entity)
+	}
+	return toMap["TableEntry"].(map[string]any), nil
+}
+
+// Function to compare and check if the expected table is present in RPC ReadResponse.
+func verifyReadReceiveMatch(t *testing.T, expected_update []*p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
+	matches := 0
+	for _, table := range received_entry.Entities {
+		var tableMap map[string]any
+		tableMap, err := tableMapFromEntry(t, table)
 		if err != nil {
 			return fmt.Errorf("unable to convert table entry to json: %w", err)
 		}
-		var toMap1 map[string]any
-
-		err = json.Unmarshal([]byte(string(ent2)), &toMap1)
+		delete(tableMap, "meter_config")
+		delete(tableMap, "counter_data")
+		var tableMap1 map[string]any
+		tableMap1, err = tableMapFromEntry(t, expected_update[0].Entity) 
 		if err != nil {
-			return fmt.Errorf("unable to convert table entry to json: %w", err)
+			return fmt.Errorf("Unable to convert table entry to json: %w", err)
 		}
-		tableMap1 := toMap1["TableEntry"].(map[string]any)
-
 		if cmp.Equal(tableMap, tableMap1) {
 			t.Logf("Table match succesful")
 			matches += 1
 		}
-
 	}
 	if matches == 0 {
-		return fmt.Errorf("match unsuccesful since number of matches: %d", matches)
+		return errors.New("No matches found")
 	}
 	return nil
 }
