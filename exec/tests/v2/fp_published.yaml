@@ -73,7 +73,7 @@ tests:
   mustpass: true
   priority: 3
   branch: 'moji/TE-13.2'
-  internal: true
+  #internal: true
   # need pr/branch
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
