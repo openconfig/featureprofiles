@@ -27,6 +27,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -93,32 +94,40 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 }
 
 // testTraffic sends traffic flow for duration seconds.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) []uint64 {
 	t.Helper()
 	for _, flow := range flows {
 		flow.WithSrcEndpoints(srcEndPoint).WithDstEndpoints(srcEndPoint)
 	}
 	ate.Traffic().Start(t, flows...)
 	time.Sleep(time.Duration(duration) * time.Second)
-
 	ate.Traffic().Stop(t)
+
+	txPackets := []uint64{}
+	for _, flow := range flows {
+		txPackets = append(txPackets, gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State()))
+	}
+	return txPackets
 }
 
 // fetchPackets reads p4rt packets sent to p4rt client.
-func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, expectNumber int) []*p4rt_client.P4RTPacketInfo {
+func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, expectNumber int, timeout time.Duration) []*p4rt_client.P4RTPacketInfo {
 	t.Helper()
 	packets := []*p4rt_client.P4RTPacketInfo{}
-	for i := 0; i < expectNumber; i++ {
+	for start := time.Now(); len(packets) < expectNumber && time.Since(start) < timeout; {
 		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
-		switch err {
-		case io.EOF:
+		if err == io.EOF {
 			t.Logf("EOF error is seen in PacketIn.")
-		case nil:
+			break
+		} else if err == nil {
 			if packet != nil {
 				packets = append(packets, packet)
+			} else {
+				time.Sleep(time.Second)
 			}
-		default:
-			t.Fatalf("There is error seen when receving packets. %v, %s", err, err)
+		} else {
+			t.Fatalf("There is error seen when receiving packets. %v, %s", err, err)
+			break
 		}
 	}
 	return packets
@@ -164,11 +173,12 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 	}}
 
 	t.Log("TTL/HopLimit 1")
-	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, 1, 300, 2), srcEndPoint, 10)
+	txPackets := testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, 1, 300, 2), srcEndPoint, 10)
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
-			packets := fetchPackets(ctx, t, test.client, 20)
+			wantPktCnt := int(txPackets[0])
+			packets := fetchPackets(ctx, t, test.client, wantPktCnt, 10*time.Second)
 
 			if !test.expectPass {
 				if len(packets) > 0 {
@@ -177,9 +187,8 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 				}
 				return
 			} else {
-				if len(packets) == 0 {
-					t.Fatalf("There are no packets received.")
-					return
+				if len(packets) != wantPktCnt {
+					t.Fatalf("Not all the packets are received, want %v have %v", wantPktCnt, len(packets))
 				}
 				t.Logf("Start to decode packet and compare with expected packets.")
 				wantPacket := args.packetIO.GetPacketTemplate()
