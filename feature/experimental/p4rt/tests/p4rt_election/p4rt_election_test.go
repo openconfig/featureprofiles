@@ -305,6 +305,41 @@ func removeClient(handle *p4rt_client.P4RTClient) {
 	handle.ServerDisconnect()
 }
 
+// Test Zero client with 0 electionID
+func TestZeroMaster(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	configureDeviceId(t, dut)
+	configurePortId(t, dut)
+	test := testArgs{
+		desc:       pDesc,
+		lowID:      inId0,
+		highID:     inId0,
+		handle:     clientConnection(t, dut),
+		deviceID:   deviceId,
+		wantFail:   false,
+		wantWrite:  false,
+		wantRead:   true,
+		wantStatus: 0,
+	}
+	t.Run(test.desc, func(t *testing.T) {
+		resp, err := streamP4RTArb(&test)
+		if err != nil && test.wantFail {
+			t.Errorf("Zero ElectionID (0,0) is rejected by P4RT server: %v", err)
+			removeClient(test.handle)
+		} else {
+			t.Logf("Zero ElectionID (0,0) connection success as expected: %v", err)
+		}
+		// Validate status code
+		if resp != test.wantStatus {
+			t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
+		}
+		// Validate the response for Read/Write for zero election ID
+		validateRWResp(t, &test)
+		// Disconnect Primary
+		removeClient(test.handle)
+	})
+}
+
 // Test Primary Reconnect
 func TestPrimaryReconnect(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
