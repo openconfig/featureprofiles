@@ -4,10 +4,6 @@ replace: {
   }
   val: {
     ascii_val:
-"!! Building configuration...\n"
-"!! IOS XR Configuration 7.10.1.142G\n"
-"!! Last configuration change at Wed Mar  1 16:28:47 2023 by cafyauto\n"
-"!\n"
 "hostname DUT\n"
 "username cafyauto\n"
 " group root-lr\n"
