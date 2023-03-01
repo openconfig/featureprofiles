@@ -193,8 +193,8 @@ func TestGrpcListenAddress(t *testing.T) {
 	if strings.Contains(b.Duts[0].Ssh.Target, "::") {
 		listenAdd = gnmi.GetAll(t, dut, gnmi.OC().Interface("Bundle-Ether120").Subinterface(0).Ipv6().AddressAny().State())[0].GetIp()
 	} else {
-		mgmtIp := config.CMDViaGNMI(context.Background(), t, dut, "sh ip int brief mgmtEth 0/RP0/CPU0/0")
-		listenAdd = re.FindString(mgmtIp)
+		mgmtIP := config.CMDViaGNMI(context.Background(), t, dut, "sh ip int brief mgmtEth 0/RP0/CPU0/0")
+		listenAdd = re.FindString(mgmtIP)
 	}
 
 	defer config.TextWithGNMI(context.Background(), t, dut, "no grpc listen-address")
