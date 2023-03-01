@@ -3,7 +3,6 @@ package basetest
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -340,7 +339,7 @@ func TestGrpcListenAddress(t *testing.T) {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", got1, listenAdd)
 		}
 		//Process retstart
-		config.CMDViaGNMI(context.Background(), t, dut, fmt.Sprintf("process restart emsd"))
+		config.CMDViaGNMI(context.Background(), t, dut, "process restart emsd")
 		got3 := gnmi.Get(t, dut, path.State())
 		if got3[0] != oc.UnionString(listenAdd) {
 			t.Errorf("Delete of listen address was not successfull")
