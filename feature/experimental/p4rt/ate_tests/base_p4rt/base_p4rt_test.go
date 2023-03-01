@@ -281,19 +281,22 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 }
 
 func tableMapFromEntry(t *testing.T, table *p4_v1.Entity) (map[string]any, error) {
+
 	var toMap map[string]any
 	switch entry := table.Entity.(type) {
-		case *p4_v1.Entity_TableEntry:
-			ent, err := json.Marshal(entry)
-			if err != nil {
-				return nil, fmt.Errorf("unable to convert table entry to json: %w", err)
-			}
-			err = json.Unmarshal([]byte(string(ent)), &toMap)
-			if err != nil {
-				return nil, fmt.Errorf("unable to unmarshal table entry to map: %w", err)
-			}
-		default:
-			t.Logf("Not a table entry: %v", entry)
+	case *p4_v1.Entity_TableEntry:
+		ent, err := json.Marshal(entry)
+		if err != nil {
+			return nil, fmt.Errorf("unable to convert table entry to json: %w", err)
+		}
+
+		err = json.Unmarshal([]byte(string(ent)), &toMap)
+		if err != nil {
+			return nil, fmt.Errorf("unable to unmarshal table entry to map: %w", err)
+		}
+
+	default:
+		t.Logf("Not a table entry: %v", entry)
 	}
 	return toMap["TableEntry"].(map[string]any), nil
 }
@@ -310,7 +313,7 @@ func verifyReadReceiveMatch(t *testing.T, expected_update []*p4_v1.Update, recei
 		delete(tableMap, "meter_config")
 		delete(tableMap, "counter_data")
 		var tableMap1 map[string]any
-		tableMap1, err = tableMapFromEntry(t, expected_update[0].Entity) 
+		tableMap1, err = tableMapFromEntry(t, expected_update[0].Entity)
 		if err != nil {
 			return fmt.Errorf("Unable to convert table entry to json: %w", err)
 		}
