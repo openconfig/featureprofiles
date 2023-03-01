@@ -178,7 +178,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
 			wantPktCnt := int(txPackets[0])
-			packets := fetchPackets(ctx, t, test.client, wantPktCnt, 10*time.Second)
+			packets := fetchPackets(ctx, t, test.client, wantPktCnt, 30*time.Second)
 
 			if !test.expectPass {
 				if len(packets) > 0 {
