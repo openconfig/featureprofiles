@@ -2,12 +2,23 @@ package basetest
 
 import (
 	"context"
+	"flag"
+	"fmt"
+	"os"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
+	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 func TestSysGrpcState(t *testing.T) {
