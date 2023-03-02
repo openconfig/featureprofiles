@@ -83,9 +83,8 @@ func TestECNConfig(t *testing.T) {
 	uniform.SetDrop(ecnConfig.dropEnabled)
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
-	// TODO: uncomment the following config after it is supported.
-	// uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	// uniform.SetWeight(ecnConfig.weight)
+	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+	uniform.SetWeight(ecnConfig.weight)
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
