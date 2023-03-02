@@ -16,7 +16,6 @@ package base_p4rt_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -280,52 +279,22 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	return nil
 }
 
-func tableMapFromEntry(t *testing.T, table *p4_v1.Entity) (map[string]any, error) {
-
-	var toMap map[string]any
-	switch entry := table.Entity.(type) {
-	case *p4_v1.Entity_TableEntry:
-		ent, err := json.Marshal(entry)
-		if err != nil {
-			return nil, fmt.Errorf("unable to convert table entry to json: %w", err)
-		}
-
-		err = json.Unmarshal([]byte(string(ent)), &toMap)
-		if err != nil {
-			return nil, fmt.Errorf("unable to unmarshal table entry to map: %w", err)
-		}
-
-	default:
-		t.Logf("Not a table entry: %v", entry)
-	}
-	return toMap["TableEntry"].(map[string]any), nil
-}
-
 // Function to compare and check if the expected table is present in RPC ReadResponse.
-func verifyReadReceiveMatch(t *testing.T, expected_update []*p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
+func verifyReadReceiveMatch(t *testing.T, expected_table *p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
+
 	matches := 0
 	for _, table := range received_entry.Entities {
-		var tableMap map[string]any
-		tableMap, err := tableMapFromEntry(t, table)
-		if err != nil {
-			return fmt.Errorf("unable to convert table entry to json: %w", err)
-		}
-		delete(tableMap, "meter_config")
-		delete(tableMap, "counter_data")
-		var tableMap1 map[string]any
-		tableMap1, err = tableMapFromEntry(t, expected_update[0].Entity)
-		if err != nil {
-			return fmt.Errorf("Unable to convert table entry to json: %w", err)
-		}
-		if cmp.Equal(tableMap, tableMap1) {
+		if cmp.Equal(table, expected_table.Entity, protocmp.Transform(), protocmp.IgnoreFields(&p4_v1.TableEntry{}, "meter_config", "counter_data")) {
 			t.Logf("Table match succesful")
 			matches += 1
 		}
+		
 	}
 	if matches == 0 {
 		return errors.New("No matches found")
 	}
 	return nil
+	
 }
 
 // TestP4rtConnect connects to the P4Runtime server over grpc
@@ -437,8 +406,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority:      1,
 			},
 		})
-
-		if err := verifyReadReceiveMatch(t, expected_update, readResp); err != nil {
+		expected_entity := expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for GDP %s", err)
 			nomatch += 1
 		}
@@ -452,7 +421,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority:      1,
 			},
 		})
-		if err := verifyReadReceiveMatch(t, expected_update, readResp); err != nil {
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for LLDP %s", err)
 			nomatch += 1
 		}
@@ -467,7 +437,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority: 1,
 			},
 		})
-		if err := verifyReadReceiveMatch(t, expected_update, readResp); err != nil {
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for traceroute %s", err)
 			nomatch += 1
 		}
