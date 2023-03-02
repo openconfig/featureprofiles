@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package leader_failover_test
+package persistence_mode_test
 
 import (
 	"context"
