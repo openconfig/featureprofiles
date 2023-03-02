@@ -324,11 +324,11 @@ func TestZeroMaster(t *testing.T) {
 	t.Run(test.desc, func(t *testing.T) {
 		resp, err := streamP4RTArb(&test)
 		if err != nil && test.wantFail {
-			t.Errorf("Zero ElectionID (0,0) is rejected by P4RT server: %v", err)
 			removeClient(test.handle)
-		} else {
-			t.Logf("Zero ElectionID (0,0) connection success as expected: %v", err)
+			t.Errorf("Zero ElectionID (0,0) is rejected by P4RT server: %v", err)
+			return
 		}
+		t.Logf("Zero ElectionID (0,0) connection success as expected: %v", err)
 		// Validate status code
 		if resp != test.wantStatus {
 			t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
