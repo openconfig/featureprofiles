@@ -289,7 +289,7 @@ func verifyReadReceiveMatch(t *testing.T, expected_table *p4_v1.Update, received
 		}
 	}
 	if matches == 0 {
-		return errors.New("No matches found")
+		return errors.New("no matches found")
 	}
 	return nil
 }
