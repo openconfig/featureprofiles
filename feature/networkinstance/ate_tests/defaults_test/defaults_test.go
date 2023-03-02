@@ -55,6 +55,11 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 
 func unassignPort(t *testing.T, dut *ondatra.DUTDevice, intf, niName string) {
 	t.Helper()
+	// perform unassignment only for non-default VRFs unless ExplicitInterfaceInDefaultVRF deviation is enabled
+	if niName == *deviations.DefaultNetworkInstance && !*deviations.ExplicitInterfaceInDefaultVRF {
+		return
+	}
+
 	in := gnmi.OC().NetworkInstance(niName).Interface(intf).Config()
 	gnmi.Delete(t, dut, in)
 }
@@ -146,13 +151,12 @@ func TestDefaultAddressFamilies(t *testing.T) {
 				fptest.SetPortSpeed(t, dutP2)
 			}
 			d := &oc.Root{}
-			// Assign two ports into the network instance.
+			// Assign two ports into the network instance & unnasign them at the end of the test
 			assignPort(t, d, dutP1.Name(), tc.niName, dutPort1)
+			defer unassignPort(t, dut, dutP1.Name(), tc.niName)
+
 			assignPort(t, d, dutP2.Name(), tc.niName, dutPort2)
-			if *deviations.ExplicitInterfaceInDefaultVRF {
-				defer unassignPort(t, dut, dutP1.Name(), tc.niName)
-				defer unassignPort(t, dut, dutP2.Name(), tc.niName)
-			}
+			defer unassignPort(t, dut, dutP2.Name(), tc.niName)
 
 			fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)
 			gnmi.Update(t, dut, gnmi.OC().Config(), d)
