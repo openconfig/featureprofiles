@@ -104,8 +104,9 @@ const (
 	ateDstNetFirstIP = "203.0.113.1"
 	ateDstNetCount   = 250
 
-	discardCIDR = "192.0.2.0/24"
-	nhgIndex    = 42
+	discardCIDR    = "192.0.2.0/24"
+	nhgIndex       = 42
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
 var (
@@ -219,6 +220,8 @@ func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port,
 	dc := gnmi.OC()
 	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(state)
+	i.Type = ethernetCsmacd
+	i.Name = ygot.String(p.Name())
 	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }
 
@@ -235,8 +238,8 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 		config.Ports().Add().SetName(ap.ID())
 		dev := config.Devices().Add().SetName(ateid)
 		macAddress, _ := incrementMAC(ateSrcPortMac, i)
-		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").
-			SetPortName(ap.ID()).SetMac(macAddress)
+		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").SetMac(macAddress)
+		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4").
 			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
 			SetPrefix(plen)

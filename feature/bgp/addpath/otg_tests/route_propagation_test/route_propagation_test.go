@@ -118,8 +118,8 @@ func (ad *ateData) ConfigureOTG(t *testing.T, otg *otg.OTG, ateList []string) go
 		dev := config.Devices().Add().SetName(devName)
 		ateIndex++
 
-		eth := dev.Ethernets().Add().SetName(devName + ".Eth")
-		eth.SetPortName(port.Name()).SetMac(v.iface.mac)
+		eth := dev.Ethernets().Add().SetName(devName + ".Eth").SetMac(v.iface.mac)
+		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port.Name())
 		bgp := dev.Bgp().SetRouterId(v.iface.routerId)
 		if v.ip.v4 != "" {
 			address := strings.Split(v.ip.v4, "/")[0]
