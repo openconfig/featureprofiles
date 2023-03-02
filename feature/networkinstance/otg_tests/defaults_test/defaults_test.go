@@ -150,6 +150,10 @@ func TestDefaultAddressFamilies(t *testing.T) {
 	dutP2 := dut.Port(t, "port2")
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			if *deviations.ExplicitPortSpeed {
+				fptest.SetPortSpeed(t, dutP1)
+				fptest.SetPortSpeed(t, dutP2)
+			}
 			d := &oc.Root{}
 			// Assign two ports into the network instance & unnasign them at the end of the test
 			assignPort(t, d, dutP1.Name(), tc.niName, dutPort1)
