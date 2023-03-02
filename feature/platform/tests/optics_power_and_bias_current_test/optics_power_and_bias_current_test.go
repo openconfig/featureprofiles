@@ -16,12 +16,12 @@ package optics_power_and_bias_current_test
 
 import (
 	"fmt"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -130,10 +130,10 @@ func TestOpticsPowerUpdate(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			i.Type = ethernetCsmacd
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			if *deviations.ExplicitPortSpeed {
-				fptest.SetPortSpeed(t, dp)
+				i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dp)
 			}
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedStatus)
 
 			transceiverName, err := findTransceiverName(dut, dp.Name())
