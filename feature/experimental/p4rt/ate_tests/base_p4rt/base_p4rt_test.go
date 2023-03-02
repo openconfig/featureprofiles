@@ -281,20 +281,16 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 
 // Function to compare and check if the expected table is present in RPC ReadResponse.
 func verifyReadReceiveMatch(t *testing.T, expected_table *p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
-
 	matches := 0
 	for _, table := range received_entry.Entities {
 		if cmp.Equal(table, expected_table.Entity, protocmp.Transform(), protocmp.IgnoreFields(&p4_v1.TableEntry{}, "meter_config", "counter_data")) {
 			t.Logf("Table match succesful")
 			matches += 1
 		}
-		
 	}
 	if matches == 0 {
 		return errors.New("No matches found")
 	}
-	return nil
-	
 }
 
 // TestP4rtConnect connects to the P4Runtime server over grpc
