@@ -53,7 +53,10 @@ var (
 		"show platform",
 		"show install fixes active",
 		"show running-config",
-		"show context",
+		"show context location all",
+		"show logging",
+		"show processes blocked location all",
+		"show redundancy",
 	}
 )
 
@@ -71,6 +74,7 @@ func TestCollectDebugFiles(t *testing.T) {
 	commands := []string{
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
+		"run cp /misc/disk1/*core* /" + techDirectory,
 	}
 
 	for _, t := range showTechSupport {
