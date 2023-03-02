@@ -71,6 +71,8 @@ tests:
 - name: TE-13.2 (gRIBI route DELETE during Failover) 
   path: feature/experimental/gribi/ate_tests/route_removal_during_failover_test/
   mustpass: true
+  args:
+      - '-deviation_gribi_preserve_only="true"'
   priority: 3
   pr: 1199
   #branch: 'moji/TE-13.2'
