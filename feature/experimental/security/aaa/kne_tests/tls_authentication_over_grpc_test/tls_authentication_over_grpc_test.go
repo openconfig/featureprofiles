@@ -134,7 +134,25 @@ func TestAuthentication(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-
+			t.Log("Configuring hostname using GNMI Set")
+			_, err = gnmi.Set(ctx, &gpb.SetRequest{
+				Replace: []*gpb.Update{{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "system"}, {Name: "config"}, {Name: "hostname"}},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: []byte("\"ondatraDUT\"")},
+					},
+				}},
+			})
+			if tc.wantErr != (err != nil) {
+				if tc.wantErr {
+					t.Errorf("gnmi.Set nil error when error expected for user %q", tc.user)
+				} else {
+					t.Errorf("gnmi.Set unexpected error for user %q: %v", tc.user, err)
+				}
+			}
 			t.Log("Trying credentials with GNMI Get")
 			_, err = gnmi.Get(ctx, &gpb.GetRequest{
 				Path: []*gpb.Path{{
