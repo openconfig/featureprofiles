@@ -48,7 +48,8 @@ const (
 	// Unconfigured next-hop ID
 	badNH = 45
 	// Unconfigured static MAC address
-	badMAC = "02:00:00:00:00:01"
+	badMAC         = "02:00:00:00:00:01"
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
 const (
@@ -339,6 +340,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 
+	if *deviations.ExplicitIPv6EnableForGRIBI {
+		gnmi.Update(t, dut, d.Interface(p2.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
+		gnmi.Update(t, dut, d.Interface(p3.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
+	}
+
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
@@ -503,6 +509,8 @@ func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *att
 	dc := gnmi.OC()
 	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(state)
+	i.Type = ethernetCsmacd
+	i.Name = ygot.String(p.Name())
 	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }
 
