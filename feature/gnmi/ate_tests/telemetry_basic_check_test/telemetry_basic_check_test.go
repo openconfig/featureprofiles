@@ -58,7 +58,6 @@ const (
 	linecardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
 	powerSupplyType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY
 	fabricType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
-	fabricChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	switchChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
 )
@@ -329,7 +328,6 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 	t.Helper()
 	componentType := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 		"Fabric":      fabricType,
-		"FabricChip":  fabricChipType,
 		"Linecard":    linecardType,
 		"PowerSupply": powerSupplyType,
 		"Supervisor":  supervisorType,
@@ -356,7 +354,6 @@ func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	componentParent := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 		"Fabric":      chassisType,
-		"FabricChip":  fabricType,
 		"Linecard":    chassisType,
 		"PowerSupply": chassisType,
 		"Supervisor":  chassisType,
@@ -371,10 +368,6 @@ func TestComponentParent(t *testing.T) {
 		desc:          "Fabric",
 		componentType: fabricType,
 		parent:        componentParent["Fabric"],
-	}, {
-		desc:          "FabricChip",
-		componentType: fabricChipType,
-		parent:        componentParent["FabricChip"],
 	}, {
 		desc:          "Linecard",
 		componentType: linecardType,
