@@ -92,10 +92,17 @@ func configureDeviceId(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
-// configurePortId configures p4rt port-id on the DUT.
+// configurePortId configures p4rt port-id and interface type on the DUT.
 func configurePortId(t *testing.T, dut *ondatra.DUTDevice) {
+	d := gnmi.OC()
 	portName := dut.Port(t, "port1").Name()
-	gnmi.Replace(t, dut, gnmi.OC().Interface(portName).Id().Config(), portId)
+	currIntf := &oc.Interface{
+		Name: ygot.String(portName),
+		Type: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Id:   &portId,
+	}
+	gnmi.Replace(t, dut, d.Interface(portName).Config(), currIntf)
+
 }
 
 // Create client connection
