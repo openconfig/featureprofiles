@@ -201,7 +201,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 			// Extract packets from PacketIn message sent to p4rt client
 			packets, err := fetchPackets(ctx, t, test.client, test.wantPkts)
 			if err != nil {
-				t.Logf("Unexpected error on fetchPackets: %v", err)
+				t.Errorf("Unexpected error on fetchPackets: %v", err)
 			}
 
 			if got, want := len(packets), test.wantPkts; got != want {
