@@ -445,7 +445,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 
 	gRIBI.Modify().AddEntry(t, nh100, nh101, nhg3, ipEntry3)
 
-	// Set up NH#1, NH#2, NHG#1, IPv4Entry(203.0.113.0/24).
+	// Set up NH#1, NH#2, NHG#1, IPv4Entry(198.18.196.1/22).
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 3}})
@@ -531,7 +531,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 
 	gRIBI.Modify().AddEntry(t, gribiEntries...)
 
-	// Set up NH#1, NH#2, NHG#1, IPv4Entry(203.0.113.0/24).
+	// Set up NH#1, NH#2, NHG#1, IPv4Entry(198.18.196.1/22).
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 31}})
