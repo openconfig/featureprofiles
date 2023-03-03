@@ -53,7 +53,8 @@ func EnableGribiUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni stri
 		t.Fatalf("Network instance not provided for protocol definition")
 	}
 
-	if d.Vendor() == ondatra.NOKIA {
+	switch d.Vendor() {
+	case ondatra.NOKIA:
 		gpbSetRequest := &gpb.SetRequest{
 			Prefix: &gpb.Path{
 				Origin: "srl",
@@ -87,5 +88,7 @@ func EnableGribiUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni stri
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("Enabling Gribi on network-instance %s failed with unexpected error: %v", ni, err)
 		}
+	default:
+		t.Logf("Ignored deviation_explicit_gribi_under_network_instance as it is vendor specific.")
 	}
 }
