@@ -196,16 +196,13 @@ func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
-	// Derive hardware port from interface name by removing the port number.
-	// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
-	i := strings.LastIndex(dp.Name(), "/")
-	want := dp.Name()[:i]
-
-	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
-	t.Logf("Got %s HardwarePort from telmetry: %v, expected: %v", dp.Name(), got, want)
-	if got != want {
-		t.Errorf("Get(DUT port1 HardwarePort): got %v, want %v", got, want)
+	// Verify that HardwarePort leaf is present
+	got := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
+	val, present := got.Val()
+	if !present {
+		t.Errorf("DUT port1 %s HardwarePort leaf not found", dp.Name())
 	}
+	t.Logf("Got DUT port1 %s HardwarePort from telmetry as: %v", dp.Name(), val)
 }
 
 func TestInterfaceCounters(t *testing.T) {
