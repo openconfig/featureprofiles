@@ -257,9 +257,10 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 // Sub Interfaces are also configured if numSubIntf > 0.
 func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
 	t.Helper()
+
 	i := &oc.Interface{Name: ygot.String(p.Name())}
-	if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces && a.numSubIntf > 0 {
-		i = &oc.Interface{Name: ygot.String(p.Name())}
+
+	if a.numSubIntf > 0 {
 		i.Description = ygot.String(a.Desc)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		if *deviations.InterfaceEnabled {
@@ -268,6 +269,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	} else {
 		i = a.NewOCInterface(p.Name())
 	}
+
 	a.configSubinterfaceDUT(t, i)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Update(t, d, intfPath.Config(), i)
@@ -323,7 +325,7 @@ func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *o
 	t.Helper()
 	p := ate.Port(t, a.Name)
 	// Configure source port on ATE : Port1
-	if !*deviations.NoMixOfTaggedAndUntaggedSubinterfaces || (a.numSubIntf <= 0 && *deviations.NoMixOfTaggedAndUntaggedSubinterfaces) {
+	if a.numSubIntf == 0 {
 		ip := a.ip(0)
 		gateway := a.gateway(0)
 		intf := top.AddInterface(ip).WithPort(p)
@@ -357,11 +359,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 
 	// ATE destination endpoints.
 	dstEndPoints := []ondatra.Endpoint{}
-	startIndex := uint32(0)
-	if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
-		startIndex = uint32(1)
-	}
-	for i := startIndex; i <= atePort2.numSubIntf; i++ {
+	for i := uint32(1); i <= atePort2.numSubIntf; i++ {
 		dstIP := atePort2.ip(uint8(i))
 		dstEndPoints = append(dstEndPoints, allIntf[dstIP])
 	}
@@ -447,7 +445,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 
 	gRIBI.Modify().AddEntry(t, nh100, nh101, nhg3, ipEntry3)
 
-	// Set up NH#1, NH#2, NHG#1, IPv4Entry(198.18.196.1/22).
+	// Set up NH#1, NH#2, NHG#1, IPv4Entry(203.0.113.0/24).
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 3}})
@@ -533,7 +531,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 
 	gRIBI.Modify().AddEntry(t, gribiEntries...)
 
-	// Set up NH#1, NH#2, NHG#1, IPv4Entry(198.18.196.1/22).
+	// Set up NH#1, NH#2, NHG#1, IPv4Entry(203.0.113.0/24).
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 31}})
