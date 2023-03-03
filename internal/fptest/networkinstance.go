@@ -50,7 +50,7 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 func EnableGribiUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni string) {
 	t.Helper()
 	if ni == "" {
-		t.Fatalf("Network instance not provided for protocol definition")
+		t.Fatalf("Network instance not provided for gRIBI protocol definition")
 	}
 
 	switch d.Vendor() {
@@ -89,6 +89,6 @@ func EnableGribiUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni stri
 			t.Fatalf("Enabling Gribi on network-instance %s failed with unexpected error: %v", ni, err)
 		}
 	default:
-		t.Logf("Ignored deviation_explicit_gribi_under_network_instance as it is vendor specific.")
+		t.Fatalf("Vendor %s does not support 'deviation_explicit_gribi_under_network_instance'", d.Vendor())
 	}
 }
