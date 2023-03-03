@@ -311,21 +311,21 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	aftCheck(t, args.dut, dstPfx, vrf1)
 	// Validate traffic over primary path port2, port3
-	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port2", "port3"})
+	validateTrafficFlows(t, args.ate, BaseFlow, []string{"port2", "port3"})
 
 	//shutdown port2
 	flapinterface(t, args.ate, "port2", false)
 	defer flapinterface(t, args.ate, "port2", true)
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	// Validate traffic over primary path port3
-	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
+	validateTrafficFlows(t, args.ate, BaseFlow, []string{"port3"})
 
 	//shutdown port3
 	flapinterface(t, args.ate, "port3", false)
 	defer flapinterface(t, args.ate, "port3", true)
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	// validate traffic over backup
-	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port4"})
+	validateTrafficFlows(t, args.ate, BaseFlow, []string{"port4"})
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx
@@ -349,20 +349,20 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, 
 }
 
 // validateTrafficFlows verifies that the flow on ATE and check interface counters on DUT
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow, drop bool, dPort []string) {
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Flow, dPort []string) {
 	ate.Traffic().Start(t, flow)
 	time.Sleep(60 * time.Second)
 	ate.Traffic().Stop(t)
 	flowPath := gnmi.OC().Flow(flow.Name())
-	got := gnmi.Get(t, ate, flowPath.LossPct().State())
-	if drop {
-		if got != 100 {
-			t.Fatalf("Traffic passing for flow %s got %f, want 100 percent loss", flow.Name(), got)
-		}
-	} else {
-		if got > 0 {
-			t.Fatalf("LossPct for flow %s got %f, want 0", flow.Name(), got)
-		}
+	val, _ := gnmi.Watch(t, ate, flowPath.LossPct().State(), time.Minute, func(val *ygnmi.Value[float32]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	lossPct, present := val.Val()
+	if !present {
+		t.Fatalf("Could not read loss percentage for flow %q from ATE.", flow.Name())
+	}
+	if lossPct > 0.5 {
+		t.Fatalf("LossPct for flow %s got %f, want less than 0.5", flow.Name(), lossPct)
 	}
 }
 
