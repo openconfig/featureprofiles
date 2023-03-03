@@ -1,4 +1,4 @@
-tests_dir = "exec/tests/"
+tests_dir = "exec/tests/v2"
 failures_dir = "exec/analysis"
 gh_logs_dir = "logs"
 gh_data_dir = "data"
