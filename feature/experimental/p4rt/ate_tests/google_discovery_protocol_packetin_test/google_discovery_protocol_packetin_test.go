@@ -19,7 +19,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
+	"os"
 	"sort"
 	"testing"
 	"time"
@@ -137,38 +137,32 @@ func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType)
 }
 
 // testTraffic sends traffic flow for duration seconds.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) int {
 	t.Helper()
 	for _, flow := range flows {
 		flow.WithSrcEndpoints(srcEndPoint).WithDstEndpoints(srcEndPoint)
 	}
 	ate.Traffic().Start(t, flows...)
 	time.Sleep(time.Duration(duration) * time.Second)
-
 	ate.Traffic().Stop(t)
+
+	outPkts := gnmi.GetAll(t, ate, gnmi.OC().FlowAny().Counters().OutPkts().State())
+	total := 0
+	for _, count := range outPkts {
+		total += int(count)
+	}
+	return total
 }
 
 // fetchPackets reads p4rt packets sent to p4rt client.
-func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, expectNumber int) []*p4rt_client.P4RTPacketInfo {
+func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, expectNumber int) ([]*p4rt_client.P4RTPacketInfo, error) {
 	t.Helper()
-	packets := []*p4rt_client.P4RTPacketInfo{}
-	for i := 0; i < expectNumber; i++ {
-		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
-		if err == io.EOF {
-			t.Logf("EOF error is seen in PacketIn.")
-			break
-		} else if err == nil {
-			if packet != nil {
-				packets = append(packets, packet)
-			}
-		} else {
-			t.Fatalf("There is error seen when receving packets. %v, %s", err, err)
-			break
-		}
-		// TODO(ankur19): remove the wait after fixing p4rt_client GetPacket.
-		time.Sleep(1 * time.Second)
+	numPkts, pkts, err := client.StreamChannelGetPackets(&streamName, uint64(expectNumber), 30*time.Second)
+
+	if os.IsTimeout(err) {
+		return pkts, fmt.Errorf("timed out after receiving %d packets", numPkts)
 	}
-	return packets
+	return pkts, nil
 }
 
 // testPacketIn programs p4rt table entry and sends traffic related to GDP,
@@ -186,65 +180,65 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Send GDP traffic from ATE
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 10)
+	pktOut := testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 20)
 
 	packetInTests := []struct {
-		desc       string
-		client     *p4rt_client.P4RTClient
-		expectPass bool
+		desc     string
+		client   *p4rt_client.P4RTClient
+		wantPkts int
 	}{{
-		desc:       "PacketIn to Primary Controller",
-		client:     leader,
-		expectPass: true,
+		desc:     "PacketIn to Primary Controller",
+		client:   leader,
+		wantPkts: pktOut,
 	}, {
-		desc:       "PacketIn to Secondary Controller",
-		client:     follower,
-		expectPass: false,
+		desc:     "PacketIn to Secondary Controller",
+		client:   follower,
+		wantPkts: 0,
 	}}
 
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
-			packets := fetchPackets(ctx, t, test.client, 40)
+			packets, err := fetchPackets(ctx, t, test.client, test.wantPkts)
+			if err != nil {
+				t.Logf("Unexpected error on fetchPackets: %v", err)
+			}
 
-			if !test.expectPass {
-				if len(packets) > 0 {
-					t.Fatalf("Unexpected packets received.")
-				}
-			} else {
-				if len(packets) == 0 {
-					t.Fatalf("There are no packets received.")
-				}
-				t.Logf("Start to decode packet and compare with expected packets.")
-				wantPacket := args.packetIO.GetPacketTemplate()
-				for _, packet := range packets {
-					if packet != nil {
-						if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
-							dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
-							if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
-								t.Fatalf("Packet in PacketIn message is not matching wanted packet.")
+			if got, want := len(packets), test.wantPkts; got != want {
+				t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
+			}
+			if test.wantPkts == 0 {
+				return
+			}
+			t.Logf("Start to decode packet and compare with expected packets.")
+			wantPacket := args.packetIO.GetPacketTemplate()
+			for _, packet := range packets {
+				if packet != nil {
+					if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+						dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+						if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+							t.Fatalf("Packet in PacketIn message is not matching wanted packet.")
+						}
+					}
+
+					metaData := packet.Pkt.GetMetadata()
+					for _, data := range metaData {
+						if data.GetMetadataId() == METADATA_INGRESS_PORT {
+							if string(data.GetValue()) != args.packetIO.GetIngressPort() {
+								t.Fatalf("Ingress Port Id is not matching expectation.")
 							}
 						}
-
-						metaData := packet.Pkt.GetMetadata()
-						for _, data := range metaData {
-							if data.GetMetadataId() == METADATA_INGRESS_PORT {
-								if string(data.GetValue()) != args.packetIO.GetIngressPort() {
-									t.Fatalf("Ingress Port Id is not matching expectation.")
+						if data.GetMetadataId() == METADATA_EGRESS_PORT {
+							found := false
+							for _, portData := range args.packetIO.GetEgressPort() {
+								if string(data.GetValue()) == portData {
+									found = true
 								}
 							}
-							if data.GetMetadataId() == METADATA_EGRESS_PORT {
-								found := false
-								for _, portData := range args.packetIO.GetEgressPort() {
-									if string(data.GetValue()) == portData {
-										found = true
-									}
-								}
-								if !found {
-									t.Fatalf("Egress Port Id is not matching expectation.")
-								}
-
+							if !found {
+								t.Fatalf("Egress Port Id is not matching expectation.")
 							}
+
 						}
 					}
 				}
