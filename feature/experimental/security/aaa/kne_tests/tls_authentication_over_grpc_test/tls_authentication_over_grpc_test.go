@@ -39,7 +39,7 @@ import (
 
 const (
 	sshPort  = 22
-	gnmiPort = 6030
+	gnmiPort = 9339
 )
 
 func TestMain(m *testing.M) {
