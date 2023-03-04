@@ -354,7 +354,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Fl
 	time.Sleep(60 * time.Second)
 	ate.Traffic().Stop(t)
 	flowPath := gnmi.OC().Flow(flow.Name())
-	val, _ := gnmi.Watch(t, ate, flowPath.LossPct().State(), time.Minute, func(val *ygnmi.Value[float32]) bool {
+	val, _ := gnmi.Watch(t, ate, flowPath.LossPct().State(), 5*time.Minute, func(val *ygnmi.Value[float32]) bool {
 		return val.IsPresent()
 	}).Await(t)
 	lossPct, present := val.Val()
