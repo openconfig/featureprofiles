@@ -43,16 +43,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Topology:
-//   ate:port1 <--> port1:dut:port2 <--> ate:port2
-//
-//  Sample CLI command to get telemetry using gmic:
-//   - gnmic -a ipaddr:10162 -u username -p password --skip-verify get \
-//      --path /components/component --format flat
-//   - gnmic tool info:
-//     - https://github.com/karimra/gnmic/blob/main/README.md
-//
-
 func TestOpticsPowerBiasCurrent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -179,7 +169,7 @@ func TestOpticsPowerUpdate(t *testing.T) {
 	}
 }
 
-// findTransceiverName provides name of transciever port corresponding to interface name
+// findTransceiverName provides name of transceiver port corresponding to interface name
 func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, error) {
 	var (
 		transceiverName string
