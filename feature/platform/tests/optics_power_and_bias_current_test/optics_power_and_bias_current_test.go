@@ -30,13 +30,10 @@ import (
 )
 
 const (
-	ethernetCsmacd         = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	transceiverType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
-	sleepDuration          = time.Minute
-	minOpticsPower         = -40.0
-	maxOpticsPower         = 10.0
-	minOpticsHighThreshold = 1.0
-	maxOpticsLowThreshold  = -1.0
+	ethernetCsmacd  = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	transceiverType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
+	minOpticsPower  = -40.0
+	maxOpticsPower  = 10.0
 )
 
 func TestMain(m *testing.M) {
