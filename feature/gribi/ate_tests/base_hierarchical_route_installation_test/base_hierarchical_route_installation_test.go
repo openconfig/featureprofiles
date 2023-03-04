@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -164,7 +165,14 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	time.Sleep(time.Minute)
 
 	flowPath := gnmi.OC().Flow(flow.Name())
-	return gnmi.Get(t, ate, flowPath.LossPct().State())
+	val, _ := gnmi.Watch(t, ate, flowPath.LossPct().State(), time.Minute, func(val *ygnmi.Value[float32]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	lossPct, present := val.Val()
+	if !present {
+		t.Fatalf("Could not read loss percentage for flow %q from ATE.", flow.Name())
+	}
+	return lossPct
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
