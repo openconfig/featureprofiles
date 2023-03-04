@@ -143,7 +143,7 @@ func TestOpticsPowerUpdate(t *testing.T) {
 
 			component := gnmi.OC().Component(transceiverName)
 			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-				t.Skipf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiverName)
+				t.Fatalf("component.MfgName().Lookup(t).IsPresent() for %q is false", transceiverName)
 			}
 
 			mfgName := gnmi.Get(t, dut, component.MfgName().State())
