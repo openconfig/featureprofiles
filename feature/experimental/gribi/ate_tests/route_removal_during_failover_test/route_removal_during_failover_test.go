@@ -19,7 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
-	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -87,9 +87,11 @@ var (
 	}
 	vendorCoreFilePath = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "/var/core/",
+		ondatra.CISCO:   "/misc/disk1/",
 	}
-	vendorCoreProcName = map[ondatra.Vendor]string{
+	vendorCoreFileNamePattern = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "rpd",
+		ondatra.CISCO:   "emsd.*core.*",
 	}
 )
 
@@ -99,8 +101,8 @@ func coreFilecheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 	if _, ok := vendorCoreFilePath[dut.Vendor()]; !ok {
 		t.Fatalf("Please add support for vendor %v in var vendorCoreFilePath ", dut.Vendor())
 	}
-	if _, ok := vendorCoreProcName[dut.Vendor()]; !ok {
-		t.Fatalf("Please add support for vendor %v in var vendorCoreProcName.", dut.Vendor())
+	if _, ok := vendorCoreFileNamePattern[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var vendorCoreFileNamePattern.", dut.Vendor())
 	}
 
 	in := &fpb.StatRequest{
@@ -108,16 +110,14 @@ func coreFilecheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 	}
 	validResponse, err := gnoiClient.File().Stat(context.Background(), in)
 	if err != nil {
-		t.Errorf("Unable to stat path %v for core files on DUT.", vendorCoreFilePath[dut.Vendor()])
+		t.Errorf("Unable to stat path %v for core files on DUT, %v", vendorCoreFilePath[dut.Vendor()], err)
 	}
 	// Check cores creation time is greater than test start time.
 	for _, fileStatsInfo := range validResponse.GetStats() {
 		if fileStatsInfo.GetLastModified() > sysConfigTime {
-			coreFileName, err := filepath.Abs(fileStatsInfo.GetPath())
-			if err != nil {
-				t.Errorf("Error while getting core file absolute path %v", err)
-			}
-			if strings.Contains(coreFileName, vendorCoreProcName[dut.Vendor()]) {
+			coreFileName := fileStatsInfo.GetPath()
+			r := regexp.MustCompile(vendorCoreFileNamePattern[dut.Vendor()])
+			if r.Match([]byte(coreFileName)) {
 				t.Errorf("Found core %v on DUT post switchover.", coreFileName)
 			}
 		}
@@ -628,6 +628,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	}
 
 	// Check for coredumps in the DUT and validate that none are present post failover.
+	gnoiClient = dut.RawAPIs().GNOI().New(t) // reconnect gnoi connection after switchover
 	coreFilecheck(t, dut, gnoiClient, sysConfigTime)
 
 	if *deviations.GRIBIDelayedAckResponse {
