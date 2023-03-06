@@ -28,3 +28,4 @@ proto/feature_go_proto/feature.pb.go: proto/feature.proto
 proto/metadata_go_proto/metadata.pb.go: proto/metadata.proto
 	mkdir -p proto/metadata_go_proto
 	protoc --proto_path=proto --go_out=./ --go_opt=Mmetadata.proto=proto/metadata_go_proto metadata.proto
+	goimports -w proto/metadata_go_proto/metadata.pb.go
