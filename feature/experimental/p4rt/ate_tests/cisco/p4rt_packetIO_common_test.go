@@ -740,11 +740,9 @@ func testEntryProgrammingPacketInDowngradePrimaryController(ctx context.Context,
 	packets = getPackets(t, newClient, 40)
 
 	// t.Logf("Captured packets: %v", len(packets))
-	if len(packets) == 0 {
-		t.Errorf("There is no packets received.")
+	if len(packets) != 0 {
+		t.Errorf("There are unexpected packets received.")
 	}
-
-	validatePackets(t, args, packets)
 }
 
 func testEntryProgrammingPacketInDowngradePrimaryControllerWithoutStandby(ctx context.Context, t *testing.T, args *testArgs) {
