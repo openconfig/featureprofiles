@@ -31,6 +31,10 @@ func TestMain(m *testing.M) {
 }
 
 // QoS policy OC config:
+//  - forwarding-groups:
+//    - /qos/forwarding-groups/forwarding-group/config/name
+//    - /qos/forwarding-groups/forwarding-group/config/output-queue
+//    - /qos/queues/queue/config/name
 //  - classifiers:
 //    - /qos/classifiers/classifier/config/name
 //    - /qos/classifiers/classifier/config/type
@@ -44,10 +48,6 @@ func TestMain(m *testing.M) {
 //    - /qos/interfaces/interface/input/classifiers/classifier/type
 //    - /qos/interfaces/interface/input/classifiers/classifier/config/type
 //    - /qos/interfaces/interface/input/classifiers/classifier/config/name
-//  - forwarding-groups:
-//    - /qos/forwarding-groups/forwarding-group/config/name
-//    - /qos/forwarding-groups/forwarding-group/config/output-queue
-//    - /qos/queues/queue/config/name
 //  - scheduler-policies:
 //    - /qos/scheduler-policies/scheduler-policy/config/name
 //    - /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority
@@ -81,116 +81,180 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
+func TestQoSForwadingGroupsConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+
+	cases := []struct {
+		desc        string
+		queueName   string
+		targetGroup string
+	}{{
+		desc:        "forwarding-group-BE1",
+		queueName:   "BE1",
+		targetGroup: "target-group-BE1",
+	}, {
+		desc:        "forwarding-group-BE0",
+		queueName:   "BE0",
+		targetGroup: "target-group-BE0",
+	}, {
+		desc:        "forwarding-group-AF1",
+		queueName:   "AF1",
+		targetGroup: "target-group-AF1",
+	}, {
+		desc:        "forwarding-group-AF2",
+		queueName:   "AF2",
+		targetGroup: "target-group-AF2",
+	}, {
+		desc:        "forwarding-group-AF3",
+		queueName:   "AF3",
+		targetGroup: "target-group-AF3",
+	}, {
+		desc:        "forwarding-group-AF4",
+		queueName:   "AF4",
+		targetGroup: "target-group-AF4",
+	}, {
+		desc:        "forwarding-group-NC1",
+		queueName:   "NC1",
+		targetGroup: "target-group-NC1",
+	}}
+
+	t.Logf("qos forwarding groups config cases: %v", cases)
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
+			fwdGroup.SetName(tc.targetGroup)
+			fwdGroup.SetOutputQueue(tc.queueName)
+			queue := q.GetOrCreateQueue(tc.queueName)
+			queue.SetName(tc.queueName)
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		})
+
+		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
+		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
+
+		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
+		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGroup)
+		if got, want := gnmi.Get(t, dut, forwardingGroup.Name().State()), tc.targetGroup; got != want {
+			t.Errorf("forwardingGroup.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, forwardingGroup.OutputQueue().State()), tc.queueName; got != want {
+			t.Errorf("forwardingGroup.OutputQueue().State(): got %v, want %v", got, want)
+		}
+	}
+}
+
 func TestQoSClassifierConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
 	cases := []struct {
-		desc         string
-		name         string
-		classType    oc.E_Qos_Classifier_Type
-		termID       string
-		targetGrpoup string
-		dscpSet      []uint8
+		desc        string
+		name        string
+		classType   oc.E_Qos_Classifier_Type
+		termID      string
+		targetGroup string
+		dscpSet     []uint8
 	}{{
-		desc:         "classifier_ipv4_be1",
-		name:         "dscp_based_classifier_ipv4",
-		classType:    oc.Qos_Classifier_Type_IPV4,
-		termID:       "0",
-		targetGrpoup: "target-group-BE1",
-		dscpSet:      []uint8{0, 1, 2, 3},
+		desc:        "classifier_ipv4_be1",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "0",
+		targetGroup: "target-group-BE1",
+		dscpSet:     []uint8{0, 1, 2, 3},
 	}, {
-		desc:         "classifier_ipv4_be0",
-		name:         "dscp_based_classifier_ipv4",
-		classType:    oc.Qos_Classifier_Type_IPV4,
-		termID:       "1",
-		targetGrpoup: "target-group-BE0",
-		dscpSet:      []uint8{4, 5, 6, 7},
+		desc:        "classifier_ipv4_be0",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "1",
+		targetGroup: "target-group-BE0",
+		dscpSet:     []uint8{4, 5, 6, 7},
 	}, {
-		desc:         "classifier_ipv4_af1",
-		name:         "dscp_based_classifier_ipv4",
-		classType:    oc.Qos_Classifier_Type_IPV4,
-		termID:       "2",
-		targetGrpoup: "target-group-AF1",
-		dscpSet:      []uint8{8, 9, 10, 11},
+		desc:        "classifier_ipv4_af1",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "2",
+		targetGroup: "target-group-AF1",
+		dscpSet:     []uint8{8, 9, 10, 11},
 	}, {
-		desc:         "classifier_ipv4_af2",
-		name:         "dscp_based_classifier_ipv4",
-		classType:    oc.Qos_Classifier_Type_IPV4,
-		termID:       "3",
-		targetGrpoup: "target-group-AF2",
-		dscpSet:      []uint8{16, 17, 18, 19},
+		desc:        "classifier_ipv4_af2",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "3",
+		targetGroup: "target-group-AF2",
+		dscpSet:     []uint8{16, 17, 18, 19},
 	}, {
-		desc:         "classifier_ipv4_af3",
-		name:         "dscp_based_classifier_ipv4",
-		classType:    oc.Qos_Classifier_Type_IPV4,
-		termID:       "4",
-		targetGrpoup: "target-group-AF3",
-		dscpSet:      []uint8{24, 25, 26, 27},
+		desc:        "classifier_ipv4_af3",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "4",
+		targetGroup: "target-group-AF3",
+		dscpSet:     []uint8{24, 25, 26, 27},
 	}, {
-		desc:         "classifier_ipv4_af4",
-		name:         "dscp_based_classifier_ipv4",
-		classType:    oc.Qos_Classifier_Type_IPV4,
-		termID:       "5",
-		targetGrpoup: "target-group-AF4",
-		dscpSet:      []uint8{32, 33, 34, 35},
+		desc:        "classifier_ipv4_af4",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "5",
+		targetGroup: "target-group-AF4",
+		dscpSet:     []uint8{32, 33, 34, 35},
 	}, {
-		desc:         "classifier_ipv4_nc1",
-		name:         "dscp_based_classifier_ipv4",
-		classType:    oc.Qos_Classifier_Type_IPV4,
-		termID:       "6",
-		targetGrpoup: "target-group-NC1",
-		dscpSet:      []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+		desc:        "classifier_ipv4_nc1",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "6",
+		targetGroup: "target-group-NC1",
+		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}, {
-		desc:         "classifier_ipv6_be1",
-		name:         "dscp_based_classifier_ipv6",
-		classType:    oc.Qos_Classifier_Type_IPV6,
-		termID:       "0",
-		targetGrpoup: "target-group-BE1",
-		dscpSet:      []uint8{0, 1, 2, 3},
+		desc:        "classifier_ipv6_be1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "0",
+		targetGroup: "target-group-BE1",
+		dscpSet:     []uint8{0, 1, 2, 3},
 	}, {
-		desc:         "classifier_ipv6_be0",
-		name:         "dscp_based_classifier_ipv6",
-		classType:    oc.Qos_Classifier_Type_IPV6,
-		termID:       "1",
-		targetGrpoup: "target-group-BE0",
-		dscpSet:      []uint8{4, 5, 6, 7},
+		desc:        "classifier_ipv6_be0",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "1",
+		targetGroup: "target-group-BE0",
+		dscpSet:     []uint8{4, 5, 6, 7},
 	}, {
-		desc:         "classifier_ipv6_af1",
-		name:         "dscp_based_classifier_ipv6",
-		classType:    oc.Qos_Classifier_Type_IPV6,
-		termID:       "2",
-		targetGrpoup: "target-group-AF1",
-		dscpSet:      []uint8{8, 9, 10, 11},
+		desc:        "classifier_ipv6_af1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "2",
+		targetGroup: "target-group-AF1",
+		dscpSet:     []uint8{8, 9, 10, 11},
 	}, {
-		desc:         "classifier_ipv6_af2",
-		name:         "dscp_based_classifier_ipv6",
-		classType:    oc.Qos_Classifier_Type_IPV6,
-		termID:       "3",
-		targetGrpoup: "target-group-AF2",
-		dscpSet:      []uint8{16, 17, 18, 19},
+		desc:        "classifier_ipv6_af2",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "3",
+		targetGroup: "target-group-AF2",
+		dscpSet:     []uint8{16, 17, 18, 19},
 	}, {
-		desc:         "classifier_ipv6_af3",
-		name:         "dscp_based_classifier_ipv6",
-		classType:    oc.Qos_Classifier_Type_IPV6,
-		termID:       "4",
-		targetGrpoup: "target-group-AF3",
-		dscpSet:      []uint8{24, 25, 26, 27},
+		desc:        "classifier_ipv6_af3",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "4",
+		targetGroup: "target-group-AF3",
+		dscpSet:     []uint8{24, 25, 26, 27},
 	}, {
-		desc:         "classifier_ipv6_af4",
-		name:         "dscp_based_classifier_ipv6",
-		classType:    oc.Qos_Classifier_Type_IPV6,
-		termID:       "5",
-		targetGrpoup: "target-group-AF4",
-		dscpSet:      []uint8{32, 33, 34, 35},
+		desc:        "classifier_ipv6_af4",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "5",
+		targetGroup: "target-group-AF4",
+		dscpSet:     []uint8{32, 33, 34, 35},
 	}, {
-		desc:         "classifier_ipv6_nc1",
-		name:         "dscp_based_classifier_ipv6",
-		classType:    oc.Qos_Classifier_Type_IPV6,
-		termID:       "6",
-		targetGrpoup: "target-group-NC1",
-		dscpSet:      []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+		desc:        "classifier_ipv6_nc1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "6",
+		targetGroup: "target-group-NC1",
+		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}}
 
 	t.Logf("qos Classifiers config cases: %v", cases)
@@ -206,7 +270,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 
 			term.SetId(tc.termID)
 			action := term.GetOrCreateActions()
-			action.SetTargetGroup(tc.targetGrpoup)
+			action.SetTargetGroup(tc.targetGroup)
 			condition := term.GetOrCreateConditions()
 			if tc.name == "dscp_based_classifier_ipv4" {
 				condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
@@ -237,7 +301,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		if got, want := gnmi.Get(t, dut, term.Id().State()), tc.termID; got != want {
 			t.Errorf("term.Id().State(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, action.TargetGroup().State()), tc.targetGrpoup; got != want {
+		if got, want := gnmi.Get(t, dut, action.TargetGroup().State()), tc.targetGroup; got != want {
 			t.Errorf("action.TargetGroup().State(): got %v, want %v", got, want)
 		}
 
@@ -306,147 +370,83 @@ func TestQoSInputIntfClassifierConfig(t *testing.T) {
 	}
 }
 
-func TestQoSForwadingGroupsConfig(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	d := &oc.Root{}
-	q := d.GetOrCreateQos()
-
-	cases := []struct {
-		desc         string
-		queueName    string
-		targetGrpoup string
-	}{{
-		desc:         "forwarding-group-BE1",
-		queueName:    "BE1",
-		targetGrpoup: "target-group-BE1",
-	}, {
-		desc:         "forwarding-group-BE0",
-		queueName:    "BE0",
-		targetGrpoup: "target-group-BE0",
-	}, {
-		desc:         "forwarding-group-AF1",
-		queueName:    "AF1",
-		targetGrpoup: "target-group-AF1",
-	}, {
-		desc:         "forwarding-group-AF2",
-		queueName:    "AF2",
-		targetGrpoup: "target-group-AF2",
-	}, {
-		desc:         "forwarding-group-AF3",
-		queueName:    "AF3",
-		targetGrpoup: "target-group-AF3",
-	}, {
-		desc:         "forwarding-group-AF4",
-		queueName:    "AF4",
-		targetGrpoup: "target-group-AF4",
-	}, {
-		desc:         "forwarding-group-NC1",
-		queueName:    "NC1",
-		targetGrpoup: "target-group-NC1",
-	}}
-
-	t.Logf("qos forwarding groups config cases: %v", cases)
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGrpoup)
-			fwdGroup.SetName(tc.targetGrpoup)
-			fwdGroup.SetOutputQueue(tc.queueName)
-			queue := q.GetOrCreateQueue(tc.queueName)
-			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		})
-
-		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-		t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
-
-		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
-		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGrpoup)
-		if got, want := gnmi.Get(t, dut, forwardingGroup.Name().State()), tc.targetGrpoup; got != want {
-			t.Errorf("forwardingGroup.Name().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, forwardingGroup.OutputQueue().State()), tc.queueName; got != want {
-			t.Errorf("forwardingGroup.OutputQueue().State(): got %v, want %v", got, want)
-		}
-	}
-}
-
 func TestSchedulerPoliciesConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
 	cases := []struct {
-		desc         string
-		sequence     uint32
-		priority     oc.E_Scheduler_Priority
-		inputID      string
-		inputType    oc.E_Input_InputType
-		weight       uint64
-		queueName    string
-		targetGrpoup string
+		desc        string
+		sequence    uint32
+		priority    oc.E_Scheduler_Priority
+		inputID     string
+		inputType   oc.E_Input_InputType
+		weight      uint64
+		queueName   string
+		targetGroup string
 	}{{
-		desc:         "scheduler-policy-BE1",
-		sequence:     uint32(1),
-		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "BE1",
-		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(1),
-		queueName:    "BE1",
-		targetGrpoup: "target-group-BE1",
+		desc:        "scheduler-policy-BE1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(1),
+		queueName:   "BE1",
+		targetGroup: "target-group-BE1",
 	}, {
-		desc:         "scheduler-policy-BE0",
-		sequence:     uint32(1),
-		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "BE0",
-		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(2),
-		queueName:    "BE0",
-		targetGrpoup: "target-group-BE0",
+		desc:        "scheduler-policy-BE0",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE0",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(2),
+		queueName:   "BE0",
+		targetGroup: "target-group-BE0",
 	}, {
-		desc:         "scheduler-policy-AF1",
-		sequence:     uint32(1),
-		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "AF1",
-		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(4),
-		queueName:    "AF1",
-		targetGrpoup: "target-group-AF1",
+		desc:        "scheduler-policy-AF1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(4),
+		queueName:   "AF1",
+		targetGroup: "target-group-AF1",
 	}, {
-		desc:         "scheduler-policy-AF2",
-		sequence:     uint32(1),
-		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "AF2",
-		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(8),
-		queueName:    "AF2",
-		targetGrpoup: "target-group-AF2",
+		desc:        "scheduler-policy-AF2",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF2",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(8),
+		queueName:   "AF2",
+		targetGroup: "target-group-AF2",
 	}, {
-		desc:         "scheduler-policy-AF3",
-		sequence:     uint32(1),
-		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "AF3",
-		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(16),
-		queueName:    "AF3",
-		targetGrpoup: "target-group-AF3",
+		desc:        "scheduler-policy-AF3",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF3",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(16),
+		queueName:   "AF3",
+		targetGroup: "target-group-AF3",
 	}, {
-		desc:         "scheduler-policy-AF4",
-		sequence:     uint32(0),
-		priority:     oc.Scheduler_Priority_STRICT,
-		inputID:      "AF4",
-		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(100),
-		queueName:    "AF4",
-		targetGrpoup: "target-group-AF4",
+		desc:        "scheduler-policy-AF4",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "AF4",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(100),
+		queueName:   "AF4",
+		targetGroup: "target-group-AF4",
 	}, {
-		desc:         "scheduler-policy-NC1",
-		sequence:     uint32(0),
-		priority:     oc.Scheduler_Priority_STRICT,
-		inputID:      "NC1",
-		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(200),
-		queueName:    "NC1",
-		targetGrpoup: "target-group-NC1",
+		desc:        "scheduler-policy-NC1",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "NC1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(200),
+		queueName:   "NC1",
+		targetGroup: "target-group-NC1",
 	}}
 
 	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
@@ -522,9 +522,8 @@ func TestECNConfig(t *testing.T) {
 	uniform.SetDrop(ecnConfig.dropEnabled)
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
-	// TODO: uncomment the following config after it is supported.
-	// uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	// uniform.SetWeight(ecnConfig.weight)
+	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+	uniform.SetWeight(ecnConfig.weight)
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)

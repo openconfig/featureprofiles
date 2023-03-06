@@ -97,13 +97,22 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	ctx := context.Background()
 
 	dut := ondatra.DUT(t, "dut")
+
+	// For interface configuration, Arista prefers config Vrf first then the IP address
+	if *deviations.InterfaceConfigVrfBeforeAddress {
+		configureNetworkInstance(t, dut)
+	}
+
 	configureDUT(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
 
+	if !*deviations.InterfaceConfigVrfBeforeAddress {
+		configureNetworkInstance(t, dut)
+	}
+
 	ateTop.Push(t).StartProtocols(t)
-	configureNetworkInstance(t, dut)
 
 	// Configure the gRIBI client clientA and make it leader.
 	clientA := &gribi.Client{
