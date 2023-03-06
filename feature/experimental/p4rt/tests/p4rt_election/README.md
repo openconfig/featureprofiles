@@ -76,7 +76,8 @@ Validate the P4RT server handles primary election and failover.
     *   Zero Election
         1.  Connect a single P4RT client with an election ID (high: 0, low: 0)
             and no other active P4RT clients for the corresponding device_id.
-        2.  Verify that the client is able to read and not write.
+        2.  Verify that the client is able to read and not write using Get and
+            Set ForwardingPipelineConfig requests.
     *   Long Evolution
         1.  Connect five P4RT clients to the same device_id with election_id's
             1,2,3,4,5
