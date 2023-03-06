@@ -168,7 +168,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID      string
 		targetGroup string
 		dscpSet     []uint8
-		QueueNumber string
+		queueNumber string
 	}{{
 		desc:        "classifier_ipv4_be1",
 		name:        "dscp_based_classifier_ipv4",
@@ -176,7 +176,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "0",
 		targetGroup: "target-group-BE1",
 		dscpSet:     []uint8{0, 1, 2, 3},
-		QueueNumber: "0",
+		queueNumber: "0",
 	}, {
 		desc:        "classifier_ipv4_be0",
 		name:        "dscp_based_classifier_ipv4",
@@ -184,7 +184,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "1",
 		targetGroup: "target-group-BE0",
 		dscpSet:     []uint8{4, 5, 6, 7},
-		QueueNumber: "1",
+		queueNumber: "1",
 	}, {
 		desc:        "classifier_ipv4_af1",
 		name:        "dscp_based_classifier_ipv4",
@@ -192,7 +192,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "2",
 		targetGroup: "target-group-AF1",
 		dscpSet:     []uint8{8, 9, 10, 11},
-		QueueNumber: "2",
+		queueNumber: "2",
 	}, {
 		desc:        "classifier_ipv4_af2",
 		name:        "dscp_based_classifier_ipv4",
@@ -200,7 +200,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "3",
 		targetGroup: "target-group-AF2",
 		dscpSet:     []uint8{16, 17, 18, 19},
-		QueueNumber: "3",
+		queueNumber: "3",
 	}, {
 		desc:        "classifier_ipv4_af3",
 		name:        "dscp_based_classifier_ipv4",
@@ -208,7 +208,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "4",
 		targetGroup: "target-group-AF3",
 		dscpSet:     []uint8{24, 25, 26, 27},
-		QueueNumber: "4",
+		queueNumber: "4",
 	}, {
 		desc:        "classifier_ipv4_af4",
 		name:        "dscp_based_classifier_ipv4",
@@ -216,7 +216,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "5",
 		targetGroup: "target-group-AF4",
 		dscpSet:     []uint8{32, 33, 34, 35},
-		QueueNumber: "5",
+		queueNumber: "5",
 	}, {
 		desc:        "classifier_ipv4_nc1",
 		name:        "dscp_based_classifier_ipv4",
@@ -224,7 +224,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "6",
 		targetGroup: "target-group-NC1",
 		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
-		QueueNumber: "6",
+		queueNumber: "6",
 	}, {
 		desc:        "classifier_ipv6_be1",
 		name:        "dscp_based_classifier_ipv6",
@@ -232,7 +232,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "0",
 		targetGroup: "target-group-BE1",
 		dscpSet:     []uint8{0, 1, 2, 3},
-		QueueNumber: "0",
+		queueNumber: "0",
 	}, {
 		desc:        "classifier_ipv6_be0",
 		name:        "dscp_based_classifier_ipv6",
@@ -240,7 +240,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "1",
 		targetGroup: "target-group-BE0",
 		dscpSet:     []uint8{4, 5, 6, 7},
-		QueueNumber: "1",
+		queueNumber: "1",
 	}, {
 		desc:        "classifier_ipv6_af1",
 		name:        "dscp_based_classifier_ipv6",
@@ -248,7 +248,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "2",
 		targetGroup: "target-group-AF1",
 		dscpSet:     []uint8{8, 9, 10, 11},
-		QueueNumber: "2",
+		queueNumber: "2",
 	}, {
 		desc:        "classifier_ipv6_af2",
 		name:        "dscp_based_classifier_ipv6",
@@ -256,7 +256,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "3",
 		targetGroup: "target-group-AF2",
 		dscpSet:     []uint8{16, 17, 18, 19},
-		QueueNumber: "3",
+		queueNumber: "3",
 	}, {
 		desc:        "classifier_ipv6_af3",
 		name:        "dscp_based_classifier_ipv6",
@@ -264,7 +264,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "4",
 		targetGroup: "target-group-AF3",
 		dscpSet:     []uint8{24, 25, 26, 27},
-		QueueNumber: "4",
+		queueNumber: "4",
 	}, {
 		desc:        "classifier_ipv6_af4",
 		name:        "dscp_based_classifier_ipv6",
@@ -272,7 +272,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "5",
 		targetGroup: "target-group-AF4",
 		dscpSet:     []uint8{32, 33, 34, 35},
-		QueueNumber: "5",
+		queueNumber: "5",
 	}, {
 		desc:        "classifier_ipv6_nc1",
 		name:        "dscp_based_classifier_ipv6",
@@ -280,7 +280,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 		termID:      "6",
 		targetGroup: "target-group-NC1",
 		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
-		QueueNumber: "6",
+		queueNumber: "6",
 	}}
 
 	t.Logf("qos Classifiers config cases: %v", cases)
@@ -306,7 +306,7 @@ func TestQoSClassifierConfig(t *testing.T) {
 			t.Logf("Forwarding group config required for binding to a classifier")
 			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
 			fwdGroup.SetName(tc.targetGroup)
-			fwdGroup.SetOutputQueue(tc.QueueNumber)
+			fwdGroup.SetOutputQueue(tc.queueNumber)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
