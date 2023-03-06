@@ -28,12 +28,13 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/wbb"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -44,7 +45,6 @@ const (
 
 var (
 	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName          = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
 	gdpSrcMAC             = flag.String("gdp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
 	streamName            = "p4rt"
 	gdpMAC                = "00:0a:da:f0:f0:f0"
@@ -83,7 +83,7 @@ var (
 )
 
 type PacketIO interface {
-	GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo
+	GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
 	GetPacketTemplate() *PacketIOPacket
 	GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []*ondatra.Flow
 	GetEgressPort() []string
@@ -111,7 +111,7 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
-		Updates: wbb.ACLWbbIngressTableEntryGet(
+		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
@@ -165,6 +165,8 @@ func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTCli
 			t.Fatalf("There is error seen when receving packets. %v, %s", err, err)
 			break
 		}
+		// TODO(ankur19): remove the wait after fixing p4rt_client GetPacket.
+		time.Sleep(1 * time.Second)
 	}
 	return packets
 }
@@ -269,16 +271,16 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -289,15 +291,25 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -319,20 +331,26 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// configureDeviceId configures p4rt device-id on the DUT.
-func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	component := telemetry.Component{}
-	component.IntegratedCircuit = &telemetry.Component_IntegratedCircuit{}
-	component.Name = ygot.String(*p4rtNodeName)
-	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
-	dut.Config().Component(*p4rtNodeName).Replace(t, &component)
+// configureDeviceIDs configures p4rt device-id on the DUT.
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	p4rtNode, ok := nodes["port1"]
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port1")
+	}
+	t.Logf("Configuring P4RT Node: %s", p4rtNode)
+	c := oc.Component{}
+	c.Name = ygot.String(p4rtNode)
+	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
+	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
 // configurePortId configures p4rt port-id on the DUT.
 func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	ports := sortPorts(dut.Ports())
 	for i, port := range ports {
-		dut.Config().Interface(port.Name()).Id().Replace(t, uint32(i)+portID)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Id().Config(), uint32(i)+portID)
 	}
 }
 
@@ -363,10 +381,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 					},
 				},
 			}); err != nil {
-				return errors.New("Errors seen when sending ClientArbitration message.")
+				return fmt.Errorf("errors seen when sending ClientArbitration message: %v", err)
 			}
 			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
-				return errors.New("Errors seen in ClientArbitration response.")
+				if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+					return err
+				}
+				return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
 			}
 		}
 	}
@@ -418,23 +439,23 @@ func TestPacketIn(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	// Configure P4RT device-id and port-id
-	configureDeviceId(ctx, t, dut)
+	configureDeviceID(ctx, t, dut)
 	configurePortId(ctx, t, dut)
 
-	leader := p4rt_client.P4RTClient{}
-	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	follower := p4rt_client.P4RTClient{}
-	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+	follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	args := &testArgs{
 		ctx:      ctx,
-		leader:   &leader,
-		follower: &follower,
+		leader:   leader,
+		follower: follower,
 		dut:      dut,
 		ate:      ate,
 		top:      top,
@@ -454,12 +475,12 @@ type GDPPacketIO struct {
 }
 
 // GetTableEntry creates wbb acl entry related to GDP.
-func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*wbb.ACLWbbIngressTableEntryInfo {
+func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
 	if delete {
 		actionType = p4_v1.Update_DELETE
 	}
-	return []*wbb.ACLWbbIngressTableEntryInfo{{
+	return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
 		EtherType:     0x6007,
 		EtherTypeMask: 0xFFFF,

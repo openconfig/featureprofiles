@@ -21,7 +21,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -112,7 +114,7 @@ func testNextHop(
 	scale uint64, // multiplies the weights in nexthops by this.
 	gribic spb.GRIBIClient,
 	ate *ondatra.ATEDevice,
-	top *ondatra.ATETopology,
+	top gosnappi.Config,
 ) {
 	// Configure the gRIBI client.
 	c := fluent.NewClient()
@@ -123,16 +125,22 @@ func testNextHop(
 		WithPersistence()
 	c.Start(ctx, t)
 	defer c.Stop(t)
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(c); err != nil {
+			t.Errorf("Cannot flush: %v", err)
+		}
+	}()
+
 	c.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
 	}
+	gribi.BecomeLeader(t, c)
 
-	_, err := c.Flush().
-		WithElectionOverride().
-		WithAllNetworkInstances().
-		Send()
-	if err != nil {
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
 		t.Errorf("Cannot flush: %v", err)
 	}
 
@@ -195,7 +203,7 @@ func TestWeightedBalancing(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().StartProtocols(t)
 
 	// Run through the test cases.
 	for _, s := range scales {

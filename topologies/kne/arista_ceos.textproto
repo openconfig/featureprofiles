@@ -1,8 +1,11 @@
 name: "arista-ceos"
 nodes: {
   name: "dut"
-  type: ARISTA_CEOS
+  vendor: ARISTA
+  model: "ceos"
+  os: "eos"
   config: {
+    image: "ceos:latest"
     config_path: "/mnt/flash"
     config_file: "startup-config"
     file: "arista_ceos.config"

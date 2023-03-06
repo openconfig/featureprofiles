@@ -29,8 +29,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
-	otgoc "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	otgoc "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -70,11 +71,11 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-func configInterface(name, desc, ipv4 string, prefixlen uint8) *telemetry.Interface {
-	i := &telemetry.Interface{}
+func configInterface(name, desc, ipv4 string, prefixlen uint8) *oc.Interface {
+	i := &oc.Interface{}
 	i.Name = ygot.String(name)
 	i.Description = ygot.String(desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
@@ -83,7 +84,7 @@ func configInterface(name, desc, ipv4 string, prefixlen uint8) *telemetry.Interf
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 
@@ -99,7 +100,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		badTelem   []string
 	)
 
-	d := dut.Config()
+	d := gnmi.OC()
 
 	// TODO(liulk): configure breakout ports when Ondatra is able to
 	// specify them in the testbed for reservation.
@@ -108,27 +109,27 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for i, dp := range sortedDutPorts {
 		di := d.Interface(dp.Name())
 		in := configInterface(dp.Name(), dp.String(), dutPortIP(i), plen)
-		fptest.LogYgot(t, fmt.Sprintf("%s to Replace()", dp), di, in)
-		if ok := fptest.NonFatal(t, func(t testing.TB) { di.Replace(t, in) }); !ok {
+		fptest.LogQuery(t, fmt.Sprintf("%s to Replace()", dp), di.Config(), in)
+		if ok := fptest.NonFatal(t, func(t testing.TB) { gnmi.Replace(t, dut, di.Config(), in) }); !ok {
 			badReplace = append(badReplace, dp.Name())
 		}
 	}
 
 	for _, dp := range dut.Ports() {
 		di := d.Interface(dp.Name())
-		if q := di.Lookup(t); q.IsPresent() {
-			fptest.LogYgot(t, fmt.Sprintf("%s from Get()", dp), di, q.Val(t))
+		if val, present := gnmi.LookupConfig(t, dut, di.Config()).Val(); present {
+			fptest.LogQuery(t, fmt.Sprintf("%s from Get()", dp), di.Config(), val)
 		} else {
 			badConfig = append(badConfig, dp.Name())
 			t.Errorf("Config %v Get() failed", di)
 		}
 	}
 
-	dt := dut.Telemetry()
+	dt := gnmi.OC()
 	for _, dp := range dut.Ports() {
 		di := dt.Interface(dp.Name())
-		if q := di.Lookup(t); q.IsPresent() {
-			fptest.LogYgot(t, fmt.Sprintf("%s from Get()", dp), di, q.Val(t))
+		if val, present := gnmi.Lookup(t, dut, di.State()).Val(); present {
+			fptest.LogQuery(t, fmt.Sprintf("%s from Get()", dp), di.State(), val)
 		} else {
 			badTelem = append(badTelem, dp.Name())
 			t.Errorf("Telemetry %v Get() failed", di)
@@ -148,8 +149,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		t.Logf("OTG AddInterface: ports[%d] = %v", i, ap)
 		in := top.Ports().Add().SetName(ap.ID())
 		dev := top.Devices().Add().SetName(ap.Name() + ".dev")
-		eth := dev.Ethernets().Add().SetName(ap.Name() + ".eth").
-			SetPortName(in.Name()).SetMac(atePortMac(i))
+		eth := dev.Ethernets().Add().SetName(ap.Name() + ".eth").SetMac(atePortMac(i))
+		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(in.Name())
 		ipv4Addr := strings.Split(atePortCIDR(i), "/")[0]
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".ipv4").
 			SetAddress(ipv4Addr).SetGateway(dutPortIP(i)).
@@ -174,11 +175,11 @@ func TestTopology(t *testing.T) {
 	// Query Telemetry
 	dutPorts := sortPorts(dut.Ports())
 	t.Run("Telemetry", func(t *testing.T) {
-		const want = telemetry.Interface_OperStatus_UP
+		const want = oc.Interface_OperStatus_UP
 
-		dt := dut.Telemetry()
+		dt := gnmi.OC()
 		for _, dp := range dutPorts {
-			if got := dt.Interface(dp.Name()).OperStatus().Get(t); got != want {
+			if got := gnmi.Get(t, dut, dt.Interface(dp.Name()).OperStatus().State()); got != want {
 				t.Errorf("%s oper-status got %v, want %v", dp, got, want)
 			}
 		}
@@ -188,7 +189,7 @@ func TestTopology(t *testing.T) {
 	// Query ATE telemetry.
 	t.Run("ATE Telemetry", func(t *testing.T) {
 		want := []otgoc.E_Port_Link{otgoc.Port_Link_UP, otgoc.Port_Link_UP}
-		if got := ate.OTG().Telemetry().PortAny().Link().Get(t); !cmp.Equal(got, want) {
+		if got := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().PortAny().Link().State()); !cmp.Equal(got, want) {
 			t.Errorf("did not get expected ATE telemetry, got: %v, want: %v", got, want)
 		}
 	})

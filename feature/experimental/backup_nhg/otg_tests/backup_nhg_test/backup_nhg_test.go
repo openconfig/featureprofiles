@@ -17,21 +17,27 @@ package backup_nhg_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 )
 
 type testArgs struct {
 	ate    *ondatra.ATEDevice
-	ateTop *ondatra.ATETopology
+	ateTop gosnappi.Config
 	ctx    context.Context
 	dut    *ondatra.DUTDevice
 	gribic *fluent.GRIBIClient
@@ -65,18 +71,21 @@ var (
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		Desc:    "ATE Port 1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
 	}
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
 		Desc:    "ATE Port 2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: 30,
 	}
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
 		Desc:    "ATE Port 3",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: 30,
 	}
@@ -129,7 +138,11 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
 	}
-
+	gribi.BecomeLeader(t, c)
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
+		t.Errorf("Cannot flush: %v", err)
+	}
 	tcArgs := &testArgs{
 		ate:    ate,
 		ateTop: ateTop,
@@ -140,40 +153,43 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 
 	tcArgs.configureBackupNextHopGroup(t, false)
 
-	baselineFlow := tcArgs.createFlow("Baseline Path Flow", &atePort2)
-	backupFlow := tcArgs.createFlow("Backup Path Flow", &atePort3)
+	baselineFlow := tcArgs.createFlow("Baseline Path Flow", ateTop, &atePort2)
+	backupFlow := tcArgs.createFlow("Backup Path Flow", ateTop, &atePort3)
+	tcArgs.ate.OTG().PushConfig(t, ateTop)
+	tcArgs.ate.OTG().StartProtocols(t)
 
 	cases := []struct {
 		desc               string
 		applyImpairmentFn  func()
 		removeImpairmentFn func()
 	}{
-		{
-			desc: "Disable ATE port-2",
-			applyImpairmentFn: func() {
-				ateP2 := ate.Port(t, "port2")
-				dutP2 := dut.Port(t, "port2")
-				ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(false).Send(t)
-				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
-			},
-			removeImpairmentFn: func() {
-				ateP2 := ate.Port(t, "port2")
-				dutP2 := dut.Port(t, "port2")
-				ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(true).Send(t)
-				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
-			},
-		},
+		// Disabling otg / kne ports has no effect
+		// {
+		// 	desc: "Disable ATE port-2",
+		// 	applyImpairmentFn: func() {
+		// 		ateP2 := ate.Port(t, "port2")
+		// 		dutP2 := dut.Port(t, "port2")
+		// 		ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(false).Send(t)
+		// 		dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
+		// 	},
+		// 	removeImpairmentFn: func() {
+		// 		ateP2 := ate.Port(t, "port2")
+		// 		dutP2 := dut.Port(t, "port2")
+		// 		ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(true).Send(t)
+		// 		dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
+		// 	},
+		// },
 		{
 			desc: "Disable DUT port-2",
 			applyImpairmentFn: func() {
 				dutP2 := dut.Port(t, "port2")
-				dut.Config().Interface(dutP2.Name()).Enabled().Replace(t, false)
-				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
+				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP2.Name()).Enabled().Config(), false)
+				gnmi.Await(t, dut, gnmi.OC().Interface(dutP2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 			},
 			removeImpairmentFn: func() {
 				dutP2 := dut.Port(t, "port2")
-				dut.Config().Interface(dutP2.Name()).Enabled().Replace(t, true)
-				dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
+				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP2.Name()).Enabled().Config(), true)
+				gnmi.Await(t, dut, gnmi.OC().Interface(dutP2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 			},
 		},
 	}
@@ -184,14 +200,14 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 			})
 
 			t.Run("Validate Baseline Traffic Delivery", func(t *testing.T) {
-				tcArgs.validateTrafficFlows(t, baselineFlow, backupFlow)
+				tcArgs.validateTrafficFlows(t, ate, ateTop, baselineFlow, backupFlow)
 			})
 
 			tc.applyImpairmentFn()
 			defer tc.removeImpairmentFn()
 
 			t.Run("Validate Backup Path Traffic Delivery", func(t *testing.T) {
-				tcArgs.validateTrafficFlows(t, backupFlow, baselineFlow)
+				tcArgs.validateTrafficFlows(t, ate, ateTop, backupFlow, baselineFlow)
 			})
 		})
 	}
@@ -236,6 +252,17 @@ func TestIndirectBackupNexthopGroup(t *testing.T) {
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
 	}
+	gribi.BecomeLeader(t, c)
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
+		t.Errorf("Cannot flush: %v", err)
+	}
+
+	gribi.BecomeLeader(t, c)
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
+		t.Errorf("Cannot flush: %v", err)
+	}
 
 	tcArgs := &testArgs{
 		ate:    ate,
@@ -247,11 +274,13 @@ func TestIndirectBackupNexthopGroup(t *testing.T) {
 
 	tcArgs.configureIndirBackupNextHopGroup(t, false)
 
-	baselineFlow := tcArgs.createFlow("Baseline Path Flow", &atePort2)
-	backupFlow := tcArgs.createFlow("Backup Path Flow", &atePort3)
+	baselineFlow := tcArgs.createFlow("Baseline Path Flow", ateTop, &atePort2)
+	backupFlow := tcArgs.createFlow("Backup Path Flow", ateTop, &atePort3)
+	tcArgs.ate.OTG().PushConfig(t, ateTop)
+	tcArgs.ate.OTG().StartProtocols(t)
 
 	t.Run("Validate Baseline Traffic Delivery", func(t *testing.T) {
-		tcArgs.validateTrafficFlows(t, baselineFlow, backupFlow)
+		tcArgs.validateTrafficFlows(t, ate, ateTop, baselineFlow, backupFlow)
 	})
 
 	// Delete indirect(recursive) next hop prefix entry to activate the backup
@@ -260,7 +289,7 @@ func TestIndirectBackupNexthopGroup(t *testing.T) {
 		WithPrefix("192.0.2.254/32").WithNextHopGroup(10000))
 
 	t.Run("Validate Backup Path Traffic Delivery", func(t *testing.T) {
-		tcArgs.validateTrafficFlows(t, backupFlow, baselineFlow)
+		tcArgs.validateTrafficFlows(t, ate, ateTop, backupFlow, baselineFlow)
 	})
 
 	tcArgs.configureIndirBackupNextHopGroup(t, true)
@@ -273,34 +302,45 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 	return c.Await(subctx, t)
 }
 
-// configreATE configures port1-3 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+// configureATE configures port1-3 on the ATE.
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
 
-	atePort1.AddToATE(top, p1, &dutPort1)
-	atePort2.AddToATE(top, p2, &dutPort2)
-	atePort3.AddToATE(top, p3, &dutPort3)
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+	atePort3.AddToOTG(top, p3, &dutPort3)
 
-	top.Push(t).StartProtocols(t)
-
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 	return top
 }
 
 // configureDUT configures port1-3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
-	d.Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	d.Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
-	d.Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+		fptest.SetPortSpeed(t, p3)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureBackupNextHopGroup creates and deletes the gribi nexthops, nexthop
@@ -390,35 +430,40 @@ func (a *testArgs) configureIndirBackupNextHopGroup(t *testing.T, del bool) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
-func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow {
-	hdr := ondatra.NewIPv4Header()
-	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfxMin).WithMax(dstPfxMax).WithCount(dstPfxCount)
+func (a *testArgs) createFlow(name string, ateTop gosnappi.Config, dst *attrs.Attributes) string {
 
-	flow := a.ate.Traffic().NewFlow(name).
-		WithSrcEndpoints(a.ateTop.Interfaces()[atePort1.Name]).
-		WithDstEndpoints(a.ateTop.Interfaces()[dst.Name]).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr)
+	modName := strings.Replace(name, " ", "_", -1)
+	flowipv4 := ateTop.Flows().Add().SetName(modName)
+	flowipv4.Metrics().SetEnable(true)
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{dst.Name + ".IPv4"})
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
 
-	return flow
+	return modName
+
 }
 
 func (a *testArgs) validateAftTelemetry(t *testing.T) {
-	aftPfxNHG := a.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(dstPfx).NextHopGroup()
-	aftPfxNHGVal, found := aftPfxNHG.Watch(t, 10*time.Second, func(val *telemetry.QualifiedUint64) bool {
-		// Do nothing in this matching function, as we already filter on the prefix.
+	aftPfxNHG := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(dstPfx).NextHopGroup()
+	aftPfxNHGVal, found := gnmi.Watch(t, a.dut, aftPfxNHG.State(), 10*time.Second, func(val *ygnmi.Value[uint64]) bool {
+
 		return true
 	}).Await(t)
 	if !found {
 		t.Fatalf("Could not find prefix %s in telemetry AFT", dstPfx)
 	}
+	nhg, _ := aftPfxNHGVal.Val()
 
-	aftNHG := a.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(aftPfxNHGVal.Val(t)).Get(t)
+	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhg).State())
 	if got := len(aftNHG.NextHop); got != 1 {
 		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", dstPfx, got)
 	}
 
 	for k := range aftNHG.NextHop {
-		aftnh := a.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).Get(t)
+		aftnh := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).State())
 		if got, want := aftnh.GetIpAddress(), atePort2.IPv4; got != want {
 			t.Fatalf("Prefix %s next-hop IP: got %s, want %s", dstPfx, got, want)
 		}
@@ -427,15 +472,42 @@ func (a *testArgs) validateAftTelemetry(t *testing.T) {
 
 // validateTrafficFlows verifies that the good flow delivers traffic and the
 // bad flow does not deliver traffic.
-func (a *testArgs) validateTrafficFlows(t *testing.T, good *ondatra.Flow, bad *ondatra.Flow) {
-	a.ate.Traffic().Start(t, good, bad)
-	time.Sleep(15 * time.Second)
-	a.ate.Traffic().Stop(t)
+func (a *testArgs) validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, good, bad string) {
 
-	if got := a.ate.Telemetry().Flow(good.Name()).LossPct().Get(t); got > 0 {
-		t.Fatalf("LossPct for flow %s: got %g, want 0", good.Name(), got)
+	waitOTGARPEntry(t)
+	ate.OTG().StartTraffic(t)
+	time.Sleep(15 * time.Second)
+	ate.OTG().StopTraffic(t)
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), config)
+	otgutils.LogPortMetrics(t, ate.OTG(), config)
+	if got := getLossPct(t, ate, good); got > 0 {
+		t.Errorf("LossPct for flow %s: got %v, want 0", good, got)
 	}
-	if got := a.ate.Telemetry().Flow(bad.Name()).LossPct().Get(t); got < 100 {
-		t.Fatalf("LossPct for flow %s: got %g, want 100", bad.Name(), got)
+	if got := getLossPct(t, ate, bad); got < 100 {
+		t.Errorf("LossPct for flow %s: got %v, want 100", bad, got)
 	}
+
+}
+
+// Waits for an ARP entry to be present for ATE Port1
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+}
+
+// getLossPct returns the loss percentage for a given flow
+func getLossPct(t *testing.T, ate *ondatra.ATEDevice, flowName string) uint64 {
+	t.Helper()
+	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
+	txPackets := recvMetric.GetCounters().GetOutPkts()
+	rxPackets := recvMetric.GetCounters().GetInPkts()
+	lostPackets := txPackets - rxPackets
+	if txPackets == 0 {
+		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
+	}
+	lossPct := lostPackets * 100 / txPackets
+	return lossPct
 }

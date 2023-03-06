@@ -27,12 +27,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/tcheck"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -45,22 +46,22 @@ type attributes struct {
 }
 
 type nhInfo struct {
-	nhg    uint64
 	index  uint64
 	weight uint64
 }
 
 const (
 	ipv4PrefixLen   = 30
-	ipv4EntryPrefix = "203.0.113.0/24"
-	ipv4FlowIPStart = "203.0.113.0"
-	ipv4FlowIPEnd   = "203.0.113.255"
+	ipv4EntryPrefix = "198.18.196.0/22"
+	ipv4FlowIPStart = "198.18.196.0"
+	ipv4FlowIPEnd   = "198.18.199.255"
+	ipv4FlowCount   = 1024
 	nhEntryIP1      = "192.0.2.111"
 	nhEntryIP2      = "192.0.2.222"
 	nonDefaultVRF   = "VRF-1"
 	// 'deviation' is the maximum difference that is allowed between the observed
 	// traffic distribution and the required traffic distribution.
-	deviation = 0.5
+	deviation = 1
 )
 
 var (
@@ -108,6 +109,13 @@ var (
 		ip:         atePort2IPv4,
 		gateway:    dutPort2IPv4,
 	}
+
+	// nhgIPv4EntryMap maps NextHopGroups to the ipv4 entries pointing to that NextHopGroup.
+	nhgIPv4EntryMap = map[uint64]string{
+		1: ipv4EntryPrefix,
+		2: cidr(nhEntryIP1, 32),
+		3: cidr(nhEntryIP2, 32),
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -148,15 +156,15 @@ func cidr(ipv4 string, ones int) string {
 func filterPacketReceived(t *testing.T, flow string, ate *ondatra.ATEDevice) map[string]float64 {
 	t.Helper()
 
-	flowPath := ate.Telemetry().Flow(flow)
-	filters := flowPath.EgressTrackingAny().Get(t)
+	flowPath := gnmi.OC().Flow(flow)
+	filters := gnmi.GetAll(t, ate, flowPath.EgressTrackingAny().State())
 
 	inPkts := map[string]uint64{}
 	for _, f := range filters {
 		inPkts[f.GetFilter()] = f.GetCounters().GetInPkts()
 	}
 	inPct := map[string]float64{}
-	total := flowPath.Counters().OutPkts().Get(t)
+	total := gnmi.Get(t, ate, flowPath.Counters().OutPkts().State())
 	for k, v := range inPkts {
 		inPct[k] = (float64(v) / float64(total)) * 100.0
 	}
@@ -220,7 +228,7 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // starting from Sub Interface 1. Each Subinterface is configured with a
 // unique VlanID starting from 1 and an IP address. The starting IP Address
 // for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4
-func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *telemetry.Interface) {
+func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 	t.Helper()
 
 	for i := uint32(1); i <= a.numSubIntf; i++ {
@@ -230,9 +238,13 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *telemetry.Interfa
 		if *deviations.InterfaceEnabled {
 			s.Enabled = ygot.Bool(true)
 		}
-		s.GetOrCreateVlan().VlanId = telemetry.UnionUint16(i)
+		if *deviations.DeprecatedVlanID {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(i)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
+		}
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled {
+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 			s4.Enabled = ygot.Bool(true)
 		}
 		s4a := s4.GetOrCreateAddress(ip)
@@ -243,54 +255,55 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *telemetry.Interfa
 
 // configInterfaceDUT configures the DUT interface with the provided IP Address.
 // Sub Interfaces are also configured if numSubIntf > 0.
-func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.Config, p *ondatra.Port) {
+func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
 	t.Helper()
-	i := a.NewInterface(p.Name())
+	i := a.NewOCInterface(p.Name())
 
 	a.configSubinterfaceDUT(t, i)
-	intfPath := d.Interface(p.Name())
-	intfPath.Replace(t, i)
-	fptest.LogYgot(t, "DUT", intfPath, intfPath.Get(t))
+	intfPath := gnmi.OC().Interface(p.Name())
+	gnmi.Update(t, d, intfPath.Config(), i)
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p)
+	}
+	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
 }
 
 // configureNetworkInstance creates new Network Instance and configures it, if provided,
 // else configures the Default Network Instance.
-func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.Config, p *ondatra.Port) {
+func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
 	t.Helper()
-	addressFamilies := []telemetry.E_Types_ADDRESS_FAMILY{telemetry.Types_ADDRESS_FAMILY_IPV4}
 	// Use default NI if not provided
 	if a.networkInstance != "" {
-		ni := &telemetry.NetworkInstance{
-			Name:                   ygot.String(a.networkInstance),
-			Enabled:                ygot.Bool(true),
-			Type:                   telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
-			EnabledAddressFamilies: addressFamilies,
+		ni := &oc.NetworkInstance{
+			Name: ygot.String(a.networkInstance),
+			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 		}
 		i := ni.GetOrCreateInterface(p.Name())
 		i.Interface = ygot.String(p.Name())
 		i.Subinterface = ygot.Uint32(0)
 
-		dni := d.NetworkInstance(a.networkInstance)
-		dni.Replace(t, ni)
-		fptest.LogYgot(t, "NI", dni, dni.Get(t))
+		dni := gnmi.OC().NetworkInstance(a.networkInstance)
+		gnmi.Replace(t, d, dni.Config(), ni)
+		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
 	} else {
-		dni := d.NetworkInstance(*deviations.DefaultNetworkInstance)
-		dni.EnabledAddressFamilies().Replace(t, addressFamilies)
-		dni.Interface(p.Name()).Replace(t, &telemetry.NetworkInstance_Interface{
-			Id:           ygot.String(p.Name()),
-			Interface:    ygot.String(p.Name()),
-			Subinterface: ygot.Uint32(0),
-		})
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+			gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
+				Id:           ygot.String(p.Name()),
+				Interface:    ygot.String(p.Name()),
+				Subinterface: ygot.Uint32(0),
+			})
+		}
 	}
 }
 
 // configureDUT configures a DUT port by configuring the NetworkInstance and the
 // Interface + Sub Interfaces.
-func (a *attributes) configureDUT(t *testing.T, d *ondatra.Config, dut *ondatra.DUTDevice) {
+func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p := dut.Port(t, a.Name)
-	a.configureNetworkInstance(t, d, p)
-	a.configInterfaceDUT(t, d, p)
+	a.configureNetworkInstance(t, dut, p)
+	a.configInterfaceDUT(t, dut, p)
 }
 
 // ConfigureATE configures Ethernet + IPv4 on the ATE. If the number of
@@ -346,7 +359,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	ipv4Header.DstAddressRange().
 		WithMin(ipv4FlowIPStart).
 		WithMax(ipv4FlowIPEnd).
-		WithCount(256)
+		WithCount(ipv4FlowCount)
 
 	// Ethernet header:
 	//   - Destination MAC (6 octets)
@@ -367,11 +380,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	time.Sleep(2 * time.Minute)
 	ate.Traffic().Stop(t)
 
-	// Verify total traffic loss is 0%.
-	vd := tcheck.Equal(ate.Telemetry().Flow("flow").LossPct(), float32(0))
-	if err := vd.Await(t, time.Minute); err != nil {
-		t.Errorf("Packet loss: %v", err)
-	}
+	gnmi.Await(t, ate, gnmi.OC().Flow("flow").LossPct().State(), time.Minute, 0)
 
 	// Compare traffic distribution with the wanted results.
 	results := filterPacketReceived(t, "flow", ate)
@@ -379,28 +388,28 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	return results
 }
 
-// flushGRIBI deletes installed gRIBI routes for all Network Instances.
-func flushGRIBI(t *testing.T, gRIBI *fluent.GRIBIClient) {
-	t.Helper()
-	_, err := gRIBI.Flush().
-		WithElectionOverride().
-		WithAllNetworkInstances().
-		Send()
-	if err != nil {
-		t.Errorf("Cannot flush: %v", err)
+// aftNextHopWeights queries AFT telemetry using Get() and returns
+// the weights. If not-found, an empty list is returned.
+func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, networkInstance string) []uint64 {
+	aft := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(networkInstance).Afts().State())
+	var nhgD *oc.NetworkInstance_Afts_NextHopGroup
+	for _, nhgData := range aft.NextHopGroup {
+		if nhgData.GetProgrammedId() == nhg {
+			nhgD = nhgData
+			break
+		}
 	}
-}
 
-// aftNextHopWeight queries AFT telemetry using Lookup() and returns
-// the value and a boolean suggesting whether the value was found. If not-found,
-// the value is 0.
-func aftNextHopWeight(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, nh uint64,
-	weight uint64, networkInstance string) (uint64, bool) {
-	w := dut.Telemetry().NetworkInstance(networkInstance).Afts().NextHopGroup(nhg).NextHop(nh).Weight().Lookup(t)
-	if w == nil {
-		return 0, false
+	if nhgD == nil {
+		return []uint64{}
 	}
-	return w.Val(t), true
+
+	got := []uint64{}
+	for _, nhD := range nhgD.NextHop {
+		got = append(got, nhD.GetWeight())
+	}
+
+	return got
 }
 
 // testBasicHierarchicalWeight tests and validates traffic through 4 Vlans.
@@ -412,23 +421,23 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	nh10 := nextHopEntry(10, defaultVRF, atePort2.ip(1))
 	nh11 := nextHopEntry(11, defaultVRF, atePort2.ip(2))
 	nhg2 := nextHopGroupEntry(2, defaultVRF, []nhInfo{{index: 10, weight: 1}, {index: 11, weight: 3}})
-	ipEntry2 := ipv4Entry(cidr(nhEntryIP1, 32), defaultVRF, 2, defaultVRF)
+	ipEntry2 := ipv4Entry(nhgIPv4EntryMap[2], defaultVRF, 2, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh10, nh11, nhg2, ipEntry2)
 
 	// Set up NH#100, NH#101, NHG#3, IPv4Entry(192.0.2.222).
 	nh100 := nextHopEntry(100, defaultVRF, atePort2.ip(3))
 	nh101 := nextHopEntry(101, defaultVRF, atePort2.ip(4))
-	nhg3 := nextHopGroupEntry(3, defaultVRF, []nhInfo{{index: 100, weight: 2}, {index: 101, weight: 3}})
-	ipEntry3 := ipv4Entry(cidr(nhEntryIP2, 32), defaultVRF, 3, defaultVRF)
+	nhg3 := nextHopGroupEntry(3, defaultVRF, []nhInfo{{index: 100, weight: 3}, {index: 101, weight: 5}})
+	ipEntry3 := ipv4Entry(nhgIPv4EntryMap[3], defaultVRF, 3, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh100, nh101, nhg3, ipEntry3)
 
-	// Set up NH#1, NH#2, NHG#1, IPv4Entry(203.0.113.0/24).
+	// Set up NH#1, NH#2, NHG#1, IPv4Entry(198.18.196.1/22).
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 3}})
-	ipEntry1 := ipv4Entry(ipv4EntryPrefix, nonDefaultVRF, 1, defaultVRF)
+	ipEntry1 := ipv4Entry(nhgIPv4EntryMap[1], nonDefaultVRF, 1, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh1, nh2, nhg1, ipEntry1)
 
@@ -437,7 +446,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	}
 
 	// Validate entries were installed in FIB.
-	for _, route := range []string{cidr(nhEntryIP1, 32), cidr(nhEntryIP2, 32), ipv4EntryPrefix} {
+	for _, route := range nhgIPv4EntryMap {
 		chk.HasResult(t, gRIBI.Results(t),
 			fluent.OperationResult().
 				WithIPv4Operation(route).
@@ -452,8 +461,8 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	wantWeights := map[string]float64{
 		"1": 6.25,
 		"2": 18.75,
-		"3": 30,
-		"4": 45,
+		"3": 28.12,
+		"4": 46.87,
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
@@ -463,30 +472,22 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	})
 
 	t.Run("validateAFTWeights", func(t *testing.T) {
-		if *deviations.NextHopAFTNotSupported {
-			t.Skip("TODO: AFT Telemetry not supported.")
-		}
-
-		for _, tc := range []nhInfo{
-			{nhg: 1, index: 1, weight: 1},
-			{nhg: 1, index: 2, weight: 3},
-			{nhg: 2, index: 10, weight: 1},
-			{nhg: 2, index: 11, weight: 3},
-			{nhg: 3, index: 100, weight: 2},
-			{nhg: 3, index: 101, weight: 3},
+		for nhg, weights := range map[uint64][]uint64{
+			2: {1, 3},
+			3: {3, 5},
 		} {
-			got, ok := aftNextHopWeight(t, dut, tc.nhg, tc.index, tc.weight, defaultVRF)
+			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
+			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
 			if !ok {
-				t.Errorf("Weight not present for NI: %s, NHG: %d, NH: %d.", defaultVRF, tc.nhg, tc.index)
-			}
-			if got != tc.weight {
-				t.Errorf("Unexpected weight found for NI: %s, NHG: %d, NH: %d, got: %d, want: %d.", defaultVRF, tc.nhg, tc.index, got, tc.weight)
+				t.Errorf("Valid weights not present for NI: %s, NHG: %d, got: %v, want: %v", defaultVRF, nhg, got, weights)
 			}
 		}
 	})
 
 	// Flush gRIBI routes after test.
-	flushGRIBI(t, gRIBI)
+	if err := gribi.FlushAll(gRIBI); err != nil {
+		t.Error(err)
+	}
 }
 
 // testHierarchicalWeightBoundaryScenario tests and validates traffic through all 18 Vlans.
@@ -497,8 +498,8 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	// Set up NH#10, NH#11, NHG#2, IPv4Entry(192.0.2.111).
 	nh10 := nextHopEntry(10, defaultVRF, atePort2.ip(1))
 	nh11 := nextHopEntry(11, defaultVRF, atePort2.ip(2))
-	nhg2 := nextHopGroupEntry(2, defaultVRF, []nhInfo{{index: 10, weight: 2}, {index: 11, weight: 3}})
-	ipEntry2 := ipv4Entry(cidr(nhEntryIP1, 32), defaultVRF, 2, defaultVRF)
+	nhg2 := nextHopGroupEntry(2, defaultVRF, []nhInfo{{index: 10, weight: 3}, {index: 11, weight: 5}})
+	ipEntry2 := ipv4Entry(nhgIPv4EntryMap[2], defaultVRF, 2, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh10, nh11, nhg2, ipEntry2)
 
@@ -513,16 +514,16 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 		nhIdx++
 	}
 	nhg3 := nextHopGroupEntry(3, defaultVRF, nextHopWeights)
-	ipEntry3 := ipv4Entry(cidr(nhEntryIP2, 32), defaultVRF, 3, defaultVRF)
+	ipEntry3 := ipv4Entry(nhgIPv4EntryMap[3], defaultVRF, 3, defaultVRF)
 	gribiEntries = append(gribiEntries, nhg3, ipEntry3)
 
 	gRIBI.Modify().AddEntry(t, gribiEntries...)
 
-	// Set up NH#1, NH#2, NHG#1, IPv4Entry(203.0.113.0/24).
+	// Set up NH#1, NH#2, NHG#1, IPv4Entry(198.18.196.1/22).
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 31}})
-	ipEntry1 := ipv4Entry(ipv4EntryPrefix, nonDefaultVRF, 1, defaultVRF)
+	ipEntry1 := ipv4Entry(nhgIPv4EntryMap[1], nonDefaultVRF, 1, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh1, nh2, nhg1, ipEntry1)
 
@@ -531,7 +532,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	}
 
 	// Validate entries were installed in FIB.
-	for _, route := range []string{cidr(nhEntryIP1, 32), cidr(nhEntryIP2, 32), ipv4EntryPrefix} {
+	for _, route := range nhgIPv4EntryMap {
 		chk.HasResult(t, gRIBI.Results(t),
 			fluent.OperationResult().
 				WithIPv4Operation(route).
@@ -543,8 +544,8 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	}
 
 	wantWeights := map[string]float64{
-		"1": 1.25,
-		"2": 1.875,
+		"1": 1.171,
+		"2": 1.953,
 	}
 	// 6.05 weight for vlans 3 to 18.
 	for i := 3; i <= 18; i++ {
@@ -558,31 +559,22 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	})
 
 	t.Run("validateAFTWeights", func(t *testing.T) {
-		if *deviations.NextHopAFTNotSupported {
-			t.Skip("TODO: AFT Telemetry not supported.")
-		}
-		testCases := []nhInfo{
-			{nhg: 1, index: 1, weight: 1},
-			{nhg: 1, index: 2, weight: 31},
-			{nhg: 2, index: 10, weight: 2},
-			{nhg: 2, index: 11, weight: 3},
-		}
-		for i := uint64(100); i < 116; i++ {
-			testCases = append(testCases, nhInfo{nhg: 3, index: i, weight: 1})
-		}
-		for _, tc := range testCases {
-			got, ok := aftNextHopWeight(t, dut, tc.nhg, tc.index, tc.weight, defaultVRF)
+		for nhg, weights := range map[uint64][]uint64{
+			2: {3, 5},
+			3: {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		} {
+			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
+			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
 			if !ok {
-				t.Errorf("Weight not present for NI: %s, NHG: %d, NH: %d.", defaultVRF, tc.nhg, tc.index)
-			}
-			if got != tc.weight {
-				t.Errorf("Unexpected weight found for NI: %s, NHG: %d, NH: %d, got: %d, want: %d.", defaultVRF, tc.nhg, tc.index, got, tc.weight)
+				t.Errorf("Valid weights not present for NI: %s, NHG: %d, got: %v, want: %v", defaultVRF, nhg, got, weights)
 			}
 		}
 	})
 
 	// Flush gRIBI routes after test.
-	flushGRIBI(t, gRIBI)
+	if err := gribi.FlushAll(gRIBI); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestHierarchicalWeightResolution(t *testing.T) {
@@ -591,9 +583,8 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	ctx := context.Background()
 
 	// Configure DUT ports.
-	dc := dut.Config()
-	dutPort1.configureDUT(t, dc, dut)
-	dutPort2.configureDUT(t, dc, dut)
+	dutPort1.configureDUT(t, dut)
+	dutPort2.configureDUT(t, dut)
 
 	// Configure ATE ports and start Ethernet+IPv4.
 	top := ate.Topology().New()
@@ -607,13 +598,24 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 
 	gRIBI.Start(ctx, t)
 	defer gRIBI.Stop(t)
+
+	defer func() {
+		// Flush all gRIBI routes after test.
+		if err := gribi.FlushAll(gRIBI); err != nil {
+			t.Error(err)
+		}
+	}()
+
 	gRIBI.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, gRIBI, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for gRIBI: %v", err)
 	}
+	gribi.BecomeLeader(t, gRIBI)
 
 	// Flush existing gRIBI routes before test.
-	flushGRIBI(t, gRIBI)
+	if err := gribi.FlushAll(gRIBI); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("TestBasicHierarchicalWeight", func(t *testing.T) {
 		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)

@@ -20,13 +20,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/compliance"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 )
 
@@ -56,16 +58,19 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.1",
 		IPv4Len: 31,
 	}
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.3",
 		IPv4Len: 31,
 	}
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.5",
 		IPv4Len: 31,
 	}
@@ -153,33 +158,47 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
-	dut.Config().Interface(p1.Name()).Replace(t, dutPort1.NewInterface(p1.Name()))
-	dut.Config().Interface(p2.Name()).Replace(t, dutPort2.NewInterface(p2.Name()))
-	dut.Config().Interface(p3.Name()).Replace(t, dutPort3.NewInterface(p3.Name()))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 
-	d := &telemetry.Device{}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+		fptest.SetPortSpeed(t, p3)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(*nonDefaultNI)
-	ni.Type = telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	ni.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
-	dut.Config().NetworkInstance(*nonDefaultNI).Replace(t, ni)
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*nonDefaultNI).Config(), ni)
+	if *deviations.ExplicitGribiUnderNetworkInstance {
+		fptest.EnableGribiUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+		fptest.EnableGribiUnderNetworkInstance(t, dut, *nonDefaultNI)
+	}
 
-	nip := dut.Config().NetworkInstance(*nonDefaultNI)
-	fptest.LogYgot(t, "nonDefaultNI", nip, nip.Get(t))
+	nip := gnmi.OC().NetworkInstance(*nonDefaultNI)
+	fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
 }
 
 // configreATE configures port1-3 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
 
-	atePort1.AddToATE(top, p1, &dutPort1)
-	atePort2.AddToATE(top, p2, &dutPort2)
-	atePort3.AddToATE(top, p3, &dutPort3)
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+	atePort3.AddToOTG(top, p3, &dutPort3)
 
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	return top
 }

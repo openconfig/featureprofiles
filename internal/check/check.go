@@ -147,6 +147,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
@@ -304,25 +306,36 @@ func (vd *validation[T]) Check(client *ygnmi.Client) error {
 	return nil
 }
 
-// Await waits up to timeout for the validation condition to run without
-// error; it returns nil as soon as the condition is met, or an error if the
-// context ends or anything else goes wrong before it can be met.
+// Await waits for the validation condition to run without error; it returns
+// nil when it does so or an error if anything goes wrong. Await will always
+// try to fetch at least one value; canceling the passed-in context only stops
+// it from waiting for correct values if it has already received an incorrect
+// one.
 func (vd *validation[T]) Await(ctx context.Context, client *ygnmi.Client) error {
-	// watch this path until the validation function returns nil
+	// Do a plain check first, regardless of timeouts
+	var checkErr *validationError[T]
+	err := vd.Check(client)
+	if err == nil || !errors.As(err, &checkErr) || checkErr.failureCause != nil {
+		// Either validation succeeded, or we couldn't fetch the value
+		return err
+	}
+	// If we get here, we fetched the value just fine but it was invalid, so we
+	// Watch until the context expires or we receive a valid value.
+	lastInvalid := checkErr.validationErr
 	watcher := ygnmi.Watch(ctx, client, vd.query, func(v *ygnmi.Value[T]) error {
-		if vd.validationFn(v) != nil {
+		if lastInvalid = vd.validationFn(v); lastInvalid != nil {
 			return ygnmi.Continue
 		}
 		return nil
 	})
-	lastVal, err := watcher.Await()
+	_, err = watcher.Await()
 	if err != nil {
 		failed := &validationError[T]{
 			query:        vd.query,
 			failureCause: err,
 		}
-		if lastVal != nil {
-			failed.validationErr = vd.validationFn(lastVal)
+		if lastInvalid != nil {
+			failed.validationErr = lastInvalid
 		}
 		return failed
 	}
@@ -398,7 +411,7 @@ func EqualOrNil[T any, QT ygnmi.SingletonQuery[T]](query QT, want T) Validator {
 
 // Present expects the query to have any value.
 func Present[T any, QT ygnmi.SingletonQuery[T]](query QT) Validator {
-	return Predicate(query, "any value", func(T) bool {
+	return Predicate(query, "want any value", func(T) bool {
 		return true
 	})
 }
@@ -410,5 +423,13 @@ func NotPresent[T any, QT ygnmi.SingletonQuery[T]](query QT) Validator {
 			return fmt.Errorf("got %s, want no value", FormatValue(vgot))
 		}
 		return nil
+	})
+}
+
+// UnorderedEqual function is used to compare slices of type T in unordered way.
+func UnorderedEqual[T any, QT ygnmi.SingletonQuery[[]T]](query QT, want []T, less func(a, b T) bool) Validator {
+	return Predicate(query, fmt.Sprintf("want %#v", want), func(got []T) bool {
+		// Sort slices to compare them in unorderd way.
+		return cmp.Equal(got, want, cmpopts.SortSlices(less))
 	})
 }

@@ -16,7 +16,6 @@ Test the abnormal termination of session using notification message:
 
     *   Ensure session state should be `ESTABLISHED`.
     *   Verify BGP capabilities: route refresh, ASN32 and MPBGP.
-
 *   Verify BGP session disconnect by sending notification message from ATE.
 
     *   Send `CEASE` notification from ATE.

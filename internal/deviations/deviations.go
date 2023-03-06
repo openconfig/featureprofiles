@@ -63,12 +63,29 @@
 //     go test my_test.go --deviation_interface_enabled=true
 package deviations
 
-import "flag"
+import (
+	"flag"
+)
 
 // Vendor deviation flags.
 var (
+	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
+		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
+
+	NTPAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
+		"Device requires NTP association-type to be explicitly set.  OpenConfig defaults the association-type to SERVER if not set.")
+
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
+
+	InterfaceOperStatus = flag.Bool("deviation_interface_operstatus", false,
+		"Device generates Interface_OperStatus_DOWN instead of Interface_OperStatus_LOWER_LAYER_DOWN for an aggregated link.")
+
+	IPv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
+
+	IPNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
+
+	InterfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
 	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
@@ -86,5 +103,87 @@ var (
 
 	GRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
-	NextHopAFTNotSupported = flag.Bool("deviation_nexthop_aft_not_supported", false, "Device currently doesnot support AFT Next Hop Telemetry. A fully compliant device should support all types of AFT telemetry without this deviation.")
+	MissingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
+		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
+
+	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
+
+	GNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
+
+	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
+
+	OSActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires seperate reboot to activate OS.")
+
+	InstallOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
+
+	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
+
+	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
+		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
+
+	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
+
+	ExplicitP4RTNodeComponent = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
+
+	RoutePolicyUnderPeerGroup = flag.Bool("deviation_rpl_under_peergroup", false, "Device requires route-policy configuration under bgp peer-group. Fully-compliant devices should pass with and without this deviation.")
+
+	MissingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
+
+	RoutePolicyUnderNeighborAfiSafi = flag.Bool("deviation_rpl_under_neighbor_afisafi", false, "Device requires route-policy configuration under bgp neighbor afisafi. Fully-compliant devices should pass with this deviation set to true.")
+
+	TraceRouteL4ProtocolUDP = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
+
+	TraceRouteFragmentation = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
+
+	ConnectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
+
+	MissingBgpNeighborStatePeerGroup = flag.Bool("deviation_missing_bgp_neighbor_state_peer_group", false, "Device requires peer-group under bgp neighbor bgp/neighbors/neighbor/state/peer-group.")
+
+	ExplicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
+
+	ISISInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
+		"Disable isis level1 under interface mode on the device if value is true, Default value is false and enables isis level2 under interface mode")
+
+	IsisAfMetricStyleWideLevelRequired = flag.Bool("deviation_isis_af_metric_style_wide_level_required", false,
+		"Set isis address family metric style wide level 2 on the device if value is true, Default value is false")
+
+	MissingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
+		"Set and validate isis interface address family enable on the device if value is true, Default value is false and validate isis address family enable at global mode")
+
+	IsisHelloPaddingAdaptiveModeNotSupported = flag.Bool("deviation_isis_hello_padding_adaptive_mode_not_supported", false,
+		"Skip isis hello padding adaptive mode TC if value is true, Default value is false")
+
+	IsisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
+		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
+
+	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
+		"Unset isis protocol enable flag on the device if value is true, Default value is false and protocol enable flag is set")
+
+	ISISInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
+		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
+
+	ExplicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
+
+	NoMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
+		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
+
+	GRIBIDelayedAckResponse = flag.Bool("deviation_gribi_delayed_ack_response", false, "Device requires delay in sending ack response")
+
+	BGPStateActiveACLDeny = flag.Bool("deviation_bgp_state_active_acl_deny", false,
+		"Device requires bgp state to be active after ACL deny policy")
+
+	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
+		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
+
+	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
+
+	BGPPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
+
+	BGPTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
+		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
+
+	ExplicitGribiUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
+		"Device requires gribi-protocol to be enabled under network-instance.")
+
+	BGPMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
 )

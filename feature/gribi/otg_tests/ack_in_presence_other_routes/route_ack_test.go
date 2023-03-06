@@ -25,11 +25,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/yang/fpoc"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -105,16 +105,16 @@ var gatewayMap = map[attrs.Attributes]attrs.Attributes{
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -125,20 +125,34 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 
 	p3 := dut.Port(t, "port3")
-	i3 := &telemetry.Interface{Name: ygot.String(p3.Name())}
-	d.Interface(p3.Name()).Replace(t, configInterfaceDUT(i3, &dutPort3))
+	i3 := &oc.Interface{Name: ygot.String(p3.Name())}
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), configInterfaceDUT(i3, &dutPort3))
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port3"))
+	}
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -148,17 +162,20 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	top.Ports().Add().SetName(atePort1.Name)
 	i1 := top.Devices().Add().SetName(atePort1.Name)
-	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetPortName(i1.Name()).SetMac(atePort1.MAC)
+	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(int32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(atePort2.Name)
 	i2 := top.Devices().Add().SetName(atePort2.Name)
-	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetPortName(i2.Name()).SetMac(atePort2.MAC)
+	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(i2.Name() + ".IPv4").SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(int32(atePort2.IPv4Len))
 
 	top.Ports().Add().SetName(atePort3.Name)
 	i3 := top.Devices().Add().SetName(atePort3.Name)
-	eth3 := i3.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetPortName(i3.Name()).SetMac(atePort3.MAC)
+	eth3 := i3.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetMac(atePort3.MAC)
+	eth3.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i3.Name())
 	eth3.Ipv4Addresses().Add().SetName(i3.Name() + ".IPv4").SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(int32(atePort3.IPv4Len))
 	return top
 }
@@ -166,10 +183,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 // Waits for an ARP entry to be present for ATE Port1
 func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	ate.OTG().Telemetry().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
+	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
 }
 
 // testTraffic generates traffic flow from source network to
@@ -179,7 +195,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	otg := ate.OTG()
 	gwIp := gatewayMap[srcEndPoint].IPv4
 	waitOTGARPEntry(t)
-	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
+	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(srcEndPoint.Name+".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().State())
 	top.Flows().Clear().Items()
 	flowipv4 := top.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
@@ -195,6 +211,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	v4.Src().SetValue(srcIpv4)
 	v4.Dst().Increment().SetStart("203.0.113.0").SetCount(250)
 	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 
 	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
@@ -202,8 +219,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	otg.StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, otg, top)
-	txPkts := otg.Telemetry().Flow("Flow").Counters().OutPkts().Get(t)
-	rxPkts := otg.Telemetry().Flow("Flow").Counters().InPkts().Get(t)
+	txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State())
+	rxPkts := gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State())
 	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
 		t.Errorf("LossPct for flow %s got %v, want 0", flowipv4.Name(), got)
 	}
@@ -222,26 +239,18 @@ type testArgs struct {
 func configureNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	dutConfPath := dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance)
-	dutConfPath.Type().Replace(t, telemetry.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 }
 
 // configStaticRoute configures a static route.
-func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) *telemetry.NetworkInstance_Protocol_Static {
-	d := &telemetry.Device{}
-	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
-	ni1.Enabled = ygot.Bool(true)
-	ni1.Name = ygot.String(*deviations.DefaultNetworkInstance)
-	ni1.Description = ygot.String("Static route added by gNMI-OC")
-	static := ni1.GetOrCreateProtocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC")
-	static.Enabled = ygot.Bool(true)
-	static.Identifier = telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
+func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
+	ni1 := gnmi.GetConfig(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Config())
+	static := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	sr := static.GetOrCreateStatic(prefix)
 	nh := sr.GetOrCreateNextHop("nhg1")
-	nh.NextHop = fpoc.UnionString(nexthop)
-
-	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").Update(t, static)
-	return sr
+	nh.NextHop = oc.UnionString(nexthop)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
 // routeAck configures a IPv4 entry through clientA. Ensure that the entry via ClientA
@@ -255,11 +264,12 @@ func routeAck(ctx context.Context, t *testing.T, args *testArgs) {
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	ipv4Path := args.dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
-		return val.IsPresent() && val.Val(t) == ateDstNetCIDR
+	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		pre, present := val.Val()
+		return present && pre == ateDstNetCIDR
 	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got.Val(t), ateDstNetCIDR)
+		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	}
 	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
 	srcEndPoint := atePort1
@@ -285,29 +295,33 @@ func TestRouteAck(t *testing.T) {
 	// Configure the DUT with static route 203.0.113.0/24
 	configureNetworkInstance(t)
 	t.Logf("Configure the DUT with static route 203.0.113.0/24...")
-	dutConf := configStaticRoute(t, dut, ateDstNetCIDR, staticNH)
-	dut.Config().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(telemetry.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "STATIC").Static(ateDstNetCIDR).Replace(t, dutConf)
+	configStaticRoute(t, dut, ateDstNetCIDR, staticNH)
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	ipv4Path := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := ipv4Path.Prefix().Watch(t, time.Minute, func(val *telemetry.QualifiedString) bool {
-		return val.IsPresent() && val.Val(t) == ateDstNetCIDR
+	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := gnmi.Watch(t, dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		pre, present := val.Val()
+		return present && pre == ateDstNetCIDR
 	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got.Val(t), ateDstNetCIDR)
+		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	} else {
-		t.Logf("Prefix %s installed in DUT as static...", got.Val(t))
+		t.Logf("Prefix %v installed in DUT as static...", got)
 	}
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
-		DUT:                  dut,
-		FibACK:               false,
-		Persistence:          true,
-		InitialElectionIDLow: 10,
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
 	}
 	defer clientA.Close(t)
+
+	// Flush all entries after test.
+	defer clientA.FlushAll(t)
+
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
+	clientA.BecomeLeader(t)
 
 	args := &testArgs{
 		ctx:     ctx,
