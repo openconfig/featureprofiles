@@ -75,7 +75,9 @@ Validate the P4RT server handles primary election and failover.
             `google.rpc.INVALID_ARGUMENT`.
     *   Zero Election
         1.  Connect two P4RT clients with an `unset` election ID and no other
-            active P4RT clients for the corresponding device_id.
+            active P4RT clients for the corresponding device_id. (`unset` and
+            `zero` electionIDs are two different scenarios and a `zero`
+            electionID is considered as being Set)
         2.  Verify that the clients are able to read and not write using Get and
             Set ForwardingPipelineConfig requests.
     *   Long Evolution
