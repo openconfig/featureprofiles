@@ -174,4 +174,16 @@ var (
 
 	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
+
+	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
+
+	BGPPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
+
+	BGPTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
+		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
+
+	ExplicitGribiUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
+		"Device requires gribi-protocol to be enabled under network-instance.")
+
+	BGPMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
 )
