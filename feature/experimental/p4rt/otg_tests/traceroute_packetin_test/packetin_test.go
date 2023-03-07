@@ -170,11 +170,10 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 	}}
 
 	t.Log("TTL/HopLimit 1")
-
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
-			packets, err := fetchPackets(ctx, t, test.client, pktOut)
+			packets, err := fetchPackets(ctx, t, test.client, test.wantPkts)
 			if err != nil {
 				t.Errorf("Unexpected error on fetchPackets: %v", err)
 			}
