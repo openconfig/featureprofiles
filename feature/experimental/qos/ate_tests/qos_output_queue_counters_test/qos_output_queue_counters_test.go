@@ -179,8 +179,8 @@ func TestQoSCounters(t *testing.T) {
 
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
 		t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, 100.0)
-		if got, want := 100.0-lossPct, float32(100.0); got < want-2.0 || got > want+2.0 {
-			t.Errorf("Get(throughput for queue %q): got %.2f%%, want within [%.2f%%, %.2f%%]", data.queue, got, want-2.0, want+2.0)
+		if got, want := 100.0-lossPct, float32(100.0); got != want {
+			t.Errorf("Get(throughput for queue %q): got %.2f%%, want %.2f%%", data.queue, got, want)
 		}
 	}
 
