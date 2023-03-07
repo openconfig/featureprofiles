@@ -58,5 +58,5 @@ password: admin
 topology: ${PWD}/topologies/kne/$topology
 EOF
 
-go test -v feature/system/bgp/addpath/otg_tests/route_propagation_test/route_propagation_test.go -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
+go test -v ./feature/system/bgp/addpath/otg_tests/route_propagation_test/route_propagation_test.go -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
 popd
