@@ -245,7 +245,15 @@ func TestPacketOut(t *testing.T) {
 	}
 
 	sm := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
-	dm := gnmi.Get(t, ate, gnmi.OC().Interface(ate.Port(t, "port1").Name()).Ethernet().MacAddress().State())
+
+	// Default MAC addresses on Ixia are assigned incrementally as:
+	//   - 00:11:01:00:00:01
+	//   - 00:12:01:00:00:01
+	// etc.
+	//
+	// The last 15-bits therefore resolve to "1".
+	dm := "00:11:01:00:00:01"
+
 	t.Logf("Src and Dest MAC addresses: %s, %s", sm, dm)
 	srcMAC, err := net.ParseMAC(sm)
 	if err != nil {
