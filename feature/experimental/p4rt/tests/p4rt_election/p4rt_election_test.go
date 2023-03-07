@@ -312,38 +312,80 @@ func removeClient(handle *p4rt_client.P4RTClient) {
 	handle.ServerDisconnect()
 }
 
-// Test Zero client with 0 electionID
-func TestZeroMaster(t *testing.T) {
+// Test client with unset electionId
+func TestUnsetElectionid(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDeviceId(t, dut)
 	configurePortId(t, dut)
-	test := testArgs{
-		desc:       pDesc,
-		lowID:      inId0,
-		highID:     inId0,
-		handle:     clientConnection(t, dut),
-		deviceID:   deviceId,
-		wantWrite:  false,
-		wantRead:   true,
-		wantStatus: 0,
+	clients := []testArgs{
+		{desc: pDesc,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantStatus: 5,
+		},
+		{desc: sDesc,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantStatus: 5,
+		},
 	}
-	t.Run(test.desc, func(t *testing.T) {
-		resp, err := streamP4RTArb(&test)
-		if err != nil {
+
+	// Connect 2 clients for unset Election ID
+	for _, test := range clients {
+		t.Run(test.desc, func(t *testing.T) {
+			streamParameter := p4rt_client.P4RTStreamParameters{
+				Name:     streamName,
+				DeviceId: test.deviceID,
+			}
+			if test.handle != nil {
+				test.handle.StreamChannelCreate(&streamParameter)
+				if err := test.handle.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+					Update: &p4_v1.StreamMessageRequest_Arbitration{
+						Arbitration: &p4_v1.MasterArbitrationUpdate{
+							DeviceId: test.deviceID,
+						},
+					},
+				}); err != nil {
+					t.Fatalf("Errors while sending Arbitration Request with unset Election ID")
+				}
+			}
+			time.Sleep(1 * time.Second)
+			// Validate status code
+			resp, err := getRespCode(&test)
+			if resp != test.wantStatus {
+				t.Fatalf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
+			}
+			t.Logf("Arbitration response got a correct status")
+			// GetForwardingPipeline
+			_, err = test.handle.GetForwardingPipelineConfig(&p4_v1.GetForwardingPipelineConfigRequest{
+				DeviceId:     deviceId,
+				ResponseType: p4_v1.GetForwardingPipelineConfigRequest_P4INFO_AND_COOKIE,
+			})
+			if err != nil {
+				t.Errorf("Errors seen when sending GetForwardingPipelineConfig")
+			}
+			p4Info, err := utils.P4InfoLoad(p4InfoFile)
+			if err != nil {
+				t.Errorf("Errors seen when loading p4info file.")
+			}
+			// SetForwardingPipeline
+			if err = test.handle.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+				DeviceId: deviceId,
+				Action:   p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+				Config: &p4_v1.ForwardingPipelineConfig{
+					P4Info: &p4Info,
+					Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
+						Cookie: 159,
+					},
+				},
+			}); err == nil {
+				t.Errorf("SetForwardingPipelineConfig accepted for unset Election ID.")
+			}
+
+			// Disconnect Primary
 			removeClient(test.handle)
-			t.Errorf("Zero ElectionID (0,0) is rejected by P4RT server: %v", err)
-			return
-		}
-		t.Logf("Zero ElectionID (0,0) connection success as expected")
-		// Validate status code
-		if resp != test.wantStatus {
-			t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
-		}
-		// Validate the response for Read/Write for zero election ID
-		validateRWResp(t, &test)
-		// Disconnect Primary
-		removeClient(test.handle)
-	})
+		})
+	}
 }
 
 // Test Primary Reconnect
