@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backup_nh_test
+package double_delete_test
 
 import (
 	"testing"
@@ -24,12 +24,12 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-const (
-	pbrName = "PBR"
-)
+// const (
+// 	pbrName = "PBR"
+// )
 
 // configbasePBR, creates class map, policy and configures under source interface
-func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
+func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8, pbrName string, intfName string) {
 	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
 
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
@@ -54,16 +54,18 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 	p := pf.GetOrCreatePolicy(pbrName)
 	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
 	p.AppendRule(&r)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
 
 	//configure PBR on ingress port
-	gnmi.Replace(t, dut, pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
+	gnmi.Replace(t, dut, pfpath.Interface(intfName).ApplyVrfSelectionPolicy().Config(), pbrName)
 }
 
+
+
 // unconfigbasePBR, creates class map, policy and configures under source interface
-func unconfigbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
+func unconfigbasePBR(t *testing.T, dut *ondatra.DUTDevice, pbrName string, intfName string) {
 	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
-	gnmi.Delete(t, dut, pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config())
+	gnmi.Delete(t, dut, pfpath.Interface(intfName).ApplyVrfSelectionPolicy().Config())
 	gnmi.Delete(t, dut, pfpath.Policy(pbrName).Config())
 	gnmi.Delete(t, dut, pfpath.Config())
 }
