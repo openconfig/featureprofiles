@@ -14,14 +14,14 @@
 
 syntax = "proto3";
 
-package openconfig.metadata;
+package openconfig.testing;
 
 // Metadata about a Feature Profiles test.
 message Metadata {
-  // ID of the test in the test plan.
-  string test_plan_id = 1;
-  // One-line description of the test.
-  string test_description = 2;
   // UUID of the test.
-  string test_uuid = 3;
+  string uuid = 1;
+  // ID of the test in the test plan.
+  string plan_id = 2;
+  // One-line description of the test.
+  string description = 3;
 }
