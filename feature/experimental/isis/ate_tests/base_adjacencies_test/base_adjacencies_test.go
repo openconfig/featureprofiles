@@ -183,7 +183,7 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.Present[uint32](sysCounts.DatabaseOverloads().State()),
+				EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)),
 				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
@@ -306,12 +306,12 @@ func TestBasic(t *testing.T) {
 			for _, vd := range []check.Validator{
 				check.NotEqual(cCounts.AdjChanges().State(), uint32(0)),
 				check.NotEqual(cCounts.AdjNumber().State(), uint32(0)),
-				check.Equal(cCounts.AuthFails().State(), uint32(0)),
-				check.Equal(cCounts.AuthTypeFails().State(), uint32(0)),
-				check.Equal(cCounts.IdFieldLenMismatches().State(), uint32(0)),
-				check.Equal(cCounts.LanDisChanges().State(), uint32(0)),
-				check.Equal(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.Equal(cCounts.RejectedAdj().State(), uint32(0)),
+				EqualToDefault(cCounts.AuthFails().State(), uint32(0)),
+				EqualToDefault(cCounts.AuthTypeFails().State(), uint32(0)),
+				EqualToDefault(cCounts.IdFieldLenMismatches().State(), uint32(0)),
+				EqualToDefault(cCounts.LanDisChanges().State(), uint32(0)),
+				EqualToDefault(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
+				EqualToDefault(cCounts.RejectedAdj().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(cCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -325,16 +325,16 @@ func TestBasic(t *testing.T) {
 			// Error counters should still be zero
 			sysCounts := isisRoot.Level(2).SystemLevelCounters()
 			for _, vd := range []check.Validator{
-				check.Equal(sysCounts.AuthFails().State(), uint32(0)),
-				check.Equal(sysCounts.AuthTypeFails().State(), uint32(0)),
-				check.Equal(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.Present[uint32](sysCounts.DatabaseOverloads().State()),
-				check.Equal(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
-				check.Equal(sysCounts.IdLenMismatch().State(), uint32(0)),
-				check.Equal(sysCounts.LspErrors().State(), uint32(0)),
-				check.Equal(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.Equal(sysCounts.OwnLspPurges().State(), uint32(0)),
-				check.Equal(sysCounts.SeqNumSkips().State(), uint32(0)),
+				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
+				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
+				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
+				EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)),
+				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
+				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
+				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
+				EqualToDefault(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
+				EqualToDefault(sysCounts.OwnLspPurges().State(), uint32(0)),
+				EqualToDefault(sysCounts.SeqNumSkips().State(), uint32(0)),
 				check.Predicate(sysCounts.SpfRuns().State(), fmt.Sprintf("want > %v", spfBefore), func(got uint32) bool {
 					return got > spfBefore
 				}),
