@@ -46,7 +46,7 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 	}
 }
 
-// EnableGribiOnNetworkInstance enables Gribi protocol under network instance.
+// EnableGribiUnderNetworkInstance enables Gribi protocol under network instance.
 func EnableGribiUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni string) {
 	t.Helper()
 	if ni == "" {
