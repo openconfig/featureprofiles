@@ -557,3 +557,10 @@ tests:
   owners:
       - saarvind
   mustpass: true
+- name: DP-1.11 (QoS Bursty Traffic)
+  path: feature/experimental/qos/ate_tests/bursty_traffic_test
+  owners:
+      - saarvind
+  branch: main-google-traffic
+  internal: true
+  mustpass: true
