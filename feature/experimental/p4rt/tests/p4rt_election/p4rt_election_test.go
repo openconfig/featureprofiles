@@ -330,7 +330,7 @@ func TestUnsetElectionid(t *testing.T) {
 		},
 	}
 
-	// Connect 2 clients for unset Election ID
+	// Connect 2 clients to same deviceId with unset electionId
 	for _, test := range clients {
 		t.Run(test.desc, func(t *testing.T) {
 			streamParameter := p4rt_client.P4RTStreamParameters{
@@ -355,7 +355,10 @@ func TestUnsetElectionid(t *testing.T) {
 			if resp != test.wantStatus {
 				t.Fatalf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 			}
-			t.Logf("Arbitration response got a correct status")
+			if err != nil {
+				t.Errorf("Errors seen in ClientArbitration response")
+			}
+			t.Logf("Arbitration response status code is as expected for unset ElectionId")
 			// GetForwardingPipeline
 			_, err = test.handle.GetForwardingPipelineConfig(&p4_v1.GetForwardingPipelineConfigRequest{
 				DeviceId:     deviceId,
