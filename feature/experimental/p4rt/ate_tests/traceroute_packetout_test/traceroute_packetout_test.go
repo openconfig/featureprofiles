@@ -244,8 +244,8 @@ func TestPacketOut(t *testing.T) {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	sm := gnmi.Get(t, dut, gnmi.OC().Interface("port1").Ethernet().MacAddress().State())
-	dm := gnmi.Get(t, ate, gnmi.OC().Interface("port1").Ethernet().MacAddress().State())
+	sm := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
+	dm := gnmi.Get(t, ate, gnmi.OC().Interface(atePort1.Name).Ethernet().MacAddress().State())
 	t.Logf("Src and Dest MAC addresses: %s, %s", sm, dm)
 	srcMAC, err := net.ParseMAC(sm)
 	if err != nil {
