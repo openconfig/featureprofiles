@@ -96,7 +96,7 @@ var (
 
 	atePort2Vlan10 = attrs.Attributes{
 		Name:    "atePort2Vlan10",
-		MAC:     "00:13:01:00:00:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:a",
@@ -114,7 +114,7 @@ var (
 
 	atePort2Vlan20 = attrs.Attributes{
 		Name:    "atePort2Vlan20",
-		MAC:     "00:14:01:00:00:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.14",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:e",
@@ -132,7 +132,7 @@ var (
 
 	atePort2Vlan30 = attrs.Attributes{
 		Name:    "atePort2Vlan30",
-		MAC:     "00:15:01:00:00:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.18",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:12",
@@ -160,6 +160,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top.Ports().Add().SetName(p2.ID())
 	dstDev := top.Devices().Add().SetName(atePort2.Name)
 	ethDst := dstDev.Ethernets().Add().SetName(atePort2.Name + ".eth").SetMac(atePort2.MAC)
+	if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+		ethDst.Vlans().Add().SetName(atePort2.Name + "vlan").SetId(1)
+	}
 	ethDst.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
 	ethDst.Ipv4Addresses().Add().SetName(dstDev.Name() + ".ipv4").SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(int32(atePort2.IPv4Len))
 	ethDst.Ipv6Addresses().Add().SetName(dstDev.Name() + ".ipv6").SetAddress(atePort2.IPv6).SetGateway(dutPort2.IPv6).SetPrefix(int32(atePort2.IPv6Len))
