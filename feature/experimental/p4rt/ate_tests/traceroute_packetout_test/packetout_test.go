@@ -16,6 +16,7 @@ package traceroute_packetout_test
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ import (
 )
 
 type PacketIO interface {
-	GetPacketOut(portID uint32, isIPv4 bool, ttl uint8) []*p4v1.PacketOut
+	GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8) []*p4v1.PacketOut
 }
 
 type testArgs struct {
@@ -35,6 +36,8 @@ type testArgs struct {
 	dut      *ondatra.DUTDevice
 	ate      *ondatra.ATEDevice
 	top      *ondatra.ATETopology
+	srcMAC   net.HardwareAddr
+	dstMAC   net.HardwareAddr
 	packetIO PacketIO
 }
 
@@ -71,7 +74,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 		t.Logf("Initial number of packets: %d", counter0)
 
-		packets := args.packetIO.GetPacketOut(portId, true, uint8(ttl))
+		packets := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, true, uint8(ttl))
 		packetCounter := 100
 		t.Logf("Sending packets now")
 
@@ -101,7 +104,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 		t.Logf("Initial number of packets: %d", counter0)
 
-		packets := args.packetIO.GetPacketOut(portId, false, uint8(ttl))
+		packets := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, false, uint8(ttl))
 		packetCounter := 100
 		t.Logf("Sending packets now")
 

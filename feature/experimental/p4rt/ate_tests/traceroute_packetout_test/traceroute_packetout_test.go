@@ -244,12 +244,26 @@ func TestPacketOut(t *testing.T) {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
+	sm := gnmi.Get(t, dut, gnmi.OC().Interface("port1").Ethernet().MacAddress().State())
+	dm := gnmi.Get(t, ate, gnmi.OC().Interface("port1").Ethernet().MacAddress().State())
+	t.Logf("Src and Dest MAC addresses: %s, %s", sm, dm)
+	srcMAC, err := net.ParseMAC(sm)
+	if err != nil {
+		t.Fatalf("Couldn't parse Source MAC: %v", err)
+	}
+	dstMAC, err := net.ParseMAC(dm)
+	if err != nil {
+		t.Fatalf("Couldn't parse Destination MAC: %v", err)
+	}
+
 	args := &testArgs{
 		ctx:    ctx,
 		leader: leader,
 		dut:    dut,
 		ate:    ate,
 		top:    top,
+		srcMAC: srcMAC,
+		dstMAC: dstMAC,
 	}
 
 	if err := setupP4RTClient(ctx, args); err != nil {
@@ -266,7 +280,7 @@ type TraceroutePacketIO struct {
 }
 
 // packetTracerouteRequestGet generates PacketOut payload for Traceroute packets.
-func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
+func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8) []byte {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
@@ -274,6 +288,12 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 	}
 	payload := []byte{}
 	payLoadLen := 64
+
+	ethType := layers.EthernetTypeIPv4
+	if !isIPv4 {
+		ethType = layers.EthernetTypeIPv6
+	}
+	pktEth := &layers.Ethernet{SrcMAC: srcMAC, DstMAC: dstMAC, EthernetType: ethType}
 
 	pktICMP4 := &layers.ICMPv4{
 		TypeCode: layers.ICMPv4TypeTimeExceeded,
@@ -301,12 +321,12 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 	}
 	if isIPv4 {
 		gopacket.SerializeLayers(buf, opts,
-			pktIpv4, pktICMP4, gopacket.Payload(payload),
+			pktEth, pktIpv4, pktICMP4, gopacket.Payload(payload),
 		)
 		return buf.Bytes()
 	} else {
 		gopacket.SerializeLayers(buf, opts,
-			pktIpv6, gopacket.Payload(payload),
+			pktEth, pktIpv6, gopacket.Payload(payload),
 		)
 		return buf.Bytes()
 	}
@@ -314,10 +334,10 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
-func (traceroute *TraceroutePacketIO) GetPacketOut(portID uint32, isIPv4 bool, ttl uint8) []*p4v1.PacketOut {
+func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8) []*p4v1.PacketOut {
 	packets := []*p4v1.PacketOut{}
 	packet := &p4v1.PacketOut{
-		Payload: packetTracerouteRequestGet(isIPv4, ttl),
+		Payload: packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl),
 		Metadata: []*p4v1.PacketMetadata{
 			{
 				MetadataId: uint32(2), // "submit_to_ingress"
