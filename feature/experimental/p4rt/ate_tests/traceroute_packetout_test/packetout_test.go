@@ -27,7 +27,7 @@ import (
 )
 
 type PacketIO interface {
-	GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8) []*p4v1.PacketOut
+	GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8) ([]*p4v1.PacketOut, error)
 }
 
 type testArgs struct {
@@ -74,7 +74,10 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 		t.Logf("Initial number of packets: %d", counter0)
 
-		packets := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, true, uint8(ttl))
+		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, true, uint8(ttl))
+		if err != nil {
+			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
+		}
 		packetCounter := 100
 		t.Logf("Sending packets now")
 
@@ -104,7 +107,10 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 		t.Logf("Initial number of packets: %d", counter0)
 
-		packets := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, false, uint8(ttl))
+		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, false, uint8(ttl))
+		if err != nil {
+			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
+		}
 		packetCounter := 100
 		t.Logf("Sending packets now")
 

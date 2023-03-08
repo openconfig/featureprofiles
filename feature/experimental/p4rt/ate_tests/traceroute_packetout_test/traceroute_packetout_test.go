@@ -246,23 +246,15 @@ func TestPacketOut(t *testing.T) {
 
 	sm := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 
-	// Default MAC addresses on Ixia are assigned incrementally as:
-	//   - 00:11:01:00:00:01
-	//   - 00:12:01:00:00:01
-	// etc.
-	//
-	// The last 15-bits therefore resolve to "1".
-	dm := "00:11:01:00:00:01"
-
-	t.Logf("Src and Dest MAC addresses: %s, %s", sm, dm)
 	srcMAC, err := net.ParseMAC(sm)
 	if err != nil {
 		t.Fatalf("Couldn't parse Source MAC: %v", err)
 	}
-	dstMAC, err := net.ParseMAC(dm)
-	if err != nil {
-		t.Fatalf("Couldn't parse Destination MAC: %v", err)
-	}
+	// Default MAC addresses on Ixia are assigned incrementally as:
+	//   - 00:11:01:00:00:01
+	//   - 00:12:01:00:00:01
+	// etc.
+	dstMAC := net.HardwareAddr{0x00, 0x11, 0x01, 0x00, 0x00, 0x01}
 
 	args := &testArgs{
 		ctx:    ctx,
@@ -288,7 +280,7 @@ type TraceroutePacketIO struct {
 }
 
 // packetTracerouteRequestGet generates PacketOut payload for Traceroute packets.
-func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8) []byte {
+func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8) ([]byte, error) {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
@@ -304,55 +296,74 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 	pktEth := &layers.Ethernet{SrcMAC: srcMAC, DstMAC: dstMAC, EthernetType: ethType}
 
 	pktICMP4 := &layers.ICMPv4{
-		TypeCode: layers.ICMPv4TypeTimeExceeded,
-		Checksum: checksum,
+		TypeCode: layers.CreateICMPv4TypeCode(layers.ICMPv4TypeEchoRequest, 0),
 	}
 
 	pktIpv4 := &layers.IPv4{
 		Version:  4,
 		TTL:      ttl,
-		SrcIP:    net.IP{192, 0, 2, 1},
-		DstIP:    net.IP{192, 0, 2, 2},
+		SrcIP:    net.ParseIP("192.0.2.1").To4(),
+		DstIP:    net.ParseIP("192.0.2.2").To4(),
 		Protocol: layers.IPProtocolICMPv4,
+		Flags:    layers.IPv4DontFragment,
 	}
 
 	pktIpv6 := &layers.IPv6{
 		Version:    6,
 		HopLimit:   ttl,
 		NextHeader: layers.IPProtocolICMPv6,
-		SrcIP:      net.ParseIP("2001:db8::192:0:2:1"),
-		DstIP:      net.ParseIP("2001:db8::192:0:2:2"),
+		SrcIP:      net.ParseIP("2001:db8::192:0:2:1").To16(),
+		DstIP:      net.ParseIP("2001:db8::192:0:2:2").To16(),
 	}
+	pktICMP6 := &layers.ICMPv6{
+		TypeCode: layers.CreateICMPv6TypeCode(layers.ICMPv6TypeEchoRequest, 0),
+	}
+	pktICMP6.SetNetworkLayerForChecksum(pktIpv6)
 
 	for i := 0; i < payLoadLen; i++ {
 		payload = append(payload, byte(i))
 	}
 	if isIPv4 {
-		gopacket.SerializeLayers(buf, opts,
+		if err := gopacket.SerializeLayers(buf, opts,
 			pktEth, pktIpv4, pktICMP4, gopacket.Payload(payload),
-		)
-		return buf.Bytes()
-	} else {
-		gopacket.SerializeLayers(buf, opts,
-			pktEth, pktIpv6, gopacket.Payload(payload),
-		)
-		return buf.Bytes()
+		); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
 	}
+	if err := gopacket.SerializeLayers(buf, opts,
+		pktEth, pktIpv6, pktICMP6, gopacket.Payload(payload),
+	); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
-func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8) []*p4v1.PacketOut {
+func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8) ([]*p4v1.PacketOut, error) {
 	packets := []*p4v1.PacketOut{}
+	pkt, err := packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl)
+	if err != nil {
+		return nil, err
+	}
 	packet := &p4v1.PacketOut{
-		Payload: packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl),
+		Payload: pkt,
 		Metadata: []*p4v1.PacketMetadata{
+			{
+				MetadataId: uint32(1),       // "egress_port"
+				Value:      []byte("Unset"), // Metadata value is a required value even if we don't use it for submit_to_ingress scenario.
+			},
 			{
 				MetadataId: uint32(2), // "submit_to_ingress"
 				Value:      []byte{1},
 			},
+			{
+				MetadataId: uint32(3), // "unused_pad"
+				Value:      []byte{0},
+			},
 		},
 	}
 	packets = append(packets, packet)
-	return packets
+	return packets, nil
 }
