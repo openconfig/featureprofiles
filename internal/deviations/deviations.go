@@ -186,4 +186,5 @@ var (
 		"Device requires gribi-protocol to be enabled under network-instance.")
 
 	BGPMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
+	QOSDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "QOS Dropped octets stats for interface")
 )
