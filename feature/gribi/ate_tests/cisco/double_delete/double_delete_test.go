@@ -1035,8 +1035,9 @@ func testwithScale(ctx context.Context, t *testing.T, args *testArgs) {
 
 			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort3.IPv4, DstIP: "198.51.100.1", Scalenum: 243}), false, []string{bundleEther123})
 			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort3.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123})
-
+		}
 	}	
+		
 	prefixes1 := []string{}
 
 	for i := 0; i < 1000; i++ {
