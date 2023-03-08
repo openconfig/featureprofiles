@@ -294,17 +294,11 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	// ATE Configuration.
 	t.Log("Configure port and BGP configs on ATE")
 	ate := ondatra.ATE(t, "ate")
-	port1 := ate.Port(t, "port1")
-	topo := ate.Topology().New()
-	iDut1 := topo.AddInterface(ateAttrs.Name).WithPort(port1)
-	iDut1.IPv4().WithAddress(ateAttrs.IPv4CIDR()).WithDefaultGateway(dutAttrs.IPv4)
-	bgpDut1 := iDut1.BGP()
-	bgpPeer := bgpDut1.AddPeer().WithPeerAddress(dutAttrs.IPv4).WithLocalASN(ateAS).WithTypeExternal().
-		WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
+	topo := configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutAttrs.IPv4}, connExternal)
 
 	t.Log("Pushing config to ATE and starting protocols...")
-	topo.Push(t)
-	topo.StartProtocols(t)
+	ate.OTG().PushConfig(t, topo)
+	ate.OTG().StartProtocols(t)
 
 	// Verify Port Status
 	t.Log("Verifying port status")
@@ -320,7 +314,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 
 	// Send Cease Notification from ATE to DUT
 	t.Log("Send Cease Notification from ATE to DUT")
-	ate.Actions().NewBGPPeerNotification().WithCode(6).WithSubCode(6).WithPeers(bgpPeer).Send(t)
+	// OTG action to send CEASE notification
 
 	// Verify BGP session state : ACTIVE
 	t.Log("Verify BGP session state : ACTIVE")
@@ -334,7 +328,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	}
 
 	// Clear config on DUT and ATE
-	topo.StopProtocols(t)
+	ate.OTG().StartProtocols(t)
 	bgpClearConfig(t, dut)
 }
 
@@ -370,17 +364,11 @@ func TestPassword(t *testing.T) {
 	// ATE Configuration.
 	t.Log("Configure port and BGP configs on ATE")
 	ate := ondatra.ATE(t, "ate")
-	port1 := ate.Port(t, "port1")
-	topo := ate.Topology().New()
-	iDut1 := topo.AddInterface(ateAttrs.Name).WithPort(port1)
-	iDut1.IPv4().WithAddress(ateAttrs.IPv4CIDR()).WithDefaultGateway(dutAttrs.IPv4)
-	bgpDut1 := iDut1.BGP()
-	bgpPeer := bgpDut1.AddPeer().WithPeerAddress(dutAttrs.IPv4).WithLocalASN(ateAS).WithTypeExternal().
-		WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
+	topo := configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutAttrs.IPv4}, connExternal)
 
 	t.Log("Pushing config to ATE and starting protocols...")
-	topo.Push(t)
-	topo.StartProtocols(t)
+	ate.OTG().PushConfig(t, topo)
+	ate.OTG().StartProtocols(t)
 
 	// Verify BGP status
 	t.Log("Check BGP parameters")
@@ -392,8 +380,24 @@ func TestPassword(t *testing.T) {
 	// If the DUT will not fail a BGP session when the BGP MD5 key configuration changes,
 	// change the key from the ATE side to time out the session.
 	if *deviations.BGPMD5RequiresReset {
-		bgpPeer.WithMD5Key("PASSWORDNEGSCENARIO-ATE")
-		topo.UpdateBGPPeerStates(t)
+		port1 := ate.Port(t, "port1")
+		topo := ate.OTG().NewConfig(t)
+
+		topo.Ports().Add().SetName(port1.ID())
+		dev := topo.Devices().Add().SetName(ateAttrs.Name)
+		eth := dev.Ethernets().Add().SetName(ateAttrs.Name + ".Eth")
+		eth.SetPortName(port1.ID()).SetMac(ateAttrs.MAC)
+
+		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+		ip.SetAddress(ateAttrs.IPv4).SetGateway(dutAttrs.IPv4).SetPrefix(int32(ateAttrs.IPv4Len))
+
+		bgp := dev.Bgp().SetRouterId(ateAttrs.IPv4)
+		peerBGP := bgp.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add()
+		peerBGP.SetName(ateAttrs.Name + ".BGP4.peer").Advanced().SetMd5Key("PASSWORDNEGSCENARIO-ATE").SetHoldTimeInterval(ateHoldTime)
+		peerBGP.SetPeerAddress(ip.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+		ate.OTG().PushConfig(t, topo)
+		ate.OTG().StartProtocols(t)
+
 	}
 	t.Log("Wait till hold time expires: BGP should not be in ESTABLISHED state when passwords do not match.")
 	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), (dutHoldTime+10)*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -408,14 +412,16 @@ func TestPassword(t *testing.T) {
 	t.Log("Revert md5 auth password on DUT to match with ATE.")
 	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
 	if *deviations.BGPMD5RequiresReset {
-		bgpPeer.WithMD5Key(authPassword)
-		topo.UpdateBGPPeerStates(t)
+		topo := configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutAttrs.IPv4}, connExternal)
+		t.Log("Pushing config to ATE and starting protocols...")
+		ate.OTG().PushConfig(t, topo)
+		ate.OTG().StartProtocols(t)
 	}
 	t.Log("Verify BGP session state : Should be ESTABLISHED")
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 
 	// Clear config on DUT and ATE
-	topo.StopProtocols(t)
+	ate.OTG().StopProtocols(t)
 	bgpClearConfig(t, dut)
 }
 
