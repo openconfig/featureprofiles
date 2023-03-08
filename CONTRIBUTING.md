@@ -63,7 +63,9 @@ The directory tree is organized as follows:
     routers in containers on [KNE](https://github.com/openconfig/kne)
 *   `feature/` contains definition and tests of feature profiles.
 *   `feature/experimental` contains new features and tests which are not yet
-    categorized or not confirmed to pass.
+    categorized or not confirmed to pass on any hardware platform or software
+    release. When the test is deemed more mature, it is moved to the `feature/`
+    directory.
 *   `internal/` contains packages used by feature profile tests.
 *   `proto/` contains protobuf files for feature profiles.
 *   `tools/` contains code used for CI checks.
@@ -103,11 +105,12 @@ For example:
 *   `feature/interface/singleton/feature.textproto` - defines the singleton
     interface feature profile in machine readable format.
 *   `feature/interface/singleton/ate_tests/` contains the singleton interfaces
-    test suite using ATE traffic generation.
+    test suite using ATE traffic generation API.
 *   `feature/interface/singleton/otg_tests/` contains the singleton interfaces
-    test suite using OTG traffic generation.
+    test suite using OTG traffic generation API.
 *   `feature/interface/singleton/kne_tests/` contains the singleton interfaces
-    test suite that can only run under KNE but not on hardware devices.
+    test suite that are intended to only run under KNE and not on hardware
+    devices.
 *   `feature/interface/singleton/tests/` contains the singleton interfaces test
     suite without traffic generation.
 *   `internal/deviations` contains code which overrides test behavior where
@@ -412,6 +415,11 @@ To contribute a pull request:
     additions, as well as any relevant additions to tests. Tests should be
     written in Go using the [ONDATRA](https://github.com/openconfig/ondatra)
     framework.
+
+1.  We are in the process of migrating tests using the Ondatra ATE API to the
+    OTG API, so many tests have both versions. When making changes to an ATE
+    test, please port the changes to its OTG test unless it is missing. ATE
+    tests are found under the path `ate_tests`, and OTG tests under `otg_tests`.
 
 1.  The automated CI running against each pull request will check the pull
     request for compliance. The author should resolve any issues found by CI.
