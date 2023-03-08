@@ -297,8 +297,8 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 	pktIpv4 := &layers.IPv4{
 		Version:  4,
 		TTL:      ttl,
-		SrcIP:    net.ParseIP("192.0.2.1").To4(),
-		DstIP:    net.ParseIP("192.0.2.2").To4(),
+		SrcIP:    net.ParseIP(dutPort1.IPv4).To4(),
+		DstIP:    net.ParseIP(atePort1.IPv4).To4(),
 		Protocol: layers.IPProtocolICMPv4,
 		Flags:    layers.IPv4DontFragment,
 	}
@@ -311,8 +311,8 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 		Version:    6,
 		HopLimit:   ttl,
 		NextHeader: layers.IPProtocolICMPv6,
-		SrcIP:      net.ParseIP("2001:db8::192:0:2:1").To16(),
-		DstIP:      net.ParseIP("2001:db8::192:0:2:2").To16(),
+		SrcIP:      net.ParseIP(dutPort1.IPv6).To16(),
+		DstIP:      net.ParseIP(atePort1.IPv6).To16(),
 	}
 	pktICMP6 := &layers.ICMPv6{
 		TypeCode: layers.CreateICMPv6TypeCode(layers.ICMPv6TypeEchoRequest, 0),
