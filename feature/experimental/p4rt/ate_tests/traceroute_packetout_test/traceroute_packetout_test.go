@@ -353,8 +353,8 @@ func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAd
 			Payload: pkt,
 			Metadata: []*p4v1.PacketMetadata{
 				{
-					MetadataId: uint32(1),       // "egress_port"
-					Value:      []byte("Unset"), // Metadata value is a required value even if we don't use it for submit_to_ingress scenario.
+					MetadataId: uint32(1), // "egress_port"
+					Value:      []byte{0},
 				},
 				{
 					MetadataId: uint32(2), // "submit_to_ingress"
