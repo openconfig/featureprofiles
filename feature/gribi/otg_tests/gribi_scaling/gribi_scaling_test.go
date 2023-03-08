@@ -306,6 +306,9 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 			nip := gnmi.OC().NetworkInstance(vrf)
 			fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
 		}
+		if *deviations.ExplicitGRIBIUnderNetworkInstance {
+			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
+		}
 	}
 }
 
