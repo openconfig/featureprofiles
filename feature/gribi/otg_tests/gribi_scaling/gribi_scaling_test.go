@@ -320,9 +320,6 @@ func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, dutPort)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, i.GetName(), *deviations.DefaultNetworkInstance, 0)
-	}
 }
 
 // configureInterfaceDUT configures a single DUT layer 2 port.
@@ -350,23 +347,25 @@ func generateSubIntfPair(t *testing.T, top gosnappi.Config, dut *ondatra.DUTDevi
 		Index := uint32(i)
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
-		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4, *deviations.DefaultNetworkInstance)
+		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4)
 		MAC, _ := incrementMAC(atePort1.MAC, i+1)
 		configureATE(t, top, ate, atePort, vlanID, name, MAC, dutIPv4, ateIPv4)
 		nextHops = append(nextHops, ateIPv4)
 	}
 	configureInterfaceDUT(t, dutPort, d, "dst")
 	pushConfig(t, dut, dutPort, d)
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		intf := d.GetOrCreateInterface(dutPort.Name())
+		for i := 0; i <= nextHopCount; i++ {
+			fptest.AssignToNetworkInstance(t, dut, intf.GetName(), *deviations.DefaultNetworkInstance, uint32(i))
+		}
+	}
 	return nextHops
 }
 
 // configureSubinterfaceDUT configures a single DUT layer 3 sub-interface.
-func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string, vrf string) {
+func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string) {
 	t.Helper()
-	if vrf != "" {
-		t.Logf("Put port %s into vrf %s", dutPort.Name(), vrf)
-		d.GetOrCreateNetworkInstance(vrf).GetOrCreateInterface(dutPort.Name())
-	}
 
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
@@ -451,10 +450,11 @@ func TestScaling(t *testing.T) {
 	vrfs := []string{*deviations.DefaultNetworkInstance, vrf1, vrf2, vrf3}
 	createVrf(t, dut, d, vrfs)
 	// configure an L3 subinterface of no vlan tagging under DUT port#1
-	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4, vrf1)
+	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4)
 	configureInterfaceDUT(t, dp1, d, "src")
 	configureATE(t, top, ate, ap1, 0, "src", atePort1.MAC, dutPort1.IPv4, atePort1.IPv4)
 	pushConfig(t, dut, dp1, d)
+	fptest.AssignToNetworkInstance(t, dut, dp1.Name(), vrf1, 0)
 	ap2 := ate.Port(t, "port2")
 	dp2 := dut.Port(t, "port2")
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
