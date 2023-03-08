@@ -183,7 +183,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 
 	swTime, swTimePresent := gnmi.Watch(t, dut, activeRP.LastSwitchoverTime().State(), 1*time.Minute, func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }).Await(t)
 	if !swTimePresent {
-		t.Errorf("activeRP.LastSwitchoverTime().Watch(t).IsPresent(): got %v, want %v", swTimePresent, !swTimePresent)
+		t.Errorf("activeRP.LastSwitchoverTime().Watch(t).IsPresent(): got %v, want %v", false, true)
 	} else {
 		st, _ := swTime.Val()
 		t.Logf("Found activeRP.LastSwitchoverTime(): %v", st)
