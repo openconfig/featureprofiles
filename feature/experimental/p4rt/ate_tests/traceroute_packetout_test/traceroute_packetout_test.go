@@ -286,18 +286,13 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 		ComputeChecksums: true,
 	}
 	payload := []byte{}
-	payLoadLen := 64
+	payLoadLen := 32
 
 	ethType := layers.EthernetTypeIPv4
 	if !isIPv4 {
 		ethType = layers.EthernetTypeIPv6
 	}
 	pktEth := &layers.Ethernet{SrcMAC: srcMAC, DstMAC: dstMAC, EthernetType: ethType}
-
-	pktICMP4 := &layers.ICMPv4{
-		TypeCode: layers.CreateICMPv4TypeCode(layers.ICMPv4TypeEchoRequest, 0),
-		Checksum: uint16(seq),
-	}
 
 	pktIpv4 := &layers.IPv4{
 		Version:  4,
@@ -306,6 +301,10 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 		DstIP:    net.ParseIP("192.0.2.2").To4(),
 		Protocol: layers.IPProtocolICMPv4,
 		Flags:    layers.IPv4DontFragment,
+	}
+	pktICMP4 := &layers.ICMPv4{
+		TypeCode: layers.CreateICMPv4TypeCode(layers.ICMPv4TypeEchoRequest, 0),
+		Seq:      uint16(seq),
 	}
 
 	pktIpv6 := &layers.IPv6{
@@ -317,7 +316,6 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 	}
 	pktICMP6 := &layers.ICMPv6{
 		TypeCode: layers.CreateICMPv6TypeCode(layers.ICMPv6TypeEchoRequest, 0),
-		Checksum: uint16(seq),
 	}
 	pktICMP6.SetNetworkLayerForChecksum(pktIpv6)
 
