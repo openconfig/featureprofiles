@@ -33,8 +33,8 @@ tests:
     - mananpat
   mustpass: true
   priority: 3   
-- name: TE-4.2 (Leader Failover) 
-  path: feature/gribi/ate_tests/leader_failover_test
+- name: TE-4.2 (Persistence Mode) 
+  path: feature/gribi/ate_tests/persistence_mode_test
   args:
       - '-deviation_gribi_preserve_only="true"'
   priority: 4
