@@ -51,8 +51,7 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.P
 				},
 			},
 		); err != nil {
-			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-
+			t.Errorf("There is error seen in Packet Out. %v", err)
 		}
 	}
 }
