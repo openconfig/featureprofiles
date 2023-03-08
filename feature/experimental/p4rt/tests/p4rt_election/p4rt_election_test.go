@@ -346,7 +346,7 @@ func TestUnsetElectionid(t *testing.T) {
 						},
 					},
 				}); err != nil {
-					t.Fatalf("Errors while sending Arbitration Request with unset Election ID")
+					t.Fatalf("Errors while sending Arbitration Request with unset Election ID: %v", err)
 				}
 			}
 			time.Sleep(1 * time.Second)
@@ -356,7 +356,7 @@ func TestUnsetElectionid(t *testing.T) {
 				t.Fatalf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 			}
 			if err != nil {
-				t.Errorf("Errors seen in ClientArbitration response")
+				t.Errorf("Errors seen in ClientArbitration response: %v", err)
 			}
 			t.Logf("Arbitration response status code is as expected for unset ElectionId")
 			// GetForwardingPipeline
@@ -365,11 +365,11 @@ func TestUnsetElectionid(t *testing.T) {
 				ResponseType: p4_v1.GetForwardingPipelineConfigRequest_P4INFO_AND_COOKIE,
 			})
 			if err != nil {
-				t.Errorf("Errors seen when sending GetForwardingPipelineConfig")
+				t.Errorf("Errors seen when sending GetForwardingPipelineConfig: %v", err)
 			}
 			p4Info, err := utils.P4InfoLoad(p4InfoFile)
 			if err != nil {
-				t.Errorf("Errors seen when loading p4info file.")
+				t.Errorf("Errors seen when loading p4info file: %v", err)
 			}
 			// SetForwardingPipeline
 			if err = test.handle.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
@@ -382,7 +382,7 @@ func TestUnsetElectionid(t *testing.T) {
 					},
 				},
 			}); err == nil {
-				t.Errorf("SetForwardingPipelineConfig accepted for unset Election ID.")
+				t.Errorf("SetForwardingPipelineConfig accepted for unset Election ID: %v", err)
 			}
 
 			// Disconnect Primary
