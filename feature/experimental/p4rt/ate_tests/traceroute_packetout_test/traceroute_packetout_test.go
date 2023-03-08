@@ -50,7 +50,6 @@ const (
 var (
 	p4InfoFile = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName = "p4rt"
-	checksum   = uint16(200)
 )
 
 var (
@@ -280,7 +279,7 @@ type TraceroutePacketIO struct {
 }
 
 // packetTracerouteRequestGet generates PacketOut payload for Traceroute packets.
-func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8) ([]byte, error) {
+func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int) ([]byte, error) {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
@@ -297,6 +296,7 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 
 	pktICMP4 := &layers.ICMPv4{
 		TypeCode: layers.CreateICMPv4TypeCode(layers.ICMPv4TypeEchoRequest, 0),
+		Checksum: uint16(seq),
 	}
 
 	pktIpv4 := &layers.IPv4{
@@ -317,6 +317,7 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 	}
 	pktICMP6 := &layers.ICMPv6{
 		TypeCode: layers.CreateICMPv6TypeCode(layers.ICMPv6TypeEchoRequest, 0),
+		Checksum: uint16(seq),
 	}
 	pktICMP6.SetNetworkLayerForChecksum(pktIpv6)
 
@@ -341,29 +342,31 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
-func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8) ([]*p4v1.PacketOut, error) {
+func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error) {
 	packets := []*p4v1.PacketOut{}
-	pkt, err := packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl)
-	if err != nil {
-		return nil, err
+	for i := 1; i <= numPkts; i++ {
+		pkt, err := packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl, i)
+		if err != nil {
+			return nil, err
+		}
+		packet := &p4v1.PacketOut{
+			Payload: pkt,
+			Metadata: []*p4v1.PacketMetadata{
+				{
+					MetadataId: uint32(1),       // "egress_port"
+					Value:      []byte("Unset"), // Metadata value is a required value even if we don't use it for submit_to_ingress scenario.
+				},
+				{
+					MetadataId: uint32(2), // "submit_to_ingress"
+					Value:      []byte{1},
+				},
+				{
+					MetadataId: uint32(3), // "unused_pad"
+					Value:      []byte{0},
+				},
+			},
+		}
+		packets = append(packets, packet)
 	}
-	packet := &p4v1.PacketOut{
-		Payload: pkt,
-		Metadata: []*p4v1.PacketMetadata{
-			{
-				MetadataId: uint32(1),       // "egress_port"
-				Value:      []byte("Unset"), // Metadata value is a required value even if we don't use it for submit_to_ingress scenario.
-			},
-			{
-				MetadataId: uint32(2), // "submit_to_ingress"
-				Value:      []byte{1},
-			},
-			{
-				MetadataId: uint32(3), // "unused_pad"
-				Value:      []byte{0},
-			},
-		},
-	}
-	packets = append(packets, packet)
 	return packets, nil
 }

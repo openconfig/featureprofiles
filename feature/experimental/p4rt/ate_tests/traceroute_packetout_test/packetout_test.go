@@ -27,7 +27,7 @@ import (
 )
 
 type PacketIO interface {
-	GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8) ([]*p4v1.PacketOut, error)
+	GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error)
 }
 
 type testArgs struct {
@@ -42,20 +42,17 @@ type testArgs struct {
 }
 
 // sendPackets sends out packets via PacketOut message in StreamChannel.
-func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.PacketOut, packetCount int) {
-	count := packetCount / len(packets)
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.PacketOut) {
 	for _, packet := range packets {
-		for i := 0; i < count; i++ {
-			if err := client.StreamChannelSendMsg(
-				&streamName, &p4v1.StreamMessageRequest{
-					Update: &p4v1.StreamMessageRequest_Packet{
-						Packet: packet,
-					},
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4v1.StreamMessageRequest{
+				Update: &p4v1.StreamMessageRequest_Packet{
+					Packet: packet,
 				},
-			); err != nil {
-				t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+			},
+		); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
 
-			}
 		}
 	}
 }
@@ -74,14 +71,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 		t.Logf("Initial number of packets: %d", counter0)
 
-		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, true, uint8(ttl))
+		packetCounter := 100
+		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, true, uint8(ttl), packetCounter)
 		if err != nil {
 			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
 		}
-		packetCounter := 100
 		t.Logf("Sending packets now")
 
-		sendPackets(t, leader, packets, packetCounter)
+		sendPackets(t, leader, packets)
 
 		// Wait for ate stats to be populated
 		time.Sleep(60 * time.Second)
@@ -107,14 +104,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 		t.Logf("Initial number of packets: %d", counter0)
 
-		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, false, uint8(ttl))
+		packetCounter := 100
+		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, false, uint8(ttl), packetCounter)
 		if err != nil {
 			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
 		}
-		packetCounter := 100
 		t.Logf("Sending packets now")
 
-		sendPackets(t, leader, packets, packetCounter)
+		sendPackets(t, leader, packets)
 
 		// Wait for ate stats to be populated
 		time.Sleep(60 * time.Second)
