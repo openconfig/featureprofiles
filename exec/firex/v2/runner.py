@@ -424,7 +424,7 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     return reserved_testbed
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=2, soft_time_limit=1*60*60, time_limit=1*60*60)
+@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
                     install_lock_file, images, ignore_install_errors=True):
@@ -570,7 +570,7 @@ def GoTidy(self, repo):
     )
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=2)
+@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed])
 def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
     logger.print("Releasing ixia ports...")
     try:
