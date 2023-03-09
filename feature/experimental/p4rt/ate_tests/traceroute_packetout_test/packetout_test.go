@@ -27,7 +27,7 @@ import (
 )
 
 type PacketIO interface {
-	GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error)
+	GetPacketOut(srcMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error)
 }
 
 type testArgs struct {
@@ -37,7 +37,6 @@ type testArgs struct {
 	ate      *ondatra.ATEDevice
 	top      *ondatra.ATETopology
 	srcMAC   net.HardwareAddr
-	dstMAC   net.HardwareAddr
 	packetIO PacketIO
 }
 
@@ -71,7 +70,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("Initial number of packets: %d", counter0)
 
 		packetCounter := 100
-		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, true, uint8(ttl), packetCounter)
+		packets, err := args.packetIO.GetPacketOut(args.srcMAC, portId, true, uint8(ttl), packetCounter)
 		if err != nil {
 			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
 		}
@@ -104,7 +103,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("Initial number of packets: %d", counter0)
 
 		packetCounter := 100
-		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, false, uint8(ttl), packetCounter)
+		packets, err := args.packetIO.GetPacketOut(args.srcMAC, portId, false, uint8(ttl), packetCounter)
 		if err != nil {
 			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
 		}

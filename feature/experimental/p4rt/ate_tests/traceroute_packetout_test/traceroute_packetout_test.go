@@ -249,11 +249,6 @@ func TestPacketOut(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't parse Source MAC: %v", err)
 	}
-	// Default MAC addresses on Ixia are assigned incrementally as:
-	//   - 00:11:01:00:00:01
-	//   - 00:12:01:00:00:01
-	// etc.
-	dstMAC := net.HardwareAddr{0x00, 0x11, 0x01, 0x00, 0x00, 0x01}
 
 	args := &testArgs{
 		ctx:    ctx,
@@ -262,7 +257,6 @@ func TestPacketOut(t *testing.T) {
 		ate:    ate,
 		top:    top,
 		srcMAC: srcMAC,
-		dstMAC: dstMAC,
 	}
 
 	if err := setupP4RTClient(ctx, args); err != nil {
@@ -279,7 +273,7 @@ type TraceroutePacketIO struct {
 }
 
 // packetTracerouteRequestGet generates PacketOut payload for Traceroute packets.
-func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int) ([]byte, error) {
+func packetTracerouteRequestGet(srcMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int) ([]byte, error) {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
@@ -292,7 +286,11 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 	if !isIPv4 {
 		ethType = layers.EthernetTypeIPv6
 	}
-	pktEth := &layers.Ethernet{SrcMAC: srcMAC, DstMAC: dstMAC, EthernetType: ethType}
+	pktEth := &layers.Ethernet{
+		SrcMAC:       srcMAC,
+		DstMAC:       net.HardwareAddr{0x68, 0xF3, 0x8E, 0x64, 0xF3, 0xFC},
+		EthernetType: ethType,
+	}
 
 	pktIpv4 := &layers.IPv4{
 		Version:  4,
@@ -340,10 +338,10 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
-func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error) {
+func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error) {
 	packets := []*p4v1.PacketOut{}
 	for i := 1; i <= numPkts; i++ {
-		pkt, err := packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl, i)
+		pkt, err := packetTracerouteRequestGet(srcMAC, isIPv4, ttl, i)
 		if err != nil {
 			return nil, err
 		}
@@ -352,7 +350,7 @@ func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAd
 			Metadata: []*p4v1.PacketMetadata{
 				{
 					MetadataId: uint32(1), // "egress_port"
-					Value:      []byte{0},
+					Value:      []byte("Unset"),
 				},
 				{
 					MetadataId: uint32(2), // "submit_to_ingress"
