@@ -202,11 +202,14 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 	t.Helper()
 	switch address {
 	case "Decap":
-		c.fluentC.Modify().AddEntry(t,
-			fluent.NextHopEntry().
-				WithNetworkInstance(instance).
-				WithIndex(nhIndex).
-				WithDecapsulateHeader(fluent.IPinIP))
+		NH := fluent.NextHopEntry().
+			WithNetworkInstance(instance).
+			WithIndex(nhIndex).
+			WithDecapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			NH = NH.WithNextHopNetworkInstance(opt.VrfName)
+		}
+		c.fluentC.Modify().AddEntry(t, NH)
 	case "DecapEncap":
 		NH := fluent.NextHopEntry().
 			WithNetworkInstance(instance).
