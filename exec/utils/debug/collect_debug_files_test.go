@@ -77,7 +77,7 @@ func TestCollectDebugFiles(t *testing.T) {
 	commands := []string{
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
-		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" " + techDirectory + "/  \\;",
+		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
 	}
 
 	for _, t := range showTechSupport {

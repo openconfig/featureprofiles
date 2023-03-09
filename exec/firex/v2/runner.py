@@ -485,7 +485,7 @@ def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path,
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {tmp_binding_file} ' \
             f'-outDir {test_log_directory_path}/debug_files ' \
-            f'-timestamp ${str(timestamp)}'
+            f'-timestamp {str(timestamp)}'
     try:
         env = dict(os.environ)
         env.update(_get_go_env())
