@@ -538,8 +538,8 @@ func TestWrrTraffic(t *testing.T) {
 		},
 		"intf1-af1": {
 			frameSize:             1000,
-			trafficRate:           50,
-			expectedThroughputPct: 83.48,
+			trafficRate:           20,
+			expectedThroughputPct: 50,
 			dscp:                  8,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
 			inputIntf:             intf1,
