@@ -725,7 +725,6 @@ func TestP4rtNodeID(t *testing.T) {
 }
 
 func TestIntfCounterUpdate(t *testing.T) {
-	//t.SkipNow()
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
