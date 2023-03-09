@@ -257,18 +257,7 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 // Sub Interfaces are also configured if numSubIntf > 0.
 func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
 	t.Helper()
-
-	i := &oc.Interface{Name: ygot.String(p.Name())}
-
-	if a.numSubIntf > 0 {
-		i.Description = ygot.String(a.Desc)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		if *deviations.InterfaceEnabled {
-			i.Enabled = ygot.Bool(true)
-		}
-	} else {
-		i = a.NewOCInterface(p.Name())
-	}
+	i := a.NewOCInterface(p.Name())
 
 	a.configSubinterfaceDUT(t, i)
 	intfPath := gnmi.OC().Interface(p.Name())
@@ -324,19 +313,18 @@ func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *ondatra.ATEDevice) {
 	t.Helper()
 	p := ate.Port(t, a.Name)
-	// Configure source port on ATE : Port1
-	if a.numSubIntf == 0 {
-		ip := a.ip(0)
-		gateway := a.gateway(0)
-		intf := top.AddInterface(ip).WithPort(p)
-		intf.IPv4().WithAddress(cidr(ip, 30))
-		intf.IPv4().WithDefaultGateway(gateway)
-		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
-	}
-	// Configure destination port on ATE : Port2
+
+	ip := a.ip(0)
+	gateway := a.gateway(0)
+
+	intf := top.AddInterface(ip).WithPort(p)
+	intf.IPv4().WithAddress(cidr(ip, 30))
+	intf.IPv4().WithDefaultGateway(gateway)
+	t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
+
 	for i := uint32(1); i <= a.numSubIntf; i++ {
-		ip := a.ip(uint8(i))
-		gateway := a.gateway(uint8(i))
+		ip = a.ip(uint8(i))
+		gateway = a.gateway(uint8(i))
 		intf := top.AddInterface(ip).WithPort(p)
 		intf.IPv4().WithAddress(cidr(ip, 30))
 		intf.IPv4().WithDefaultGateway(gateway)
@@ -359,7 +347,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 
 	// ATE destination endpoints.
 	dstEndPoints := []ondatra.Endpoint{}
-	for i := uint32(1); i <= atePort2.numSubIntf; i++ {
+	for i := uint32(0); i <= atePort2.numSubIntf; i++ {
 		dstIP := atePort2.ip(uint8(i))
 		dstEndPoints = append(dstEndPoints, allIntf[dstIP])
 	}
