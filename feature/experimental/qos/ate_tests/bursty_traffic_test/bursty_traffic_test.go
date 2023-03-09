@@ -74,10 +74,11 @@ func TestBurstyTraffic(t *testing.T) {
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntf(t, dut)
-	//ConfigureQoS(t, dut)
-	if dut.Vendor() == ondatra.CISCO {
+
+	switch dut.Vendor() {
+	case ondatra.CISCO:
 		ConfigureCiscoQos(t, dut)
-	} else {
+	default:
 		ConfigureQoS(t, dut)
 	}
 
