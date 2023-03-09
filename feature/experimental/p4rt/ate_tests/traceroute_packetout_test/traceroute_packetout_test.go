@@ -288,7 +288,7 @@ func packetTracerouteRequestGet(srcMAC net.HardwareAddr, isIPv4 bool, ttl uint8,
 	}
 	pktEth := &layers.Ethernet{
 		SrcMAC:       srcMAC,
-		DstMAC:       net.HardwareAddr{0x68, 0xF3, 0x8E, 0x64, 0xF3, 0xFC},
+		DstMAC:       net.HardwareAddr{0x02, 0xF6, 0x65, 0x64, 0x00, 0x08},
 		EthernetType: ethType,
 	}
 
