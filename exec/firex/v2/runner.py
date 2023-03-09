@@ -39,7 +39,8 @@ TESTBEDS_FILE = 'exec/testbeds.yaml'
 
 whitelist_arguments([
     'test_html_report',
-    'release_ixia_ports'
+    'release_ixia_ports',
+    'mgmt_vrf'
 ])
 
 class GoTestSegFaultException(Exception):
@@ -303,34 +304,40 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                         cwd=test_repo_dir)
         stop_time = self.get_current_time()
     finally:
-        if xml_results_file and Path(xml_results_file).is_file():
-            shutil.copyfile(xml_results_file, xunit_results_filepath)
+        have_output = self.console_output_file and Path(self.console_output_file).is_file()
+        have_xml_output = xml_results_file and Path(xml_results_file).is_file()
 
-        if self.console_output_file and Path(self.console_output_file).is_file():
+        if have_output:
             shutil.copyfile(self.console_output_file, json_results_file)
+
+        if have_xml_output:
+            shutil.copyfile(xml_results_file, xunit_results_filepath)
+            if test_debug:
+                with open(xml_results_file, 'r') as f:
+                    if 'failures="0"' not in f.read():
+                        self.enqueue_child(CollectDebugFiles.s(
+                            internal_fp_repo_dir=internal_fp_repo_dir, 
+                            ondatra_binding_path=ondatra_binding_path, 
+                            ondatra_testbed_path=ondatra_testbed_path, 
+                            test_log_directory_path=test_log_directory_path
+                        ))
+        elif have_output:
             with open(json_results_file, 'r') as f:
                 content = f.read() 
                 if 'segmentation fault (core dumped)' in content:
                     raise GoTestSegFaultException
-                if test_debug and '"Action":"fail"' in content:
-                    self.enqueue_child(CollectDebugFiles.s(
-                        internal_fp_repo_dir=internal_fp_repo_dir, 
-                        ondatra_binding_path=ondatra_binding_path, 
-                        ondatra_testbed_path=ondatra_testbed_path, 
-                        test_log_directory_path=test_log_directory_path
-                    ))
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
 
-    if not Path(xunit_results_filepath).is_file():
-        logger.warn('Test did not produce expected xunit result')
-    else: 
-        check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
+        if not Path(xunit_results_filepath).is_file():
+            logger.warn('Test did not produce expected xunit result')
+        else: 
+            check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
 
-    log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
-    write_output_from_results_json(json_results_file, log_filepath)
-    log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
-    return None, xunit_results_filepath, log_file, start_time, stop_time
+        log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
+        write_output_from_results_json(json_results_file, log_filepath)
+        log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
+        return None, xunit_results_filepath, log_file, start_time, stop_time
 
 @app.task(bind=True)
 def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=None):
@@ -417,7 +424,7 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     return reserved_testbed
 
 # noinspection PyPep8Naming
-@app.task(bind=True)
+@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
                     install_lock_file, images, ignore_install_errors=True):
@@ -440,6 +447,7 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir,
     except:
         if not ignore_install_errors:
             _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
+            os.remove(install_lock_file)
             raise
         else: logger.warning(f'Software upgrade failed. Ignoring...')
 
@@ -509,7 +517,7 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
-        ondatra_testbed_path, testbed_logs_dir):
+        ondatra_testbed_path, testbed_logs_dir, mgmt_vrf=None):
     logger.print("Configuring Virtual IP...")
 
     vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
@@ -530,7 +538,10 @@ def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path,
         conf_file = f.name
 
     with open(conf_file, 'w') as fp:
-        fp.write(f'ipv4 virtual address {mgmt_ip}/24\nend')
+        if mgmt_vrf:
+            fp.write(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24\nend')
+        else:
+            fp.write(f'ipv4 virtual address {mgmt_ip}/24\nend')
 
     set_conf_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/setconf ' \
@@ -559,7 +570,7 @@ def GoTidy(self, repo):
     )
 
 # noinspection PyPep8Naming
-@app.task(bind=True)
+@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed])
 def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
     logger.print("Releasing ixia ports...")
     try:
@@ -568,6 +579,7 @@ def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
         )
     except:
         logger.warning(f'Failed to release ixia ports. Ignoring...')
+        raise
 
 @app.task(bind=True)
 def GoReporting(self, internal_fp_repo_dir, test_log_directory_path):
