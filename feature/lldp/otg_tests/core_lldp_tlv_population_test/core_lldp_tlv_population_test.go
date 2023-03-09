@@ -228,17 +228,20 @@ func checkLLDPMetricsOTG(t *testing.T, otg *otg.OTG, c gosnappi.Config, lldpEnab
 func checkOTGLLDPNeighbor(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLldpNeighbor lldpNeighbors) {
 	otgutils.LogLLDPNeighborStates(t, otg, c)
 
-	lldpState := gnmi.Get(t, otg, gnmi.OTG().LldpInterface(lldpSrc.otgName).State())
-	neighbors := lldpState.GetLldpNeighborDatabase().LldpNeighbor
-	neighborFound := false
-	for _, neighbor := range neighbors {
-		if expLldpNeighbor.Equal(neighbor) {
-			neighborFound = true
-			break
+	lldpState := gnmi.Lookup(t, otg, gnmi.OTG().LldpInterface(lldpSrc.otgName).LldpNeighborDatabase().State())
+	v, isPresent := lldpState.Val()
+	if isPresent {
+		neighbors := v.LldpNeighbor
+		neighborFound := false
+		for _, neighbor := range neighbors {
+			if expLldpNeighbor.Equal(neighbor) {
+				neighborFound = true
+				break
+			}
 		}
-	}
-	if !neighborFound {
-		t.Errorf("LLDP Neighbor not found")
+		if !neighborFound {
+			t.Errorf("LLDP Neighbor not found")
+		}
 	}
 }
 
