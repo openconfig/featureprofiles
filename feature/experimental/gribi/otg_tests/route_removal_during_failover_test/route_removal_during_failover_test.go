@@ -487,7 +487,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
 	top := ate.OTG().NewConfig(t)
-	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
+	top.Ports().Add().SetName(ap1.ID())
 	// configure DUT port#1 - source port.
 	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4)
 	configureInterfaceDUT(t, dp1, d, "src")
@@ -495,6 +495,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	pushConfig(t, dut, dp1, d)
 	dp2 := dut.Port(t, "port2")
 	ap2 := ate.Port(t, "port2")
+	top.Ports().Add().SetName(ap2.ID())
 	// Configure 64 subinterfaces on DUT-ATE- PORT#2.
 	subIntfIPs := generateSubIntfPair(t, dut, dp2, ate, ap2, top, d)
 	ate.OTG().PushConfig(t, top)
