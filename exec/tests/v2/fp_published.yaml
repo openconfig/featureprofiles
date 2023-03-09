@@ -572,12 +572,12 @@ tests:
   args:
        - '-deviation_missing_isis_interface_afi_safi_enable="true"'
 - name: gNMI-1.3 (Benchmarking Drained Configuration Convergence Time)
-    path: feature/experimental/system/gnmi/benchmarking/ate_tests/drained_configuration_convergence_time
-    owners:
+  path: feature/experimental/system/gnmi/benchmarking/ate_tests/drained_configuration_convergence_time
+  owners:
         - agvarghe
-    branch: agvarghe-gnmi1_3
-    internal: true
-    mustpass: true
-    args:
+  branch: agvarghe-gnmi1_3
+  internal: true
+  mustpass: true
+  args:
          - '-deviation_missing_isis_interface_afi_safi_enable="true"'
          - '-deviation_rpl_under_peergroup="true"'
