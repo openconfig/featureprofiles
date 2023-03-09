@@ -468,7 +468,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
     r.git.clean('-xdf')
 
 # noinspection PyPep8Naming
-@app.task(bind=True)
+@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
 def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path, 
         ondatra_testbed_path, test_log_directory_path, timestamp):
     logger.print("Collecting debug files...")
