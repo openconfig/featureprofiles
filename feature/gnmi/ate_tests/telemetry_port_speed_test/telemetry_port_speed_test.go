@@ -198,6 +198,18 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		}
 	}
 
+	if tc.lagType == lagTypeLACP {
+		lacp := &oc.Lacp_Interface{Name: ygot.String(tc.aggID)}
+		lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
+
+		lacpPath := d.Lacp().Interface(tc.aggID)
+		fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
+		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+		t.Cleanup(func() {
+			gnmi.Delete(t, tc.dut, lacpPath.Config())
+		})
+	}
+
 	agg := &oc.Interface{Name: ygot.String(tc.aggID)}
 	tc.configAggregateDUT(agg, &dutIPs)
 	aggPath := d.Interface(tc.aggID)
@@ -213,23 +225,17 @@ func (tc *testCase) configureDUT(t *testing.T) {
 			iPath := d.Interface(iName)
 			gnmi.Replace(t, tc.dut, iPath.Config(), &oc.Interface{Name: ygot.String(iName), Type: ethernetCsmacd})
 		}
-		if *deviations.ExplicitInterfaceInDefaultVRF {
-			gnmi.Delete(t, tc.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Interface(tc.aggID+".0").Config())
+		if *deviations.AggregateAtomicUpdate {
+			resetBatch := &gnmi.SetBatch{}
+			if *deviations.ExplicitInterfaceInDefaultVRF {
+				gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Interface(tc.aggID+".0").Config())
+			}
+			gnmi.BatchDelete(resetBatch, aggPath.Config())
+			gnmi.BatchDelete(resetBatch, d.Lacp().Interface(tc.aggID).Config())
+			resetBatch.Set(t, tc.dut)
 		}
 		gnmi.Delete(t, tc.dut, aggPath.Config())
 	})
-
-	if tc.lagType == lagTypeLACP {
-		lacp := &oc.Lacp_Interface{Name: ygot.String(tc.aggID)}
-		lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
-
-		lacpPath := d.Lacp().Interface(tc.aggID)
-		fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
-		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
-		t.Cleanup(func() {
-			gnmi.Delete(t, tc.dut, lacpPath.Config())
-		})
-	}
 }
 
 func (tc *testCase) configureATE(t *testing.T) {
