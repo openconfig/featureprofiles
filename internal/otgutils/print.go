@@ -197,20 +197,22 @@ func LogLLDPNeighborStates(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 		"Chassis Id Type")
 
 	for _, lldp := range c.Lldp().Items() {
-		lldpNeighborStates := gnmi.GetAll(t, otg, gnmi.OTG().LldpInterface(lldp.Name()).LldpNeighborDatabase().LldpNeighborAny().State())
+		lldpNeighborStates := gnmi.LookupAll(t, otg, gnmi.OTG().LldpInterface(lldp.Name()).LldpNeighborDatabase().LldpNeighborAny().State())
 		for _, lldpNeighborState := range lldpNeighborStates {
-			systemName := lldpNeighborState.GetSystemName()
-			portID := lldpNeighborState.GetPortId()
-			portIDType := lldpNeighborState.GetPortIdType()
-			chassisID := lldpNeighborState.GetChassisId()
-			chassisIDType := lldpNeighborState.GetChassisIdType()
+			v, isPresent := lldpNeighborState.Val()
+			if isPresent {
+				systemName := v.GetSystemName()
+				portID := v.GetPortId()
+				portIDType := v.GetPortIdType()
+				chassisID := v.GetChassisId()
+				chassisIDType := v.GetChassisIdType()
+				out.WriteString(fmt.Sprintf(
+					"%-15s%-18s%-18s%-18s%-20s%-20s\n",
+					lldp.Name(), systemName, portID, portIDType, chassisID, chassisIDType,
+				))
 
-			out.WriteString(fmt.Sprintf(
-				"%-15s%-18s%-18s%-18s%-20s%-20s\n",
-				lldp.Name(), systemName, portID, portIDType, chassisID, chassisIDType,
-			))
+			}
 		}
-
 	}
 	fmt.Fprintln(&out, strings.Repeat("-", 120))
 	out.WriteString("\n\n")
