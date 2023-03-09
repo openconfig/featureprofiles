@@ -40,6 +40,8 @@ const (
 	ISISInstance = "DEFAULT"
 	// PeerGrpName is BGP peer group name.
 	PeerGrpName = "BGP-PEER-GROUP"
+	// IBGPPeerGrpName is iBGP peer group name.
+	IBGPPeerGrpName = "BGP-PEER-GROUP-IBGP"
 	// DUTAs is DUT AS.
 	DUTAs = 64500
 	// ATEAs is ATE AS.
@@ -126,6 +128,14 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	pg := bgp.GetOrCreatePeerGroup(PeerGrpName)
 	pg.PeerAs = ygot.Uint32(ATEAs)
 	pg.PeerGroupName = ygot.String(PeerGrpName)
+	afipg := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	afipg.Enabled = ygot.Bool(true)
+
+	pg1 := bgp.GetOrCreatePeerGroup(IBGPPeerGrpName)
+	pg1.PeerAs = ygot.Uint32(ATEAs)
+	pg1.PeerGroupName = ygot.String(IBGPPeerGrpName)
+	afipg1 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	afipg1.Enabled = ygot.Bool(true)
 
 	// ISIS configs.
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).GetOrCreateIsis()
@@ -171,10 +181,11 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 		// BGP neighbor configs.
 		nv4 := bgp.GetOrCreateNeighbor(ATEIPList[dp.ID()].String())
-		nv4.PeerGroup = ygot.String(PeerGrpName)
 		if dp.ID() == "port1" {
+			nv4.PeerGroup = ygot.String(PeerGrpName)
 			nv4.PeerAs = ygot.Uint32(ATEAs2)
 		} else {
+			nv4.PeerGroup = ygot.String(IBGPPeerGrpName)
 			nv4.PeerAs = ygot.Uint32(ATEAs)
 		}
 		nv4.Enabled = ygot.Bool(true)
@@ -295,6 +306,7 @@ func VerifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, peerAddr := range ATEIPList {
 		nbrIP := peerAddr.String()
 		nbrPath := statePath.Neighbor(nbrIP)
-		gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
+
 }
