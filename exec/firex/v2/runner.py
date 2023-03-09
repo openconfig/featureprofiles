@@ -15,7 +15,6 @@ from html_helper import get_link
 from helper import CommandFailed
 from getpass import getuser
 from pathlib import Path
-from datetime import datetime
 import shutil
 import random
 import string
@@ -294,7 +293,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
             f'-xml "{xml_results_file}"'
 
     start_time = self.get_current_time()
-    start_timestamp = (start_time - datetime(1970, 1, 1)).total_seconds()
+    start_timestamp = int(time.time())
+
     try:
         inactivity_timeout = 1800
         if test_timeout > 0: inactivity_timeout = 2*test_timeout
@@ -485,7 +485,7 @@ def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path,
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {tmp_binding_file} ' \
             f'-outDir {test_log_directory_path}/debug_files ' \
-            f'-timestamp ${timestamp}'
+            f'-timestamp ${str(timestamp)}'
     try:
         env = dict(os.environ)
         env.update(_get_go_env())
