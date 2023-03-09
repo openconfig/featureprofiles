@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -225,6 +226,9 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc
 	a := s4.GetOrCreateAddress(dutPort.IPv4)
 	a.PrefixLength = ygot.Uint8(dutPort.IPv4Len)
 	s6 := s.GetOrCreateIpv6()
+	if *deviations.InterfaceEnabled {
+		s6.Enabled = ygot.Bool(true)
+	}
 	a6 := s6.GetOrCreateAddress(dutPort.IPv6)
 	a6.PrefixLength = ygot.Uint8(dutPort.IPv6Len)
 	if index != 0 {
@@ -318,12 +322,17 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flow ...*on
 		t.Log("Expecting traffic to fail for the flows")
 	}
 
+	// Wait for loss percentage values for flows to be present.
+	flowPath := gnmi.OC().FlowAny()
+	gnmi.WatchAll(t, args.ate, flowPath.LossPct().State(), time.Minute, func(val *ygnmi.Value[float32]) bool {
+		return val.IsPresent()
+	}).Await(t)
+
 	// log stats
 	t.Log("All flow LossPct: ", gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().LossPct().State()))
 	t.Log("FlowAny InPkts  : ", gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().Counters().InPkts().State()))
 	t.Log("FlowAny OutPkts : ", gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().Counters().OutPkts().State()))
 
-	flowPath := gnmi.OC().FlowAny()
 	if got := gnmi.GetAll(t, args.ate, flowPath.LossPct().State()); len(got) == 0 {
 		t.Fatalf("Flow stats count not correct, wanted > 0, got 0")
 	} else {

@@ -631,11 +631,14 @@ func TestECNConfig(t *testing.T) {
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
 	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+
 	if dut.Vendor() != ondatra.JUNIPER {
 		uniform.SetDrop(ecnConfig.dropEnabled)
 		// TODO: uncomment the following config after it is supported.
 		// uniform.SetWeight(ecnConfig.weight)
 	}
+  
+	uniform.SetWeight(ecnConfig.weight)
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
