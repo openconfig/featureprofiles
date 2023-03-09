@@ -16,6 +16,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -318,19 +319,19 @@ func TestUnsetElectionid(t *testing.T) {
 	configureDeviceId(t, dut)
 	configurePortId(t, dut)
 	clients := []testArgs{
-		{desc: pDesc,
+		{
+			desc:       pDesc,
 			handle:     clientConnection(t, dut),
 			deviceID:   deviceId,
-			wantStatus: 5,
-		},
-		{desc: sDesc,
+			wantStatus: int32(codes.NotFound),
+		}, {
+			desc:       sDesc,
 			handle:     clientConnection(t, dut),
 			deviceID:   deviceId,
-			wantStatus: 5,
+			wantStatus: int32(codes.NotFound),
 		},
 	}
-
-	// Connect 2 clients to same deviceId with unset electionId
+	// Connect 2 clients to same deviceId with unset electionId.
 	for _, test := range clients {
 		t.Run(test.desc, func(t *testing.T) {
 			streamParameter := p4rt_client.P4RTStreamParameters{
@@ -350,7 +351,7 @@ func TestUnsetElectionid(t *testing.T) {
 				}
 			}
 			time.Sleep(1 * time.Second)
-			// Validate status code
+			// Validate the return status code for MasterArbitration.
 			resp, err := getRespCode(&test)
 			if resp != test.wantStatus {
 				t.Fatalf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
@@ -359,7 +360,7 @@ func TestUnsetElectionid(t *testing.T) {
 				t.Errorf("Errors seen in ClientArbitration response: %v", err)
 			}
 			t.Logf("Arbitration response status code is as expected for unset ElectionId")
-			// GetForwardingPipeline
+			// Verify GetForwardingPipeline for unset electionId.
 			_, err = test.handle.GetForwardingPipelineConfig(&p4_v1.GetForwardingPipelineConfigRequest{
 				DeviceId:     deviceId,
 				ResponseType: p4_v1.GetForwardingPipelineConfigRequest_P4INFO_AND_COOKIE,
@@ -371,7 +372,7 @@ func TestUnsetElectionid(t *testing.T) {
 			if err != nil {
 				t.Errorf("Errors seen when loading p4info file: %v", err)
 			}
-			// SetForwardingPipeline
+			//  Verify SetForwardingPipeline fails for unset electionId.
 			if err = test.handle.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
 				DeviceId: deviceId,
 				Action:   p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
@@ -384,10 +385,11 @@ func TestUnsetElectionid(t *testing.T) {
 			}); err == nil {
 				t.Errorf("SetForwardingPipelineConfig accepted for unset Election ID: %v", err)
 			}
-
-			// Disconnect Primary
-			removeClient(test.handle)
 		})
+	}
+	// Disconnect all clients.
+	for _, test := range clients {
+		removeClient(test.handle)
 	}
 }
 
