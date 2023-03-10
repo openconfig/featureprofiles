@@ -24,8 +24,10 @@ const (
 )
 
 var (
-	outDirFlag = flag.String("outDir", "", "Directory where debug files should be copied")
-	outDir     string
+	outDirFlag    = flag.String("outDir", "", "Directory where debug files should be copied")
+	timestampFlag = flag.String("timestamp", "1", "Test start timestamp")
+	outDir        string
+	timestamp     string
 )
 
 type targetInfo struct {
@@ -69,12 +71,13 @@ func TestCollectDebugFiles(t *testing.T) {
 		t.Fatal("Missing outDir arg")
 	} else {
 		outDir = *outDirFlag
+		timestamp = *timestampFlag
 	}
 
 	commands := []string{
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
-		"run cp /misc/disk1/*core* /" + techDirectory,
+		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
 	}
 
 	for _, t := range showTechSupport {

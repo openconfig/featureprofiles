@@ -190,6 +190,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         fp_post_tests=[],
                         internal_test=False,
                         test_debug=True,
+                        test_verbose=True,
                         test_html_report=True,
                         release_ixia_ports=True,
                         testbed=None,
@@ -215,6 +216,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     test_args=test_args,
                     test_timeout=test_timeout,
                     test_debug=test_debug,
+                    test_verbose=test_verbose,
                     **kwargs)
 
     chain |= CloneRepo.s(repo_url=test_repo_url,
@@ -254,7 +256,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
-        test_path, test_args=None, test_timeout=0, test_debug=False, testbed_info_path=None):
+        test_path, test_args=None, test_timeout=0, test_debug=False, test_verbose=False, testbed_info_path=None):
     
     logger.print('Running Go test...')
     json_results_file = Path(test_log_directory_path) / f'go_logs.json'
@@ -280,7 +282,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         f'-log_dir {test_logs_dir_in_ws}'
 
     test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path} '
-    if test_debug:
+    if test_verbose:
         test_args += f'-v 5 ' \
             f'-alsologtostderr'
 
@@ -293,6 +295,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
             f'-xml "{xml_results_file}"'
 
     start_time = self.get_current_time()
+    start_timestamp = int(time.time())
+
     try:
         inactivity_timeout = 1800
         if test_timeout > 0: inactivity_timeout = 2*test_timeout
@@ -319,7 +323,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                             internal_fp_repo_dir=internal_fp_repo_dir, 
                             ondatra_binding_path=ondatra_binding_path, 
                             ondatra_testbed_path=ondatra_testbed_path, 
-                            test_log_directory_path=test_log_directory_path
+                            test_log_directory_path=test_log_directory_path,
+                            timestamp=start_timestamp
                         ))
         elif have_output:
             with open(json_results_file, 'r') as f:
@@ -465,9 +470,9 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
     r.git.clean('-xdf')
 
 # noinspection PyPep8Naming
-@app.task(bind=True)
+@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
 def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path, 
-        ondatra_testbed_path, test_log_directory_path):
+        ondatra_testbed_path, test_log_directory_path, timestamp):
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -481,7 +486,8 @@ def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path,
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {tmp_binding_file} ' \
-            f'-outDir {test_log_directory_path}/debug_files'
+            f'-outDir {test_log_directory_path}/debug_files ' \
+            f'-timestamp {str(timestamp)}'
     try:
         env = dict(os.environ)
         env.update(_get_go_env())
@@ -570,7 +576,7 @@ def GoTidy(self, repo):
     )
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed])
+@app.task(bind=True)
 def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
     logger.print("Releasing ixia ports...")
     try:
@@ -579,7 +585,6 @@ def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
         )
     except:
         logger.warning(f'Failed to release ixia ports. Ignoring...')
-        raise
 
 @app.task(bind=True)
 def GoReporting(self, internal_fp_repo_dir, test_log_directory_path):
