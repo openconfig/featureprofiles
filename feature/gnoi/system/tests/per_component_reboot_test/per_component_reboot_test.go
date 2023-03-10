@@ -37,6 +37,7 @@ import (
 const (
 	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	linecardType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
+	fabricType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
 	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
@@ -220,6 +221,68 @@ func TestLinecardReboot(t *testing.T) {
 	}
 
 	// TODO: Check the line card uptime has been reset.
+}
+
+func TestFabricReboot(t *testing.T) {
+	const fabricBoottime = 10 * time.Minute
+	dut := ondatra.DUT(t, "dut")
+
+	fs := components.FindComponentsByType(t, dut, fabricType)
+	t.Logf("Found fabric list: %v", fs)
+
+	if *args.NumFabrics >= 0 && len(fs) != *args.NumFabrics {
+		t.Errorf("Incorrect number of fabrics: got %v, want exactly %v (specified by flag)", len(fs), *args.NumLinecards)
+	}
+
+	if got := len(fs); got == 0 {
+		t.Skipf("Not enough fabrics for the test on %v: got %v, want > 0", dut.Model(), got)
+	}
+
+	t.Logf("Find a removable fabric to reboot.")
+	var removableFabric string
+	for _, f := range fs {
+		t.Logf("Check if %s is removable", f)
+		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Removable().State()).IsPresent(); !got {
+			t.Logf("Detected non-removable fabric: %v", f)
+			continue
+		}
+		if got := gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()); got {
+			t.Logf("Found removable fabric: %v", f)
+			removableFabric = f
+			break
+		}
+	}
+	if removableFabric == "" {
+		t.Fatalf("Component(f).Removable().Get(t): got none, want non-empty")
+	}
+
+	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	req := &spb.RebootRequest{
+		Method: spb.RebootMethod_COLD,
+		Subcomponents: []*tpb.Path{
+			components.GetSubcomponentPath(removableFabric),
+		},
+	}
+
+	beforeStatus := gnmi.Lookup(t, dut, gnmi.OC().Component(removableFabric).OperStatus().State())
+	t.Logf("OperStatusUp fabric before reboot: %v", beforeStatus)
+	t.Logf("gnoiClient.System().Reboot() request: %v", req)
+	resp, err := gnoiClient.System().Reboot(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to perform fabric reboot with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().Reboot() response: %v", resp)
+
+	t.Logf("Validate removable fabric %v status", removableFabric)
+	gnmi.Await(t, dut, gnmi.OC().Component(removableFabric).Removable().State(), fabricBoottime, true)
+
+	afterStatus := gnmi.Watch(t, dut, gnmi.OC().Component(removableFabric).OperStatus().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_PlatformTypes_COMPONENT_OPER_STATUS]) bool {
+		operStatus, ok := val.Val()
+		return ok && operStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+	})
+	if val, ok := afterStatus.Await(t); !ok {
+		t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+	}
 }
 
 func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
