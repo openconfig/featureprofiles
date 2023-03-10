@@ -42,7 +42,7 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 
 // SetPortSpeed sets the DUT config for the interface port-speed according
 // to ondatra.Prot.Speed()
-func SetPortSpeed(t *testing.T, p *ondatra.Port) {
+func SetPortSpeed(t testing.TB, p *ondatra.Port) {
 	speed, ok := portSpeed[p.Speed()]
 	if !ok {
 		// Port speed is unspecified or unrecognized. Explicit config not performed
