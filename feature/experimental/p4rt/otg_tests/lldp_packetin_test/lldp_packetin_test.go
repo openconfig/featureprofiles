@@ -139,7 +139,8 @@ func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType)
 	return "", layers.EthernetType(0)
 }
 
-// testTraffic sends traffic flow for duration seconds.
+// testTraffic sends traffic flow for duration seconds and returns the
+// number of packets sent out.
 func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) int {
 	t.Helper()
 	for _, flow := range flows {
@@ -163,17 +164,6 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	return total
 }
 
-// fetchPackets reads p4rt packets sent to p4rt client.
-func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, expectNumber int) ([]*p4rt_client.P4RTPacketInfo, error) {
-	t.Helper()
-	numPkts, pkts, err := client.StreamChannelGetPackets(&streamName, uint64(expectNumber), 30*time.Second)
-
-	if os.IsTimeout(err) {
-		return pkts, fmt.Errorf("timed out after receiving %d packets", numPkts)
-	}
-	return pkts, nil
-}
-
 // testPacketIn programs p4rt table entry and sends traffic related to LLDP,
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
@@ -191,7 +181,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 10)
 
 	// Extract packets from PacketIn message sent to p4rt client
-	packets, err := fetchPackets(ctx, t, args.leader, pktOut)
+	_, packets, err := leader.StreamChannelGetPackets(&streamName, uint64(pktOut), 30*time.Second)
 	if err != nil {
 		t.Errorf("Unexpected error on fetchPackets: %v", err)
 	}
@@ -212,12 +202,12 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 
 			metaData := packet.Pkt.GetMetadata()
 			for _, data := range metaData {
-				if data.GetMetadataId() == metadataIngressPort {
+				switch data.GetMetadataId(){
+				case metadataIngressPort:
 					if string(data.GetValue()) != args.packetIO.GetIngressPort() {
 						t.Fatalf("Ingress Port Id is not matching expectation.")
 					}
-				}
-				if data.GetMetadataId() == metadataEgressPort {
+				case metadataEgressPort:
 					found := false
 					for _, portData := range args.packetIO.GetEgressPort() {
 						if string(data.GetValue()) == portData {
@@ -227,7 +217,6 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 					if !found {
 						t.Fatalf("Egress Port Id is not matching expectation.")
 					}
-
 				}
 			}
 		}

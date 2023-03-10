@@ -33,9 +33,9 @@ import (
 )
 
 type PacketIO interface {
-	GetTableEntry(delete bool, IsIpv4 bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
+	GetTableEntry(delete bool, isIPv4 bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
 	GetPacketTemplate() *PacketIOPacket
-	GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow
+	GetTrafficFlow(ate *ondatra.ATEDevice, isIPv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow
 	GetEgressPort() string
 	GetIngressPort() string
 }
@@ -58,12 +58,12 @@ type testArgs struct {
 }
 
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
-func programmTableEntry(client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool, IsIpv4 bool) error {
+func programmTableEntry(client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool, isIPv4 bool) error {
 	err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
-			packetIO.GetTableEntry(delete, IsIpv4),
+			packetIO.GetTableEntry(delete, isIPv4),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
@@ -94,7 +94,8 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 	return 7
 }
 
-// testTraffic sends traffic flow for duration seconds.
+// testTraffic sends traffic flow for duration seconds and returns the
+// number of packets sent out.
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) int {
 	t.Helper()
 	for _, flow := range flows {
@@ -112,30 +113,19 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, sr
 	return total
 }
 
-// fetchPackets reads p4rt packets sent to p4rt client.
-func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, expectNumber int) ([]*p4rt_client.P4RTPacketInfo, error) {
-	t.Helper()
-	numPkts, pkts, err := client.StreamChannelGetPackets(&streamName, uint64(expectNumber), 30*time.Second)
-
-	if os.IsTimeout(err) {
-		return pkts, fmt.Errorf("timed out after receiving %d packets", numPkts)
-	}
-	return pkts, nil
-}
-
 // testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
 // then validates packetin message metadata and payload.
-func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool) {
+func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool) {
 	leader := args.leader
 	follower := args.follower
 
-	if IsIpv4 {
+	if isIPv4 {
 		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, false, IsIpv4); err != nil {
+		if err := programmTableEntry(leader, args.packetIO, false, isIPv4); err != nil {
 			t.Fatalf("There is error when programming entry")
 		}
 		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, IsIpv4)
+		defer programmTableEntry(leader, args.packetIO, true, isIPv4)
 	} else {
 		// Insert p4rtutils acl entry on the DUT
 		if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
@@ -147,7 +137,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 
 	// Send Traceroute traffic from ATE
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	pktOut := testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, IsIpv4, 1, 300, 2), srcEndPoint, 10)
+	pktOut := testTraffic(t, args.ate, args.packetIO.GetTrafficFlow(args.ate, isIPv4, 1, 300, 2), srcEndPoint, 10)
 	packetInTests := []struct {
 		desc     string
 		client   *p4rt_client.P4RTClient
@@ -166,7 +156,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
-			packets, err := fetchPackets(ctx, t, test.client, test.wantPkts)
+			_, packets, err := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 30*time.Second)
 			if err != nil {
 				t.Errorf("Unexpected error on fetchPackets: %v", err)
 			}
@@ -183,7 +173,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 				if packet != nil {
 					if wantPacket.TTL != nil {
 						//TTL/HopLimit comparison for IPV4 & IPV6
-						if IsIpv4 {
+						if isIPv4 {
 							captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
 							if captureTTL != TTL1 {
 								t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")

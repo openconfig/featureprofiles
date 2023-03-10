@@ -136,7 +136,8 @@ func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType)
 	return "", layers.EthernetType(0)
 }
 
-// testTraffic sends traffic flow for duration seconds.
+// testTraffic sends traffic flow for duration seconds and returns the
+// number of packets sent out.
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) int {
 	t.Helper()
 	for _, flow := range flows {
@@ -152,17 +153,6 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, sr
 		total += int(count)
 	}
 	return total
-}
-
-// fetchPackets reads p4rt packets sent to p4rt client.
-func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, expectNumber int) ([]*p4rt_client.P4RTPacketInfo, error) {
-	t.Helper()
-	numPkts, pkts, err := client.StreamChannelGetPackets(&streamName, uint64(expectNumber), 30*time.Second)
-
-	if os.IsTimeout(err) {
-		return pkts, fmt.Errorf("timed out after receiving %d packets", numPkts)
-	}
-	return pkts, nil
 }
 
 // testPacketIn programs p4rt table entry and sends traffic related to GDP,
@@ -199,9 +189,9 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
-			packets, err := fetchPackets(ctx, t, test.client, test.wantPkts)
+			_, packets, err := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 30*time.Second)
 			if err != nil {
-				t.Errorf("Unexpected error on fetchPackets: %v", err)
+				t.Errorf("Unexpected error on StreamChannelGetPackets: %v", err)
 			}
 
 			if got, want := len(packets), test.wantPkts; got != want {
