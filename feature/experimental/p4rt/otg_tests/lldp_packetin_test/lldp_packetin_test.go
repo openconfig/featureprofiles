@@ -48,12 +48,12 @@ var (
 	lldpSrcMAC          = flag.String("lldp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
 	streamName          = "p4rt"
 	lldpMAC             = "01:80:c2:00:00:0e"
-	lldpEtherType       = *ygot.Uint32(0x88cc)
-	deviceID            = *ygot.Uint64(1)
-	portID              = *ygot.Uint32(10)
-	electionID          = *ygot.Uint64(100)
-	metadataIngressPort = *ygot.Uint32(1)
-	metadataEgressPort  = *ygot.Uint32(2)
+	lldpEtherType       = uint32(0x88cc)
+	deviceID            = uint64(1)
+	portID              = uint32(10)
+	electionID          = uint64(100)
+	metadataIngressPort = uint32(1)
+	metadataEgressPort  = uint32(2)
 )
 
 var (
