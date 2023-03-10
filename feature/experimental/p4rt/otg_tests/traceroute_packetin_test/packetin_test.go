@@ -18,8 +18,6 @@ package traceroute_packetin_test
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"testing"
 	"time"
 
