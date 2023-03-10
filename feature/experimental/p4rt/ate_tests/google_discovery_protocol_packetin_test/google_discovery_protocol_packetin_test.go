@@ -52,8 +52,8 @@ var (
 	deviceID              = *ygot.Uint64(1)
 	portID                = *ygot.Uint32(10)
 	electionID            = *ygot.Uint64(100)
-	METADATA_INGRESS_PORT = *ygot.Uint32(1)
-	METADATA_EGRESS_PORT  = *ygot.Uint32(2)
+	metadataIngressPort = *ygot.Uint32(1)
+	metadataEgressPort  = *ygot.Uint32(2)
 )
 
 var (
@@ -213,12 +213,12 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 
 					metaData := packet.Pkt.GetMetadata()
 					for _, data := range metaData {
-						if data.GetMetadataId() == METADATA_INGRESS_PORT {
+						switch data.GetMetadataId() {
+						case metadataIngressPort:
 							if string(data.GetValue()) != args.packetIO.GetIngressPort() {
 								t.Fatalf("Ingress Port Id is not matching expectation.")
 							}
-						}
-						if data.GetMetadataId() == METADATA_EGRESS_PORT {
+						case metadataEgressPort:
 							found := false
 							for _, portData := range args.packetIO.GetEgressPort() {
 								if string(data.GetValue()) == portData {
@@ -228,7 +228,6 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 							if !found {
 								t.Fatalf("Egress Port Id is not matching expectation.")
 							}
-
 						}
 					}
 				}
