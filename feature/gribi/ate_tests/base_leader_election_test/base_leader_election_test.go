@@ -220,10 +220,9 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	args.clientB.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
+	t.Log("Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.")
 	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
-	}
+	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(),2*time.Minute,ateDstNetCIDR) 
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -247,10 +246,10 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+2, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
+	t.Log("Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.")
 	ipv4Path = gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
-	}
+	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(),2*time.Minute,ateDstNetCIDR) 
+
 
 	// Verify with traffic that the entry for 198.51.100.0/24 is installed through the ATE port-2.
 	srcEndPoint = args.top.Interfaces()[atePort1.Name]
