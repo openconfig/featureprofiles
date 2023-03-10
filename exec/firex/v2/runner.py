@@ -190,6 +190,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         fp_post_tests=[],
                         internal_test=False,
                         test_debug=True,
+                        test_verbose=True,
                         test_html_report=True,
                         release_ixia_ports=True,
                         testbed=None,
@@ -215,6 +216,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     test_args=test_args,
                     test_timeout=test_timeout,
                     test_debug=test_debug,
+                    test_verbose=test_verbose,
                     **kwargs)
 
     chain |= CloneRepo.s(repo_url=test_repo_url,
@@ -254,7 +256,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
-        test_path, test_args=None, test_timeout=0, test_debug=False, testbed_info_path=None):
+        test_path, test_args=None, test_timeout=0, test_debug=False, test_verbose=False, testbed_info_path=None):
     
     logger.print('Running Go test...')
     json_results_file = Path(test_log_directory_path) / f'go_logs.json'
@@ -280,7 +282,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         f'-log_dir {test_logs_dir_in_ws}'
 
     test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path} '
-    if test_debug:
+    if test_verbose:
         test_args += f'-v 5 ' \
             f'-alsologtostderr'
 
