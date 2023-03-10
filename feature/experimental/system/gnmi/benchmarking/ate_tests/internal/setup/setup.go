@@ -40,8 +40,8 @@ const (
 	ISISInstance = "DEFAULT"
 	// PeerGrpName is BGP peer group name.
 	PeerGrpName = "BGP-PEER-GROUP"
-	// IBGPPeerGrpName is iBGP peer group name.
-	IBGPPeerGrpName = "BGP-PEER-GROUP-IBGP"
+	// PeerGrpEgressName is Egress port BGP peer group name.
+	PeerGrpEgressName = "BGP-PEER-GROUP-EGRESS"
 	// DUTAs is DUT AS.
 	DUTAs = 64500
 	// ATEAs is ATE AS.
@@ -131,11 +131,13 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	afipg := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	afipg.Enabled = ygot.Bool(true)
 
-	pg1 := bgp.GetOrCreatePeerGroup(IBGPPeerGrpName)
-	pg1.PeerAs = ygot.Uint32(ATEAs)
-	pg1.PeerGroupName = ygot.String(IBGPPeerGrpName)
-	afipg1 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	afipg1.Enabled = ygot.Bool(true)
+	if *deviations.RoutePolicyUnderPeerGroup {
+		pg1 := bgp.GetOrCreatePeerGroup(PeerGrpEgressName)
+		pg1.PeerAs = ygot.Uint32(ATEAs)
+		pg1.PeerGroupName = ygot.String(PeerGrpEgressName)
+		afipg1 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		afipg1.Enabled = ygot.Bool(true)
+	}
 
 	// ISIS configs.
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).GetOrCreateIsis()
@@ -181,11 +183,13 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 		// BGP neighbor configs.
 		nv4 := bgp.GetOrCreateNeighbor(ATEIPList[dp.ID()].String())
+		nv4.PeerGroup = ygot.String(PeerGrpName)
 		if dp.ID() == "port1" {
-			nv4.PeerGroup = ygot.String(PeerGrpName)
 			nv4.PeerAs = ygot.Uint32(ATEAs2)
 		} else {
-			nv4.PeerGroup = ygot.String(IBGPPeerGrpName)
+			if *deviations.RoutePolicyUnderPeerGroup {
+				nv4.PeerGroup = ygot.String(PeerGrpEgressName)
+			}
 			nv4.PeerAs = ygot.Uint32(ATEAs)
 		}
 		nv4.Enabled = ygot.Bool(true)
