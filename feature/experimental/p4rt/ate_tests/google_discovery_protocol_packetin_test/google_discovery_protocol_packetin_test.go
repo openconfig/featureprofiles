@@ -43,14 +43,14 @@ const (
 )
 
 var (
-	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	gdpSrcMAC             = flag.String("gdp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
-	streamName            = "p4rt"
-	gdpMAC                = "00:0a:da:f0:f0:f0"
-	gdpEtherType          = *ygot.Uint32(0x6007)
-	deviceID              = *ygot.Uint64(1)
-	portID                = *ygot.Uint32(10)
-	electionID            = *ygot.Uint64(100)
+	p4InfoFile          = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	gdpSrcMAC           = flag.String("gdp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
+	streamName          = "p4rt"
+	gdpMAC              = "00:0a:da:f0:f0:f0"
+	gdpEtherType        = *ygot.Uint32(0x6007)
+	deviceID            = *ygot.Uint64(1)
+	portID              = *ygot.Uint32(10)
+	electionID          = *ygot.Uint64(100)
 	metadataIngressPort = *ygot.Uint32(1)
 	metadataEgressPort  = *ygot.Uint32(2)
 )
