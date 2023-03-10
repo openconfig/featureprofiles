@@ -186,4 +186,7 @@ var (
 		"Device requires gribi-protocol to be enabled under network-instance.")
 
 	BGPMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
+
+	NoBGPNetworkInstanceTable = flag.Bool("deviation_no_bgp_network_instance_table", false,
+		"Device not using network-instance table require this flag to be true")
 )
