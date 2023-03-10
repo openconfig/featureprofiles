@@ -198,6 +198,13 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string,
 	} else {
 		si.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
 	}
+
+	// When create vlan sub interface, include the IP config enabled explicitly
+	if *deviations.VlanSubInterfaceIPConfigEnabled {
+		s4 := si.GetOrCreateIpv4()
+		s4.Enabled = ygot.Bool(true)
+	}
+
 	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
 
 	// create vrf and apply on subinterface
