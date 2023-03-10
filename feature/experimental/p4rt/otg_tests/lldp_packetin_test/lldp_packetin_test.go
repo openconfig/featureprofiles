@@ -201,7 +201,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 
 			metaData := packet.Pkt.GetMetadata()
 			for _, data := range metaData {
-				switch data.GetMetadataId(){
+				switch data.GetMetadataId() {
 				case metadataIngressPort:
 					if string(data.GetValue()) != args.packetIO.GetIngressPort() {
 						t.Fatalf("Ingress Port Id is not matching expectation.")
