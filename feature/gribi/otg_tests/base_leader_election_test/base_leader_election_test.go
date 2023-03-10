@@ -270,7 +270,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	t.Log("Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.")
 	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(),2*time.Minute,ateDstNetCIDR) 
+	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), 2*time.Minute, ateDstNetCIDR)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	testTraffic(t, args.ate, args.top, atePort1, atePort3)
@@ -294,7 +294,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	t.Log("Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.")
 	ipv4Path = gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(),2*time.Minute,ateDstNetCIDR) 
+	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), 2*time.Minute, ateDstNetCIDR)
 
 	// Verify with traffic that the entry for 198.51.100.0/24 is installed through the ATE port-2.
 	testTraffic(t, args.ate, args.top, atePort1, atePort2)
