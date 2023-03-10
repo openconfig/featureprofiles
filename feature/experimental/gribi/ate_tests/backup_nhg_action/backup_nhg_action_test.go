@@ -246,7 +246,7 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Adding NH %d with atePort2 via gRIBI", NH1ID)
 	args.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	t.Logf("Adding NH %d as decap and NHGs %d, %d via gRIBI", NH2ID, NH1ID, NH2ID)
-	args.client.AddNH(t, NH2ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: *deviations.DefaultNetworkInstance})
+	args.client.AddNH(t, NH2ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	args.client.AddNHG(t, NH2ID, map[uint64]uint64{NH2ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	args.client.AddNHG(t, NH1ID, map[uint64]uint64{NH1ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: NH2ID})
 	t.Logf("Adding an IPv4Entry for %s with primary atePort2, backup as Decap via gRIBI", primaryTunnelDstIP)
@@ -286,7 +286,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, secondaryTunnelDstIP+"/"+mask, NH3ID, vrfName, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	t.Logf("Adding NH %d as decap and NHG %d via gRIBI", NH2ID, NH2ID)
-	args.client.AddNH(t, NH2ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: *deviations.DefaultNetworkInstance})
+	args.client.AddNH(t, NH2ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	args.client.AddNHG(t, NH2ID, map[uint64]uint64{NH2ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	t.Logf("Adding NH %d as DecapEncap and NHG %d via gRIBI", NH1ID, NH1ID)
