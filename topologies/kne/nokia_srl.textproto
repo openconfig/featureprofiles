@@ -2,6 +2,7 @@ name: "nokia-srl"
 nodes: {
     name: "dut"
     vendor: NOKIA
+    model: "ixr6e"
     config: {
         file: "nokia_srl.json"
         image: "ghcr.io/nokia/srlinux:latest"
