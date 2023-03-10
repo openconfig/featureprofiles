@@ -50,20 +50,48 @@ nodes: {
         }
     }
     services:{
-        key: 57400
+        key: 9337
         value: {
-            name: "gnmi"
+            name: "gnoi"
             inside: 57400
-            outside: 57400
+            outside: 9337
         }
     }
     services:{
-      key: 57401
-      value: {
-        name: "gribi"
-        inside: 57401
-        outside: 57401
-      }
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 57400
+            outside: 9339
+        }
+    }
+    services:{
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 57401
+            outside: 9340
+        }
+    }
+    services:{
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 9559
+            outside: 9559
+        }
+    }
+    interfaces: {
+        key: "e1-1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+    interfaces: {
+        key: "e1-2"
+        value: {
+            name: "ethernet-1/2"
+        }
     }
 }
 links: {
