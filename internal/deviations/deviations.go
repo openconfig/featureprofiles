@@ -186,4 +186,6 @@ var (
 		"Device requires gribi-protocol to be enabled under network-instance.")
 
 	BGPMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
+
+	VlanSubInterfaceIPConfigEnabled = flag.Bool("deviation_vlan_sub_interface_ip_config_enabled", false, "When create vlan sub interface, include the IP config enabled explicitly")
 )
