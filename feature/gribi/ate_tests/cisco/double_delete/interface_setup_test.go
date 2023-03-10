@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backup_nh_test
+package double_delete_test
 
 import (
 	"fmt"
@@ -316,8 +316,8 @@ func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 
 	peer := bgp.GetOrCreateNeighbor(neighbor)
 	peer.PeerGroup = ygot.String("BGP-PEER-GROUP")
-	peer.GetOrCreateEbgpMultihop().Enabled = ygot.Bool(true)
-	peer.GetOrCreateEbgpMultihop().MultihopTtl = ygot.Uint8(255)
+	//peer.GetOrCreateEbgpMultihop().Enabled = ygot.Bool(true)
+	//peer.GetOrCreateEbgpMultihop().MultihopTtl = ygot.Uint8(255)
 	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
 	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
