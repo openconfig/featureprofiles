@@ -46,9 +46,7 @@ export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-docker pull $internal_image
-docker tag $internal_image $external_image
-kind load docker-image --name=kne $external_image
+sed -i "s/$external_image/$internal_image/g" "$topology"
 
 pushd /tmp/workspace
 kne create topologies/kne/$topology
