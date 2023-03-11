@@ -39,7 +39,6 @@ import (
 
 const (
 	sshPort  = 22
-	gnmiPort = 9339
 )
 
 func TestMain(m *testing.M) {
@@ -55,7 +54,15 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
 	}
 }
 
-func gnmiClient(ctx context.Context, sshIP string) (gpb.GNMIClient, error) {
+func gnmiClient(ctx context.Context, sshIP string, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
+	var gnmiPort int
+        switch dut.Vendor() {
+        case ondatra.JUNIPER:
+                gnmiPort = 9339
+        default:
+                gnmiPort = 6030
+        }
+
 	conn, err := grpc.DialContext(
 		ctx,
 		fmt.Sprintf("%s:%d", sshIP, gnmiPort),
@@ -130,7 +137,7 @@ func TestAuthentication(t *testing.T) {
 				context.Background(),
 				"username", tc.user,
 				"password", tc.pass)
-			gnmi, err := gnmiClient(ctx, sshIP)
+			gnmi, err := gnmiClient(ctx, sshIP, dut)
 			if err != nil {
 				t.Fatal(err)
 			}
