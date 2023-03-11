@@ -268,7 +268,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	args.clientB.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
-	t.Log("Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.")
+	t.Logf("Verify the entry for %s is active through AFT Telemetry.",ateDstNetCIDR)
 	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), 2*time.Minute, ateDstNetCIDR)
 
@@ -292,7 +292,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+2, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
-	t.Log("Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.")
+	t.Logf("Verify the entry for %s is active through AFT Telemetry.",ateDstNetCIDR)
 	ipv4Path = gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
 	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), 2*time.Minute, ateDstNetCIDR)
 
