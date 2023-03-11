@@ -40,16 +40,17 @@ kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
 pushd /tmp/workspace
 
-sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" "$PWD"/topologies/kne/"$topology"
-sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" "$PWD"/topologies/kne/"$topology"
-sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" "$PWD"/topologies/kne/"$topology"
-sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" "$PWD"/topologies/kne/"$topology"
+cp "$PWD"/topologies/kne/"$topology" /tmp/"$topology"
+sudo sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/"$topology"
+sudo sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/"$topology"
+sudo sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" /tmp/"$topology"
+sudo sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" /tmp/"$topology"
 
-kne create topologies/kne/$topology
+kne create /tmp/"$topology"
 cat >/tmp/testbed.kne.yml << EOF
 username: admin
 password: admin
-topology: ${PWD}/topologies/kne/$topology
+topology: /tmp/$topology
 skip_reset: true
 EOF
 
