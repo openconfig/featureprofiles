@@ -56,6 +56,7 @@ cat >/tmp/testbed.kne.yml << EOF
 username: admin
 password: admin
 topology: ${PWD}/topologies/kne/$topology
+skip_reset: true
 EOF
 
 go test -v ./feature/system/tests/... -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
