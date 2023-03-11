@@ -18,23 +18,15 @@ set -xe
 case $1 in
   arista_ceos)
     topology=arista_ixia.textproto
-    internal_image=us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga
-    external_image=ceos:latest
     ;;
   juniper_cptx)
     topology=juniper_ixia.textproto
-    internal_image=us-west1-docker.pkg.dev/gep-kne/juniper/cptx:ga
-    external_image=cptx:latest
     ;;
   cisco_8000e)
     topology=cisco_ixia.textproto
-    internal_image=us-west1-docker.pkg.dev/gep-kne/cisco/8000e:ga
-    external_image=8000e:latest
     ;;
   nokia_srlinux)
     topology=nokia_ixia.textproto
-    internal_image=us-west1-docker.pkg.dev/gep-kne/nokia/srlinux:ga
-    external_image=ghcr.io/nokia/srlinux:latest
     ;;
   :)
     echo "Model $1 not valid"
@@ -46,7 +38,10 @@ export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-sed -i "s/$external_image/$internal_image/g" "$topology"
+sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" "$topology"
+sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" "$topology"
+sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" "$topology"
+sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" "$topology"
 
 pushd /tmp/workspace
 kne create topologies/kne/$topology
