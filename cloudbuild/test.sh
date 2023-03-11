@@ -38,12 +38,13 @@ export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" "$topology"
-sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" "$topology"
-sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" "$topology"
-sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" "$topology"
-
 pushd /tmp/workspace
+
+sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" "$PWD"/topologies/kne/"$topology"
+sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" "$PWD"/topologies/kne/"$topology"
+sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" "$PWD"/topologies/kne/"$topology"
+sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" "$PWD"/topologies/kne/"$topology"
+
 kne create topologies/kne/$topology
 cat >/tmp/testbed.kne.yml << EOF
 username: admin
@@ -53,4 +54,5 @@ skip_reset: true
 EOF
 
 go test -v ./feature/system/tests/... -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
+
 popd
