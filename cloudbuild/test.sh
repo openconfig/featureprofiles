@@ -40,7 +40,7 @@ kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
 pushd /tmp/workspace
 
-cp "$PWD"/topologies/kne/"$topology" /tmp/"$topology"
+cp -r "$PWD"/topologies/kne /tmp
 sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/"$topology"
 sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/"$topology"
 sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" /tmp/"$topology"
