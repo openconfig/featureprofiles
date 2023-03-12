@@ -37,7 +37,9 @@ const (
 	vrfName = "VRF-1"
 
 	// Destination ATE MAC address for port-2 and port-3
-	pMAC = "00:1A:11:00:00:01"
+	pMAC = "00:1A:11:00:1A:BC"
+	// 15-bit filter for egress flow tracking. 1ABC in hex == 43981 in decimal
+	pMACFilter = "6844"
 
 	// port-2 nexthop ID
 	p2ID = 40
@@ -129,11 +131,11 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	addInterfaceRoute(ctx, t, gribic, p2ID, dut.Port(t, "port2").Name(), atePort2.IPv4)
 	addDestinationRoute(ctx, t, gribic)
 
-	validateTrafficFlows(t, ate, []*ondatra.Flow{p2flow}, []*ondatra.Flow{p3flow})
+	validateTrafficFlows(t, ate, []*ondatra.Flow{p2flow}, []*ondatra.Flow{p3flow}, pMACFilter)
 
 	addInterfaceRoute(ctx, t, gribic, p3ID, dut.Port(t, "port3").Name(), atePort3.IPv4)
 
-	validateTrafficFlows(t, ate, []*ondatra.Flow{p3flow}, []*ondatra.Flow{p2flow})
+	validateTrafficFlows(t, ate, []*ondatra.Flow{p3flow}, []*ondatra.Flow{p2flow}, pMACFilter)
 }
 
 // addDestinationRoute creates a GRIBI route to dstPfx via interfaceNH.
@@ -283,7 +285,7 @@ func createFlow(name string, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology
 		WithSrcEndpoints(ateTop.Interfaces()[atePort1.Name]).
 		WithDstEndpoints(endpoints...).
 		WithHeaders(ondatra.NewEthernetHeader(), hdr)
-
+	flow.EgressTracking().WithOffset(33).WithWidth(15)
 	return flow
 }
 
@@ -305,11 +307,9 @@ func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fl
 	return c, nil
 }
 
-// validateTrafficFlows starts traffic and ensures that good flows have 0% loss and bad flows have
-// 100% loss.
-//
-// TODO: Packets should be validated to arrive at ATE with destination MAC pMAC.
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.Flow, bad []*ondatra.Flow) {
+// validateTrafficFlows starts traffic and ensures that good flows have 0% loss and the correct destination MAC
+// and bad flows have 100% loss.
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.Flow, bad []*ondatra.Flow, macFilter string) {
 	if len(good) == 0 && len(bad) == 0 {
 		return
 	}
@@ -320,11 +320,24 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.
 	ate.Traffic().Stop(t)
 
 	for _, flow := range good {
-		if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > 0 {
+		flowPath := gnmi.OC().Flow(flow.Name())
+		if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got > 0 {
 			t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
 		}
+		etPath := flowPath.EgressTrackingAny()
+		ets := gnmi.GetAll(t, ate, etPath.State())
+		if got := len(ets); got != 1 {
+			t.Errorf("EgressTracking got %d items, want %d", got, 1)
+			return
+		}
+		if got := ets[0].GetFilter(); got != macFilter {
+			t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
+		}
+		inPkts := gnmi.Get(t, ate, flowPath.State()).GetCounters().GetInPkts()
+		if got := ets[0].GetCounters().GetInPkts(); got != inPkts {
+			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, inPkts)
+		}
 	}
-
 	for _, flow := range bad {
 		if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got < 100 {
 			t.Fatalf("LossPct for flow %s: got %g, want 100", flow.Name(), got)
