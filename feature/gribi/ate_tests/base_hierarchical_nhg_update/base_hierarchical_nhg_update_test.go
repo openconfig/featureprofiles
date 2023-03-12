@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -62,6 +64,9 @@ const (
 	dstPfxMin   = "198.51.100.0"
 	dstPfxMax   = "198.51.100.255"
 	dstPfxCount = 256
+
+	// load balancing precision, %
+	lbPrecision = 2
 )
 
 var (
@@ -132,19 +137,19 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	t.Logf("Adding gribi routes and validating traffic forwarding via port %v and NH ID %v", dutP2, p2NHID)
 	addInterfaceRoute(ctx, t, gribic, p2NHID, dutP2, atePort2.IPv4)
 	addDestinationRoute(ctx, t, gribic)
-	validateTrafficFlows(t, ate, []*ondatra.Flow{p2flow}, []*ondatra.Flow{p3flow}, pMACFilter)
+	validateTrafficFlows(t, ate, []*ondatra.Flow{p2flow}, []*ondatra.Flow{p3flow}, nil, pMACFilter)
 
 	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
 	addNH(ctx, t, gribic, p3NHID, dutP3, pMAC)
 	t.Logf("Performing implicit in-place replace with two next-hops (NH IDs: %v and %v)", p2NHID, p3NHID)
 	addNHG(ctx, t, gribic, interfaceNHGID, []uint64{p2NHID, p3NHID})
-	//validateTrafficFlows(t, ate, []*ondatra.Flow{p2p3flow}, []*ondatra.Flow{}, pMACFilter)
+	validateTrafficFlows(t, ate, nil, nil, []*ondatra.Flow{p2flow, p3flow}, pMACFilter)
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p3NHID)
 	addNHG(ctx, t, gribic, interfaceNHGID, []uint64{p3NHID})
-	validateTrafficFlows(t, ate, []*ondatra.Flow{p3flow}, []*ondatra.Flow{p2flow}, pMACFilter)
+	validateTrafficFlows(t, ate, []*ondatra.Flow{p3flow}, []*ondatra.Flow{p2flow}, nil, pMACFilter)
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p2NHID)
 	addNHG(ctx, t, gribic, interfaceNHGID, []uint64{p2NHID})
-	validateTrafficFlows(t, ate, []*ondatra.Flow{p2flow}, []*ondatra.Flow{p3flow}, pMACFilter)
+	validateTrafficFlows(t, ate, []*ondatra.Flow{p2flow}, []*ondatra.Flow{p3flow}, nil, pMACFilter)
 }
 
 // addNH adds a GRIBI NH with a FIB ACK confirmation via Modify RPC
@@ -359,10 +364,10 @@ func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fl
 	return c, nil
 }
 
-// validateTrafficFlows starts traffic and ensures that good flows have 0% loss and the correct destination MAC
-// and bad flows have 100% loss.
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.Flow, bad []*ondatra.Flow, macFilter string) {
-	if len(good) == 0 && len(bad) == 0 {
+// validateTrafficFlows starts traffic and ensures that good flows have 0% loss (50% in case of LB)
+// and the correct destination MAC, and bad flows have 100% loss.
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.Flow, bad []*ondatra.Flow, lb []*ondatra.Flow, macFilter string) {
+	if len(good) == 0 && len(bad) == 0 && len(lb) == 0 {
 		return
 	}
 
@@ -388,6 +393,27 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.
 		inPkts := gnmi.Get(t, ate, flowPath.State()).GetCounters().GetInPkts()
 		if got := ets[0].GetCounters().GetInPkts(); got != inPkts {
 			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, inPkts)
+		}
+	}
+	for _, flow := range lb {
+		// for LB flows, we expect to receive between 48-52% of packets on each interface (before and after filtering)
+		lbPct := 50.0
+		flowPath := gnmi.OC().Flow(flow.Name())
+		if diff := cmp.Diff(float32(lbPct), gnmi.Get(t, ate, flowPath.LossPct().State()), cmpopts.EquateApprox(0, lbPrecision)); diff != "" {
+			t.Errorf("Received number of packets -want,+got:\n%s", diff)
+		}
+		etPath := flowPath.EgressTrackingAny()
+		ets := gnmi.GetAll(t, ate, etPath.State())
+		if got := len(ets); got != 1 {
+			t.Errorf("EgressTracking got %d items, want %d", got, 1)
+			return
+		}
+		if got := ets[0].GetFilter(); got != macFilter {
+			t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
+		}
+		inPkts := gnmi.Get(t, ate, flowPath.State()).GetCounters().GetInPkts()
+		if diff := cmp.Diff(inPkts, ets[0].GetCounters().GetInPkts(), cmpopts.EquateApprox(lbPct, lbPrecision)); diff != "" {
+			t.Errorf("EgressTracking received number of packets -want,+got:\n%s", diff)
 		}
 	}
 	for _, flow := range bad {
