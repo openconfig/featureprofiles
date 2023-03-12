@@ -127,15 +127,24 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	}()
 
 	gribi.BecomeLeader(t, gribic)
-
-	addInterfaceRoute(ctx, t, gribic, p2NHID, dut.Port(t, "port2").Name(), atePort2.IPv4)
+	dutP2 := dut.Port(t, "port2").Name()
+	dutP3 := dut.Port(t, "port3").Name()
+	t.Logf("Adding gribi routes and validating traffic forwarding via port %v and NH ID %v", dutP2, p2NHID)
+	addInterfaceRoute(ctx, t, gribic, p2NHID, dutP2, atePort2.IPv4)
 	addDestinationRoute(ctx, t, gribic)
-
 	validateTrafficFlows(t, ate, []*ondatra.Flow{p2flow}, []*ondatra.Flow{p3flow}, pMACFilter)
 
-	addInterfaceRoute(ctx, t, gribic, p3NHID, dut.Port(t, "port3").Name(), atePort3.IPv4)
-
+	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
+	addNH(ctx, t, gribic, p3NHID, dutP3, pMAC)
+	t.Logf("Performing implicit in-place replace with two next-hops (NH IDs: %v and %v)", p2NHID, p3NHID)
+	addNHG(ctx, t, gribic, interfaceNHGID, []uint64{p2NHID, p3NHID})
+	//validateTrafficFlows(t, ate, []*ondatra.Flow{p2p3flow}, []*ondatra.Flow{}, pMACFilter)
+	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p3NHID)
+	addNHG(ctx, t, gribic, interfaceNHGID, []uint64{p3NHID})
 	validateTrafficFlows(t, ate, []*ondatra.Flow{p3flow}, []*ondatra.Flow{p2flow}, pMACFilter)
+	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p2NHID)
+	addNHG(ctx, t, gribic, interfaceNHGID, []uint64{p2NHID})
+	validateTrafficFlows(t, ate, []*ondatra.Flow{p2flow}, []*ondatra.Flow{p3flow}, pMACFilter)
 }
 
 // addNH adds a GRIBI NH with a FIB ACK confirmation via Modify RPC
