@@ -16,18 +16,17 @@ import (
 	"github.com/google/uuid"
 )
 
-// writeJSON writes the testsuite as JSON, optionally merges with an existing JSON if
-// given.  This JSON uses a proprietary schema for test tracker, so it is not recommended
-// for general use.  If you want a JSON listing, feel free to file a feature request to
-// describe your use case.
-func writeJSON(w io.Writer, mergejson string, featuredir string, ts testsuite) error {
+// listTestTracker writes the testsuite as a TestTracker test plan, which is formatted in
+// JSON.  It optionally merges with an existing JSON if given.  The JSON uses a
+// proprietary schema for test tracker.  See listJSON for a simpler schema.
+func listTestTracker(w io.Writer, mergejson string, featuredir string, ts testsuite) error {
 	rootdir := filepath.Dir(featuredir)
-	jp, ok := jsonBuildPlan(ts, rootdir)
+	ttp, ok := ttBuildPlan(ts, rootdir)
 	if !ok {
 		return errors.New("inconsistency is detected in rundata")
 	}
 
-	o := jp.empty()
+	o := ttp.empty()
 	if mergejson != "" {
 		data, err := os.ReadFile(mergejson)
 		if err != nil {
@@ -38,7 +37,7 @@ func writeJSON(w io.Writer, mergejson string, featuredir string, ts testsuite) e
 		}
 	}
 
-	jp.merge(o)
+	ttp.merge(o)
 	data, err := json.MarshalIndent(o, "", "  ")
 	if err != nil {
 		return err
@@ -48,16 +47,16 @@ func writeJSON(w io.Writer, mergejson string, featuredir string, ts testsuite) e
 	return err
 }
 
-// jsonBuildPlan builds a hierarchical jsonPlan from a flat testsuite.  The jsonPlan
-// reorganizes the testsuite by splitting the test sections into jsonSuite, and collates
-// the different test kinds of the same test cases into the same jsonCase.
-func jsonBuildPlan(ts testsuite, rootdir string) (jp jsonPlan, ok bool) {
-	jp = make(jsonPlan)
+// ttBuildPlan builds a hierarchical ttPlan from a flat testsuite.  The ttPlan reorganizes
+// the testsuite by splitting the test sections into ttSuite, and collates the different
+// test kinds of the same test cases into the same ttCase.
+func ttBuildPlan(ts testsuite, rootdir string) (ttp ttPlan, ok bool) {
+	ttp = make(ttPlan)
 	ok = true
 
-	// This contains all the mappings from test UUID to the JSON test case across all test
+	// This contains all the mappings from test UUID to the test cases across all test
 	// sections, for the purpose of integrity checking.
-	jsall := make(jsonSuite)
+	ttsall := make(ttSuite)
 
 	for testdir, tc := range ts {
 		if !tc.existing.hasData {
@@ -67,16 +66,16 @@ func jsonBuildPlan(ts testsuite, rootdir string) (jp jsonPlan, ok bool) {
 		}
 
 		u := tc.existing.testUUID
-		jc := jsall[u]
-		if jc == nil {
-			jc = &jsonCase{}
-			jc.parsedData = tc.existing
-			jc.testDirs = make(map[string]string)
-			jsall[u] = jc
+		ttc := ttsall[u]
+		if ttc == nil {
+			ttc = &ttCase{}
+			ttc.parsedData = tc.existing
+			ttc.testDirs = make(map[string]string)
+			ttsall[u] = ttc
 		}
 
-		if !reflect.DeepEqual(tc.existing, jc.parsedData) {
-			errorf("Test UUID %s has inconsistent data at %s and %#v", u, testdir, jc.testDirs)
+		if !reflect.DeepEqual(tc.existing, ttc.parsedData) {
+			errorf("Test UUID %s has inconsistent data at %s and %#v", u, testdir, ttc.testDirs)
 			ok = false
 			continue
 		}
@@ -89,18 +88,18 @@ func jsonBuildPlan(ts testsuite, rootdir string) (jp jsonPlan, ok bool) {
 		if err != nil {
 			reldir = ""
 		}
-		jc.testDirs[kind] = reldir
+		ttc.testDirs[kind] = reldir
 
-		sec := testSection(jc.testPlanID)
-		js := jp[sec]
-		if js == nil {
-			js = make(jsonSuite)
-			jp[sec] = js
+		sec := testSection(ttc.testPlanID)
+		tts := ttp[sec]
+		if tts == nil {
+			tts = make(ttSuite)
+			ttp[sec] = tts
 		}
-		js[u] = jc
+		tts[u] = ttc
 	}
 
-	return jp, ok
+	return ttp, ok
 }
 
 // testSection returns the test section (e.g. RT-1) part of the test plan ID
@@ -122,12 +121,12 @@ func jsonQuote(s string) string {
 	return string(data)
 }
 
-// jsonPlan maps from the test section (e.g. RT-1, TE-1) to a JSON test suite which
-// contains the test cases in that test section.
-type jsonPlan map[string]jsonSuite
+// ttPlan maps from the test section (e.g. RT-1, TE-1) to a test suite which contains the
+// test cases in that test section.
+type ttPlan map[string]ttSuite
 
 // empty creates a new JSON object representing an empty testplan.
-func (jp jsonPlan) empty() map[string]any {
+func (ttp ttPlan) empty() map[string]any {
 	const title = "Feature Profiles Test Plan"
 	return map[string]any{
 		"text": title,
@@ -140,10 +139,10 @@ func (jp jsonPlan) empty() map[string]any {
 	}
 }
 
-// sortedKeys returns the keys in jsonPlan sorted in version order.
-func (jp jsonPlan) sortedKeys() []string {
+// sortedKeys returns the keys in ttPlan sorted in version order.
+func (ttp ttPlan) sortedKeys() []string {
 	var keys []string
-	for k := range jp {
+	for k := range ttp {
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool {
@@ -153,9 +152,9 @@ func (jp jsonPlan) sortedKeys() []string {
 }
 
 // merge updates an existing "testplan" JSON object.
-func (jp jsonPlan) merge(o map[string]any) {
-	todos := make(jsonPlan)
-	for k, v := range jp {
+func (ttp ttPlan) merge(o map[string]any) {
+	todos := make(ttPlan)
+	for k, v := range ttp {
 		todos[k] = v
 	}
 
@@ -169,21 +168,21 @@ func (jp jsonPlan) merge(o map[string]any) {
 			children = append(children, child) // Passthrough mal-formed testsuites.
 			continue
 		}
-		js := jp[sec]
-		if js == nil {
+		tts := ttp[sec]
+		if tts == nil {
 			children = append(children, child) // Passthrough JSON-only testsuites.
 			continue
 		}
-		js.merge(o)
+		tts.merge(o)
 		children = append(children, o)
 		delete(todos, sec)
 	}
 
 	// Update the todos that were missing from the JSON.
 	for _, sec := range todos.sortedKeys() {
-		js := todos[sec]
-		o := js.empty(sec)
-		js.merge(o)
+		tts := todos[sec]
+		o := tts.empty(sec)
+		tts.merge(o)
 		children = append(children, o)
 	}
 
@@ -210,12 +209,12 @@ func childSuite(child any) (o map[string]any, sec string, ok bool) {
 	return o, matches[1], true
 }
 
-// jsonSuite maps from the test UUID to a JSON test case which aggregates the test
-// locations by test kind.
-type jsonSuite map[string]*jsonCase
+// ttSuite maps from the test UUID to a test case which aggregates the test locations by
+// test kind.
+type ttSuite map[string]*ttCase
 
 // empty creates a new JSON object representing an empty testsuite.
-func (js jsonSuite) empty(sec string) map[string]any {
+func (tts ttSuite) empty(sec string) map[string]any {
 	title := fmt.Sprintf("[%s]", sec)
 	return map[string]any{
 		"text": title,
@@ -229,26 +228,26 @@ func (js jsonSuite) empty(sec string) map[string]any {
 	}
 }
 
-// sortedKeys returns the UUID keys in jsonSuite where the corresponding test plan IDs are
+// sortedKeys returns the UUID keys in ttSuite where the corresponding test plan IDs are
 // sorted in version order.
-func (js jsonSuite) sortedKeys() []string {
+func (tts ttSuite) sortedKeys() []string {
 	var keys []string
-	for k := range js {
+	for k := range tts {
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool {
-		return lessVersion(js[keys[i]].testPlanID, js[keys[j]].testPlanID)
+		return lessVersion(tts[keys[i]].testPlanID, tts[keys[j]].testPlanID)
 	})
 	return keys
 }
 
 // merge updates an existing "testsuites" JSON object.
-func (js jsonSuite) merge(o map[string]any) {
-	todos := make(jsonSuite)
-	bytp := make(jsonSuite) // Lookup by test plan ID.
-	for u, jc := range js {
-		todos[u] = jc
-		bytp[jc.testPlanID] = jc
+func (tts ttSuite) merge(o map[string]any) {
+	todos := make(ttSuite)
+	bytp := make(ttSuite) // Lookup by test plan ID.
+	for u, ttc := range tts {
+		todos[u] = ttc
+		bytp[ttc.testPlanID] = ttc
 	}
 
 	// Update existing children first.
@@ -263,17 +262,17 @@ func (js jsonSuite) merge(o map[string]any) {
 		}
 
 		if key.testPlanID != "" {
-			if jc := bytp[key.testPlanID]; jc != nil {
-				jc.merge(key.o)
+			if ttc := bytp[key.testPlanID]; ttc != nil {
+				ttc.merge(key.o)
 				children = append(children, key.o)
-				// Use jc.testUUID because key.testUUID from the JSON may be out of date.
-				delete(todos, jc.testUUID)
+				// Use ttc.testUUID because key.testUUID from the JSON may be out of date.
+				delete(todos, ttc.testUUID)
 				continue
 			}
 		}
 
-		if jc := js[key.testUUID]; jc != nil {
-			jc.merge(key.o)
+		if ttc := tts[key.testUUID]; ttc != nil {
+			ttc.merge(key.o)
 			children = append(children, key.o)
 			delete(todos, key.testUUID)
 			continue
@@ -284,26 +283,26 @@ func (js jsonSuite) merge(o map[string]any) {
 
 	// Update the todos that were missing from the JSON.
 	for _, u := range todos.sortedKeys() {
-		jc := todos[u]
+		ttc := todos[u]
 		o := make(map[string]any)
-		jc.merge(o)
+		ttc.merge(o)
 		children = append(children, o)
 	}
 
 	o["children"] = children
 }
 
-// jsonCaseKey represents the test UUID and test plan ID that could be extracted from an
-// existing JSON test case child of a test suite.
-type jsonCaseKey struct {
+// ttCaseKey represents the test UUID and test plan ID that could be extracted from an
+// existing test case child of a test suite.
+type ttCaseKey struct {
 	o          map[string]any
 	testUUID   string
 	testPlanID string
 }
 
-// childCase returns the jsonCaseKey from an existing child of the test suite, or
+// childCase returns the ttCaseKey from an existing child of the test suite, or
 // nothing if the child is not a well-formed test case.
-func childCase(child any) (key jsonCaseKey, ok bool) {
+func childCase(child any) (key ttCaseKey, ok bool) {
 	key.o, ok = child.(map[string]any)
 	if !ok {
 		return key, false
@@ -336,9 +335,9 @@ func childCase(child any) (key jsonCaseKey, ok bool) {
 	return key, true
 }
 
-// jsonCase contains the test rundata and the test locations (if the test has multiple
+// ttCase contains the test rundata and the test locations (if the test has multiple
 // variants).
-type jsonCase struct {
+type ttCase struct {
 	parsedData
 	testDirs map[string]string // Test locations by test kind.
 }
@@ -356,8 +355,8 @@ func builtinSortedKeys(m map[string]string) []string {
 	return keys
 }
 
-// jsonDesc builds a description with featureprofiles github links for each test kind.
-func jsonDesc(testDirs map[string]string) string {
+// ttDesc builds a description with featureprofiles github links for each test kind.
+func ttDesc(testDirs map[string]string) string {
 	if len(testDirs) == 0 {
 		return ""
 	}
@@ -393,8 +392,8 @@ var defaultCaseAttrs = map[string]any{
 }
 
 // merge updates an existing "testcases" JSON object.
-func (jc *jsonCase) merge(o map[string]any) {
-	title := fmt.Sprintf("%s: %s", jc.testPlanID, jc.testDescription)
+func (ttc *ttCase) merge(o map[string]any) {
+	title := fmt.Sprintf("%s: %s", ttc.testPlanID, ttc.testDescription)
 
 	o["type"] = "testcases"
 	o["text"] = title
@@ -407,8 +406,8 @@ func (jc *jsonCase) merge(o map[string]any) {
 
 	attrs["rel"] = "testcases"
 	attrs["title"] = title
-	attrs["uuid"] = jc.testUUID
-	attrs["description"] = jsonQuote(jsonDesc(jc.testDirs))
+	attrs["uuid"] = ttc.testUUID
+	attrs["description"] = jsonQuote(ttDesc(ttc.testDirs))
 
 	// Unused but required.
 	for k, v := range defaultCaseAttrs {
