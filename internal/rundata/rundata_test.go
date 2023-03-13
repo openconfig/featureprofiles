@@ -16,6 +16,8 @@ package rundata
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/openconfig/ondatra/binding"
@@ -115,6 +117,56 @@ func TestTopology(t *testing.T) {
 }
 
 func TestProperties(t *testing.T) {
+	const (
+		wantUUID        = "TestProperties123"
+		wantPlanID      = "TestProperties"
+		wantDescription = "TestProperties unit test"
+	)
+	TestUUID = ""
+	TestPlanID = ""
+	TestDescription = ""
+
+	metadataText := fmt.Sprintf(`
+uuid: "%s"
+plan_id: "%s"
+description: "%s"
+`, wantUUID, wantPlanID, wantDescription)
+	if err := os.WriteFile("metadata.textproto", []byte(metadataText), 0644); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.Remove("metadata.textproto"); err != nil {
+			t.Log("Error deleting metadata.proto")
+		}
+	}()
+
+	*knownIssueURL = "https://example.com"
+
+	got := Properties(context.Background(), &binding.Reservation{})
+	t.Log(got)
+
+	for wantk, wantv := range map[string]string{
+		"test.uuid":        wantUUID,
+		"test.plan_id":     wantPlanID,
+		"test.description": wantDescription,
+		"known_issue_url":  *knownIssueURL,
+	} {
+		if gotv := got[wantk]; gotv != wantv {
+			t.Errorf("Property %s got %q, want %q", wantk, gotv, wantv)
+		}
+	}
+
+	for _, wantk := range []string{
+		"test.path",
+		"topology",
+	} {
+		if _, ok := got[wantk]; !ok {
+			t.Errorf("Missing key from Properties: %s", wantk)
+		}
+	}
+}
+
+func TestPropertiesLegacy(t *testing.T) {
 	TestPlanID = "UnitTest-1.1"
 	TestDescription = "This is a Unit Test"
 	TestUUID = "123e4567-e89b-42d3-8456-426614174000"

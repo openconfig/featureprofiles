@@ -53,11 +53,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
+	log "github.com/golang/glog"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra/binding"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (
@@ -100,6 +104,15 @@ func topology(resv *binding.Reservation) string {
 
 // Properties builds the test properties map representing run data.
 func Properties(ctx context.Context, resv *binding.Reservation) map[string]string {
+	switch md, err := readMetadataProto(); {
+	case err != nil:
+		log.Errorf("Error reading metadata proto: %v", err)
+	case md != nil:
+		TestUUID = md.GetUuid()
+		TestPlanID = md.GetPlanId()
+		TestDescription = md.GetDescription()
+	}
+
 	m := make(map[string]string)
 	local(m)
 
@@ -123,6 +136,21 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 	}
 
 	return m
+}
+
+// readMetadataProto reads and unmarshals the metadata proto file.
+// If a metadata proto does not exist, returns a nil metadata and nil error.
+func readMetadataProto() (*mpb.Metadata, error) {
+	const metadataFilename = "metadata.textproto"
+	if _, err := os.Stat(metadataFilename); err != nil {
+		return nil, nil
+	}
+	bytes, err := os.ReadFile(metadataFilename)
+	if err != nil {
+		return nil, err
+	}
+	md := new(mpb.Metadata)
+	return md, prototext.Unmarshal(bytes, md)
 }
 
 var timeBegin = time.Now()
