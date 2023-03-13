@@ -40,15 +40,15 @@ const (
 	vrfName = "VRF-1"
 
 	// Destination ATE MAC address for port-2 and port-3
-	pMAC = "00:1A:11:00:00:01"
+	pMAC = "00:1A:11:00:1A:BC"
 
 	// port-2 nexthop ID
-	p2ID = 40
+	p2NHID = 40
 	// port-3 nexthop ID
-	p3ID = 41
+	p3NHID = 41
 
 	// Interface route next-hop-group ID
-	interfaceID = 42
+	interfaceNHGID = 42
 	// Interface route nexthop IP
 	interfaceNH = "203.0.113.1"
 	// Interface route prefix
@@ -61,7 +61,6 @@ const (
 	// Destination route prefix for DUT to ATE traffic.
 	dstPfx      = "198.51.100.0/24"
 	dstPfxMin   = "198.51.100.0"
-	dstPfxMax   = "198.51.100.255"
 	dstPfxCount = 256
 )
 
@@ -137,13 +136,13 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 
 	gribi.BecomeLeader(t, gribic)
 
-	addInterfaceRoute(ctx, t, gribic, p2ID, dut.Port(t, "port2").Name(), atePort2.IPv4)
+	addInterfaceRoute(ctx, t, gribic, p2NHID, dut.Port(t, "port2").Name(), atePort2.IPv4)
 	addDestinationRoute(ctx, t, gribic)
 
 	waitOTGARPEntry(t)
 	validateTrafficFlows(t, p2flow, p3flow)
 
-	addInterfaceRoute(ctx, t, gribic, p3ID, dut.Port(t, "port3").Name(), atePort3.IPv4)
+	addInterfaceRoute(ctx, t, gribic, p3NHID, dut.Port(t, "port3").Name(), atePort3.IPv4)
 
 	validateTrafficFlows(t, p3flow, p2flow)
 }
@@ -233,9 +232,9 @@ func addInterfaceRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBICl
 	inh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithIndex(id).WithInterfaceRef(port).WithIPAddress(nhip).WithMacAddress(pMAC)
 	inhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithID(interfaceID).AddNextHop(id, 1)
+		WithID(interfaceNHGID).AddNextHop(id, 1)
 	ipfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithPrefix(interfacePfx).WithNextHopGroup(interfaceID)
+		WithPrefix(interfacePfx).WithNextHopGroup(interfaceNHGID)
 
 	gribic.Modify().AddEntry(t, inh, inhg, ipfx)
 	if err := awaitTimeout(ctx, gribic, t, time.Minute); err != nil {
@@ -249,7 +248,7 @@ func addInterfaceRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBICl
 			WithOperationType(constants.Add).
 			AsResult(),
 		fluent.OperationResult().
-			WithNextHopGroupOperation(interfaceID).
+			WithNextHopGroupOperation(interfaceNHGID).
 			WithProgrammingResult(fluent.InstalledInFIB).
 			WithOperationType(constants.Add).
 			AsResult(),
