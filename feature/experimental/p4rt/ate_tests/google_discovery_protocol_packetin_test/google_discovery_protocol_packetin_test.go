@@ -19,7 +19,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"sort"
 	"testing"
 	"time"
 
@@ -237,19 +236,6 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
-}
-
-// sortPorts sorts the ports by the testbed port ID.
-func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
-	sort.Slice(ports, func(i, j int) bool {
-		idi, idj := ports[i].ID(), ports[j].ID()
-		li, lj := len(idi), len(idj)
-		if li == lj {
-			return idi < idj
-		}
-		return li < lj // "port2" < "port10"
-	})
-	return ports
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
