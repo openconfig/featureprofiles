@@ -366,7 +366,7 @@ func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fl
 
 // validateTrafficFlows starts traffic and ensures that good flows have 0% loss (50% in case of LB)
 // and the correct destination MAC, and bad flows have 100% loss.
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.Flow, bad []*ondatra.Flow, lb []*ondatra.Flow, macFilter string) {
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []*ondatra.Flow, macFilter string) {
 	if len(good) == 0 && len(bad) == 0 && len(lb) == 0 {
 		return
 	}
