@@ -30,7 +30,6 @@ case $1 in
     topology=cisco_ixia.textproto
     user=cisco
     pass=cisco123
-    setup_time=10m
     ;;
   nokia_srlinux)
     topology=nokia_ixia.textproto
@@ -62,13 +61,6 @@ password: $pass
 topology: /tmp/kne/$topology
 skip_reset: true
 EOF
-
-if [ ! -z "$setup_time" ]
-then
-  echo "Devices require additional setup time ($setup_time), sleeping..."
-  sleep $setup_time
-fi
-
 
 go test -v ./feature/system/tests/... -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
 
