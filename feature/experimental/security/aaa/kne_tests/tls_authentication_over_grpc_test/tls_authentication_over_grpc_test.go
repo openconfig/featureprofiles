@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	sshPort  = 22
+	sshPort = 22
 )
 
 func TestMain(m *testing.M) {
