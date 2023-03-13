@@ -57,12 +57,12 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
 func gnmiClient(ctx context.Context, sshIP string, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
 	// TODO(greg-dennis): Remove hard-coded gNMI port.
 	var gnmiPort int
-        switch dut.Vendor() {
-        case ondatra.JUNIPER:
-                gnmiPort = 9339
-        default:
-                gnmiPort = 6030
-        }
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		gnmiPort = 9339
+	default:
+		gnmiPort = 6030
+	}
 
 	conn, err := grpc.DialContext(
 		ctx,
