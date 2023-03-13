@@ -175,6 +175,15 @@ var (
 	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
 
+	MissingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
+		"Device does not support interface/physicalchannel leaf. Set this flag to skip checking the leaf.")
+
+	MissingInterfaceHardwarePort = flag.Bool("deviation_missing_interface_hardware_port", false,
+		"Device does not support interface/hardwareport leaf. Set this flag to skip checking the leaf.")
+
+	MissingCPUMfgName = flag.Bool("deviation_missing_cpu_mfgName", false,
+		"Device does not support component/MfgName leaf for CPU components. Set this flag to skip skip checking the leaf.")
+
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
 	BGPPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
