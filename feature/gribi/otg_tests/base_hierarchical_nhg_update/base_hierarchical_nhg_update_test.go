@@ -139,7 +139,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	dutP3 := dut.Port(t, "port3").Name()
 
 	t.Logf("Adding gribi routes and validating traffic forwarding via port %v and NH ID %v", dutP2, p2NHID)
-	addInterfaceRoute(ctx, t, gribic, p2NHID, dutP2, atePort2.IPv4)
+	addInterfaceRoute(ctx, t, gribic, p2NHID, dutP2)
 	addDestinationRoute(ctx, t, gribic)
 
 	waitOTGARPEntry(t)
@@ -241,9 +241,9 @@ func addDestinationRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBI
 
 // addInterfaceRoute creates a GRIBI route that points to the egress interface defined by id,
 // port, and nhip.
-func addInterfaceRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, port string, nhip string) {
+func addInterfaceRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, port string) {
 	inh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithIndex(id).WithInterfaceRef(port).WithIPAddress(nhip).WithMacAddress(pMAC)
+		WithIndex(id).WithInterfaceRef(port).WithMacAddress(pMAC)
 	inhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithID(interfaceNHGID).AddNextHop(id, 1)
 	ipfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
