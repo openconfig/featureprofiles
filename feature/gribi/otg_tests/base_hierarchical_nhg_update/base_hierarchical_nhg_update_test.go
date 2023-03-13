@@ -148,6 +148,49 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	validateTrafficFlows(t, p3flow, p2flow)
 }
 
+// addNH adds a GRIBI NH with a FIB ACK confirmation via Modify RPC
+func addNH(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, intf, mac string) {
+	nh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithIndex(id).WithInterfaceRef(intf).WithMacAddress(mac)
+	gribic.Modify().AddEntry(t, nh)
+	if err := awaitTimeout(ctx, gribic, t, time.Minute); err != nil {
+		t.Fatalf("Await got error for entries: %v", err)
+	}
+	wantOperationResults := []*client.OpResult{
+		fluent.OperationResult().
+			WithNextHopOperation(id).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+	}
+	for _, wantResult := range wantOperationResults {
+		chk.HasResult(t, gribic.Results(t), wantResult, chk.IgnoreOperationID())
+	}
+}
+
+// addNHG adds a GRIBI NHG with a FIB ACK confirmation via Modify RPC
+func addNHG(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, nhs []uint64) {
+	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithID(id)
+	for _, nh := range nhs {
+		nhg.AddNextHop(nh, 1)
+	}
+	gribic.Modify().AddEntry(t, nhg)
+	if err := awaitTimeout(ctx, gribic, t, time.Minute); err != nil {
+		t.Fatalf("Await got error for entries: %v", err)
+	}
+	wantOperationResults := []*client.OpResult{
+		fluent.OperationResult().
+			WithNextHopGroupOperation(id).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+	}
+	for _, wantResult := range wantOperationResults {
+		chk.HasResult(t, gribic.Results(t), wantResult, chk.IgnoreOperationID())
+	}
+}
+
 // addDestinationRoute creates a GRIBI route to dstPfx via interfaceNH.
 func addDestinationRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient) {
 	dnh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
