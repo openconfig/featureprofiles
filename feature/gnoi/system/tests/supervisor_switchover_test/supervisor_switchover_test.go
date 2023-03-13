@@ -187,6 +187,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 	} else {
 		st, _ := swTime.Val()
 		t.Logf("Found activeRP.LastSwitchoverTime(): %v", st)
+		// TODO: validate that last switchover time is correct
 	}
 
 	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
