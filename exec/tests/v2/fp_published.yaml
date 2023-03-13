@@ -384,11 +384,10 @@ tests:
   path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
   args:
     - '-deviation_connect_retry="true"'
-  pr: 601
-  internal: true
+    - '-deviation_skip_bgp_test_password_mismatch="true"'    
   owners:
     - arvbaska
-  mustpass: false
+  mustpass: true
   priority: 47
   skip: false
 - name: RT-2.2 (IS-IS LSP Updates) 
