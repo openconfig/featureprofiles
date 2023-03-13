@@ -276,10 +276,9 @@ func canWrite(t *testing.T, args *testArgs) (bool, error) {
 			t.Logf("Expected P4Client error: Client write permission (highID %d, lowID %d): want %v, got %v", args.highID, args.lowID, args.wantWrite, false)
 		}
 		return false, writeErr
-	} else {
-		if writeErr = writeTableEntry(args, t, pktIO, true); writeErr != nil {
-			t.Errorf("Error deleting table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
-		}
+	}
+	if writeErr = writeTableEntry(args, t, pktIO, true); writeErr != nil {
+		t.Errorf("Error deleting table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
 	}
 	return true, nil
 }
