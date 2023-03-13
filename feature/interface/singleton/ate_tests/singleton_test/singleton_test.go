@@ -60,7 +60,7 @@ var (
 		Desc:    "DUT to ATE source",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
-		MAC:     "02:1a:c0:00:02:01", // 02:1a+192.0.2.1
+		MAC:     "02:1A:C0:00:02:01", // 02:1a+192.0.2.1
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
@@ -77,7 +77,7 @@ var (
 		Desc:    "DUT to ATE destination",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
-		MAC:     "02:1a:c0:00:02:05", // 02:1a+192.0.2.5
+		MAC:     "02:1A:C0:00:02:05", // 02:1a+192.0.2.5
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
@@ -162,6 +162,15 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	di2 := d.Interface(p2.Name())
 	fptest.LogQuery(t, p2.String(), di2.Config(), tc.duti2)
 	gnmi.Replace(t, tc.dut, di2.Config(), tc.duti2)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
 }
 
 func (tc *testCase) configInterfaceATE(ap *ondatra.Port, atea, duta *attrs.Attributes) {
