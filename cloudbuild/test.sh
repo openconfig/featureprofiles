@@ -18,15 +18,24 @@ set -xe
 case $1 in
   arista_ceos)
     topology=arista_ixia.textproto
+    user=admin
+    pass=admin
     ;;
   juniper_cptx)
     topology=juniper_ixia.textproto
+    user=root
+    pass=Google123
     ;;
   cisco_8000e)
     topology=cisco_ixia.textproto
+    user=cisco
+    pass=cisco123
+    setup_time=10m
     ;;
   nokia_srlinux)
     topology=nokia_ixia.textproto
+    user=admin
+    pass=NokiaSrl1!
     ;;
   :)
     echo "Model $1 not valid"
@@ -48,11 +57,18 @@ sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia
 
 kne create /tmp/kne/"$topology"
 cat >/tmp/testbed.kne.yml << EOF
-username: admin
-password: admin
+username: $user
+password: $pass
 topology: /tmp/kne/$topology
 skip_reset: true
 EOF
+
+if [ ! -z "$setup_time" ]
+then
+  echo "Devices require additional setup time ($setup_time), sleeping..."
+  sleep $setup_time
+fi
+
 
 go test -v ./feature/system/tests/... -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
 
