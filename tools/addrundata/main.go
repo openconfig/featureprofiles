@@ -71,13 +71,18 @@ func main() {
 	case "":
 		// Not listing, so it's either check-only or fix.  See below.
 	case "csv":
-		if err := writeCSV(os.Stdout, featuredir, ts); err != nil {
+		if err := listCSV(os.Stdout, featuredir, ts); err != nil {
 			glog.Exitf("Error writing CSV: %v", err)
 		}
 		return
 	case "json":
-		if err := writeJSON(os.Stdout, *mergejson, featuredir, ts); err != nil {
+		if err := listJSON(os.Stdout, featuredir, ts); err != nil {
 			glog.Exitf("Error writing JSON: %v", err)
+		}
+		return
+	case "testtracker":
+		if err := listTestTracker(os.Stdout, *mergejson, featuredir, ts); err != nil {
+			glog.Exitf("Error writing TestTracker: %v", err)
 		}
 		return
 	default:
