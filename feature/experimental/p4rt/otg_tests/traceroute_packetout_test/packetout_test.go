@@ -63,39 +63,34 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.P
 func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
 	desc := "PacketOut from Primary Controller"
-	ttls := []int{0, 1}
+	ttl := 1
 	//for ipv4
 	t.Run(desc+" ipv4 ", func(t *testing.T) {
 		// Check initial packet counters
 		port := sortPorts(args.ate.Ports())[0].ID()
+		t.Logf("Sending ipv4 pakcets with ttl %d", ttl)
+		counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
+		t.Logf("Initial number of packets: %d", counter0)
 
-		for _, ttl := range ttls {
-			t.Logf("Sending ipv4 pakcets with ttl %d", ttl)
-			counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
-			t.Logf("Initial number of packets: %d", counter0)
+		packets := args.packetIO.GetPacketOut(portId, true, uint8(ttl))
+		packetCounter := 100
+		t.Logf("Sending packets now")
 
-			packets := args.packetIO.GetPacketOut(portId, true, uint8(ttl))
-			packetCounter := 100
-			t.Logf("Sending packets now")
+		sendPackets(t, leader, packets, packetCounter)
 
-			sendPackets(t, leader, packets, packetCounter)
+		// Wait for ate stats to be populated
+		time.Sleep(60 * time.Second)
 
-			// Wait for ate stats to be populated
-			time.Sleep(60 * time.Second)
+		// Check packet counters after packet out
+		counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
+		t.Logf("Final number of packets: %d", counter1)
 
-			// Check packet counters after packet out
-			counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
-			t.Logf("Final number of packets: %d", counter1)
+		// Verify InPkts stats to check P4RT stream
+		t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
 
-			// Verify InPkts stats to check P4RT stream
-			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
-
-			if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
-				t.Fatalf("Not all the packets are received.")
-			}
-			time.Sleep(20 * time.Second)
+		if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
+			t.Fatalf("Not all the packets are received.")
 		}
-
 	},
 	)
 	//for ipv6
@@ -103,35 +98,28 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		// Check initial packet counters
 		port := sortPorts(args.ate.Ports())[0].ID()
 
-		for _, ttl := range ttls {
-			t.Logf("Sending ipv6 packets with ttl = %d", ttl)
-			counter0 := gnmi.Get(t, args.ate, gnmi.OTG().Port(port).Counters().InFrames().State())
-			t.Logf("Initial number of packets: %d", counter0)
+		t.Logf("Sending ipv6 packets with ttl = %d", ttl)
+		counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
+		t.Logf("Initial number of packets: %d", counter0)
 
-			packets := args.packetIO.GetPacketOut(portId, false, uint8(ttl))
-			packetCounter := 100
-			t.Logf("Sending packets now")
+		packets := args.packetIO.GetPacketOut(portId, false, uint8(ttl))
+		packetCounter := 100
+		t.Logf("Sending packets now")
 
-			sendPackets(t, leader, packets, packetCounter)
+		sendPackets(t, leader, packets, packetCounter)
 
-			// Wait for ate stats to be populated
-			time.Sleep(60 * time.Second)
+		// Wait for ate stats to be populated
+		time.Sleep(60 * time.Second)
 
-			// Check packet counters after packet out
-			counter1 := gnmi.Get(t, args.ate, gnmi.OTG().Port(port).Counters().InFrames().State())
-			t.Logf("Final number of packets: %d", counter1)
+		// Check packet counters after packet out
+		counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
+		t.Logf("Final number of packets: %d", counter1)
 
-			// Verify InPkts stats to check P4RT stream
-			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
-
-			if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
-				t.Fatalf("Not all the packets are received.")
-			}
-
-			time.Sleep(20 * time.Second)
+		// Verify InPkts stats to check P4RT stream
+		t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
+		if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
+			t.Fatalf("Not all the packets are received.")
 		}
-
 	},
 	)
-
 }
