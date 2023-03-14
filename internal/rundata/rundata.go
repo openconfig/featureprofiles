@@ -104,7 +104,7 @@ func topology(resv *binding.Reservation) string {
 
 // Properties builds the test properties map representing run data.
 func Properties(ctx context.Context, resv *binding.Reservation) map[string]string {
-	switch err := readFromMetadataProto(); err != nil {
+	switch err := readFromMetadataProto(); {
 	case os.IsNotExist(err):
 		// No metadata proto: use the values provided by rundata_test.
 	case err != nil:
