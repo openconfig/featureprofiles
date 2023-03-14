@@ -15,6 +15,7 @@
 package my_station_mac_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -45,7 +46,7 @@ func TestMain(m *testing.M) {
 const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
-	myStationMAC  = "00:1a:11:00:00:01"
+	myStationMAC  = "00:1A:11:00:00:01"
 )
 
 var (
@@ -213,7 +214,7 @@ func TestMyStationMAC(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), myStationMAC)
 
 	t.Logf("Verify configured MyStationMAC through telemetry")
-	if got := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State()); got != myStationMAC {
+	if got := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State()); strings.ToUpper(got) != myStationMAC {
 		t.Errorf("MyStationMAC got %v, want %v", got, myStationMAC)
 	}
 
