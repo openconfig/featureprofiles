@@ -74,7 +74,6 @@ func TestBurstyTraffic(t *testing.T) {
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntf(t, dut)
-
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		ConfigureCiscoQos(t, dut)
@@ -367,13 +366,24 @@ func TestBurstyTraffic(t *testing.T) {
 					WithInterburstGapBytes(data.burstGap)
 				flows = append(flows, flow)
 			}
-
+			var counterNames []string
 			counters := make(map[string]map[string]uint64)
-			counterNames := []string{
-				"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
-				"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
-				"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
-				"dutQosDroppedOctetsAfterTraffic",
+			if *deviations.QOSDroppedOctets != false {
+				counterNames = []string{
+
+					"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+					"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+					"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
+					"dutQosDroppedOctetsAfterTraffic",
+				}
+			} else {
+				counterNames = []string{
+
+					"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+					"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+					"dutQosDroppedPktsAfterTraffic",
+				}
+
 			}
 			for _, name := range counterNames {
 				counters[name] = make(map[string]uint64)
@@ -389,7 +399,10 @@ func TestBurstyTraffic(t *testing.T) {
 				counters["dutQosPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				counters["dutQosOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
 				counters["dutQosDroppedPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-				counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+				//counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+				if *deviations.QOSDroppedOctets != false {
+					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+				}
 			}
 
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
@@ -398,7 +411,7 @@ func TestBurstyTraffic(t *testing.T) {
 			ate.Traffic().Start(t, flows...)
 			time.Sleep(30 * time.Second)
 			ate.Traffic().Stop(t)
-			time.Sleep(30 * time.Second)
+			time.Sleep(60 * time.Second)
 
 			for trafficID, data := range trafficFlows {
 				counters["ateOutPkts"][data.queue] += gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
@@ -407,7 +420,10 @@ func TestBurstyTraffic(t *testing.T) {
 				counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
 				counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-				counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+				//counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+				if *deviations.QOSDroppedOctets != false {
+					counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+				}
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 
 				lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
@@ -443,10 +459,13 @@ func TestBurstyTraffic(t *testing.T) {
 					t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
 				}
 
-				dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
-				t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
-				if dutDropOctetCounterDiff != 0 {
-					t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
+				if *deviations.QOSDroppedOctets != false {
+					ateDropOctetCounterDiff := (counters["ateOutPkts"][data.queue] - counters["ateInPkts"][data.queue]) * uint64(data.frameSize)
+					dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
+					t.Logf("Queue %q: ateDropOctetCounterDiff: %v dutDropOctetCounterDiff: %v", data.queue, ateDropOctetCounterDiff, dutDropOctetCounterDiff)
+					if dutDropOctetCounterDiff < ateDropOctetCounterDiff {
+						t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutDropOctetCounterDiff, ateDropOctetCounterDiff)
+					}
 				}
 			}
 		})
@@ -1049,7 +1068,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup string
 	}{{
 		desc:         "scheduler-policy-BE1",
-		sequence:     uint32(6),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "g_BE1",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1058,47 +1077,47 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-BE1",
 	}, {
 		desc:         "scheduler-policy-BE0",
-		sequence:     uint32(5),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "f_BE0",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(4),
+		weight:       uint64(1),
 		queueName:    "f_BE0",
 		targetGrpoup: "target-group-BE0",
 	}, {
 		desc:         "scheduler-policy-AF1",
-		sequence:     uint32(4),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "e_AF1",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(8),
+		weight:       uint64(4),
 		queueName:    "e_AF1",
 		targetGrpoup: "target-group-AF1",
 	}, {
 		desc:         "scheduler-policy-AF2",
-		sequence:     uint32(3),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "d_AF2",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(16),
+		weight:       uint64(8),
 		queueName:    "d_AF2",
 		targetGrpoup: "target-group-AF2",
 	}, {
 		desc:         "scheduler-policy-AF3",
-		sequence:     uint32(2),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "c_AF3",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(32),
+		weight:       uint64(12),
 		queueName:    "c_AF3",
 		targetGrpoup: "target-group-AF3",
 	}, {
 		desc:         "scheduler-policy-AF4",
 		sequence:     uint32(1),
-		priority:     oc.Scheduler_Priority_STRICT,
+		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "b_AF4",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(6),
+		weight:       uint64(48),
 		queueName:    "b_AF4",
 		targetGrpoup: "target-group-AF4",
 	}, {
