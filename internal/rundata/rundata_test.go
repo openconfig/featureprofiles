@@ -131,14 +131,22 @@ uuid: "%s"
 plan_id: "%s"
 description: "%s"
 `, wantUUID, wantPlanID, wantDescription)
-	if err := os.WriteFile("metadata.textproto", []byte(metadataText), 0644); err != nil {
+
+	// Change to a temp directory before writing the metadata proto
+	// to avoid modifying the test directory.
+	wd, err := os.Getwd()
+	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := os.Remove("metadata.textproto"); err != nil {
-			t.Log("Error deleting metadata.proto")
-		}
+		os.Chdir(wd)
 	}()
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("metadata.textproto", []byte(metadataText), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	*knownIssueURL = "https://example.com"
 
