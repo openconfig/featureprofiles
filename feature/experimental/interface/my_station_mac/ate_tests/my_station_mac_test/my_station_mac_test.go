@@ -15,9 +15,9 @@
 package my_station_mac_test
 
 import (
+	"strings"
 	"testing"
 	"time"
-	"strings"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
