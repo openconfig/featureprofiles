@@ -180,28 +180,28 @@ func configNetworkInstance(name string, intf *oc.Interface, id uint32) *oc.Netwo
 }
 
 // configDefaultRoute configures a static route in DEFAULT network-instance.
-func configDefaultRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4Nexthop, v6Prefix, v6Nexthop string) {
+func configDefaultRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop, v6Prefix, v6NextHop string) {
 	t.Logf("*** Configuring static route in DEFAULT network-instance ...")
 	ni := oc.NetworkInstance{Name: deviations.DefaultNetworkInstance}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	sr := static.GetOrCreateStatic(v4Prefix)
 	nh := sr.GetOrCreateNextHop("0")
-	nh.NextHop = oc.UnionString(v4Nexthop)
+	nh.NextHop = oc.UnionString(v4NextHop)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 	sr = static.GetOrCreateStatic(v6Prefix)
 	nh = sr.GetOrCreateNextHop("0")
-	nh.NextHop = oc.UnionString(v6Nexthop)
+	nh.NextHop = oc.UnionString(v6NextHop)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
 // configvrfRoute configures a static route.
-func configVRFRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4Nexthop string) {
+func configVRFRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop string) {
 	t.Logf("*** Configuring static route in VRF-10 network-instance ...")
 	ni := oc.NetworkInstance{Name: ygot.String("VRF-10")}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	sr := static.GetOrCreateStatic(v4Prefix)
 	nh := sr.GetOrCreateNextHop("0")
-	nh.NextHop = oc.UnionString(v4Nexthop)
+	nh.NextHop = oc.UnionString(v4NextHop)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance("VRF-10").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
@@ -408,7 +408,6 @@ func TestVrfPolicy(t *testing.T) {
 	tcs := []struct {
 		desc      string
 		policy    string
-		endpoints []string
 		passFlows []*ondatra.Flow
 		flows     []*ondatra.Flow
 	}{
