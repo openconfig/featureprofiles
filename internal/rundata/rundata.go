@@ -104,13 +104,11 @@ func topology(resv *binding.Reservation) string {
 
 // Properties builds the test properties map representing run data.
 func Properties(ctx context.Context, resv *binding.Reservation) map[string]string {
-	switch md, err := readMetadataProto(); {
+	switch err := readFromMetadataProto(); err != nil {
+	case os.IsNotExist(err):
+		// No metadata proto: use the values provided by rundata_test.
 	case err != nil:
 		log.Errorf("Error reading metadata proto: %v", err)
-	case md != nil:
-		TestUUID = md.GetUuid()
-		TestPlanID = md.GetPlanId()
-		TestDescription = md.GetDescription()
 	}
 
 	m := make(map[string]string)
@@ -138,19 +136,26 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 	return m
 }
 
-// readMetadataProto reads and unmarshals the metadata proto file.
-// If a metadata proto does not exist, returns a nil metadata and nil error.
-func readMetadataProto() (*mpb.Metadata, error) {
+func readFromMetadataProto() error {
 	const metadataFilename = "metadata.textproto"
-	if _, err := os.Stat(metadataFilename); err != nil {
-		return nil, nil
-	}
 	bytes, err := os.ReadFile(metadataFilename)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	md := new(mpb.Metadata)
-	return md, prototext.Unmarshal(bytes, md)
+	if err := prototext.Unmarshal(bytes, md); err != nil {
+		return err
+	}
+	if uuid := md.GetUuid(); uuid != "" {
+		TestUUID = uuid
+	}
+	if planID := md.GetPlanId(); planID != "" {
+		TestPlanID = planID
+	}
+	if desc := md.GetDescription(); desc != "" {
+		TestDescription = desc
+	}
+	return nil
 }
 
 var timeBegin = time.Now()
