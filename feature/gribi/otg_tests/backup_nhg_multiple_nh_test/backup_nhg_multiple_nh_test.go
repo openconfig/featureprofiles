@@ -62,7 +62,7 @@ var (
 	}
 
 	atePort1 = attrs.Attributes{
-		Name:    "port1",
+		Name:    "atePort1",
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
@@ -79,7 +79,7 @@ var (
 	}
 
 	atePort2 = attrs.Attributes{
-		Name:    "port2",
+		Name:    "atePort2",
 		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
@@ -96,7 +96,7 @@ var (
 	}
 
 	atePort3 = attrs.Attributes{
-		Name:    "port3",
+		Name:    "atePort3",
 		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
@@ -113,7 +113,7 @@ var (
 	}
 
 	atePort4 = attrs.Attributes{
-		Name:    "port4",
+		Name:    "atePort4",
 		MAC:     "02:00:04:01:01:01",
 		IPv4:    "192.0.2.14",
 		IPv4Len: ipv4PrefixLen,
@@ -296,7 +296,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name,
 	flow.Metrics().SetEnable(true)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	flow.TxRx().Port().SetTxName(atePort1.Name)
+	flow.TxRx().Port().SetTxName("port1")
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
@@ -317,10 +317,10 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateTop gosnappi.
 	otgutils.LogPortMetrics(t, ate.OTG(), ateTop)
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
 	lostPackets := recvMetric.GetCounters().GetOutPkts() - recvMetric.GetCounters().GetInPkts()
-	got := lostPackets * 100 / recvMetric.GetCounters().GetOutPkts()
+	got := float32(lostPackets * 100 / recvMetric.GetCounters().GetOutPkts())
 	if drop {
 		if got != 100 {
-			t.Fatalf("Traffic passing for flow %s got %v, want 100 percent loss", flow, got)
+			t.Fatalf("Traffic passing for flow %s got %f, want 100 percent loss", flow, got)
 		}
 	} else {
 		if got > 0 {
