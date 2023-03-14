@@ -230,8 +230,8 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, primaryTunnelDstIP+"/"+mask, NH1ID, vrfName, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	t.Logf("Create flows with dst %s", primaryTunnelDstIP)
-	baselineFlow := createFlow(t, args.ate, args.top, "BaseFlow", primaryTunnelDstIP, &atePort2)
-	backupFlow := createFlow(t, args.ate, args.top, "BackupFlow", primaryTunnelDstIP, &atePort3)
+	baselineFlow := createFlow(t, args.ate, "BaseFlow", primaryTunnelDstIP, &atePort2)
+	backupFlow := createFlow(t, args.ate, "BackupFlow", primaryTunnelDstIP, &atePort3)
 	t.Log("Validate traffic passes")
 	validateTrafficFlows(t, args.ate, args.top, baselineFlow, backupFlow)
 
@@ -282,8 +282,8 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	t.Logf("Create flows with dst %s", primaryTunnelDstIP)
-	baselineFlow := createFlow(t, args.ate, args.top, "BaseFlow", primaryTunnelDstIP, &atePort2)
-	backupFlow := createFlow(t, args.ate, args.top, "BackupFlow", primaryTunnelDstIP, &atePort3)
+	baselineFlow := createFlow(t, args.ate, "BaseFlow", primaryTunnelDstIP, &atePort2)
+	backupFlow := createFlow(t, args.ate, "BackupFlow", primaryTunnelDstIP, &atePort3)
 	t.Logf("Validate traffic passes through port2")
 	validateTrafficFlows(t, args.ate, args.top, baselineFlow, backupFlow)
 
@@ -306,7 +306,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx.
-func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name string, dstPfx string, dst *attrs.Attributes) gosnappi.Flow {
+func createFlow(t *testing.T, ate *ondatra.ATEDevice, name string, dstPfx string, dst *attrs.Attributes) gosnappi.Flow {
 
 	flow := gosnappi.NewFlow().SetName(name)
 	flow.Metrics().SetEnable(true)
