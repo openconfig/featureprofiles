@@ -136,52 +136,101 @@ func TestQoSCounters(t *testing.T) {
 		flows = append(flows, flow)
 	}
 
-	ateOutPkts := make(map[string]uint64)
-	dutQosPktsBeforeTraffic := make(map[string]uint64)
-	dutQosPktsAfterTraffic := make(map[string]uint64)
+	var counterNames []string
+	counters := make(map[string]map[string]uint64)
+	if !*deviations.QOSDroppedOctets {
+		counterNames = []string{
+
+			"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+			"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+			"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
+			"dutQosDroppedOctetsAfterTraffic",
+		}
+	} else {
+		counterNames = []string{
+
+			"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+			"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+			"dutQosDroppedPktsAfterTraffic",
+		}
+
+	}
+	for _, name := range counterNames {
+		counters[name] = make(map[string]uint64)
+
+		// Set the initial counters to 0.
+		for _, data := range trafficFlows {
+			counters[name][data.queue] = 0
+		}
+	}
 
 	// Get QoS egress packet counters before the traffic.
 	for _, data := range trafficFlows {
-		dutQosPktsBeforeTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
+		counters["dutQosPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
+		counters["dutQosOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitOctets().State())
+		counters["dutQosDroppedPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedPkts().State())
+		if !*deviations.QOSDroppedOctets {
+			counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
+		}
 	}
 
-	t.Logf("Running traffic on DUT interfaces: %s and %s ", dp1.Name(), dp2.Name())
+	t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp2.Name())
+	t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
 	ate.Traffic().Start(t, flows...)
-	time.Sleep(10 * time.Second)
+	time.Sleep(120 * time.Second)
 	ate.Traffic().Stop(t)
 	time.Sleep(30 * time.Second)
 
 	for trafficID, data := range trafficFlows {
-		ateOutPkts[data.queue] = gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
-		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
-		t.Logf("Get(out packets for queue %q): got %v", data.queue, ateOutPkts[data.queue])
+		counters["ateOutPkts"][data.queue] += gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
+		counters["ateInPkts"][data.queue] += gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().InPkts().State())
 
-		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
-		if lossPct >= 1 {
-			t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
+		counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
+		counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitOctets().State())
+		counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedPkts().State())
+		if !*deviations.QOSDroppedOctets {
+			counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
 		}
-	}
-
-	for trafficID, data := range trafficFlows {
-		ateOutPkts[data.queue] = gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
-		dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
-		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
-		t.Logf("Get(out packets for flow %q): got %v, want nonzero", trafficID, ateOutPkts)
+		t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
-		if lossPct >= 1 {
-			t.Errorf("Get(traffic loss for queue %q: got %v, want < 1", data.queue, lossPct)
+		t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, 100.0)
+		if got, want := 100.0-lossPct, float32(100.0); got != want {
+			t.Errorf("Get(throughput for queue %q): got %.2f%%, want %.2f%%", data.queue, got, want)
 		}
 	}
 
 	// Check QoS egress packet counters are updated correctly.
-	t.Logf("QoS egress packet counters before traffic: %v", dutQosPktsBeforeTraffic)
-	t.Logf("QoS egress packet counters after traffic: %v", dutQosPktsAfterTraffic)
-	t.Logf("QoS packet counters from ATE: %v", ateOutPkts)
+	for _, name := range counterNames {
+		t.Logf("QoS %s: %v", name, counters[name])
+	}
+
 	for _, data := range trafficFlows {
-		qosCounterDiff := dutQosPktsAfterTraffic[data.queue] - dutQosPktsBeforeTraffic[data.queue]
-		if qosCounterDiff < ateOutPkts[data.queue] {
-			t.Errorf("Get(telemetry packet update for queue %q): got %v, want >= %v", data.queue, qosCounterDiff, ateOutPkts[data.queue])
+		dutPktCounterDiff := counters["dutQosPktsAfterTraffic"][data.queue] - counters["dutQosPktsBeforeTraffic"][data.queue]
+		atePktCounterDiff := counters["ateInPkts"][data.queue]
+		t.Logf("Queue %q: atePktCounterDiff: %v dutPktCounterDiff: %v", data.queue, atePktCounterDiff, dutPktCounterDiff)
+		if dutPktCounterDiff < atePktCounterDiff {
+			t.Errorf("Get dutPktCounterDiff for queue %q: got %v, want >= %v", data.queue, dutPktCounterDiff, atePktCounterDiff)
+		}
+
+		dutDropPktCounterDiff := counters["dutQosDroppedPktsAfterTraffic"][data.queue] - counters["dutQosDroppedPktsBeforeTraffic"][data.queue]
+		t.Logf("Queue %q: dutDropPktCounterDiff: %v", data.queue, dutDropPktCounterDiff)
+		if dutDropPktCounterDiff != 0 {
+			t.Errorf("Get dutDropPktCounterDiff for queue %q: got %v, want 0", data.queue, dutDropPktCounterDiff)
+		}
+
+		dutOctetCounterDiff := counters["dutQosOctetsAfterTraffic"][data.queue] - counters["dutQosOctetsBeforeTraffic"][data.queue]
+		ateOctetCounterDiff := counters["ateInPkts"][data.queue] * uint64(data.frameSize)
+		t.Logf("Queue %q: ateOctetCounterDiff: %v dutOctetCounterDiff: %v", data.queue, ateOctetCounterDiff, dutOctetCounterDiff)
+		if dutOctetCounterDiff < ateOctetCounterDiff {
+			t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+		}
+		if !*deviations.QOSDroppedOctets {
+			dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
+			t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
+			if dutDropOctetCounterDiff != 0 {
+				t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
+			}
 		}
 	}
 }
@@ -547,6 +596,11 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
 		s.SetSequence(tc.sequence)
 		s.SetPriority(tc.priority)
+		if dut.Vendor() == ondatra.JUNIPER {
+			t.Logf("Scheduler should be binded to a forwarding group")
+			Output := s.GetOrCreateOutput()
+			Output.SetOutputFwdGroup(tc.targetGroup)
+		}
 		input := s.GetOrCreateInput(tc.inputID)
 		input.SetId(tc.inputID)
 		input.SetInputType(tc.inputType)
@@ -594,6 +648,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp2.Name())
 		i.SetInterfaceId(dp2.Name())
+		if *deviations.ExplicitInterfaceRefDefinition {
+			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp2.Name())
+		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
