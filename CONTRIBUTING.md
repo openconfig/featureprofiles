@@ -367,6 +367,31 @@ In particular:
 *   2001:DB8:2::/64: data plane addresses used for traffic testing as the
     destination address; split as needed.
 
+### Rationale
+
+The properties being tested in the test plan are agnostic to the IP addresses
+being used, so tests do not require a specific hard-coded IP address. However,
+tests must avoid choosing addresses already used by a public network or a local
+network, in order to avoid misconfigured DUT from flooding the network with test
+traffic and causing service disruption.
+
+Here are some examples why certain addresses commonly found in networking
+tutorials online could be problematic. **DO NOT USE** these addresses.
+
+*   [1.1.1.1](https://bgp.he.net/ip/1.1.1.1) belongs to APNIC and Cloudflare DNS
+    Resolver project.
+*   [2.2.2.2](https://bgp.he.net/ip/2.2.2.2) belongs to Orange S.A. in France.
+*   [9.9.9.9](https://bgp.he.net/ip/9.9.9.9) belongs to Quad9 in Switzerland.
+*   [111.111.111.111](https://bgp.he.net/ip/111.111.111.111) belongs to KDDI
+    CORPORATION in Japan.
+*   [222.222.222.222](https://bgp.he.net/ip/222.222.222.222) belongs to CHINANET
+    hebei province network in China.
+
+We also avoid using the private addresses commonly used in a local network, such
+as 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, because test traffic destined to
+these addresses may disrupt your local network. We also avoid 100.64.0.0/10
+which is used by Carrier Grade NAT.
+
 ## ASN Assignment
 
 Autonomous System numbers used in test should follow Autonomous System (AS)
