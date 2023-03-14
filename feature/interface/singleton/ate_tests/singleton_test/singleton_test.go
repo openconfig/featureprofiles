@@ -60,7 +60,7 @@ var (
 		Desc:    "DUT to ATE source",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
-		MAC:     "02:1A:C0:00:02:01", // 02:1a+192.0.2.1
+		MAC:     "02:1a:c0:00:02:01", // 02:1a+192.0.2.1
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
@@ -77,7 +77,7 @@ var (
 		Desc:    "DUT to ATE destination",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
-		MAC:     "02:1A:C0:00:02:05", // 02:1a+192.0.2.5
+		MAC:     "02:1a:c0:00:02:05", // 02:1a+192.0.2.5
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
