@@ -302,9 +302,14 @@ tests:
       - '-deviation_interface_counters_from_container="true"'
       - '-deviation_ipv4_missing_enabled="true"'
       - '-deviation_subinterface_packet_counters_missing="true"'
+      - '-deviation_missing_interface_physical_channel="true"'
+      - '-deviation_missing_interface_hardware_port="true"'
+      - '-deviation_missing_cpu_mfgName="true"'
+      - '-arg_qos_baseconfig_present="false"'
+      - '-arg_lacp_baseconfig_present="false"'
   owners:
     - agvarghe
-  mustpass: false
+  mustpass: true
   priority: 34
 - name: gNMI-1.11 (Telemetry Interface Packet Counters) 
   path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
@@ -549,6 +554,8 @@ tests:
   owners:
     - saarvind
   mustpass: true
+  args:
+    - '-deviation_qos_dropped_octets="true"'
 - name: DP-1.7 (One strict priority queue traffic test)
   path: feature/experimental/qos/ate_tests/one_sp_queue_traffic_test
   owners:
@@ -582,8 +589,6 @@ tests:
   path: feature/experimental/system/gnmi/benchmarking/ate_tests/drained_configuration_convergence_time
   owners:
         - agvarghe
-  branch: agvarghe-gnmi1_3
-  internal: true
   mustpass: true
   args:
          - '-deviation_missing_isis_interface_afi_safi_enable="true"'
