@@ -58,7 +58,6 @@ const (
 	linecardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
 	powerSupplyType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY
 	fabricType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
-	fabricChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	switchChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
 )
@@ -139,6 +138,9 @@ func TestInterfaceOperStatus(t *testing.T) {
 }
 
 func TestInterfacePhysicalChannel(t *testing.T) {
+	if *deviations.MissingInterfacePhysicalChannel {
+		t.Skip("Test is skipped due to MissingInterfacePhysicalChannel deviation")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
@@ -194,6 +196,9 @@ func TestInterfaceStatusChange(t *testing.T) {
 }
 
 func TestHardwarePort(t *testing.T) {
+	if *deviations.MissingInterfaceHardwarePort {
+		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
@@ -285,6 +290,9 @@ func TestInterfaceCounters(t *testing.T) {
 }
 
 func TestQoSCounters(t *testing.T) {
+	if !*args.QoSBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for QoS is not loaded.")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
 	queues := gnmi.OC().Qos().Interface(dp.Name()).Output().QueueAny()
@@ -306,6 +314,10 @@ func TestQoSCounters(t *testing.T) {
 		desc:     "DroppedPkts",
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
+	}, {
+		desc:     "DroppedOctets",
+		path:     qosQueuePath + "dropped-octets",
+		counters: gnmi.LookupAll(t, dut, queues.DroppedOctets().State()),
 	}}
 
 	for _, tc := range cases {
@@ -329,7 +341,6 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 	t.Helper()
 	componentType := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 		"Fabric":      fabricType,
-		"FabricChip":  fabricChipType,
 		"Linecard":    linecardType,
 		"PowerSupply": powerSupplyType,
 		"Supervisor":  supervisorType,
@@ -356,13 +367,12 @@ func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	componentParent := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 		"Fabric":      chassisType,
-		"FabricChip":  fabricType,
 		"Linecard":    chassisType,
 		"PowerSupply": chassisType,
 		"Supervisor":  chassisType,
 		"SwitchChip":  linecardType,
 	}
-	cardList := findComponentsListByType(t, dut)
+	compList := findComponentsListByType(t, dut)
 	cases := []struct {
 		desc          string
 		componentType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT
@@ -371,10 +381,6 @@ func TestComponentParent(t *testing.T) {
 		desc:          "Fabric",
 		componentType: fabricType,
 		parent:        componentParent["Fabric"],
-	}, {
-		desc:          "FabricChip",
-		componentType: fabricChipType,
-		parent:        componentParent["FabricChip"],
 	}, {
 		desc:          "Linecard",
 		componentType: linecardType,
@@ -395,40 +401,35 @@ func TestComponentParent(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			t.Logf("Found card list for Component Type %v : %v", tc.componentType, cardList[tc.desc])
-			if len(cardList[tc.desc]) == 0 {
-				t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
+			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
+			if len(compList[tc.desc]) == 0 {
+				t.Fatalf("Get component list for %q: got 0, want > 0", dut.Model())
 			}
-			// Validate parent component
-			for _, card := range cardList[tc.desc] {
-				t.Logf("Validate card %s", card)
-				cardName := card
-				for {
-					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(cardName).Parent().State())
+			// Validate parent component.
+			for _, comp := range compList[tc.desc] {
+				t.Logf("Validate component %s", comp)
+				visited := make(map[string]bool)
+				for curr := comp; ; {
+					if visited[curr] {
+						t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
+						break
+					}
+					visited[curr] = true
+					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
 					val, present := parent.Val()
 					if !present {
-						t.Fatalf("Parent not present for %q: got %v, want true", card, parent.IsPresent())
-					} else {
-						got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
-						if tc.desc == "SwitchChip" || tc.desc == "FabricChip" {
-							if got == componentParent["FabricChip"] || got == componentParent["SwitchChip"] {
-								t.Logf("Got expected parent for card %s", card)
-								break
-							}
-						} else {
-							if got == tc.parent {
-								t.Logf("Got expected parent for card %s", card)
-								break
-							}
-						}
-
+						t.Errorf("Chassis component NOT found in the hierarchy tree of component %s", comp)
+						break
 					}
-					parentName := gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
-					cardName = parentName
+					got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+					if got == chassisType {
+						t.Logf("Found chassis component in the hierarchy tree of component %s", comp)
+						break
+					}
+					// Not reached chassis yet; go one level up.
+					curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
 				}
-
 			}
-
 		})
 	}
 }
@@ -490,12 +491,15 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-			t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
+		if !*deviations.MissingCPUMfgName {
+			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
+				t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
+			} else {
+				t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
+			}
 		} else {
-			t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
+			t.Logf("Check MfgName for CPU %s is skipped due to MissingCPUMfgName deviation", cpu)
 		}
-
 		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
@@ -558,6 +562,9 @@ func TestAFT(t *testing.T) {
 }
 
 func TestLacpMember(t *testing.T) {
+	if !*args.LACPBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for LACP is not present")
+	}
 	dut := ondatra.DUT(t, "dut")
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
@@ -656,6 +663,7 @@ func TestP4rtInterfaceID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Id = ygot.Uint32(tc.portID)
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 
 			// Check path /interfaces/interface/state/id.
