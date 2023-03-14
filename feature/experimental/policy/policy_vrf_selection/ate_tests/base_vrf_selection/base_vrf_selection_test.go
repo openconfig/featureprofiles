@@ -163,7 +163,7 @@ func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subintfindex uint
 }
 
 // Configure Network instance on the DUT
-func configNetworkInstance(name string, intf string, id string) *oc.NetworkInstance {
+func configNetworkInstance(name, intf, id string) *oc.NetworkInstance {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(name)
 
@@ -191,13 +191,13 @@ func configDefaultRoute(t *testing.T, dut *ondatra.DUTDevice, v4prefix, v4nextho
 }
 
 // configvrfRoute configures a static route.
-func configvrfRoute(t *testing.T, dut *ondatra.DUTDevice, v4prefix string, v4nexthop string) {
+func configVRFRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix string, v4Nexthop string) {
 	t.Logf("*** Configuring static route in VRF-10 network-instance ...")
 	ni := oc.NetworkInstance{Name: ygot.String("VRF-10")}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-	sr := static.GetOrCreateStatic(v4prefix)
+	sr := static.GetOrCreateStatic(v4Prefix)
 	nh := sr.GetOrCreateNextHop("0")
-	nh.NextHop = oc.UnionString(v4nexthop)
+	nh.NextHop = oc.UnionString(v4Nexthop)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance("VRF-10").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
