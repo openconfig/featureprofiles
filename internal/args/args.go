@@ -30,4 +30,6 @@ var (
 	P4RTNodeName2           = flag.String("arg_p4rt_node_name_2", "", "The P4RT Node Name for the second FAP. Test that reserves ports in two different FAPs should configure this P4RT Node in addition to the Node defined in P4RTNodeName1. The value will only be used if deviation ExplicitP4RTNodeComponent is applied.")
 	FullConfigReplaceTime   = flag.Duration("arg_full_config_replace_time", 0, "Time taken for gNMI set operation to complete full configuration replace. Expected duration is in nanoseconds. Expectation is not checked when value is 0.")
 	SubsetConfigReplaceTime = flag.Duration("arg_subset_config_replace_time", 0, "Time taken for gNMI set operation to modify a subset of configuration. Expected duration is in nanoseconds. Expectation is not checked when value is 0.")
+	QoSBaseConfigPresent    = flag.Bool("arg_qos_baseconfig_present", true, "QoS Counter subtest in gNMI-1.10 requires related base config to be loaded. Use this flag to skip the when base config is not loaded.")
+	LACPBaseConfigPresent   = flag.Bool("arg_lacp_baseconfig_present", true, "LACP subtest in gNMI-1.10 requires related base config to be loaded. Use this flag to skip the test when base config is not loaded.")
 )
