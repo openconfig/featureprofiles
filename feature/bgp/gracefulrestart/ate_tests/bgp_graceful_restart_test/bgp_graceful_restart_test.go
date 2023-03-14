@@ -505,7 +505,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		t.Log("Starting traffic")
 		ate.Traffic().Start(t, allFlows...)
 		startTime := time.Now()
-		t.Log("Trigger Graceful Restart on TGN")
+		t.Log("Trigger Graceful Restart on ATE")
 		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime).WithPeers(bgpPeer).Send(t)
 		gnmi.Replace(t, dut, aclConf.Config(), iFace)
 		replaceDuration := time.Since(startTime)
