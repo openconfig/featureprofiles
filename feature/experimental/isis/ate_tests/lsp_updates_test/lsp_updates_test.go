@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 func TestOverloadBit(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
 	// Only push DUT config - no adjacency established yet
-	if err := ts.PushDUT(t, context.Background()); err != nil {
+	if err := ts.PushDUT(context.Background(), t); err != nil {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
 	isisPath := session.ISISPath()
@@ -71,7 +71,7 @@ func TestOverloadBit(t *testing.T) {
 		GetGlobal().
 		GetOrCreateLspBit().
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
-	ts.PushDUT(t, context.Background())
+	ts.PushDUT(context.Background(), t)
 	// TODO: Verify the link state database once device support is added.
 	if err := check.Equal(overloads.State(), uint32(olVal+1)).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
 		t.Error(err)

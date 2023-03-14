@@ -55,7 +55,7 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator
 func TestBasic(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
 	// Only push DUT config - no adjacency established yet
-	if err := ts.PushDUT(t, context.Background()); err != nil {
+	if err := ts.PushDUT(context.Background(), t); err != nil {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
 	isisRoot := session.ISISPath()

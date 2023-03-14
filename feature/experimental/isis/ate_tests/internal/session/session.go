@@ -235,7 +235,7 @@ func (s *TestSession) ConfigISIS(ocFn func(*oc.NetworkInstance_Protocol_Isis), a
 // devices.
 func (s *TestSession) PushAndStart(t testing.TB) error {
 	t.Helper()
-	if err := s.PushDUT(t, context.Background()); err != nil {
+	if err := s.PushDUT(context.Background(), t); err != nil {
 		return err
 	}
 	s.PushAndStartATE(t)
@@ -244,7 +244,7 @@ func (s *TestSession) PushAndStart(t testing.TB) error {
 
 // PushDUT replaces DUT config with s.dutConf. Only interfaces and the ISIS
 // protocol are written.
-func (s *TestSession) PushDUT(t testing.TB, ctx context.Context) error {
+func (s *TestSession) PushDUT(ctx context.Context, t testing.TB) error {
 	// Push the interfaces
 	for name, conf := range s.DUTConf.Interface {
 		_, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().Interface(name).Config(), conf)
