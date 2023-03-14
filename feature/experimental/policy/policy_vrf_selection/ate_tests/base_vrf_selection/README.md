@@ -62,7 +62,7 @@ Test different VRF selection policies.
 * Test-Case 4
           
         *  Configure DUT to match on IPv6inIP protocol (protocol number 41 in the outer IPv4 header) with specific 
-           outer IPv4 source address "222.222.222.222" and punt it to the network-instance VRF-10. 
+           outer IPv4 source address "198.18.0.1" and punt it to the network-instance VRF-10. 
            All other traffic should be punted to the Default VRF. These will be, IPv6inIP without source as 
            "198.18.0.1", native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic 
            with and without "198.18.0.1" as source.
