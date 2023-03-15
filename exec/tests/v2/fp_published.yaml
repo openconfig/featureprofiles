@@ -305,6 +305,7 @@ tests:
       - '-deviation_missing_interface_physical_channel="true"'
       - '-deviation_missing_interface_hardware_port="true"'
       - '-deviation_missing_cpu_mfgName="true"'
+      - '-deviation_explicit_p4rt_node_component="true"'
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
   owners:
