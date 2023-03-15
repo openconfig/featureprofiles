@@ -24,4 +24,24 @@ message Metadata {
   string plan_id = 2;
   // One-line description of the test.
   string description = 3;
+  // Device types the test is expected to support.
+  repeated DeviceType supported_devices = 4;
+  // Device-specific deviation args required for test to pass.
+  repeated Deviation deviations = 5;
 }
+
+message Deviation {
+  // Device type the deviations apply to.
+  DeviceType device_type = 1;
+  // List of command-line deviation argument flags
+  repeated string deviation_arg = 2;
+}
+
+enum DeviceType {
+  UNKNOWN = 0;
+  ARISTA_CEOS = 1;
+  CISCO_E8000 = 2;
+  JUNIPER_CEVO = 3;
+  NOKIA_SRL = 4;
+}
+
