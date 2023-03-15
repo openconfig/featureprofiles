@@ -17,6 +17,7 @@ package base_vrf_selection_test
 import (
 	"testing"
 	"time"
+	"strconv"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -172,7 +173,7 @@ func configNetworkInstance(name string, intf *oc.Interface, id uint32) *oc.Netwo
 	ni := d.GetOrCreateNetworkInstance(name)
 
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	niIntf := ni.GetOrCreateInterface(*intf.Name)
+	niIntf := ni.GetOrCreateInterface(*intf.Name + "." + strconv.Itoa(int(id)))
 	niIntf.Subinterface = ygot.Uint32(id)
 	niIntf.Interface = ygot.String(*intf.Name)
 
