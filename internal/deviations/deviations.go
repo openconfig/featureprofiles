@@ -175,10 +175,29 @@ var (
 	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
 
+	MissingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
+		"Device does not support interface/physicalchannel leaf. Set this flag to skip checking the leaf.")
+
+	MissingInterfaceHardwarePort = flag.Bool("deviation_missing_interface_hardware_port", false,
+		"Device does not support interface/hardwareport leaf. Set this flag to skip checking the leaf.")
+
+	MissingCPUMfgName = flag.Bool("deviation_missing_cpu_mfgName", false,
+		"Device does not support component/MfgName leaf for CPU components. Set this flag to skip skip checking the leaf.")
+
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
 	BGPPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
 
 	BGPTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
+
+	ExplicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
+		"Device requires gribi-protocol to be enabled under network-instance.")
+
+	BGPMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
+
+	QOSDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
+
+	SkipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
+		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 )

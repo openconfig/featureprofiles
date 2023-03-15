@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-// writeCSV writes the testsuite as CSV, with the columns "Feature", "ID", "Desc", and
+// listCSV writes the testsuite as CSV, with the columns "Feature", "ID", "Desc", and
 // "Test Path".
-func writeCSV(w io.Writer, featuredir string, ts testsuite) error {
+func listCSV(w io.Writer, featuredir string, ts testsuite) error {
 	rootdir := filepath.Dir(featuredir)
 
 	cw := csv.NewWriter(w)
