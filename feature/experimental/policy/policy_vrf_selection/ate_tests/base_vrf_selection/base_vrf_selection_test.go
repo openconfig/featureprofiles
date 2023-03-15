@@ -15,9 +15,9 @@
 package base_vrf_selection_test
 
 import (
+	"strconv"
 	"testing"
 	"time"
-	"strconv"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
