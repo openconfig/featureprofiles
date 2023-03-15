@@ -47,6 +47,7 @@ var (
 		"telemetry model-driven", "routing isis",
 	}
 	pipedCmds = []string{
+		"show grpc trace all",
 		"show telemetry model-driven trace all",
 		"show cef global gribi aft internal location all",
 		"show version",
