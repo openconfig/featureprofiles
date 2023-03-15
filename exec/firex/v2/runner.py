@@ -344,7 +344,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
         return None, xunit_results_filepath, log_file, start_time, stop_time
 
-@app.task(bind=True)
+@app.task(bind=True, max_retries=5, autoretry_for=[CommandFailed])
 def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=None):
     if Path(target_dir).exists():
         logger.warning(f'The target directory "{target_dir}" already exists; removing first')
