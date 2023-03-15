@@ -199,7 +199,7 @@ func TestHardwarecards(t *testing.T) {
 			fwVerValidation:       false,
 			rrValidation:          false,
 			operStatus:            activeStatus,
-			parentValidation:      true,
+			parentValidation:      false,
 			pType:                 fanType,
 		},
 	}, {
@@ -216,7 +216,7 @@ func TestHardwarecards(t *testing.T) {
 			fwVerValidation:       false,
 			rrValidation:          false,
 			operStatus:            activeStatus,
-			parentValidation:      false,
+			parentValidation:      true,
 			pType:                 linecardType,
 		},
 	}, {
@@ -251,7 +251,7 @@ func TestHardwarecards(t *testing.T) {
 			fwVerValidation:       false,
 			rrValidation:          true,
 			operStatus:            activeStatus,
-			parentValidation:      false,
+			parentValidation:      true,
 			pType:                 supervisorType,
 		},
 	}, {
@@ -269,7 +269,7 @@ func TestHardwarecards(t *testing.T) {
 			fwVerValidation:       false,
 			rrValidation:          false,
 			operStatus:            "",
-			parentValidation:      true,
+			parentValidation:      false,
 			pType:                 transceiverType,
 		},
 	}}
@@ -360,7 +360,7 @@ func TestSwitchChip(t *testing.T) {
 		hwVerValidation:       false,
 		fwVerValidation:       !*deviations.MissingFirmwareVersion,
 		operStatus:            "",
-		parentValidation:      false,
+		parentValidation:      true,
 		pType:                 switchChipType,
 	}
 
