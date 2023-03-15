@@ -132,6 +132,9 @@ func configureDeviceIDs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 		c.IntegratedCircuit.NodeId = ygot.Uint64(deviceIDs[idx])
 		gnmi.Replace(t, dut, gnmi.OC().Component(nodes[p]).Config(), &c)
 	}
+	if nodes["port1"] == nodes["port2"] {
+		t.Fatalf("The test requires two DUT ports located on different P4RT Nodes, cannot proceed. Node IDs found: %q for port1 %q and %q for port2 %q", nodes["port1"], dut.Port(t, "port1"), nodes["port2"], dut.Port(t, "port2"))
+	}
 }
 
 // sortPorts sorts the ports by the testbed port ID.

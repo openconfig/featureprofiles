@@ -116,7 +116,6 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 func configureDeviceIDs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	nodes := p4rtutils.P4RTNodesByPort(t, dut)
 	deviceIDs := []uint64{deviceId1, deviceId2}
-
 	for idx, p := range []string{"port1", "port2"} {
 		if _, ok := nodes[p]; !ok {
 			t.Fatalf("Couldn't find P4RT Node for port: %s", p)
@@ -127,6 +126,9 @@ func configureDeviceIDs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 		c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 		c.IntegratedCircuit.NodeId = ygot.Uint64(deviceIDs[idx])
 		gnmi.Replace(t, dut, gnmi.OC().Component(nodes[p]).Config(), &c)
+	}
+	if nodes["port1"] == nodes["port2"] {
+		t.Fatalf("The test requires two DUT ports located on different P4RT Nodes, cannot proceed. Node IDs found: %q for port1 %q and %q for port2 %q", nodes["port1"], dut.Port(t, "port1"), nodes["port2"], dut.Port(t, "port2"))
 	}
 }
 
