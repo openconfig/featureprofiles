@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/acl"
+	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -78,6 +79,8 @@ const (
 )
 
 var (
+	bgpPeer *ixnet.BGPPeer
+
 	dutSrc = attrs.Attributes{
 		Desc:    "DUT to ATE source",
 		IPv4:    "192.0.2.1",
@@ -237,7 +240,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Get BGP adjacency state
 	t.Log("Waiting for BGP neighbor to establish...")
-	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		currState, ok := val.Val()
 		return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
@@ -248,7 +251,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Get BGPv6 adjacency state
 	t.Log("Waiting for BGPv6 neighbor to establish...")
-	_, ok = gnmi.Watch(t, dut, nbrPathv6.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+	_, ok = gnmi.Watch(t, dut, nbrPathv6.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		currState, ok := val.Val()
 		return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
@@ -311,8 +314,10 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 		WithTypeExternal().Capabilities().WithGracefulRestart(true)
 
 	bgpDut2 := ifDut2.BGP()
-	bgpDut2.AddPeer().WithPeerAddress(dutDst.IPv4).WithLocalASN(ateAS).
-		WithTypeExternal().Capabilities().WithGracefulRestart(true)
+	bgpPeer = bgpDut2.AddPeer().WithPeerAddress(dutDst.IPv4).WithLocalASN(ateAS).
+		WithTypeExternal()
+	bgpPeer.Capabilities().WithGracefulRestart(true)
+
 	bgpDut2.AddPeer().WithPeerAddress(dutDst.IPv6).WithLocalASN(ateAS).
 		WithTypeExternal().Capabilities().WithGracefulRestart(true)
 
@@ -500,6 +505,8 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		t.Log("Starting traffic")
 		ate.Traffic().Start(t, allFlows...)
 		startTime := time.Now()
+		t.Log("Trigger Graceful Restart on ATE")
+		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime).WithPeers(bgpPeer).Send(t)
 		gnmi.Replace(t, dut, aclConf.Config(), iFace)
 		replaceDuration := time.Since(startTime)
 		time.Sleep(grTimer - stopDuration - replaceDuration)
