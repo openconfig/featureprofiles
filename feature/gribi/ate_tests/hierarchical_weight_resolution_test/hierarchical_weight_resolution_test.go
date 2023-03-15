@@ -52,10 +52,10 @@ type nhInfo struct {
 
 const (
 	ipv4PrefixLen   = 30
-	ipv4EntryPrefix = "198.18.196.0/22"
-	ipv4FlowIPStart = "198.18.196.0"
+	ipv4EntryPrefix = "198.18.192.0/21"
+	ipv4FlowIPStart = "198.18.192.0"
 	ipv4FlowIPEnd   = "198.18.199.255"
-	ipv4FlowCount   = 1024
+	ipv4FlowCount   = 2048
 	nhEntryIP1      = "192.0.2.111"
 	nhEntryIP2      = "192.0.2.222"
 	nonDefaultVRF   = "VRF-1"
