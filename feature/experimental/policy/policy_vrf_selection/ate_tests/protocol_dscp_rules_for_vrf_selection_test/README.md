@@ -36,6 +36,14 @@ Ensure packets with only expected DSCPs reach each egress port.
 ### Case #3: 
 
 * Rules: 
+
+    * Protocol IPinIP, DSCP 10, 11, 12 to network-instance 10 
+    * Protocol IPinIP, DSCP 10, 11, 12 to network-instance 20 
+
+It's ok that some NOS does not support this config (duplicated matching conditions) and rejects it. If the DUT does accept the config, ensure that the first matching take precedence (packets are only received in network-instance 10).
+
+### Case #4: 
+* Rules: 
     * Protocol IPinIP to network-instance 10 
     * Protocol IPinIP, DSCP 20 to network-instance 20 
 
