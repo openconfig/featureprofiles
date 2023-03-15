@@ -173,6 +173,8 @@ func TestBackupNHGAction(t *testing.T) {
 
 	// Configure DUT
 	configureDUT(t, dut)
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	configureNetworkInstance(t, dut)
 	addStaticRoute(t, dut)
 
