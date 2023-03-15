@@ -314,6 +314,7 @@ func validateRWResp(t *testing.T, args *testArgs) bool {
 func removeClient(handle *p4rt_client.P4RTClient) {
 	handle.StreamChannelDestroy(&streamName)
 	handle.ServerDisconnect()
+	time.Sleep(1 * time.Second)
 }
 
 // Test client with unset electionId
