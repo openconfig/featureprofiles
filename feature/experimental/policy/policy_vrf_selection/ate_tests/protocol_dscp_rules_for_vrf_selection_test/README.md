@@ -36,15 +36,6 @@ Ensure packets with only expected DSCPs reach each egress port.
 ### Case #3: 
 
 * Rules: 
-
-    * Protocol IPinIP, DSCP 10, 11, 12 to network-instance 10 
-    * Protocol IPinIP, DSCP 10, 11, 12 to network-instance 20 
-
-Ensure that packets are only received in network-instance 10. Ensure that with overlapping rules, first rule takes precedence. 
-
-### Case #4: 
-
-* Rules: 
     * Protocol IPinIP to network-instance 10 
     * Protocol IPinIP, DSCP 20 to network-instance 20 
 
