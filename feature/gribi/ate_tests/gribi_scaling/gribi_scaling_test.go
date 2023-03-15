@@ -433,12 +433,17 @@ func TestScaling(t *testing.T) {
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	createVrf(t, dut, d, vrfs)
+	if *deviations.InterfaceConfigVrfBeforeAddress {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), vrf1, 0)
+	}
 	// configure an L3 subinterface of no vlan tagging under DUT port#1
 	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4)
 	configureInterfaceDUT(t, dp1, d, "src")
 	configureATE(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4CIDR())
 	pushConfig(t, dut, dp1, d)
-	fptest.AssignToNetworkInstance(t, dut, dp1.Name(), vrf1, 0)
+	if !*deviations.InterfaceConfigVrfBeforeAddress {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), vrf1, 0)
+	}
 	dp2 := dut.Port(t, "port2")
 	ap2 := ate.Port(t, "port2")
 	// subIntfIPs is the ATE IPv4 addresses for all the subInterfaces
