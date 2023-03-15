@@ -601,7 +601,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		input.SetInputType(tc.inputType)
 		input.SetQueue(tc.queueName)
 		input.SetWeight(tc.weight)
-		if *deviations.SchedulerInputParamsUnsupported {
+		if !*deviations.SchedulerInputParamsUnsupported {
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		}
 	}
@@ -653,7 +653,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		if *deviations.SchedulerInputParamsUnsupported {
+		if !*deviations.SchedulerInputParamsUnsupported {
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		}
 	}
