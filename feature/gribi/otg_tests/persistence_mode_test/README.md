@@ -1,4 +1,4 @@
-# TE-4.2: Leader Failover
+# TE-4.2: Persistence Mode
 
 ## Summary
 
