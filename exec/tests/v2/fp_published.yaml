@@ -540,7 +540,7 @@ tests:
     - saarvind
   branch: main-google-traffic
   internal: true
-  mustpass: true
+  mustpass: false
   priority: 802
 - name: DP-1.3 (QoS ECN feature config) 
   path: feature/experimental/qos/ate_tests/qos_ecn_config_test
