@@ -41,9 +41,9 @@ import (
 var (
 	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName            = "p4rt"
-	deviceID              = *ygot.Uint64(1)
-	portId                = *ygot.Uint32(10)
-	electionId            = *ygot.Uint64(100)
+	deviceID              = uint64(1)
+	portId                = uint32(10)
+	electionId            = uint64(100)
 	METADATA_INGRESS_PORT = uint32(1)
 	METADATA_EGRESS_PORT  = uint32(2)
 	TTL1                  = uint8(1)
