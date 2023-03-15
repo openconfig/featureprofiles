@@ -32,6 +32,8 @@
 ##Exec server:
 #ssh ott2lab-as3
 
+##PDU IP Address 5.18.8.240 outlets 9,10,19
+
 ## Consoe server:
 # telnet 10.85.84.53
 # Pass1: lab
