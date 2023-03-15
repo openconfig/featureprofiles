@@ -205,9 +205,9 @@ var (
 
 	MfgDateIsMissing = flag.Bool("deviation_mfg_date_missing", true, "Manufacture date is missing for some of the components. Use this flag to skip the related validation.")
 
-	MissingPartNumber = flag.Bool("deviation_missing_part_number", true, "Part number is missing for some of the components. Use this flag to skip the related validation.")
+	MissingPartNumber = flag.Bool("deviation_missing_part_number", false, "Part number is missing for some of the components. Use this flag to skip the related validation.")
 
-	MissingFirmwareVersion = flag.Bool("deviation_missing_firmware_version", true, "Firmware Version is missing for some of the components. Use this flag to skip the related validation.")
+	MissingFirmwareVersion = flag.Bool("deviation_missing_firmware_version", false, "Firmware Version is missing for some of the components. Use this flag to skip the related validation.")
 
-	MissingSerialNumber = flag.Bool("deviation_missing_serial_number", true, "Serial number is missing for some of the components. Use this flag to skip the related validation.")
+	MissingSerialNumber = flag.Bool("deviation_missing_serial_number", false, "Serial number is missing for some of the components. Use this flag to skip the related validation.")
 )
