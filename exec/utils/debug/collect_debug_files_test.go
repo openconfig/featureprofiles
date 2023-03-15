@@ -44,9 +44,7 @@ var (
 		"service-layer", "grpc", "spi", "hw-ac", "bundles", "cfgmgr",
 		"ctrace", "ethernet interfaces", "fabric link-include", "p4rt",
 		"interface", "optics", "pfi", "platform-fwd", "rdsfs", "sysdb",
-	}
-	showTech = []string{
-		"telemetry model-driven",
+		"telemetry model-driven", "routing isis",
 	}
 	pipedCmds = []string{
 		"show telemetry model-driven trace all",
@@ -82,10 +80,6 @@ func TestCollectDebugFiles(t *testing.T) {
 
 	for _, t := range showTechSupport {
 		commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, getTechFileName(t)))
-	}
-
-	for _, t := range showTech {
-		commands = append(commands, fmt.Sprintf("show tech %s file %s", t, getTechFileName(t)))
 	}
 
 	for _, t := range pipedCmds {
