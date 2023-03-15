@@ -386,7 +386,7 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 		targetGroup string
 	}{{
 		desc:        "scheduler-policy-BE1",
-		sequence:    uint32(6),
+		sequence:    uint32(1),
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
@@ -395,7 +395,7 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
-		sequence:    uint32(5),
+		sequence:    uint32(1),
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
@@ -404,7 +404,7 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
-		sequence:    uint32(4),
+		sequence:    uint32(1),
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
@@ -413,7 +413,7 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
-		sequence:    uint32(3),
+		sequence:    uint32(1),
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
@@ -422,7 +422,7 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
-		sequence:    uint32(2),
+		sequence:    uint32(1),
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
@@ -431,7 +431,7 @@ func TestSchedulerPoliciesConfig(t *testing.T) {
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
-		sequence:    uint32(1),
+		sequence:    uint32(0),
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
@@ -522,9 +522,8 @@ func TestECNConfig(t *testing.T) {
 	uniform.SetDrop(ecnConfig.dropEnabled)
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
-	// TODO: uncomment the following config after it is supported.
-	// uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	// uniform.SetWeight(ecnConfig.weight)
+	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+	uniform.SetWeight(ecnConfig.weight)
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)

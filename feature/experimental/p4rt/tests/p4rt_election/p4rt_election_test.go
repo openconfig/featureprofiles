@@ -16,6 +16,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -92,10 +93,17 @@ func configureDeviceId(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
-// configurePortId configures p4rt port-id on the DUT.
+// configurePortId configures p4rt port-id and interface type on the DUT.
 func configurePortId(t *testing.T, dut *ondatra.DUTDevice) {
+	d := gnmi.OC()
 	portName := dut.Port(t, "port1").Name()
-	gnmi.Replace(t, dut, gnmi.OC().Interface(portName).Id().Config(), portId)
+	currIntf := &oc.Interface{
+		Name: ygot.String(portName),
+		Type: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Id:   &portId,
+	}
+	gnmi.Replace(t, dut, d.Interface(portName).Config(), currIntf)
+
 }
 
 // Create client connection
@@ -305,33 +313,84 @@ func removeClient(handle *p4rt_client.P4RTClient) {
 	handle.ServerDisconnect()
 }
 
-// Test Zero client with 0 electionID
-func TestZeroMaster(t *testing.T) {
+// Test client with unset electionId
+func TestUnsetElectionid(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDeviceId(t, dut)
 	configurePortId(t, dut)
-	test := testArgs{
-		desc:       pDesc,
-		lowID:      inId0,
-		highID:     inId0,
-		handle:     clientConnection(t, dut),
-		deviceID:   deviceId,
-		wantFail:   true,
-		wantStatus: 3,
+	clients := []testArgs{
+		{
+			desc:       pDesc,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantStatus: int32(codes.NotFound),
+		}, {
+			desc:       sDesc,
+			handle:     clientConnection(t, dut),
+			deviceID:   deviceId,
+			wantStatus: int32(codes.NotFound),
+		},
 	}
-	t.Run(test.desc, func(t *testing.T) {
-		resp, err := streamP4RTArb(&test)
-		if err == nil && test.wantFail {
-			t.Errorf("Zero ElectionID (0,0) is allowed: %v", err)
-			removeClient(test.handle)
-		} else {
-			t.Logf("Zero ElectionID (0,0) connection failed as expected: %v", err)
-		}
-		// Validate status code
-		if resp != test.wantStatus {
-			t.Errorf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
-		}
-	})
+	// Connect 2 clients to same deviceId with unset electionId.
+	for _, test := range clients {
+		t.Run(test.desc, func(t *testing.T) {
+			streamParameter := p4rt_client.P4RTStreamParameters{
+				Name:     streamName,
+				DeviceId: test.deviceID,
+			}
+			if test.handle != nil {
+				test.handle.StreamChannelCreate(&streamParameter)
+				if err := test.handle.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+					Update: &p4_v1.StreamMessageRequest_Arbitration{
+						Arbitration: &p4_v1.MasterArbitrationUpdate{
+							DeviceId: test.deviceID,
+						},
+					},
+				}); err != nil {
+					t.Fatalf("Errors while sending Arbitration Request with unset Election ID: %v", err)
+				}
+			}
+			time.Sleep(1 * time.Second)
+			// Validate the return status code for MasterArbitration.
+			resp, err := getRespCode(&test)
+			if resp != test.wantStatus {
+				t.Fatalf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
+			}
+			if err != nil {
+				t.Errorf("Errors seen in ClientArbitration response: %v", err)
+			}
+			t.Logf("Arbitration response status code is as expected for unset ElectionId")
+			// Verify GetForwardingPipeline for unset electionId.
+			_, err = test.handle.GetForwardingPipelineConfig(&p4_v1.GetForwardingPipelineConfigRequest{
+				DeviceId:     deviceId,
+				ResponseType: p4_v1.GetForwardingPipelineConfigRequest_P4INFO_AND_COOKIE,
+			})
+			if err != nil {
+				t.Errorf("Errors seen when sending GetForwardingPipelineConfig: %v", err)
+			}
+			p4Info, err := utils.P4InfoLoad(p4InfoFile)
+			if err != nil {
+				t.Errorf("Errors seen when loading p4info file: %v", err)
+			}
+			//  Verify SetForwardingPipeline fails for unset electionId.
+			if err = test.handle.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+				DeviceId: deviceId,
+				Action:   p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+				Config: &p4_v1.ForwardingPipelineConfig{
+					P4Info: &p4Info,
+					Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
+						Cookie: 159,
+					},
+				},
+			}); err == nil {
+				t.Errorf("SetForwardingPipelineConfig accepted for unset Election ID: %v", err)
+			}
+		})
+	}
+	// Disconnect all clients.
+	for _, test := range clients {
+		removeClient(test.handle)
+	}
 }
 
 // Test Primary Reconnect

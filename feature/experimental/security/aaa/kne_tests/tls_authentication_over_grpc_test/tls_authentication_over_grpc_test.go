@@ -38,8 +38,7 @@ import (
 )
 
 const (
-	sshPort  = 22
-	gnmiPort = 6030
+	sshPort = 22
 )
 
 func TestMain(m *testing.M) {
@@ -55,7 +54,16 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
 	}
 }
 
-func gnmiClient(ctx context.Context, sshIP string) (gpb.GNMIClient, error) {
+func gnmiClient(ctx context.Context, sshIP string, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
+	// TODO(greg-dennis): Remove hard-coded gNMI port.
+	var gnmiPort int
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		gnmiPort = 9339
+	default:
+		gnmiPort = 6030
+	}
+
 	conn, err := grpc.DialContext(
 		ctx,
 		fmt.Sprintf("%s:%d", sshIP, gnmiPort),
@@ -130,11 +138,29 @@ func TestAuthentication(t *testing.T) {
 				context.Background(),
 				"username", tc.user,
 				"password", tc.pass)
-			gnmi, err := gnmiClient(ctx, sshIP)
+			gnmi, err := gnmiClient(ctx, sshIP, dut)
 			if err != nil {
 				t.Fatal(err)
 			}
-
+			t.Log("Configuring hostname using GNMI Set")
+			_, err = gnmi.Set(ctx, &gpb.SetRequest{
+				Replace: []*gpb.Update{{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "system"}, {Name: "config"}, {Name: "hostname"}},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: []byte("\"ondatraDUT\"")},
+					},
+				}},
+			})
+			if tc.wantErr != (err != nil) {
+				if tc.wantErr {
+					t.Errorf("gnmi.Set nil error when error expected for user %q", tc.user)
+				} else {
+					t.Errorf("gnmi.Set unexpected error for user %q: %v", tc.user, err)
+				}
+			}
 			t.Log("Trying credentials with GNMI Get")
 			_, err = gnmi.Get(ctx, &gpb.GetRequest{
 				Path: []*gpb.Path{{
