@@ -194,7 +194,7 @@ func configDefaultRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHo
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
-// configvrfRoute configures a static route.
+// configVRFRoute configures a static route in VRF.
 func configVRFRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop string) {
 	t.Logf("*** Configuring static route in VRF-10 network-instance ...")
 	ni := oc.NetworkInstance{Name: ygot.String("VRF-10")}
@@ -236,7 +236,7 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	return policyFwding
 }
 
-// Apply forwarding policy on the interface.
+// applyForwardingPolicy applies the forwarding policy on the interface.
 func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, matchType string) {
 	t.Logf("*** Applying forwarding policy %v on interface %v ... ", matchType, ingressPort)
 
@@ -313,7 +313,6 @@ func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	// Create traffic flows.
 	t.Logf("*** Configuring ATE flows ...")
 
-	// allFlows := new(trafficFlows)
 	return &trafficFlows{
 		ipInIPFlow1:   ate.Traffic().NewFlow("ipInIPFlow1").WithSrcEndpoints(i1).WithHeaders(ethHeader, ipipHeader2, ipv4Header).WithFrameSize(512).WithFrameRatePct(5).WithDstEndpoints(i2),
 		ipInIPFlow2:   ate.Traffic().NewFlow("ipInIPFlow2").WithSrcEndpoints(i1).WithHeaders(ethHeader, ipipHeader3, ipv4Header).WithFrameSize(512).WithFrameRatePct(5).WithDstEndpoints(i3),
@@ -368,7 +367,7 @@ func contains(item *ondatra.Flow, items []*ondatra.Flow) bool {
 }
 
 // verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%).
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, passFlows []*ondatra.Flow) {
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows, passFlows []*ondatra.Flow) {
 	for _, flow := range flows {
 		t.Logf("*** Verifying %v traffic on ATE ... ", flow.Name())
 		captureTrafficStats(t, ate, flow.Name(), false)
