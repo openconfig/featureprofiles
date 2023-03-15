@@ -202,4 +202,12 @@ var (
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
 	SchedulerInputParamsUnsupported = flag.Bool("deviation_scheduler_input_params_unsupported", false, "Device does not support scheduler input parameters")
+
+	MfgDateIsMissing = flag.Bool("deviation_mfg_date_missing", true, "Manufacture date is missing for some of the components. Use this flag to skip the related validation.")
+
+	MissingPartNumber = flag.Bool("deviation_missing_part_number", true, "Part number is missing for some of the components. Use this flag to skip the related validation.")
+
+	MissingFirmwareVersion = flag.Bool("deviation_missing_firmware_version", true, "Firmware Version is missing for some of the components. Use this flag to skip the related validation.")
+
+	MissingSerialNumber = flag.Bool("deviation_missing_serial_number", true, "Serial number is missing for some of the components. Use this flag to skip the related validation.")
 )

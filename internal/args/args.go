@@ -32,4 +32,6 @@ var (
 	SubsetConfigReplaceTime = flag.Duration("arg_subset_config_replace_time", 0, "Time taken for gNMI set operation to modify a subset of configuration. Expected duration is in nanoseconds. Expectation is not checked when value is 0.")
 	QoSBaseConfigPresent    = flag.Bool("arg_qos_baseconfig_present", true, "QoS Counter subtest in gNMI-1.10 requires related base config to be loaded. Use this flag to skip the when base config is not loaded.")
 	LACPBaseConfigPresent   = flag.Bool("arg_lacp_baseconfig_present", true, "LACP subtest in gNMI-1.10 requires related base config to be loaded. Use this flag to skip the test when base config is not loaded.")
+	TempSensorNamePattern   = flag.String("arg_temp_sensor_name_pattern", "^[0-9]/RP[0-9]/CPU[0-9].*TEMP.*", "There is no component type specifically for temperature sensors. So, we use the name pattern to find them.")
+	SwitchChipNamePattern   = flag.String("arg_switchchip_name_pattern", "^[0-9]/[0-9]/CPU[0-9]-NPU[0-9]", "There is no component type specifically for SwitchChip components. So, we use the name pattern to find them.")
 )
