@@ -64,7 +64,7 @@ Different test scenarios requires different setups.
         OuterDstIP_1/32 {VRF-B} --> NHG#102
 
         NHG#104 --> [NH#104 {next-hop: VIP-2}, backupNHG: NHG#103]
-        OuterDstIP_1/32 {VRF-C} --> NHG#104
+        OuterDstIP_2/32 {VRF-C} --> NHG#104
         ```
 
 ## Procedure
