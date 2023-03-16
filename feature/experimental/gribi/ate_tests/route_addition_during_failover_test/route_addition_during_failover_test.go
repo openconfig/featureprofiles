@@ -86,7 +86,6 @@ var (
 		IPv4:    "192.0.2.1",
 		IPv4Len: ipv4PrefixLen,
 	}
-
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		IPv4:    "192.0.2.2",
@@ -96,9 +95,9 @@ var (
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
 	}
-	vendorCoreFileNamePattern = map[ondatra.Vendor]string{
-		ondatra.JUNIPER: "rpd.*core.*",
-		ondatra.CISCO:   "emsd.*core.*",
+	vendorCoreFileNamePattern = map[ondatra.Vendor]*regexp.Regexp{
+		ondatra.JUNIPER: regexp.MustCompile("rpd.*core*"),
+		ondatra.CISCO:   regexp.MustCompile("emsd.*core.*"),
 	}
 	fibProgrammedEntries []string
 )
@@ -119,6 +118,8 @@ var ipBlock1FlowArgs = &flowArgs{
 
 // coreFileCheck function is used to check if cores are found on the DUT.
 func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64) {
+	t.Helper()
+
 	// vendorCoreFilePath and vendorCoreProcName should be provided to fetch core file on dut.
 	if _, ok := vendorCoreFilePath[dut.Vendor()]; !ok {
 		t.Fatalf("Please add support for vendor %v in var vendorCoreFilePath ", dut.Vendor())
@@ -132,14 +133,14 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 	}
 	validResponse, err := gnoiClient.File().Stat(context.Background(), in)
 	if err != nil {
-		t.Errorf("Unable to stat path %v for core files on DUT, %v", vendorCoreFilePath[dut.Vendor()], err)
+		t.Fatalf("Unable to stat path %v for core files on DUT, %v", vendorCoreFilePath[dut.Vendor()], err)
 	}
 	// Check cores creation time is greater than test start time.
 	for _, fileStatsInfo := range validResponse.GetStats() {
 		if fileStatsInfo.GetLastModified() > sysConfigTime {
 			coreFileName := fileStatsInfo.GetPath()
-			r := regexp.MustCompile(vendorCoreFileNamePattern[dut.Vendor()])
-			if r.Match([]byte(coreFileName)) {
+			r := vendorCoreFileNamePattern[dut.Vendor()]
+			if r.MatchString(coreFileName) {
 				t.Errorf("Found core %v on DUT.", coreFileName)
 			}
 		}
@@ -259,9 +260,8 @@ func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc
 	t.Logf("DUT port %s configured", dutPort)
 }
 
-// generateSubIntfPair takes the number of subInterfaces, dut,ate,ports and Ixia topology.
-// This function configures ATE/DUT SubInterfaces on the target device and returns a slice of the
-// corresponding ATE IPAddresses.
+// generateSubIntfPair configures ATE/DUT SubInterfaces on the target device and returns
+// a slice of the corresponding ATE IPAddresses.
 func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, ate *ondatra.ATEDevice, atePort *ondatra.Port, top *ondatra.ATETopology, d *oc.Root) []string {
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
@@ -317,6 +317,8 @@ func configureATE(t *testing.T, top *ondatra.ATETopology, atePort *ondatra.Port,
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
 func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, timeout time.Duration) error {
+	t.Helper()
+
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return c.Await(subctx, t)
@@ -335,6 +337,8 @@ type testArgs struct {
 // createTrafficFlow generates traffic flow from source network to destination network via
 // srcEndPoint to dstEndPoint and checks for packet loss.
 func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, flowArgs *flowArgs) *ondatra.Flow {
+	t.Helper()
+
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().
@@ -350,15 +354,14 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETop
 		}
 	}
 
-	flow := ate.Traffic().NewFlow("Flow").
+	return ate.Traffic().NewFlow("Flow").
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...).
 		WithHeaders(ethHeader, ipv4Header)
-	return flow
 }
 
-// findSecondaryController finds out primary and secondary controllers.
-func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers []string) (string, string) {
+// findController finds out primary and secondary controllers.
+func findController(t *testing.T, dut *ondatra.DUTDevice, controllers []string) (string, string) {
 	t.Helper()
 
 	var primary, secondary string
@@ -381,8 +384,10 @@ func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers [
 	return secondary, primary
 }
 
-// switchoverReady is to check if controller is ready for switchover.
-func switchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) {
+// awaitSwitchoverReady is to check if controller is ready for switchover.
+func awaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string) {
+	t.Helper()
+
 	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 }
@@ -408,7 +413,7 @@ func validateSwitchoverTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAf
 	}
 }
 
-// Send traffic and validate traffic.
+// testTraffic is to send and validate traffic.
 func testTraffic(t *testing.T, args testArgs, flow *ondatra.Flow) {
 	t.Helper()
 
@@ -428,6 +433,7 @@ func testTraffic(t *testing.T, args testArgs, flow *ondatra.Flow) {
 // validateSwitchoverStatus is to validate switchover status.
 func validateSwitchoverStatus(t *testing.T, dut *ondatra.DUTDevice, secondaryBeforeSwitch string) string {
 	t.Helper()
+
 	startSwitchover := time.Now()
 	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
 	for {
@@ -542,9 +548,9 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 		t.Skipf("Dual controllers required on %v: got %v, want 2", dut.Model(), len(controllers))
 	}
 
-	secondaryBeforeSwitch, primaryBeforeSwitch := findSecondaryController(t, dut, controllers)
+	secondaryBeforeSwitch, primaryBeforeSwitch := findController(t, dut, controllers)
 
-	switchoverReady(t, dut, primaryBeforeSwitch)
+	awaitSwitchoverReady(t, dut, primaryBeforeSwitch)
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
