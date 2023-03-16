@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -50,10 +49,15 @@ var (
 		IPv4:    "198.51.100.5",
 		IPv4Len: 31,
 	}
-
-	intf1Gateway = "198.51.100.0"
-	intf2Gateway = "198.51.100.2"
-	intf3Gateway = "198.51.100.4"
+	dutPort1 = attrs.Attributes{
+		IPv4: "198.51.100.0",
+	}
+	dutPort2 = attrs.Attributes{
+		IPv4: "198.51.100.2",
+	}
+	dutPort3 = attrs.Attributes{
+		IPv4: "198.51.100.4",
+	}
 )
 
 type trafficData struct {
@@ -151,24 +155,9 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 	ap3 := ate.Port(t, "port3")
 	top := ate.OTG().NewConfig(t)
 
-	top.Ports().Add().SetName(ap1.ID())
-	top.Ports().Add().SetName(ap2.ID())
-	top.Ports().Add().SetName(ap3.ID())
-
-	dev1 := top.Devices().Add().SetName(intf1.Name)
-	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac(intf1.MAC)
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
-	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(intf1.IPv4).SetGateway(intf1Gateway).SetPrefix(int32(intf1.IPv4Len))
-
-	dev2 := top.Devices().Add().SetName(intf2.Name)
-	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth").SetMac(intf2.MAC)
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
-	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(intf2.IPv4).SetGateway(intf2Gateway).SetPrefix(int32(intf2.IPv4Len))
-
-	dev3 := top.Devices().Add().SetName(intf3.Name)
-	eth3 := dev3.Ethernets().Add().SetName(dev3.Name() + ".eth").SetMac(intf3.MAC)
-	eth3.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap3.ID())
-	eth3.Ipv4Addresses().Add().SetName(dev3.Name() + ".ipv4").SetAddress(intf3.IPv4).SetGateway(intf3Gateway).SetPrefix(int32(intf3.IPv4Len))
+	intf1.AddToOTG(top, ap1, &dutPort1)
+	intf2.AddToOTG(top, ap2, &dutPort2)
+	intf3.AddToOTG(top, ap3, &dutPort3)
 
 	var tolerance float32 = 2.0
 
@@ -1105,7 +1094,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 				t.Logf("Configuring flow %s", trafficID)
 				flow := top.Flows().Add().SetName(trafficID)
 				flow.Metrics().SetEnable(true)
-				flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".ipv4"}).SetRxNames([]string{dev3.Name() + ".ipv4"})
+				flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".IPv4"}).SetRxNames([]string{intf3.Name + ".IPv4"})
 				ethHeader := flow.Packet().Add().Ethernet()
 				ethHeader.Src().SetValue(data.inputIntf.MAC)
 
