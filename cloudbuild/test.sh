@@ -46,10 +46,6 @@ export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-cmd="kubectl get pods -A --watch"
-
-$cmd &
-
 pushd /tmp/workspace
 
 cp -r "$PWD"/topologies/kne /tmp
