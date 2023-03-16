@@ -19,15 +19,6 @@ nodes: {
         value: {
             name: "ssh"
             inside: 22
-            outside: 22
-        }
-    }
-    services:{
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-            outside: 22
         }
     }
     services:{
@@ -35,7 +26,6 @@ nodes: {
         value: {
             name: "gnoi"
             inside: 57400
-            outside: 9337
         }
     }
     services:{
@@ -43,7 +33,6 @@ nodes: {
         value: {
             name: "gnmi"
             inside: 57400
-            outside: 9339
         }
     }
     services:{
@@ -51,7 +40,6 @@ nodes: {
         value: {
             name: "gribi"
             inside: 57401
-            outside: 9340
         }
     }
     services:{
@@ -59,7 +47,6 @@ nodes: {
         value: {
             name: "p4rt"
             inside: 9559
-            outside: 9559
         }
     }
 }
