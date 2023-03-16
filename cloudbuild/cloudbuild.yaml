@@ -48,7 +48,7 @@ steps:
       - REMOTE_WORKSPACE=/tmp/workspace
       - COMMAND=sudo -iu user /tmp/workspace/cloudbuild/test.sh nokia_srlinux
 
-timeout: 1800s
+timeout: 2700s
 
 options:
   pool:
