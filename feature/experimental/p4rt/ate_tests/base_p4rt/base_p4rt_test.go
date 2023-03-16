@@ -148,7 +148,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ports []string) {
 	}
 }
 
-// findP4RTNodes return a map[string]string where keys are unique P4RT Device IDs
+// findP4RTNodes returns a map[string]string where keys are unique P4RT Device IDs
 // and values represent ONDATRA DUT port IDs from the devices
 func findP4RTNodes(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
 	nodes := make(map[string]string)
