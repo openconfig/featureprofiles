@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygnmi/schemaless"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -46,7 +47,7 @@ func showRunningConfig(t *testing.T, dut *ondatra.DUTDevice) string {
 	return runningConfig
 }
 
-func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase testCase) {
+func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase testCase, subtreeReplace bool) {
 	qosPath := gnmi.OC().Qos()
 
 	t.Logf("Step 1: Make sure QoS queue under test is not already set.")
@@ -60,7 +61,13 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 	r := gnmi.GetConfig(t, dut, gnmi.OC().Config())
 
 	t.Logf("Step 3: Test that replacing device with current config is accepted and is a no-op.")
-	result := gnmi.Replace(t, dut, gnmi.OC().Config(), r)
+
+	var result *ygnmi.Result
+	if subtreeReplace {
+		result = gnmi.Replace(t, dut, qosPath.Config(), r.GetOrCreateQos())
+	} else {
+		result = gnmi.Replace(t, dut, gnmi.OC().Config(), r)
+	}
 	t.Logf("gnmi.Replace on root response: %+v", result.RawResponse)
 
 	// Create OC addition to the config.
@@ -78,7 +85,11 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 
 	t.Logf("Step 4: Send mixed-origin SetRequest")
 	mixedQuery := &gnmi.SetBatch{}
-	gnmi.BatchReplace(mixedQuery, gnmi.OC().Config(), r)
+	if subtreeReplace {
+		gnmi.BatchReplace(mixedQuery, qosPath.Config(), qos)
+	} else {
+		gnmi.BatchReplace(mixedQuery, gnmi.OC().Config(), r)
+	}
 	gnmi.BatchUpdate(mixedQuery, cliPath, tCase.cliConfig)
 	result = mixedQuery.Set(t, dut)
 
@@ -91,7 +102,7 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 	diff := cmp.Diff(runningConfig, newRunningConfig)
 	t.Logf("running config (-old, +new):\n%s", cmp.Diff(runningConfig, newRunningConfig))
 	if diff == "" {
-		t.Errorf("CLI running-config did not change as expected after mixed-origin SetRequest.")
+		t.Errorf("CLI running-config expected to change but did not change after mixed-origin SetRequest.")
 	}
 
 	// Validate new OC config has been accepted.
@@ -108,9 +119,19 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 	}
 }
 
-func TestQoSDependentCLI(t *testing.T) {
+func TestQoSDependentCLIFullReplace(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
+	testQoSWithCLIAndOCUpdates(t, dut, getTestcase(t, dut), false)
+}
+
+func TestQoSDependentCLISubtreeReplace(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	testQoSWithCLIAndOCUpdates(t, dut, getTestcase(t, dut), true)
+}
+
+func getTestcase(t *testing.T, dut *ondatra.DUTDevice) testCase {
 	var cliConfig string
 	// TODO: additional vendor CLI to be added if and when necessary for compatibility with the OC QoS configuration.
 	switch vendor := dut.Vendor(); vendor {
@@ -121,9 +142,9 @@ qos tx-queue 0 name BE0`
 		t.Skipf("Unsupported vendor device: %v", vendor)
 	}
 
-	testQoSWithCLIAndOCUpdates(t, dut, testCase{
+	return testCase{
 		cliConfig:        cliConfig,
 		queueName:        "BE0",
 		forwardGroupName: "target-group-BE0",
-	})
+	}
 }
