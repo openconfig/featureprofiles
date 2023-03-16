@@ -15,6 +15,7 @@
 package my_station_mac_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -196,7 +197,7 @@ func TestMyStationMAC(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), myStationMAC)
 
 	t.Logf("Verify configured MyStationMAC through telemetry")
-	if got := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State()); got != myStationMAC {
+	if got := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State()); strings.ToUpper(got) != myStationMAC {
 		t.Errorf("MyStationMAC got %v, want %v", got, myStationMAC)
 	}
 
