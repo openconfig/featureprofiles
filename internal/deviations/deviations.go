@@ -203,6 +203,6 @@ var (
 
 	SchedulerInputParamsUnsupported = flag.Bool("deviation_scheduler_input_params_unsupported", false, "Device does not support scheduler input parameters")
 
-	NoBGPNetworkInstanceTable = flag.Bool("deviation_no_bgp_network_instance_table", false,
-		"Device not using network-instance table require this flag to be true")
+	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
+		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 )
