@@ -360,7 +360,7 @@ func TestSwitchChip(t *testing.T) {
 		hwVerValidation:       false,
 		fwVerValidation:       !*deviations.MissingFirmwareVersion,
 		operStatus:            "",
-		parentValidation:      true,
+		parentValidation:      false,
 		pType:                 switchChipType,
 	}
 
