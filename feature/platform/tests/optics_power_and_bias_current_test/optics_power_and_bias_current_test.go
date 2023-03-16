@@ -168,27 +168,20 @@ func TestOpticsPowerUpdate(t *testing.T) {
 
 // findTransceiverName provides name of transceiver port corresponding to interface name
 func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, error) {
-	var (
-		transceiverName string
-		suffix          = map[ondatra.Vendor]string{
-			ondatra.ARISTA: " transceiver",
-			ondatra.NOKIA:  "-transceiver",
-		}
-	)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
+		suffix := " transceiver"
 		interfaceSplit := strings.Split(interfaceName, "/")
 		interfaceSplitres := interfaceSplit[:len(interfaceSplit)-1]
-		transceiverName = strings.Join(interfaceSplitres, "/") + suffix[ondatra.ARISTA]
+		return strings.Join(interfaceSplitres, "/") + suffix, nil
 	case ondatra.CISCO:
-		transceiverName = interfaceName
+		return "", nil
 	case ondatra.JUNIPER:
-		transceiverName = interfaceName
+		return "", nil
 	case ondatra.NOKIA:
+		suffix := "-transceiver"
 		interfaceName = strings.Replace(interfaceName, "ethernet", "Ethernet", 1)
-		transceiverName = interfaceName + suffix[ondatra.NOKIA]
-	default:
-		return "", fmt.Errorf("No transceiver interface available for DUT vendor %v", dut.Vendor())
+		return interfaceName + suffix, nil
 	}
-	return transceiverName, nil
+	return "", fmt.Errorf("No transceiver interface available for DUT vendor %v", dut.Vendor())
 }
