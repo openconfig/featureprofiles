@@ -59,6 +59,25 @@ def _resolve_path_if_needed(dir, path):
         return os.path.join(dir, path)
     return path
 
+def _gnmi_set_file_template(conf):
+    return """
+    replace: {
+  path: {
+    origin: "cli"
+  }
+  val: {
+    ascii_val:
+""" + '\n'.join(['"' + l + '"\\n' for l in conf if not l.strip().startswith('!')]) + """
+  }
+}
+    """
+
+def _cli_to_gnmi_set_file(cli_file, gnmi_file):
+    with open(cli_file, 'r') as cli:
+        gnmi_set = _gnmi_set_file_template(cli.readlines())
+    with open(gnmi_file, 'w') as gnmi:
+        gnmi.write(gnmi_set)
+
 def _check_json_output(cmd):
     return json.loads(check_output(cmd))
 
@@ -385,8 +404,12 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
     ondatra_testbed_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.testbed')
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
+    ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
+
+    baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
+    shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
 
     if reserved_testbed.get('sim', False):
         vxr_testbed = kwargs['testbed_path']
@@ -394,6 +417,9 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             file=ondatra_binding_path)
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh statictestbed service {vxr_testbed}', 
             file=ondatra_testbed_path)
+
+        _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path)
+        check_output("sed -i 's|id: \"dut\"|id: \"dut\"\\nconfig:{\\ngnmi_set_file=\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
@@ -405,11 +431,10 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
         hw_testbed_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['testbed'])
         hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])
-        hw_baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
 
         shutil.copyfile(hw_testbed_file_path, ondatra_testbed_path)
         shutil.copyfile(hw_binding_file_path, ondatra_binding_path)
-        check_output(f"sed -i 's|$BASE_CONF_PATH|{hw_baseconf_file_path}|g' {ondatra_binding_path}")
+        check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
 
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
