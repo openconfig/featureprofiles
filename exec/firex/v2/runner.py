@@ -67,7 +67,7 @@ def _gnmi_set_file_template(conf):
   }
   val: {
     ascii_val:
-""" + '\n'.join(['"' + l + '"\\n' for l in conf if not l.strip().startswith('!')]) + """
+""" + ''.join(['"' + l + '\\n"' for l in conf if not l.strip().startswith('!')]) + """
   }
 }
     """
