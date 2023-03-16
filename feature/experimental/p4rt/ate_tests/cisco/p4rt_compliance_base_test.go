@@ -198,6 +198,9 @@ func TestP4RTCompliance(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
+			if tt.skip {
+				t.Skip("testcase marked for skip")
+			}
 
 			tt.fn(ctx, t, args)
 

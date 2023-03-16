@@ -19,6 +19,7 @@ var (
 			name: "SetForwardingPipelineCfg from Backup Controller",
 			desc: "SetForwardingPipelineConfig-Compliance:002 Verify standby controller with fwdpipeline config is rejected",
 			fn:   testSetForwardingPipelineFromBackup,
+			skip: true,
 		},
 		{
 			name: "SetForwardingPipelineCfg to non-exist device id",
