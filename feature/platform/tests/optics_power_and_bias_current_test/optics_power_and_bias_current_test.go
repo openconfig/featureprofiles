@@ -15,7 +15,6 @@
 package optics_power_and_bias_current_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -174,14 +173,11 @@ func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, 
 		interfaceSplit := strings.Split(interfaceName, "/")
 		interfaceSplitres := interfaceSplit[:len(interfaceSplit)-1]
 		return strings.Join(interfaceSplitres, "/") + suffix, nil
-	case ondatra.CISCO:
-		return interfaceName, nil
-	case ondatra.JUNIPER:
-		return interfaceName, nil
 	case ondatra.NOKIA:
 		suffix := "-transceiver"
 		interfaceName = strings.Replace(interfaceName, "ethernet", "Ethernet", 1)
 		return interfaceName + suffix, nil
+	default:
+		return interfaceName, nil
 	}
-	return "", fmt.Errorf("no transceiver interface available for DUT vendor %v", dut.Vendor())
 }
