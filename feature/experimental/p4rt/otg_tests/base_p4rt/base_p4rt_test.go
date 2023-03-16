@@ -19,7 +19,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"sort"
 	"testing"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
@@ -134,40 +133,17 @@ func configureDeviceIDs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 	}
 }
 
-// sortPorts sorts the ports by the testbed port ID.
-func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
-	sort.Slice(ports, func(i, j int) bool {
-		idi, idj := ports[i].ID(), ports[j].ID()
-		li, lj := len(idi), len(idj)
-		if li == lj {
-			return idi < idj
-		}
-		return li < lj // "port2" < "port10"
-	})
-	return ports
-}
-
-// configurePortId configures p4rt port-id on the DUT.
-func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	ports := sortPorts(dut.Ports())
-	for i, port := range ports {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Type().Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Id().Config(), uint32(i)+portId)
-	}
-}
-
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portId)}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portId + 1)}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 
 	if *deviations.ExplicitPortSpeed {
@@ -311,7 +287,6 @@ func TestP4rtConnect(t *testing.T) {
 	configureDUT(t, dut)
 	configureDeviceIDs(ctx, t, dut)
 
-	configurePortId(ctx, t, dut)
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 
