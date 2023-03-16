@@ -179,7 +179,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, ports []string) *ondatra
 		WithAddress(atePort1.IPv4CIDR()).
 		WithDefaultGateway(dutPort1.IPv4)
 
-	p2 := ate.Port(t, ports[0])
+	p2 := ate.Port(t, ports[1])
 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
 	i2.IPv4().
 		WithAddress(atePort2.IPv4CIDR()).
