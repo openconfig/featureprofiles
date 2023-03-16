@@ -444,7 +444,7 @@ func TestComponentParent(t *testing.T) {
 func TestSoftwareVersion(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	cards := components.FindComponentsByType(t, dut, supervisorType)
+	cards := components.FindComponentsByType(t, dut, cpuType)
 	t.Logf("Found card list: %v", cards)
 	if len(cards) == 0 {
 		t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
