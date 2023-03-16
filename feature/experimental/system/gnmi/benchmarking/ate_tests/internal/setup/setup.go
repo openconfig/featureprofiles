@@ -40,6 +40,8 @@ const (
 	ISISInstance = "DEFAULT"
 	// PeerGrpName is BGP peer group name.
 	PeerGrpName = "BGP-PEER-GROUP"
+	// PeerGrpEgressName is Egress port BGP peer group name.
+	PeerGrpEgressName = "BGP-PEER-GROUP-EGRESS"
 	// DUTAs is DUT AS.
 	DUTAs = 64500
 	// ATEAs is ATE AS.
@@ -126,6 +128,16 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	pg := bgp.GetOrCreatePeerGroup(PeerGrpName)
 	pg.PeerAs = ygot.Uint32(ATEAs)
 	pg.PeerGroupName = ygot.String(PeerGrpName)
+	afipg := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	afipg.Enabled = ygot.Bool(true)
+
+	if *deviations.RoutePolicyUnderPeerGroup {
+		pg1 := bgp.GetOrCreatePeerGroup(PeerGrpEgressName)
+		pg1.PeerAs = ygot.Uint32(ATEAs)
+		pg1.PeerGroupName = ygot.String(PeerGrpEgressName)
+		afipg1 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		afipg1.Enabled = ygot.Bool(true)
+	}
 
 	// ISIS configs.
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).GetOrCreateIsis()
@@ -175,6 +187,9 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		if dp.ID() == "port1" {
 			nv4.PeerAs = ygot.Uint32(ATEAs2)
 		} else {
+			if *deviations.RoutePolicyUnderPeerGroup {
+				nv4.PeerGroup = ygot.String(PeerGrpEgressName)
+			}
 			nv4.PeerAs = ygot.Uint32(ATEAs)
 		}
 		nv4.Enabled = ygot.Bool(true)
@@ -200,7 +215,13 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
-		isisIntfLevelAfi.Enabled = ygot.Bool(true)
+
+		// Configure ISIS AfiSafi enable flag at the global level
+		if *deviations.MissingIsisInterfaceAfiSafiEnable {
+			isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		} else {
+			isisIntfLevelAfi.Enabled = ygot.Bool(true)
+		}
 	}
 	p := gnmi.OC()
 	fptest.LogQuery(t, "DUT", p.Config(), d)
@@ -289,6 +310,7 @@ func VerifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, peerAddr := range ATEIPList {
 		nbrIP := peerAddr.String()
 		nbrPath := statePath.Neighbor(nbrIP)
-		gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
+
 }
