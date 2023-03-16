@@ -67,14 +67,14 @@ def _gnmi_set_file_template(conf):
   }
   val: {
     ascii_val:
-""" + ''.join(['"' + l + '\\n"' for l in conf if not l.strip().startswith('!')]) + """
+""" + '\n'.join(['"' + l + '\\n"' for l in conf if not l.strip().startswith('!')]) + """
   }
 }
     """
 
 def _cli_to_gnmi_set_file(cli_file, gnmi_file):
     with open(cli_file, 'r') as cli:
-        gnmi_set = _gnmi_set_file_template(cli.readlines())
+        gnmi_set = _gnmi_set_file_template(cli.read().splitlines())
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
 
