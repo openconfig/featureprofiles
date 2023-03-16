@@ -94,7 +94,7 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 		t.Errorf("CLI running-config did not change as expected after mixed-origin SetRequest.")
 	}
 
-	// Validate OC is correct
+	// Validate new OC config has been accepted.
 	gotQueue := gnmi.GetConfig(t, dut, qosPath.Queue(tCase.queueName).Config())
 	if got := gotQueue.GetName(); got != tCase.queueName {
 		t.Errorf("Get(DUT queue name): got %v, want %v", got, tCase.queueName)
