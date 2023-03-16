@@ -40,6 +40,7 @@ update:  {
     any changes.
 4.  Send mixed-origin SetRequest.
 5.  Verify QoS queue configuration has been accepted by the target.
+6.  Repeat steps 1-5, but replacing on the `/qos` path instead of at root level.
 
 ## Config Parameter Coverage
 

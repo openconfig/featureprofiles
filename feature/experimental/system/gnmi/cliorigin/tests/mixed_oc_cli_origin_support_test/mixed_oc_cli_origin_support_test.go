@@ -61,7 +61,6 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 	r := gnmi.GetConfig(t, dut, gnmi.OC().Config())
 
 	t.Logf("Step 3: Test that replacing device with current config is accepted and is a no-op.")
-
 	var result *ygnmi.Result
 	if subtreeReplace {
 		result = gnmi.Replace(t, dut, qosPath.Config(), r.GetOrCreateQos())
