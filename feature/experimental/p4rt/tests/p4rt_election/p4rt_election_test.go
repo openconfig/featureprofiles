@@ -10,6 +10,7 @@ import (
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -277,8 +278,10 @@ func canWrite(t *testing.T, args *testArgs) (bool, error) {
 		}
 		return false, writeErr
 	}
-	if writeErr = writeTableEntry(args, t, pktIO, true); writeErr != nil {
-		t.Errorf("Error deleting table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
+	if !*deviations.P4RTMissingDelete {
+		if writeErr = writeTableEntry(args, t, pktIO, true); writeErr != nil {
+			t.Errorf("Error deleting table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
+		}
 	}
 	return true, nil
 }

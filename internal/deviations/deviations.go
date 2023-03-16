@@ -202,4 +202,6 @@ var (
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
 	SchedulerInputParamsUnsupported = flag.Bool("deviation_scheduler_input_params_unsupported", false, "Device does not support scheduler input parameters")
+
+	P4RTMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
 )
