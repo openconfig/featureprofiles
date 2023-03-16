@@ -20,7 +20,7 @@ Validate gRIBI route persistence during SSO
 
 *   Send traffic from ATE port-1 to prefixes in IPBlock1 and ensure traffic flows 100% and reaches ATE port-2.
 
-*   Start injecting  another 1000  IPv4Entries(`IPBlock2: 198.18.100.1/22`) in default VRF with NHGID: #1. 
+*   Start injecting another 1000 IPv4Entries(`IPBlock2: 198.18.100.1/22`) in default VRF with NHGID: #1. 
 
 *   Check for coredumps in the DUT and validate that none are present.
 
@@ -28,7 +28,7 @@ Validate gRIBI route persistence during SSO
 
 *   Check for coredumps in the DUT and validate that none are present post failover 
 
-*   Following reconnection of the gRIBI client to a new master supervisor, validate if partially ACKed entries of `IPBlock2`  are present as FIB_PROGRAMMED using a get RPC.
+*   Following reconnection of the gRIBI client to a new master supervisor, validate if partially ACKed entries of `IPBlock2` are present as FIB_PROGRAMMED using a get RPC.
 
 *   Re-inject `IPBlock2` in default VRF with NHGID: #1.
 
