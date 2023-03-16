@@ -113,10 +113,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1").Name()
 	i1 := dutPort1.NewOCInterface(p1)
+	i1.Id = ygot.Uint32(portId)
 	gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
 
 	p2 := dut.Port(t, "port2").Name()
 	i2 := dutPort2.NewOCInterface(p2)
+	i2.Id = ygot.Uint32(portId + 1)
 	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
 
 	if *deviations.ExplicitPortSpeed {
@@ -155,14 +157,6 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
 	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
-}
-
-// configurePortId configures p4rt port-id on the DUT.
-func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	ports := sortPorts(dut.Ports())
-	for i, port := range ports {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Id().Config(), uint32(i*1000)+portId)
-	}
 }
 
 // setupP4RTClient sends client arbitration message for both leader and follower clients,
@@ -244,7 +238,6 @@ func TestPacketOut(t *testing.T) {
 
 	// Configure P4RT device-id and port-id on the DUT
 	configureDeviceID(ctx, t, dut)
-	configurePortId(ctx, t, dut)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {

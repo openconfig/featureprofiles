@@ -136,12 +136,24 @@ func TestQoSCounters(t *testing.T) {
 		flows = append(flows, flow)
 	}
 
+	var counterNames []string
 	counters := make(map[string]map[string]uint64)
-	counterNames := []string{
-		"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
-		"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
-		"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
-		"dutQosDroppedOctetsAfterTraffic",
+	if !*deviations.QOSDroppedOctets {
+		counterNames = []string{
+
+			"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+			"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+			"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
+			"dutQosDroppedOctetsAfterTraffic",
+		}
+	} else {
+		counterNames = []string{
+
+			"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+			"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+			"dutQosDroppedPktsAfterTraffic",
+		}
+
 	}
 	for _, name := range counterNames {
 		counters[name] = make(map[string]uint64)
@@ -157,7 +169,9 @@ func TestQoSCounters(t *testing.T) {
 		counters["dutQosPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
 		counters["dutQosOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitOctets().State())
 		counters["dutQosDroppedPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedPkts().State())
-		counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
+		if !*deviations.QOSDroppedOctets {
+			counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
+		}
 	}
 
 	t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp2.Name())
@@ -174,7 +188,9 @@ func TestQoSCounters(t *testing.T) {
 		counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
 		counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitOctets().State())
 		counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedPkts().State())
-		counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
+		if !*deviations.QOSDroppedOctets {
+			counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
+		}
 		t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
@@ -209,11 +225,12 @@ func TestQoSCounters(t *testing.T) {
 		if dutOctetCounterDiff < ateOctetCounterDiff {
 			t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
 		}
-
-		dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
-		t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
-		if dutDropOctetCounterDiff != 0 {
-			t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
+		if !*deviations.QOSDroppedOctets {
+			dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
+			t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
+			if dutDropOctetCounterDiff != 0 {
+				t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
+			}
 		}
 	}
 }
@@ -579,17 +596,14 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
 		s.SetSequence(tc.sequence)
 		s.SetPriority(tc.priority)
-		if dut.Vendor() == ondatra.JUNIPER {
-			t.Logf("Scheduler should be binded to a forwarding group")
-			Output := s.GetOrCreateOutput()
-			Output.SetOutputFwdGroup(tc.targetGroup)
-		}
 		input := s.GetOrCreateInput(tc.inputID)
 		input.SetId(tc.inputID)
 		input.SetInputType(tc.inputType)
 		input.SetQueue(tc.queueName)
 		input.SetWeight(tc.weight)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		if !*deviations.SchedulerInputParamsUnsupported {
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		}
 	}
 
 	t.Logf("Create qos output interface config")
@@ -639,7 +653,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		if !*deviations.SchedulerInputParamsUnsupported {
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		}
 	}
 }
 
