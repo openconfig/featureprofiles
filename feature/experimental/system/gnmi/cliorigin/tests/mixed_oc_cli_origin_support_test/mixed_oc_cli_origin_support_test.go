@@ -17,15 +17,12 @@ package mixed_oc_cli_origin_support_test
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/schemaless"
 )
 
@@ -37,24 +34,6 @@ type testCase struct {
 	cliConfig        string
 	queueName        string
 	forwardGroupName string
-}
-
-// appendCLIConfig appends a suffix CLI config to the input CLI body.
-func appendCLIConfig(d *ondatra.DUTDevice, body, suffix string) (string, error) {
-	var term string
-	switch d.Vendor() {
-	case ondatra.ARISTA:
-		// Arista configs must be terminated with "end" to ensure the device accepts the config.
-		term = "end"
-	default:
-		return "", fmt.Errorf("Unsupported vendor: %v", d.Vendor())
-	}
-
-	// Ensure previous config doesn't contain end-of-config words that would prevent future patches.
-	body = strings.TrimSuffix(body, term+"\n")
-	body = fmt.Sprintf("%s\n%s\n%s\n", body, suffix, term)
-
-	return body, nil
 }
 
 // showRunningConfig returns the output of 'show running-config' on the device.
@@ -76,21 +55,20 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 		t.Fatalf("Detected an existing %v queue. This is unexpected.", tCase.queueName)
 	}
 
+	t.Logf("Step 2: Retrieve current root OC config")
+	runningConfig := showRunningConfig(t, dut)
+	r := gnmi.GetConfig(t, dut, gnmi.OC().Config())
+
+	t.Logf("Step 3: Test that replacing device with current config is accepted and is a no-op.")
+	result := gnmi.Replace(t, dut, gnmi.OC().Config(), r)
+	t.Logf("gnmi.Replace on root response: %+v", result.RawResponse)
+
 	// Create OC addition to the config.
-	r := &oc.Root{}
 	qos := r.GetOrCreateQos()
 	qos.GetOrCreateQueue(tCase.queueName)
 	qos.GetOrCreateForwardingGroup(tCase.forwardGroupName).SetOutputQueue(tCase.queueName)
 
 	fptest.LogQuery(t, "QoS update for the OC config:", qosPath.Config(), qos)
-
-	t.Logf("Step 2: Retrieve current running-config")
-	runningConfig := showRunningConfig(t, dut)
-
-	newConfig, err := appendCLIConfig(dut, runningConfig, tCase.cliConfig)
-	if err != nil {
-		t.Fatalf("Error appending config to running-config: %v", err)
-	}
 
 	// Create and apply mixed CLI+OC SetRequest.
 	cliPath, err := schemaless.NewConfig[string]("", "cli")
@@ -98,19 +76,25 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
 	}
 
-	t.Logf("Step 3: Send mixed-origin SetRequest")
+	t.Logf("Step 4: Send mixed-origin SetRequest")
 	mixedQuery := &gnmi.SetBatch{}
-	gnmi.BatchReplace(mixedQuery, cliPath, newConfig)
-	gnmi.BatchUpdate(mixedQuery, qosPath.Config(), qos)
-	result := mixedQuery.Set(t, dut)
+	gnmi.BatchReplace(mixedQuery, gnmi.OC().Config(), r)
+	gnmi.BatchUpdate(mixedQuery, cliPath, tCase.cliConfig)
+	result = mixedQuery.Set(t, dut)
 
 	t.Logf("gnmiClient.Set() response: %+v", result.RawResponse)
 
-	t.Logf("Step 4: Verify QoS queue configuration has been accepted by the target")
-	newRunningConfig := showRunningConfig(t, dut)
-	t.Logf("running config (-old, +new):\n%s", cmp.Diff(runningConfig, newRunningConfig))
+	t.Logf("Step 5: Verify QoS queue configuration has been accepted by the target")
 
-	// Validate
+	// Validate CLI has changed
+	newRunningConfig := showRunningConfig(t, dut)
+	diff := cmp.Diff(runningConfig, newRunningConfig)
+	t.Logf("running config (-old, +new):\n%s", cmp.Diff(runningConfig, newRunningConfig))
+	if diff == "" {
+		t.Errorf("CLI running-config did not change as expected after mixed-origin SetRequest.")
+	}
+
+	// Validate OC is correct
 	gotQueue := gnmi.GetConfig(t, dut, qosPath.Queue(tCase.queueName).Config())
 	if got := gotQueue.GetName(); got != tCase.queueName {
 		t.Errorf("Get(DUT queue name): got %v, want %v", got, tCase.queueName)

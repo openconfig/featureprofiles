@@ -3,8 +3,9 @@
 ## Summary
 
 Ensure that both CLI and OC configuration can be pushed to the device within the
-same `SetRequest`, with the CLI as a `replace` operation and the OC as an
-`update` operation.
+same `SetRequest`, with OC config as a `replace` operation and the CLI as an
+`update` operation. Note that this implies stale CLI config may remain after the
+`SetRequest` operation.
 
 e.g. QoS
 
@@ -15,21 +16,18 @@ prefix:  {
 }
 replace:  {
   path:  {
-    origin:  "cli"
+    origin:  "openconfig"
   }
   val:  {
-    ascii_val:  "! comment\nusername admin role network-admin secret 3 foobarbaz\nusername foo privilege 23 role network-admin secret 4 tuesday\n!\nend\n"
+    json_ietf_val:  "{\n  full config omitted \n}"
   }
 }
 update:  {
   path:  {
-    origin:  "openconfig"
-    elem:  {
-      name:  "qos"
-    }
+    origin:  "cli"
   }
   val:  {
-    json_ietf_val:  "{\n  \"openconfig-qos:forwarding-groups\": {\n    \"forwarding-group\": [\n      {\n        \"config\": {\n          \"name\": \"target-group-BE0\",\n          \"output-queue\": \"BE0\"\n        },\n        \"name\": \"target-group-BE0\"\n      }\n    ]\n  },\n  \"openconfig-qos:queues\": {\n    \"queue\": [\n      {\n        \"config\": {\n          \"name\": \"BE0\"\n        },\n        \"name\": \"BE0\"\n      }\n    ]\n  }\n}"
+    ascii_val:  "qos traffic-class 0 name target-group-BE0\nqos tx-queue 0 name BE0"
   }
 }
 ```
@@ -37,9 +35,11 @@ update:  {
 ## Procedure
 
 1.  Make sure QoS queue under test is not already set.
-2.  Retrieve current running-config.
-3.  Send mixed-origin SetRequest.
-4.  Verify QoS queue configuration has been accepted by the target.
+2.  Retrieve current OpenConfig and CLI configs.
+3.  Validate that device can accept root replace of current OC config without
+    any changes.
+4.  Send mixed-origin SetRequest.
+5.  Verify QoS queue configuration has been accepted by the target.
 
 ## Config Parameter Coverage
 
