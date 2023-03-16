@@ -34,4 +34,5 @@ var (
 	LACPBaseConfigPresent   = flag.Bool("arg_lacp_baseconfig_present", true, "LACP subtest in gNMI-1.10 requires related base config to be loaded. Use this flag to skip the test when base config is not loaded.")
 	TempSensorNamePattern   = flag.String("arg_temp_sensor_name_pattern", "", "There is no component type specifically for temperature sensors. So, we use the name pattern to find them.")
 	SwitchChipNamePattern   = flag.String("arg_switchchip_name_pattern", "", "There is no component type specifically for SwitchChip components. So, we use the name pattern to find them.")
+	FanNamePattern          = flag.String("arg_fan_name_pattern", "", "This name pattern is used to filter out Fan components.")
 )
