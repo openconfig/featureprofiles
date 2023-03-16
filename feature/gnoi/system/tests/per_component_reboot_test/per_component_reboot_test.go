@@ -212,7 +212,10 @@ func TestLinecardReboot(t *testing.T) {
 		}
 		for _, port := range intfsOperStatusUPBeforeReboot {
 			if root.GetInterface(port).GetOperStatus() != oc.Interface_OperStatus_UP {
+				upInterfaces[port] = false
 				return false
+			} else {
+				upInterfaces[port] = true
 			}
 		}
 		return true
