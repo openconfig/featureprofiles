@@ -175,9 +175,9 @@ func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, 
 		interfaceSplitres := interfaceSplit[:len(interfaceSplit)-1]
 		return strings.Join(interfaceSplitres, "/") + suffix, nil
 	case ondatra.CISCO:
-		return "", nil
+		return interfaceName, nil
 	case ondatra.JUNIPER:
-		return "", nil
+		return interfaceName, nil
 	case ondatra.NOKIA:
 		suffix := "-transceiver"
 		interfaceName = strings.Replace(interfaceName, "ethernet", "Ethernet", 1)
