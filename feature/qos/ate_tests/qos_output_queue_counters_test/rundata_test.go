@@ -6,5 +6,5 @@ import "github.com/openconfig/featureprofiles/internal/rundata"
 func init() {
 	rundata.TestPlanID = "DP-1.4"
 	rundata.TestDescription = "QoS Interface Output Queue Counters"
-	rundata.TestUUID = "279bd41d-dbe7-4b6c-8ec1-08fb12b7f7b0"
+	rundata.TestUUID = "279bd41d-dbe7-4b6c-8ec1-08fb12b7f7b1"
 }
