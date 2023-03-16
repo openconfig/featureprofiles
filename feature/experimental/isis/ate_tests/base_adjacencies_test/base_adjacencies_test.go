@@ -55,11 +55,14 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator
 func TestBasic(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
 	// Only push DUT config - no adjacency established yet
-	if err := ts.PushDUT(context.Background()); err != nil {
+	if err := ts.PushDUT(context.Background(), t); err != nil {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
 	isisRoot := session.ISISPath()
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		port1ISIS = isisRoot.Interface(ts.DUTPort1.Name() + ".0")
+	}
 	// There might be lag between when the instance name is set and when the
 	// other parameters are set; we expect the total lag to be under one minute
 	// There are about 14 RPCs executed in quick succession in this block.
@@ -69,7 +72,7 @@ func TestBasic(t *testing.T) {
 	t.Run("read_config", func(t *testing.T) {
 		checks := []check.Validator{
 			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
-			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
+			check.Equal(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_2),
 			check.Equal(port1ISIS.Enabled().State(), true),
 			check.Equal(port1ISIS.CircuitType().State(), oc.Isis_CircuitType_POINT_TO_POINT),
 		}
