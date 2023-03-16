@@ -183,5 +183,5 @@ func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, 
 		interfaceName = strings.Replace(interfaceName, "ethernet", "Ethernet", 1)
 		return interfaceName + suffix, nil
 	}
-	return "", fmt.Errorf("No transceiver interface available for DUT vendor %v", dut.Vendor())
+	return "", fmt.Errorf("no transceiver interface available for DUT vendor %v", dut.Vendor())
 }
