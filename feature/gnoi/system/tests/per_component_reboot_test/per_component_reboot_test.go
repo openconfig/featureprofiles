@@ -218,10 +218,10 @@ func TestLinecardReboot(t *testing.T) {
 		return true
 	})
 	if val, ok := watch.Await(t); !ok {
-		for port, status := range upInterfaces {
-			if !status {
-				gnmi.Get(t, dut, gnmi.OC().Interface(port).State())
-				t.Logf("Interface %s is not up after reloading line card %s", port, removableLinecard)
+		for intf, up := range upInterfaces {
+			if !up {
+				gnmi.Get(t, dut, gnmi.OC().Interface(intf).State())
+				t.Logf("Interface %s is not up after reloading line card %s", intf, removableLinecard)
 			}
 		}
 		t.Fatalf("DUT did not reach target state: got %v", val)
