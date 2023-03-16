@@ -1,4 +1,4 @@
-# DP-1.4: QoS Interface Output Queue Counters
+# DP-1.2: QoS Interface Output Queue Counters
 
 ## Summary
 
