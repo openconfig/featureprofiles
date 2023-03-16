@@ -146,7 +146,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 		return val.IsPresent()
 	}).Await(t)
 	if !found {
-		t.Errorf("Could not get the LinkLayerAddress %s", llAddress)
+		t.Fatalf("Could not get the LinkLayerAddress %s", llAddress)
 	}
 	dstMac, _ := llAddress.Val()
 	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 2), srcEndPoint, 10)
