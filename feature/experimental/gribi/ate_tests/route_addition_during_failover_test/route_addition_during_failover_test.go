@@ -149,6 +149,8 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 
 // createIPv4Entries creates IPv4 Entries given the totalCount and starting prefix.
 func createIPv4Entries(t *testing.T, startIP string) []string {
+	t.Helper()
+
 	_, netCIDR, err := net.ParseCIDR(startIP)
 	if err != nil {
 		t.Fatalf("Failed to parse prefix: %v", err)
@@ -263,6 +265,8 @@ func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc
 // generateSubIntfPair configures ATE/DUT SubInterfaces on the target device and returns
 // a slice of the corresponding ATE IPAddresses.
 func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, ate *ondatra.ATEDevice, atePort *ondatra.Port, top *ondatra.ATETopology, d *oc.Root) []string {
+	t.Helper()
+
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
