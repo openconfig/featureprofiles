@@ -177,7 +177,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         c |= CollectTestbedInfo.s()
     result = self.enqueue_child_and_get_results(c)
     return (internal_fp_repo_dir, reserved_testbed, result["ondatra_binding_path"], 
-            result["ondatra_testbed_path"], result["testbed_info_path"], 
+            result["ondatra_testbed_path"], result["ondatra_baseconf_path"], result["testbed_info_path"], 
             result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
             result.get("slurm_jobid", None), result.get("topo_path", None))
 
