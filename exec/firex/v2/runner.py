@@ -418,7 +418,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
         shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
         _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path)
-        check_output("sed -i 's|id: \"dut\"|id: \"dut\"\\nconfig:{\\ngnmi_set_file=\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
+        check_output("sed -i 's|id: \"dut\"|id: \"dut\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
