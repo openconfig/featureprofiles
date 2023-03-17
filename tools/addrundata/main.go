@@ -25,6 +25,7 @@ import (
 )
 
 var (
+	dir       = flag.String("dir", "", "Directory to search for tests; if not specified, uses the ancestor 'feature' directory.")
 	fix       = flag.Bool("fix", false, "Update the rundata in tests.  If false, only check if the tests have the most recent rundata.")
 	list      = flag.String("list", "", "List the tests in one of the following formats: csv, json")
 	mergejson = flag.String("mergejson", "", "Merge the JSON listing from this JSON file.")
@@ -57,9 +58,13 @@ func featureDir() (string, error) {
 func main() {
 	flag.Parse()
 
-	featuredir, err := featureDir()
-	if err != nil {
-		glog.Exitf("Unable to locate feature root: %v", err)
+	featuredir := *dir
+	if featuredir == "" {
+		var err error
+		featuredir, err = featureDir()
+		if err != nil {
+			glog.Exitf("Unable to locate feature root: %v", err)
+		}
 	}
 
 	ts := testsuite{}
