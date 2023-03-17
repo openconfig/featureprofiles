@@ -125,8 +125,8 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_dir', 'reserved_testbed', 'ondatra_binding_path', 
-		'ondatra_testbed_path', 'testbed_info_path', 'slurm_cluster_head', 
-        'sim_working_dir', 'slurm_jobid', 'topo_path')
+		'ondatra_testbed_path', 'ondatra_baseconf_path', 'testbed_info_path', 
+        'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
