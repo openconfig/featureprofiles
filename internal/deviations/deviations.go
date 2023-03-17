@@ -202,4 +202,7 @@ var (
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
 	SchedulerInputParamsUnsupported = flag.Bool("deviation_scheduler_input_params_unsupported", false, "Device does not support scheduler input parameters")
+
+	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
+		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 )
