@@ -111,32 +111,29 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 }
 
 // configureDeviceIDs configures p4rt device-id on the DUT.
-func configureDeviceIDs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+func configureDeviceIDs(t *testing.T, dut *ondatra.DUTDevice, nodes map[string]string) {
 	deviceIDs := []uint64{deviceId1, deviceId2}
-
-	for idx, p := range []string{"port1", "port2"} {
-		if _, ok := nodes[p]; !ok {
-			t.Fatalf("Couldn't find P4RT Node for port: %s", p)
-		}
-		t.Logf("Configuring P4RT Node: %s", nodes[p])
+	i := 0
+	for node := range nodes {
+		t.Logf("Configuring P4RT Node: %s", node)
 		c := oc.Component{}
-		c.Name = ygot.String(nodes[p])
+		c.Name = ygot.String(node)
 		c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-		c.IntegratedCircuit.NodeId = ygot.Uint64(deviceIDs[idx])
-		gnmi.Replace(t, dut, gnmi.OC().Component(nodes[p]).Config(), &c)
+		c.IntegratedCircuit.NodeId = ygot.Uint64(deviceIDs[i])
+		gnmi.Replace(t, dut, gnmi.OC().Component(node).Config(), &c)
+		i++
 	}
 }
 
-// configureDUT configures port1 and port2 on the DUT.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+// configureDUT configures two ports on the DUT.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ports []string) {
 	d := gnmi.OC()
 
-	p1 := dut.Port(t, "port1")
+	p1 := dut.Port(t, ports[0])
 	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portId)}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 
-	p2 := dut.Port(t, "port2")
+	p2 := dut.Port(t, ports[1])
 	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portId + 1)}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 
@@ -150,17 +147,38 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// findP4RTNodes returns a map[string]string where keys are unique P4RT Device IDs
+// and values represent ONDATRA DUT port IDs from the devices
+func findP4RTNodes(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
+	nodes := make(map[string]string)
+	p4NodeMap := p4rtutils.P4RTNodesByPort(t, dut)
+	for k, v := range p4NodeMap {
+		// skip empty device IDs
+		if v == "" {
+			continue
+		}
+		nodes[v] = k
+		// quit when found two unique devices with available ports
+		if len(nodes) == 2 {
+			t.Logf("Found P4RT devices and corresponding ports: %+v", nodes)
+			return nodes
+		}
+	}
+	t.Fatalf("The test requires two DUT ports located on different P4RT Nodes (found %v), cannot proceed.", len(nodes))
+	return nodes
+}
+
 // ATE configuration with IP address
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, ports []string) *ondatra.ATETopology {
 	top := ate.Topology().New()
 
-	p1 := ate.Port(t, "port1")
+	p1 := ate.Port(t, ports[0])
 	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
 	i1.IPv4().
 		WithAddress(atePort1.IPv4CIDR()).
 		WithDefaultGateway(dutPort1.IPv4)
 
-	p2 := ate.Port(t, "port2")
+	p2 := ate.Port(t, ports[1])
 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
 	i2.IPv4().
 		WithAddress(atePort2.IPv4CIDR()).
@@ -280,10 +298,15 @@ func TestP4rtConnect(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	// configure DUT with P4RT node-id and ids on different FAPs
-	configureDUT(t, dut)
-	configureDeviceIDs(ctx, t, dut)
+	nodes := findP4RTNodes(t, dut)
+	configureDeviceIDs(t, dut, nodes)
 
-	top := configureATE(t, ate)
+	var ports []string
+	for _, v := range nodes {
+		ports = append(ports, v)
+	}
+	configureDUT(t, dut, ports)
+	top := configureATE(t, ate, ports)
 
 	// Setup two different clients for different FAPs
 	client1 := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
