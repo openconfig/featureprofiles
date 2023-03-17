@@ -35,4 +35,5 @@ var (
 	TempSensorNamePattern   = flag.String("arg_temp_sensor_name_pattern", "", "There is no component type specifically for temperature sensors. So, we use the name pattern to find them.")
 	SwitchChipNamePattern   = flag.String("arg_switchchip_name_pattern", "", "There is no component type specifically for SwitchChip components. So, we use the name pattern to find them.")
 	FanNamePattern          = flag.String("arg_fan_name_pattern", "", "This name pattern is used to filter out Fan components.")
+	FabricChipNamePattern   = flag.String("arg_fabricChip_name_pattern", "", "This name pattern is used to filter out FabricChip components.")
 )
