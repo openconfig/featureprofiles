@@ -246,6 +246,9 @@ func TestP4RTPacketIO(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				t.Logf("Name: %s", tt.name)
 				t.Logf("Description: %s", tt.desc)
+				if tt.skip {
+					t.Skip("testcase marked for skip")
+				}
 				tt.fn(ctx, t, args)
 			})
 		}
@@ -255,6 +258,9 @@ func TestP4RTPacketIO(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				t.Logf("Name: %s", tt.name)
 				t.Logf("Description: %s", tt.desc)
+				if tt.skip {
+					t.Skip("testcase marked for skip")
+				}
 				tt.fn(ctx, t, args)
 			})
 		}
@@ -266,6 +272,9 @@ func TestP4RTPacketIO(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				t.Logf("Name: %s", tt.name)
 				t.Logf("Description: %s", tt.desc)
+				if tt.skip {
+					t.Skip("testcase marked for skip")
+				}
 				tt.fn(ctx, t, args)
 			})
 		}
@@ -275,6 +284,9 @@ func TestP4RTPacketIO(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				t.Logf("Name: %s", tt.name)
 				t.Logf("Description: %s", tt.desc)
+				if tt.skip {
+					t.Skip("testcase marked for skip")
+				}
 				tt.fn(ctx, t, args)
 			})
 		}
@@ -285,7 +297,9 @@ func TestP4RTPacketIO(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				t.Logf("Name: %s", tt.name)
 				t.Logf("Description: %s", tt.desc)
-
+				if tt.skip {
+					t.Skip("testcase marked for skip")
+				}
 				tt.fn(ctx, t, args)
 			})
 			gnmi.Update(t, dut, gnmi.OC().Lldp().Enabled().Config(), *ygot.Bool(false))
@@ -322,7 +336,9 @@ func TestP4RTPacketIO(t *testing.T) {
 				t.Run(key+" "+tt.name, func(t *testing.T) {
 					t.Logf("Name: %s %s", key, tt.name)
 					t.Logf("Description: %s %s", key, tt.desc)
-
+					if tt.skip {
+						t.Skip("testcase marked for skip")
+					}
 					tt.fn(ctx, t, args)
 				})
 			}
