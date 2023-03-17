@@ -58,6 +58,7 @@ var (
 		"show logging",
 		"show processes blocked location all",
 		"show redundancy",
+		"show reboot history detail",
 	}
 )
 
