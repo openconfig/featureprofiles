@@ -510,7 +510,7 @@ func TestPBR(t *testing.T) {
 			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 				gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
 			}); errMsg != nil && tc.rejectable {
-				t.Skipf("Skipping test case %q, PolicyForwarding config was rejected with an error: \n%q", tc.name, *errMsg)
+				t.Skipf("Skipping test case %q, PolicyForwarding config was rejected with an error: %s", tc.name, *errMsg)
 			}
 
 			// defer cleaning policy-forwarding
