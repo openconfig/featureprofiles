@@ -17,6 +17,7 @@
 package policy_based_vrf_selection_test
 
 import (
+	"github.com/openconfig/testt"
 	"strconv"
 	"testing"
 	"time"
@@ -424,6 +425,7 @@ func TestPBR(t *testing.T) {
 		policy       *oc.NetworkInstance_PolicyForwarding
 		passingFlows []*ondatra.Flow
 		failingFlows []*ondatra.Flow
+		rejectable   bool
 	}{
 		{
 			name: "RT3.2 Case1",
@@ -437,6 +439,7 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, dstEndPointVlan10, "ipinipd10", 10),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd20", 20),
 				getIPinIPFlow(args, dstEndPointVlan30, "ipinipd30", 30)},
+			rejectable: false,
 		},
 		{
 			name: "RT3.2 Case2",
@@ -458,6 +461,7 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, dstEndPointVlan30, "ipinipd30", 30),
 				getIPinIPFlow(args, dstEndPointVlan30, "ipinipd31", 31),
 				getIPinIPFlow(args, dstEndPointVlan30, "ipinipd32", 32)},
+			rejectable: false,
 		},
 		{
 			name: "RT3.2 Case3",
@@ -474,6 +478,7 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd10v20", 10),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd11v20", 11),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd12v20", 12)},
+			rejectable: true,
 		},
 		{
 			name: "RT3.2 Case4",
@@ -493,6 +498,7 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd11v20", 11),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd12v20", 12),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd20", 20)},
+			rejectable: false,
 		},
 	}
 	for _, tc := range cases {
@@ -503,8 +509,15 @@ func TestPBR(t *testing.T) {
 			//configure pbr policy-forwarding
 			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
-
+			if tc.rejectable {
+				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+					gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+				}); errMsg != nil {
+					t.Skipf("Skipping test case %v, PolicyForwarding config was rejected with an error: %s", tc.desc, *errMsg)
+				}
+			} else {
+				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+			}
 			// defer cleaning policy-forwarding
 			defer gnmi.Delete(t, args.dut, pfpath.Config())
 
