@@ -80,9 +80,27 @@ def _sim_get_vrf(base_conf_file):
             return matches.group(3).strip()
     return None
 
-def _cli_to_gnmi_set_file(cli_file, gnmi_file):
+def _sim_get_mgmt_ip(testbed_logs_dir):
+    vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
+    with open(vxr_ports_file, "r") as fp:
+        try:
+            vxr_ports = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse vxr ports file...")
+            return
+
+    mgmt_ip = vxr_ports.get("dut", {}).get("xr_mgmt_ip", None)
+    return mgmt_ip
+
+def _cli_to_gnmi_set_file(cli_file, gnmi_file, extra_conf=[]):
     with open(cli_file, 'r') as cli:
-        gnmi_set = _gnmi_set_file_template(cli.read().splitlines())
+        lines = []
+        for l in cli.read().splitlines():
+            if l.strip() == 'end':
+                lines.extend(extra_conf)
+            lines.append(l)
+        gnmi_set = _gnmi_set_file_template(lines)
+
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
 
@@ -169,8 +187,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
-    if using_sim:
-        c |= ConfigureVirtualIP.s()
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s(ignore_install_errors=ignore_install_errors)
     if collect_tb_info:
@@ -427,7 +443,20 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
         baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
         shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
-        _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path)
+
+        extra_conf = []
+        mgmt_ip = _sim_get_mgmt_ip(testbed_logs_dir)
+        if not mgmt_ip: 
+            logger.warning("Could not find management ip for dut")
+        else: 
+            logger.info(f"Found dut manamgement ip: {mgmt_ip}")
+            mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
+            if mgmt_vrf:
+                extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
+            else:
+                extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
+            
+        _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path, extra_conf)
         check_output("sed -i 's|id: \"dut\"|id: \"dut\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
@@ -555,53 +584,6 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
         logger.print(f'Testbed info file: {testbed_info_path}')
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...')
-
-# noinspection PyPep8Naming
-@app.task(bind=True)
-def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
-        ondatra_testbed_path, ondatra_baseconf_path, testbed_logs_dir):
-    logger.print("Configuring Virtual IP...")
-
-    vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
-    with open(vxr_ports_file, "r") as fp:
-        try:
-            vxr_ports = yaml.safe_load(fp)
-        except yaml.YAMLError:
-            logger.warning("Failed to parse vxr ports file...")
-            return
-
-    mgmt_ip = vxr_ports.get("dut", {}).get("xr_mgmt_ip", None)
-    if not mgmt_ip:
-        logger.warning("Could not find management ip for dut")
-        return
-    else: logger.info(f"Found dut manamgement ip: {mgmt_ip}")
-
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        conf_file = f.name
-
-    with open(conf_file, 'w') as fp:
-        mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
-        if mgmt_vrf:
-            fp.write(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24\nend')
-        else:
-            fp.write(f'ipv4 virtual address {mgmt_ip}/24\nend')
-
-    set_conf_cmd = f'{GO_BIN} test -v ' \
-            f'./exec/utils/setconf ' \
-            f'-timeout 0 ' \
-            f'-args ' \
-            f'-testbed {ondatra_testbed_path} ' \
-            f'-binding {ondatra_binding_path} ' \
-            f'-conf {conf_file} ' \
-            f'-update'
-    try:
-        env = dict(os.environ)
-        env.update(_get_go_env())
-        check_output(set_conf_cmd, env=env, cwd=internal_fp_repo_dir)
-    except:
-        logger.warning(f'Failed to configure virtual ip. Ignoring...')
-    finally:
-        os.remove(conf_file)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
