@@ -81,7 +81,7 @@ func (tc *testcase) readPackage(r io.Reader) error {
 // that need fixing.
 //
 // It does not check the fixed rundata because that should already be valid.
-func (tc *testcase) check(testdir string) []error {
+func (tc *testcase) check() []error {
 	var errs []error
 
 	if tc.markdown.hasData {
