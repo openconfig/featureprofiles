@@ -58,15 +58,15 @@ options {
 
 duts {
   id: "dut"
-  name: "SF-D"  # Change this to the device hostname.
+  name: "8808"  # Change this to the device hostname.
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
-  # telnet RP0: 10.85.84.54 2005
-  # telnet RP1: 10.85.84.54 2006
-  # Mgmt RP0: 5.78.26.27
-  # Mgmt RP0: 5.78.26.28
-  # Rack Location : 22-18-27
+  # telnet RP0: 10.85.84.38 2001
+  # telnet RP1: 10.85.84.38 2002
+  # Mgmt RP0: 5.78.9.11
+  # Mgmt RP0: 5.78.9.12
+  # Rack Location : 22-18-8
   # Exec server: ott2lab-as3
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
