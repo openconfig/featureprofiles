@@ -311,8 +311,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
-	if *deviations.ExplicitGribiUnderNetworkInstance {
-		fptest.EnableGribiUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
 	}
 }
 
@@ -350,8 +350,8 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	niIntf.Interface = ygot.String(p1.Name())
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), nonDefaultNI)
-	if *deviations.ExplicitGribiUnderNetworkInstance {
-		fptest.EnableGribiUnderNetworkInstance(t, dut, nonDefaultVRF)
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, nonDefaultVRF)
 	}
 }
 

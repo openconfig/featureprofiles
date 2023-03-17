@@ -335,6 +335,8 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	dc := gnmi.OC()
 	niProto := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, args.dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	ni := &oc.NetworkInstance{Name: deviations.DefaultNetworkInstance}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	staticRoute := static.GetOrCreateStatic(staticCIDR)
