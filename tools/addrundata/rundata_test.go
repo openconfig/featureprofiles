@@ -82,11 +82,11 @@ func TestParsedData_Write(t *testing.T) {
 	}
 
 	buf := &bytes.Buffer{}
-	if err := want.write(buf, "foo_functional_test"); err != nil {
+	if err := want.write(buf); err != nil {
 		t.Fatalf("Cannot write: %v", err)
 	}
 	var got parsedData
-	if err := got.fromCode(buf); err != nil {
+	if err := got.fromProto(buf); err != nil {
 		t.Fatalf("Cannot read back: %v", err)
 	}
 	if diff := cmp.Diff(want, got, pdopt); diff != "" {

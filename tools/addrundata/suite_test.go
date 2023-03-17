@@ -29,8 +29,11 @@ func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 		if err := os.WriteFile(readmeFilename, []byte(readme), 0600); err != nil {
 			return nil, fmt.Errorf("could not write %s: %w", readmeFilename, err)
 		}
+		testFilename := filepath.Join(testdir, filepath.Base(testdir)+".go")
+		if _, err := os.Create(testFilename); err != nil {
+			return nil, fmt.Errorf("could not create %s: %w", testFilename, err)
+		}
 		newts[testdir] = &testcase{
-			pkg: tc.pkg,
 			markdown: parsedData{
 				testPlanID:      tc.fixed.testPlanID,
 				testDescription: tc.fixed.testDescription,
@@ -51,7 +54,6 @@ func TestSuite_Read(t *testing.T) {
 	featuredir := t.TempDir()
 	want, err := prepareSuite(featuredir, testsuite{
 		"foo/bar/ate_tests/qux_test": &testcase{
-			pkg: "qux_test",
 			fixed: parsedData{
 				testPlanID:      "XX-2.1",
 				testDescription: "Qux Functional Test",
@@ -60,7 +62,6 @@ func TestSuite_Read(t *testing.T) {
 			},
 		},
 		"foo/bar/otg_tests/qux_test": &testcase{
-			pkg: "qux_test",
 			fixed: parsedData{
 				testPlanID:      "XX-2.1",
 				testDescription: "Qux Functional Test",
@@ -87,7 +88,6 @@ func TestSuite_Read_BadPath(t *testing.T) {
 	featuredir := t.TempDir()
 	_, err := prepareSuite(featuredir, testsuite{
 		"foo/bar/qux_test": &testcase{
-			pkg: "qux_test",
 			fixed: parsedData{
 				testPlanID:      "XX-2.1",
 				testDescription: "Qux Functional Test",
