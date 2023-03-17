@@ -111,7 +111,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 }
 
 // configureDeviceIDs configures p4rt device-id on the DUT.
-func configureDeviceIDs(_ context.Context, t *testing.T, dut *ondatra.DUTDevice, nodes map[string]string) {
+func configureDeviceIDs(t *testing.T, dut *ondatra.DUTDevice, nodes map[string]string) {
 	deviceIDs := []uint64{deviceId1, deviceId2}
 	i := 0
 	for node := range nodes {
@@ -299,7 +299,7 @@ func TestP4rtConnect(t *testing.T) {
 
 	// configure DUT with P4RT node-id and ids on different FAPs
 	nodes := findP4RTNodes(t, dut)
-	configureDeviceIDs(ctx, t, dut, nodes)
+	configureDeviceIDs(t, dut, nodes)
 
 	var ports []string
 	for _, v := range nodes {
