@@ -195,10 +195,18 @@ func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
-	// Derive hardware port from interface name by removing the port number.
-	// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
-	i := strings.LastIndex(dp.Name(), "/")
-	want := dp.Name()[:i]
+	want := ""
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		in := dp.Name()
+		// e.g. Ethernet-3/35-Port
+		want = strings.Replace(in, "ethernet", "Ethernet", 1) + "-Port"
+	default:
+		// Derive hardware port from interface name by removing the port number.
+		// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
+		i := strings.LastIndex(dp.Name(), "/")
+		want = dp.Name()[:i]
+	}
 
 	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
 	t.Logf("Got %s HardwarePort from telmetry: %v, expected: %v", dp.Name(), got, want)
