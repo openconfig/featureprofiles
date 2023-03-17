@@ -51,11 +51,11 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator
 
 // CheckPresence check for the leaf presense only when MissingValueForDefaults
 // deviation is marked false.
-func CheckPresence(query ygnmi.SingletonQuery[uint32]) check.Validator {
+func CheckPresence[T any](query ygnmi.SingletonQuery[T]) check.Validator {
 	if !*deviations.MissingValueForDefaults {
-		return check.Present[uint32](query)
+		return check.Present[T](query)
 	}
-	return check.Validate(query, func(vgot *ygnmi.Value[uint32]) error {
+	return check.Validate(query, func(vgot *ygnmi.Value[T]) error {
 		return nil
 	})
 }
