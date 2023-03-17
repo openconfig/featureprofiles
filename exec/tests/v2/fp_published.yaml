@@ -244,7 +244,7 @@ tests:
   mustpass: true
   priority: 6
 - name: DP-1.4 (QoS Interface Output Queue Counters) 
-  path: feature/experimental/qos/ate_tests/qos_output_queue_counters_test
+  path: feature/qos/ate_tests/qos_output_queue_counters_test
   owners:
     - arvbaska
   mustpass: true
@@ -558,12 +558,12 @@ tests:
   args:
     - '-deviation_qos_dropped_octets="true"'
 - name: DP-1.7 (One strict priority queue traffic test)
-  path: feature/experimental/qos/ate_tests/one_sp_queue_traffic_test
+  path: feature/qos/ate_tests/one_sp_queue_traffic_test
   owners:
     - saarvind
   mustpass: true
 - name: DP-1.8 (Two strict priority queue traffic test)
-  path: feature/experimental/qos/ate_tests/two_sp_queue_traffic_test
+  path: feature/qos/ate_tests/two_sp_queue_traffic_test
   owners:
       - saarvind
   mustpass: true
@@ -573,10 +573,9 @@ tests:
       - saarvind
   mustpass: true
 - name: DP-1.11 (QoS Bursty Traffic)
-  path: feature/experimental/qos/ate_tests/bursty_traffic_test
+  path: feature/qos/ate_tests/bursty_traffic_test
   owners:
       - saarvind
-  branch: main-google-traffic
   internal: true
   mustpass: true
   args:
