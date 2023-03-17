@@ -1,3 +1,9 @@
+replace: {
+    path: {
+      origin: "cli"
+    }
+    val: {
+      ascii_val:
 "hostname xx25.den8800\n"
 "logging trap informational\n"
 "logging archive\n"
@@ -391,14 +397,14 @@
 " ipv4 address 5.78.9.12/16\n"
 "!\n"
 "interface TenGigE0/0/0/20/2\n"
-" description server_eth116"
+" description server_eth116\n"
 " bundle id 1 mode on\n"
 " lacp period short\n"
 " carrier-delay up 3000 down 150\n"
 " load-interval 30\n"
 "!\n"
 "interface TenGigE0/0/0/20/3\n"
-" description server_eth17"
+" description server_eth17\n"
 " bundle id 2 mode on\n"
 " lacp period short\n"
 " carrier-delay up 3000 down 150\n"
@@ -630,3 +636,5 @@
 "hw-module profile pbr vrf-redirect\n"
 "!\n"
 "end\n"
+}
+}
