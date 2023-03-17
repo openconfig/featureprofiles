@@ -213,7 +213,7 @@ func TestCase_Check(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			errs := c.tc.check("testdir")
+			errs := c.tc.check()
 			t.Logf("Errors from check: %#q", errs)
 			if got := len(errs); got != c.want {
 				t.Errorf("Number of errors from check got %d, want %d.", got, c.want)

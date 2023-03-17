@@ -52,7 +52,7 @@ func readFile(filename string, fn func(io.Reader) error) error {
 // that need fixing.
 //
 // It does not check the fixed rundata because that should already be valid.
-func (tc *testcase) check(testdir string) []error {
+func (tc *testcase) check() []error {
 	var errs []error
 
 	if *checkDeprecated && tc.deprecated {
