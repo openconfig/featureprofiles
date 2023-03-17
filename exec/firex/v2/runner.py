@@ -24,6 +24,7 @@ import json
 import yaml
 import git
 import os
+import re
 
 logger = get_task_logger(__name__)
 
@@ -40,7 +41,6 @@ TESTBEDS_FILE = 'exec/testbeds.yaml'
 whitelist_arguments([
     'test_html_report',
     'release_ixia_ports',
-    'mgmt_vrf'
 ])
 
 class GoTestSegFaultException(Exception):
@@ -71,6 +71,14 @@ def _gnmi_set_file_template(conf):
   }
 }
     """
+
+def _sim_get_vrf(base_conf_file):
+    intf_re = r'interface.*?MgmtEth0\/RP0\/CPU0/0(.|\n)*?(\bvrf(\b.*\b))(.|\n)*?!'
+    with open(base_conf_file, 'r') as fp:
+        matches = re.search(intf_re, fp.read())
+        if matches and matches.group(3) is not None:
+            return matches.group(3).strip()
+    return None
 
 def _cli_to_gnmi_set_file(cli_file, gnmi_file):
     with open(cli_file, 'r') as cli:
@@ -274,7 +282,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
-        test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
+        test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, ondatra_baseconf_path, 
         test_path, test_args=None, test_timeout=0, test_debug=False, test_verbose=False, testbed_info_path=None):
     
     logger.print('Running Go test...')
@@ -289,6 +297,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
             os.path.join(test_log_directory_path, "ondatra_binding.txt"))
     shutil.copyfile(ondatra_testbed_path,
             os.path.join(test_log_directory_path, "ondatra_testbed.txt"))
+    shutil.copyfile(ondatra_baseconf_path,
+        os.path.join(test_log_directory_path, "ondatra_baseconf.txt"))
 
     if os.path.exists(testbed_info_path):
         shutil.copyfile(testbed_info_path,
@@ -398,7 +408,7 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'install_lock_file'))
+@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'ondatra_baseconf_path', 'testbed_info_path', 'install_lock_file'))
 def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed, test_name, **kwargs):
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
@@ -439,7 +449,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
-    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, install_lock_file
+    return ondatra_testbed_path, ondatra_binding_path, ondatra_baseconf_path, testbed_info_path, install_lock_file
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
@@ -549,7 +559,7 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
-        ondatra_testbed_path, testbed_logs_dir, mgmt_vrf=None):
+        ondatra_testbed_path, ondatra_baseconf_path, testbed_logs_dir):
     logger.print("Configuring Virtual IP...")
 
     vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
@@ -570,6 +580,7 @@ def ConfigureVirtualIP(self, ws, internal_fp_repo_dir, ondatra_binding_path,
         conf_file = f.name
 
     with open(conf_file, 'w') as fp:
+        mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
         if mgmt_vrf:
             fp.write(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24\nend')
         else:
