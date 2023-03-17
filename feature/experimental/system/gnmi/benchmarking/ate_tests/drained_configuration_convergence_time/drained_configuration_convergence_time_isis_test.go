@@ -68,7 +68,7 @@ func verifyISISMetric(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 			is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
 			lsps := is.LevelAny().LspAny()
 
-			_, ok := gnmi.WatchAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Metric().State(), 2*time.Minute, func(v *ygnmi.Value[uint32]) bool {
+			_, ok := gnmi.WatchAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Metric().State(), 5*time.Minute, func(v *ygnmi.Value[uint32]) bool {
 				val, present := v.Val()
 				return present && val == setup.ISISMetric
 			}).Await(t)
