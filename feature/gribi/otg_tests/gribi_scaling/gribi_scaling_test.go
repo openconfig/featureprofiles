@@ -397,7 +397,7 @@ func configureDUTSubIfs(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPor
 
 // configureATESubIfs configures 64 ATE subinterfaces on the target device
 // It returns a slice of the corresponding ATE IPAddresses.
-func configureATESubIfs(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, atePort *ondatra.Port) []string {
+func configureATESubIfs(t *testing.T, top gosnappi.Config, atePort *ondatra.Port) []string {
 	nextHops := []string{}
 	for i := 0; i < 64; i++ {
 		vlanID := uint16(i)
@@ -408,14 +408,14 @@ func configureATESubIfs(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevic
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+1)
 		name := fmt.Sprintf(`dst%d`, i)
 		mac, _ := incrementMAC(atePort1.MAC, i+1)
-		configureATE(t, top, ate, atePort, vlanID, name, mac, dutIPv4, ateIPv4)
+		configureATE(t, top, atePort, vlanID, name, mac, dutIPv4, ateIPv4)
 		nextHops = append(nextHops, ateIPv4)
 	}
 	return nextHops
 }
 
 // configureATE configures a single ATE layer 3 interface.
-func configureATE(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, atePort *ondatra.Port, vlanID uint16, Name, MAC, dutIPv4, ateIPv4 string) {
+func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, vlanID uint16, Name, MAC, dutIPv4, ateIPv4 string) {
 	t.Helper()
 
 	dev := top.Devices().Add().SetName(Name + ".Dev")
@@ -425,7 +425,6 @@ func configureATE(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, ate
 		eth.Vlans().Add().SetName(Name).SetId(int32(vlanID))
 	}
 	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(int32(atePort1.IPv4Len))
-
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
@@ -477,9 +476,9 @@ func TestScaling(t *testing.T) {
 
 	configureDUT(t, dut)
 
-	configureATE(t, top, ate, ap1, 0, "src", atePort1.MAC, dutPort1.IPv4, atePort1.IPv4)
+	configureATE(t, top, ap1, 0, "src", atePort1.MAC, dutPort1.IPv4, atePort1.IPv4)
 	// subIntfIPs is a []string slice with ATE IPv4 addresses for all the subInterfaces
-	subIntfIPs := configureATESubIfs(t, top, ate, ap2)
+	subIntfIPs := configureATESubIfs(t, top, ap2)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
