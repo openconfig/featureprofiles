@@ -247,14 +247,6 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
 		}
-		//ip := a.ip(uint8(i))
-		//s4 := s.GetOrCreateIpv4()
-		//if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
-		//	s4.Enabled = ygot.Bool(true)
-		//}
-		//s4a := s4.GetOrCreateAddress(ip)
-		//s4a.PrefixLength = ygot.Uint8(a.IPv4Len)
-		//t.Logf("Adding DUT Subinterface with ID: %d, Vlan ID: %d and IPv4 address: %s", i, i, ip)
 	}
 }
 
