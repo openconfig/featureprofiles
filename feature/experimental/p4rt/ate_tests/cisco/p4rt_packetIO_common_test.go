@@ -270,7 +270,6 @@ func configureInterface(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 	config := oc.Interface{
 		Name:    ygot.String(interfaceName),
 		Enabled: ygot.Bool(true),
-		Type:    oc.IETFInterfaces_InterfaceType_ieee8023adLag,
 		Subinterface: map[uint32]*oc.Interface_Subinterface{
 			subInterface: {
 				Index: ygot.Uint32(subInterface),
@@ -551,12 +550,12 @@ func testEntryProgrammingPacketInAndChangeDeviceID(ctx context.Context, t *testi
 	component := oc.Component{}
 	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	component.Name = ygot.String(componentName)
-	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
+	component.IntegratedCircuit.NodeId = ygot.Uint64(^deviceID)
 	gnmi.Replace(t, args.dut, gnmi.OC().Component(componentName).Config(), &component)
 
 	// Setup P4RT ClientB to be primary
 	newStreamName := "new_primary"
-	setupPrimaryP4RTClient(ctx, t, args.p4rtClientB, deviceID, electionID, newStreamName)
+	setupPrimaryP4RTClient(ctx, t, args.p4rtClientB, ^deviceID, electionID, newStreamName)
 
 	defer func() {
 		componentName := getComponentID(ctx, t, args.dut)
@@ -619,7 +618,7 @@ func testEntryProgrammingPacketInAndChangePortID(ctx context.Context, t *testing
 
 	validatePackets(t, args, packets)
 
-	newPortID := portID % maxPortID
+	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	args.packetIO.SetIngressPorts(t, fmt.Sprint(newPortID))
 	var intType oc.E_IETFInterfaces_InterfaceType
@@ -992,7 +991,7 @@ func testEntryProgrammingPacketInWithouthPortIDThenAddPortID(ctx context.Context
 		t.Errorf("There is no packets received.")
 	}
 
-	args.packetIO.SetIngressPorts(t, fmt.Sprint(portID))
+	args.packetIO.SetIngressPorts(t, fmt.Sprint(^portID))
 	defer args.packetIO.SetIngressPorts(t, fmt.Sprint(portID))
 	validatePackets(t, args, packets)
 }
@@ -2027,7 +2026,7 @@ func testPacketOutEgressWithInvalidPortId(ctx context.Context, t *testing.T, arg
 	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
-	packet := args.packetIO.GetPacketOut(t, portID, false)
+	packet := args.packetIO.GetPacketOut(t, ^portID, false)
 
 	packet_count := 100
 	sendPackets(t, client, packet, packet_count)
@@ -2054,7 +2053,7 @@ func testPacketOutEgressWithChangePortId(ctx context.Context, t *testing.T, args
 	client := args.p4rtClientA
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
-	newPortID := portID % maxPortID
+	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	var intType oc.E_IETFInterfaces_InterfaceType
 	if strings.Contains(portName, "Bundle") {
@@ -2107,7 +2106,7 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 	client := args.p4rtClientA
 	// srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
-	newPortID := portID % maxPortID
+	newPortID := ^portID % maxPortID
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	var intType oc.E_IETFInterfaces_InterfaceType
 	if strings.Contains(portName, "Bundle") {
