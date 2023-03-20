@@ -95,8 +95,9 @@ var (
 			IPv4:    dutPort2IPv4(0),
 			IPv4Len: ipv4PrefixLen,
 		},
-		numSubIntf: 18,
-		ip:         dutPort2IPv4,
+		numSubIntf:      18,
+		networkInstance: *deviations.DefaultNetworkInstance,
+		ip:              dutPort2IPv4,
 	}
 
 	atePort2 = attributes{
@@ -230,10 +231,13 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4
 func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 	t.Helper()
-
+	if a.numSubIntf == 0 {
+		s := intf.GetOrCreateSubinterface(0)
+		if *deviations.InterfaceEnabled {
+			s.Enabled = ygot.Bool(true)
+		}
+	}
 	for i := uint32(1); i <= a.numSubIntf; i++ {
-		ip := a.ip(uint8(i))
-
 		s := intf.GetOrCreateSubinterface(i)
 		if *deviations.InterfaceEnabled {
 			s.Enabled = ygot.Bool(true)
@@ -243,6 +247,31 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
 		}
+		//ip := a.ip(uint8(i))
+		//s4 := s.GetOrCreateIpv4()
+		//if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		//	s4.Enabled = ygot.Bool(true)
+		//}
+		//s4a := s4.GetOrCreateAddress(ip)
+		//s4a.PrefixLength = ygot.Uint8(a.IPv4Len)
+		//t.Logf("Adding DUT Subinterface with ID: %d, Vlan ID: %d and IPv4 address: %s", i, i, ip)
+	}
+}
+
+func (a *attributes) configL3SubifDUT(t *testing.T, intf *oc.Interface) {
+	if a.numSubIntf == 0 {
+		s := intf.GetOrCreateSubinterface(0)
+		ip := a.ip(uint8(0))
+		s4 := s.GetOrCreateIpv4()
+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+			s4.Enabled = ygot.Bool(true)
+		}
+		s4a := s4.GetOrCreateAddress(ip)
+		s4a.PrefixLength = ygot.Uint8(a.IPv4Len)
+	}
+	for i := uint32(1); i <= a.numSubIntf; i++ {
+		s := intf.GetOrCreateSubinterface(i)
+		ip := a.ip(uint8(i))
 		s4 := s.GetOrCreateIpv4()
 		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 			s4.Enabled = ygot.Bool(true)
@@ -259,51 +288,58 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	t.Helper()
 
 	i := &oc.Interface{Name: ygot.String(p.Name())}
-
-	if a.numSubIntf > 0 {
-		i.Description = ygot.String(a.Desc)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		if *deviations.InterfaceEnabled {
-			i.Enabled = ygot.Bool(true)
-		}
-	} else {
-		i = a.NewOCInterface(p.Name())
+	i.Description = ygot.String(a.Desc)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	if *deviations.InterfaceEnabled {
+		i.Enabled = ygot.Bool(true)
+	}
+	if *deviations.ExplicitPortSpeed {
+		i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, p)
 	}
 
 	a.configSubinterfaceDUT(t, i)
 	intfPath := gnmi.OC().Interface(p.Name())
-	gnmi.Update(t, d, intfPath.Config(), i)
-	if *deviations.ExplicitPortSpeed {
-		fptest.SetPortSpeed(t, p)
-	}
+	gnmi.Replace(t, d, intfPath.Config(), i)
 	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
+
+	// assign subinterfaces to network-instances and update subif L3 configuration after that
+	a.assignSubifsToNetworkInstance(t, d, p)
+	a.configL3SubifDUT(t, i)
+	gnmi.Update(t, d, intfPath.Config(), i)
+
 }
 
 // configureNetworkInstance creates new Network Instance and configures it, if provided,
 // else configures the Default Network Instance.
-func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
+func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	t.Helper()
-	// Use default NI if not provided
-	if a.networkInstance != "" {
+	if a.networkInstance != *deviations.DefaultNetworkInstance {
 		ni := &oc.NetworkInstance{
 			Name: ygot.String(a.networkInstance),
 			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 		}
-		i := ni.GetOrCreateInterface(p.Name())
-		i.Interface = ygot.String(p.Name())
-		i.Subinterface = ygot.Uint32(0)
-
 		dni := gnmi.OC().NetworkInstance(a.networkInstance)
 		gnmi.Replace(t, d, dni.Config(), ni)
 		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
-	} else {
-		if *deviations.ExplicitInterfaceInDefaultVRF {
-			dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-			gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
-				Id:           ygot.String(p.Name()),
-				Interface:    ygot.String(p.Name()),
-				Subinterface: ygot.Uint32(0),
-			})
+		if *deviations.ExplicitGRIBIUnderNetworkInstance {
+			fptest.EnableGRIBIUnderNetworkInstance(t, d, a.networkInstance)
+		}
+	}
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, d, *deviations.DefaultNetworkInstance)
+	}
+}
+
+func (a *attributes) assignSubifsToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
+	niName := a.networkInstance
+
+	if niName != *deviations.DefaultNetworkInstance || *deviations.ExplicitInterfaceInDefaultVRF {
+		if a.numSubIntf == 0 {
+			fptest.AssignToNetworkInstance(t, d, p.Name(), niName, 0)
+		} else {
+			for i := uint32(1); i <= a.numSubIntf; i++ {
+				fptest.AssignToNetworkInstance(t, d, p.Name(), niName, i)
+			}
 		}
 	}
 }
@@ -313,7 +349,7 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
 func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p := dut.Port(t, a.Name)
-	a.configureNetworkInstance(t, dut, p)
+	a.configureNetworkInstance(t, dut)
 	a.configInterfaceDUT(t, dut, p)
 }
 
