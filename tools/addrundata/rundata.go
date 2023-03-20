@@ -56,6 +56,9 @@ func (pd *parsedData) fromCode(r io.Reader) error {
 	if err := sc.Err(); err != nil {
 		return err
 	}
+	if !pd.hasData {
+		return errors.New("missing func init()")
+	}
 	return nil
 }
 
