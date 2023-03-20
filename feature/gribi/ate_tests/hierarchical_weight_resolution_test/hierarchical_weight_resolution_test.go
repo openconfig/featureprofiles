@@ -313,12 +313,9 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
 		dni := gnmi.OC().NetworkInstance(a.networkInstance)
 		gnmi.Replace(t, d, dni.Config(), ni)
 		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
-		if *deviations.ExplicitGRIBIUnderNetworkInstance {
-			fptest.EnableGRIBIUnderNetworkInstance(t, d, a.networkInstance)
-		}
 	}
 	if *deviations.ExplicitGRIBIUnderNetworkInstance {
-		fptest.EnableGRIBIUnderNetworkInstance(t, d, *deviations.DefaultNetworkInstance)
+		fptest.EnableGRIBIUnderNetworkInstance(t, d, a.networkInstance)
 	}
 }
 
