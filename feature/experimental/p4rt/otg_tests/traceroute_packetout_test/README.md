@@ -15,14 +15,13 @@ Verify that traceroute packets can be sent by the controller.
 
 *   Enable the P4RT server on the device..
 
-*   Connect a P4RT client and configure the forwarding pipeline. Install
-P4RT table entries required for traceroute.
+*   Connect a P4RT client and configure the forwarding pipeline.
 
-*   Send an IPv4 traceroute reply from the client with submit_to_egress_pipeline metadata  set to true.
+*   Send an IPv4 traceroute reply from the client with submit_to_ingress_pipeline metadata  set to true.
 
-*   Verify that the packet is received on the ATE on the portcorresponding to the routing table in the default VRF.
+*   Verify that the packet is received on the ATE on the port corresponding to the routing table in the default VRF.
 
-*   Repeat with an IPv6 traceroute reply and verify that it is receivedcorrectly by the ATE.
+*   Repeat with an IPv6 traceroute reply and verify that it is received correctly by the ATE.
 
 
 *   Validate:
