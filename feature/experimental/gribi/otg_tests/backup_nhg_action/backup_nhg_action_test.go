@@ -130,6 +130,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3")
 	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+		fptest.SetPortSpeed(t, p3)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // addStaticRoute configures static route.
@@ -137,7 +146,7 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	s := &oc.Root{}
 	static := s.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-	ipv4Nh := static.GetOrCreateStatic(innerdstPfx + "/" + mask).GetOrCreateNextHop(atePort3.IPv4)
+	ipv4Nh := static.GetOrCreateStatic(innerdstPfx + "/" + mask).GetOrCreateNextHop("0")
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort3.IPv4)
 	gnmi.Update(t, dut, d.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
@@ -153,6 +162,10 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	niIntf.Subinterface = ygot.Uint32(0)
 	niIntf.Interface = ygot.String(p1.Name())
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), ni)
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfName)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+	}
 }
 
 // TE11.3 backup nhg action tests.
@@ -162,6 +175,8 @@ func TestBackupNHGAction(t *testing.T) {
 
 	// Configure DUT
 	configureDUT(t, dut)
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	configureNetworkInstance(t, dut)
 	addStaticRoute(t, dut)
 
@@ -230,8 +245,8 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, primaryTunnelDstIP+"/"+mask, NH1ID, vrfName, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	t.Logf("Create flows with dst %s", primaryTunnelDstIP)
-	baselineFlow := createFlow(t, args.ate, "BaseFlow", primaryTunnelDstIP, &atePort2)
-	backupFlow := createFlow(t, args.ate, "BackupFlow", primaryTunnelDstIP, &atePort3)
+	baselineFlow := createFlow(args.ate, "BaseFlow", primaryTunnelDstIP, &atePort2)
+	backupFlow := createFlow(args.ate, "BackupFlow", primaryTunnelDstIP, &atePort3)
 	t.Log("Validate traffic passes")
 	validateTrafficFlows(t, args.ate, args.top, baselineFlow, backupFlow)
 
@@ -282,8 +297,8 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	t.Logf("Create flows with dst %s", primaryTunnelDstIP)
-	baselineFlow := createFlow(t, args.ate, "BaseFlow", primaryTunnelDstIP, &atePort2)
-	backupFlow := createFlow(t, args.ate, "BackupFlow", primaryTunnelDstIP, &atePort3)
+	baselineFlow := createFlow(args.ate, "BaseFlow", primaryTunnelDstIP, &atePort2)
+	backupFlow := createFlow(args.ate, "BackupFlow", primaryTunnelDstIP, &atePort3)
 	t.Logf("Validate traffic passes through port2")
 	validateTrafficFlows(t, args.ate, args.top, baselineFlow, backupFlow)
 
@@ -306,7 +321,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx.
-func createFlow(t *testing.T, ate *ondatra.ATEDevice, name string, dstPfx string, dst *attrs.Attributes) gosnappi.Flow {
+func createFlow(ate *ondatra.ATEDevice, name string, dstPfx string, dst *attrs.Attributes) gosnappi.Flow {
 
 	flow := gosnappi.NewFlow().SetName(name)
 	flow.Metrics().SetEnable(true)
