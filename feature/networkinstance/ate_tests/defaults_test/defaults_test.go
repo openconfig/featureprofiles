@@ -150,6 +150,11 @@ func TestDefaultAddressFamilies(t *testing.T) {
 				fptest.SetPortSpeed(t, dutP1)
 				fptest.SetPortSpeed(t, dutP2)
 			}
+			if tc.niName == *deviations.DefaultNetworkInstance {
+				dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+				gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			}
+
 			d := &oc.Root{}
 			// Assign two ports into the network instance & unnasign them at the end of the test
 			assignPort(t, d, dutP1.Name(), tc.niName, dutPort1)
