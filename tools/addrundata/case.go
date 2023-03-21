@@ -31,11 +31,13 @@ func (tc *testcase) read(testdir string) error {
 	if err != nil {
 		return fmt.Errorf("could not glob: %w", err)
 	}
-	if len(testpaths) == 0 {
-		return fmt.Errorf("no tests in directory %q", testdir)
-	}
-	if err := readFile(testpaths[0], tc.readPackage); err != nil {
-		return fmt.Errorf("could not detect test package: %w", err)
+	for _, testpath := range testpaths {
+		if err := readFile(testpath, tc.readPackage); err != nil {
+			return fmt.Errorf("could not detect test package: %w", err)
+		}
+		if tc.pkg != "" {
+			break
+		}
 	}
 	if err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.existing.fromCode); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("could not parse rundata_test.go: %w", err)

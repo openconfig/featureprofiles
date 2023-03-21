@@ -64,9 +64,15 @@ func TestCase_Read(t *testing.T) {
 	}, {
 		desc:         "no tests",
 		markdownText: markdownText,
-		wantErr:      "no tests",
+		want: testcase{
+			markdown: parsedData{
+				testPlanID:      "XX-1.1",
+				testDescription: "Description from markdown",
+				hasData:         true,
+			},
+		},
 	}, {
-		desc:         "good markdown",
+		desc:         "good markdown and test",
 		markdownText: markdownText,
 		testCode:     testCode,
 		want: testcase{
