@@ -16,6 +16,7 @@ package singleton_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -220,6 +221,9 @@ func (tc *testCase) verifyInterfaceDUT(
 	// Mac address value is still not populated in di. Hence getting using gnmi get method
 	diMacAddress := gnmi.Get(t, tc.dut, dip.Ethernet().MacAddress().State())
 	di.GetOrCreateEthernet().MacAddress = &diMacAddress
+
+	wantdi.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(wantdi.GetOrCreateEthernet().GetMacAddress()))
+	di.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(di.GetOrCreateEthernet().GetMacAddress()))
 
 	confirm.State(t, wantdi, di)
 
