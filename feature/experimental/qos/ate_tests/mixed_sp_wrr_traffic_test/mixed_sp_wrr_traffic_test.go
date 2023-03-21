@@ -521,11 +521,13 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 					WithFrameSize(data.frameSize)
 				flows = append(flows, flow)
 			}
+
+			trafficInputRate := make(map[string]float64)
+			trafficOutputRate := make(map[string]float64)
 			var counterNames []string
 			counters := make(map[string]map[string]uint64)
 			if !*deviations.QOSDroppedOctets {
 				counterNames = []string{
-
 					"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
 					"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
 					"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
@@ -533,12 +535,10 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 				}
 			} else {
 				counterNames = []string{
-
 					"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
 					"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
 					"dutQosDroppedPktsAfterTraffic",
 				}
-
 			}
 			for _, name := range counterNames {
 				counters[name] = make(map[string]uint64)
@@ -579,10 +579,27 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 				}
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 
+				// Calculate aggregated throughput:
+				//  (InputRate1*rxPct+InputRate2*rxPct)/(InputRate1+InputRate2)
+				_, ok := trafficInputRate[data.queue]
+				if !ok {
+					trafficInputRate[data.queue] = data.trafficRate
+				} else {
+					trafficInputRate[data.queue] += data.trafficRate
+				}
+
 				lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
 				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
-				if got, want := 100.0-lossPct, data.expectedThroughputPct; got < want-tolerance || got > want+tolerance {
-					t.Errorf("Get(throughput for queue %q): got %.2f%%, want within [%.2f%%, %.2f%%]", data.queue, got, want-tolerance, want+tolerance)
+				_, ok = trafficOutputRate[data.queue]
+				if !ok {
+					trafficOutputRate[data.queue] = data.trafficRate * float64(100.0-lossPct)
+				} else {
+					trafficOutputRate[data.queue] += data.trafficRate * float64(100.0-lossPct)
+					got := trafficOutputRate[data.queue] / trafficInputRate[data.queue]
+					want := float64(data.expectedThroughputPct)
+					if got < want-float64(tolerance) || got > want+float64(tolerance) {
+						t.Errorf("Get(throughput for queue %q): got %.2f%%, want within [%.2f%%, %.2f%%]", data.queue, got, want-float64(tolerance), want+float64(tolerance))
+					}
 				}
 			}
 
