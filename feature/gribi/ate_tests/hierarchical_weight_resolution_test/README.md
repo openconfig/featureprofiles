@@ -13,32 +13,29 @@ Configure ATE and DUT:
 
 *   Create a non-default VRF (VRF-1) that includes DUT port-1.
 
-*   For DUT port-2 interface, create a subinterface with Index 0 and IPv4
-    address 192.0.2.5, not in a VLAN.
+*   On DUT port-2 and ATE port-2 create 18 L3 sub-interfaces each with a /30
+    subnet as below:
 
-*   For ATE port-2, create a subinterface with IPv4 address 192.0.2.6 and
-    Default Gateway of 192.0.2.5, not in a VLAN.
+    *   On DUT port-2, create subinterfaces with indices 1 to 18 mapped to VLAN
+        IDs 1 to 18 and corressponding IPv4 addresses 192.0.2.5, 192.0.2.9, ...,
+        192.0.2.73 respectively.
 
-*   Repeat for 18 more subinterfaces in a VLAN configuration:
-
-    *   For DUT port-2, subinterfaces indices 1...18 with VLAN IDs 1...18 and
-        corresponding IPv4 addresses 192.0.2.9 ... 192.0.2.73
-
-    *   For ATE port-2, subinterfaces with VLAN IDs 1...18 and corresponding
-        IPv4 addresses 192.0.2.10 ... 192.0.2.79 with default gateways of
-        192.0.2.9 ... 192.0.2.78
+    *   On ATE port-2, create subinterfaces with indices 1 to 18 mapped to VLAN
+        IDs 1 to 18 and corresponding IPv4 addresses 192.0.2.6, 192.0.2.10, ...,
+        192.0.2.74 and default gateways as 192.0.2.5, 192.0.2.9, ..., 192.0.2.73
+        respectively.
 
 Test case for basic hierarchical weight:
 
 *   Establish gRIBI client connection with DUT with PERSISTENCE, make it become
     leader and install the following Entries:
 
-    *   IPv4Entry 203.0.113.0/24 in VRF-1, pointing to NextHopGroup(NHG#1) in
+    *   IPv4Entry 198.18.196.0/22 in VRF-1, pointing to NextHopGroup(NHG#1) in
         default VRF, with two NextHops(NH#1, NH#2) in default VRF:
 
         *   NH#1 with weight:1, pointing to 192.0.2.111
 
-        *   NH#2 with weight:2, pointing to 192.0.2.222
+        *   NH#2 with weight:3, pointing to 192.0.2.222
 
     *   IPv4Entry 192.0.2.111/32 in default VRF, pointing to NextHopGroup(NHG#2)
         in default VRF, with two NextHops(NH#10, NH#11) in default VRF:
@@ -50,9 +47,9 @@ Test case for basic hierarchical weight:
     *   IPv4Entry 192.0.2.222/32 in default VRF, pointing to NextHopGroup(NHG#3)
         in default VRF, with two NextHops(NH#100, NH#101) in default VRF:
 
-        *   NH#100 with weight:2, pointing to 192.0.2.18
+        *   NH#100 with weight:3, pointing to 192.0.2.18
 
-        *   NH#101 with weight:3, pointing to 192.0.2.22
+        *   NH#101 with weight:5, pointing to 192.0.2.22
 
 *   Validate with traffic:
 
@@ -60,9 +57,9 @@ Test case for basic hierarchical weight:
 
     *   NH11: (1/4) * (3/4) = 18.75% traffic received by ATE port-2 VLAN 2
 
-    *   NH100: (3/4) * (2/5) = 30% traffic received by ATE port-2 VLAN 3
+    *   NH100: (3/4) * (3/8) = 28.12% traffic received by ATE port-2 VLAN 3
 
-    *   NH101: (3/4) * (3/5) = 45% traffic received by ATE port-2 VLAN 4
+    *   NH101: (3/4) * (5/8) = 46.87% traffic received by ATE port-2 VLAN 4
 
     *   A deviation of 0.5% is allowed for each VLAN for now, since we only test
         for 2 mins.
@@ -73,7 +70,7 @@ WCMP width of 16 nexthops:
 *   Flush previous gRIBI Entries for all NIs and establish a new connection with
     DUT with PERSISTENCE and install the following Entries:
 
-    *   IPv4Entry 203.0.113.0/24 in VRF-1, pointing to NextHopGroup(NHG#1) in
+    *   IPv4Entry 198.18.196.0/22 in VRF-1, pointing to NextHopGroup(NHG#1) in
         default VRF, with two NextHops(NH#1, NH#2) in default VRF:
 
         *   NH#1 with weight:1, pointing to 192.0.2.111
@@ -83,9 +80,9 @@ WCMP width of 16 nexthops:
     *   IPv4Entry 192.0.2.111/32 in default VRF, pointing to NextHopGroup(NHG#2)
         in default VRF, with two NextHops(NH#10, NH#11) in default VRF:
 
-        *   NH#10 with weight:2, pointing to 192.0.2.10
+        *   NH#10 with weight:3, pointing to 192.0.2.10
 
-        *   NH#11 with weight:3, pointing to 192.0.2.14
+        *   NH#11 with weight:5, pointing to 192.0.2.14
 
     *   IPv4Entry 192.0.2.222/32 in default VRF, pointing to NextHopGroup(NHG#3)
         in default VRF, with 16 NextHops(NH#100, NH#101, ..., NH#115), all with
@@ -101,9 +98,9 @@ WCMP width of 16 nexthops:
 
 *   Validate with traffic:
 
-    *   NH10: (1/32) * (2/5) = 1.25% traffic received by ATE port-2 VLAN 1
+    *   NH10: (1/32) * (3/8) = 1.171% traffic received by ATE port-2 VLAN 1
 
-    *   NH11: (1/32) * (3/5) = 1.875% traffic received by ATE port-2 VLAN 2
+    *   NH11: (1/32) * (5/8) = 1.953% traffic received by ATE port-2 VLAN 2
 
     *   for each VLAN ID in 3...18:
 
