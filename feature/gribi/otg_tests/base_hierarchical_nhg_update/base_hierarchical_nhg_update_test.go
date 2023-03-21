@@ -258,9 +258,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1VRF := vrf.GetOrCreateInterface(p1.Name())
 	p1VRF.Interface = ygot.String(p1.Name())
 	p1VRF.Subinterface = ygot.Uint32(0)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
+
+	// For interface configuration, Arista prefers config Vrf first then the IP address
+	if *deviations.InterfaceConfigVrfBeforeAddress {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
+	}
 
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+
+	if !*deviations.InterfaceConfigVrfBeforeAddress {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
+	}
+
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 
@@ -277,6 +286,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfName)
 	}
 }
 
