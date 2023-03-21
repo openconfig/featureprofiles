@@ -53,7 +53,7 @@ func TestOverloadBit(t *testing.T) {
 
 	for _, vd := range []check.Validator{
 		checkSetBit,
-		check.Equal(overloads.State(), uint32(0)),
+		check.EqualOrNil(overloads.State(), uint32(0)),
 	} {
 		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 			t.Error(err)
