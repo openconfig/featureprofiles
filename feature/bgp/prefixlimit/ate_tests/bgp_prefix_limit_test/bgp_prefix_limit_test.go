@@ -389,7 +389,7 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	if got, ok := gnmi.Watch(t, dut, prefixes.Installed().State(), time.Minute, compare).Await(t); !ok {
 		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got, installedRoutes)
-	}	
+	}
 	nv4 := gnmi.Get(t, dut, statePath.Neighbor(ateDst.IPv4).State())
 	verifyPrefixLimitTelemetry(t, nv4, tc.wantEstablished)
 
