@@ -120,7 +120,7 @@ func (ts testsuite) checkCases(featuredir string) func() bool {
 		ok = true
 
 		for testdir, tc := range ts {
-			errs := tc.check(testdir)
+			errs := tc.check()
 			if len(errs) == 0 {
 				continue
 			}
