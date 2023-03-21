@@ -223,7 +223,6 @@ func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *
 
 // configureInterfaceDUT configures a single DUT layer 2 port.
 func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc string) {
-	t.Helper()
 
 	i := d.GetOrCreateInterface(dutPort.Name())
 	i.Description = ygot.String(desc)
@@ -238,6 +237,7 @@ func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc
 // This function configures ATE/DUT SubInterfaces on the target device and returns a slice of the
 // corresponding ATE IPAddresses.
 func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, ate *ondatra.ATEDevice, atePort *ondatra.Port, top gosnappi.Config, d *oc.Root) []string {
+	t.Helper()
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
@@ -249,9 +249,12 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 		Index := uint32(i)
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
-		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4)
-		MAC, _ := incrementMAC(t, atePort1.MAC, i+1)
-		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4, MAC)
+		configureSubinterfaceDUT(d, dutPort, Index, vlanID, dutIPv4)
+		MAC, err := incrementMAC(atePort1.MAC, i+1)
+		if err != nil {
+			t.Fatalf("Failed to increment MAC")
+		}
+		configureATE(top, atePort, name, vlanID, dutIPv4, ateIPv4, MAC)
 		nextHops = append(nextHops, ateIPv4)
 	}
 	configureInterfaceDUT(t, dutPort, d, "dst")
@@ -260,9 +263,7 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 }
 
 // configureSubinterfaceDUT configures a single DUT layer 3 sub-interface.
-func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string) {
-	t.Helper()
-
+func configureSubinterfaceDUT(d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string) {
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
@@ -284,9 +285,7 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 }
 
 // configureATE configures a single ATE layer 3 interface.
-func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, Name string, vlanID uint16, dutIPv4, ateIPv4, ateMAC string) {
-	t.Helper()
-
+func configureATE(top gosnappi.Config, atePort *ondatra.Port, Name string, vlanID uint16, dutIPv4, ateIPv4, ateMAC string) {
 	dev := top.Devices().Add().SetName(Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(ateMAC)
 	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(atePort.ID())
@@ -316,11 +315,8 @@ type testArgs struct {
 
 // createTrafficFlow generates traffic flow from source network to destination network via
 // srcEndPoint to dstEndPoint and checks for packet loss.
-func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice) {
+func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, dstMac string) {
 
-	top := ate.OTG().FetchConfig(t)
-	waitOTGARPEntry(t)
-	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 	top.Flows().Clear().Items()
 	flow := top.Flows().Add().SetName("Flow")
 	flow.Metrics().SetEnable(true)
@@ -331,8 +327,6 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice) {
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart("198.18.196.1").SetCount(1020)
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
 
 }
 
@@ -416,8 +410,8 @@ func testTraffic(t *testing.T, args testArgs) {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
 
-	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
-		t.Errorf("LossPct got %d, want 0", got)
+	if got := float32((txPkts - rxPkts) * 100 / txPkts); got > 0 {
+		t.Errorf("LossPct got %f, want 0", got)
 	} else {
 		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2.")
 	}
@@ -450,8 +444,7 @@ func validateSwitchoverStatus(t *testing.T, dut *ondatra.DUTDevice, secondaryBef
 }
 
 // incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
-func incrementMAC(t *testing.T, mac string, i int) (string, error) {
-	t.Helper()
+func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
 	if err != nil {
 		return "", err
@@ -469,6 +462,7 @@ func incrementMAC(t *testing.T, mac string, i int) (string, error) {
 
 // Waits for an ARP entry to be present for ATE Port1
 func waitOTGARPEntry(t *testing.T) {
+	t.Helper()
 	ate := ondatra.ATE(t, "ate")
 	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 		return val.IsPresent()
@@ -489,9 +483,9 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	top := ate.OTG().NewConfig(t)
 	top.Ports().Add().SetName(ap1.ID())
 	// configure DUT port#1 - source port.
-	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4)
+	configureSubinterfaceDUT(d, dp1, 0, 0, dutPort1.IPv4)
 	configureInterfaceDUT(t, dp1, d, "src")
-	configureATE(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4, atePort1.MAC)
+	configureATE(top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4, atePort1.MAC)
 	pushConfig(t, dut, dp1, d)
 	dp2 := dut.Port(t, "port2")
 	ap2 := ate.Port(t, "port2")
@@ -561,7 +555,12 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	// Send traffic from ATE port-1 to prefixes in ipBlock1 and ensure traffic
 	// flows 100% and reaches ATE port-2.
-	createTrafficFlow(t, args.ate)
+	waitOTGARPEntry(t)
+	dstMac := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
+	createTrafficFlow(t, args.ate, args.top, dstMac)
+	args.ate.OTG().PushConfig(t, top)
+	args.ate.OTG().StartProtocols(t)
+
 	testTraffic(t, *args)
 
 	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
@@ -681,5 +680,5 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	t.Log("Send and validate traffic after reinjecting routes in ipBlock1 post switchover.")
 	testTraffic(t, *args)
 
-	ate.OTG().StopProtocols(t)
+	args.ate.OTG().StopProtocols(t)
 }
