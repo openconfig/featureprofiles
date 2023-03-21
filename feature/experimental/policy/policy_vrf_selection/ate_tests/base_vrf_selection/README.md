@@ -33,7 +33,7 @@ Test different VRF selection policies.
 
         *   Configure DUT to match on IPinIP protocol (protocol number 4) in the outer IPv4 header and punt it to 
             network-instance VRF-10. All other traffic should be punted to the Default VRF. These will be, native IPv4, 
-            native IPv6 and IPv6inIP (protocol 41 in the outer IPv4 header) traffic with and without "222.222.222.222 
+            native IPv6 and IPv6inIP (protocol 41 in the outer IPv4 header) traffic with and without "198.18.0.1"
             as source.
 
         *   Start flows, Flow#1, Flow#3, Flow#6, Flow#8, Flow#9 and Flow#10 and validate packet forwarding. Drop of any 
@@ -42,9 +42,9 @@ Test different VRF selection policies.
 *   Test-Case 2
 
         *   Configure DUT to match on IPinIP protocol (protocol number 4 in the outer IPv4 header) with specific outer 
-            IPv4 source address as "222.222.222.222" and punt it to network-instance VRF-10. All other traffic should be 
-            punted to the Default VRF. These will be, IPinIP w/o source as "222.222.222.222", native IPv4, native IPv6 and 
-            IPv6inIP (protocol 41 in the outer IPv4 header) traffic with and without "222.222.222.222 as source.
+            IPv4 source address as "198.18.0.1" and punt it to network-instance VRF-10. All other traffic should be 
+            punted to the Default VRF. These will be, IPinIP w/o source as "198.18.0.1", native IPv4, native IPv6 and 
+            IPv6inIP (protocol 41 in the outer IPv4 header) traffic with and without "198.18.0.1" as source.
 
         *   Start flows, Flow#2, Flow#3, Flow#6, Flow#8, Flow#9 and Flow#10 and validate packet forwarding. Drop of any 
             flows is considered as a failure.
@@ -53,7 +53,7 @@ Test different VRF selection policies.
 
         *   Configure DUT to match on IPv6inIP protocol (protocol number 41 in the outer IPv4 header) and punt it to 
             network-instance VRF-10. All other traffic should be punted to the Default VRF. These will be, native IPv4, 
-            native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic with and without "222.222.222.222 
+            native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic with and without "198.18.0.1"
             as source.
 
         *   Start flows, Flow#2, Flow#4, Flow#5, Flow#7, Flow#9 and Flow#10 and validate packet forwarding. Drop of any 
@@ -62,10 +62,10 @@ Test different VRF selection policies.
 * Test-Case 4
           
         *  Configure DUT to match on IPv6inIP protocol (protocol number 41 in the outer IPv4 header) with specific 
-           outer IPv4 source address "222.222.222.222" and punt it to the network-instance VRF-10. 
+           outer IPv4 source address "198.18.0.1" and punt it to the network-instance VRF-10. 
            All other traffic should be punted to the Default VRF. These will be, IPv6inIP without source as 
-           "222.222.222.222", native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic 
-           with and without "222.222.222.222 as source.
+           "198.18.0.1", native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic 
+           with and without "198.18.0.1" as source.
 
         *   Start flows, Flow#2, Flow#4, Flow#6, Flow#7, Flow#9 and Flow#10 and validate packet forwarding. Drop of any 
             flows is considered as a failure.
@@ -74,17 +74,17 @@ Test different VRF selection policies.
 
 *   IPinIP
 
-        *   Flow#1: IPinIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
-        *   Flow#2: IPinIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
-        *   Flow#3: IPinIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
-        *   Flow#4: IPinIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
+        *   Flow#1: IPinIP with outer source as not "198.18.0.1" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#2: IPinIP with outer source as not "198.18.0.1" and outer destination as ATE-DEST-IPv4-VLAN20
+        *   Flow#3: IPinIP with outer source as "198.18.0.1" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#4: IPinIP with outer source as "198.18.0.1" and outer destination as ATE-DEST-IPv4-VLAN20
 
 *   IPv6inIP
 
-        *   Flow#5: IPv6inIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
-        *   Flow#6: IPv6inIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
-        *   Flow#7: IPv6inIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
-        *   Flow#8: IPv6inIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
+        *   Flow#5: IPv6inIP with outer source as not "198.18.0.1" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#6: IPv6inIP with outer source as not "198.18.0.1" and outer destination as ATE-DEST-IPv4-VLAN20
+        *   Flow#7: IPv6inIP with outer source as "198.18.0.1" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#8: IPv6inIP with outer source as "198.18.0.1" and outer destination as ATE-DEST-IPv4-VLAN20
 
 *   Native IPv4
 

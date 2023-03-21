@@ -81,7 +81,6 @@ nodes: {
         key: 9337
         value: {
             name: "gnoi"
-            outside: 9337
             inside: 32767
         }
     }
@@ -89,7 +88,6 @@ nodes: {
         key: 9339
         value: {
             name: "gnmi"
-            outside: 9339
             inside: 32767
         }
     }
@@ -97,7 +95,6 @@ nodes: {
         key: 9340
         value: {
             name: "gribi"
-            outside: 9340
             inside: 32767
         }
     }
@@ -105,7 +102,6 @@ nodes: {
         key: 9559
         value: {
             name: "p4rt"
-            outside: 9559
             inside: 32767
         }
     }
