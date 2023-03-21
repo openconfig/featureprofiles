@@ -30,7 +30,6 @@ nodes: {
     value: {
       name: "gnmi"
       inside: 6030
-      outside: 6030
     }
   }
   services: {
@@ -38,7 +37,6 @@ nodes: {
     value: {
       name: "gribi"
       inside: 6040
-      outside: 6040
     }
   }
 }

@@ -31,13 +31,8 @@ nodes: {
     model:"8201"
     os: "ios-xr"
     config: {
-        file: "cisco.config"
         image: "8000e:latest"
-        init_image: "networkop/init-wait:latest"
-    }
-    constraints:{
-        key: "memory"
-        value: "4Gi"
+        file: "cisco.config"
     }
     services:{
         key: 22
@@ -47,34 +42,55 @@ nodes: {
         }
     }
     services:{
-        key: 57400
+        key: 9339
         value: {
             name: "gnmi"
+            inside: 57400
+        }
+    }
+   services:{
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 57400
+        }
+    }
+   services:{
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 57400
+        }
+    }
+   services:{
+        key: 9559
+        value: {
+            name: "p4rt"
             inside: 57400
         }
     }
     interfaces: {
         key: "eth1"
         value: {
-          name: "GigabitEthernet0/0/0/0"
+          name: "FourHundredGigE0/0/0/0"
         }
     }
     interfaces: {
         key: "eth2"
         value: {
-          name: "GigabitEthernet0/0/0/1"
+          name: "FourHundredGigE0/0/0/1"
         }
     }
     interfaces: {
         key: "eth3"
         value: {
-          name: "GigabitEthernet0/0/0/2"
+          name: "FourHundredGigE0/0/0/2"
         }
     }
     interfaces: {
         key: "eth4"
         value: {
-          name: "GigabitEthernet0/0/0/3"
+          name: "FourHundredGigE0/0/0/3"
         }
     }
 }
