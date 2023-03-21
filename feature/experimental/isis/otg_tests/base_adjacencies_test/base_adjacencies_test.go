@@ -49,6 +49,17 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator
 	return check.Equal(query, val)
 }
 
+// CheckPresence check for the leaf presense only when MissingValueForDefaults
+// deviation is marked false.
+func CheckPresence(query ygnmi.SingletonQuery[uint32]) check.Validator {
+	if !*deviations.MissingValueForDefaults {
+		return check.Present[uint32](query)
+	}
+	return check.Validate(query, func(vgot *ygnmi.Value[uint32]) error {
+		return nil
+	})
+}
+
 // TestBasic configures IS-IS on the DUT and confirms that the various values and defaults propagate
 // then configures the ATE as well, waits for the adjacency to form, and checks that numerous
 // counters and other values now have sensible values.
@@ -169,7 +180,7 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
-				EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)),
+				CheckPresence(sysCounts.DatabaseOverloads().State()),
 				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
@@ -292,12 +303,12 @@ func TestBasic(t *testing.T) {
 			for _, vd := range []check.Validator{
 				check.NotEqual(cCounts.AdjChanges().State(), uint32(0)),
 				check.NotEqual(cCounts.AdjNumber().State(), uint32(0)),
-				check.Equal(cCounts.AuthFails().State(), uint32(0)),
-				check.Equal(cCounts.AuthTypeFails().State(), uint32(0)),
-				check.Equal(cCounts.IdFieldLenMismatches().State(), uint32(0)),
-				check.Equal(cCounts.LanDisChanges().State(), uint32(0)),
-				check.Equal(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.Equal(cCounts.RejectedAdj().State(), uint32(0)),
+				EqualToDefault(cCounts.AuthFails().State(), uint32(0)),
+				EqualToDefault(cCounts.AuthTypeFails().State(), uint32(0)),
+				EqualToDefault(cCounts.IdFieldLenMismatches().State(), uint32(0)),
+				EqualToDefault(cCounts.LanDisChanges().State(), uint32(0)),
+				EqualToDefault(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
+				EqualToDefault(cCounts.RejectedAdj().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(cCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -311,16 +322,16 @@ func TestBasic(t *testing.T) {
 			// Error counters should still be zero
 			sysCounts := isisRoot.Level(2).SystemLevelCounters()
 			for _, vd := range []check.Validator{
-				check.Equal(sysCounts.AuthFails().State(), uint32(0)),
-				check.Equal(sysCounts.AuthTypeFails().State(), uint32(0)),
-				check.Equal(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.Equal(sysCounts.DatabaseOverloads().State(), uint32(0)),
-				check.Equal(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
-				check.Equal(sysCounts.IdLenMismatch().State(), uint32(0)),
-				check.Equal(sysCounts.LspErrors().State(), uint32(0)),
-				check.Equal(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.Equal(sysCounts.OwnLspPurges().State(), uint32(0)),
-				check.Equal(sysCounts.SeqNumSkips().State(), uint32(0)),
+				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
+				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
+				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
+				CheckPresence(sysCounts.DatabaseOverloads().State()),
+				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
+				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
+				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
+				EqualToDefault(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
+				EqualToDefault(sysCounts.OwnLspPurges().State(), uint32(0)),
+				EqualToDefault(sysCounts.SeqNumSkips().State(), uint32(0)),
 				check.Predicate(sysCounts.SpfRuns().State(), fmt.Sprintf("want > %v", spfBefore), func(got uint32) bool {
 					return got > spfBefore
 				}),
