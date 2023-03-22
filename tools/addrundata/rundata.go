@@ -15,48 +15,52 @@ type parsedData struct {
 	testPlanID      string
 	testDescription string
 	testUUID        string
-	hasData         bool
 }
 
 // markdownRE matches the heading line: `# XX-1.1: Foo Functional Test`
 var markdownRE = regexp.MustCompile(`#(.*?):(.*)`)
 
-// fromMarkdown reads parsedData from README.md
-func (pd *parsedData) fromMarkdown(r io.Reader) error {
+// parseMarkdown reads parsedData from README.md
+func parseMarkdown(r io.Reader) (*parsedData, error) {
 	sc := bufio.NewScanner(r)
 	if !sc.Scan() {
 		if err := sc.Err(); err != nil {
-			return err
+			return nil, err
 		}
-		return errors.New("missing markdown heading")
+		return nil, errors.New("missing markdown heading")
 	}
 	line := sc.Text()
 	m := markdownRE.FindStringSubmatch(line)
 	if len(m) < 3 {
-		return fmt.Errorf("cannot parse markdown: %s", line)
+		return nil, fmt.Errorf("cannot parse markdown: %s", line)
 	}
-	pd.testPlanID = strings.TrimSpace(m[1])
-	pd.testDescription = strings.TrimSpace(m[2])
-	pd.hasData = true
-	return nil
+	return &parsedData{
+		testPlanID:      strings.TrimSpace(m[1]),
+		testDescription: strings.TrimSpace(m[2]),
+	}, nil
 }
 
-// fromCode reads parsedData from a source code.
-func (pd *parsedData) fromCode(r io.Reader) error {
+// parseCode reads parsedData from a source code.
+func parseCode(r io.Reader) (*parsedData, error) {
+	var pd *parsedData
 	sc := bufio.NewScanner(r)
 	for sc.Scan() {
 		if line := sc.Text(); line != "func init() {" {
 			continue
 		}
+		pd = new(parsedData)
 		if err := pd.parseInit(sc); err != nil {
-			return err
+			return nil, err
 		}
 		break
 	}
 	if err := sc.Err(); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	if pd == nil {
+		return nil, errors.New("missing func init()")
+	}
+	return pd, nil
 }
 
 // rundataRE matches a line like this: `  rundata.TestUUID = "..."`
@@ -67,7 +71,6 @@ func (pd *parsedData) parseInit(sc *bufio.Scanner) error {
 	for sc.Scan() {
 		line := sc.Text()
 		if line == "}" {
-			pd.hasData = true
 			return nil
 		}
 		m := rundataRE.FindStringSubmatch(line)
