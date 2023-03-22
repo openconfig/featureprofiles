@@ -65,10 +65,9 @@ func TestCase_Read(t *testing.T) {
 		desc:         "no tests",
 		markdownText: markdownText,
 		want: testcase{
-			markdown: parsedData{
+			markdown: &parsedData{
 				testPlanID:      "XX-1.1",
 				testDescription: "Description from markdown",
-				hasData:         true,
 			},
 		},
 	}, {
@@ -77,10 +76,9 @@ func TestCase_Read(t *testing.T) {
 		testCode:     testCode,
 		want: testcase{
 			pkg: "foo_functional_test",
-			markdown: parsedData{
+			markdown: &parsedData{
 				testPlanID:      "XX-1.1",
 				testDescription: "Description from markdown",
-				hasData:         true,
 			},
 		},
 	}, {
@@ -96,16 +94,14 @@ func TestCase_Read(t *testing.T) {
 		rundataCode:  rundataCode,
 		want: testcase{
 			pkg: "foo_functional_test",
-			markdown: parsedData{
+			markdown: &parsedData{
 				testPlanID:      "XX-1.1",
 				testDescription: "Description from markdown",
-				hasData:         true,
 			},
-			existing: parsedData{
+			existing: &parsedData{
 				testUUID:        "123e4567-e89b-42d3-8456-426614174000",
 				testPlanID:      "YY-1.1",
 				testDescription: "Description from code",
-				hasData:         true,
 			},
 		},
 	}}
@@ -148,42 +144,37 @@ func TestCase_Check(t *testing.T) {
 	}{{
 		name: "good",
 		tc: testcase{
-			markdown: parsedData{
+			markdown: &parsedData{
 				testPlanID:      "XX-1.1",
 				testDescription: "Foo Functional Test",
-				hasData:         true,
 			},
-			existing: parsedData{
+			existing: &parsedData{
 				testPlanID:      "XX-1.1",
 				testDescription: "Foo Functional Test",
 				testUUID:        "123e4567-e89b-42d3-8456-426614174000",
-				hasData:         true,
 			},
 		},
 		want: 0,
 	}, {
 		name: "allbad",
 		tc: testcase{
-			markdown: parsedData{
+			markdown: &parsedData{
 				testPlanID:      "XX-1.1",
 				testDescription: "Description from Markdown",
-				hasData:         true,
 			},
-			existing: parsedData{
+			existing: &parsedData{
 				testPlanID:      "YY-1.1",
 				testDescription: "Description from Test",
 				testUUID:        "123e4567-e89b-12d3-a456-426614174000",
-				hasData:         true,
 			},
 		},
 		want: 3,
 	}, {
 		name: "noexisting",
 		tc: testcase{
-			markdown: parsedData{
+			markdown: &parsedData{
 				testPlanID:      "XX-1.1",
 				testDescription: "Foo Functional Test",
-				hasData:         true,
 			},
 		},
 		want: 1,
@@ -206,21 +197,19 @@ func TestCase_Check(t *testing.T) {
 
 func TestCase_Fix(t *testing.T) {
 	tc := testcase{
-		markdown: parsedData{
+		markdown: &parsedData{
 			testPlanID:      "XX-1.1",
 			testDescription: "Foo Functional Test",
-			hasData:         true,
 		},
 	}
 	if err := tc.fix(); err != nil {
 		t.Fatal(err)
 	}
 	got := tc.fixed
-	want := parsedData{
+	want := &parsedData{
 		testPlanID:      tc.markdown.testPlanID,
 		testDescription: tc.markdown.testDescription,
 		testUUID:        got.testUUID,
-		hasData:         true,
 	}
 	if diff := cmp.Diff(want, got, tcopt); diff != "" {
 		t.Errorf("fixed -want,+got:\n%s", diff)
@@ -229,12 +218,11 @@ func TestCase_Fix(t *testing.T) {
 
 func TestCase_FixUUID(t *testing.T) {
 	tc := testcase{
-		markdown: parsedData{
+		markdown: &parsedData{
 			testPlanID:      "XX-1.1",
 			testDescription: "Foo Functional Test",
-			hasData:         true,
 		},
-		existing: parsedData{
+		existing: &parsedData{
 			testUUID: "urn:uuid:123e4567-e89b-42d3-8456-426614174000",
 		},
 	}
@@ -242,11 +230,10 @@ func TestCase_FixUUID(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := tc.fixed
-	want := parsedData{
+	want := &parsedData{
 		testPlanID:      tc.markdown.testPlanID,
 		testDescription: tc.markdown.testDescription,
 		testUUID:        "123e4567-e89b-42d3-8456-426614174000",
-		hasData:         true,
 	}
 	if diff := cmp.Diff(want, got, tcopt); diff != "" {
 		t.Errorf("fixed -want,+got:\n%s", diff)

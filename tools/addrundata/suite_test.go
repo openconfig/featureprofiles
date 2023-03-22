@@ -31,16 +31,14 @@ func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 		}
 		newts[testdir] = &testcase{
 			pkg: tc.pkg,
-			markdown: parsedData{
+			markdown: &parsedData{
 				testPlanID:      tc.fixed.testPlanID,
 				testDescription: tc.fixed.testDescription,
-				hasData:         true,
 			},
-			existing: parsedData{
+			existing: &parsedData{
 				testPlanID:      tc.fixed.testPlanID,
 				testDescription: tc.fixed.testDescription,
 				testUUID:        tc.fixed.testUUID,
-				hasData:         true,
 			},
 		}
 	}
@@ -52,20 +50,18 @@ func TestSuite_Read(t *testing.T) {
 	want, err := prepareSuite(featuredir, testsuite{
 		"foo/bar/ate_tests/qux_test": &testcase{
 			pkg: "qux_test",
-			fixed: parsedData{
+			fixed: &parsedData{
 				testPlanID:      "XX-2.1",
 				testDescription: "Qux Functional Test",
 				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-				hasData:         true,
 			},
 		},
 		"foo/bar/otg_tests/qux_test": &testcase{
 			pkg: "qux_test",
-			fixed: parsedData{
+			fixed: &parsedData{
 				testPlanID:      "XX-2.1",
 				testDescription: "Qux Functional Test",
 				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-				hasData:         true,
 			},
 		},
 	})
@@ -88,11 +84,10 @@ func TestSuite_Read_BadPath(t *testing.T) {
 	_, err := prepareSuite(featuredir, testsuite{
 		"foo/bar/qux_test": &testcase{
 			pkg: "qux_test",
-			fixed: parsedData{
+			fixed: &parsedData{
 				testPlanID:      "XX-2.1",
 				testDescription: "Qux Functional Test",
 				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-				hasData:         true,
 			},
 		},
 	})
@@ -108,62 +103,53 @@ func TestSuite_Read_BadPath(t *testing.T) {
 
 func TestSuite_Check(t *testing.T) {
 	quxMarkdownOnly := &testcase{
-		markdown: parsedData{
+		markdown: &parsedData{
 			testPlanID:      "XX-2.1",
 			testDescription: "Qux Functional Test",
-			hasData:         true,
 		},
 	}
 	qux := &testcase{
-		markdown: parsedData{
+		markdown: &parsedData{
 			testPlanID:      "XX-2.1",
 			testDescription: "Qux Functional Test",
-			hasData:         true,
 		},
-		existing: parsedData{
+		existing: &parsedData{
 			testPlanID:      "XX-2.1",
 			testDescription: "Qux Functional Test",
 			testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-			hasData:         true,
 		},
 	}
 	quuz := &testcase{
-		markdown: parsedData{
+		markdown: &parsedData{
 			testPlanID:      "XX-2.2",
 			testDescription: "Quuz Functional Test",
-			hasData:         true,
 		},
-		existing: parsedData{
+		existing: &parsedData{
 			testPlanID:      "XX-2.2",
 			testDescription: "Quuz Functional Test",
 			testUUID:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
-			hasData:         true,
 		},
 	}
 	quuzDupPlanID := &testcase{
-		markdown: parsedData{
+		markdown: &parsedData{
 			testPlanID:      "XX-2.1", // from qux.
 			testDescription: "Quuz Functional Test",
-			hasData:         true,
 		},
-		existing: parsedData{
+		existing: &parsedData{
 			testPlanID:      "XX-2.1", // from qux.
 			testDescription: "Quuz Functional Test",
 			testUUID:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
-			hasData:         true,
 		},
 	}
 	quuzDupUUID := &testcase{
-		markdown: parsedData{
+		markdown: &parsedData{
 			testPlanID:      "XX-2.2",
 			testDescription: "Qux Functional Test",
-			hasData:         true,
 		},
-		existing: parsedData{
+		existing: &parsedData{
 			testPlanID:      "XX-2.2",
 			testDescription: "Qux Functional Test",
 			testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78", // from qux.
-			hasData:         true,
 		},
 	}
 
@@ -226,10 +212,9 @@ func TestSuite_Check(t *testing.T) {
 
 func TestSuite_Fix(t *testing.T) {
 	quxMarkdownOnly := &testcase{
-		markdown: parsedData{
+		markdown: &parsedData{
 			testPlanID:      "XX-2.1",
 			testDescription: "Qux Functional Test",
-			hasData:         true,
 		},
 	}
 
@@ -265,8 +250,7 @@ func checkMarkdowns(t testing.TB, featuredir string, ts testsuite, markdowns map
 			t.Errorf("Not read: %s", reldir)
 			continue
 		}
-		gotpd := &tc.markdown
-		if diff := cmp.Diff(wantpd, gotpd, pdopt); diff != "" {
+		if diff := cmp.Diff(wantpd, tc.markdown, pdopt); diff != "" {
 			t.Errorf("Markdown differs -want,+got:\n%s", diff)
 		}
 	}
@@ -277,17 +261,14 @@ func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
 		"foo/bar/ate_tests/qux_test": {
 			testPlanID:      "XX-2.1",
 			testDescription: "Qux Functional Test",
-			hasData:         true,
 		},
 		"foo/bar/otg_tests/qux_test": {
 			testPlanID:      "XX-2.1",
 			testDescription: "Qux Functional Test",
-			hasData:         true,
 		},
 		"foo/bar/tests/quuz_test": {
 			testPlanID:      "XX-2.2",
 			testDescription: "Quuz Functional Test",
-			hasData:         true,
 		},
 	}
 
