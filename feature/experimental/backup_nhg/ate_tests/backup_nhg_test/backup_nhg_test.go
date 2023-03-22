@@ -351,15 +351,25 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, good *ondatra.Flow, bad *o
 	time.Sleep(15 * time.Second)
 	a.ate.Traffic().Stop(t)
 
-	var noloss float32 = 0
-	var loss float32 = 100
-
-	gnmi.Await(t, a.ate, gnmi.OC().Flow(good.Name()).LossPct().State(), 5*time.Minute, noloss)
-	if noloss > 0 {
-		t.Fatalf("LossPct for flow %s: got %g, want 0", good.Name(), noloss)
+	val, _ := gnmi.Watch(t, a.ate, gnmi.OC().Flow(good.Name()).LossPct().State(), 5*time.Minute, func(val *ygnmi.Value[float32]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	lossPct, present := val.Val()
+	if !present {
+		t.Fatalf("Could not read loss percentage for flow %q from ATE.", good.Name())
 	}
-	gnmi.Await(t, a.ate, gnmi.OC().Flow(bad.Name()).LossPct().State(), 5*time.Minute, loss)
-	if loss < 100 {
-		t.Fatalf("LossPct for flow %s: got %g, want 100", bad.Name(), loss)
+	if lossPct > 0 {
+		t.Fatalf("LossPct for flow %s got %f, want 0", good.Name(), lossPct)
+	}
+
+	val, _ = gnmi.Watch(t, a.ate, gnmi.OC().Flow(bad.Name()).LossPct().State(), 5*time.Minute, func(val *ygnmi.Value[float32]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	lossPct, present = val.Val()
+	if !present {
+		t.Fatalf("Could not read loss percentage for flow %q from ATE.", bad.Name())
+	}
+	if lossPct < 100 {
+		t.Fatalf("LossPct for flow %s got %f, want 100", bad.Name(), lossPct)
 	}
 }
