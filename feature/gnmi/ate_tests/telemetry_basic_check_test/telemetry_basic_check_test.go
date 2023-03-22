@@ -91,6 +91,9 @@ func TestMain(m *testing.M) {
 func TestEthernetPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	want := portSpeed[dp.Speed()]
 	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Ethernet().PortSpeed().State())
 	t.Logf("Got %s PortSpeed from telmetry: %v, expected: %v", dp.Name(), got, want)
@@ -118,7 +121,9 @@ func TestEthernetMacAddress(t *testing.T) {
 func TestInterfaceAdminStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State())
 	t.Logf("Got %s AdminStatus from telmetry: %v", dp.Name(), adminStatus)
 	if adminStatus != adminStatusUp {
@@ -129,7 +134,9 @@ func TestInterfaceAdminStatus(t *testing.T) {
 func TestInterfaceOperStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
 	t.Logf("Got %s OperStatus from telmetry: %v", dp.Name(), operStatus)
 	if operStatus != operStatusUp {
@@ -138,6 +145,9 @@ func TestInterfaceOperStatus(t *testing.T) {
 }
 
 func TestInterfacePhysicalChannel(t *testing.T) {
+	if *deviations.MissingInterfacePhysicalChannel {
+		t.Skip("Test is skipped due to MissingInterfacePhysicalChannel deviation")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
@@ -177,7 +187,9 @@ func TestInterfaceStatusChange(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			i.Type = ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-
+			if *deviations.ExplicitPortSpeed {
+				fptest.SetPortSpeed(t, dp)
+			}
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedOperStatus)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State(), intUpdateTime, tc.expectedAdminStatus)
 			operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
@@ -193,14 +205,24 @@ func TestInterfaceStatusChange(t *testing.T) {
 }
 
 func TestHardwarePort(t *testing.T) {
+	if *deviations.MissingInterfaceHardwarePort {
+		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
-	// Derive hardware port from interface name by removing the port number.
-	// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
-	i := strings.LastIndex(dp.Name(), "/")
-	want := dp.Name()[:i]
-
+	want := ""
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		in := dp.Name()
+		// e.g. Ethernet-3/35-Port
+		want = strings.Replace(in, "ethernet", "Ethernet", 1) + "-Port"
+	default:
+		// Derive hardware port from interface name by removing the port number.
+		// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
+		i := strings.LastIndex(dp.Name(), "/")
+		want = dp.Name()[:i]
+	}
 	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
 	t.Logf("Got %s HardwarePort from telmetry: %v, expected: %v", dp.Name(), got, want)
 	if got != want {
@@ -284,6 +306,9 @@ func TestInterfaceCounters(t *testing.T) {
 }
 
 func TestQoSCounters(t *testing.T) {
+	if !*args.QoSBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for QoS is not loaded.")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
 	queues := gnmi.OC().Qos().Interface(dp.Name()).Output().QueueAny()
@@ -482,12 +507,15 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-			t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
+		if !*deviations.MissingCPUMfgName {
+			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
+				t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
+			} else {
+				t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
+			}
 		} else {
-			t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
+			t.Logf("Check MfgName for CPU %s is skipped due to MissingCPUMfgName deviation", cpu)
 		}
-
 		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
@@ -550,6 +578,9 @@ func TestAFT(t *testing.T) {
 }
 
 func TestLacpMember(t *testing.T) {
+	if !*args.LACPBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for LACP is not present")
+	}
 	dut := ondatra.DUT(t, "dut")
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
@@ -648,8 +679,11 @@ func TestP4rtInterfaceID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Id = ygot.Uint32(tc.portID)
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-
+			if *deviations.ExplicitPortSpeed {
+				fptest.SetPortSpeed(t, dp)
+			}
 			// Check path /interfaces/interface/state/id.
 			intfID := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Id().State())
 			intfVal, present := intfID.Val()
@@ -833,6 +867,14 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 }
 
