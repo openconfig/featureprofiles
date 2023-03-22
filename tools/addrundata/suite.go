@@ -100,9 +100,15 @@ func (ts testsuite) check(featuredir string) (ok bool) {
 	for _, check := range []func() bool{
 		ts.checkCases(featuredir),
 		ts.checkDuplicate("test plan ID", func(tc *testcase) string {
+			if tc.markdown == nil {
+				return ""
+			}
 			return tc.markdown.testPlanID
 		}),
 		ts.checkDuplicate("test UUID", func(tc *testcase) string {
+			if tc.existing == nil {
+				return ""
+			}
 			return tc.existing.testUUID
 		}),
 		ts.checkATEOTG,
@@ -120,7 +126,7 @@ func (ts testsuite) checkCases(featuredir string) func() bool {
 		ok = true
 
 		for testdir, tc := range ts {
-			errs := tc.check(testdir)
+			errs := tc.check()
 			if len(errs) == 0 {
 				continue
 			}
