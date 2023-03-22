@@ -39,10 +39,7 @@ func (tc *testcase) read(testdir string) error {
 			break
 		}
 	}
-	if err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.existing.fromCode); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
+	if err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.existing.fromCode); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("could not parse rundata_test.go: %w", err)
 	}
 	return nil
@@ -74,6 +71,9 @@ func (tc *testcase) readPackage(r io.Reader) error {
 	if err := sc.Err(); err != nil {
 		return err
 	}
+	if tc.pkg == "" {
+		return errors.New("missing test package name")
+	}
 	return nil
 }
 
@@ -81,10 +81,17 @@ func (tc *testcase) readPackage(r io.Reader) error {
 // that need fixing.
 //
 // It does not check the fixed rundata because that should already be valid.
-func (tc *testcase) check(testdir string) []error {
+func (tc *testcase) check() []error {
 	var errs []error
 
-	if tc.markdown.hasData {
+	if !tc.existing.hasData {
+		errs = append(errs, errors.New("existing rundata is missing"))
+	}
+	if !tc.markdown.hasData {
+		errs = append(errs, errors.New("existing markdown is missing"))
+	}
+
+	if tc.markdown.hasData && tc.existing.hasData {
 		if tc.existing.testPlanID != tc.markdown.testPlanID {
 			errs = append(errs, fmt.Errorf(
 				"rundata test plan ID needs update: was %q, will be %q",
@@ -96,19 +103,19 @@ func (tc *testcase) check(testdir string) []error {
 				"rundata test description needs update: was %q, will be %q",
 				tc.existing.testDescription, tc.markdown.testDescription))
 		}
-	} else {
-		errs = append(errs, errors.New("markdown rundata is missing"))
 	}
 
-	if testUUID := tc.existing.testUUID; testUUID == "" {
-		errs = append(errs, errors.New("missing UUID from rundata"))
-	} else if u, err := uuid.Parse(testUUID); err != nil {
-		errs = append(errs, fmt.Errorf(
-			"cannot parse UUID from rundata: %s: %w", testUUID, err))
-	} else if u.Variant() != uuid.RFC4122 || u.Version() != 4 {
-		errs = append(errs, fmt.Errorf(
-			"bad UUID from rundata: %s: got variant %s version %d; want variant RFC4122 version 4",
-			testUUID, u.Variant(), u.Version()))
+	if tc.existing.hasData {
+		if testUUID := tc.existing.testUUID; testUUID == "" {
+			errs = append(errs, errors.New("missing UUID from rundata"))
+		} else if u, err := uuid.Parse(testUUID); err != nil {
+			errs = append(errs, fmt.Errorf(
+				"cannot parse UUID from rundata: %s: %w", testUUID, err))
+		} else if u.Variant() != uuid.RFC4122 || u.Version() != 4 {
+			errs = append(errs, fmt.Errorf(
+				"bad UUID from rundata: %s: got variant %s version %d; want variant RFC4122 version 4",
+				testUUID, u.Variant(), u.Version()))
+		}
 	}
 
 	return errs
