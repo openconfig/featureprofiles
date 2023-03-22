@@ -439,7 +439,6 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, dstEndPointVlan10, "ipinipd10", 10),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd20", 20),
 				getIPinIPFlow(args, dstEndPointVlan30, "ipinipd30", 30)},
-			rejectable: false,
 		},
 		{
 			name: "RT3.2 Case2",
@@ -461,7 +460,6 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, dstEndPointVlan30, "ipinipd30", 30),
 				getIPinIPFlow(args, dstEndPointVlan30, "ipinipd31", 31),
 				getIPinIPFlow(args, dstEndPointVlan30, "ipinipd32", 32)},
-			rejectable: false,
 		},
 		{
 			name: "RT3.2 Case3",
@@ -498,7 +496,6 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd11v20", 11),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd12v20", 12),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd20", 20)},
-			rejectable: false,
 		},
 	}
 	for _, tc := range cases {
@@ -509,14 +506,14 @@ func TestPBR(t *testing.T) {
 			//configure pbr policy-forwarding
 			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-			if tc.rejectable {
-				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
-				}); errMsg != nil {
+			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+			})
+			if errMsg != nil {
+				if tc.rejectable {
 					t.Skipf("Skipping test case %q, PolicyForwarding config was rejected with an error: %s", tc.name, *errMsg)
 				}
-			} else {
-				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+				t.Fatalf("PolicyForwarding config update failed: %v", *errMsg)
 			}
 			// defer cleaning policy-forwarding
 			defer gnmi.Delete(t, args.dut, pfpath.Config())
