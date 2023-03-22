@@ -5,17 +5,15 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
-func WaitForARP(t *testing.T, top gosnappi.Config, ipType string) {
-	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
+func WaitForARP(t *testing.T, otg *otg.OTG, c gosnappi.Config, ipType string) {
 
 	intfs := []string{}
-	for _, d := range top.Devices().Items() {
+	for _, d := range c.Devices().Items() {
 		Eth := d.Ethernets().Items()[0]
 		intfs = append(intfs, Eth.Name())
 	}
