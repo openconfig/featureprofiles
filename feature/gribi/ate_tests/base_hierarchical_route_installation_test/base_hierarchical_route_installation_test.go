@@ -260,13 +260,15 @@ func setupRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithIndex(nhIndex2)
-	if args.nhtype == "MAC" {
+	switch args.nhtype {
+	case "MAC":
 		p := args.dut.Port(t, "port2")
 		NH = NH.WithInterfaceRef(p.Name()).
 			WithMacAddress(nhMAC)
-	} else {
+	default:
 		NH = NH.WithIPAddress(atePort2.IPv4)
 	}
+
 	args.c.Modify().AddEntry(t, NH)
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopGroupEntry().
