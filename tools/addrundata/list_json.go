@@ -45,7 +45,7 @@ type jsonCase struct {
 	UUID        string `json:"test.uuid,omitempty"`
 }
 
-func newJSONCase(pd parsedData) jsonCase {
+func newJSONCase(pd *parsedData) jsonCase {
 	return jsonCase{
 		PlanID:      pd.testPlanID,
 		Description: pd.testDescription,
