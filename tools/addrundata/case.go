@@ -55,7 +55,7 @@ func readFile(filename string, fn func(io.Reader) error) error {
 }
 
 func (tc *testcase) readMarkdown(r io.Reader) error {
-	pd, err := fromMarkdown(r)
+	pd, err := parseMarkdown(r)
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (tc *testcase) readPackage(r io.Reader) error {
 }
 
 func (tc *testcase) readCode(r io.Reader) error {
-	pd, err := fromCode(r)
+	pd, err := parseCode(r)
 	if err != nil {
 		return err
 	}

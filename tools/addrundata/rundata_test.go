@@ -10,7 +10,7 @@ import (
 
 var pdopt = cmp.AllowUnexported(parsedData{})
 
-func TestParsedData_FromMarkdown(t *testing.T) {
+func TestParseMarkdown(t *testing.T) {
 	want := &parsedData{
 		testPlanID:      "XX-1.1",
 		testDescription: "Foo Functional Test",
@@ -33,18 +33,18 @@ func TestParsedData_FromMarkdown(t *testing.T) {
 ## Procedure
 `
 			data := fmt.Sprintf(tmpl, c.heading)
-			got, err := fromMarkdown(bytes.NewReader([]byte(data)))
+			got, err := parseMarkdown(bytes.NewReader([]byte(data)))
 			if err != nil {
 				t.Fatal(err)
 			}
 			if diff := cmp.Diff(want, got, pdopt); diff != "" {
-				t.Errorf("parsedData.fromMarkdown -want,+got:\n%s", diff)
+				t.Errorf("parseMarkdown -want,+got:\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestParsedData_FromCode(t *testing.T) {
+func TestParseCode(t *testing.T) {
 	want := &parsedData{
 		testPlanID:      "XX-1.1",
 		testDescription: "Foo Functional Test",
@@ -62,12 +62,12 @@ func init() {
 	rundata.TestUUID = "123e4567-e89b-42d3-8456-426614174000"
 }
 `
-	got, err := fromCode(bytes.NewReader([]byte(data)))
+	got, err := parseCode(bytes.NewReader([]byte(data)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if diff := cmp.Diff(want, got, pdopt); diff != "" {
-		t.Errorf("parsedData.fromCode -want,+got:\n%s", diff)
+		t.Errorf("parseCode -want,+got:\n%s", diff)
 	}
 }
 
@@ -82,7 +82,7 @@ func TestParsedData_Write(t *testing.T) {
 	if err := want.write(buf, "foo_functional_test"); err != nil {
 		t.Fatalf("Cannot write: %v", err)
 	}
-	got, err := fromCode(bytes.NewReader(buf.Bytes()))
+	got, err := parseCode(bytes.NewReader(buf.Bytes()))
 	if err != nil {
 		t.Fatalf("Cannot read back: %v", err)
 	}

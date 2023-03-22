@@ -20,8 +20,8 @@ type parsedData struct {
 // markdownRE matches the heading line: `# XX-1.1: Foo Functional Test`
 var markdownRE = regexp.MustCompile(`#(.*?):(.*)`)
 
-// fromMarkdown reads parsedData from README.md
-func fromMarkdown(r io.Reader) (*parsedData, error) {
+// parseMarkdown reads parsedData from README.md
+func parseMarkdown(r io.Reader) (*parsedData, error) {
 	sc := bufio.NewScanner(r)
 	if !sc.Scan() {
 		if err := sc.Err(); err != nil {
@@ -40,8 +40,8 @@ func fromMarkdown(r io.Reader) (*parsedData, error) {
 	}, nil
 }
 
-// fromCode reads parsedData from a source code.
-func fromCode(r io.Reader) (*parsedData, error) {
+// parseCode reads parsedData from a source code.
+func parseCode(r io.Reader) (*parsedData, error) {
 	var pd *parsedData
 	sc := bufio.NewScanner(r)
 	for sc.Scan() {
