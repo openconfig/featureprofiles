@@ -1109,7 +1109,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 
 			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
-			time.Sleep(30 * time.Second)
+			otgutils.WaitForARP(t, top, "IPv4")
 
 			ateOutPkts := make(map[string]uint64)
 			ateInPkts := make(map[string]uint64)
