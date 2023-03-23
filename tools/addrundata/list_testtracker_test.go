@@ -12,27 +12,24 @@ import (
 
 var testsuiteForTT = testsuite{
 	"feature/foo/bar/ate_tests/qux_test": &testcase{
-		existing: parsedData{
+		existing: &parsedData{
 			testPlanID:      "YY-2.1",
 			testDescription: "Qux Functional Test",
 			testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-			hasData:         true,
 		},
 	},
 	"feature/foo/bar/otg_tests/qux_test": &testcase{
-		existing: parsedData{
+		existing: &parsedData{
 			testPlanID:      "YY-2.1",
 			testDescription: "Qux Functional Test",
 			testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-			hasData:         true,
 		},
 	},
 	"feature/foo/baz/quuz_test": &testcase{
-		existing: parsedData{
+		existing: &parsedData{
 			testPlanID:      "XX-1.1",
 			testDescription: "Quuz Functional Test",
 			testUUID:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
-			hasData:         true,
 		},
 	},
 }
@@ -124,19 +121,17 @@ func TestTTBuildPlan_MissingData(t *testing.T) {
 func TestTTBuildPlan_DisallowReuseUUID(t *testing.T) {
 	ts := testsuite{
 		"feature/foo/bar/ate_tests/qux_test": &testcase{
-			existing: parsedData{
+			existing: &parsedData{
 				testPlanID:      "YY-2.1",
 				testDescription: "Qux Functional Test",
 				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-				hasData:         true,
 			},
 		},
 		"feature/foo/baz/quuz_test": &testcase{
-			existing: parsedData{
+			existing: &parsedData{
 				testPlanID:      "XX-1.1",
 				testDescription: "Quuz Functional Test",
 				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-				hasData:         true,
 			},
 		},
 	}
@@ -226,7 +221,7 @@ func TestTTPlan_Merge(t *testing.T) {
 	ttp := ttPlan{
 		"XX-1": ttSuite{
 			"0eac5b62-ab22-449d-9a9a-255b05572641": &ttCase{
-				parsedData: parsedData{
+				parsedData: &parsedData{
 					testPlanID:      "XX-1.1",
 					testDescription: "Foo",
 					testUUID:        "0eac5b62-ab22-449d-9a9a-255b05572641",
@@ -235,7 +230,7 @@ func TestTTPlan_Merge(t *testing.T) {
 		},
 		"XX-2": ttSuite{
 			"f842057d-0100-4198-a18d-593b2bf3610e": &ttCase{
-				parsedData: parsedData{
+				parsedData: &parsedData{
 					testPlanID:      "XX-2.1",
 					testDescription: "Bar",
 					testUUID:        "f842057d-0100-4198-a18d-593b2bf3610e",
@@ -244,7 +239,7 @@ func TestTTPlan_Merge(t *testing.T) {
 		},
 		"YY-1": ttSuite{
 			"12cd2de3-69af-4aa6-a3d6-a2d5fbdb86c6": &ttCase{
-				parsedData: parsedData{
+				parsedData: &parsedData{
 					testPlanID:      "YY-1.1",
 					testDescription: "Xyzzy",
 					testUUID:        "12cd2de3-69af-4aa6-a3d6-a2d5fbdb86c6",
@@ -370,13 +365,13 @@ func TestChildSuite(t *testing.T) {
 func TestTTSuite_SortedKeys(t *testing.T) {
 	tts := ttSuite{
 		"864550d6-e843-4301-846a-a1998a23bb5a": &ttCase{
-			parsedData: parsedData{testPlanID: "XX-1.10"},
+			parsedData: &parsedData{testPlanID: "XX-1.10"},
 		},
 		"e9345234-fc59-44f3-9d21-00b57137fb40": &ttCase{
-			parsedData: parsedData{testPlanID: "XX-1.1a"},
+			parsedData: &parsedData{testPlanID: "XX-1.1a"},
 		},
 		"bc261bca-d50f-42db-80f9-7c955c4e3889": &ttCase{
-			parsedData: parsedData{testPlanID: "XX-1.2"},
+			parsedData: &parsedData{testPlanID: "XX-1.2"},
 		},
 	}
 	want := []string{
@@ -445,28 +440,28 @@ func TestTTSuite_Merge(t *testing.T) {
 
 	tts := ttSuite{
 		"d2d462b4-db36-4159-9152-744dc6168ba8": &ttCase{
-			parsedData: parsedData{
+			parsedData: &parsedData{
 				testPlanID:      "XX-1.1",
 				testDescription: "Apple",
 				testUUID:        "d2d462b4-db36-4159-9152-744dc6168ba8",
 			},
 		},
 		"755ae14f-7d1a-465a-8cfb-f1674ea68763": &ttCase{
-			parsedData: parsedData{
+			parsedData: &parsedData{
 				testPlanID:      "XX-1.2",
 				testDescription: "Banana",
 				testUUID:        "755ae14f-7d1a-465a-8cfb-f1674ea68763",
 			},
 		},
 		"c2cb54c0-2acc-4fd8-8c2a-7f9ccb9ea192": &ttCase{
-			parsedData: parsedData{
+			parsedData: &parsedData{
 				testPlanID:      "XX-1.3",
 				testDescription: "Cherry",
 				testUUID:        "c2cb54c0-2acc-4fd8-8c2a-7f9ccb9ea192",
 			},
 		},
 		"f7372990-dfb2-4a8f-acfb-c7a31b29522c": &ttCase{
-			parsedData: parsedData{
+			parsedData: &parsedData{
 				testPlanID:      "XX-1.4",
 				testDescription: "Durian",
 				testUUID:        "f7372990-dfb2-4a8f-acfb-c7a31b29522c",
@@ -711,7 +706,7 @@ func TestTTCase_Merge(t *testing.T) {
 	}
 
 	ttc := &ttCase{
-		parsedData: parsedData{
+		parsedData: &parsedData{
 			testPlanID:      "XX-1.1",
 			testDescription: "Quuz Functional Test",
 			testUUID:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
