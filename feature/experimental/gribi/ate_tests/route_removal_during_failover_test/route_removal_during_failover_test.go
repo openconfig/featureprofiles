@@ -93,7 +93,7 @@ var (
 	vendorCoreFileNamePattern = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "rpd",
 		ondatra.CISCO:   "emsd.*core.*",
-		ondatra.NOKIA:   "coredump-.*",
+		ondatra.NOKIA:   "coredump-sr_gribi_server-.*",
 	}
 )
 
