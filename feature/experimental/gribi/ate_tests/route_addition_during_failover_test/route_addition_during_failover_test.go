@@ -650,6 +650,8 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	}
 
 	// Check for coredumps in the DUT and validate that none are present post failover.
+	// Reconnect gnoi connection after switchover.
+	gnoiClient = dut.RawAPIs().GNOI().New(t)
 	coreFileCheck(t, dut, gnoiClient, sysConfigTime)
 
 	t.Log("Re-inject routes from ipBlock2 in default VRF with NHGID: #1.")
