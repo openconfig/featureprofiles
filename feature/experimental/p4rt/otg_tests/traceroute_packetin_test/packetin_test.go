@@ -18,7 +18,6 @@ package traceroute_packetin_test
 
 import (
 	"context"
-	"io"
 	"testing"
 	"time"
 
@@ -29,13 +28,14 @@ import (
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 type PacketIO interface {
-	GetTableEntry(delete bool, IsIpv4 bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
+	GetTableEntry(delete bool, isIPv4 bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
 	GetPacketTemplate() *PacketIOPacket
-	GetTrafficFlow(ate *ondatra.ATEDevice, dstMac string, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []gosnappi.Flow
+	GetTrafficFlow(ate *ondatra.ATEDevice, dstMac string, isIPv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []gosnappi.Flow
 	GetEgressPort() string
 	GetIngressPort() string
 }
@@ -58,12 +58,12 @@ type testArgs struct {
 }
 
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
-func programmTableEntry(client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool, IsIpv4 bool) error {
+func programmTableEntry(client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool, isIPv4 bool) error {
 	err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
-			packetIO.GetTableEntry(delete, IsIpv4),
+			packetIO.GetTableEntry(delete, isIPv4),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
@@ -94,55 +94,43 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 	return 7
 }
 
-// testTraffic sends traffic flow for duration seconds.
-func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) {
+// testTraffic sends traffic flow for duration seconds and returns the
+// number of packets sent out.
+func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) int {
 	t.Helper()
 	top.Flows().Clear()
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
+		flow.Metrics().SetEnable(true)
 		top.Flows().Append(flow)
 	}
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Duration(duration) * time.Second)
-
 	ate.OTG().StopTraffic(t)
-}
 
-// fetchPackets reads p4rt packets sent to p4rt client.
-func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, expectNumber int) []*p4rt_client.P4RTPacketInfo {
-	t.Helper()
-	packets := []*p4rt_client.P4RTPacketInfo{}
-	for i := 0; i < expectNumber; i++ {
-		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
-		switch err {
-		case io.EOF:
-			t.Logf("EOF error is seen in PacketIn.")
-		case nil:
-			if packet != nil {
-				packets = append(packets, packet)
-			}
-		default:
-			t.Fatalf("There is error seen when receving packets. %v, %s", err, err)
-		}
+	outPkts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().FlowAny().Counters().OutPkts().State())
+	total := 0
+	for _, count := range outPkts {
+		total += int(count)
 	}
-	return packets
+	return total
 }
 
 // testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
 // then validates packetin message metadata and payload.
-func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool) {
+func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool) {
 	leader := args.leader
 	follower := args.follower
 
-	if IsIpv4 {
+	if isIPv4 {
 		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, false, IsIpv4); err != nil {
+		if err := programmTableEntry(leader, args.packetIO, false, isIPv4); err != nil {
 			t.Fatalf("There is error when programming entry")
 		}
 		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, IsIpv4)
+		defer programmTableEntry(leader, args.packetIO, true, isIPv4)
 	} else {
 		// Insert p4rtutils acl entry on the DUT
 		if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
@@ -154,80 +142,83 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, IsIpv4 bool
 
 	// Send Traceroute traffic from ATE
 	srcEndPoint := ateInterface(t, args.top, "port1")
+	llAddress, found := gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	if !found {
+		t.Fatalf("Could not get the LinkLayerAddress %s", llAddress)
+	}
+	dstMac, _ := llAddress.Val()
+	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 2), srcEndPoint, 10)
 
 	packetInTests := []struct {
-		desc       string
-		client     *p4rt_client.P4RTClient
-		expectPass bool
+		desc     string
+		client   *p4rt_client.P4RTClient
+		wantPkts int
 	}{{
-		desc:       "PacketIn to Primary Controller",
-		client:     leader,
-		expectPass: true,
+		desc:     "PacketIn to Primary Controller",
+		client:   leader,
+		wantPkts: pktOut,
 	}, {
-		desc:       "PacketIn to Secondary Controller",
-		client:     follower,
-		expectPass: false,
+		desc:     "PacketIn to Secondary Controller",
+		client:   follower,
+		wantPkts: 0,
 	}}
 
 	t.Log("TTL/HopLimit 1")
-	dstMac := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
-	testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, dstMac, IsIpv4, 1, 300, 2), srcEndPoint, 10)
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Extract packets from PacketIn message sent to p4rt client
-			packets := fetchPackets(ctx, t, test.client, 20)
+			_, packets, err := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 30*time.Second)
+			if err != nil {
+				t.Errorf("Unexpected error on fetchPackets: %v", err)
+			}
 
-			if !test.expectPass {
-				if len(packets) > 0 {
-					t.Fatalf("Unexpected packets received.")
-					return
-				}
+			if got, want := len(packets), test.wantPkts; got != want {
+				t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
+			}
+			if test.wantPkts == 0 {
 				return
-			} else {
-				if len(packets) == 0 {
-					t.Fatalf("There are no packets received.")
-					return
-				}
-				t.Logf("Start to decode packet and compare with expected packets.")
-				wantPacket := args.packetIO.GetPacketTemplate()
-				for _, packet := range packets {
-					if packet != nil {
-						if wantPacket.TTL != nil {
-							//TTL/HopLimit comparison for IPV4 & IPV6
-							if IsIpv4 {
-								captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
-								if captureTTL != TTL1 {
-									t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
-								}
+			}
+			t.Logf("Start to decode packet and compare with expected packets.")
+			wantPacket := args.packetIO.GetPacketTemplate()
+			for _, packet := range packets {
+				if packet != nil {
+					if wantPacket.TTL != nil {
+						//TTL/HopLimit comparison for IPV4 & IPV6
+						if isIPv4 {
+							captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
+							if captureTTL != TTL1 {
+								t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
+							}
 
-							} else {
-								captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
-								if captureHopLimit != HopLimit1 {
-									t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
-								}
+						} else {
+							captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
+							if captureHopLimit != HopLimit1 {
+								t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
 							}
 						}
+					}
 
-						//Metadata comparision
-						if metaData := packet.Pkt.GetMetadata(); metaData != nil {
-							if got := metaData[0].GetMetadataId(); got == METADATA_INGRESS_PORT {
-								if gotPortID := string(metaData[0].GetValue()); gotPortID != args.packetIO.GetIngressPort() {
-									t.Fatalf("Ingress Port Id mismatch: want %s, got %s", args.packetIO.GetIngressPort(), gotPortID)
-								}
-							} else {
-								t.Fatalf("Metadata ingress port mismatch: want %d, got %d", METADATA_INGRESS_PORT, got)
-							}
-
-							if got := metaData[1].GetMetadataId(); got == METADATA_EGRESS_PORT {
-								if gotPortID := string(metaData[1].GetValue()); gotPortID != args.packetIO.GetEgressPort() {
-									t.Fatalf("Egress Port Id mismatch: want %s, got %s", args.packetIO.GetEgressPort(), gotPortID)
-								}
-							} else {
-								t.Fatalf("Metadata egress port mismatch: want %d, got %d", METADATA_EGRESS_PORT, got)
+					//Metadata comparision
+					if metaData := packet.Pkt.GetMetadata(); metaData != nil {
+						if got := metaData[0].GetMetadataId(); got == METADATA_INGRESS_PORT {
+							if gotPortID := string(metaData[0].GetValue()); gotPortID != args.packetIO.GetIngressPort() {
+								t.Fatalf("Ingress Port Id mismatch: want %s, got %s", args.packetIO.GetIngressPort(), gotPortID)
 							}
 						} else {
-							t.Fatalf("Packet missing metadata information.")
+							t.Fatalf("Metadata ingress port mismatch: want %d, got %d", METADATA_INGRESS_PORT, got)
 						}
+
+						if got := metaData[1].GetMetadataId(); got == METADATA_EGRESS_PORT {
+							if gotPortID := string(metaData[1].GetValue()); gotPortID != args.packetIO.GetEgressPort() {
+								t.Fatalf("Egress Port Id mismatch: want %s, got %s", args.packetIO.GetEgressPort(), gotPortID)
+							}
+						} else {
+							t.Fatalf("Metadata egress port mismatch: want %d, got %d", METADATA_EGRESS_PORT, got)
+						}
+					} else {
+						t.Fatalf("Packet missing metadata information.")
 					}
 				}
 			}

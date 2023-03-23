@@ -7,22 +7,22 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestWriteCSV(t *testing.T) {
+func TestListCSV(t *testing.T) {
 	ts := testsuite{
 		"feature/foo/bar/ate_tests/qux_test": &testcase{
-			markdown: parsedData{
+			markdown: &parsedData{
 				testPlanID:      "YY-2.1",
 				testDescription: "Qux Functional Test",
 			},
 		},
 		"feature/foo/bar/otg_tests/qux_test": &testcase{
-			markdown: parsedData{
+			markdown: &parsedData{
 				testPlanID:      "YY-2.1",
 				testDescription: "Qux Functional Test",
 			},
 		},
 		"feature/foo/baz/quuz_test": &testcase{
-			markdown: parsedData{
+			markdown: &parsedData{
 				testPlanID:      "XX-1.1",
 				testDescription: "Quuz Functional Test",
 			},
@@ -36,12 +36,12 @@ foo/bar,YY-2.1,Qux Functional Test,feature/foo/bar/otg_tests/qux_test
 `
 
 	var buf strings.Builder
-	if err := writeCSV(&buf, "", ts); err != nil {
+	if err := listCSV(&buf, "", ts); err != nil {
 		t.Fatal("Could not write CSV:", err)
 	}
 	got := buf.String()
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("writeCSV -want,+got:\n%s", diff)
+		t.Errorf("listCSV -want,+got:\n%s", diff)
 	}
 }
 
@@ -65,13 +65,13 @@ func TestFeatureFromTestDir(t *testing.T) {
 func TestSortedByTestPlanID(t *testing.T) {
 	ts := testsuite{
 		"feature/foo/bar/ate_tests/qux_test": &testcase{
-			markdown: parsedData{testPlanID: "YY-2.1"},
+			markdown: &parsedData{testPlanID: "YY-2.1"},
 		},
 		"feature/foo/bar/otg_tests/qux_test": &testcase{
-			markdown: parsedData{testPlanID: "YY-2.1"},
+			markdown: &parsedData{testPlanID: "YY-2.1"},
 		},
 		"feature/foo/baz/quuz_test": &testcase{
-			markdown: parsedData{testPlanID: "XX-1.1"},
+			markdown: &parsedData{testPlanID: "XX-1.1"},
 		},
 	}
 
