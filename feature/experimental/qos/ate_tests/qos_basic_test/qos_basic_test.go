@@ -33,9 +33,6 @@ type trafficData struct {
 	dscp                  uint8
 	queue                 string
 	inputIntf             *ondatra.Interface
-	burstPackets          uint32
-	burstMinGap           uint32
-	burstGap              uint32
 }
 
 func TestMain(m *testing.M) {
