@@ -6,7 +6,7 @@ require (
 	github.com/cisco-open/go-p4 v0.1.1-0.20230301194618-caa766ba7dd4
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/golang/glog v1.1.1
+	github.com/golang/glog v1.1.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.3.0
