@@ -24,25 +24,40 @@ import (
 )
 
 // FlapInterface flaps Interface and check State
-func FlapInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, flapDuration time.Duration) {
+func FlapInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, flapDuration time.Duration, intftype ...oc.E_IETFInterfaces_InterfaceType) {
 
 	initialState := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).State()).GetEnabled()
 	transientState := !initialState
-	SetInterfaceState(t, dut, interfaceName, transientState)
+	if len(intftype) != 0 {
+		SetInterfaceState(t, dut, interfaceName, transientState, intftype[0])
+	} else {
+		SetInterfaceState(t, dut, interfaceName, transientState)
+	}
 	time.Sleep(flapDuration * time.Second)
-	SetInterfaceState(t, dut, interfaceName, initialState)
+	if len(intftype) != 0 {
+		SetInterfaceState(t, dut, interfaceName, initialState, intftype[0])
+	} else {
+		SetInterfaceState(t, dut, interfaceName, initialState)
+	}
 }
 
 // SetInterfaceState sets interface adminState
-func SetInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, adminState bool) {
+func SetInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, adminState bool, intftype ...oc.E_IETFInterfaces_InterfaceType) {
 
 	i := &oc.Interface{
 		Enabled: ygot.Bool(adminState),
 		Name:    ygot.String(interfaceName),
 	}
+	if len(intftype) != 0 {
+		i = &oc.Interface{
+			Enabled: ygot.Bool(adminState),
+			Name:    ygot.String(interfaceName),
+			Type:    intftype[0],
+		}
+	}
 	updateResponse := gnmi.Update(t, dut, gnmi.OC().Interface(interfaceName).Config(), i)
 	t.Logf("Update response : %v", updateResponse)
-	currEnabledState := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).State()).GetEnabled()
+	currEnabledState := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).Enabled().State())
 	if currEnabledState != adminState {
 		t.Fatalf("Failed to set interface adminState to :%v", adminState)
 	} else {
