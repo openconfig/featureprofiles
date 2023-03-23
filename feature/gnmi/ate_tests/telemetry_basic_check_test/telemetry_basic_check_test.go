@@ -212,7 +212,7 @@ func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
-	// Verify HardwarePort leaf is present under interface
+	// Verify HardwarePort leaf is present under interface.
 	got := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
 	val, present := got.Val()
 	if !present {
@@ -220,15 +220,14 @@ func TestHardwarePort(t *testing.T) {
 	}
 	t.Logf("For interface %s, HardwarePort is %s", dp.Name(), val)
 
-	// Verify HardwarePort is a component of type PORT
+	// Verify HardwarePort is a component of type PORT.
 	typeGot := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
 	if typeGot != portType {
 		t.Errorf("HardwarePort leaf's component type got %s, want %s", typeGot, portType)
 	}
 
-	// Verify HardwarePort component has CHASSIS as an ancestor
+	// Verify HardwarePort component has CHASSIS as an ancestor.
 	verifyChassisIsAncestor(t, dut, val)
-
 }
 
 func TestInterfaceCounters(t *testing.T) {
@@ -381,7 +380,7 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 }
 
 // verifyChassisIsAncestor verifies that a given component has
-// a component of type CHASSIS as an ancestor
+// a component of type CHASSIS as an ancestor.
 func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) {
 	visited := make(map[string]bool)
 	for curr := comp; ; {
