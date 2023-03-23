@@ -251,17 +251,13 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 }
 
 func (a *attributes) configL3SubifDUT(t *testing.T, intf *oc.Interface) {
-	if a.numSubIntf == 0 {
-		s := intf.GetOrCreateSubinterface(0)
-		ip := a.ip(uint8(0))
-		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
-			s4.Enabled = ygot.Bool(true)
-		}
-		s4a := s4.GetOrCreateAddress(ip)
-		s4a.PrefixLength = ygot.Uint8(a.IPv4Len)
+	// determine the index of the first subinterface: 0 for untagged interfaces, 1 for tagged
+	startIdx := uint32(0)
+	if a.numSubIntf > 0 {
+		startIdx++
 	}
-	for i := uint32(1); i <= a.numSubIntf; i++ {
+
+	for i := startIdx; i <= a.numSubIntf; i++ {
 		s := intf.GetOrCreateSubinterface(i)
 		ip := a.ip(uint8(i))
 		s4 := s.GetOrCreateIpv4()
@@ -270,7 +266,7 @@ func (a *attributes) configL3SubifDUT(t *testing.T, intf *oc.Interface) {
 		}
 		s4a := s4.GetOrCreateAddress(ip)
 		s4a.PrefixLength = ygot.Uint8(a.IPv4Len)
-		t.Logf("Adding DUT Subinterface with ID: %d, Vlan ID: %d and IPv4 address: %s", i, i, ip)
+		t.Logf("Configuring DUT Subinterface with ID: %d and IPv4 address: %s", i, ip)
 	}
 }
 
