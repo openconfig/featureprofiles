@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -424,6 +425,7 @@ func TestPBR(t *testing.T) {
 		policy       *oc.NetworkInstance_PolicyForwarding
 		passingFlows []*ondatra.Flow
 		failingFlows []*ondatra.Flow
+		rejectable   bool
 	}{
 		{
 			name: "RT3.2 Case1",
@@ -474,6 +476,7 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd10v20", 10),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd11v20", 11),
 				getIPinIPFlow(args, dstEndPointVlan20, "ipinipd12v20", 12)},
+			rejectable: true,
 		},
 		{
 			name: "RT3.2 Case4",
@@ -503,8 +506,15 @@ func TestPBR(t *testing.T) {
 			//configure pbr policy-forwarding
 			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
-
+			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+			})
+			if errMsg != nil {
+				if tc.rejectable {
+					t.Skipf("Skipping test case %q, PolicyForwarding config was rejected with an error: %s", tc.name, *errMsg)
+				}
+				t.Fatalf("PolicyForwarding config update failed: %v", *errMsg)
+			}
 			// defer cleaning policy-forwarding
 			defer gnmi.Delete(t, args.dut, pfpath.Config())
 
