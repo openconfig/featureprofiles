@@ -8,23 +8,24 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"github.com/google/uuid"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // testcase carries parsed rundata from different sources to be fixed and checked.
 type testcase struct {
-	pkg      string     // Package used in the test code.
-	markdown parsedData // From the README.md.
-	existing parsedData // From existing source code.
-	fixed    parsedData // Fixed rundata to write back, populated by fix().
+	pkg      string        // Package used in the test code.
+	markdown *mpb.Metadata // From the README.md.
+	existing *mpb.Metadata // From existing source code.
+	fixed    *mpb.Metadata // Fixed rundata to write back, populated by fix().
 }
 
 // read reads the markdown and existing rundata from the test directory.
 func (tc *testcase) read(testdir string) error {
-	if err := readFile(filepath.Join(testdir, "README.md"), tc.markdown.fromMarkdown); err != nil {
+	if err := readFile(filepath.Join(testdir, "README.md"), tc.readMarkdown); err != nil {
 		return fmt.Errorf("could not parse README.md: %w", err)
 	}
 	testpaths, err := filepath.Glob(filepath.Join(testdir, "*_test.go"))
@@ -39,7 +40,7 @@ func (tc *testcase) read(testdir string) error {
 			break
 		}
 	}
-	if err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.existing.fromCode); err != nil && !os.IsNotExist(err) {
+	if err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.readCode); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("could not parse rundata_test.go: %w", err)
 	}
 	return nil
@@ -52,6 +53,15 @@ func readFile(filename string, fn func(io.Reader) error) error {
 		return err
 	}
 	return fn(bytes.NewReader(data))
+}
+
+func (tc *testcase) readMarkdown(r io.Reader) error {
+	pd, err := parseMarkdown(r)
+	if err != nil {
+		return err
+	}
+	tc.markdown = pd
+	return nil
 }
 
 func (tc *testcase) readPackage(r io.Reader) error {
@@ -77,6 +87,15 @@ func (tc *testcase) readPackage(r io.Reader) error {
 	return nil
 }
 
+func (tc *testcase) readCode(r io.Reader) error {
+	pd, err := parseCode(r)
+	if err != nil {
+		return err
+	}
+	tc.existing = pd
+	return nil
+}
+
 // check verifies that existing rundata are valid.  The returned errors indicate issues
 // that need fixing.
 //
@@ -84,29 +103,29 @@ func (tc *testcase) readPackage(r io.Reader) error {
 func (tc *testcase) check() []error {
 	var errs []error
 
-	if !tc.existing.hasData {
+	if tc.existing == nil {
 		errs = append(errs, errors.New("existing rundata is missing"))
 	}
-	if !tc.markdown.hasData {
+	if tc.markdown == nil {
 		errs = append(errs, errors.New("existing markdown is missing"))
 	}
 
-	if tc.markdown.hasData && tc.existing.hasData {
-		if tc.existing.testPlanID != tc.markdown.testPlanID {
+	if tc.markdown != nil && tc.existing != nil {
+		if tc.existing.PlanId != tc.markdown.PlanId {
 			errs = append(errs, fmt.Errorf(
 				"rundata test plan ID needs update: was %q, will be %q",
-				tc.existing.testPlanID, tc.markdown.testPlanID))
+				tc.existing.PlanId, tc.markdown.PlanId))
 		}
 
-		if tc.existing.testDescription != tc.markdown.testDescription {
+		if tc.existing.Description != tc.markdown.Description {
 			errs = append(errs, fmt.Errorf(
 				"rundata test description needs update: was %q, will be %q",
-				tc.existing.testDescription, tc.markdown.testDescription))
+				tc.existing.Description, tc.markdown.Description))
 		}
 	}
 
-	if tc.existing.hasData {
-		if testUUID := tc.existing.testUUID; testUUID == "" {
+	if tc.existing != nil {
+		if testUUID := tc.existing.Uuid; testUUID == "" {
 			errs = append(errs, errors.New("missing UUID from rundata"))
 		} else if u, err := uuid.Parse(testUUID); err != nil {
 			errs = append(errs, fmt.Errorf(
@@ -123,28 +142,31 @@ func (tc *testcase) check() []error {
 
 // fix populates the fixed rundata from markdown or existing rundata.
 func (tc *testcase) fix() error {
-	if !tc.markdown.hasData {
+	if tc.markdown == nil {
 		return errors.New("markdown rundata is missing")
 	}
 
-	tc.fixed.testPlanID = tc.markdown.testPlanID
-	tc.fixed.testDescription = tc.markdown.testDescription
-	tc.fixed.hasData = true
+	tc.fixed = &mpb.Metadata{
+		PlanId:      tc.markdown.PlanId,
+		Description: tc.markdown.Description,
+	}
 
-	u, err := uuid.Parse(tc.existing.testUUID)
-	if err == nil && u.Variant() == uuid.RFC4122 && u.Version() == 4 {
-		// Existing UUID is valid, but make sure it is normalized.
-		tc.fixed.testUUID = u.String()
-		return nil
+	if tc.existing != nil {
+		u, err := uuid.Parse(tc.existing.Uuid)
+		if err == nil && u.Variant() == uuid.RFC4122 && u.Version() == 4 {
+			// Existing UUID is valid, but make sure it is normalized.
+			tc.fixed.Uuid = u.String()
+			return nil
+		}
 	}
 
 	// Generate a new UUID.  Consistency between ATE and OTG tests is not handled here.  It
 	// will be done by testsuite's fix() function below.
-	u, err = uuid.NewRandom()
+	u, err := uuid.NewRandom()
 	if err != nil {
 		return err
 	}
-	tc.fixed.testUUID = u.String()
+	tc.fixed.Uuid = u.String()
 	return nil
 }
 
@@ -155,15 +177,15 @@ func (tc *testcase) write(testdir string) error {
 	if tc.pkg == "" {
 		return errors.New("missing test package name")
 	}
-	if !tc.fixed.hasData {
+	if tc.fixed == nil {
 		return errors.New("test case was not fixed")
 	}
-	if reflect.DeepEqual(tc.existing, tc.fixed) {
+	if proto.Equal(tc.existing, tc.fixed) {
 		return errNoop
 	}
 
 	w := &strings.Builder{}
-	if err := tc.fixed.write(w, tc.pkg); err != nil {
+	if err := writeCode(w, tc.fixed, tc.pkg); err != nil {
 		return fmt.Errorf("could not generate the rundata: %w", err)
 	}
 
