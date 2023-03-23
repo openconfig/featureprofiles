@@ -9,66 +9,67 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
-)
 
-type parsedData struct {
-	testPlanID      string
-	testDescription string
-	testUUID        string
-	hasData         bool
-}
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+)
 
 // markdownRE matches the heading line: `# XX-1.1: Foo Functional Test`
 var markdownRE = regexp.MustCompile(`#(.*?):(.*)`)
 
-// fromMarkdown reads parsedData from README.md
-func (pd *parsedData) fromMarkdown(r io.Reader) error {
+// parseMarkdown reads metadata from README.md.
+func parseMarkdown(r io.Reader) (*mpb.Metadata, error) {
 	sc := bufio.NewScanner(r)
 	if !sc.Scan() {
 		if err := sc.Err(); err != nil {
-			return err
+			return nil, err
 		}
-		return errors.New("missing markdown heading")
+		return nil, errors.New("missing markdown heading")
 	}
 	line := sc.Text()
 	m := markdownRE.FindStringSubmatch(line)
 	if len(m) < 3 {
-		return fmt.Errorf("cannot parse markdown: %s", line)
+		return nil, fmt.Errorf("cannot parse markdown: %s", line)
 	}
-	pd.testPlanID = strings.TrimSpace(m[1])
-	pd.testDescription = strings.TrimSpace(m[2])
-	pd.hasData = true
-	return nil
+	return &mpb.Metadata{
+		PlanId:      strings.TrimSpace(m[1]),
+		Description: strings.TrimSpace(m[2]),
+	}, nil
 }
 
-// fromCode reads parsedData from a source code.
-func (pd *parsedData) fromCode(r io.Reader) error {
+// parseCode reads metadata from a source code.
+func parseCode(r io.Reader) (*mpb.Metadata, error) {
+	var md *mpb.Metadata
 	sc := bufio.NewScanner(r)
 	for sc.Scan() {
 		if line := sc.Text(); line != "func init() {" {
 			continue
 		}
-		if err := pd.parseInit(sc); err != nil {
-			return err
+		var err error
+		md, err = parseInit(sc)
+		if err != nil {
+			return nil, err
 		}
 		break
 	}
 	if err := sc.Err(); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	if md == nil {
+		return nil, errors.New("missing func init()")
+	}
+	return md, nil
 }
 
 // rundataRE matches a line like this: `  rundata.TestUUID = "..."`
 var rundataRE = regexp.MustCompile(`\s+rundata\.(\w+) = (".*")`)
 
 // parseInit parses the rundata from the body of func init().
-func (pd *parsedData) parseInit(sc *bufio.Scanner) error {
+func parseInit(sc *bufio.Scanner) (*mpb.Metadata, error) {
+	md := new(mpb.Metadata)
 	for sc.Scan() {
 		line := sc.Text()
 		if line == "}" {
-			pd.hasData = true
-			return nil
+			return md, nil
 		}
 		m := rundataRE.FindStringSubmatch(line)
 		if len(m) < 3 {
@@ -77,18 +78,18 @@ func (pd *parsedData) parseInit(sc *bufio.Scanner) error {
 		k := m[1]
 		v, err := strconv.Unquote(m[2])
 		if err != nil {
-			return fmt.Errorf("cannot parse rundata line: %s: %w", line, err)
+			return nil, fmt.Errorf("cannot parse rundata line: %s: %w", line, err)
 		}
 		switch k {
 		case "TestPlanID":
-			pd.testPlanID = v
+			md.PlanId = v
 		case "TestDescription":
-			pd.testDescription = v
+			md.Description = v
 		case "TestUUID":
-			pd.testUUID = v
+			md.Uuid = v
 		}
 	}
-	return errors.New("func init() was not terminated")
+	return nil, errors.New("func init() was not terminated")
 }
 
 var tmpl = template.Must(template.New("rundata_test.go").Parse(
@@ -103,16 +104,16 @@ func init() {
 `))
 
 // write generates a complete rundata_test.go to the writer.
-func (pd *parsedData) write(w io.Writer, pkg string) error {
+func writeCode(w io.Writer, md *mpb.Metadata, pkg string) error {
 	tmpl.Execute(w, &struct {
 		Package string
 		Data    []struct{ Key, Value string }
 	}{
 		Package: pkg,
 		Data: []struct{ Key, Value string }{
-			{"TestPlanID", pd.testPlanID},
-			{"TestDescription", pd.testDescription},
-			{"TestUUID", pd.testUUID},
+			{"TestPlanID", md.PlanId},
+			{"TestDescription", md.Description},
+			{"TestUUID", md.Uuid},
 		},
 	})
 	return nil
