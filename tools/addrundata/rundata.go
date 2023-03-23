@@ -16,7 +16,7 @@ import (
 // markdownRE matches the heading line: `# XX-1.1: Foo Functional Test`
 var markdownRE = regexp.MustCompile(`#(.*?):(.*)`)
 
-// parseMarkdown reads parsedData from README.md
+// parseMarkdown reads metadata from README.md.
 func parseMarkdown(r io.Reader) (*mpb.Metadata, error) {
 	sc := bufio.NewScanner(r)
 	if !sc.Scan() {
@@ -36,7 +36,7 @@ func parseMarkdown(r io.Reader) (*mpb.Metadata, error) {
 	}, nil
 }
 
-// parseCode reads parsedData from a source code.
+// parseCode reads metadata from a source code.
 func parseCode(r io.Reader) (*mpb.Metadata, error) {
 	var md *mpb.Metadata
 	sc := bufio.NewScanner(r)
