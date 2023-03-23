@@ -269,9 +269,9 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	t.Helper()
 
 	nextHops := []string{}
-	nextHopCount := 64 // nextHopCount specifies number of nextHop IPs needed.
-	for i := 1; i <= nextHopCount; i++ {
-		vlanID := uint16(i)
+	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
+	for i := 0; i <= nextHopCount; i++ {
+		vlanID := uint16(i) + 1
 		name := fmt.Sprintf(`dst%d`, i)
 		Index := uint32(i)
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
@@ -571,20 +571,20 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	coreFileCheck(t, dut, gnoiClient, sysConfigTime)
 
 	t.Log("Execute gRIBi route addition and master switchover concurrently.")
-	go func(msg string) {
+	go func() {
 		t.Log("Inject routes from ipBlock2 in default VRF with NHGID: #1.")
 		pushDefaultEntries(t, args, subIntfIPs, virtualIPsBlock2, !configNhg, switchover)
-	}("gRIBi Add")
+	}()
 
-	go func(msg string) {
+	go func() {
 		switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
 		if err != nil {
 			t.Logf("Failed to perform control processor switchover with unexpected err: %v", err)
 		}
 		t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
-	}("Master Switchover")
+	}()
 
-	t.Log("Concurrent switchover and route addition is completed, validate switchoverStatus now.")
+	t.Log("Validate switchoverStatus.")
 
 	primaryAfterSwitch := validateSwitchoverStatus(t, dut, secondaryBeforeSwitch)
 
@@ -651,8 +651,6 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	}
 
 	// Check for coredumps in the DUT and validate that none are present post failover.
-	// Reconnect gnoi connection after switchover.
-	gnoiClient = dut.RawAPIs().GNOI().New(t)
 	coreFileCheck(t, dut, gnoiClient, sysConfigTime)
 
 	t.Log("Re-inject routes from ipBlock2 in default VRF with NHGID: #1.")
