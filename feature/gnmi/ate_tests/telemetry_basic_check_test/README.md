@@ -35,8 +35,12 @@ following features:
 
 *   Interface hardware-port
 
-    *   Check hardware-port exists and correct.
+    *   Check hardware-port exists
         *   /interfaces/interfaces/interface/state/hardware-port
+    *   Check that the value of hardware-port leaf exists as a component in the Device's component tree and has a type as "PORT"
+        *  /components/component[name=\<hardware-port-leaf-val\>]
+        *  /components/component[name=\<hardware-port-leaf-val\>]/state/type == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS_PORT
+    *   Verify that the hardware-port component has an ancestor of type CHASSIS
 
 *   Interface counters
 
