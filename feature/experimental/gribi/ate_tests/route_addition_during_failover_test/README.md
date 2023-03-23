@@ -43,17 +43,3 @@ Validate gRIBI route persistence during SSO
 ## Config parameter coverage
 
 ## Telemery parameter coverage
-
-*   CHASSIS:
-
-    *   /components/component[name=<chassis>]/state/last-reboot-time
-    *   /components/component[name=<chassis>]/state/last-reboot-reason
-
-*   CONTROLLER_CARD:
-
-    *   /components/component[name=<supervisor>]/state/redundant-role
-    *   /components/component[name=<supervisor>]/state/last-switchover-time
-    *   /components/component[name=<supervisor>]/state/last-switchover-reason/trigger
-    *   /components/component[name=<supervisor>]/state/last-switchover-reason/details
-    *   /components/component[name=<supervisor>]/state/last-reboot-time
-    *   /components/component[name=<supervisor>]/state/last-reboot-reason

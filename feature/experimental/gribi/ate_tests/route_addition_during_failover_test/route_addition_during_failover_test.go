@@ -67,7 +67,6 @@ const (
 	controllerCardType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	primaryController   = oc.Platform_ComponentRedundantRole_PRIMARY
 	secondaryController = oc.Platform_ComponentRedundantRole_SECONDARY
-	switchTrigger       = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
 	maxSwitchoverTime   = 900
 	configNhg           = true
 	switchover          = true
@@ -94,10 +93,12 @@ var (
 	vendorCoreFilePath = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
+		ondatra.NOKIA:   "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]*regexp.Regexp{
 		ondatra.JUNIPER: regexp.MustCompile("rpd.*core*"),
 		ondatra.CISCO:   regexp.MustCompile("emsd.*core.*"),
+		ondatra.NOKIA:   regexp.MustCompile("coredump-.*"),
 	}
 	fibProgrammedEntries []string
 )
@@ -268,7 +269,7 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	t.Helper()
 
 	nextHops := []string{}
-	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
+	nextHopCount := 64 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 1; i <= nextHopCount; i++ {
 		vlanID := uint16(i)
 		name := fmt.Sprintf(`dst%d`, i)
