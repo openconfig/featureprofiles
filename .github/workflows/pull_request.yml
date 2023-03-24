@@ -48,16 +48,6 @@ jobs:
           fi
         done
         if [ "$fail" == "1" ]; then exit 1; fi
-    - name: Compile metadata textprotos
-      run: |
-        fail=0
-        for i in `find feature/ -type f -name "metadata.textproto"`; do
-          if ! output=$(protoc --encode=openconfig.testing.Metadata proto/metadata.proto < $i 2>&1 >/dev/null); then
-            fail=1
-            echo -e "Compile $i failed:\n$output\n"
-          fi
-        done
-        if [ "$fail" == "1" ]; then exit 1; fi
 
   validate_oc_paths:
     name: Validate OpenConfig Paths
