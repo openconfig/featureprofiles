@@ -218,7 +218,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 			NH = NH.WithNextHopNetworkInstance(opt.VrfName)
 		}
 		c.fluentC.Modify().AddEntry(t, NH)
-	case "":
+	case "VRFOnly":
 		NH := fluent.NextHopEntry().
 			WithNetworkInstance(instance).
 			WithIndex(nhIndex)

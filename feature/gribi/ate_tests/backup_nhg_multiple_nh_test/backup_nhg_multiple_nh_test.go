@@ -36,10 +36,11 @@ const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
 	dstPfx        = "203.0.113.0/24"
-	dstPfxMin     = "203.0.113.0"
-	dstPfxMask    = "24"
-	vrf1          = "VRF-A"
-	vrf2          = "VRF-B"
+	dstPfxMin     = "203.0.113.1"
+	dstPfxMax     = "203.0.113.254"
+	routeCount    = 254
+	vrf1          = "vrfA"
+	vrf2          = "vrfB"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -165,15 +166,39 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 }
 
 // Configure Network instance
-func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfname ...string) {
+func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string) {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(vrfname)
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	if len(intfname) != 0 {
-		intf := ni.GetOrCreateInterface(intfname[0])
-		intf.Interface = ygot.String(intfname[0])
-	}
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), ni)
+}
+
+// configNetworkInstanceInterface creates VRFs and subinterfaces and then applies VRFs
+func configNetworkInstanceInterface(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfname string, subint uint32) {
+	// create empty subinterface
+	si := &oc.Interface_Subinterface{}
+	si.Index = ygot.Uint32(subint)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
+
+	// create vrf and apply on subinterface
+	v := &oc.NetworkInstance{
+		Name: ygot.String(vrfname),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+	}
+	vi := v.GetOrCreateInterface(intfname)
+	vi.Interface = ygot.String(intfname)
+	vi.Subinterface = ygot.Uint32(subint)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), v)
+}
+
+// configInterfaceDUT configures the interface
+func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
+	if *deviations.InterfaceEnabled {
+		i.Enabled = ygot.Bool(true)
+	}
+	i.Description = ygot.String(dutPort.Desc)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	return i
 }
 
 // configureDUT configures port1, port2, port3 and port4 on the DUT.
@@ -181,9 +206,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	// create VRF "VRF-A" and assign incoming port under it
-	configNetworkInstance(t, dut, vrf1, p1.Name())
-	// create VRF "VRF-B"
+	// create VRF "vrfA" and assign incoming port under it
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	configNetworkInstanceInterface(t, dut, vrf1, p1.Name(), uint32(0))
+	// create VRF "vrfB"
 	configNetworkInstance(t, dut, vrf2)
 
 	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
@@ -266,6 +293,8 @@ func TestBackup(t *testing.T) {
 //   - Connect ATE port-2 to DUT port-2.
 //   - Connect ATE port-3 to DUT port-3.
 //   - Connect ATE port-4 to DUT port-4.
+//   - Create a L3 routing instance (vrfA), and assign DUT port-1 to vrfA.
+//   - Create a L3 routing instance (vrfB) that includes no interface.
 //   - Connect a gRIBI client to the DUT and inject an IPv4Entry for 203.0.113.0/24 pointing to a NextHopGroup containing:
 //   - Two primary next-hops:
 //   - 2: to ATE port-2
@@ -279,30 +308,32 @@ func TestBackup(t *testing.T) {
 // Validation Steps
 //   - Verify AFT telemetry after shutting each port
 //   - Verify traffic switches to the right ports
+
 func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 
 	const (
 		// Next hop group adjacency identifier.
-		NHGID1, NHGID2 = 100, 200
+		nhgid1, nhgid2 uint64 = 100, 200
 		// Backup next hop group ID that the dstPfx will forward to.
-		BackupNHGID = 500
+		backupnhgid uint64 = 500
 
-		NH1ID, NH2ID, NH3ID, NH4ID = 1001, 1002, 1003, 1004
+		nhid1, nhid2, nhid3, nhid4 uint64 = 1001, 1002, 1003, 1004
 	)
-	t.Logf("Program a backup pointing to VRF-B via gRIBI")
-	args.client.AddNH(t, NH3ID, "", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: "VRF-B"})
-	args.client.AddNHG(t, BackupNHGID, map[uint64]uint64{NH3ID: 10}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+
+	t.Logf("Program a backup pointing to vrfB via gRIBI")
+	args.client.AddNH(t, nhid3, "VRFOnly", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrf2})
+	args.client.AddNHG(t, backupnhgid, map[uint64]uint64{nhid3: 10}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	t.Logf("an IPv4Entry for %s in %s pointing to ATE port-2 and port-3 via gRIBI", dstPfx, vrf1)
-	args.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddNH(t, NH2ID, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddNHG(t, NHGID1, map[uint64]uint64{NH1ID: 80, NH2ID: 20}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: BackupNHGID})
-	args.client.AddIPv4(t, dstPfx, NHGID1, vrf1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNH(t, nhid1, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNH(t, nhid2, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhgid1, map[uint64]uint64{nhid1: 80, nhid2: 20}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: backupnhgid})
+	args.client.AddIPv4(t, dstPfx, nhgid1, vrf1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	t.Logf("an IPv4Entry for %s in %s pointing to ATE port-4 via gRIBI", dstPfx, vrf2)
-	args.client.AddNH(t, NH4ID, atePort4.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddNHG(t, NHGID2, map[uint64]uint64{NH4ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddIPv4(t, dstPfx, NHGID2, vrf2, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNH(t, nhid4, atePort4.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhgid2, map[uint64]uint64{nhid4: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddIPv4(t, dstPfx, nhgid2, vrf2, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	// create flow
 	BaseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
@@ -311,20 +342,25 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	aftCheck(t, args.dut, dstPfx, vrf1)
 	// Validate traffic over primary path port2, port3
+	t.Logf("Validate traffic over primary path port2, port3")
 	validateTrafficFlows(t, args.ate, BaseFlow, []string{"port2", "port3"})
 
 	//shutdown port2
 	flapinterface(t, args.ate, "port2", false)
+	gnmi.Await(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port2").Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
 	defer flapinterface(t, args.ate, "port2", true)
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	// Validate traffic over primary path port3
+	t.Logf("Validate traffic over primary path port3")
 	validateTrafficFlows(t, args.ate, BaseFlow, []string{"port3"})
 
 	//shutdown port3
 	flapinterface(t, args.ate, "port3", false)
+	gnmi.Await(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
 	defer flapinterface(t, args.ate, "port3", true)
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	// validate traffic over backup
+	t.Logf("Validate traffic over backup")
 	validateTrafficFlows(t, args.ate, BaseFlow, []string{"port4"})
 }
 
@@ -338,7 +374,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, 
 		}
 	}
 	hdr := ondatra.NewIPv4Header()
-	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfxMin).WithCount(1)
+	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfxMin).WithMax(dstPfxMax).WithCount(routeCount)
 
 	flow := ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(srcEndPoint).
@@ -354,15 +390,15 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, flow *ondatra.Fl
 	time.Sleep(60 * time.Second)
 	ate.Traffic().Stop(t)
 	flowPath := gnmi.OC().Flow(flow.Name())
-	val, _ := gnmi.Watch(t, ate, flowPath.LossPct().State(), 5*time.Minute, func(val *ygnmi.Value[float32]) bool {
+	val, _ := gnmi.Watch(t, ate, flowPath.LossPct().State(), 2*time.Minute, func(val *ygnmi.Value[float32]) bool {
 		return val.IsPresent()
 	}).Await(t)
 	lossPct, present := val.Val()
 	if !present {
 		t.Fatalf("Could not read loss percentage for flow %q from ATE.", flow.Name())
 	}
-	if lossPct > 0.5 {
-		t.Fatalf("LossPct for flow %s got %f, want less than 0.5", flow.Name(), lossPct)
+	if lossPct > 0 {
+		t.Fatalf("LossPct for flow %s got %f, want 0", flow.Name(), lossPct)
 	}
 }
 
