@@ -474,13 +474,14 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
-	top.Push(t).StartProtocols(t)
-	dutPortName := dut.Port(t, "port1").Name()
-	sysConfigTime := gnmi.Get(t, dut, gnmi.OC().Interface(dutPortName).LastChange().State())
-
 	if *deviations.ExplicitGRIBIUnderNetworkInstance {
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
 	}
+
+	top.Push(t).StartProtocols(t)
+
+	dutPortName := dut.Port(t, "port1").Name()
+	sysConfigTime := gnmi.Get(t, dut, gnmi.OC().Interface(dutPortName).LastChange().State())
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
