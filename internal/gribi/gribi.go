@@ -201,12 +201,24 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint
 func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHOptions) {
 	t.Helper()
 	switch address {
+	case "Vrf":
+		NH := fluent.NextHopEntry().
+			WithNetworkInstance(instance).
+			WithIndex(nhIndex)
+		for _, opt := range opts {
+			NH = NH.WithNextHopNetworkInstance(opt.VrfName)
+		}
+		c.fluentC.Modify().AddEntry(t, NH)
+
 	case "Decap":
-		c.fluentC.Modify().AddEntry(t,
-			fluent.NextHopEntry().
-				WithNetworkInstance(instance).
-				WithIndex(nhIndex).
-				WithDecapsulateHeader(fluent.IPinIP))
+		NH := fluent.NextHopEntry().
+			WithNetworkInstance(instance).
+			WithIndex(nhIndex).
+			WithDecapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			NH = NH.WithNextHopNetworkInstance(opt.VrfName)
+		}
+		c.fluentC.Modify().AddEntry(t, NH)
 	case "DecapEncap":
 		NH := fluent.NextHopEntry().
 			WithNetworkInstance(instance).
@@ -219,23 +231,23 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 		}
 		c.fluentC.Modify().AddEntry(t, NH)
 	default:
-		c.fluentC.Modify().AddEntry(t,
-			fluent.NextHopEntry().
-				WithNetworkInstance(instance).
-				WithIndex(nhIndex).
-				WithIPAddress(address))
-		if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
-			t.Fatalf("Error waiting to add NH: %v", err)
-		}
-		chk.HasResult(t, c.fluentC.Results(t),
-			fluent.OperationResult().
-				WithNextHopOperation(nhIndex).
-				WithOperationType(constants.Add).
-				WithProgrammingResult(expectedResult).
-				AsResult(),
-			chk.IgnoreOperationID(),
-		)
+		NH := fluent.NextHopEntry().
+			WithNetworkInstance(instance).
+			WithIndex(nhIndex).
+			WithIPAddress(address)
+		c.fluentC.Modify().AddEntry(t, NH)
 	}
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add NH: %v", err)
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithNextHopOperation(nhIndex).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
 }
 
 // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
