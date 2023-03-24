@@ -276,11 +276,17 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	t.Helper()
 
 	i := &oc.Interface{Name: ygot.String(p.Name())}
-	i.Description = ygot.String(a.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
-		i.Enabled = ygot.Bool(true)
+
+	if a.numSubIntf > 0 {
+		i.Description = ygot.String(a.Desc)
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		if *deviations.InterfaceEnabled {
+			i.Enabled = ygot.Bool(true)
+		}
+	} else {
+		i = a.NewOCInterface(p.Name())
 	}
+
 	if *deviations.ExplicitPortSpeed {
 		i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, p)
 	}
