@@ -100,10 +100,16 @@ func (ts testsuite) check(featuredir string) (ok bool) {
 	for _, check := range []func() bool{
 		ts.checkCases(featuredir),
 		ts.checkDuplicate("test plan ID", func(tc *testcase) string {
-			return tc.markdown.testPlanID
+			if tc.markdown == nil {
+				return ""
+			}
+			return tc.markdown.PlanId
 		}),
 		ts.checkDuplicate("test UUID", func(tc *testcase) string {
-			return tc.existing.testUUID
+			if tc.existing == nil {
+				return ""
+			}
+			return tc.existing.Uuid
 		}),
 		ts.checkATEOTG,
 	} {
@@ -186,24 +192,24 @@ func (ts testsuite) checkATEOTG() (ok bool) {
 			continue // Okay if OTG test is missing.
 		}
 
-		if tc.existing.testPlanID != otgtc.existing.testPlanID {
+		if tc.existing.PlanId != otgtc.existing.PlanId {
 			errorf("ATE and OTG tests have different test plan IDs: %s", testdir)
-			errorf("  - ATE: %s", tc.existing.testPlanID)
-			errorf("  - OTG: %s", otgtc.existing.testPlanID)
+			errorf("  - ATE: %s", tc.existing.PlanId)
+			errorf("  - OTG: %s", otgtc.existing.PlanId)
 			ok = false
 		}
 
-		if tc.existing.testDescription != otgtc.existing.testDescription {
+		if tc.existing.Description != otgtc.existing.Description {
 			errorf("ATE and OTG tests have different test descriptions: %s", testdir)
-			errorf("  - ATE: %s", tc.existing.testDescription)
-			errorf("  - OTG: %s", otgtc.existing.testDescription)
+			errorf("  - ATE: %s", tc.existing.Description)
+			errorf("  - OTG: %s", otgtc.existing.Description)
 			ok = false
 		}
 
-		if tc.existing.testUUID != otgtc.existing.testUUID {
+		if tc.existing.Uuid != otgtc.existing.Uuid {
 			errorf("ATE and OTG tests have different UUIDs: %s", testdir)
-			errorf("  - ATE: %s", tc.existing.testUUID)
-			errorf("  - OTG: %s", otgtc.existing.testUUID)
+			errorf("  - ATE: %s", tc.existing.Uuid)
+			errorf("  - OTG: %s", otgtc.existing.Uuid)
 			ok = false
 		}
 	}
@@ -234,7 +240,7 @@ func (ts testsuite) fix() bool {
 		if otgtc == nil {
 			continue // Okay if OTG test is missing.
 		}
-		otgtc.fixed.testUUID = tc.fixed.testUUID
+		otgtc.fixed.Uuid = tc.fixed.Uuid
 	}
 
 	return true

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -15,6 +16,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 )
 
 const (
@@ -30,13 +32,14 @@ const (
 	NH2ID                = 2
 	NH3ID                = 3
 	innersrcPfx          = "198.51.100.1"
+	ethernetCsmacd       = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	dut    *ondatra.DUTDevice
 	ate    *ondatra.ATEDevice
-	top    *ondatra.ATETopology
+	top    gosnappi.Config
 	ctx    context.Context
 	client *gribi.Client
 }
@@ -51,7 +54,8 @@ var (
 	}
 
 	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
+		Name:    "port1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:2",
@@ -67,7 +71,8 @@ var (
 	}
 
 	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
+		Name:    "port2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:6",
@@ -83,7 +88,8 @@ var (
 	}
 
 	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
+		Name:    "port3",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:a",
@@ -96,35 +102,18 @@ func TestMain(m *testing.M) {
 }
 
 // configureATE configures ports on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	t.Helper()
+	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
-	i1.IPv6().
-		WithAddress(atePort1.IPv6CIDR()).
-		WithDefaultGateway(dutPort1.IPv6)
-
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
-	i2.IPv6().
-		WithAddress(atePort2.IPv6CIDR()).
-		WithDefaultGateway(dutPort2.IPv6)
-
 	p3 := ate.Port(t, "port3")
-	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
-	i3.IPv4().
-		WithAddress(atePort3.IPv4CIDR()).
-		WithDefaultGateway(dutPort3.IPv4)
-	i3.IPv6().
-		WithAddress(atePort3.IPv6CIDR()).
-		WithDefaultGateway(dutPort3.IPv6)
+
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+	atePort3.AddToOTG(top, p3, &dutPort3)
+
 	return top
 }
 
@@ -185,25 +174,17 @@ func TestBackupNHGAction(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Configure DUT
-	if !*deviations.InterfaceConfigVrfBeforeAddress {
-		configureDUT(t, dut)
-	}
-
+	configureDUT(t, dut)
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	configureNetworkInstance(t, dut)
-
-	// For interface configuration, Arista prefers config Vrf first then the IP address
-	if *deviations.InterfaceConfigVrfBeforeAddress {
-		configureDUT(t, dut)
-	}
-
 	addStaticRoute(t, dut)
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	test := []struct {
 		name string
@@ -264,17 +245,18 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, primaryTunnelDstIP+"/"+mask, NH1ID, vrfName, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	t.Logf("Create flows with dst %s", primaryTunnelDstIP)
-	baselineFlow := createFlow(t, args.ate, args.top, "BaseFlow", primaryTunnelDstIP, &atePort2)
-	backupFlow := createFlow(t, args.ate, args.top, "BackupFlow", primaryTunnelDstIP, &atePort3)
+	baselineFlow := createFlow(args.ate, "BaseFlow", primaryTunnelDstIP, &atePort2)
+	backupFlow := createFlow(args.ate, "BackupFlow", primaryTunnelDstIP, &atePort3)
 	t.Log("Validate traffic passes")
-	validateTrafficFlows(t, args.ate, baselineFlow, backupFlow)
+	validateTrafficFlows(t, args.ate, args.top, baselineFlow, backupFlow)
 
+	// Setting admin state down on the DUT interface.
+	// Setting the otg interface down has no effect on kne and is not yet supported in otg
 	t.Log("Shutdown Port2")
-	ateP := args.ate.Port(t, "port2")
-	args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(false).Send(t)
-	defer args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(true).Send(t)
-
 	p2 := args.dut.Port(t, "port2")
+	setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, false)
+	defer setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, true)
+
 	t.Log("Capture port2 status if down")
 	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
 	operStatus := gnmi.Get(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State())
@@ -283,7 +265,7 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	t.Log("Validate traffic passes through port3")
-	validateTrafficFlows(t, args.ate, backupFlow, baselineFlow)
+	validateTrafficFlows(t, args.ate, args.top, backupFlow, baselineFlow)
 }
 
 // TE11.3 - case 2: new tunnel viability triggers decap in the backup NHG.
@@ -315,15 +297,17 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	t.Logf("Create flows with dst %s", primaryTunnelDstIP)
-	baselineFlow := createFlow(t, args.ate, args.top, "BaseFlow", primaryTunnelDstIP, &atePort2)
-	backupFlow := createFlow(t, args.ate, args.top, "BackupFlow", primaryTunnelDstIP, &atePort3)
+	baselineFlow := createFlow(args.ate, "BaseFlow", primaryTunnelDstIP, &atePort2)
+	backupFlow := createFlow(args.ate, "BackupFlow", primaryTunnelDstIP, &atePort3)
 	t.Logf("Validate traffic passes through port2")
-	validateTrafficFlows(t, args.ate, baselineFlow, backupFlow)
+	validateTrafficFlows(t, args.ate, args.top, baselineFlow, backupFlow)
 
 	t.Log("Shutdown Port2")
-	ateP := args.ate.Port(t, "port2")
-	args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(false).Send(t)
-	defer args.ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(true).Send(t)
+	// Setting admin state down on the DUT interface.
+	// Setting the otg interface down has no effect on kne and is not yet supported in otg
+	dutP2 := args.dut.Port(t, "port2")
+	setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, false)
+	defer setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, true)
 
 	t.Log("Capture port2 status if down")
 	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
@@ -333,35 +317,70 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	t.Log("Validate traffic passes through port3")
-	validateTrafficFlows(t, args.ate, backupFlow, baselineFlow)
+	validateTrafficFlows(t, args.ate, args.top, backupFlow, baselineFlow)
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx.
-func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, name string, dstPfx string, dst *attrs.Attributes) *ondatra.Flow {
-	srcEndPoint := top.Interfaces()[atePort1.Name]
-	dstEndPoint := top.Interfaces()[dst.Name]
-	hdr := ondatra.NewIPv4Header()
-	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfx).WithCount(1)
-	innerIpv4Header := ondatra.NewIPv4Header()
-	innerIpv4Header.WithSrcAddress(innersrcPfx)
-	innerIpv4Header.DstAddressRange().WithMin(innerdstPfx).WithCount(1)
-	flow := ate.Traffic().NewFlow(name).
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr, innerIpv4Header).WithFrameSize(300)
+func createFlow(ate *ondatra.ATEDevice, name string, dstPfx string, dst *attrs.Attributes) gosnappi.Flow {
+
+	flow := gosnappi.NewFlow().SetName(name)
+	flow.Metrics().SetEnable(true)
+	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{dst.Name + ".IPv4"})
+	ethHeader := flow.Packet().Add().Ethernet()
+	ethHeader.Src().SetValue(atePort1.MAC)
+	outerIPHeader := flow.Packet().Add().Ipv4()
+	outerIPHeader.Src().SetValue(atePort1.IPv4)
+	outerIPHeader.Dst().Increment().SetStart(dstPfx).SetCount(1)
+	innerIPHeader := flow.Packet().Add().Ipv4()
+	innerIPHeader.Src().SetValue(innersrcPfx)
+	innerIPHeader.Dst().Increment().SetStart(innerdstPfx).SetCount(1)
+	flow.Size().SetFixed(300)
+
 	return flow
 }
 
 // validateTrafficFlows verifies that the flow on ATE, traffic should pass for good flow and fail for bad flow.
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good *ondatra.Flow, bad *ondatra.Flow) {
-	ate.Traffic().Start(t, good, bad)
-	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, good, bad gosnappi.Flow) {
+	top.Flows().Clear()
+	for _, flow := range []gosnappi.Flow{good, bad} {
+		top.Flows().Append(flow)
+	}
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
-	if got := gnmi.Get(t, ate, gnmi.OC().Flow(good.Name()).LossPct().State()); got > 0 {
-		t.Fatalf("LossPct for flow %s: got %g, want 0", good.Name(), got)
+	ate.OTG().StartTraffic(t)
+	time.Sleep(15 * time.Second)
+	ate.OTG().StopTraffic(t)
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	otgutils.LogPortMetrics(t, ate.OTG(), top)
+	outPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(good.Name()).Counters().OutPkts().State())
+	inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(good.Name()).Counters().InPkts().State())
+	if outPkts == 0 {
+		t.Fatalf("OutPkts for flow %s is 0, want >0.", good.Name())
 	}
-	if got := gnmi.Get(t, ate, gnmi.OC().Flow(bad.Name()).LossPct().State()); got < 100 {
-		t.Fatalf("LossPct for flow %s: got %g, want 100", bad.Name(), got)
+
+	if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
+		t.Fatalf("LossPct for flow %s: got %v, want 0", good.Name(), got)
 	}
+
+	outPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(bad.Name()).Counters().OutPkts().State())
+	inPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(bad.Name()).Counters().InPkts().State())
+	if outPkts == 0 {
+		t.Fatalf("OutPkts for flow %s is 0, want >0.", bad.Name())
+	}
+
+	if got := ((outPkts - inPkts) * 100) / outPkts; got < 100 {
+		t.Fatalf("LossPct for flow %s: got %v, want 100", bad.Name(), got)
+	}
+}
+
+// setDUTInterfaceState sets the admin state on the dut interface
+func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
+	dc := gnmi.OC()
+	i := &oc.Interface{}
+	i.Enabled = ygot.Bool(state)
+	i.Type = ethernetCsmacd
+	i.Name = ygot.String(p.Name())
+	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }
