@@ -8,18 +8,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"github.com/google/uuid"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // testcase carries parsed rundata from different sources to be fixed and checked.
 type testcase struct {
-	pkg      string      // Package used in the test code.
-	markdown *parsedData // From the README.md.
-	existing *parsedData // From existing source code.
-	fixed    *parsedData // Fixed rundata to write back, populated by fix().
+	pkg      string        // Package used in the test code.
+	markdown *mpb.Metadata // From the README.md.
+	existing *mpb.Metadata // From existing source code.
+	fixed    *mpb.Metadata // Fixed rundata to write back, populated by fix().
 }
 
 // read reads the markdown and existing rundata from the test directory.
@@ -110,21 +111,21 @@ func (tc *testcase) check() []error {
 	}
 
 	if tc.markdown != nil && tc.existing != nil {
-		if tc.existing.testPlanID != tc.markdown.testPlanID {
+		if tc.existing.PlanId != tc.markdown.PlanId {
 			errs = append(errs, fmt.Errorf(
 				"rundata test plan ID needs update: was %q, will be %q",
-				tc.existing.testPlanID, tc.markdown.testPlanID))
+				tc.existing.PlanId, tc.markdown.PlanId))
 		}
 
-		if tc.existing.testDescription != tc.markdown.testDescription {
+		if tc.existing.Description != tc.markdown.Description {
 			errs = append(errs, fmt.Errorf(
 				"rundata test description needs update: was %q, will be %q",
-				tc.existing.testDescription, tc.markdown.testDescription))
+				tc.existing.Description, tc.markdown.Description))
 		}
 	}
 
 	if tc.existing != nil {
-		if testUUID := tc.existing.testUUID; testUUID == "" {
+		if testUUID := tc.existing.Uuid; testUUID == "" {
 			errs = append(errs, errors.New("missing UUID from rundata"))
 		} else if u, err := uuid.Parse(testUUID); err != nil {
 			errs = append(errs, fmt.Errorf(
@@ -145,16 +146,16 @@ func (tc *testcase) fix() error {
 		return errors.New("markdown rundata is missing")
 	}
 
-	tc.fixed = &parsedData{
-		testPlanID:      tc.markdown.testPlanID,
-		testDescription: tc.markdown.testDescription,
+	tc.fixed = &mpb.Metadata{
+		PlanId:      tc.markdown.PlanId,
+		Description: tc.markdown.Description,
 	}
 
 	if tc.existing != nil {
-		u, err := uuid.Parse(tc.existing.testUUID)
+		u, err := uuid.Parse(tc.existing.Uuid)
 		if err == nil && u.Variant() == uuid.RFC4122 && u.Version() == 4 {
 			// Existing UUID is valid, but make sure it is normalized.
-			tc.fixed.testUUID = u.String()
+			tc.fixed.Uuid = u.String()
 			return nil
 		}
 	}
@@ -165,7 +166,7 @@ func (tc *testcase) fix() error {
 	if err != nil {
 		return err
 	}
-	tc.fixed.testUUID = u.String()
+	tc.fixed.Uuid = u.String()
 	return nil
 }
 
@@ -179,12 +180,12 @@ func (tc *testcase) write(testdir string) error {
 	if tc.fixed == nil {
 		return errors.New("test case was not fixed")
 	}
-	if reflect.DeepEqual(tc.existing, tc.fixed) {
+	if proto.Equal(tc.existing, tc.fixed) {
 		return errNoop
 	}
 
 	w := &strings.Builder{}
-	if err := tc.fixed.write(w, tc.pkg); err != nil {
+	if err := writeCode(w, tc.fixed, tc.pkg); err != nil {
 		return fmt.Errorf("could not generate the rundata: %w", err)
 	}
 
