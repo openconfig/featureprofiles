@@ -122,6 +122,7 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
 	intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+	glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
 }
 
 // addISISTopo configures basic IS-IS on an ATETopology interface.
@@ -209,7 +210,11 @@ func MustNew(t testing.TB) *TestSession {
 
 // WithISIS adds ISIS to a test session.
 func (s *TestSession) WithISIS() *TestSession {
-	addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name())
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name()+".0")
+	} else {
+		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name())
+	}
 	if s.ATE != nil {
 		addISISTopo(s.ATEIntf1, ATEAreaAddress, ATESysID)
 	}
@@ -228,12 +233,8 @@ func (s *TestSession) ConfigISIS(ocFn func(*oc.NetworkInstance_Protocol_Isis)) {
 // devices.
 func (s *TestSession) PushAndStart(t testing.TB) error {
 	t.Helper()
-	if err := s.PushDUT(context.Background()); err != nil {
+	if err := s.PushDUT(context.Background(), t); err != nil {
 		return err
-	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 	s.PushAndStartATE(t)
 	return nil
@@ -241,7 +242,7 @@ func (s *TestSession) PushAndStart(t testing.TB) error {
 
 // PushDUT replaces DUT config with s.dutConf. Only interfaces and the ISIS
 // protocol are written.
-func (s *TestSession) PushDUT(ctx context.Context) error {
+func (s *TestSession) PushDUT(ctx context.Context, t testing.TB) error {
 	// Push the interfaces
 	for name, conf := range s.DUTConf.Interface {
 		_, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().Interface(name).Config(), conf)
@@ -249,20 +250,21 @@ func (s *TestSession) PushDUT(ctx context.Context) error {
 			return fmt.Errorf("configuring interface %s: %w", name, err)
 		}
 	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, s.DUTPort1)
+		fptest.SetPortSpeed(t, s.DUTPort2)
+	}
+
 	// Push the ISIS protocol
 	if _, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().NetworkInstance(*deviations.DefaultNetworkInstance).Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE); err != nil {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
-
-	// Clear ISIS Protocol
-	_, err := ygnmi.Delete(ctx, s.DUTClient, ProtocolPath().Config())
-	if err != nil {
-		return fmt.Errorf("deleting ISIS config before configuring test config: %w", err)
-	}
-
-	// Configure ISIS test config on DUT
-	_, err = ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
+	_, err := ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
 	if err != nil {
 		return fmt.Errorf("configuring ISIS: %w", err)
 	}
@@ -282,6 +284,9 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
 // if one doesn't form.
 func (s *TestSession) AwaitAdjacency() (string, error) {
 	intf := ISISPath().Interface(s.DUTPort1.Name())
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		intf = ISISPath().Interface(s.DUTPort1.Name() + ".0")
+	}
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -321,7 +326,7 @@ func (s *TestSession) MustATEInterface(t testing.TB, portID string) gosnappi.Dev
 	}
 	for _, d := range s.ATETop.Devices().Items() {
 		Eth := d.Ethernets().Items()[0]
-		if Eth.PortName() == portID {
+		if Eth.Connection().PortName() == portID {
 			return d
 		}
 	}

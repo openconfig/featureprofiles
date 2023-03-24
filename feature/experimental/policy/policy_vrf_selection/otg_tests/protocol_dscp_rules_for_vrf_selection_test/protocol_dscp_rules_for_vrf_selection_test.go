@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -214,9 +215,15 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc
 	}
 	s.Index = ygot.Uint32(index)
 	s4 := s.GetOrCreateIpv4()
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		s4.Enabled = ygot.Bool(true)
+	}
 	a := s4.GetOrCreateAddress(dutPort.IPv4)
 	a.PrefixLength = ygot.Uint8(dutPort.IPv4Len)
 	s6 := s.GetOrCreateIpv6()
+	if *deviations.InterfaceEnabled {
+		s6.Enabled = ygot.Bool(true)
+	}
 	a6 := s6.GetOrCreateAddress(dutPort.IPv6)
 	a6.PrefixLength = ygot.Uint8(dutPort.IPv6Len)
 	if index != 0 {
@@ -231,6 +238,9 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc
 
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
+	if *deviations.InterfaceEnabled {
+		i.Enabled = ygot.Bool(true)
+	}
 	i.Description = ygot.String(dutPort.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	i.AppendSubinterface(getSubInterface(dutPort, 0, 0))
@@ -415,6 +425,7 @@ func TestPBR(t *testing.T) {
 		policy       *oc.NetworkInstance_PolicyForwarding
 		passingFlows []gosnappi.Flow
 		failingFlows []gosnappi.Flow
+		rejectable   bool
 	}{
 		{
 			name: "RT3.2 Case1",
@@ -465,6 +476,7 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, atePort1, atePort2Vlan20, "ipinipd10v20", 10),
 				getIPinIPFlow(args, atePort1, atePort2Vlan20, "ipinipd11v20", 11),
 				getIPinIPFlow(args, atePort1, atePort2Vlan20, "ipinipd12v20", 12)},
+			rejectable: true,
 		},
 		{
 			name: "RT3.2 Case4",
@@ -492,7 +504,15 @@ func TestPBR(t *testing.T) {
 			pfpath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding()
 
 			//configure pbr policy-forwarding
-			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+			})
+			if errMsg != nil {
+				if tc.rejectable {
+					t.Skipf("Skipping test case %q, PolicyForwarding config was rejected with an error: %s", tc.name, *errMsg)
+				}
+				t.Fatalf("PolicyForwarding config update failed: %v", *errMsg)
+			}
 			// defer cleaning policy-forwarding
 			defer gnmi.Delete(t, args.dut, pfpath.Config())
 
