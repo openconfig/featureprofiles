@@ -16,6 +16,7 @@ package singleton_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -144,6 +145,15 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	di2 := d.Interface(p2.Name())
 	fptest.LogQuery(t, p2.String(), di2.Config(), tc.duti2)
 	gnmi.Replace(t, tc.dut, di2.Config(), tc.duti2)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
 }
 
 func (tc *testCase) configureATE(t *testing.T) {
@@ -217,6 +227,9 @@ func (tc *testCase) verifyInterfaceDUT(
 	// Mac address value is still not populated in di. Hence getting using gnmi get method
 	diMacAddress := gnmi.Get(t, tc.dut, dip.Ethernet().MacAddress().State())
 	di.GetOrCreateEthernet().MacAddress = &diMacAddress
+
+	wantdi.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(wantdi.GetOrCreateEthernet().GetMacAddress()))
+	di.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(di.GetOrCreateEthernet().GetMacAddress()))
 
 	confirm.State(t, wantdi, di)
 

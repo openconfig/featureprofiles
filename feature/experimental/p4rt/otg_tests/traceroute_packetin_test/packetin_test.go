@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -100,6 +101,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	top.Flows().Clear()
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
+		flow.Metrics().SetEnable(true)
 		top.Flows().Append(flow)
 	}
 	ate.OTG().PushConfig(t, top)
@@ -108,7 +110,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	time.Sleep(time.Duration(duration) * time.Second)
 	ate.OTG().StopTraffic(t)
 
-	outPkts := gnmi.GetAll(t, ate, gnmi.OC().FlowAny().Counters().OutPkts().State())
+	outPkts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().FlowAny().Counters().OutPkts().State())
 	total := 0
 	for _, count := range outPkts {
 		total += int(count)
@@ -140,7 +142,13 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 
 	// Send Traceroute traffic from ATE
 	srcEndPoint := ateInterface(t, args.top, "port1")
-	dstMac := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
+	llAddress, found := gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	if !found {
+		t.Fatalf("Could not get the LinkLayerAddress %s", llAddress)
+	}
+	dstMac, _ := llAddress.Val()
 	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, dstMac, isIPv4, 1, 300, 2), srcEndPoint, 10)
 
 	packetInTests := []struct {

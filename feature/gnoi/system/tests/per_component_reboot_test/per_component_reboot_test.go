@@ -200,8 +200,10 @@ func TestLinecardReboot(t *testing.T) {
 
 	t.Logf("Validate interface OperStatus.")
 	batch := gnmi.OCBatch()
+	upInterfaces := make(map[string]bool)
 	for _, port := range intfsOperStatusUPBeforeReboot {
 		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
+		upInterfaces[port] = true
 	}
 	watch := gnmi.Watch(t, dut, batch.State(), 10*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
 		root, present := val.Val()
@@ -210,12 +212,21 @@ func TestLinecardReboot(t *testing.T) {
 		}
 		for _, port := range intfsOperStatusUPBeforeReboot {
 			if root.GetInterface(port).GetOperStatus() != oc.Interface_OperStatus_UP {
+				upInterfaces[port] = false
 				return false
+			} else {
+				upInterfaces[port] = true
 			}
 		}
 		return true
 	})
 	if val, ok := watch.Await(t); !ok {
+		for intf, up := range upInterfaces {
+			if !up {
+				gnmi.Get(t, dut, gnmi.OC().Interface(intf).State())
+				t.Logf("Interface %s is not up after reloading line card %s", intf, removableLinecard)
+			}
+		}
 		t.Fatalf("DUT did not reach target state: got %v", val)
 	}
 
