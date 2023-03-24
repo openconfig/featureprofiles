@@ -404,13 +404,13 @@ func testTraffic(t *testing.T, args testArgs) {
 	args.ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, args.ate.OTG(), args.top)
 
-	txPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().OutPkts().State())
-	rxPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().InPkts().State())
+	txPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
+	rxPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
 	if txPkts == 0 {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
 
-	if got := float32((txPkts - rxPkts) * 100 / txPkts); got > 0 {
+	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
 		t.Errorf("LossPct got %f, want 0", got)
 	} else {
 		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2.")
