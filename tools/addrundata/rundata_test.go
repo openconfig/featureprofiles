@@ -84,6 +84,18 @@ func TestWriteProto(t *testing.T) {
 	if err := writeProto(buf, want); err != nil {
 		t.Fatalf("Cannot write: %v", err)
 	}
+	gotText := buf.String()
+	const wantText = `# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "123e4567-e89b-42d3-8456-426614174000"
+plan_id: "XX-1.1"
+description: "Foo Functional Test"
+`
+	if diff := cmp.Diff(wantText, gotText); diff != "" {
+		t.Errorf("writeProto got unexpected diff: %s", diff)
+	}
+
 	got, err := parseProto(bytes.NewReader(buf.Bytes()))
 	if err != nil {
 		t.Fatalf("Cannot read back: %v", err)
