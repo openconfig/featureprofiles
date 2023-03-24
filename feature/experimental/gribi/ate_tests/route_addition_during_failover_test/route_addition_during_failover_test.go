@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
@@ -570,21 +571,25 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	// Check for coredumps in the DUT and validate that none are present on DUT before switchover.
 	coreFileCheck(t, dut, gnoiClient, sysConfigTime)
 
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
 	t.Log("Execute gRIBi route addition and master switchover concurrently.")
 	go func() {
+		defer wg.Done()
 		t.Log("Inject routes from ipBlock2 in default VRF with NHGID: #1.")
 		pushDefaultEntries(t, args, subIntfIPs, virtualIPsBlock2, !configNhg, switchover)
 	}()
 
 	go func() {
+		defer wg.Done()
 		switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
 		if err != nil {
 			t.Logf("Failed to perform control processor switchover with unexpected err: %v", err)
 		}
 		t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
 	}()
-
-	t.Log("Validate switchoverStatus.")
+	wg.Wait()
+	t.Log("Concurrent switchover and route addition is completed, validate switchoverStatus now.")
 
 	primaryAfterSwitch := validateSwitchoverStatus(t, dut, secondaryBeforeSwitch)
 
