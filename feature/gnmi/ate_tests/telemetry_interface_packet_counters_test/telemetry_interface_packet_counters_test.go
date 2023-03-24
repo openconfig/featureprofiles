@@ -273,13 +273,13 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	for k, v := range ateOutPkts {
 		if v == 0 {
-			t.Errorf("ate.Telemetry().Flow(%v).Counters().OutPkts().Get() = %v, want nonzero", k, v)
+			t.Errorf("gnmi.Get(t, ate, gnmi.OC().Flow(%v).Counters().OutPkts().State()) = %v, want nonzero", k, v)
 		}
 	}
 	for _, flow := range []string{ipv4Flow.Name(), ipv6Flow.Name()} {
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow).LossPct().State())
 		if lossPct >= 1 {
-			t.Errorf("ate.Telemetry().Flow(%v).LossPct().Get() = %v, want < 1", flow, lossPct)
+			t.Errorf("gnmi.Get(t, ate, gnmi.OC().Flow(%v).LossPct().State()) = %v, want < 1", flow, lossPct)
 		}
 	}
 
