@@ -143,6 +143,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	t.Helper()
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
+		flow.Metrics().SetEnable(true)
 		top.Flows().Append(flow)
 	}
 	ate.OTG().PushConfig(t, top)
