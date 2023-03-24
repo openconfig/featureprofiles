@@ -59,7 +59,7 @@ func ttBuildPlan(ts testsuite, rootdir string) (ttp ttPlan, ok bool) {
 	ttsall := make(ttSuite)
 
 	for testdir, tc := range ts {
-		if !tc.existing.hasData {
+		if tc.existing == nil {
 			errorf("Missing rundata: %s", testdir)
 			ok = false
 			continue
@@ -338,7 +338,7 @@ func childCase(child any) (key ttCaseKey, ok bool) {
 // ttCase contains the test rundata and the test locations (if the test has multiple
 // variants).
 type ttCase struct {
-	parsedData
+	*parsedData
 	testDirs map[string]string // Test locations by test kind.
 }
 
