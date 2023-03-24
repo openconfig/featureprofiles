@@ -27,12 +27,13 @@ func (tc *testcase) read(testdir string) error {
 	if err := readFile(filepath.Join(testdir, "README.md"), tc.readMarkdown); err != nil {
 		return fmt.Errorf("could not parse README.md: %w", err)
 	}
-	if err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.readCode); err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("could not parse rundata_test.go: %w", err)
-		}
-	} else {
+	switch err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.readCode); {
+	case err == nil:
 		tc.deprecated = true
+	case os.IsNotExist(err):
+		// This is desired.
+	default:
+		return fmt.Errorf("could not parse rundata_test.go: %w", err)
 	}
 	if err := readFile(filepath.Join(testdir, "metadata.textproto"), tc.readProto); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("could not parse metadata.textproto: %w", err)
@@ -165,7 +166,8 @@ func (tc *testcase) write(testdir string) error {
 	if tc.fixed == nil {
 		return errors.New("test case was not fixed")
 	}
-	if proto.Equal(tc.existing, tc.fixed) && !(*checkDeprecated && tc.deprecated) {
+	deprecated := *checkDeprecated && tc.deprecated
+	if !deprecated && proto.Equal(tc.existing, tc.fixed) {
 		return errNoop
 	}
 
