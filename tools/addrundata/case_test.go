@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 const (
@@ -44,7 +46,7 @@ func init() {
 `
 )
 
-var tcopt = cmp.AllowUnexported(testcase{}, parsedData{})
+var tcopts = []cmp.Option{cmp.AllowUnexported(testcase{}), protocmp.Transform()}
 
 func TestCase_Read(t *testing.T) {
 	tests := []struct {
@@ -65,9 +67,9 @@ func TestCase_Read(t *testing.T) {
 		desc:         "no tests",
 		markdownText: markdownText,
 		want: testcase{
-			markdown: &parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Description from markdown",
+			markdown: &mpb.Metadata{
+				PlanId:      "XX-1.1",
+				Description: "Description from markdown",
 			},
 		},
 	}, {
@@ -76,9 +78,9 @@ func TestCase_Read(t *testing.T) {
 		testCode:     testCode,
 		want: testcase{
 			pkg: "foo_functional_test",
-			markdown: &parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Description from markdown",
+			markdown: &mpb.Metadata{
+				PlanId:      "XX-1.1",
+				Description: "Description from markdown",
 			},
 		},
 	}, {
@@ -94,14 +96,14 @@ func TestCase_Read(t *testing.T) {
 		rundataCode:  rundataCode,
 		want: testcase{
 			pkg: "foo_functional_test",
-			markdown: &parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Description from markdown",
+			markdown: &mpb.Metadata{
+				PlanId:      "XX-1.1",
+				Description: "Description from markdown",
 			},
-			existing: &parsedData{
-				testUUID:        "123e4567-e89b-42d3-8456-426614174000",
-				testPlanID:      "YY-1.1",
-				testDescription: "Description from code",
+			existing: &mpb.Metadata{
+				Uuid:        "123e4567-e89b-42d3-8456-426614174000",
+				PlanId:      "YY-1.1",
+				Description: "Description from code",
 			},
 		},
 	}}
@@ -129,7 +131,7 @@ func TestCase_Read(t *testing.T) {
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(test.want, got, tcopt); diff != "" {
+			if diff := cmp.Diff(test.want, got, tcopts...); diff != "" {
 				t.Errorf("testcase.read -want,+got:\n%s", diff)
 			}
 		})
@@ -144,37 +146,37 @@ func TestCase_Check(t *testing.T) {
 	}{{
 		name: "good",
 		tc: testcase{
-			markdown: &parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Foo Functional Test",
+			markdown: &mpb.Metadata{
+				PlanId:      "XX-1.1",
+				Description: "Foo Functional Test",
 			},
-			existing: &parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Foo Functional Test",
-				testUUID:        "123e4567-e89b-42d3-8456-426614174000",
+			existing: &mpb.Metadata{
+				Uuid:        "123e4567-e89b-42d3-8456-426614174000",
+				PlanId:      "XX-1.1",
+				Description: "Foo Functional Test",
 			},
 		},
 		want: 0,
 	}, {
 		name: "allbad",
 		tc: testcase{
-			markdown: &parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Description from Markdown",
+			markdown: &mpb.Metadata{
+				PlanId:      "XX-1.1",
+				Description: "Description from Markdown",
 			},
-			existing: &parsedData{
-				testPlanID:      "YY-1.1",
-				testDescription: "Description from Test",
-				testUUID:        "123e4567-e89b-12d3-a456-426614174000",
+			existing: &mpb.Metadata{
+				Uuid:        "123e4567-e89b-12d3-a456-426614174000",
+				PlanId:      "YY-1.1",
+				Description: "Description from Test",
 			},
 		},
 		want: 3,
 	}, {
 		name: "noexisting",
 		tc: testcase{
-			markdown: &parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Foo Functional Test",
+			markdown: &mpb.Metadata{
+				PlanId:      "XX-1.1",
+				Description: "Foo Functional Test",
 			},
 		},
 		want: 1,
@@ -197,45 +199,45 @@ func TestCase_Check(t *testing.T) {
 
 func TestCase_Fix(t *testing.T) {
 	tc := testcase{
-		markdown: &parsedData{
-			testPlanID:      "XX-1.1",
-			testDescription: "Foo Functional Test",
+		markdown: &mpb.Metadata{
+			PlanId:      "XX-1.1",
+			Description: "Foo Functional Test",
 		},
 	}
 	if err := tc.fix(); err != nil {
 		t.Fatal(err)
 	}
 	got := tc.fixed
-	want := &parsedData{
-		testPlanID:      tc.markdown.testPlanID,
-		testDescription: tc.markdown.testDescription,
-		testUUID:        got.testUUID,
+	want := &mpb.Metadata{
+		Uuid:        got.Uuid,
+		PlanId:      tc.markdown.PlanId,
+		Description: tc.markdown.Description,
 	}
-	if diff := cmp.Diff(want, got, tcopt); diff != "" {
+	if diff := cmp.Diff(want, got, tcopts...); diff != "" {
 		t.Errorf("fixed -want,+got:\n%s", diff)
 	}
 }
 
 func TestCase_FixUUID(t *testing.T) {
 	tc := testcase{
-		markdown: &parsedData{
-			testPlanID:      "XX-1.1",
-			testDescription: "Foo Functional Test",
+		markdown: &mpb.Metadata{
+			PlanId:      "XX-1.1",
+			Description: "Foo Functional Test",
 		},
-		existing: &parsedData{
-			testUUID: "urn:uuid:123e4567-e89b-42d3-8456-426614174000",
+		existing: &mpb.Metadata{
+			Uuid: "urn:uuid:123e4567-e89b-42d3-8456-426614174000",
 		},
 	}
 	if err := tc.fix(); err != nil {
 		t.Fatal(err)
 	}
 	got := tc.fixed
-	want := &parsedData{
-		testPlanID:      tc.markdown.testPlanID,
-		testDescription: tc.markdown.testDescription,
-		testUUID:        "123e4567-e89b-42d3-8456-426614174000",
+	want := &mpb.Metadata{
+		Uuid:        "123e4567-e89b-42d3-8456-426614174000",
+		PlanId:      tc.markdown.PlanId,
+		Description: tc.markdown.Description,
 	}
-	if diff := cmp.Diff(want, got, tcopt); diff != "" {
+	if diff := cmp.Diff(want, got, tcopts...); diff != "" {
 		t.Errorf("fixed -want,+got:\n%s", diff)
 	}
 }
@@ -267,7 +269,7 @@ func TestCase_Write(t *testing.T) {
 	if err := got.read(testdir); err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(want.fixed, got.existing, tcopt); diff != "" {
+	if diff := cmp.Diff(want.fixed, got.existing, tcopts...); diff != "" {
 		t.Errorf("Write then read output differs -want,+got:\n%s", diff)
 	}
 }
