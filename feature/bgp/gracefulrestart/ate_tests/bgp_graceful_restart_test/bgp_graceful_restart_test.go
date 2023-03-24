@@ -76,6 +76,7 @@ const (
 	peerv4GrpName            = "BGP-PEER-GROUP-V4"
 	peerv6GrpName            = "BGP-PEER-GROUP-V6"
 	ateDstCIDR               = "192.0.2.6/32"
+	rplPermitAll             = "PERMIT-ALL"
 )
 
 var (
@@ -167,6 +168,13 @@ func buildNbrList(asN uint32) []*bgpNeighbor {
 	return []*bgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
 }
 
+func configureRoutingPolicy(d *oc.Root) *oc.RoutingPolicy {
+	rp := d.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
+	pdef.GetOrCreateStatement("20").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	return rp
+}
+
 func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
@@ -186,10 +194,16 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 	pg := bgp.GetOrCreatePeerGroup(peerv4GrpName)
 	pg.PeerAs = ygot.Uint32(ateAS)
 	pg.PeerGroupName = ygot.String(peerv4GrpName)
+	rpl := pg.GetOrCreateApplyPolicy()
+	rpl.SetExportPolicy([]string{rplPermitAll})
+	rpl.SetImportPolicy([]string{rplPermitAll})
 
 	pgv6 := bgp.GetOrCreatePeerGroup(peerv6GrpName)
 	pgv6.PeerAs = ygot.Uint32(ateAS)
 	pgv6.PeerGroupName = ygot.String(peerv6GrpName)
+	rplv6 := pgv6.GetOrCreateApplyPolicy()
+	rplv6.SetExportPolicy([]string{rplPermitAll})
+	rplv6.SetImportPolicy([]string{rplPermitAll})
 
 	if *deviations.RoutePolicyUnderPeerGroup {
 		pg1af4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -469,6 +483,8 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 		nbrList := buildNbrList(ateAS)
 		dutConf := bgpWithNbr(dutAS, nbrList)
+		rpl := configureRoutingPolicy(&oc.Root{})
+		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	})
