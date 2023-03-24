@@ -17,7 +17,7 @@ import (
 // markdownRE matches the heading line: `# XX-1.1: Foo Functional Test`
 var markdownRE = regexp.MustCompile(`#(.*?):(.*)`)
 
-// parseMarkdown reads metadata from README.md
+// parseMarkdown reads metadata from README.md.
 func parseMarkdown(r io.Reader) (*mpb.Metadata, error) {
 	sc := bufio.NewScanner(r)
 	if !sc.Scan() {
@@ -61,7 +61,7 @@ func parseCode(r io.Reader) (*mpb.Metadata, error) {
 	return md, nil
 }
 
-// parseCode reads metadata from a textproto.
+// parseProto reads metadata from a textproto.
 func parseProto(r io.Reader) (*mpb.Metadata, error) {
 	bytes, err := io.ReadAll(r)
 	if err != nil {
@@ -112,7 +112,7 @@ plan_id: "{{.PlanID}}"
 description: "{{.Description}}"
 `))
 
-// write generates a complete metadata.textproto to the writer.
+// writeProto generates a complete metadata.textproto to the writer.
 func writeProto(w io.Writer, md *mpb.Metadata) error {
 	return tmpl.Execute(w, struct {
 		UUID, PlanID, Description string
