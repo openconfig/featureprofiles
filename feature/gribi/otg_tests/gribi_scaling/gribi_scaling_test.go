@@ -301,10 +301,12 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 		if vrf != *deviations.DefaultNetworkInstance {
 			i := d.GetOrCreateNetworkInstance(vrf)
 			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-			i.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 			nip := gnmi.OC().NetworkInstance(vrf)
 			fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
+		}
+		if *deviations.ExplicitGRIBIUnderNetworkInstance {
+			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
 		}
 	}
 }
@@ -345,9 +347,8 @@ func generateSubIntfPair(t *testing.T, top gosnappi.Config, dut *ondatra.DUTDevi
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
-		//yang file using  vlan rang 1-4094 https://github.com/openconfig/public/blob/b34db05e8cf2efe69df3762d4bbd80665e1f9e79/release/models/vlan/openconfig-vlan-types.yang#L133
 		vlanID := uint16(i)
-		// As per yang model, valid vlan range is 1-4094 - https://github.com/openconfig/public/blob/b34db05e8cf2efe69df3762d4bbd80665e1f9e79/release/models/vlan/openconfig-vlan-types.yang#L133
+		// As per Yang model, valid vlan range is 1-4094 - https://github.com/openconfig/public/blob/b34db05e8cf2efe69df3762d4bbd80665e1f9e79/release/models/vlan/openconfig-vlan-types.yang#L133
 		// Without below deviation, vlan-id 0 is being used for subinterface 0. The deviation is to start with valid vlan-id of 1 for subinterface 0.
 		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
 			vlanID = uint16(i) + 1
