@@ -450,8 +450,10 @@ func TestBurstyTraffic(t *testing.T) {
 			time.Sleep(30 * time.Second)
 
 			for trafficID, data := range trafficFlows {
-				counters["ateOutPkts"][data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
-				counters["ateInPkts"][data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
+				ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
+				ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
+				counters["ateOutPkts"][data.queue] += ateTxPkts
+				counters["ateInPkts"][data.queue] += ateRxPkts
 
 				counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
@@ -461,8 +463,10 @@ func TestBurstyTraffic(t *testing.T) {
 					counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
 				}
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
-
-				lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
+				if ateTxPkts == 0 {
+					t.Fatalf("TxPkts == 0, want >0.")
+				}
+				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
 				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
 				if got, want := 100.0-lossPct, data.expectedThroughputPct; got != want {
 					t.Errorf("Get(throughput for queue %q): got %.2f%%, want %.2f%%", data.queue, got, want)
