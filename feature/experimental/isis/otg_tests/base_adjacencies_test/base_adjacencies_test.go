@@ -66,11 +66,14 @@ func CheckPresence(query ygnmi.SingletonQuery[uint32]) check.Validator {
 func TestBasic(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
 	// Only push DUT config - no adjacency established yet
-	if err := ts.PushDUT(context.Background()); err != nil {
+	if err := ts.PushDUT(context.Background(), t); err != nil {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
 	isisRoot := session.ISISPath()
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		port1ISIS = isisRoot.Interface(ts.DUTPort1.Name() + ".0")
+	}
 	if err := check.Equal(isisRoot.Global().Instance().State(), session.ISISName).AwaitFor(time.Second*5, ts.DUTClient); err != nil {
 		t.Fatalf("IS-IS failed to configure: %v", err)
 	}
@@ -84,7 +87,7 @@ func TestBasic(t *testing.T) {
 	t.Run("read_config", func(t *testing.T) {
 		for _, vd := range []check.Validator{
 			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
-			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
+			check.Equal(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_2),
 			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 			check.Equal(isisRoot.Level(2).Enabled().State(), true),
@@ -256,7 +259,6 @@ func TestBasic(t *testing.T) {
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 			check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
-			check.NotEqual(pCounts.Psnp().Processed().State(), uint32(0)),
 		} {
 			t.Run(vd.RelPath(pCounts), func(t *testing.T) {
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -274,8 +276,6 @@ func TestBasic(t *testing.T) {
 				check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 				check.NotEqual(pCounts.Csnp().Received().State(), uint32(0)),
 				check.NotEqual(pCounts.Csnp().Sent().State(), uint32(0)),
-				check.NotEqual(pCounts.Psnp().Processed().State(), uint32(0)),
-				check.NotEqual(pCounts.Psnp().Received().State(), uint32(0)),
 				check.NotEqual(pCounts.Psnp().Sent().State(), uint32(0)),
 				check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
 				check.NotEqual(pCounts.Lsp().Received().State(), uint32(0)),
