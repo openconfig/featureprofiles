@@ -81,6 +81,8 @@ tests:
   args:
       - '-deviation_gribi_preserve_only="true"'
   priority: 3
+  pr: 1343
+  internal: false
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
   owners:
