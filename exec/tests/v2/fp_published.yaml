@@ -485,12 +485,10 @@ tests:
   priority: 6
 - name: gNMI-1.4 (Telemetry Inventory) 
   path: feature/platform/ate_tests/telemetry_inventory_test
-  pr: 574
-  internal: true
+  pr: 1277
   owners:
     - agvarghe
   mustpass: true
-  branch: 'moji/gNMI-1.4'
   internal: false
   priority: 80
   timeout: 7200
