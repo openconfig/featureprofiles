@@ -41,7 +41,7 @@ jobs:
     - name: Compile feature profile textprotos
       run: |
         fail=0
-        for i in `find feature/ -type f -name "*.textproto"`; do
+        for i in `find feature/ -type f -name "feature.textproto"`; do
           if ! output=$(protoc --encode=openconfig.profiles.FeatureProfile proto/feature.proto < $i 2>&1 >/dev/null); then
             fail=1
             echo -e "Compile $i failed:\n$output\n"
