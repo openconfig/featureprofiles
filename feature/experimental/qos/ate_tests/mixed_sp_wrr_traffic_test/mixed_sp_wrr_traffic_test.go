@@ -44,10 +44,10 @@ func TestMain(m *testing.M) {
 //     - There should be no packet drop for all traffic classes.
 //  2) Oversubscription traffic case 1.
 //     - There should be no packet drop for strict priority traffic classes.
-//     - All WRR traffic should be droped.
+//     - All WRR traffic should be dropped.
 //  3) Oversubscription traffic case 2.
 //     - There should be no packet drop for strict priority traffic classes.
-//     - 50% of WRR traffic should be droped.
+//     - 50% of WRR traffic should be dropped.
 //  Details: https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/mixed_sp_wrr_traffic_test/README.md
 //
 // Topology:
@@ -258,7 +258,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 
 	// Test case 2: Oversubscription traffic case
 	//   - There should be no packet drop for strict priority traffic classes.
-	//   - All WRR traffic should be droped.
+	//   - All WRR traffic should be dropped.
 	oversubscribedTrafficFlows1 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             1000,
@@ -376,7 +376,7 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 
 	// Test case 3: Oversubscription traffic case
 	//   - There should be no packet drop for strict priority traffic classes.
-	//   - 50% of WRR traffic should be droped.
+	//   - 50% of WRR traffic should be dropped.
 	oversubscribedTrafficFlows2 := map[string]*trafficData{
 		"intf1-nc1": {
 			frameSize:             1000,
