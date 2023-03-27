@@ -488,8 +488,17 @@ tests:
   owners:
     - agvarghe
   mustpass: true
+  branch: 'moji/gNMI-1.4'
+  internal: false
   priority: 80
   timeout: 7200
+  args:
+       - '-deviation_mfg_date_missing="true"'
+       - '-deviation_missing_part_number="true"'
+       - '-deviation_missing_firmware_version="true"'
+       - '-deviation_missing_serial_number="true"'
+       - '-arg_temp_sensor_name_pattern="^[0-9]/RP[0-9]/CPU[0-9].*TEMP.*"'
+       - '-arg_switchchip_name_pattern="^[0-9]/[0-9]/CPU[0-9]-NPU[0-9]"'
 - name: gNOI-3.3 (Supervisor Switchover) 
   path: feature/gnoi/system/tests/supervisor_switchover_test
   owners:
