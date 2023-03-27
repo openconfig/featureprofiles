@@ -185,10 +185,19 @@ func TestBackupNHGAction(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Configure DUT
-	configureDUT(t, dut)
+	if !*deviations.InterfaceConfigVrfBeforeAddress {
+		configureDUT(t, dut)
+	}
+
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	configureNetworkInstance(t, dut)
+
+	// For interface configuration, Arista prefers config Vrf first then the IP address
+	if *deviations.InterfaceConfigVrfBeforeAddress {
+		configureDUT(t, dut)
+	}
+
 	addStaticRoute(t, dut)
 
 	// Configure ATE

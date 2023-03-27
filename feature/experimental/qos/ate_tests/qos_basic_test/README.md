@@ -1,8 +1,8 @@
-# DP-1.11: Bursty traffic test
+# DP-1.14: QoS basic test
 
 ## Summary
 
-Verify that DUT does not drop bursty traffic.
+Verify that DUT supports QoS config and forward QoS traffic correctly.
 
 ## QoS traffic test setup:
 
@@ -32,8 +32,9 @@ Verify that DUT does not drop bursty traffic.
 
     *   NC1 will have strict priority queues
         *   AF4/AF3/AF2/AF1/BE1/BE0 will use WRR queues.
-    *   NC1 will have strict priority queue.
-        *   AF4, AF3, AF2, AF1, BE1 and BE0 will use WRR queues.
+    *   NC1 and AF4 will have strict priority queues with NC1 having higher
+        priority.
+        *   AF3, AF2, AF1, BE1 and BE0 will use WRR queues.
 
 *   Test results should be independent of the location of interfaces. For
     example, 2 input interfaces and output interface could be located on
@@ -63,27 +64,35 @@ Verify that DUT does not drop bursty traffic.
 
 *   Configuration:
 
-    *   Configure strict priority queues for NC1 and AF4 with NC1 having higher
-        priority.
-    *   Configure WRR for AF4, AF3, AF2, AF1, BE0 and BE1 with weight 48, 12, 8,
-        4, 1 and 1 respectively.
+    *   Configure strict priority queues for NC1.
+    *   Configure WRR for AF4, AF3, AF2, AF1, BE0 and BE1 with weight 48, 12, 8, 4, 1
+        and 1 respectively.
 
-*   Verify that there is no traffic loss with bursty traffic
+*   Non-oversubscription traffic test case 1 with 80% of aggregated linerate
 
-    *   NC1 traffic from Input interface 1 and 2:
+     Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    NC1           | 3                       | 3                       | 100                   | 100
+    Af4           | 24                      | 24                      | 100                   | 100
+    AF3           | 6                       | 6                       | 100                   | 100
+    AF2           | 4                       | 4                       | 100                   | 100
+    AF1           | 2                       | 2                       | 100                   | 100
+    BE0           | 0.5                     | 0.5                     | 100                   | 100
+    BE1           | 0.5                     | 0.5                     | 100                   | 100
 
-    Interface# | Rate(%) | Frame size | Packet count | Inter-pkt gap(bytes) | inter burst gap(bytes) | Output(%)
-    ---------- | ------- | ---------- | ------------ | -------------------- | ---------------------- | ---------
-    1          | 45      | 512        | 1200         | 12                   | 48000                  | 100
-    2          | 50      | 512        | 1200         | 12                   | 96000                  | 100
+*   Non-oversubscription traffic test case 2 with 98% of aggregated linerate
 
-    *   Repeat the above test case for other traffic classes::
-        *   AF4
-        *   AF3
-        *   AF2
-        *   AF1
-        *   BE1
-        *   BE0
+     Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    NC1           | 5                       | 4                       | 100                   | 100
+    Af4           | 30                      | 30                      | 100                   | 100
+    AF3           | 7.5                     | 7.5                     | 100                   | 100
+    AF2           | 4                       | 4                       | 100                   | 100
+    AF1           | 2                       | 2                       | 100                   | 100
+    BE0           | 0.5                     | 0.5                     | 100                   | 100
+    BE1           | 0.5                     | 0.5                     | 100                   | 100
+
+*   Verify that there is no traffic loss
 
 ## Config parameter coverage
 
