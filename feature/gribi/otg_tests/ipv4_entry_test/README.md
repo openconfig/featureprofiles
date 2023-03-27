@@ -28,8 +28,7 @@ Validate IPv4 support in gRIBI.
         *   Install 198.51.100.0/24 to NextHopGroup containing two NextHop
             entries specified to ATE ports 2 and 3, and override the
             destination MAC to a specified value.
-        *   Validate that packets forwarded between ATE ports 1 and (2 and 3),
-            ensuring that traffic is forwarded.
+        *   Validate that packets forwarded between ATE ports 1 and (2 and 3)
         *   TODO: validate the ATE received packets are of the expected
             destination MAC address.
     *   Single IPv4Entry -> NHG -> non-existent NH.
