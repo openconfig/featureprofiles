@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 // prepareSuite is like ts.write() but for testing purpose.  It writes out the testsuite
@@ -24,21 +25,21 @@ func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 		if err := tc.write(testdir); err != nil {
 			return nil, fmt.Errorf("could not write %s: %w", testdir, err)
 		}
-		readme := fmt.Sprintf("# %s: %s\n", tc.fixed.testPlanID, tc.fixed.testDescription)
+		readme := fmt.Sprintf("# %s: %s\n", tc.fixed.PlanId, tc.fixed.Description)
 		readmeFilename := filepath.Join(testdir, "README.md")
 		if err := os.WriteFile(readmeFilename, []byte(readme), 0600); err != nil {
 			return nil, fmt.Errorf("could not write %s: %w", readmeFilename, err)
 		}
 		newts[testdir] = &testcase{
 			pkg: tc.pkg,
-			markdown: &parsedData{
-				testPlanID:      tc.fixed.testPlanID,
-				testDescription: tc.fixed.testDescription,
+			markdown: &mpb.Metadata{
+				PlanId:      tc.fixed.PlanId,
+				Description: tc.fixed.Description,
 			},
-			existing: &parsedData{
-				testPlanID:      tc.fixed.testPlanID,
-				testDescription: tc.fixed.testDescription,
-				testUUID:        tc.fixed.testUUID,
+			existing: &mpb.Metadata{
+				Uuid:        tc.fixed.Uuid,
+				PlanId:      tc.fixed.PlanId,
+				Description: tc.fixed.Description,
 			},
 		}
 	}
@@ -50,18 +51,18 @@ func TestSuite_Read(t *testing.T) {
 	want, err := prepareSuite(featuredir, testsuite{
 		"foo/bar/ate_tests/qux_test": &testcase{
 			pkg: "qux_test",
-			fixed: &parsedData{
-				testPlanID:      "XX-2.1",
-				testDescription: "Qux Functional Test",
-				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+			fixed: &mpb.Metadata{
+				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+				PlanId:      "XX-2.1",
+				Description: "Qux Functional Test",
 			},
 		},
 		"foo/bar/otg_tests/qux_test": &testcase{
 			pkg: "qux_test",
-			fixed: &parsedData{
-				testPlanID:      "XX-2.1",
-				testDescription: "Qux Functional Test",
-				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+			fixed: &mpb.Metadata{
+				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+				PlanId:      "XX-2.1",
+				Description: "Qux Functional Test",
 			},
 		},
 	})
@@ -74,7 +75,7 @@ func TestSuite_Read(t *testing.T) {
 		t.Fatalf("Could not read: %s", featuredir)
 	}
 
-	if diff := cmp.Diff(want, got, tcopt); diff != "" {
+	if diff := cmp.Diff(want, got, tcopts...); diff != "" {
 		t.Errorf("testsuite.read -want,+got:\n%s", diff)
 	}
 }
@@ -84,10 +85,10 @@ func TestSuite_Read_BadPath(t *testing.T) {
 	_, err := prepareSuite(featuredir, testsuite{
 		"foo/bar/qux_test": &testcase{
 			pkg: "qux_test",
-			fixed: &parsedData{
-				testPlanID:      "XX-2.1",
-				testDescription: "Qux Functional Test",
-				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+			fixed: &mpb.Metadata{
+				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+				PlanId:      "XX-2.1",
+				Description: "Qux Functional Test",
 			},
 		},
 	})
@@ -103,53 +104,53 @@ func TestSuite_Read_BadPath(t *testing.T) {
 
 func TestSuite_Check(t *testing.T) {
 	quxMarkdownOnly := &testcase{
-		markdown: &parsedData{
-			testPlanID:      "XX-2.1",
-			testDescription: "Qux Functional Test",
+		markdown: &mpb.Metadata{
+			PlanId:      "XX-2.1",
+			Description: "Qux Functional Test",
 		},
 	}
 	qux := &testcase{
-		markdown: &parsedData{
-			testPlanID:      "XX-2.1",
-			testDescription: "Qux Functional Test",
+		markdown: &mpb.Metadata{
+			PlanId:      "XX-2.1",
+			Description: "Qux Functional Test",
 		},
-		existing: &parsedData{
-			testPlanID:      "XX-2.1",
-			testDescription: "Qux Functional Test",
-			testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+		existing: &mpb.Metadata{
+			Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+			PlanId:      "XX-2.1",
+			Description: "Qux Functional Test",
 		},
 	}
 	quuz := &testcase{
-		markdown: &parsedData{
-			testPlanID:      "XX-2.2",
-			testDescription: "Quuz Functional Test",
+		markdown: &mpb.Metadata{
+			PlanId:      "XX-2.2",
+			Description: "Quuz Functional Test",
 		},
-		existing: &parsedData{
-			testPlanID:      "XX-2.2",
-			testDescription: "Quuz Functional Test",
-			testUUID:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
+		existing: &mpb.Metadata{
+			Uuid:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
+			PlanId:      "XX-2.2",
+			Description: "Quuz Functional Test",
 		},
 	}
 	quuzDupPlanID := &testcase{
-		markdown: &parsedData{
-			testPlanID:      "XX-2.1", // from qux.
-			testDescription: "Quuz Functional Test",
+		markdown: &mpb.Metadata{
+			PlanId:      "XX-2.1", // from qux.
+			Description: "Quuz Functional Test",
 		},
-		existing: &parsedData{
-			testPlanID:      "XX-2.1", // from qux.
-			testDescription: "Quuz Functional Test",
-			testUUID:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
+		existing: &mpb.Metadata{
+			Uuid:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
+			PlanId:      "XX-2.1", // from qux.
+			Description: "Quuz Functional Test",
 		},
 	}
 	quuzDupUUID := &testcase{
-		markdown: &parsedData{
-			testPlanID:      "XX-2.2",
-			testDescription: "Qux Functional Test",
+		markdown: &mpb.Metadata{
+			PlanId:      "XX-2.2",
+			Description: "Qux Functional Test",
 		},
-		existing: &parsedData{
-			testPlanID:      "XX-2.2",
-			testDescription: "Qux Functional Test",
-			testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78", // from qux.
+		existing: &mpb.Metadata{
+			Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78", // from qux.
+			PlanId:      "XX-2.2",
+			Description: "Qux Functional Test",
 		},
 	}
 
@@ -212,9 +213,9 @@ func TestSuite_Check(t *testing.T) {
 
 func TestSuite_Fix(t *testing.T) {
 	quxMarkdownOnly := &testcase{
-		markdown: &parsedData{
-			testPlanID:      "XX-2.1",
-			testDescription: "Qux Functional Test",
+		markdown: &mpb.Metadata{
+			PlanId:      "XX-2.1",
+			Description: "Qux Functional Test",
 		},
 	}
 
@@ -235,12 +236,12 @@ func TestSuite_Fix(t *testing.T) {
 	ateFixed := ts["foo/bar/ate_tests/qux_test"].fixed
 	otgFixed := ts["foo/bar/otg_tests/qux_test"].fixed
 
-	if diff := cmp.Diff(ateFixed, otgFixed, tcopt); diff != "" {
+	if diff := cmp.Diff(ateFixed, otgFixed, tcopts...); diff != "" {
 		t.Errorf("After fix, ATE and OTG rundata differ (-ate,+otg):\n%s", diff)
 	}
 }
 
-func checkMarkdowns(t testing.TB, featuredir string, ts testsuite, markdowns map[string]*parsedData) {
+func checkMarkdowns(t testing.TB, featuredir string, ts testsuite, markdowns map[string]*mpb.Metadata) {
 	t.Helper()
 
 	for reldir, wantpd := range markdowns {
@@ -257,30 +258,30 @@ func checkMarkdowns(t testing.TB, featuredir string, ts testsuite, markdowns map
 }
 
 func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
-	markdowns := map[string]*parsedData{
+	markdowns := map[string]*mpb.Metadata{
 		"foo/bar/ate_tests/qux_test": {
-			testPlanID:      "XX-2.1",
-			testDescription: "Qux Functional Test",
+			PlanId:      "XX-2.1",
+			Description: "Qux Functional Test",
 		},
 		"foo/bar/otg_tests/qux_test": {
-			testPlanID:      "XX-2.1",
-			testDescription: "Qux Functional Test",
+			PlanId:      "XX-2.1",
+			Description: "Qux Functional Test",
 		},
 		"foo/bar/tests/quuz_test": {
-			testPlanID:      "XX-2.2",
-			testDescription: "Quuz Functional Test",
+			PlanId:      "XX-2.2",
+			Description: "Quuz Functional Test",
 		},
 	}
 
 	// Populate the featuredir hierarchy with the README.md files and a dummy test file.
 	featuredir := t.TempDir()
-	for reldir, pd := range markdowns {
+	for reldir, md := range markdowns {
 		testdir := filepath.Join(featuredir, reldir)
 		if err := os.MkdirAll(testdir, 0700); err != nil {
 			t.Fatalf("Cannot create directories: %s", testdir)
 		}
 
-		readme := fmt.Sprintf("# %s: %s\n", pd.testPlanID, pd.testDescription)
+		readme := fmt.Sprintf("# %s: %s\n", md.PlanId, md.Description)
 		readmeFilename := filepath.Join(testdir, "README.md")
 		if err := os.WriteFile(readmeFilename, []byte(readme), 0600); err != nil {
 			t.Fatalf("Could not write %s: %v", readmeFilename, err)
