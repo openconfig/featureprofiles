@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -79,11 +80,23 @@ func TestWriteProto(t *testing.T) {
 		PlanId:      "XX-1.1",
 		Description: "Foo Functional Test",
 	}
-
 	buf := &bytes.Buffer{}
 	if err := writeProto(buf, want); err != nil {
 		t.Fatalf("Cannot write: %v", err)
 	}
+	gotText := buf.String()
+
+	const wantHeader = `# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+`
+	if !strings.HasPrefix(gotText, wantHeader) {
+		t.Errorf("writeProto got %q, want header %q", gotText, wantHeader)
+	}
+	if wantNewLines, gotNewLines := 6, strings.Count(gotText, "\n"); wantNewLines != gotNewLines {
+		t.Errorf("writeProto got %q with %v new lines, want %v new lines", gotText, gotNewLines, wantNewLines)
+	}
+
 	got, err := parseProto(bytes.NewReader(buf.Bytes()))
 	if err != nil {
 		t.Fatalf("Cannot read back: %v", err)

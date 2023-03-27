@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"text/template"
 
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -103,22 +102,21 @@ func parseInit(sc *bufio.Scanner) (*mpb.Metadata, error) {
 	return nil, errors.New("func init() was not terminated")
 }
 
-var tmpl = template.Must(template.New("metadata.textproto").Parse(
-	`# proto-file: proto/metadata.proto
-# proto-message: Metadata
-
-uuid: "{{.UUID}}"
-plan_id: "{{.PlanID}}"
-description: "{{.Description}}"
-`))
+var marshaller = prototext.MarshalOptions{Multiline: true}
 
 // writeProto generates a complete metadata.textproto to the writer.
 func writeProto(w io.Writer, md *mpb.Metadata) error {
-	return tmpl.Execute(w, struct {
-		UUID, PlanID, Description string
-	}{
-		UUID:        md.Uuid,
-		PlanID:      md.PlanId,
-		Description: md.Description,
-	})
+	const header = `# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+`
+	if _, err := w.Write([]byte(header)); err != nil {
+		return err
+	}
+	bytes, err := marshaller.Marshal(md)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(bytes)
+	return err
 }
