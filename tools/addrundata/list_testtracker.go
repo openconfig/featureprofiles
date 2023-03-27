@@ -7,13 +7,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // listTestTracker writes the testsuite as a TestTracker test plan, which is formatted in
@@ -59,22 +60,22 @@ func ttBuildPlan(ts testsuite, rootdir string) (ttp ttPlan, ok bool) {
 	ttsall := make(ttSuite)
 
 	for testdir, tc := range ts {
-		if !tc.existing.hasData {
+		if tc.existing == nil {
 			errorf("Missing rundata: %s", testdir)
 			ok = false
 			continue
 		}
 
-		u := tc.existing.testUUID
+		u := tc.existing.Uuid
 		ttc := ttsall[u]
 		if ttc == nil {
 			ttc = &ttCase{}
-			ttc.parsedData = tc.existing
+			ttc.metadata = tc.existing
 			ttc.testDirs = make(map[string]string)
 			ttsall[u] = ttc
 		}
 
-		if !reflect.DeepEqual(tc.existing, ttc.parsedData) {
+		if !proto.Equal(tc.existing, ttc.metadata) {
 			errorf("Test UUID %s has inconsistent data at %s and %#v", u, testdir, ttc.testDirs)
 			ok = false
 			continue
@@ -90,7 +91,7 @@ func ttBuildPlan(ts testsuite, rootdir string) (ttp ttPlan, ok bool) {
 		}
 		ttc.testDirs[kind] = reldir
 
-		sec := testSection(ttc.testPlanID)
+		sec := testSection(ttc.metadata.PlanId)
 		tts := ttp[sec]
 		if tts == nil {
 			tts = make(ttSuite)
@@ -236,7 +237,7 @@ func (tts ttSuite) sortedKeys() []string {
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool {
-		return lessVersion(tts[keys[i]].testPlanID, tts[keys[j]].testPlanID)
+		return lessVersion(tts[keys[i]].metadata.PlanId, tts[keys[j]].metadata.PlanId)
 	})
 	return keys
 }
@@ -247,7 +248,7 @@ func (tts ttSuite) merge(o map[string]any) {
 	bytp := make(ttSuite) // Lookup by test plan ID.
 	for u, ttc := range tts {
 		todos[u] = ttc
-		bytp[ttc.testPlanID] = ttc
+		bytp[ttc.metadata.PlanId] = ttc
 	}
 
 	// Update existing children first.
@@ -266,7 +267,7 @@ func (tts ttSuite) merge(o map[string]any) {
 				ttc.merge(key.o)
 				children = append(children, key.o)
 				// Use ttc.testUUID because key.testUUID from the JSON may be out of date.
-				delete(todos, ttc.testUUID)
+				delete(todos, ttc.metadata.Uuid)
 				continue
 			}
 		}
@@ -338,7 +339,7 @@ func childCase(child any) (key ttCaseKey, ok bool) {
 // ttCase contains the test rundata and the test locations (if the test has multiple
 // variants).
 type ttCase struct {
-	parsedData
+	metadata *mpb.Metadata
 	testDirs map[string]string // Test locations by test kind.
 }
 
@@ -393,7 +394,7 @@ var defaultCaseAttrs = map[string]any{
 
 // merge updates an existing "testcases" JSON object.
 func (ttc *ttCase) merge(o map[string]any) {
-	title := fmt.Sprintf("%s: %s", ttc.testPlanID, ttc.testDescription)
+	title := fmt.Sprintf("%s: %s", ttc.metadata.PlanId, ttc.metadata.Description)
 
 	o["type"] = "testcases"
 	o["text"] = title
@@ -406,7 +407,7 @@ func (ttc *ttCase) merge(o map[string]any) {
 
 	attrs["rel"] = "testcases"
 	attrs["title"] = title
-	attrs["uuid"] = ttc.testUUID
+	attrs["uuid"] = ttc.metadata.Uuid
 	attrs["description"] = jsonQuote(ttDesc(ttc.testDirs))
 
 	// Unused but required.
