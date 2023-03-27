@@ -75,6 +75,12 @@ tests:
       - '-deviation_gribi_preserve_only="true"'
   priority: 3
   # need pr/branch
+- name: TE-13.1 (gRIBI route Add during Failover) 
+  path: feature/experimental/gribi/ate_tests/route_addition_during_failover_test/
+  mustpass: true
+  args:
+      - '-deviation_gribi_preserve_only="true"'
+  priority: 3
 - name: TE-3.3 (Hierarchical weight resolution)
   path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
   owners:
