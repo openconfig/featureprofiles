@@ -374,6 +374,8 @@ tests:
     - agvarghe
   mustpass: true
   priority: 44
+  pr: 1341
+  internal: false
 - name: OC-26.1 (NTP in Management Network Instance)
   path: feature/system/ntp/tests/system_ntp_test
   owners:
