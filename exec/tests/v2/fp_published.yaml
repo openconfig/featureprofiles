@@ -430,8 +430,7 @@ tests:
   priority: 49
   skip: false
 - name: RT-6.1 (Core LLDP TLV Population) 
-  path: feature/lldp/tests/core_lldp_tlv_population_test
-  pr: 1051
+  path: feature/lldp/ate_tests/core_lldp_tlv_population_test
   owners:
     - agvarghe
   args:
