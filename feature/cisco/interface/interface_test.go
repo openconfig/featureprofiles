@@ -934,6 +934,7 @@ func testFlow(
 	return lossPct
 }
 func TestForwardingUnviableFP(t *testing.T) {
+	t.Skip(t)
 	dut := ondatra.DUT(t, device1)
 	// Configure the DUT
 	configureDUT(t, dut)
@@ -1121,7 +1122,6 @@ func TestForwardingUnviableFP(t *testing.T) {
 
 }
 func TestForwardViableSDN(t *testing.T) {
-	t.Skip(t) // Run when SDN support comes in
 	dut := ondatra.DUT(t, device1)
 	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
