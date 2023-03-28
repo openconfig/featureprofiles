@@ -159,7 +159,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
 	}
 
-	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeSwitch, 10*time.Minute)
+	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeSwitch, 5*time.Minute)
 
 	t.Log("Validate OC Switchover time/reason.")
 	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
