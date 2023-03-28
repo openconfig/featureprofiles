@@ -44,7 +44,7 @@ var (
 		"service-layer", "grpc", "spi", "hw-ac", "bundles", "cfgmgr",
 		"ctrace", "ethernet interfaces", "fabric link-include", "p4rt",
 		"interface", "optics", "pfi", "platform-fwd", "rdsfs", "sysdb",
-		"telemetry model-driven", "routing isis",
+		"telemetry model-driven", "routing isis", "linux networking",
 	}
 	pipedCmds = []string{
 		"show grpc trace all",
