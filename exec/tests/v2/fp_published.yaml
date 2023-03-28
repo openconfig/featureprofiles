@@ -612,3 +612,12 @@ tests:
   args:
          - '-deviation_missing_isis_interface_afi_safi_enable="true"'
          - '-deviation_rpl_under_peergroup="true"'
+- name: DP-1.14 (QoS base config)
+  path: feature/experimental/qos/ate_tests/qos_basic_test/
+  owners:
+      - saarvind
+  pr: 1347
+  internal: false
+  mustpass: true
+  args:
+    - '-deviation_qos_dropped_octets="true"'
