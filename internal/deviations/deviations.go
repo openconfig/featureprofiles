@@ -207,4 +207,6 @@ var (
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
+	SchedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false,
+		"Device does not support weight above certain limit")
 )
