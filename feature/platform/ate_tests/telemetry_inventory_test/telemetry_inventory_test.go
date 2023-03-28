@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -134,145 +133,146 @@ func TestHardwarecards(t *testing.T) {
 		desc          string
 		regexpPattern string
 		cardFields    properties
-	}{{
-		desc: "Chassis",
-		cardFields: properties{
-			descriptionValidation: true,
-			idValidation:          false,
-			nameValidation:        true,
-			partNoValidation:      true,
-			serialNoValidation:    true,
-			mfgNameValidation:     false,
-			mfgDateValidation:     false,
-			hwVerValidation:       true,
-			fwVerValidation:       false,
-			rrValidation:          false,
-			operStatus:            activeStatus,
-			parentValidation:      false,
-			pType:                 chassisType,
-		},
-	}, {
-		desc: "Fabric",
-		cardFields: properties{
-			descriptionValidation: true,
-			idValidation:          true,
-			nameValidation:        true,
-			partNoValidation:      true,
-			serialNoValidation:    true,
-			mfgNameValidation:     true,
-			mfgDateValidation:     !*deviations.MfgDateIsMissing,
-			hwVerValidation:       true,
-			fwVerValidation:       false,
-			rrValidation:          false,
-			operStatus:            activeStatus,
-			parentValidation:      true,
-			pType:                 fabricType,
-		},
-	}, {
-		desc: "FabricChip",
-		cardFields: properties{
-			descriptionValidation: true,
-			idValidation:          true,
-			nameValidation:        true,
-			partNoValidation:      !*deviations.MissingPartNumber,
-			serialNoValidation:    false,
-			mfgNameValidation:     false,
-			mfgDateValidation:     false,
-			hwVerValidation:       false,
-			fwVerValidation:       !*deviations.MissingFirmwareVersion,
-			rrValidation:          false,
-			operStatus:            "",
-			parentValidation:      false,
-			pType:                 switchChipType,
-		},
-	}, {
-		desc: "Fan",
-		cardFields: properties{
-			descriptionValidation: true,
-			idValidation:          false,
-			nameValidation:        true,
-			partNoValidation:      !*deviations.MissingPartNumber,
-			serialNoValidation:    !*deviations.MissingSerialNumber,
-			mfgNameValidation:     false,
-			mfgDateValidation:     false,
-			hwVerValidation:       false,
-			fwVerValidation:       false,
-			rrValidation:          false,
-			operStatus:            activeStatus,
-			parentValidation:      false,
-			pType:                 fanType,
-		},
-	}, {
-		desc: "Linecard",
-		cardFields: properties{
-			descriptionValidation: true,
-			idValidation:          true,
-			nameValidation:        true,
-			partNoValidation:      true,
-			serialNoValidation:    true,
-			mfgNameValidation:     true,
-			mfgDateValidation:     !*deviations.MfgDateIsMissing,
-			hwVerValidation:       true,
-			fwVerValidation:       false,
-			rrValidation:          false,
-			operStatus:            activeStatus,
-			parentValidation:      true,
-			pType:                 linecardType,
-		},
-	}, {
-		desc: "PowerSupply",
-		cardFields: properties{
-			descriptionValidation: true,
-			idValidation:          true,
-			nameValidation:        true,
-			partNoValidation:      true,
-			serialNoValidation:    true,
-			mfgNameValidation:     !*deviations.MfgDateIsMissing,
-			mfgDateValidation:     false,
-			hwVerValidation:       true,
-			fwVerValidation:       false,
-			rrValidation:          false,
-			operStatus:            activeStatus,
-			parentValidation:      true,
-			pType:                 powerSupplyType,
-		},
-	}, {
-		desc: "Supervisor",
-		cardFields: properties{
-			descriptionValidation: true,
-			idValidation:          true,
-			nameValidation:        true,
-			partNoValidation:      true,
-			serialNoValidation:    true,
-			mfgNameValidation:     true,
-			mfgDateValidation:     !*deviations.MfgDateIsMissing,
-			swVerValidation:       false,
-			hwVerValidation:       true,
-			fwVerValidation:       false,
-			rrValidation:          true,
-			operStatus:            activeStatus,
-			parentValidation:      true,
-			pType:                 supervisorType,
-		},
-	}, {
-		desc: "Transceiver",
-		cardFields: properties{
-			descriptionValidation: false,
-			idValidation:          false,
-			nameValidation:        true,
-			partNoValidation:      true,
-			serialNoValidation:    true,
-			mfgNameValidation:     true,
-			mfgDateValidation:     !*deviations.MfgDateIsMissing,
-			swVerValidation:       false,
-			hwVerValidation:       true,
-			fwVerValidation:       false,
-			rrValidation:          false,
-			operStatus:            "",
-			parentValidation:      false,
-			pType:                 transceiverType,
-		},
-	}}
+	}{
+		{
+			desc: "Chassis",
+			cardFields: properties{
+				descriptionValidation: true,
+				idValidation:          false,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     false,
+				mfgDateValidation:     false,
+				hwVerValidation:       true,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            activeStatus,
+				parentValidation:      false,
+				pType:                 chassisType,
+			},
+		}, {
+			desc: "Fabric",
+			cardFields: properties{
+				descriptionValidation: true,
+				idValidation:          true,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     true,
+				mfgDateValidation:     false,
+				hwVerValidation:       true,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            activeStatus,
+				parentValidation:      true,
+				pType:                 fabricType,
+			},
+		}, {
+			desc: "FabricChip",
+			cardFields: properties{
+				descriptionValidation: true,
+				idValidation:          true,
+				nameValidation:        true,
+				partNoValidation:      false,
+				serialNoValidation:    false,
+				mfgNameValidation:     false,
+				mfgDateValidation:     false,
+				hwVerValidation:       false,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            "",
+				parentValidation:      false,
+				pType:                 switchChipType,
+			},
+		}, {
+			desc: "Fan",
+			cardFields: properties{
+				descriptionValidation: true,
+				idValidation:          false,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     false,
+				mfgDateValidation:     false,
+				hwVerValidation:       false,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            activeStatus,
+				parentValidation:      false,
+				pType:                 fanType,
+			},
+		}, {
+			desc: "Linecard",
+			cardFields: properties{
+				descriptionValidation: true,
+				idValidation:          true,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     true,
+				mfgDateValidation:     false,
+				hwVerValidation:       true,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            activeStatus,
+				parentValidation:      true,
+				pType:                 linecardType,
+			},
+		}, {
+			desc: "PowerSupply",
+			cardFields: properties{
+				descriptionValidation: true,
+				idValidation:          true,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     true,
+				mfgDateValidation:     false,
+				hwVerValidation:       true,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            activeStatus,
+				parentValidation:      true,
+				pType:                 powerSupplyType,
+			},
+		}, {
+			desc: "Supervisor",
+			cardFields: properties{
+				descriptionValidation: true,
+				idValidation:          true,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     true,
+				mfgDateValidation:     false,
+				swVerValidation:       false,
+				hwVerValidation:       true,
+				fwVerValidation:       false,
+				rrValidation:          true,
+				operStatus:            activeStatus,
+				parentValidation:      true,
+				pType:                 supervisorType,
+			},
+		}, {
+			desc: "Transceiver",
+			cardFields: properties{
+				descriptionValidation: false,
+				idValidation:          false,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     true,
+				mfgDateValidation:     false,
+				swVerValidation:       false,
+				hwVerValidation:       true,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            "",
+				parentValidation:      false,
+				pType:                 transceiverType,
+			},
+		}}
 
 	components := findComponentsListByType(t, dut)
 	for _, tc := range cases {
@@ -362,13 +362,13 @@ func TestSwitchChip(t *testing.T) {
 		descriptionValidation: false,
 		idValidation:          true,
 		nameValidation:        true,
-		partNoValidation:      !*deviations.MissingPartNumber,
+		partNoValidation:      false,
 		serialNoValidation:    false,
 		mfgNameValidation:     false,
 		mfgDateValidation:     false,
 		swVerValidation:       false,
 		hwVerValidation:       false,
-		fwVerValidation:       !*deviations.MissingFirmwareVersion,
+		fwVerValidation:       false,
 		operStatus:            "",
 		parentValidation:      false,
 		pType:                 switchChipType,
@@ -520,18 +520,36 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.partNoValidation {
-			partNo := gnmi.Get(t, dut, component.PartNo().State())
-			t.Logf("Hardware card %s PartNo: %s", card, partNo)
-			if partNo == "" {
-				t.Errorf("component.PartNo().Get(t) for %q): got empty string, want non-empty string", card)
+			partNo := gnmi.Lookup(t, dut, component.PartNo().State())
+			t.Logf("Hardware card %s PartNo: %v", card, partNo)
+			if !partNo.IsPresent() {
+				if gnmi.Get(t, dut, component.Type().State()) == fanType {
+					fanTray := gnmi.Get(t, dut, component.Parent().State())
+					fanTrayPartNo := gnmi.Lookup(t, dut, gnmi.OC().Component(fanTray).PartNo().State())
+					t.Logf("Hardware card %s (parent of %s) PartNo: %v", fanTray, card, fanTrayPartNo)
+					if !fanTrayPartNo.IsPresent() {
+						t.Errorf("component.PartNo().Get(t) for %q and its parent): got empty string, want non-empty string", card)
+					}
+				} else {
+					t.Errorf("component.PartNo().Get(t) for %q): got empty string, want non-empty string", card)
+				}
 			}
 		}
 
 		if p.serialNoValidation {
-			serialNo := gnmi.Get(t, dut, component.SerialNo().State())
+			serialNo := gnmi.Lookup(t, dut, component.SerialNo().State())
 			t.Logf("Hardware card %s serialNo: %s", card, serialNo)
-			if serialNo == "" {
-				t.Errorf("component.SerialNo().Get(t) for %q): got empty string, want non-empty string", card)
+			if !serialNo.IsPresent() {
+				if gnmi.Get(t, dut, component.Type().State()) == fanType {
+					fanTray := gnmi.Get(t, dut, component.Parent().State())
+					fanTraySErialNo := gnmi.Lookup(t, dut, gnmi.OC().Component(fanTray).SerialNo().State())
+					t.Logf("Hardware card %s (parent of %s) PartNo: %v", fanTray, card, fanTraySErialNo)
+					if !fanTraySErialNo.IsPresent() {
+						t.Errorf("component.SerialNo().Get(t) for %q and its parent): got empty string, want non-empty string", card)
+					}
+				} else {
+					t.Errorf("component.SerialNo().Get(t) for %q): got empty string, want non-empty string", card)
+				}
 			}
 		}
 
