@@ -23,7 +23,7 @@ devices:
       - 57777
     xr_username: cisco
   dut2: 
-    cvac: /auto/ops-tool/ws-agvarghe/B4/basefp_peer.conf
+    cvac: $BASE_CONF_PATH_peer
     linecard_types: 
       - churchill
     platform: spitfire_f
