@@ -1,9 +1,8 @@
-# DP-1.10: Mixed strict priority and WRR traffic test
+# DP-1.8: Two strict priority queue traffic test
 
 ## Summary
 
-Verify that DUT drops AF3, AF2, AF1, BE1 and BE0 before AF4 before NC1 and
-forwards AF3, AF2, AF1, BE1 and BE0 based on weight.
+Verify that DUT drops AF3, AF2, AF1, BE1 and BE0 before AF4 before NC1.
 
 ## QoS traffic test setup:
 
@@ -63,48 +62,59 @@ forwards AF3, AF2, AF1, BE1 and BE0 based on weight.
 *   Connect DUT port-1 to ATE port-1, DUT port-2 to ATE port-2 and DUT port-3 to
     ATE port-3.
 
-*   Configuration:
+*   Configuration
 
     *   Configure strict priority queues for NC1 and AF4 with NC1 having higher
         priority.
-    *   Configure WRR for AF3, AF2, AF1, BE1 and BE0 with weight 32, 16, 8, 4
-        and 1 respectively.
+    *   Configure WRR for AF3, AF2, AF1, BE1 and BE0 with weight 12, 8, 4, 2 and
+        1 respectively.
 
-*   Non-oversubscription traffic test case
+*   NC1 vs AF4 Strict priority traffic test
 
-    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
-    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
-    NC1           | 0.1                     | 0.9                     | 100                   | 100
-    Af4           | 18                      | 20                      | 100                   | 100
-    AF3           | 16                      | 16                      | 100                   | 100
-    AF2           | 8                       | 8                       | 100                   | 100
-    AF1           | 4                       | 4                       | 100                   | 100
-    BE0           | 2                       | 2                       | 100                   | 100
-    BE1           | 0.5                     | 0.5                     | 100                   | 100
-
-*   Oversubscription traffic test case 1
+    *   Non-oversubscription traffic test case
 
     Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
     ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
-    NC1           | 0.1                     | 0.9                     | 100                   | 100
-    Af4           | 50                      | 49                      | 100                   | 100
-    AF3           | 20                      | 14                      | 0                     | 0
-    AF2           | 14                      | 24                      | 0                     | 0
-    AF1           | 12                      | 4                       | 0                     | 0
-    BE0           | 1                       | 7                       | 0                     | 0
-    BE1           | 1                       | 1                       | 0                     | 0
+    NC1           | 0.1                     | 0.7                     | 100                   | 100
+    AF4           | 45.1                    | 54.1                    | 100                   | 100
 
-*   Oversubscription traffic test case 2
+    *   Oversubscription traffic test case
 
-    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Aggregate throughput(%)
-    ------------- | ----------------------- | ----------------------- | -----------------------
-    NC1           | 0.1                     | 0.9                     | 100
-    Af4           | 18                      | 20                      | 100
-    AF3           | 40                      | 24                      | 50
-    AF2           | 8                       | 24                      | 50
-    AF1           | 12                      | 4                       | 50
-    BE0           | 1                       | 7                       | 50
-    BE1           | 1                       | 1                       | 50
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    NC1           | 0.1                     | 0.7                     | 100                   | 100
+    AF4           | 99.9                    | 99.3                    | 49.8                  | 49.8
+
+*   Repeat the above 2 test cases between traffic classes:
+
+    *   NC1 vs AF3
+    *   NC1 vs AF2
+    *   NC1 vs AF1
+    *   NC1 vs BE1
+    *   NC1 vs BE0
+
+*   Strict priority vs WRR traffic test
+
+    *   Starvation traffic test case
+
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    AF4           | 50                      | 50                      | 100                   | 100
+    AF3           | 50                      | 50                      | 0                     | 0
+
+    *   Oversubscription traffic test case
+
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    AF4           | 20                      | 30                      | 100                   | 100
+    AF3           | 60                      | 40                      | 50                    | 50
+
+*   Repeat the above 2 test cases between traffic classes:
+
+    *   AF4 vs AF2
+    *   AF4 vs AF1
+    *   AF4 vs BE1
+    *   AF4 vs BE0
 
 ## Config parameter coverage
 
