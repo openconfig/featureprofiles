@@ -202,7 +202,7 @@ func TestIPv4Entry(t *testing.T) {
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
 			},
-			wantGoodFlows: []*ondatra.Flow{ecmpFlow},
+			wantGoodFlows: []string{"ecmpFlow"},
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopOperation(nh1ID).
