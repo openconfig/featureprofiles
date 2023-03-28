@@ -430,8 +430,7 @@ tests:
   priority: 49
   skip: false
 - name: RT-6.1 (Core LLDP TLV Population) 
-  path: feature/lldp/tests/core_lldp_tlv_population_test
-  pr: 1051
+  path: feature/lldp/ate_tests/core_lldp_tlv_population_test
   owners:
     - agvarghe
   args:
@@ -479,6 +478,7 @@ tests:
   args:
     - '-deviation_connect_retry="true"'
     - '-deviation_missing_bgp_neighbor_state_peer_group="true"'
+    - '-deviation_rpl_under_neighbor_afisafi="true"'
 - name: RT-1.2 (BGP Policy and Route Installation) 
   path: feature/bgp/policybase/ate_tests/route_installation_test
   owners:
