@@ -343,7 +343,7 @@ func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC net.HardwareAddr, port
 			Metadata: []*p4v1.PacketMetadata{
 				{
 					MetadataId: uint32(1), // "egress_port"
-					Value:      []byte("Unset"),
+					Value:      []byte("0"),
 				},
 				{
 					MetadataId: uint32(2), // "submit_to_ingress"
