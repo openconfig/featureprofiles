@@ -25,7 +25,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
-
 )
 
 // FetchOperStatusUPIntfs function uses telemetry to generate a list of all up interfaces.
@@ -56,10 +55,9 @@ func FetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice) []string {
 	return intfsOperStatusUP
 }
 
-
 // ValidateOperStatusUPIntfs function takes a list of interfaces and validates if they are up.
-// if any of the given interfaces is not up, it fails the test and logs the failed interfaces.  
-func ValidateOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, upIntfs []string,  timeout time.Duration)  {
+// if any of the given interfaces is not up, it fails the test and logs the failed interfaces.
+func ValidateOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, upIntfs []string, timeout time.Duration) {
 	t.Helper()
 	t.Logf("Validate interface OperStatus.")
 	batch := gnmi.OCBatch()
