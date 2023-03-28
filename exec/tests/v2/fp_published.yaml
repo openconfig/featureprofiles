@@ -523,6 +523,8 @@ tests:
   skip: false
   priority: 55
   timeout: 7200
+  pr: 1345
+  internal: false
   testbeds_exclude:
     - 8201-32FH_FLM254206E7
 - name: TE-8.2 (Supervisor Failure)
@@ -533,6 +535,8 @@ tests:
   mustpass: true
   timeout: 7200
   priority: 4
+  pr: 1345
+  internal: false
   testbeds_exclude:
     - 8201-32FH_FLM254206E7
 - name: TE-1.1 (Static ARP) 
