@@ -277,7 +277,7 @@ tests:
   path: feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection
   owners:
     - sprem
-  mustpass: false
+  mustpass: true
   priority: 30
 - name: RT-5.1 (Singleton Interface) 
   path: feature/interface/singleton/ate_tests/singleton_test
