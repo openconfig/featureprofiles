@@ -167,7 +167,7 @@ func TestLinecardReboot(t *testing.T) {
 		},
 	}
 
-	intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut)
+	intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
 	t.Logf("OperStatusUP interfaces before reboot: %v", intfsOperStatusUPBeforeReboot)
 	t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
 	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)

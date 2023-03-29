@@ -95,7 +95,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
 
-	intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut)
+	intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
 	t.Logf("intfsOperStatusUP interfaces before switchover: %v", intfsOperStatusUPBeforeSwitch)
 	if got, want := len(intfsOperStatusUPBeforeSwitch), 0; got == want {
 		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.Name(), got, want)

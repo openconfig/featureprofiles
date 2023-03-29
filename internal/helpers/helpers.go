@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -29,22 +28,17 @@ import (
 
 // FetchOperStatusUPIntfs function uses telemetry to generate a list of all up interfaces.
 // When CheckInterfacesInBinding is set to true, all interfaces that are not defined in binding file are excluded.
-func FetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice) []string {
+func FetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, checkInterfacesInBinding bool) []string {
 	t.Helper()
 	intfsOperStatusUP := []string{}
 	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
+	bindedIntf := make(map[string]bool)
+	for _, port := range dut.Ports() {
+		bindedIntf[port.Name()] = true
+	}
 	for _, intf := range intfs {
-		if *args.CheckInterfacesInBinding {
-			checkPort := false
-			for _, port := range dut.Ports() {
-				if port.Name() == intf {
-					checkPort = true
-					break
-				}
-			}
-			if !checkPort {
-				continue
-			}
+		if checkInterfacesInBinding && !bindedIntf[intf] {
+			continue
 		}
 		operStatus, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(intf).OperStatus().State()).Val()
 		if present && operStatus == oc.Interface_OperStatus_UP {
@@ -75,9 +69,8 @@ func ValidateOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, upIntfs []s
 			if root.GetInterface(port).GetOperStatus() != oc.Interface_OperStatus_UP {
 				upInterfaces[port] = false
 				return false
-			} else {
-				upInterfaces[port] = true
 			}
+			upInterfaces[port] = true
 		}
 		return true
 	})
