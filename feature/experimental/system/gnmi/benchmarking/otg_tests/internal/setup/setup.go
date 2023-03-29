@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -68,6 +69,7 @@ const (
 var (
 	DUTIPList      = make(map[string]net.IP)
 	ATEIPList      = make(map[string]net.IP)
+	ATEMACList     = []string{"02:00:01:01:01:01", "02:00:01:01:01:02", "02:00:01:01:01:03", "02:00:01:01:01:04"}
 	ISISMetricList []uint32
 	ISISSetBitList []bool
 )
@@ -232,9 +234,10 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 // ConfigureATE function is to configure ate ports with ipv4 , bgp
 // and isis peers.
 func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
-	topo := ate.Topology().New()
+	otg := ate.OTG()
+	topo := otg.NewConfig(t)
 
-	for _, dp := range ate.Ports() {
+	for i, dp := range ate.Ports() {
 		ISISMetricList = append(ISISMetricList, ISISMetric)
 		ISISSetBitList = append(ISISSetBitList, true)
 		atePortAttr := attrs.Attributes{
@@ -242,47 +245,96 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 			IPv4:    ATEIPList[dp.ID()].String(),
 			IPv4Len: plenIPv4,
 		}
-		iDut1 := topo.AddInterface(dp.Name()).WithPort(dp)
-		iDut1.IPv4().WithAddress(atePortAttr.IPv4CIDR()).WithDefaultGateway(DUTIPList[dp.ID()].String())
+
+		topo.Ports().Add().SetName(dp.ID())
+		dev := topo.Devices().Add().SetName(dp.ID() + "dev")
+		eth := dev.Ethernets().Add().SetName(dp.ID() + ".Eth")
+		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dp.ID())
+		eth.SetMac(ATEMACList[i])
+
+		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+		ip.SetAddress(atePortAttr.IPv4).SetGateway(DUTIPList[dp.ID()].String()).SetPrefix(int32(atePortAttr.IPv4Len))
 
 		// Add BGP routes and ISIS routes , ate port1 is ingress port.
 		if dp.ID() == "port1" {
 			// Add BGP on ATE
-			bgpDut1 := iDut1.BGP()
-			bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ATEAs2).
-				WithTypeExternal()
+			bgpDut1 := dev.Bgp().SetRouterId(ip.Address())
+			bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dev.Name() + ".BGP4.peer")
+			bgpDut1Peer.SetPeerAddress(DUTIPList[dp.ID()].String()).SetAsNumber(ATEAs2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+			// bgpDut1 := iDut1.BGP()
+			// bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ATEAs2).
+			// 	WithTypeExternal()
 
-			// Add ISIS on ATE
-			isisDut1 := iDut1.ISIS()
-			isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
+			devIsis := dev.Isis().
+				SetSystemId("640000000001").
+				SetName("devIsis")
 
-			netCIDR := fmt.Sprintf("%s/%d", advertiseBGPRoutesv4, 32)
-			bgpNeti1 := iDut1.AddNetwork("bgpNeti1")
-			bgpNeti1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
-			bgpNeti1.BGP().WithNextHopAddress(atePortAttr.IPv4)
+			devIsis.Basic().
+				SetHostname(devIsis.Name()).SetLearnedLspFilter(true)
 
-			netCIDR = fmt.Sprintf("%s/%d", advertiseISISRoutesv4, 32)
-			isisnet1 := iDut1.AddNetwork("isisnet1")
-			isisnet1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
-			isisnet1.ISIS().WithActive(true).WithIPReachabilityMetric(20)
+			devIsis.Advanced().
+				SetAreaAddresses([]string{"490002"})
+
+			devIsisInt := devIsis.Interfaces().
+				Add().
+				SetEthName(eth.Name()).
+				SetName("devIsisInt").
+				SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+				SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2)
+
+			devIsisInt.Authentication().SetAuthType("md5")
+			devIsisInt.Authentication().SetMd5(authPassword)
+
+			devIsisInt.Advanced().
+				SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
+
+			dstBgp4PeerRoutes := bgpDut1Peer.V4Routes().Add().SetName("bgpNeti1")
+			dstBgp4PeerRoutes.SetNextHopIpv4Address(ip.Address()).
+				SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+				SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+			dstBgp4PeerRoutes.Addresses().Add().
+				SetAddress(advertiseBGPRoutesv4).
+				SetPrefix(32).
+				SetCount(RouteCount)
+
+			devIsisRoutes := devIsis.V4Routes().Add().SetName("isisnet1").SetLinkMetric(20)
+			devIsisRoutes.Addresses().Add().
+				SetAddress(advertiseISISRoutesv4).
+				SetPrefix(32).
+				SetCount(RouteCount).
+				SetStep(1)
+
+			// // Add ISIS on ATE
+			// isisDut1 := iDut1.ISIS()
+			// isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
+
+			// netCIDR := fmt.Sprintf("%s/%d", advertiseBGPRoutesv4, 32)
+			// bgpNeti1 := iDut1.AddNetwork("bgpNeti1")
+			// bgpNeti1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
+			// bgpNeti1.BGP().WithNextHopAddress(atePortAttr.IPv4)
+
+			// netCIDR = fmt.Sprintf("%s/%d", advertiseISISRoutesv4, 32)
+			// isisnet1 := iDut1.AddNetwork("isisnet1")
+			// isisnet1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
+			// isisnet1.ISIS().WithActive(true).WithIPReachabilityMetric(20)
 
 			continue
 		}
 
-		// Add BGP on ATE
-		bgpDut1 := iDut1.BGP()
-		bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ATEAs).
-			WithTypeExternal()
+		// // Add BGP on ATE
+		// bgpDut1 := iDut1.BGP()
+		// bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ATEAs).
+		// 	WithTypeExternal()
 
-		// Add BGP on ATE
-		isisDut1 := iDut1.ISIS()
-		isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
+		// // Add BGP on ATE
+		// isisDut1 := iDut1.ISIS()
+		// isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
 	}
 
 	t.Log("Pushing config to ATE...")
-	topo.Push(t)
+	otg.PushConfig(t, topo)
 	t.Log("Starting protocols to ATE...")
-	topo.StartProtocols(t)
+	otg.StartProtocols(t)
 }
 
 // VerifyISISTelemetry function to used verify ISIS telemetry on DUT

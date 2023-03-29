@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -95,6 +96,23 @@ func verifyISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 
 			if got := gnmi.Get(t, ate, at.Interface(ap.Name()).OperStatus().State()); got != want {
 				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
+			}
+
+			otg := ate.OTG()
+			_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Flags().State(), time.Minute, func(v *ygnmi.Value[[]otgtelemetry.E_Lsps_Flags]) bool {
+				flags, present := v.Val()
+				if present {
+					for _, flag := range flags {
+						if flag == otgtelemetry.Lsps_Flags_OVERLOAD {
+							return true
+						}
+					}
+				}
+				return false
+			}).Await(t)
+
+			if !ok {
+				t.Fatalf("OverLoad Bit not seen on learned lsp on ATE")
 			}
 			// TODO: SetBit retrieval is not working in ATE.
 			// Ref: https://github.com/openconfig/featureprofiles/issues/1176
