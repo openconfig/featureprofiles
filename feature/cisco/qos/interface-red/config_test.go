@@ -1589,7 +1589,7 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 	}
 
 	gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Config())
-	ConfigPolicyIntf := gnmi.OC().Qos().Interface("Bundle-Ether121")
+	ConfigPolicyIntf := gnmi.OC().Qos().Interface("Bundle-Ether121").Output()
 	t.Run("Delete the wredprofile attached to interface", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			gnmi.GetConfig(t, dut, ConfigPolicyIntf.Config()) //catch the error  as it is expected and absorb the panic.
@@ -1600,7 +1600,7 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 		}
 	})
 
-	//Add back the configs
+	// //Add back the configs
 	ConfigOutput := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output()
 	gnmi.Update(t, dut, ConfigOutput.Config(), schedinterfaceout)
 	ConfigOutputGet := gnmi.GetConfig(t, dut, ConfigOutput.Config())
