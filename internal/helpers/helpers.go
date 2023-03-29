@@ -46,6 +46,9 @@ func FetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, checkInterface
 		}
 	}
 	sort.Strings(intfsOperStatusUP)
+	if len(intfsOperStatusUP) == 0 {
+		t.Log("No up interface is found")
+	}
 	return intfsOperStatusUP
 }
 
@@ -54,6 +57,10 @@ func FetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, checkInterface
 func ValidateOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, upIntfs []string, timeout time.Duration) {
 	t.Helper()
 	t.Logf("Validate interface OperStatus.")
+	if len(upIntfs) == 0 {
+		t.Log("Len of upIntfs is 0, skipping the validation of OperStatus.")
+		return
+	}
 	batch := gnmi.OCBatch()
 	upInterfaces := make(map[string]bool)
 	for _, port := range upIntfs {
