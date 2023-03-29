@@ -78,7 +78,22 @@ func TestGnmiFullConfigReplace(t *testing.T) {
 	t.Run("Benchmark full configuration replace", func(t *testing.T) {
 		// Start the timer.
 		start := time.Now()
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			for _, dp := range dut.Ports() {
+				ni := d1.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+				niIntf, _ := ni.NewInterface(dp.Name())
+				niIntf.Interface = ygot.String(dp.Name())
+				niIntf.Subinterface = ygot.Uint32(0)
+				niIntf.Id = ygot.String(dp.Name() + ".0")
+			}
+		}
 		gnmi.Update(t, dut, confP.Config(), d1)
+
+		if *deviations.ExplicitPortSpeed {
+			for _, dp := range dut.Ports() {
+				fptest.SetPortSpeed(t, dp)
+			}
+		}
 
 		// End the timer and calculate time requied to apply the config on DUT.
 		elapsed := time.Since(start)

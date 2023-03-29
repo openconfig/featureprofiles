@@ -207,4 +207,10 @@ var (
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
+
+	ISISGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
+		"Don't set isis global authentication-check on the device if value is true, Default value is false and ISIS global authentication-check is set")
+
+	ISISLevelAuthenticationNotRequired = flag.Bool("deviation_isis_level_authentication_not_required", false,
+		"Don't set isis level authentication on the device if value is true, Default value is false and ISIS level authentication is configured")
 )
