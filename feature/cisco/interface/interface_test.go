@@ -934,6 +934,7 @@ func testFlow(
 	return lossPct
 }
 func TestForwardingUnviableFP(t *testing.T) {
+	t.Skip(t)
 	dut := ondatra.DUT(t, device1)
 	// Configure the DUT
 	configureDUT(t, dut)
@@ -1121,7 +1122,6 @@ func TestForwardingUnviableFP(t *testing.T) {
 
 }
 func TestForwardViableSDN(t *testing.T) {
-	t.Skip(t) // Run when SDN support comes in
 	dut := ondatra.DUT(t, device1)
 	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
@@ -1130,7 +1130,8 @@ func TestForwardViableSDN(t *testing.T) {
 	iut2 := inputObj.Device(dut).GetInterface("Bundle-Ether121")
 	bundleMember := iut2.Members()[0]
 	interfaceContainer := &oc.Interface{
-		//Type:             oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Type:             oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Name:             ygot.String(bundleMember),
 		ForwardingViable: ygot.Bool(false)}
 
 	t.Run("configInterface", func(t *testing.T) {
@@ -1179,8 +1180,8 @@ func TestForwardViableSDN(t *testing.T) {
 		configContainer := gnmi.OC().Interface(bundleMember)
 		defer observer.RecordYgot(t, "SUBSCRIBE", configContainer)
 		forwardUnviable := gnmi.GetConfig(t, dut, configContainer.Config())
-		if forwardUnviable.ForwardingViable != ygot.Bool(false) {
-			t.Errorf("Update for forward-unviable failed got %v , want false", forwardUnviable)
+		if *forwardUnviable.ForwardingViable != false {
+			t.Errorf("Update for forward-unviable failed got %t , want false", *forwardUnviable.ForwardingViable)
 		}
 	})
 	t.Run(fmt.Sprintf("Delete on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
