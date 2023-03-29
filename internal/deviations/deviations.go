@@ -204,5 +204,5 @@ var (
 	SchedulerInputParamsUnsupported = flag.Bool("deviation_scheduler_input_params_unsupported", false, "Device does not support scheduler input parameters")
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
-		"Set to true for device requiring explicit deletion of network-instance table, default is false. Full OpenConfig compliant devices should not set this deviation to true")
+		"Set to true for device requiring explicit deletion of network-instance table, default is false.  A device which requires this deviation is not compliant with the test using it.  A fully compliant device must pass the test with the deviation enabled or disabled.")
 )
