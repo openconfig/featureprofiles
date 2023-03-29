@@ -13,8 +13,6 @@ tests:
       - arvbaska
     priority: 1
     mustpass: true
-    internal: true
-    branch: kjahed/gNOI-3.1
   - name: TE-15.1 (gRIBI Compliance)
     path: feature/gribi/ate_tests/gribigo_compliance_test
     priority: 2
