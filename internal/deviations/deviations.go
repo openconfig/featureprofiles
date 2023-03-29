@@ -206,5 +206,5 @@ var (
 	P4RTMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
-		"Set to true for device requiring explicit deletion of network-instance table, default is false")
+		"Set to true for device requiring explicit deletion of network-instance table, default is false.  A device which requires this deviation is not compliant with the test using it.  A fully compliant device must pass the test with the deviation enabled or disabled.")
 )
