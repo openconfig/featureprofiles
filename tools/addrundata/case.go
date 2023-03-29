@@ -95,7 +95,7 @@ func (tc *testcase) check() []error {
 	if tc.markdown == nil {
 		errs = append(errs, errors.New("existing markdown is missing"))
 	}
-	if *checkDeprecated && tc.deprecated {
+	if tc.deprecated {
 		errs = append(errs, errors.New("deprecated rundata_test.go file found"))
 	}
 
@@ -166,8 +166,7 @@ func (tc *testcase) write(testdir string) error {
 	if tc.fixed == nil {
 		return errors.New("test case was not fixed")
 	}
-	deprecated := *checkDeprecated && tc.deprecated
-	if !deprecated && proto.Equal(tc.existing, tc.fixed) {
+	if !tc.deprecated && proto.Equal(tc.existing, tc.fixed) {
 		return errNoop
 	}
 
