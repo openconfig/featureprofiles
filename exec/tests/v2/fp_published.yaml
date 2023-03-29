@@ -612,3 +612,26 @@ tests:
   args:
          - '-deviation_missing_isis_interface_afi_safi_enable="true"'
          - '-deviation_rpl_under_peergroup="true"'
+- name: DP-1.14 (QoS base config)
+  path: feature/experimental/qos/ate_tests/qos_basic_test/
+  owners:
+      - saarvind
+  pr: 1347
+  internal: false
+  mustpass: true
+  args:
+    - '-deviation_qos_dropped_octets="true"'
+- name: RT-5.4 (Aggregate Forwarding Viable)
+  path: feature/interface/aggregate/ate_tests/aggregate_forwarding_viable_test
+  owners:
+        - agvarghe
+  mustpass: true 
+- name: TE-1.2 (My Station MAC)
+  path: feature/experimental/interface/my_station_mac/ate_tests/my_station_mac_test
+  internal: true
+  branch: kjahed/TE-1.2
+  args:
+         - '-deviation_mac_address_missing="true"'
+  owners:
+        - agvarghe
+  mustpass: true 
