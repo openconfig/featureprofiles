@@ -568,7 +568,7 @@ tests:
   mustpass: true
   priority: 802
 - name: DP-1.10 (QoS policy feature config)
-  path: feature/experimental/qos/ate_tests/mixed_sp_wrr_traffic_test
+  path: feature/qos/ate_tests/mixed_sp_wrr_traffic_test
   owners:
     - saarvind
   mustpass: true
