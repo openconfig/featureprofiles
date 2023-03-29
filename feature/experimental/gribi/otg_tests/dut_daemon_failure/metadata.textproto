@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "41459fd7-31ed-4fc1-aebf-e2dfd6e79eb6"
+plan_id: "TE-8.1"
+description: "DUT Daemon Failure"
