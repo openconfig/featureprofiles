@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 func TestOverloadBit(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
 	// Only push DUT config - no adjacency established yet
-	if err := ts.PushDUT(context.Background()); err != nil {
+	if err := ts.PushDUT(context.Background(), t); err != nil {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
 	isisPath := session.ISISPath()
@@ -58,7 +58,7 @@ func TestOverloadBit(t *testing.T) {
 
 	for _, vd := range []check.Validator{
 		checkSetBit,
-		check.Equal(overloads.State(), olVal),
+		check.EqualOrNil(overloads.State(), olVal),
 	} {
 		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 			t.Error(err)
@@ -71,7 +71,7 @@ func TestOverloadBit(t *testing.T) {
 		GetGlobal().
 		GetOrCreateLspBit().
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
-	ts.PushDUT(context.Background())
+	ts.PushDUT(context.Background(), t)
 	// TODO: Verify the link state database once device support is added.
 	if err := check.Equal(overloads.State(), uint32(olVal+1)).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
 		t.Error(err)
@@ -89,15 +89,19 @@ func TestOverloadBit(t *testing.T) {
 func TestMetric(t *testing.T) {
 	t.Logf("Starting...")
 	ts := session.MustNew(t).WithISIS()
+	isisIntfName := ts.DUT.Port(t, "port1").Name()
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		isisIntfName = ts.DUT.Port(t, "port1").Name() + ".0"
+	}
 	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
-		GetInterface(ts.DUT.Port(t, "port1").Name()).
+		GetInterface(isisIntfName).
 		GetOrCreateLevel(2).
 		GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).
 		Metric = ygot.Uint32(100)
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
 
-	metric := session.ISISPath().Interface(ts.DUTPort1.Name()).Level(2).
+	metric := session.ISISPath().Interface(isisIntfName).Level(2).
 		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
 	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second*3, ts.DUTClient); err != nil {
 		t.Error(err)

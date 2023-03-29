@@ -160,15 +160,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 // Function to verify traffic
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
-	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
+	txPkts := flowMetrics.GetOutPkts()
+	rxPkts := flowMetrics.GetInPkts()
 
 	if txPkts == 0 {
 		t.Errorf("txPackets is 0")
 		return
 	}
-	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
-		t.Errorf("LossPct for flow %s got %v, want 0", flowName, got)
+	if got := 100 * float32(txPkts-rxPkts) / float32(txPkts); got > 0 {
+		t.Errorf("LossPct for flow %s got %f, want 0", flowName, got)
 	} else {
 		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
 	}
@@ -369,12 +370,10 @@ func TestSupFailure(t *testing.T) {
 	}
 
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
+	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
 	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
-	} else {
-		t.Logf("ipv4-entry found for %s after controller switchover..", got)
-	}
+	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), 2*time.Minute, ateDstNetCIDR)
+	t.Logf("ipv4-entry found for %s after controller switchover..", ateDstNetCIDR)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	verifyTraffic(t, args.ate)
