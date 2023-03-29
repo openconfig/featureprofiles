@@ -8,39 +8,38 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
-var testsuiteForJSON = testsuite{
+var testsuiteForTT = testsuite{
 	"feature/foo/bar/ate_tests/qux_test": &testcase{
-		existing: parsedData{
-			testPlanID:      "YY-2.1",
-			testDescription: "Qux Functional Test",
-			testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-			hasData:         true,
+		existing: &mpb.Metadata{
+			Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+			PlanId:      "YY-2.1",
+			Description: "Qux Functional Test",
 		},
 	},
 	"feature/foo/bar/otg_tests/qux_test": &testcase{
-		existing: parsedData{
-			testPlanID:      "YY-2.1",
-			testDescription: "Qux Functional Test",
-			testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-			hasData:         true,
+		existing: &mpb.Metadata{
+			Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+			PlanId:      "YY-2.1",
+			Description: "Qux Functional Test",
 		},
 	},
 	"feature/foo/baz/quuz_test": &testcase{
-		existing: parsedData{
-			testPlanID:      "XX-1.1",
-			testDescription: "Quuz Functional Test",
-			testUUID:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
-			hasData:         true,
+		existing: &mpb.Metadata{
+			Uuid:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
+			PlanId:      "XX-1.1",
+			Description: "Quuz Functional Test",
 		},
 	},
 }
 
-func TestWriteJSON(t *testing.T) {
+func TestListTestTracker(t *testing.T) {
 	var buf bytes.Buffer
-	if err := writeJSON(&buf, "", "", testsuiteForJSON); err != nil {
-		t.Fatal("Could not write JSON:", err)
+	if err := listTestTracker(&buf, "", "", testsuiteForTT); err != nil {
+		t.Fatal("Could not write TestTracker:", err)
 	}
 	var got map[string]any
 	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
@@ -48,7 +47,7 @@ func TestWriteJSON(t *testing.T) {
 	}
 }
 
-func TestWriteJSON_Merge(t *testing.T) {
+func TestListTestTracker_Merge(t *testing.T) {
 	want := map[string]any{
 		"text": "Base Test Plan",
 		"type": "testplan",
@@ -65,7 +64,7 @@ func TestWriteJSON_Merge(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := writeJSON(&buf, mergejson, "", testsuiteForJSON); err != nil {
+	if err := listTestTracker(&buf, mergejson, "", testsuiteForTT); err != nil {
 		t.Fatal("Could not write JSON:", err)
 	}
 
@@ -83,24 +82,24 @@ func TestWriteJSON_Merge(t *testing.T) {
 	}
 }
 
-var jsopt = cmp.AllowUnexported(jsonCase{}, parsedData{})
+var jsopts = []cmp.Option{cmp.AllowUnexported(ttCase{}), protocmp.Transform()}
 
-func TestJSONBuildPlan(t *testing.T) {
-	got, ok := jsonBuildPlan(testsuiteForJSON, "")
+func TestTTBuildPlan(t *testing.T) {
+	got, ok := ttBuildPlan(testsuiteForTT, "")
 	if !ok {
-		t.Fatal("Could not build jsonPlan.")
+		t.Fatal("Could not build ttPlan.")
 	}
 
-	want := jsonPlan{
-		"XX-1": jsonSuite{
-			"a5413d74-5b44-49d2-b4e7-84c9751d50be": &jsonCase{
-				parsedData: testsuiteForJSON["feature/foo/baz/quuz_test"].existing,
-				testDirs:   map[string]string{"": "feature/foo/baz/quuz_test"},
+	want := ttPlan{
+		"XX-1": ttSuite{
+			"a5413d74-5b44-49d2-b4e7-84c9751d50be": &ttCase{
+				metadata: testsuiteForTT["feature/foo/baz/quuz_test"].existing,
+				testDirs: map[string]string{"": "feature/foo/baz/quuz_test"},
 			},
 		},
-		"YY-2": jsonSuite{
-			"c857db98-7b2c-433c-b9fb-4511b42edd78": &jsonCase{
-				parsedData: testsuiteForJSON["feature/foo/bar/ate_tests/qux_test"].existing,
+		"YY-2": ttSuite{
+			"c857db98-7b2c-433c-b9fb-4511b42edd78": &ttCase{
+				metadata: testsuiteForTT["feature/foo/bar/ate_tests/qux_test"].existing,
 				testDirs: map[string]string{
 					"ate_tests": "feature/foo/bar/ate_tests/qux_test",
 					"otg_tests": "feature/foo/bar/otg_tests/qux_test",
@@ -109,39 +108,37 @@ func TestJSONBuildPlan(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(want, got, jsopt); diff != "" {
-		t.Errorf("jsonBuildPlan -want,+got:\n%s", diff)
+	if diff := cmp.Diff(want, got, jsopts...); diff != "" {
+		t.Errorf("ttBuildPlan -want,+got:\n%s", diff)
 	}
 }
 
-func TestJSONBuildPlan_MissingData(t *testing.T) {
+func TestTTBuildPlan_MissingData(t *testing.T) {
 	ts := testsuite{"feature/xyzzy/tests/quuz_test": &testcase{}}
-	if _, ok := jsonBuildPlan(ts, ""); ok {
-		t.Errorf("jsonBuildPlan ok got %v, want %v", ok, false)
+	if _, ok := ttBuildPlan(ts, ""); ok {
+		t.Errorf("ttBuildPlan ok got %v, want %v", ok, false)
 	}
 }
 
-func TestJSONBuildPlan_DisallowReuseUUID(t *testing.T) {
+func TestTTBuildPlan_DisallowReuseUUID(t *testing.T) {
 	ts := testsuite{
 		"feature/foo/bar/ate_tests/qux_test": &testcase{
-			existing: parsedData{
-				testPlanID:      "YY-2.1",
-				testDescription: "Qux Functional Test",
-				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-				hasData:         true,
+			existing: &mpb.Metadata{
+				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+				PlanId:      "YY-2.1",
+				Description: "Qux Functional Test",
 			},
 		},
 		"feature/foo/baz/quuz_test": &testcase{
-			existing: parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Quuz Functional Test",
-				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-				hasData:         true,
+			existing: &mpb.Metadata{
+				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+				PlanId:      "XX-1.1",
+				Description: "Quuz Functional Test",
 			},
 		},
 	}
-	if _, ok := jsonBuildPlan(ts, ""); ok {
-		t.Errorf("jsonBuildPlan ok got %v, want %v", ok, false)
+	if _, ok := ttBuildPlan(ts, ""); ok {
+		t.Errorf("ttBuildPlan ok got %v, want %v", ok, false)
 	}
 }
 
@@ -175,19 +172,19 @@ func TestJSONQuote(t *testing.T) {
 	}
 }
 
-func TestJSONPlan_SortedKeys(t *testing.T) {
-	jp := jsonPlan{
-		"YY-10": jsonSuite{},
-		"YY-1a": jsonSuite{},
-		"YY-2":  jsonSuite{},
-		"XX-10": jsonSuite{},
-		"XX-1a": jsonSuite{},
-		"XX-2":  jsonSuite{},
+func TestTTPlan_SortedKeys(t *testing.T) {
+	ttp := ttPlan{
+		"YY-10": ttSuite{},
+		"YY-1a": ttSuite{},
+		"YY-2":  ttSuite{},
+		"XX-10": ttSuite{},
+		"XX-1a": ttSuite{},
+		"XX-2":  ttSuite{},
 	}
 	want := []string{"XX-1a", "XX-2", "XX-10", "YY-1a", "YY-2", "YY-10"}
-	got := jp.sortedKeys()
+	got := ttp.sortedKeys()
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("jsonPlan.sortedKeys() -want,+got:\n%s", diff)
+		t.Errorf("ttPlan.sortedKeys() -want,+got:\n%s", diff)
 	}
 }
 
@@ -198,9 +195,9 @@ func setDefaultAttrs(attrs map[string]any) map[string]any {
 	return attrs
 }
 
-func TestJSONPlan_Merge(t *testing.T) {
+func TestTTPlan_Merge(t *testing.T) {
 	got := map[string]any{
-		"text": "JSON Plan To Be Merged",
+		"text": "Plan To Be Merged",
 		"type": "testplan",
 		"children": []any{
 			// Passthrough mal-formed testsuites.
@@ -223,38 +220,38 @@ func TestJSONPlan_Merge(t *testing.T) {
 		},
 	}
 
-	jp := jsonPlan{
-		"XX-1": jsonSuite{
-			"0eac5b62-ab22-449d-9a9a-255b05572641": &jsonCase{
-				parsedData: parsedData{
-					testPlanID:      "XX-1.1",
-					testDescription: "Foo",
-					testUUID:        "0eac5b62-ab22-449d-9a9a-255b05572641",
+	ttp := ttPlan{
+		"XX-1": ttSuite{
+			"0eac5b62-ab22-449d-9a9a-255b05572641": &ttCase{
+				metadata: &mpb.Metadata{
+					Uuid:        "0eac5b62-ab22-449d-9a9a-255b05572641",
+					PlanId:      "XX-1.1",
+					Description: "Foo",
 				},
 			},
 		},
-		"XX-2": jsonSuite{
-			"f842057d-0100-4198-a18d-593b2bf3610e": &jsonCase{
-				parsedData: parsedData{
-					testPlanID:      "XX-2.1",
-					testDescription: "Bar",
-					testUUID:        "f842057d-0100-4198-a18d-593b2bf3610e",
+		"XX-2": ttSuite{
+			"f842057d-0100-4198-a18d-593b2bf3610e": &ttCase{
+				metadata: &mpb.Metadata{
+					Uuid:        "f842057d-0100-4198-a18d-593b2bf3610e",
+					PlanId:      "XX-2.1",
+					Description: "Bar",
 				},
 			},
 		},
-		"YY-1": jsonSuite{
-			"12cd2de3-69af-4aa6-a3d6-a2d5fbdb86c6": &jsonCase{
-				parsedData: parsedData{
-					testPlanID:      "YY-1.1",
-					testDescription: "Xyzzy",
-					testUUID:        "12cd2de3-69af-4aa6-a3d6-a2d5fbdb86c6",
+		"YY-1": ttSuite{
+			"12cd2de3-69af-4aa6-a3d6-a2d5fbdb86c6": &ttCase{
+				metadata: &mpb.Metadata{
+					Uuid:        "12cd2de3-69af-4aa6-a3d6-a2d5fbdb86c6",
+					PlanId:      "YY-1.1",
+					Description: "Xyzzy",
 				},
 			},
 		},
 	}
 
 	want := map[string]any{
-		"text": "JSON Plan To Be Merged",
+		"text": "Plan To Be Merged",
 		"type": "testplan",
 		"children": []any{
 			// Passthrough mal-formed testsuites.
@@ -323,10 +320,10 @@ func TestJSONPlan_Merge(t *testing.T) {
 		},
 	}
 
-	jp.merge(got)
+	ttp.merge(got)
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("jsonPlan.merge() -want,+got:\n%s", diff)
+		t.Errorf("ttPlan.merge() -want,+got:\n%s", diff)
 	}
 }
 
@@ -367,16 +364,16 @@ func TestChildSuite(t *testing.T) {
 	}
 }
 
-func TestJSONSuite_SortedKeys(t *testing.T) {
-	js := jsonSuite{
-		"864550d6-e843-4301-846a-a1998a23bb5a": &jsonCase{
-			parsedData: parsedData{testPlanID: "XX-1.10"},
+func TestTTSuite_SortedKeys(t *testing.T) {
+	tts := ttSuite{
+		"864550d6-e843-4301-846a-a1998a23bb5a": &ttCase{
+			metadata: &mpb.Metadata{PlanId: "XX-1.10"},
 		},
-		"e9345234-fc59-44f3-9d21-00b57137fb40": &jsonCase{
-			parsedData: parsedData{testPlanID: "XX-1.1a"},
+		"e9345234-fc59-44f3-9d21-00b57137fb40": &ttCase{
+			metadata: &mpb.Metadata{PlanId: "XX-1.1a"},
 		},
-		"bc261bca-d50f-42db-80f9-7c955c4e3889": &jsonCase{
-			parsedData: parsedData{testPlanID: "XX-1.2"},
+		"bc261bca-d50f-42db-80f9-7c955c4e3889": &ttCase{
+			metadata: &mpb.Metadata{PlanId: "XX-1.2"},
 		},
 	}
 	want := []string{
@@ -384,15 +381,15 @@ func TestJSONSuite_SortedKeys(t *testing.T) {
 		"bc261bca-d50f-42db-80f9-7c955c4e3889", // XX-1.2
 		"864550d6-e843-4301-846a-a1998a23bb5a", // XX-1.10
 	}
-	got := js.sortedKeys()
+	got := tts.sortedKeys()
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("jsonSuite.sortedKeys() -want,+got:\n%s", diff)
+		t.Errorf("ttSuite.sortedKeys() -want,+got:\n%s", diff)
 	}
 }
 
-func TestJSONSuite_Merge(t *testing.T) {
+func TestTTSuite_Merge(t *testing.T) {
 	got := map[string]any{
-		"text": "JSON Suite To Be Merged",
+		"text": "Suite To Be Merged",
 		"type": "testsuites",
 		"children": []any{
 			// Passthrough mal-formed testcases.
@@ -443,39 +440,39 @@ func TestJSONSuite_Merge(t *testing.T) {
 		},
 	}
 
-	js := jsonSuite{
-		"d2d462b4-db36-4159-9152-744dc6168ba8": &jsonCase{
-			parsedData: parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Apple",
-				testUUID:        "d2d462b4-db36-4159-9152-744dc6168ba8",
+	tts := ttSuite{
+		"d2d462b4-db36-4159-9152-744dc6168ba8": &ttCase{
+			metadata: &mpb.Metadata{
+				Uuid:        "d2d462b4-db36-4159-9152-744dc6168ba8",
+				PlanId:      "XX-1.1",
+				Description: "Apple",
 			},
 		},
-		"755ae14f-7d1a-465a-8cfb-f1674ea68763": &jsonCase{
-			parsedData: parsedData{
-				testPlanID:      "XX-1.2",
-				testDescription: "Banana",
-				testUUID:        "755ae14f-7d1a-465a-8cfb-f1674ea68763",
+		"755ae14f-7d1a-465a-8cfb-f1674ea68763": &ttCase{
+			metadata: &mpb.Metadata{
+				Uuid:        "755ae14f-7d1a-465a-8cfb-f1674ea68763",
+				PlanId:      "XX-1.2",
+				Description: "Banana",
 			},
 		},
-		"c2cb54c0-2acc-4fd8-8c2a-7f9ccb9ea192": &jsonCase{
-			parsedData: parsedData{
-				testPlanID:      "XX-1.3",
-				testDescription: "Cherry",
-				testUUID:        "c2cb54c0-2acc-4fd8-8c2a-7f9ccb9ea192",
+		"c2cb54c0-2acc-4fd8-8c2a-7f9ccb9ea192": &ttCase{
+			metadata: &mpb.Metadata{
+				Uuid:        "c2cb54c0-2acc-4fd8-8c2a-7f9ccb9ea192",
+				PlanId:      "XX-1.3",
+				Description: "Cherry",
 			},
 		},
-		"f7372990-dfb2-4a8f-acfb-c7a31b29522c": &jsonCase{
-			parsedData: parsedData{
-				testPlanID:      "XX-1.4",
-				testDescription: "Durian",
-				testUUID:        "f7372990-dfb2-4a8f-acfb-c7a31b29522c",
+		"f7372990-dfb2-4a8f-acfb-c7a31b29522c": &ttCase{
+			metadata: &mpb.Metadata{
+				Uuid:        "f7372990-dfb2-4a8f-acfb-c7a31b29522c",
+				PlanId:      "XX-1.4",
+				Description: "Durian",
 			},
 		},
 	}
 
 	want := map[string]any{
-		"text": "JSON Suite To Be Merged",
+		"text": "Suite To Be Merged",
 		"type": "testsuites",
 		"children": []any{
 			// Passthrough mal-formed testcases.
@@ -546,20 +543,20 @@ func TestJSONSuite_Merge(t *testing.T) {
 		},
 	}
 
-	js.merge(got)
+	tts.merge(got)
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("jsonSuite.merge() -want,+got:\n%s", diff)
+		t.Errorf("ttSuite.merge() -want,+got:\n%s", diff)
 	}
 }
 
-var jkopt = cmp.AllowUnexported(jsonCaseKey{})
+var jkopt = cmp.AllowUnexported(ttCaseKey{})
 
 func TestChildCase(t *testing.T) {
 	cases := map[string]struct {
 		child  any
 		wantok bool
-		want   jsonCaseKey
+		want   ttCaseKey
 	}{
 		"NotMap": {
 			child:  42,
@@ -598,7 +595,7 @@ func TestChildCase(t *testing.T) {
 				},
 			},
 			wantok: true,
-			want: jsonCaseKey{
+			want: ttCaseKey{
 				testUUID: "173e8a50-6040-4788-bfd2-ee62b2cf95c8",
 			},
 		},
@@ -609,7 +606,7 @@ func TestChildCase(t *testing.T) {
 				},
 			},
 			wantok: true,
-			want: jsonCaseKey{
+			want: ttCaseKey{
 				testUUID: "173e8a50-6040-4788-bfd2-ee62b2cf95c8",
 			},
 		},
@@ -621,7 +618,7 @@ func TestChildCase(t *testing.T) {
 				},
 			},
 			wantok: true,
-			want: jsonCaseKey{
+			want: ttCaseKey{
 				testUUID: "173e8a50-6040-4788-bfd2-ee62b2cf95c8",
 			},
 		},
@@ -633,7 +630,7 @@ func TestChildCase(t *testing.T) {
 				},
 			},
 			wantok: true,
-			want: jsonCaseKey{
+			want: ttCaseKey{
 				testUUID: "173e8a50-6040-4788-bfd2-ee62b2cf95c8",
 			},
 		},
@@ -645,7 +642,7 @@ func TestChildCase(t *testing.T) {
 				},
 			},
 			wantok: true,
-			want: jsonCaseKey{
+			want: ttCaseKey{
 				testPlanID: "XX-1.1",
 				testUUID:   "173e8a50-6040-4788-bfd2-ee62b2cf95c8",
 			},
@@ -662,13 +659,13 @@ func TestChildCase(t *testing.T) {
 			}
 			c.want.o = c.child.(map[string]any)
 			if diff := cmp.Diff(c.want, got, jkopt); diff != "" {
-				t.Errorf("childCase jsonCaseKey -want,+got:\n%s", diff)
+				t.Errorf("childCase ttCaseKey -want,+got:\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestJSONDesc(t *testing.T) {
+func TestTTDesc(t *testing.T) {
 	testDirs := map[string]string{
 		"":              "feature/experimental/foo/empty_tests/foo_test",
 		"ate_tests":     "feature/experimental/foo/ate_tests/foo_test",
@@ -685,14 +682,14 @@ func TestJSONDesc(t *testing.T) {
   - Test: https://github.com/openconfig/featureprofiles/tree/main/feature/experimental/foo/tests/foo_test
   - Test: https://github.com/openconfig/featureprofiles/tree/main/feature/experimental/foo/unknown_tests/foo_test
 `
-	got := jsonDesc(testDirs)
+	got := ttDesc(testDirs)
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("jsonDesc -want,+got:\n%s", diff)
+		t.Errorf("ttDesc -want,+got:\n%s", diff)
 	}
 }
 
-func TestJSONCase_Merge(t *testing.T) {
+func TestTTCase_Merge(t *testing.T) {
 	wantAttrs := setDefaultAttrs(map[string]any{
 		"author":      "liulk",
 		"rel":         "testcases",
@@ -710,11 +707,11 @@ func TestJSONCase_Merge(t *testing.T) {
 		"pk":      1234567,
 	}
 
-	jc := &jsonCase{
-		parsedData: parsedData{
-			testPlanID:      "XX-1.1",
-			testDescription: "Quuz Functional Test",
-			testUUID:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
+	ttc := &ttCase{
+		metadata: &mpb.Metadata{
+			Uuid:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
+			PlanId:      "XX-1.1",
+			Description: "Quuz Functional Test",
 		},
 	}
 
@@ -726,9 +723,9 @@ func TestJSONCase_Merge(t *testing.T) {
 		},
 		"pk": 1234567,
 	}
-	jc.merge(got)
+	ttc.merge(got)
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("jsonCase.merge() -want,+got:\n%s", diff)
+		t.Errorf("ttCase.merge() -want,+got:\n%s", diff)
 	}
 }
