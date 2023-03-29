@@ -10,6 +10,7 @@ Validate gNOI RPC can reboot specific components.
     subcomponents set to:
     *   A field-removable linecard in the system
     *   A control-processor (supervisor)
+    *   A removable fabric (fabric card)
 *   TODO: For each component verify that the component has rebooted and the
     uptime has been reset.
 
