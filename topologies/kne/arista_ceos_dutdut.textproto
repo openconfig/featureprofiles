@@ -1,8 +1,11 @@
 name: "arista-ceos-dutdut"
 nodes: {
   name: "dut1"
-  type: ARISTA_CEOS
+  vendor: ARISTA
+  model: "ceos"
+  os: "eos"
   config: {
+    image: "ceos:latest"
     config_path: "/mnt/flash"
     config_file: "startup-config"
     file: "arista_ceos.config"
@@ -19,7 +22,6 @@ nodes: {
     value: {
       name: "ssh"
       inside: 22
-      outside: 22
     }
   }
   services: {
@@ -27,7 +29,6 @@ nodes: {
     value: {
       name: "gnmi"
       inside: 6030
-      outside: 6030
     }
   }
   services: {
@@ -35,14 +36,16 @@ nodes: {
     value: {
       name: "gribi"
       inside: 6040
-      outside: 6040
     }
   }
 }
 nodes: {
   name: "dut2"
-  type: ARISTA_CEOS
+  vendor: ARISTA
+  model: "ceos"
+  os: "eos"
   config: {
+    image: "ceos:latest"
     config_path: "/mnt/flash"
     config_file: "startup-config"
     file: "arista_ceos.config"
@@ -59,7 +62,6 @@ nodes: {
     value: {
       name: "ssh"
       inside: 22
-      outside: 22
     }
   }
   services: {
@@ -67,7 +69,6 @@ nodes: {
     value: {
       name: "gnmi"
       inside: 6030
-      outside: 6030
     }
   }
   services: {
@@ -75,7 +76,6 @@ nodes: {
     value: {
       name: "gribi"
       inside: 6040
-      outside: 6040
     }
   }
 }

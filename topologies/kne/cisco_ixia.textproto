@@ -1,13 +1,13 @@
-name: "ixia-c-2"
+name: "cisco-ixia"
 nodes: {
     name: "otg"
-    type: IXIA_TG
-    version: "0.0.1-2773-local"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
     services: {
-        key: 443
+        key: 8443
         value: {
             name: "https"
-            inside: 443
+            inside: 8443
         }
     }
     services: {
@@ -26,19 +26,13 @@ nodes: {
     }
 }
 nodes: {
-    name: "vxr"
-    type: CISCO_E8000
+    name: "dut"
     vendor: CISCO
     model:"8201"
     os: "ios-xr"
     config: {
-        file: "init_cisco.config"
-        image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/cisco:c8201"
-        init_image: "networkop/init-wait:latest"
-    }
-    constraints:{
-        key: "memory"
-        value: "4Gi"
+        image: "8000e:latest"
+        file: "cisco.config"
     }
     services:{
         key: 22
@@ -48,57 +42,78 @@ nodes: {
         }
     }
     services:{
-        key: 57400 
+        key: 9339
         value: {
             name: "gnmi"
+            inside: 57400
+        }
+    }
+   services:{
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 57400
+        }
+    }
+   services:{
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 57400
+        }
+    }
+   services:{
+        key: 9559
+        value: {
+            name: "p4rt"
             inside: 57400
         }
     }
     interfaces: {
         key: "eth1"
         value: {
-          name: "GigabitEthernet0/0/0/0"
+          name: "FourHundredGigE0/0/0/0"
         }
     }
     interfaces: {
         key: "eth2"
         value: {
-          name: "GigabitEthernet0/0/0/1"
+          name: "FourHundredGigE0/0/0/1"
         }
     }
     interfaces: {
         key: "eth3"
         value: {
-          name: "GigabitEthernet0/0/0/2"
+          name: "FourHundredGigE0/0/0/2"
         }
     }
     interfaces: {
         key: "eth4"
         value: {
-          name: "GigabitEthernet0/0/0/3"
+          name: "FourHundredGigE0/0/0/3"
         }
     }
 }
 links: {
     a_node: "otg"
     a_int: "eth1"
-    z_node: "vxr"
+    z_node: "dut"
     z_int: "eth1"
 }
 links: {
-    a_node: "vxr"
+    a_node: "dut"
     a_int: "eth2"
     z_node: "otg"
     z_int: "eth2"
 }
 links: {
-    a_node: "vxr"
+    a_node: "dut"
     a_int: "eth3"
     z_node: "otg"
     z_int: "eth3"
 }
 links: {
-    a_node: "vxr"
+    a_node: "dut"
     a_int: "eth4"
     z_node: "otg"
     z_int: "eth4"

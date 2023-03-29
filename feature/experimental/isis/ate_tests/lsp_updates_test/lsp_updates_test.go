@@ -16,13 +16,16 @@
 package lsp_updates_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/assert"
 	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/session"
+	"github.com/openconfig/featureprofiles/internal/check"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -31,25 +34,51 @@ func TestMain(m *testing.M) {
 }
 
 func TestOverloadBit(t *testing.T) {
-	ts := session.NewWithISIS(t)
-	ts.PushAndStart(t)
-	telemPth := ts.DUTISISTelemetry(t)
-	ts.AwaitAdjacency(t)
-	setBit := telemPth.Global().LspBit().OverloadBit().SetBit()
-	overloads := telemPth.Level(2).SystemLevelCounters().DatabaseOverloads()
-	assert.ValueOrNil(t, setBit, false)
-	assert.ValueOrNil(t, overloads, uint32(0))
+	ts := session.MustNew(t).WithISIS()
+	// Only push DUT config - no adjacency established yet
+	if err := ts.PushDUT(context.Background(), t); err != nil {
+		t.Fatalf("Unable to push initial DUT config: %v", err)
+	}
+	isisPath := session.ISISPath()
+	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
+	//Lookup the initial value for 'database-overloads' leaf counter after config is pushed to DUT & before adjacency is formed
+	getDbOlInitCount := gnmi.Lookup(t, ts.DUT, overloads.State())
+	olVal, present := getDbOlInitCount.Val()
+	if !present {
+		olVal = uint32(0)
+	}
+	ts.PushAndStartATE(t)
+	ts.MustAdjacency(t)
+	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
+	deadline := time.Now().Add(time.Second * 3)
+	checkSetBit := check.Equal(setBit.State(), false)
+	if *deviations.MissingValueForDefaults {
+		checkSetBit = check.EqualOrNil(setBit.State(), false)
+	}
+
+	for _, vd := range []check.Validator{
+		checkSetBit,
+		check.EqualOrNil(overloads.State(), olVal),
+	} {
+		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
+			t.Error(err)
+		}
+	}
 	ts.DUTConf.
-		GetNetworkInstance("default").
+		GetNetworkInstance(*deviations.DefaultNetworkInstance).
 		GetProtocol(session.PTISIS, session.ISISName).
 		GetIsis().
 		GetGlobal().
 		GetOrCreateLspBit().
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
-	ts.PushDUT(t)
+	ts.PushDUT(context.Background(), t)
 	// TODO: Verify the link state database once device support is added.
-	overloads.Await(t, time.Second*10, 1)
-	assert.Value(t, setBit, true)
+	if err := check.Equal(overloads.State(), uint32(olVal+1)).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
+		t.Error(err)
+	}
+	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second*3, ts.DUTClient); err != nil {
+		t.Error(err)
+	}
 	// TODO: Verify the link state database on the ATE once the ATE reports this properly
 	// ateTelemPth := ts.ATEISISTelemetry(t)
 	// ateDB := ateTelemPth.Level(2).LspAny()
@@ -59,19 +88,24 @@ func TestOverloadBit(t *testing.T) {
 
 func TestMetric(t *testing.T) {
 	t.Logf("Starting...")
-	ts := session.NewWithISIS(t)
-	ts.DUTConf.GetNetworkInstance("default").GetProtocol(session.PTISIS, session.ISISName).GetIsis().
-		GetInterface(ts.DUT.Port(t, "port1").Name()).
+	ts := session.MustNew(t).WithISIS()
+	isisIntfName := ts.DUT.Port(t, "port1").Name()
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		isisIntfName = ts.DUT.Port(t, "port1").Name() + ".0"
+	}
+	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
+		GetInterface(isisIntfName).
 		GetOrCreateLevel(2).
-		GetOrCreateAf(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).
+		GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).
 		Metric = ygot.Uint32(100)
 	ts.PushAndStart(t)
-	ts.AwaitAdjacency(t)
+	ts.MustAdjacency(t)
 
-	telemPth := ts.DUTISISTelemetry(t)
-	metric := telemPth.Interface(ts.DUT.Port(t, "port1").Name()).Level(2).
-		Af(telemetry.IsisTypes_AFI_TYPE_IPV4, telemetry.IsisTypes_SAFI_TYPE_UNICAST).Metric()
-	assert.Value(t, metric, uint32(100))
+	metric := session.ISISPath().Interface(isisIntfName).Level(2).
+		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
+	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second*3, ts.DUTClient); err != nil {
+		t.Error(err)
+	}
 	// TODO: Verify the link state database on the ATE once the ATE reports this properly
 	// ateTelemPth := ts.ATEISISTelemetry(t)
 	// ateDB := ateTelemPth.Level(2).LspAny()

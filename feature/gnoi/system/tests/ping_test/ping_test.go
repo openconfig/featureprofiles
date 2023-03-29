@@ -19,17 +19,20 @@ import (
 	"io"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/netutil"
 )
 
 const (
-	minimumPingRequestSize        = 64
+	minimumPingRequestSize        = 56
 	maximumDefaultPingRequestSize = 1512
 	maximumPingRequestSize        = 9202
-	minimumPingReplySize          = 64
+	minimumPingReplySize          = 56
 	icmpHeaderSize                = 20
 	// Set Minimum value to 1 to verify the field is not empty.
 	minimumPingReplyTTL      = 1
@@ -63,7 +66,6 @@ func TestMain(m *testing.M) {
 //     - Echo reply contains echo reply source, RTT time, bytes received, packet sequence and ttl.
 //  - Verify ping summary stats in the response.
 //     - source: Source of received bytes. It is the source address of ping request.
-//     - time: Ping operation time.
 //     - sent: Total packets sent.
 //     - received: Total packets received.
 //     - min_time: Minimum round trip time in nanoseconds.
@@ -72,7 +74,7 @@ func TestMain(m *testing.M) {
 //     - std_dev: Standard deviation in round trip time.
 //
 // Topology:
-//   dut:port1 <--> ate:port1
+//   dut
 //
 // Test notes:
 //  - Only the destination fields is required.
@@ -97,9 +99,10 @@ func TestMain(m *testing.M) {
 func TestGNOIPing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	lo0 := dut.Telemetry().Interface("Loopback0").Subinterface(0)
-	ipv4Addrs := lo0.Ipv4().AddressAny().Get(t)
-	ipv6Addrs := lo0.Ipv6().AddressAny().Get(t)
+	lbIntf := netutil.LoopbackInterface(t, dut, 0)
+	lo0 := gnmi.OC().Interface(lbIntf).Subinterface(0)
+	ipv4Addrs := gnmi.GetAll(t, dut, lo0.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.GetAll(t, dut, lo0.Ipv6().AddressAny().State())
 	t.Logf("Got DUT %s IPv4 loopback address: %+v", dut.Name(), ipv4Addrs)
 	t.Logf("Got DUT %s IPv6 loopback address: %+v", dut.Name(), ipv6Addrs)
 	if len(ipv4Addrs) == 0 {
@@ -108,7 +111,9 @@ func TestGNOIPing(t *testing.T) {
 	if len(ipv6Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
-
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, lbIntf, *deviations.DefaultNetworkInstance, 0)
+	}
 	commonExpectedIPv4Reply := &spb.PingResponse{
 		Source:   ipv4Addrs[0].GetIp(),
 		Time:     minimumPingTime,
@@ -402,11 +407,6 @@ func TestGNOIPing(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Logf("Sent ping request: %v\n\n", tc.pingRequest)
 
-			// TODO: Remove t.Skipf() after DoNotResolve issue is supported.
-			if tc.pingRequest.DoNotResolve {
-				t.Skipf("do_not_resolve option is not supported due to known bug.")
-			}
-
 			pingClient, err := gnoiClient.System().Ping(context.Background(), tc.pingRequest)
 			if err != nil {
 				t.Fatalf("Failed to query gnoi endpoint: %v", err)
@@ -424,7 +424,7 @@ func TestGNOIPing(t *testing.T) {
 			StdDevZero := true
 			pingTime := responses[len(responses)-1].Time
 
-			for i := 0; i < len(responses); i++ {
+			for i := 0; i < len(responses)-1; i++ {
 				t.Logf("Check each ping reply %v out of %v.\n  %v\n", i+1, len(responses), responses[i])
 
 				// Check StdDev if ping time is different
@@ -435,6 +435,8 @@ func TestGNOIPing(t *testing.T) {
 				if responses[i].Source != tc.expectedReply.Source {
 					t.Errorf("Ping reply source: got %v, want %v", responses[i].Source, tc.expectedReply.Source)
 				}
+
+				t.Logf("Check the following fields in echo response and skip them in summary stats.\n")
 				if responses[i].Time < tc.expectedReply.Time {
 					t.Errorf("Ping time: got %v, want >= %v", responses[i].Time, tc.expectedReply.Time)
 				}
@@ -447,28 +449,27 @@ func TestGNOIPing(t *testing.T) {
 				if responses[i].Ttl < tc.expectedReply.Ttl {
 					t.Errorf("Ping TTL: got %v, want >= %v", responses[i].Ttl, tc.expectedReply.Ttl)
 				}
+			}
 
-				if i == len(responses)-1 {
-					t.Logf("Check ping reply summary stats.\n")
-					if responses[i].Sent < tc.expectedStats.Sent {
-						t.Errorf("Ping Sent: got %v, want >= %v", responses[i].Sent, tc.expectedStats.Sent)
-					}
-					if responses[i].Received < tc.expectedStats.Received {
-						t.Errorf("Ping Sent: got %v, want >= %v", responses[i].Received, tc.expectedStats.Received)
-					}
-					if responses[i].MinTime < tc.expectedStats.MinTime {
-						t.Errorf("Ping Received: got %v, want >= %v", responses[i].MinTime, tc.expectedStats.MinTime)
-					}
-					if responses[i].AvgTime < tc.expectedStats.AvgTime {
-						t.Errorf("Ping AvgTime: got %v, want >= %v", responses[i].AvgTime, tc.expectedStats.AvgTime)
-					}
-					if responses[i].MaxTime < tc.expectedStats.MaxTime {
-						t.Errorf("Ping MaxTime: got %v, want >= %v", responses[i].MaxTime, tc.expectedStats.MaxTime)
-					}
-					if responses[i].StdDev < tc.expectedStats.StdDev && !StdDevZero {
-						t.Errorf("Ping MaxTime: got %v, want >= %v", responses[i].StdDev, tc.expectedStats.StdDev)
-					}
-				}
+			summary := responses[len(responses)-1]
+			t.Logf("Check ping reply summary stats.\n")
+			if summary.Sent < tc.expectedStats.Sent {
+				t.Errorf("Ping Sent: got %v, want >= %v", summary.Sent, tc.expectedStats.Sent)
+			}
+			if summary.Received < tc.expectedStats.Received {
+				t.Errorf("Ping Sent: got %v, want >= %v", summary.Received, tc.expectedStats.Received)
+			}
+			if summary.MinTime < tc.expectedStats.MinTime {
+				t.Errorf("Ping Received: got %v, want >= %v", summary.MinTime, tc.expectedStats.MinTime)
+			}
+			if summary.AvgTime < tc.expectedStats.AvgTime {
+				t.Errorf("Ping AvgTime: got %v, want >= %v", summary.AvgTime, tc.expectedStats.AvgTime)
+			}
+			if summary.MaxTime < tc.expectedStats.MaxTime {
+				t.Errorf("Ping MaxTime: got %v, want >= %v", summary.MaxTime, tc.expectedStats.MaxTime)
+			}
+			if summary.StdDev < tc.expectedStats.StdDev && !StdDevZero {
+				t.Errorf("Ping MaxTime: got %v, want >= %v", summary.StdDev, tc.expectedStats.StdDev)
 			}
 		})
 	}

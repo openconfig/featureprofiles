@@ -20,13 +20,25 @@ id {
 config_path {
   path: "/system/grpc-servers/grpc-server/config/name"
 }
+telemetry_path {
+  path: "/system/grpc-servers/grpc-server/state/name"
+}
 config_path {
   # value GNMI only.
   path: "/system/grpc-servers/grpc-server/config/services"
 }
+telemetry_path {
+  path: "/system/grpc-servers/grpc-server/state/services"
+}
 config_path {
   path: "/system/grpc-servers/grpc-server/config/enable"
 }
+telemetry_path {
+  path: "/system/grpc-servers/grpc-server/state/enable"
+}
 config_path {
   path: "/system/grpc-servers/grpc-server/config/port"
+}
+telemetry_path {
+  path: "/system/grpc-servers/grpc-server/state/port"
 }

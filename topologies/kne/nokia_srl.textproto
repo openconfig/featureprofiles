@@ -2,9 +2,10 @@ name: "nokia-srl"
 nodes: {
     name: "dut"
     vendor: NOKIA
+    model: "ixr10"
     config: {
         file: "nokia_srl.json"
-        image: "srlinux:latest"
+        image: "ghcr.io/nokia/srlinux:latest"
         cert: {
             self_signed: {
                 cert_name: "kne-profile"
@@ -18,23 +19,34 @@ nodes: {
         value: {
             name: "ssh"
             inside: 22
-            outside: 22
         }
     }
     services:{
-        key: 57400
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 57400
+        }
+    }
+    services:{
+        key: 9339
         value: {
             name: "gnmi"
             inside: 57400
-            outside: 57400
         }
     }
     services:{
-      key: 57401
-      value: {
-        name: "gribi"
-        inside: 57401
-        outside: 57401
-      }
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 57401
+        }
+    }
+    services:{
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 9559
+        }
     }
 }

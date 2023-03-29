@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -76,14 +77,14 @@ var (
 			NextHops:    []nextHop{{"ate:port2", 9, 0.9}, {"ate:port3", 1, 0.1}},
 		},
 		{
-			TestName:    "Weight_19_1",
-			Description: "Weight 19:1 - 95% traffic to NH1, 5% to NH2.",
-			NextHops:    []nextHop{{"ate:port2", 19, 0.95}, {"ate:port3", 1, 0.05}},
+			TestName:    "Weight_31_1",
+			Description: "Weight 31:1 - ~96.9% traffic to NH1, ~3.1% to NH2.",
+			NextHops:    []nextHop{{"ate:port2", 31, 0.96875}, {"ate:port3", 1, 0.03125}},
 		},
 		{
-			TestName:    "Weight_99_1",
-			Description: "Weight 99:1 - 99% traffic to NH1, 1% to NH2.",
-			NextHops:    []nextHop{{"ate:port2", 99, 0.99}, {"ate:port3", 1, 0.01}},
+			TestName:    "Weight_63_1",
+			Description: "Weight 63:1 - ~98.4% traffic to NH1, ~1.6% to NH2.",
+			NextHops:    []nextHop{{"ate:port2", 63, 0.984375}, {"ate:port3", 1, 0.015625}},
 		},
 	}
 
@@ -119,12 +120,27 @@ func testNextHop(
 	c.Connection().
 		WithStub(gribic).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).
-		WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
+		WithInitialElectionID(1 /* low */, 0 /* hi */). // ID must be > 0.
+		WithPersistence()
 	c.Start(ctx, t)
 	defer c.Stop(t)
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(c); err != nil {
+			t.Errorf("Cannot flush: %v", err)
+		}
+	}()
+
 	c.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
+	}
+	gribi.BecomeLeader(t, c)
+
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
+		t.Errorf("Cannot flush: %v", err)
 	}
 
 	ents, wants := buildNextHops(t, nexthops, scale)

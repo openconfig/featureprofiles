@@ -101,8 +101,14 @@ telemetry_path {
 config_path {
     path: "/system/aaa/authentication/users/user/config/username"
 }
+telemetry_path {
+    path: "/system/aaa/authentication/users/user/state/username"
+}
 config_path {
     path: "/system/aaa/authentication/users/user/config/ssh-key"
+}
+telemetry_path {
+    path: "/system/aaa/authentication/users/user/state/ssh-key"
 }
 
 # Alarms
