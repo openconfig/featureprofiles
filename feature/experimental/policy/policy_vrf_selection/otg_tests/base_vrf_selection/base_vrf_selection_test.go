@@ -394,13 +394,13 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows, passFlows []gosn
 		t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
 		captureTrafficStats(t, ate, flow.Name(), false)
 		flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-		inPkts := flowMetrics.GetCounters().GetInPkts()
-		outPkts := flowMetrics.GetCounters().GetOutPkts()
+		inPkts := float32(flowMetrics.GetCounters().GetInPkts())
+		outPkts := float32(flowMetrics.GetCounters().GetOutPkts())
 		if outPkts == 0 {
 			t.Errorf("tx packets is 0")
 			return
 		}
-		lossPct := float32((outPkts - inPkts) / outPkts * 100)
+		lossPct := (outPkts - inPkts) / outPkts * 100
 		if contains(flow, passFlows) {
 			if lossPct > 0 {
 				t.Errorf("Traffic Loss Pct for Flow: %s got %f, want 0", flow.Name(), lossPct)
