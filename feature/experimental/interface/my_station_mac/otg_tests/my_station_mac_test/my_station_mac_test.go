@@ -185,15 +185,15 @@ func testTraffic(
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("Flow").State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
+	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 	lostPackets := txPackets - rxPackets
 	if txPackets == 0 {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
 
-	if got := float32(lostPackets * 100 / txPackets); got != pktLossPct {
-		t.Errorf("Packet loss percentage for flow %s: got %g, want %g", flow.Name(), got, pktLossPct)
+	if got := lostPackets * 100 / txPackets; got != pktLossPct {
+		t.Errorf("Packet loss percentage for flow %s: got %f, want %f", flow.Name(), got, pktLossPct)
 	}
 }
 
