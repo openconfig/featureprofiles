@@ -74,6 +74,7 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setASpathPrependPolicy)
 	actions5 := pdef5.GetOrCreateStatement(aclStatement2).GetOrCreateActions()
+	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	aspend := actions5.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
 	aspend.Asn = ygot.Uint32(setup.DUTAs)
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
@@ -84,7 +85,18 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 		st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	}
 
+	pdef := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
+	pdef.GetOrCreateStatement("id-1").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+
+	netInstance := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	bgp := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	pg := bgp.GetOrCreatePeerGroup(setup.PeerGrpName)
+	rpl := pg.GetOrCreateApplyPolicy()
+	rpl.SetImportPolicy([]string{setALLOWPolicy})
+
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).Config(), pg)
+
 }
 
 func setPolicyPeerGroup(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, policy []string) {
@@ -252,10 +264,25 @@ func TestEstablish(t *testing.T) {
 
 	t.Log("Build Benchmarking BGP and ISIS test configs.")
 	dutBenchmarkConfig := setup.BuildBenchmarkingConfig(t)
-
 	fptest.LogQuery(t, "Benchmarking configs to configure on DUT", dutConfigPath.Config(), dutBenchmarkConfig)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		for _, dp := range dut.Ports() {
+			ni := dutBenchmarkConfig.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+			niIntf, _ := ni.NewInterface(dp.Name())
+			niIntf.Interface = ygot.String(dp.Name())
+			niIntf.Subinterface = ygot.Uint32(0)
+			niIntf.Id = ygot.String(dp.Name() + ".0")
+		}
+	}
 	// Apply benchmarking configs on dut
 	gnmi.Update(t, dut, dutConfigPath.Config(), dutBenchmarkConfig)
+
+	if *deviations.ExplicitPortSpeed {
+		for _, dp := range dut.Ports() {
+			fptest.SetPortSpeed(t, dp)
+		}
+	}
 
 	t.Log("Configure ATE with Interfaces, BGP, ISIS configs.")
 	ate := ondatra.ATE(t, "ate")
@@ -279,6 +306,7 @@ func TestBGPBenchmarking(t *testing.T) {
 	// Cleanup existing policy details.
 	dutPolicyConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).ApplyPolicy()
 	gnmi.Delete(t, dut, dutPolicyConfPath.ExportPolicy().Config())
+	gnmi.Delete(t, dut, dutPolicyConfPath.ImportPolicy().Config())
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
 
 	t.Logf("Configure MED routing policy.")

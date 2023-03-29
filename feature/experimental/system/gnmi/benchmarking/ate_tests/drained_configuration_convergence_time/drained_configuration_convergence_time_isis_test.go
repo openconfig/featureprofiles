@@ -43,7 +43,11 @@ func setISISMetric(t *testing.T, dut *ondatra.DUTDevice) {
 	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 	t.Logf("Configure ISIS metric to %v", setup.ISISMetric)
 	for _, dp := range dut.Ports() {
-		dutISISPathIntfAF := dutISISPath.Interface(dp.Name()).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		intfName := dp.Name()
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			intfName = dp.Name() + ".0"
+		}
+		dutISISPathIntfAF := dutISISPath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		gnmi.Replace(t, dut, dutISISPathIntfAF.Metric().Config(), setup.ISISMetric)
 	}
 }
