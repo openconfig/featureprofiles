@@ -89,8 +89,9 @@ def _sim_get_mgmt_ips(testbed_logs_dir):
             logger.warning("Failed to parse vxr ports file...")
             return
     mgmt_ips = {}
-    for k in vxr_ports:
-        mgmt_ips[k] = k.get("xr_mgmt_ip")
+    for dut, entry in vxr_ports.items():
+        if "xr_mgmt_ip" in entry:
+            mgmt_ips[dut] = entry["xr_mgmt_ip"]
     return mgmt_ips
 
 def _cli_to_gnmi_set_file(cli_file, gnmi_file, extra_conf=[]):
