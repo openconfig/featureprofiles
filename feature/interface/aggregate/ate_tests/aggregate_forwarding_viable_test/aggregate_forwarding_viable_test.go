@@ -411,8 +411,8 @@ func debugATEFlows(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, 
 				lossPct, a.GetCounters().GetOutPkts(), a.GetCounters().GetInPkts())
 		}
 		t.Run("Loss", func(t *testing.T) {
-			if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > float32(*deviations.TrafficLossPctTolerance) {
-				t.Fatalf("LossPct for flow %s: got %g, want %g", flow.Name(), got, float32(*deviations.TrafficLossPctTolerance))
+			if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > float32(*deviations.TrafficLossPctToleranceForViableInterface) {
+				t.Fatalf("LossPct for flow %s: got %g, want %g", flow.Name(), got, float32(*deviations.TrafficLossPctToleranceForViableInterface))
 			}
 		})
 	}
