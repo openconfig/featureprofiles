@@ -26,7 +26,7 @@ Validate gRIBI route flush during SSO
 
 *   Check for gRIBI coredumps in the DUT and validate that none are present post failover.
 
-    TODO: check for any coredumps.
+    TODO: check for any unexpected coredumps.
 
 *   Re-inject IPBlock1 in default VRF with NHGID: `1`.
 
