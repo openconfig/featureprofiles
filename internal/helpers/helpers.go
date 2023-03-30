@@ -65,7 +65,6 @@ func ValidateOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, upIntfs []s
 	upInterfaces := make(map[string]bool)
 	for _, port := range upIntfs {
 		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
-		upInterfaces[port] = true
 	}
 	watch := gnmi.Watch(t, dut, batch.State(), timeout, func(val *ygnmi.Value[*oc.Root]) bool {
 		root, present := val.Val()
