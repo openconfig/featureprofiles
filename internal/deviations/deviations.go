@@ -207,4 +207,7 @@ var (
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
+
+	TrafficLossPctTolerance = flag.Float64("deviation_traffic_tolerance_value", 0,
+		"Allowed tolerance for LossPct with traffic flow while comparing for pass or fail condition.")
 )
