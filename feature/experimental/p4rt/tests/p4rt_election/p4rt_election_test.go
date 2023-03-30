@@ -278,7 +278,7 @@ func canWrite(t *testing.T, args *testArgs) (bool, error) {
 		}
 		return false, writeErr
 	}
-	if !*deviations.P4RTMissingDelete {
+	if !deviations.P4RTMissingDelete(ondatra.DUT(t, "dut")) {
 		if writeErr = writeTableEntry(args, t, pktIO, true); writeErr != nil {
 			t.Errorf("Error deleting table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
 		}
