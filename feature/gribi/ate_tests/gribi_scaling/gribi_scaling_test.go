@@ -358,7 +358,7 @@ func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *o
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
 		}
 	}
-	gnmi.Update(t, dut, gnmi.OC().Interface(ifName).Subinterface(index).Config(), s)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Subinterface(index).Config(), s)
 }
 
 // configureL3SubifDUT configures L3 addresses on a single subinterface
