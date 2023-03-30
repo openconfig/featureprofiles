@@ -76,7 +76,6 @@ const (
 	peerv4GrpName            = "BGP-PEER-GROUP-V4"
 	peerv6GrpName            = "BGP-PEER-GROUP-V6"
 	ateDstCIDR               = "192.0.2.6/32"
-	rplPermitAll             = "PERMIT-ALL"
 )
 
 var (
@@ -168,13 +167,6 @@ func buildNbrList(asN uint32) []*bgpNeighbor {
 	return []*bgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
 }
 
-func configureRoutingPolicy(d *oc.Root) *oc.RoutingPolicy {
-	rp := d.GetOrCreateRoutingPolicy()
-	pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
-	pdef.GetOrCreateStatement("20").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	return rp
-}
-
 func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
@@ -194,16 +186,10 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 	pg := bgp.GetOrCreatePeerGroup(peerv4GrpName)
 	pg.PeerAs = ygot.Uint32(ateAS)
 	pg.PeerGroupName = ygot.String(peerv4GrpName)
-	rpl := pg.GetOrCreateApplyPolicy()
-	rpl.SetExportPolicy([]string{rplPermitAll})
-	rpl.SetImportPolicy([]string{rplPermitAll})
 
 	pgv6 := bgp.GetOrCreatePeerGroup(peerv6GrpName)
 	pgv6.PeerAs = ygot.Uint32(ateAS)
 	pgv6.PeerGroupName = ygot.String(peerv6GrpName)
-	rplv6 := pgv6.GetOrCreateApplyPolicy()
-	rplv6.SetExportPolicy([]string{rplPermitAll})
-	rplv6.SetImportPolicy([]string{rplPermitAll})
 
 	if *deviations.RoutePolicyUnderPeerGroup {
 		pg1af4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -218,7 +204,13 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
 		pg1rpl6.SetExportPolicy([]string{"ALLOW"})
 		pg1rpl6.SetImportPolicy([]string{"ALLOW"})
-
+	} else {
+		rpl := pg.GetOrCreateApplyPolicy()
+		rpl.SetExportPolicy([]string{"ALLOW"})
+		rpl.SetImportPolicy([]string{"ALLOW"})
+		rplv6 := pgv6.GetOrCreateApplyPolicy()
+		rplv6.SetExportPolicy([]string{"ALLOW"})
+		rplv6.SetImportPolicy([]string{"ALLOW"})
 	}
 
 	for _, nbr := range nbrs {
@@ -229,8 +221,10 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 			nv4.GetOrCreateTimers().KeepaliveInterval = ygot.Uint16(60)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
-			af := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af.Enabled = ygot.Bool(true)
+			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(true)
+			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(false)
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerGroup = ygot.String(peerv6GrpName)
@@ -239,8 +233,10 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
 			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af.Enabled = ygot.Bool(true)
+			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(true)
+			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(false)
 		}
 	}
 	return ni_proto
@@ -472,9 +468,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	t.Run("configureDut", func(t *testing.T) {
 		t.Log("Start DUT interface Config")
 		configureDUT(t, dut)
-		if *deviations.RoutePolicyUnderPeerGroup {
-			configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-		}
+		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	})
 
 	// Configure BGP+Neighbors on the DUT
@@ -483,8 +477,6 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 		nbrList := buildNbrList(ateAS)
 		dutConf := bgpWithNbr(dutAS, nbrList)
-		rpl := configureRoutingPolicy(&oc.Root{})
-		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	})
