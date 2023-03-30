@@ -185,7 +185,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
             baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, conf)
             baseconf_file_copy = os.path.join(testbed_logs_dir, f'baseconf_{dut}.conf')
             shutil.copyfile(baseconf_file, baseconf_file_copy)
-            topo_yaml[dut]['cvac'] = baseconf_file_copy
+            topo_yaml['devices'][dut]['cvac'] = baseconf_file_copy
 
         with open(topo_file, "w") as fp:
             fp.write(yaml.dump(topo_yaml))
