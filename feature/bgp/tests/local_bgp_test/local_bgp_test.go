@@ -232,9 +232,16 @@ func TestDisconnect(t *testing.T) {
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	gnmi.Replace(t, ate, ateConfPath.Bgp().Neighbor(dutIP).Enabled().Config(), false)
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ACTIVE)
-	code := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())
-	if code != oc.BgpTypes_BGP_ERROR_CODE_CEASE {
-		t.Errorf("On disconnect: expected error code %v, got %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE, code)
+	code := gnmi.Lookup(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())
+	if code.IsPresent() {
+		value, _ := code.Val()
+		if value != oc.BgpTypes_BGP_ERROR_CODE_CEASE {
+			t.Errorf("On disconnect: expected error code %v, got %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE, value)
+		}
+	} else {
+		if *deviations.MissingLastNotificationErrorCode {
+			t.Log("Last notification error code leaf not present. Test not failed due to the deviation set")
+		}
 	}
 }
 

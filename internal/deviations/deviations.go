@@ -70,8 +70,8 @@ import (
 )
 
 // P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
-func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
-	return *p4rtMissingDelete
+func MissingBgpLastNotificationErrorCode(_ *ondatra.DUTDevice) bool {
+	return *missingBgpLastNotificationErrorCode
 }
 
 // Vendor deviation flags.
@@ -224,4 +224,6 @@ var (
 		"Device skip isis restart-suppress check if value is true, Default value is false")
 
 	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
+
+	missingBgpLastNotificationErrorCode = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
 )
