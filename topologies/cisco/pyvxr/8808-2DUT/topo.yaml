@@ -9,7 +9,6 @@ simulation:
     pending_timeout: 30
 devices:
   dut1: 
-    cvac: $BASE_CONF_PATH
     dual_rp: true
     num_linecards: 1
     linecard_types: 
@@ -23,7 +22,6 @@ devices:
       - 57777
     xr_username: cisco
   dut2: 
-    cvac: $BASE_CONF_PATH_peer
     linecard_types: 
       - churchill
     platform: spitfire_f
