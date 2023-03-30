@@ -44,15 +44,19 @@ type testArgs struct {
 const (
 	// Destination prefix for DUT to ATE traffic.
 	//dstPfx      = "198.51.100.0/24"
-	dstPfx  = "198.51.100.0"
-	vrfA    = "VRF-A"
-	vrfB    = "VRF-B"
-	NH1ID   = 1
-	NH2ID   = 2
-	NH100ID = 100
-	NH101ID = 101
-	nhip    = "192.0.2.254"
-	mask    = "32"
+	dstPfx   = "198.51.100.0"
+	vrfA     = "VRF-A"
+	vrfB     = "VRF-B"
+	nh1ID    = 1
+	nh2ID    = 2
+	nh100ID  = 100
+	nh101ID  = 101
+	nhg1ID   = 1
+	nhg2ID   = 2
+	nhg100ID = 100
+	nhg101ID = 101
+	nhip     = "192.0.2.254"
+	mask     = "32"
 )
 
 var (
@@ -195,7 +199,7 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 				client.DeleteIPv4(t, nhip+"/"+mask, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 			},
 			removeImpairmentFn: func() {
-				client.AddIPv4(t, nhip+"/"+mask, NH1ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+				client.AddIPv4(t, nhip+"/"+mask, nhg1ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 			},
 		},
@@ -268,23 +272,23 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // groups, and prefixes for evaluating backup next hop forwarding
 // entry.
 func (a *testArgs) configureBackupNextHopGroup(t *testing.T, del bool) {
-	t.Logf("Adding NH %d with atePort2 via gRIBI", NH1ID)
-	a.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	t.Logf("Adding NH %d with atePort3 and NHGs %d, %d via gRIBI", NH2ID, NH1ID, NH2ID)
-	a.client.AddNH(t, NH2ID, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, NH1ID, map[uint64]uint64{NH1ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, NH2ID, map[uint64]uint64{NH2ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding NH %d with atePort2 via gRIBI", nh1ID)
+	a.client.AddNH(t, nh1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding NH %d with atePort3 and NHGs %d, %d via gRIBI", nh2ID, nhg1ID, nhg2ID)
+	a.client.AddNH(t, nh2ID, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhg2ID, map[uint64]uint64{nh2ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 	t.Logf("Adding an IPv4Entry for %s via gRIBI", nhip)
-	a.client.AddIPv4(t, nhip+"/"+mask, NH1ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	t.Logf("Adding NH %d in VRF-B via gRIBI", NH100ID)
-	a.client.AddNH(t, NH100ID, "NHvrf", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfB})
-	t.Logf("Adding NH %d and NHGs %d, %d via gRIBI", NH101ID, NH100ID, NH101ID)
-	a.client.AddNH(t, NH101ID, nhip, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, NH100ID, map[uint64]uint64{NH100ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, NH101ID, map[uint64]uint64{NH101ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: NH100ID})
+	a.client.AddIPv4(t, nhip+"/"+mask, nhg1ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding NH %d in VRF-B via gRIBI", nh100ID)
+	a.client.AddNH(t, nh100ID, "VRFOnly", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfB})
+	t.Logf("Adding NH %d and NHGs %d, %d via gRIBI", nh101ID, nhg100ID, nhg101ID)
+	a.client.AddNH(t, nh101ID, nhip, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhg100ID, map[uint64]uint64{nh100ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhg101ID, map[uint64]uint64{nh101ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: nhg100ID})
 	t.Logf("Adding IPv4Entries for %s for VRF-A and VRF-B via gRIBI", dstPfx)
-	a.client.AddIPv4(t, dstPfx+"/"+mask, NH101ID, vrfA, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddIPv4(t, dstPfx+"/"+mask, NH2ID, vrfB, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddIPv4(t, dstPfx+"/"+mask, nhg101ID, vrfA, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddIPv4(t, dstPfx+"/"+mask, nhg2ID, vrfB, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 }
 
@@ -323,8 +327,13 @@ func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow 
 func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName string, prefix string, ipaddress string) {
 	aftPfxNHG := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(prefix + "/" + mask).NextHopGroup()
 	aftPfxNHGVal, found := gnmi.Watch(t, a.dut, aftPfxNHG.State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
-
-		return true
+		if val.IsPresent() {
+			value, _ := val.Val()
+			if value != 0 {
+				return true
+			}
+		}
+		return false
 	}).Await(t)
 	if !found {
 		t.Fatalf("Could not find prefix %s in telemetry AFT", prefix+"/"+mask)
