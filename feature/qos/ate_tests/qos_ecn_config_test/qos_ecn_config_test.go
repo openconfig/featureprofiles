@@ -429,8 +429,6 @@ func testCiscoECNConfig(t *testing.T) {
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
-	// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-	//t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 	for _, tc := range cases {
 		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
 		scheduler := gnmi.OC().Qos().SchedulerPolicy("scheduler").Scheduler(tc.sequence)
@@ -447,9 +445,7 @@ func testCiscoECNConfig(t *testing.T) {
 		if got, want := gnmi.GetConfig(t, dut, input.Id().Config()), tc.inputID; got != want {
 			t.Errorf("input.Id().State(): got %v, want %v", got, want)
 		}
-		// if got, want := gnmi.GetConfig(t, dut, input.InputType().Config()), tc.inputType; got != want {
-		// 	t.Errorf("input.InputType().State(): got %v, want %v", got, want)
-		// }
+
 		if got, want := gnmi.GetConfig(t, dut, input.Weight().Config()), tc.weight; got != want {
 			t.Errorf("input.Weight().State(): got %v, want %v", got, want)
 		}
@@ -463,9 +459,7 @@ func testCiscoECNConfig(t *testing.T) {
 	if got, want := gnmi.GetConfig(t, dut, wredUniform.EnableEcn().Config()), ecnConfig.ecnEnabled; got != want {
 		t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
 	}
-	// if got, want := gnmi.GetConfig(t, dut, wredUniform.Drop().Config()), ecnConfig.dropEnabled; got != want {
-	// 	t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
-	// }
+
 	if got, want := gnmi.GetConfig(t, dut, wredUniform.MinThreshold().Config()), ecnConfig.minThreshold; got != want {
 		t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
 	}
@@ -475,9 +469,7 @@ func testCiscoECNConfig(t *testing.T) {
 	if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxDropProbabilityPercent().Config()), ecnConfig.maxDropProbabilityPercent; got != want {
 		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
 	}
-	// if got, want := gnmi.GetConfig(t, dut, wredUniform.Weight().Config()), ecnConfig.weight; got != want {
-	// 	t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
-	// }
+
 	for _, tc := range intcases {
 		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
 		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.queueName)
