@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "ec59d852-0828-4607-bea5-fbe2340c5414"
+plan_id: "OC-1.1"
+description: "System Configuration"
