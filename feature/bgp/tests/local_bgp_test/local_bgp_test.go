@@ -239,7 +239,7 @@ func TestDisconnect(t *testing.T) {
 			t.Errorf("On disconnect: expected error code %v, got %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE, value)
 		}
 	} else {
-		if *deviations.MissingLastNotificationErrorCode {
+		if *deviations.MissingBgpLastNotificationErrorCode {
 			t.Log("Last notification error code leaf not present. The validation result is ignored due to the deviation MissingLastNotificationErrorCode")
 		}
 	}
