@@ -207,4 +207,10 @@ var (
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
+
+	ISISMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
+		"Device skip isis multi-topology check if value is true, Default value is false")
+
+	ISISRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
+		"Device skip isis restart-suppress check if value is true, Default value is false")
 )
