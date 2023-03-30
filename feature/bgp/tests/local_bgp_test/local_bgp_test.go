@@ -240,7 +240,7 @@ func TestDisconnect(t *testing.T) {
 		}
 	} else {
 		if *deviations.MissingBgpLastNotificationErrorCode {
-			t.Log("Last notification error code leaf not present. The validation result is ignored due to the deviation MissingLastNotificationErrorCode")
+			t.Log("Last notification error code leaf not present. The validation result is ignored due to the deviation MissingBgpLastNotificationErrorCode")
 		}
 	}
 }
