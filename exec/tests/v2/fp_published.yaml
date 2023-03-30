@@ -65,9 +65,6 @@ tests:
     path: feature/gribi/ate_tests/weighted_balancing_test
     mustpass: true
     priority: 3
-    branch: "kjahed/te_3.2"
-    internal: true
-    # need pr/branch
   - name: TE-13.2 (gRIBI route DELETE during Failover)
     path: feature/experimental/gribi/ate_tests/route_removal_during_failover_test/
     mustpass: true
