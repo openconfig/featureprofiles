@@ -61,7 +61,7 @@ const (
 	authPassword          = "ISISAuthPassword"
 	advertiseBGPRoutesv4  = "203.0.113.1"
 	advertiseISISRoutesv4 = "198.18.0.0"
-	RplPermitAll          = "ALLOW"
+	setALLOWPolicy        = "ALLOW"
 )
 
 // DUTIPList, ATEIPList are lists of DUT and ATE interface ip addresses.
@@ -132,11 +132,11 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	afipg := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	afipg.Enabled = ygot.Bool(true)
 	rp := d.GetOrCreateRoutingPolicy()
-	pdef := rp.GetOrCreatePolicyDefinition(RplPermitAll)
+	pdef := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
 	pdef.GetOrCreateStatement("id-1").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rpl := pg.GetOrCreateApplyPolicy()
-	rpl.SetExportPolicy([]string{RplPermitAll})
-	rpl.SetImportPolicy([]string{RplPermitAll})
+	rpl.SetExportPolicy([]string{setALLOWPolicy})
+	rpl.SetImportPolicy([]string{setALLOWPolicy})
 
 	if *deviations.RoutePolicyUnderPeerGroup {
 		pg1 := bgp.GetOrCreatePeerGroup(PeerGrpEgressName)
