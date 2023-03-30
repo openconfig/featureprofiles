@@ -307,13 +307,15 @@ func TestIPv4Entry(t *testing.T) {
 					}
 
 					c.Start(ctx, t)
+					t.Logf("starting gribi client for a case %q", tc.desc)
 					defer c.Stop(t)
 					c.StartSending(ctx, t)
+					t.Logf("startsendinging gribi client for a case %q", tc.desc)
 					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 						t.Fatalf("Await got error during session negotiation: %v", err)
 					}
 					gribi.BecomeLeader(t, c)
-
+					t.Logf("calling gribi becomeleader %q", tc.desc)
 					if persist == usePreserve {
 						defer func() {
 							if err := gribi.FlushAll(c); err != nil {
@@ -324,10 +326,12 @@ func TestIPv4Entry(t *testing.T) {
 
 					if tc.downPort != nil {
 						ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(false).Send(t)
+						t.Logf("downing a port %q in case %q", tc.downPort.Name(), tc.desc)
 						defer ate.Actions().NewSetPortState().WithPort(tc.downPort).WithEnabled(true).Send(t)
 					}
 
 					c.Modify().AddEntry(t, tc.entries...)
+					t.Logf("gribi modify addentry in case %q", tc.desc)
 					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 						t.Fatalf("Await got error for entries: %v", err)
 					}
@@ -345,9 +349,10 @@ func TestIPv4Entry(t *testing.T) {
 					}()
 
 					for _, wantResult := range tc.wantOperationResults {
+						t.Logf("checking gribi operation results %q", tc.desc)
 						chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
 					}
-
+					t.Logf("going into validat rtaffic flows for case %q", tc.desc)
 					validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
 				})
 			}
@@ -426,19 +431,25 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []*ondatra.
 
 	flows := append(good, bad...)
 	ate.Traffic().Start(t, flows...)
+	t.Log("Traffic was started")
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
+	t.Log("Traffic was stopped")
 
 	for _, flow := range good {
+		t.Log("Iterating over good flows, trying gnmi get")
 		if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > 0 {
 			t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
 		}
+		t.Log("good gnmi get for a good flow")
 	}
 
 	for _, flow := range bad {
+		t.Log("Iterating over bad flows, trying gnmi get")
 		if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got < 100 {
 			t.Fatalf("LossPct for flow %s: got %g, want 100", flow.Name(), got)
 		}
+		t.Log("good gnmi get for a bad flow")
 	}
 }
 
