@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "7b4c9615-3892-4298-be2f-82a79dcfce9b"
+plan_id: "gNOI-3.3"
+description: "Supervisor Switchover"
