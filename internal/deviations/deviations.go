@@ -69,12 +69,14 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// P4RTMissingDelete adds deviation for device that does not support delete mode in P4RT write requests.
-func P4RTMissingDelete(dut *ondatra.DUTDevice) bool {
+// P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
+func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
 // Vendor deviation flags.
+// All new flags should not be exported (define them in lowercase) and accessed
+// from tests through a public accessors like those above.
 var (
 	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
