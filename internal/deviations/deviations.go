@@ -210,4 +210,10 @@ var (
 
 	TrafficLossPctTolerance = flag.Float64("deviation_traffic_tolerance_value", 0,
 		"Allowed tolerance for LossPct with traffic flow while comparing for pass or fail condition.")
+
+	ISISMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
+		"Device skip isis multi-topology check if value is true, Default value is false")
+
+	ISISRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
+		"Device skip isis restart-suppress check if value is true, Default value is false")
 )
