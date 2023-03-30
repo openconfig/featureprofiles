@@ -622,6 +622,9 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+    pr: 1361
+    args:
+      - '-deviation_traffic_tolerance_viable_interface_value="0.5"'
   - name: TE-1.2 (My Station MAC)
     path: feature/experimental/interface/my_station_mac/ate_tests/my_station_mac_test
     pr: 1359
