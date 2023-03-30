@@ -65,7 +65,14 @@ package deviations
 
 import (
 	"flag"
+
+	"github.com/openconfig/ondatra"
 )
+
+// P4RTMissingDelete adds deviation for device that does not support delete mode in P4RT write requests.
+func P4RTMissingDelete(dut *ondatra.DUTDevice) bool {
+	return *p4rtMissingDelete
+}
 
 // Vendor deviation flags.
 var (
@@ -203,7 +210,7 @@ var (
 
 	SchedulerInputParamsUnsupported = flag.Bool("deviation_scheduler_input_params_unsupported", false, "Device does not support scheduler input parameters")
 
-	P4RTMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
+	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
