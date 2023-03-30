@@ -60,6 +60,7 @@ const (
 	fabricType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	switchChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
+	portType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT
 )
 
 var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
@@ -91,6 +92,9 @@ func TestMain(m *testing.M) {
 func TestEthernetPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	want := portSpeed[dp.Speed()]
 	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Ethernet().PortSpeed().State())
 	t.Logf("Got %s PortSpeed from telmetry: %v, expected: %v", dp.Name(), got, want)
@@ -118,7 +122,9 @@ func TestEthernetMacAddress(t *testing.T) {
 func TestInterfaceAdminStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State())
 	t.Logf("Got %s AdminStatus from telmetry: %v", dp.Name(), adminStatus)
 	if adminStatus != adminStatusUp {
@@ -129,7 +135,9 @@ func TestInterfaceAdminStatus(t *testing.T) {
 func TestInterfaceOperStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
 	t.Logf("Got %s OperStatus from telmetry: %v", dp.Name(), operStatus)
 	if operStatus != operStatusUp {
@@ -180,7 +188,9 @@ func TestInterfaceStatusChange(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			i.Type = ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-
+			if *deviations.ExplicitPortSpeed {
+				fptest.SetPortSpeed(t, dp)
+			}
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedOperStatus)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State(), intUpdateTime, tc.expectedAdminStatus)
 			operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
@@ -202,16 +212,22 @@ func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
-	// Derive hardware port from interface name by removing the port number.
-	// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
-	i := strings.LastIndex(dp.Name(), "/")
-	want := dp.Name()[:i]
-
-	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
-	t.Logf("Got %s HardwarePort from telmetry: %v, expected: %v", dp.Name(), got, want)
-	if got != want {
-		t.Errorf("Get(DUT port1 HardwarePort): got %v, want %v", got, want)
+	// Verify HardwarePort leaf is present under interface.
+	got := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
+	val, present := got.Val()
+	if !present {
+		t.Errorf("DUT port1 %s HardwarePort leaf not found", dp.Name())
 	}
+	t.Logf("For interface %s, HardwarePort is %s", dp.Name(), val)
+
+	// Verify HardwarePort is a component of type PORT.
+	typeGot := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+	if typeGot != portType {
+		t.Errorf("HardwarePort leaf's component type got %s, want %s", typeGot, portType)
+	}
+
+	// Verify HardwarePort component has CHASSIS as an ancestor.
+	verifyChassisIsAncestor(t, dut, val)
 }
 
 func TestInterfaceCounters(t *testing.T) {
@@ -363,6 +379,32 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 	return s
 }
 
+// verifyChassisIsAncestor verifies that a given component has
+// a component of type CHASSIS as an ancestor.
+func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) {
+	visited := make(map[string]bool)
+	for curr := comp; ; {
+		if visited[curr] {
+			t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
+			break
+		}
+		visited[curr] = true
+		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
+		val, present := parent.Val()
+		if !present {
+			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
+			break
+		}
+		got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+		if got == chassisType {
+			t.Logf("Found chassis component as an ancestor of component %s", comp)
+			break
+		}
+		// Not reached chassis yet; go one level up.
+		curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
+	}
+}
+
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	componentParent := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -408,27 +450,7 @@ func TestComponentParent(t *testing.T) {
 			// Validate parent component.
 			for _, comp := range compList[tc.desc] {
 				t.Logf("Validate component %s", comp)
-				visited := make(map[string]bool)
-				for curr := comp; ; {
-					if visited[curr] {
-						t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
-						break
-					}
-					visited[curr] = true
-					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
-					val, present := parent.Val()
-					if !present {
-						t.Errorf("Chassis component NOT found in the hierarchy tree of component %s", comp)
-						break
-					}
-					got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
-					if got == chassisType {
-						t.Logf("Found chassis component in the hierarchy tree of component %s", comp)
-						break
-					}
-					// Not reached chassis yet; go one level up.
-					curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
-				}
+				verifyChassisIsAncestor(t, dut, comp)
 			}
 		})
 	}
@@ -665,7 +687,9 @@ func TestP4rtInterfaceID(t *testing.T) {
 			i.Id = ygot.Uint32(tc.portID)
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-
+			if *deviations.ExplicitPortSpeed {
+				fptest.SetPortSpeed(t, dp)
+			}
 			// Check path /interfaces/interface/state/id.
 			intfID := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Id().State())
 			intfVal, present := intfID.Val()
@@ -849,6 +873,14 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 }
 

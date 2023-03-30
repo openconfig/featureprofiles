@@ -33,7 +33,6 @@ nodes: {
     config: {
         image: "8000e:latest"
         file: "cisco.config"
-        init_image: "networkop/init-wait:latest"
     }
     services:{
         key: 22
@@ -46,7 +45,6 @@ nodes: {
         key: 9339
         value: {
             name: "gnmi"
-            outside: 9339
             inside: 57400
         }
     }
@@ -54,7 +52,6 @@ nodes: {
         key: 9340
         value: {
             name: "gribi"
-            outside: 9340
             inside: 57400
         }
     }
@@ -62,7 +59,6 @@ nodes: {
         key: 9337
         value: {
             name: "gnoi"
-            outside: 9337
             inside: 57400
         }
     }
@@ -70,7 +66,6 @@ nodes: {
         key: 9559
         value: {
             name: "p4rt"
-            outside: 9559
             inside: 57400
         }
     }

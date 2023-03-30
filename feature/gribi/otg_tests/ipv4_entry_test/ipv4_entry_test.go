@@ -47,8 +47,8 @@ const (
 	nh2ID = 44
 	// Unconfigured next-hop ID
 	badNH = 45
-	// Unconfigured static MAC address
-	badMAC         = "02:00:00:00:00:01"
+	// A destination MAC address set by gRIBI.
+	staticDstMAC   = "02:00:00:00:00:01"
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
@@ -191,6 +191,42 @@ func TestIPv4Entry(t *testing.T) {
 			},
 		},
 		{
+			desc: "Multiple next-hops with MAC override",
+			entries: []fluent.GRIBIEntry{
+				fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+					WithIndex(nh1ID).WithInterfaceRef(dut.Port(t, "port2").Name()).WithMacAddress(staticDstMAC),
+				fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+					WithIndex(nh2ID).WithInterfaceRef(dut.Port(t, "port3").Name()).WithMacAddress(staticDstMAC),
+				fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+					WithID(nhgID).AddNextHop(nh1ID, 1).AddNextHop(nh2ID, 1),
+				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
+			},
+			wantGoodFlows: []string{"ecmpFlow"},
+			wantOperationResults: []*client.OpResult{
+				fluent.OperationResult().
+					WithNextHopOperation(nh1ID).
+					WithProgrammingResult(fluent.InstalledInFIB).
+					WithOperationType(constants.Add).
+					AsResult(),
+				fluent.OperationResult().
+					WithNextHopOperation(nh2ID).
+					WithProgrammingResult(fluent.InstalledInFIB).
+					WithOperationType(constants.Add).
+					AsResult(),
+				fluent.OperationResult().
+					WithNextHopGroupOperation(nhgID).
+					WithProgrammingResult(fluent.InstalledInFIB).
+					WithOperationType(constants.Add).
+					AsResult(),
+				fluent.OperationResult().
+					WithIPv4Operation(dstPfx).
+					WithProgrammingResult(fluent.InstalledInFIB).
+					WithOperationType(constants.Add).
+					AsResult(),
+			},
+		},
+		{
 			desc: "Nonexistant next-hop",
 			entries: []fluent.GRIBIEntry{
 				fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
@@ -219,7 +255,7 @@ func TestIPv4Entry(t *testing.T) {
 			entries: []fluent.GRIBIEntry{
 				fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithIndex(nh1ID).WithIPAddress(atePort2.IPv4).
-					WithInterfaceRef(dut.Port(t, "port2").Name()).WithMacAddress(badMAC),
+					WithInterfaceRef(dut.Port(t, "port2").Name()).WithMacAddress(staticDstMAC),
 				fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 					WithID(nhgID).AddNextHop(nh1ID, 1),
 				fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
