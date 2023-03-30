@@ -119,8 +119,9 @@ var ipBlock1FlowArgs = &flowArgs{
 }
 
 // coreFileCheck function is used to check if cores are found on the DUT.
-func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64) {
+func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64, retry bool) {
 	t.Helper()
+	t.Log("Checking for core files on DUT")
 
 	// vendorCoreFilePath and vendorCoreProcName should be provided to fetch core file on dut.
 	if _, ok := vendorCoreFilePath[dut.Vendor()]; !ok {
@@ -134,6 +135,12 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 		Path: vendorCoreFilePath[dut.Vendor()],
 	}
 	validResponse, err := gnoiClient.File().Stat(context.Background(), in)
+	if err != nil {
+		if retry {
+			t.Logf("Retry GNOI request to check %v for core files on DUT", vendorCoreFilePath[dut.Vendor()])
+			validResponse, err = gnoiClient.File().Stat(context.Background(), in)
+		}
+	}
 	if err != nil {
 		t.Fatalf("Unable to stat path %v for core files on DUT, %v", vendorCoreFilePath[dut.Vendor()], err)
 	}
@@ -569,7 +576,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	virtualIPsBlock2 := createIPv4Entries(t, ipBlock2FlowArgs.ipBlock)
 
 	// Check for coredumps in the DUT and validate that none are present on DUT before switchover.
-	coreFileCheck(t, dut, gnoiClient, sysConfigTime)
+	coreFileCheck(t, dut, gnoiClient, sysConfigTime, false)
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
@@ -656,7 +663,8 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	}
 
 	// Check for coredumps in the DUT and validate that none are present post failover.
-	coreFileCheck(t, dut, gnoiClient, sysConfigTime)
+	// Set retry to true since gnoi connection may be broken after switchover.
+	coreFileCheck(t, dut, gnoiClient, sysConfigTime, true)
 
 	t.Log("Re-inject routes from ipBlock2 in default VRF with NHGID: #1.")
 	pushDefaultEntries(t, args, subIntfIPs, virtualIPsBlock2, !configNhg, !switchover)
