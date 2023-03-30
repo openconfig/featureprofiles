@@ -551,16 +551,14 @@ tests:
     path: feature/experimental/qos/ate_tests/qos_policy_config_test
     owners:
       - saarvind
-    branch: main-google-traffic
-    internal: true
+    pr: 1360
     mustpass: true
     priority: 802
   - name: DP-1.3 (QoS ECN feature config)
     path: feature/experimental/qos/ate_tests/qos_ecn_config_test
     owners:
       - saarvind
-    branch: main-google-traffic
-    internal: true
+    pr: 1363
     mustpass: true
     priority: 802
   - name: DP-1.10 (QoS policy feature config)
