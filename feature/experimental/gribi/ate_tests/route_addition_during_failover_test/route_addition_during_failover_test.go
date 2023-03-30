@@ -99,7 +99,7 @@ var (
 	vendorCoreFileNamePattern = map[ondatra.Vendor]*regexp.Regexp{
 		ondatra.JUNIPER: regexp.MustCompile("rpd.*core*"),
 		ondatra.CISCO:   regexp.MustCompile("emsd.*core.*"),
-		ondatra.NOKIA:   regexp.MustCompile("coredump-.*"),
+		ondatra.NOKIA:   regexp.MustCompile("coredump-sr_gribi_server-.*"),
 	}
 	fibProgrammedEntries []string
 )
@@ -119,8 +119,9 @@ var ipBlock1FlowArgs = &flowArgs{
 }
 
 // coreFileCheck function is used to check if cores are found on the DUT.
-func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64) {
+func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64, retry bool) {
 	t.Helper()
+	t.Log("Checking for core files on DUT")
 
 	// vendorCoreFilePath and vendorCoreProcName should be provided to fetch core file on dut.
 	if _, ok := vendorCoreFilePath[dut.Vendor()]; !ok {
@@ -134,6 +135,12 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 		Path: vendorCoreFilePath[dut.Vendor()],
 	}
 	validResponse, err := gnoiClient.File().Stat(context.Background(), in)
+	if err != nil {
+		if retry {
+			t.Logf("Retry GNOI request to check %v for core files on DUT", vendorCoreFilePath[dut.Vendor()])
+			validResponse, err = gnoiClient.File().Stat(context.Background(), in)
+		}
+	}
 	if err != nil {
 		t.Fatalf("Unable to stat path %v for core files on DUT, %v", vendorCoreFilePath[dut.Vendor()], err)
 	}
@@ -283,6 +290,12 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	}
 	configureInterfaceDUT(t, dutPort, d, "dst")
 	pushConfig(t, dut, dutPort, d)
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		intf := d.GetOrCreateInterface(dutPort.Name())
+		for i := 1; i <= nextHopCount+1; i++ {
+			fptest.AssignToNetworkInstance(t, dut, intf.GetName(), *deviations.DefaultNetworkInstance, uint32(i))
+		}
+	}
 	return nextHops
 }
 
@@ -484,6 +497,18 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	ap2 := ate.Port(t, "port2")
 	// Configure 64 subinterfaces on DUT-ATE- PORT#2.
 	subIntfIPs := generateSubIntfPair(t, dut, dp2, ate, ap2, top, d)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+	}
+
 	top.Push(t).StartProtocols(t)
 
 	sysConfigTime := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).LastChange().State())
@@ -569,7 +594,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	virtualIPsBlock2 := createIPv4Entries(t, ipBlock2FlowArgs.ipBlock)
 
 	// Check for coredumps in the DUT and validate that none are present on DUT before switchover.
-	coreFileCheck(t, dut, gnoiClient, sysConfigTime)
+	coreFileCheck(t, dut, gnoiClient, sysConfigTime, false)
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
@@ -656,7 +681,8 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	}
 
 	// Check for coredumps in the DUT and validate that none are present post failover.
-	coreFileCheck(t, dut, gnoiClient, sysConfigTime)
+	// Set retry to true since gnoi connection may be broken after switchover.
+	coreFileCheck(t, dut, gnoiClient, sysConfigTime, true)
 
 	t.Log("Re-inject routes from ipBlock2 in default VRF with NHGID: #1.")
 	pushDefaultEntries(t, args, subIntfIPs, virtualIPsBlock2, !configNhg, !switchover)
