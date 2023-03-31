@@ -30,6 +30,8 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -67,6 +69,16 @@ var (
 	dutPort3 = attrs.Attributes{
 		Desc:    "DUT Port 3",
 		IPv4:    "192.0.2.9",
+		IPv4Len: 30,
+	}
+	dutPort2DummyIP = attrs.Attributes{
+		Desc:    "DUT Port 2",
+		IPv4:    "192.0.2.21",
+		IPv4Len: 30,
+	}
+	dutPort3DummyIP = attrs.Attributes{
+		Desc:    "DUT Port 3",
+		IPv4:    "192.0.2.41",
 		IPv4Len: 30,
 	}
 
@@ -289,6 +301,28 @@ func TestIPv4Entry(t *testing.T) {
 
 			for _, tc := range cases {
 				t.Run(tc.desc, func(t *testing.T) {
+					//Creating a Static ARP entry for staticDstMAC
+					if deviations.GRIBIIpv4EntryMacOverride(ondatra.DUT(t, "dut")) && tc.desc == "Multiple next-hops with MAC override" {
+						d := gnmi.OC()
+						p2 := dut.Port(t, "port2")
+						p3 := dut.Port(t, "port3")
+						gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name()))
+						gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name()))
+						gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configStaticArp(t, p2, "192.0.2.22", staticDstMAC))
+						gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), configStaticArp(t, p3, "192.0.2.42", staticDstMAC))
+						//Programming a gRIBI flow with above IP/mac-address as the next-hop entry
+						tc.entries = []fluent.GRIBIEntry{
+							fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+								WithIndex(nh1ID).WithInterfaceRef(dut.Port(t, "port2").Name()).WithIPAddress("192.0.2.22").WithMacAddress(staticDstMAC),
+							fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+								WithIndex(nh2ID).WithInterfaceRef(dut.Port(t, "port3").Name()).WithIPAddress("192.0.2.42").WithMacAddress(staticDstMAC),
+							fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+								WithID(nhgID).AddNextHop(nh1ID, 1).AddNextHop(nh2ID, 1),
+							fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+								WithPrefix(dstPfx).WithNextHopGroup(nhgID),
+						}
+
+					}
 					// Configure the gRIBI client.
 					c := fluent.NewClient()
 					conn := c.Connection().
@@ -447,4 +481,14 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return c.Await(subctx, t)
+}
+
+func configStaticArp(t *testing.T, p *ondatra.Port, ipv4addr string, macAddr string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p.Name())}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
 }
