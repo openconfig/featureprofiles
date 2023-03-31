@@ -364,7 +364,9 @@ func TestUnsetElectionid(t *testing.T) {
 			if resp != test.wantStatus {
 				t.Fatalf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 			}
-			t.Logf("Arbitration response status code is as expected for unset ElectionId")
+			 if err != nil {
+                                t.Logf("Errors seen when sending Master Arbitration as expected for unset ElectionID: %v", err)
+                        }
 			// Verify GetForwardingPipeline for unset electionId.
 			_, err = test.handle.GetForwardingPipelineConfig(&p4_v1.GetForwardingPipelineConfigRequest{
 				DeviceId:     deviceId,
