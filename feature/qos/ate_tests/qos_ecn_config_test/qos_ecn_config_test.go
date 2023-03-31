@@ -46,8 +46,6 @@ var (
 			fn:   testQoSOutputIntfConfig,
 		},
 	}
-)
-var (
 	QoSCiscoEcnConfigTestcases = []Testcase{
 		{
 
