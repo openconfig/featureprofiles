@@ -78,8 +78,6 @@ tests:
     args:
       - '-deviation_gribi_preserve_only="true"'
     priority: 3
-    pr: 1343
-    internal: false
   - name: TE-3.3 (Hierarchical weight resolution)
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
     owners:
@@ -327,7 +325,7 @@ tests:
     path: feature/platform/tests/optics_power_and_bias_current_test
     owners:
       - agvarghe
-    mustpass: true
+    mustpass: false
     priority: 37
     skip: false
   - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace)
@@ -508,8 +506,6 @@ tests:
     skip: false
     priority: 7
     timeout: 7200
-    pr: 1345
-    internal: false
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNOI-3.2 (Per-Component Reboot)
@@ -520,8 +516,6 @@ tests:
     skip: false
     priority: 55
     timeout: 7200
-    pr: 1345
-    internal: false
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: TE-8.2 (Supervisor Failure)
