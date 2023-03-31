@@ -1763,7 +1763,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_STRICT,
 		inputID:      "b_AF4",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(48),
+		weight:       uint64(6),
 		queueName:    "b_AF4",
 		targetGrpoup: "target-group-AF4",
 	}, {
@@ -1772,7 +1772,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_STRICT,
 		inputID:      "a_NC1",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(63),
+		weight:       uint64(7),
 		queueName:    "a_NC1",
 		targetGrpoup: "target-group-NC1",
 	}}
