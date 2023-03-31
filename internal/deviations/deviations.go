@@ -65,11 +65,10 @@ package deviations
 
 import (
 	"flag"
-
 	"github.com/openconfig/ondatra"
 )
 
-// P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
+// MissingBgpLastNotificationErrorCode returns when the deviation leaf is missing in bgp.
 func MissingBgpLastNotificationErrorCode(_ *ondatra.DUTDevice) bool {
 	return *missingBgpLastNotificationErrorCode
 }
