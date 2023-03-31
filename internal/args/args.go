@@ -36,4 +36,5 @@ var (
 	SwitchChipNamePattern   = flag.String("arg_switchchip_name_pattern", "^[0-9]/[0-9]/CPU[0-9]-NPU[0-9]", "There is no component type specifically for SwitchChip components. So, we use the name pattern to find them.")
 	FanNamePattern          = flag.String("arg_fan_name_pattern", "", "This name pattern is used to filter out Fan components.")
 	FabricChipNamePattern   = flag.String("arg_fabricChip_name_pattern", "", "This name pattern is used to filter out FabricChip components.")
+	CheckInterfacesInBinding = flag.Bool("arg_check_interfaces_in_binding", true, "GNOI tests perform interface status validation based on all interfaces. This can cause flakiness in testing environments where only connectivity of interfaces in binding is guaranteed.")
 )
