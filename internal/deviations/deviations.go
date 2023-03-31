@@ -222,9 +222,9 @@ var (
 
 	ISISRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
-    
-  MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
-    
+
+	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
+
 	SubifIDZero = flag.Bool("deviation_subif_id_zero", false,
 		"Device does not support subinterface ID 0 in network-instance interface ID assignment")
 )
