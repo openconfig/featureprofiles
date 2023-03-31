@@ -65,7 +65,6 @@ package deviations
 
 import (
 	"flag"
-	
 	"github.com/openconfig/ondatra"
 )
 
