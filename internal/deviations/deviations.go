@@ -74,8 +74,8 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
-func GRIBIIpv4EntryMacOverride(_ *ondatra.DUTDevice) bool {
-	return *gribiIpv4EntryMacOverride
+func GRIBIIPv4EntryMACOverride(_ *ondatra.DUTDevice) bool {
+	return *gribiIPv4EntryMACOverride
 }
 
 // Vendor deviation flags.
@@ -229,5 +229,5 @@ var (
 
 	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
-	gribiIpv4EntryMacOverride = flag.Bool("deviation_gribi_ipv4_entry_mac_override", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+	gribiIPv4EntryMACOverride = flag.Bool("deviation_gribi_ipv4_entry_mac_override", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
 )

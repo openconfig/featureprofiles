@@ -302,7 +302,7 @@ func TestIPv4Entry(t *testing.T) {
 			for _, tc := range cases {
 				t.Run(tc.desc, func(t *testing.T) {
 					//Creating a Static ARP entry for staticDstMAC
-					if deviations.GRIBIIpv4EntryMacOverride(ondatra.DUT(t, "dut")) && tc.desc == "Multiple next-hops with MAC override" {
+					if deviations.GRIBIIPv4EntryMACOverride(ondatra.DUT(t, "dut")) && tc.desc == "Multiple next-hops with MAC override" {
 						d := gnmi.OC()
 						p2 := dut.Port(t, "port2")
 						p3 := dut.Port(t, "port3")
