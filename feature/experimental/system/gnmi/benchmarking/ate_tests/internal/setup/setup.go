@@ -148,7 +148,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 	globalISIS := isis.GetOrCreateGlobal()
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	if !*deviations.ISISGlobalAuthenticationNotRequired {
+	if !deviations.ISISGlobalAuthenticationNotRequired(dut) {
 		globalISIS.AuthenticationCheck = ygot.Bool(true)
 	}
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
@@ -164,7 +164,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
-	if !*deviations.ISISLevelAuthenticationNotRequired {
+	if !deviations.ISISLevelAuthenticationNotRequired(dut) {
 		isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
 		isisLevel2Auth.Enabled = ygot.Bool(true)
 		isisLevel2Auth.AuthPassword = ygot.String(authPassword)

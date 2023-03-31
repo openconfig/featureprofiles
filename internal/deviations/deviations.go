@@ -74,6 +74,16 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// ISISGlobalAuthenticationNotRequired returns true if ISIS Global authentication not required
+func ISISGlobalAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisGlobalAuthenticationNotRequired
+}
+
+// ISISLevelAuthenticationNotRequired returns true if ISIS Level authentication not required
+func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisLevelAuthenticationNotRequired
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -225,9 +235,9 @@ var (
 
 	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
-	ISISGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
+	isisGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
 		"Don't set isis global authentication-check on the device if value is true, Default value is false and ISIS global authentication-check is set")
 
-	ISISLevelAuthenticationNotRequired = flag.Bool("deviation_isis_level_authentication_not_required", false,
+	isisLevelAuthenticationNotRequired = flag.Bool("deviation_isis_level_authentication_not_required", false,
 		"Don't set isis level authentication on the device if value is true, Default value is false and ISIS level authentication is configured")
 )
