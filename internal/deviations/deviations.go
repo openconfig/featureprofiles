@@ -224,7 +224,6 @@ var (
 		"Device skip isis restart-suppress check if value is true, Default value is false")
 
 	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
-  	
-  SchedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "Device does not support weight above certain limit")
 
+        SchedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "Device does not support weight above certain limit")
 )
