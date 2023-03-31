@@ -88,10 +88,12 @@ var (
 	vendorCoreFilePath = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
+		ondatra.NOKIA:   "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "rpd",
 		ondatra.CISCO:   "emsd.*core.*",
+		ondatra.NOKIA:   "coredump-sr_gribi_server-.*",
 	}
 )
 
@@ -250,6 +252,12 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	}
 	configureInterfaceDUT(t, dutPort, d, "dst")
 	pushConfig(t, dut, dutPort, d)
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		intf := d.GetOrCreateInterface(dutPort.Name())
+		for i := 0; i <= nextHopCount; i++ {
+			fptest.AssignToNetworkInstance(t, dut, intf.GetName(), *deviations.DefaultNetworkInstance, uint32(i))
+		}
+	}
 	return nextHops
 }
 
@@ -458,6 +466,18 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	ap2 := ate.Port(t, "port2")
 	// Configure 64 subinterfaces on DUT-ATE- PORT#2.
 	subIntfIPs := generateSubIntfPair(t, dut, dp2, ate, ap2, top, d)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+	}
+
 	top.Push(t).StartProtocols(t)
 
 	dutPortName := dut.Port(t, "port1").Name()
