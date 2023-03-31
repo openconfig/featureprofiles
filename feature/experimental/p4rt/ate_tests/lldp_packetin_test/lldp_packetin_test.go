@@ -19,7 +19,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"sort"
 	"testing"
 	"time"
 
@@ -217,19 +216,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// sortPorts sorts the ports by the testbed port ID.
-func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
-	sort.Slice(ports, func(i, j int) bool {
-		idi, idj := ports[i].ID(), ports[j].ID()
-		li, lj := len(idi), len(idj)
-		if li == lj {
-			return idi < idj
-		}
-		return li < lj // "port2" < "port10"
-	})
-	return ports
-}
-
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
@@ -254,11 +240,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portID)}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portID + 1)}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 
 	if *deviations.ExplicitPortSpeed {
@@ -305,14 +291,6 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
 	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
-}
-
-// configurePortID configures p4rt port-id on the DUT.
-func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	ports := sortPorts(dut.Ports())
-	for i, port := range ports {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Id().Config(), uint32(i)+portID)
-	}
 }
 
 // setupP4RTClient sends client arbitration message for both leader and follower clients,
@@ -399,9 +377,8 @@ func TestPacketIn(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
-	// Configure P4RT device-id and port-id
+	// Configure P4RT device-id
 	configureDeviceID(ctx, t, dut)
-	configurePortID(ctx, t, dut)
 
 	t.Logf("Disable LLDP config")
 	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
