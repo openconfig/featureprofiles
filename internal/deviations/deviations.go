@@ -73,7 +73,7 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
-// MissingBgpLastNotificationErrorCode returns when the deviation leaf is missing in bgp.
+// MissingBgpLastNotificationErrorCode returns whether the last-notification-error-code leaf is missing in bgp.
 func MissingBgpLastNotificationErrorCode(_ *ondatra.DUTDevice) bool {
 	return *missingBgpLastNotificationErrorCode
 }
