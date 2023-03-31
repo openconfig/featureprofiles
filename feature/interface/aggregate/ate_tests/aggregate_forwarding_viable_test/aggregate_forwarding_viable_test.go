@@ -26,7 +26,9 @@
 package aggregate_forwarding_viable_test
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"testing"
@@ -38,6 +40,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -411,8 +414,8 @@ func debugATEFlows(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, 
 				lossPct, a.GetCounters().GetOutPkts(), a.GetCounters().GetInPkts())
 		}
 		t.Run("Loss", func(t *testing.T) {
-			if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > float32(*deviations.TrafficLossPctToleranceForViableInterface) {
-				t.Fatalf("LossPct for flow %s: got %g, want %g", flow.Name(), got, float32(*deviations.TrafficLossPctToleranceForViableInterface))
+			if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > 0 {
+				t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
 			}
 		})
 	}
@@ -455,6 +458,21 @@ func (tc *testArgs) verifyCounterDiff(t *testing.T, before, after []*oc.Interfac
 	t.Log(b)
 }
 
+func fetchResponses(c spb.System_PingClient) ([]*spb.PingResponse, error) {
+	pingResp := []*spb.PingResponse{}
+	for {
+		resp, err := c.Recv()
+		switch {
+		case err == io.EOF:
+			return pingResp, nil
+		case err != nil:
+			return nil, err
+		default:
+			pingResp = append(pingResp, resp)
+		}
+	}
+}
+
 // testAggregateForwardingFlow set the forwardingViable tag based on test case and returns test results of packet distribution and packet loss for each LAG type.
 // Interfaces that are not viable for forwarding should still be allowed to receive traffic, but should not be used for sending packets.
 func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable bool) {
@@ -485,6 +503,24 @@ func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable b
 		WithHeaders(headers...).
 		WithIngressTrackingByPorts(true)
 
+	// Do ping to resolve adjecency
+	pingRequest := &spb.PingRequest{
+		Destination: ateDst.IPv4,
+	}
+	t.Logf("Sent ping request: %v\n\n", pingRequest)
+	gnoiClient := tc.dut.RawAPIs().GNOI().Default(t)
+	pingClient, err := gnoiClient.System().Ping(context.Background(), pingRequest)
+	if err != nil {
+		t.Fatalf("Failed to query gnoi endpoint: %v", err)
+	}
+	responses, err := fetchResponses(pingClient)
+	if err != nil {
+		t.Fatalf("Failed to handle gnoi ping client stream: %v", err)
+	}
+	t.Logf("Got ping responses: Items: %v\n, Content: %v\n\n", len(responses), responses)
+	if len(responses) == 0 {
+		t.Errorf("Number of responses to %v: got 0, want > 0", pingRequest.Destination)
+	}
 	tc.ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
 	tc.ate.Traffic().Stop(t)
