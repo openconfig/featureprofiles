@@ -240,7 +240,7 @@ func TestDisconnect(t *testing.T) {
 		}
 	} else {
 		if deviations.MissingBgpLastNotificationErrorCode(ondatra.DUT(t, "dut")) {
-			t.Log("Last notification error code leaf not present. The validation result is ignored due to the deviation MissingBgpLastNotificationErrorCode")
+			t.Log("Last notification error code leaf not present. The validation result is ignored due to the deviation missingBgpLastNotificationErrorCode")
 		}
 	}
 }
