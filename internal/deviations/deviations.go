@@ -223,6 +223,8 @@ var (
 	ISISRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
 
+	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
+
 	ISISGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
 		"Don't set isis global authentication-check on the device if value is true, Default value is false and ISIS global authentication-check is set")
 
