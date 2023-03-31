@@ -30,8 +30,6 @@ Verify that DUT forwards AF3, AF2, AF1, BE0 and BE1 traffic based on WRR weight.
 
 *   Queue types:
 
-    *   NC1 will have strict priority queues
-        *   AF4/AF3/AF2/AF1/BE1/BE0 will use WRR queues.
     *   NC1 and AF4 will have strict priority queues with NC1 having higher
         priority.
         *   AF3, AF2, AF1, BE1 and BE0 will use WRR queues.
@@ -62,44 +60,128 @@ Verify that DUT forwards AF3, AF2, AF1, BE0 and BE1 traffic based on WRR weight.
 *   Connect DUT port-1 to ATE port-1, DUT port-2 to ATE port-2 and DUT port-3 to
     ATE port-3.
 
-*   Configure WRR for AF3, AF2, AF1, BE0 and BE1 with weight 256, 64, 16, 4 and
-    1 respectively.
+*   Configure WRR for AF3, AF2, AF1, BE0 and BE1 with weight 12, 8, 4, 1 and
+    2 respectively.
+    * AF4 weight is set to 48 but is irrelevant as this queue is scheduled as Strict Priority
+    * NC1 weight is set to 63 but is irrelevant as this queue is scheduled as Strict Priority
+    * SUM of WRR rates is <100 (27) what prevent some vendor form rounding weight down and losing accuracy
+    * Highest weight value is 63 what prevent some vendor form scaling weight down and losing accuracy
 
-*   AF3 vs AF2 traffic test
+*   Non-oversubscription traffic test cases
+      *  Test Case 1
 
-    *   Non-oversubscription traffic test case
-
-    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    Traffic class | Interface1 offered load (line rate %) | Interface2  offered load (line rate %) | Rx from interface1(%) | Rx from interface2(%)
     ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
     AF3           | 40                      | 40                      | 100                   | 100
     AF2           | 10                      | 10                      | 100                   | 100
 
-    *   Oversubscription traffic test case 1
+    *  Test Case 2
+
+    Traffic class | Interface1 offered load (line rate %) | Interface2 offered load (line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    AF2           | 40                      | 40                      | 100                   | 100
+    AF1           | 10                      | 10                      | 100                   | 100
+
+    *  Test Case 3
+
+    Traffic class | Interface1 offered load (line rate %) | Interface2 offered load (line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    AF1           | 40                      | 40                      | 100                   | 100
+    BE0           | 10                      | 10                      | 100                   | 100
+
+   *  Test Case 4
+
+    Traffic class | Interface1 offered load (line rate %) | Interface2 offered load (line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    BE0           | 40                      | 40                      | 100                   | 100
+    BE1           | 10                      | 10                      | 100                   | 100
+
+
+
+*   Oversubscription traffic test cases
+    * Test case 5
 
     Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
     ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
     AF3           | 80                      | 80                      | 50                    | 50
     AF2           | 10                      | 10                      | 100                   | 100
 
-    *   Oversubscription traffic test case 2
+    *  Test case 6
 
     Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
     ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
-    AF3           | 40                      | 40                      | 100                   | 100
-    AF2           | 20                      | 20                      | 50                    | 50
+    AF3           | 40                      | 40                      | 75                    | 75
+    AF2           | 20                      | 20                      | 100                   | 100
 
-    *   Oversubscription traffic test case 3
+    *  Test case 7
 
     Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
     ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
-    AF3           | 50                      | 50                      | 80                    | 80
-    AF2           | 50                      | 50                      | 20                    | 20
+    AF3           | 50                      | 50                      | 60                    | 60
+    AF2           | 50                      | 50                      | 40                    | 40
 
-*   Repeat the above 3 oversubscription test cases between traffic classes
+   *  Test case 8
 
-    *   AF2 vs AF1
-    *   AF1 vs BE1
-    *   BE1 vs BE0
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    AF2           | 80                      | 80                      | 50                    | 50
+    AF1           | 10                      | 10                      | 100                   | 100
+
+   *  Test case 9
+
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    AF2           | 40                      | 40                      | 83.33                 | 83.33
+    AF1           | 20                      | 20                      | 83.33                 | 83.33
+
+   *  Test case 10
+
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    AF2           | 50                      | 50                      | 66.67                 | 66.67
+    AF1           | 50                      | 50                      | 33.33                 | 33.33
+
+   *  Test case 11
+
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    AF1           | 80                      | 80                      | 50                    | 50
+    BE0           | 10                      | 10                      | 100                   | 100
+
+   *  Test case 12
+
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    AF1           | 40                      | 40                      | 100                   | 100
+    BE0           | 20                      | 20                      | 50                    | 50
+
+   *  Test case 13
+
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    AF1           | 50                      | 50                      | 80                    | 80 
+    BE0           | 50                      | 50                      | 50                    | 50
+
+   *  Test case 14
+
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    BE0           | 80                      | 80                      | 50                    | 50 
+    BE1           | 10                      | 10                      | 100                    | 100 
+
+   *  Test case 15
+
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    BE0           | 40                      | 40                      | 75                    | 75 
+    BE1           | 20                      | 20                      | 100                   | 100
+
+   *  Test case 16
+
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
+    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+    BE0           | 50                      | 50                      | 33.33                 | 33.33 
+    BE1           | 50                      | 50                      | 66.67                 | 66.67
 
 ## Config parameter coverage
 
@@ -145,3 +227,4 @@ Verify that DUT forwards AF3, AF2, AF1, BE0 and BE1 traffic based on WRR weight.
 *   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
 *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
 *   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
+
