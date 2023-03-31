@@ -23,10 +23,13 @@ tests:
     path: feature/gribi/ate_tests/ipv4_entry_test
     args:
       - '-deviation_gribi_preserve_only="true"'
+      - '-deviation_gribi_ipv4_entry_mac_override="true"'
     owners:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 1373
+    internal: false
   - name: TE-4.1 (Base Leader Election)
     path: feature/gribi/ate_tests/base_leader_election_test
     owners:
