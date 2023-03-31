@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -17,10 +16,10 @@ import (
 
 // testcase carries parsed rundata from different sources to be fixed and checked.
 type testcase struct {
-	pkg      string        // Package used in the test code.
-	markdown *mpb.Metadata // From the README.md.
-	existing *mpb.Metadata // From existing source code.
-	fixed    *mpb.Metadata // Fixed rundata to write back, populated by fix().
+	markdown   *mpb.Metadata // From the README.md.
+	existing   *mpb.Metadata // From existing source code.
+	deprecated bool          // Whether a deprecated rundata_test.go file was found.
+	fixed      *mpb.Metadata // Fixed rundata to write back, populated by fix().
 }
 
 // read reads the markdown and existing rundata from the test directory.
@@ -28,20 +27,16 @@ func (tc *testcase) read(testdir string) error {
 	if err := readFile(filepath.Join(testdir, "README.md"), tc.readMarkdown); err != nil {
 		return fmt.Errorf("could not parse README.md: %w", err)
 	}
-	testpaths, err := filepath.Glob(filepath.Join(testdir, "*_test.go"))
-	if err != nil {
-		return fmt.Errorf("could not glob: %w", err)
-	}
-	for _, testpath := range testpaths {
-		if err := readFile(testpath, tc.readPackage); err != nil {
-			return fmt.Errorf("could not detect test package: %w", err)
-		}
-		if tc.pkg != "" {
-			break
-		}
-	}
-	if err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.readCode); err != nil && !os.IsNotExist(err) {
+	switch err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.readCode); {
+	case err == nil:
+		tc.deprecated = true
+	case os.IsNotExist(err):
+		// This is desired.
+	default:
 		return fmt.Errorf("could not parse rundata_test.go: %w", err)
+	}
+	if err := readFile(filepath.Join(testdir, "metadata.textproto"), tc.readProto); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("could not parse metadata.textproto: %w", err)
 	}
 	return nil
 }
@@ -56,43 +51,34 @@ func readFile(filename string, fn func(io.Reader) error) error {
 }
 
 func (tc *testcase) readMarkdown(r io.Reader) error {
-	pd, err := parseMarkdown(r)
+	md, err := parseMarkdown(r)
 	if err != nil {
 		return err
 	}
-	tc.markdown = pd
-	return nil
-}
-
-func (tc *testcase) readPackage(r io.Reader) error {
-	const pkg = "package"
-	sc := bufio.NewScanner(r)
-	for sc.Scan() {
-		line := sc.Text()
-		if !strings.HasPrefix(line, pkg) {
-			continue
-		}
-		parts := strings.Fields(line)
-		if len(parts) >= 2 && parts[0] == pkg {
-			tc.pkg = parts[1]
-			break
-		}
-	}
-	if err := sc.Err(); err != nil {
-		return err
-	}
-	if tc.pkg == "" {
-		return errors.New("missing test package name")
-	}
+	tc.markdown = md
 	return nil
 }
 
 func (tc *testcase) readCode(r io.Reader) error {
-	pd, err := parseCode(r)
+	md, err := parseCode(r)
 	if err != nil {
 		return err
 	}
-	tc.existing = pd
+	tc.existing = md
+	return nil
+}
+
+func (tc *testcase) readProto(r io.Reader) error {
+	md, err := parseProto(r)
+	if err != nil {
+		return err
+	}
+	// TODO(greg-dennis): Remove when no longer reading rundata_test.go.
+	if tc.existing == nil {
+		tc.existing = md
+	} else {
+		proto.Merge(tc.existing, md)
+	}
 	return nil
 }
 
@@ -108,6 +94,9 @@ func (tc *testcase) check() []error {
 	}
 	if tc.markdown == nil {
 		errs = append(errs, errors.New("existing markdown is missing"))
+	}
+	if tc.deprecated {
+		errs = append(errs, errors.New("deprecated rundata_test.go file found"))
 	}
 
 	if tc.markdown != nil && tc.existing != nil {
@@ -174,22 +163,19 @@ var errNoop = errors.New("already up to date")
 
 // write commits the fixed rundata to the filesystem.
 func (tc *testcase) write(testdir string) error {
-	if tc.pkg == "" {
-		return errors.New("missing test package name")
-	}
 	if tc.fixed == nil {
 		return errors.New("test case was not fixed")
 	}
-	if proto.Equal(tc.existing, tc.fixed) {
+	if !tc.deprecated && proto.Equal(tc.existing, tc.fixed) {
 		return errNoop
 	}
 
 	w := &strings.Builder{}
-	if err := writeCode(w, tc.fixed, tc.pkg); err != nil {
+	if err := writeProto(w, tc.fixed); err != nil {
 		return fmt.Errorf("could not generate the rundata: %w", err)
 	}
 
-	out, err := os.CreateTemp(testdir, "rundata_test.go.*")
+	out, err := os.CreateTemp(testdir, "metadata.textproto.*")
 	if err != nil {
 		return fmt.Errorf("could not create: %w", err)
 	}
@@ -198,6 +184,13 @@ func (tc *testcase) write(testdir string) error {
 		return fmt.Errorf("could not write: %w", err)
 	}
 
-	source := filepath.Join(testdir, "rundata_test.go")
-	return os.Rename(out.Name(), source)
+	source := filepath.Join(testdir, "metadata.textproto")
+	if err := os.Rename(out.Name(), source); err != nil {
+		return fmt.Errorf("could not rename: %w", err)
+	}
+
+	if err := os.Remove(filepath.Join(testdir, "rundata_test.go")); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("could not remove: %w", err)
+	}
+	return nil
 }
