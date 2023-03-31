@@ -17,9 +17,9 @@ package fptest
 import (
 	"context"
 	"fmt"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
