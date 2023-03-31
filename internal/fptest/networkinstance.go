@@ -17,6 +17,7 @@ package fptest
 import (
 	"context"
 	"fmt"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"testing"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -40,7 +41,11 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 	}
 	netInstIntf.Interface = ygot.String(intf.GetName())
 	netInstIntf.Subinterface = ygot.Uint32(si)
-	netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
+	if si == 0 && *deviations.SubifIDZero {
+		netInstIntf.Id = ygot.String(intf.GetName())
+	} else {
+		netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
+	}
 	if intf.GetOrCreateSubinterface(si) != nil {
 		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
 	}
