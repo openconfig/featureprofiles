@@ -1,46 +1,47 @@
 name: "ixia-c"
 nodes: {
-  name: "ate"
-  type: IXIA_TG
-  version: "0.0.1-9999"
-  services: {
-    key: 40051
-    value: {
-      name: "grpc"
-      inside: 40051
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999"
+    services: {
+        key: 40051
+        value: {
+            name: "grpc"
+            inside: 40051
+        }
     }
-  }
-  services: {
-    key: 50051
-    value: {
-      name: "gnmi"
-      inside: 50051
+    services: {
+        key: 50051
+        value: {
+            name: "gnmi"
+            inside: 50051
+        }
     }
-  }
 }
 nodes: {
-  name: "dut"
-  type: ARISTA_CEOS
-  config: {
-    image: "ceos:latest"
-    init_image: "us-west1-docker.pkg.dev/gep-kne/kne/networkop/init-wait:ga"
-    config_path: "/mnt/flash"
-    config_file: "startup-config"
-    file: "arista_ceos.config"
-    cert: {
-      self_signed: {
-        cert_name: "gnmiCert.pem"
-        key_name: "gnmiCertKey.pem"
-        key_size: 4096
-      }
+    name: "dut"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        image: "ceos:latest"
+        init_image: "us-west1-docker.pkg.dev/gep-kne/kne/networkop/init-wait:ga"
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        file: "arista_ceos.config"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem",
+                key_name: "gnmiCertKey.pem",
+                key_size: 4096,
+            }
+        }
     }
-  }
   services: {
     key: 22
     value: {
       name: "ssh"
       inside: 22
-      outside: 22
     }
   }
   services: {
@@ -48,7 +49,6 @@ nodes: {
     value: {
       name: "gnmi"
       inside: 6030
-      outside: 6030
     }
   }
   services: {
@@ -56,19 +56,18 @@ nodes: {
     value: {
       name: "gribi"
       inside: 6040
-      outside: 6040
     }
   }
 }
 links: {
-  a_node: "ate"
-  a_int: "eth1"
-  z_node: "dut"
-  z_int: "eth1"
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "dut"
+    z_int: "eth1"
 }
 links: {
-  a_node: "dut"
-  a_int: "eth2"
-  z_node: "ate"
-  z_int: "eth2"
+    a_node: "dut"
+    a_int: "eth2"
+    z_node: "otg"
+    z_int: "eth2"
 }

@@ -26,6 +26,7 @@ require (
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yuin/goldmark v1.4.13
+	go.uber.org/atomic v1.9.0
 	golang.org/x/crypto v0.1.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
@@ -97,7 +98,6 @@ require (
 	github.com/srl-labs/srlinux-scrapli v0.5.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
-	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/exp v0.0.0-20221106115401-f9659909a136 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect
