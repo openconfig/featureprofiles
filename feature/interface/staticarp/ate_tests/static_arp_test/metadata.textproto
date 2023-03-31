@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8b86a8fd-3d9d-47a4-b607-79a3acd496ee"
+plan_id: "TE-1.1"
+description: "Static ARP"
