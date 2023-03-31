@@ -59,8 +59,6 @@ var (
 			fn:   testQoSOutputIntfConfig,
 		},
 	}
-)
-var (
 	QoSConfigQosTestcases = []Testcase{
 
 		{
