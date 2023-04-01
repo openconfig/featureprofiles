@@ -22,33 +22,33 @@ const (
 	ipv6PrefixLen   = 126
 	mask            = "32"
 	outerDstIP1     = "198.51.100.1"
-	outerSrcIP1     = "199.51.100.1"
-	outerDstIP2     = "111.111.111.111"
-	outerSrcIP2     = "222.222.222.222"
-	innerDstIP1     = "98.51.100.1"
-	innerSrcIP1     = "99.51.100.1"
-	VIP1            = "100.1.1.1"
-	VIP2            = "101.1.1.1"
-	vrf1            = "VRF-A"
-	vrf2            = "VRF-B"
-	vrf3            = "VRF-C"
-	NH1ID           = 1
-	NHG1ID          = 1
-	NH2ID           = 2
-	NHG2ID          = 2
-	NH100ID         = 100
-	NHG100ID        = 100
-	NH101ID         = 101
-	NHG101ID        = 101
-	NH102ID         = 102
-	NHG102ID        = 102
-	NH103ID         = 103
-	NHG103ID        = 103
-	NH104ID         = 104
-	NHG104ID        = 104
-	baseFlowFilter  = "454" // last seven bits of src and first eight bits of dst
-	encapFlowFilter = "24175"
-	decapFlowFliter = "354"
+	outerSrcIP1     = "198.51.100.2"
+	outerDstIP2     = "203.0.113.1"
+	outerSrcIP2     = "203.0.113.2"
+	innerDstIP1     = "198.18.0.1"
+	innerSrcIP1     = "198.18.0.255"
+	vip1            = "100.1.1.1"
+	vip2            = "101.1.1.1"
+	vrfA            = "VRF-A"
+	vrfB            = "VRF-B"
+	vrfC            = "VRF-C"
+	nh1ID           = 1
+	nhg1ID          = 1
+	nh2ID           = 2
+	nhg2ID          = 2
+	nh100ID         = 100
+	nhg100ID        = 100
+	nh101ID         = 101
+	nhg101ID        = 101
+	nh102ID         = 102
+	nhg102ID        = 102
+	nh103ID         = 103
+	nhg103ID        = 103
+	nh104ID         = 104
+	nhg104ID        = 104
+	baseFlowFilter  = "710" // decimal value of last seven bits of src and first eight bits of dst
+	encapFlowFilter = "715"
+	decapFlowFliter = "32710"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -161,29 +161,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 // configureDUT configures port1, port2, port3, port4 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
+	for p, dp := range dutPorts {
+		p1 := dut.Port(t, p)
+		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dp.NewOCInterface(p1.Name()))
 
-	p1 := dut.Port(t, "port1")
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
-
-	p2 := dut.Port(t, "port2")
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
-
-	p3 := dut.Port(t, "port3")
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
-
-	p4 := dut.Port(t, "port4")
-	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name()))
-
-	if *deviations.ExplicitPortSpeed {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
-		fptest.SetPortSpeed(t, p3)
-		fptest.SetPortSpeed(t, p4)
-	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p4.Name(), *deviations.DefaultNetworkInstance, 0)
+		if *deviations.ExplicitPortSpeed {
+			fptest.SetPortSpeed(t, p1)
+		}
+		if *deviations.ExplicitInterfaceInDefaultVRF && p != "port1" {
+			fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		}
 	}
 
 }
@@ -195,19 +182,17 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	static := s.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	ipv4Nh := static.GetOrCreateStatic(innerDstIP1 + "/" + mask).GetOrCreateNextHop("0")
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort4.IPv4)
-	ipv4Nh := static.GetOrCreateStatic(innerdstPfx + "/" + mask).GetOrCreateNextHop("0")
-	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort3.IPv4)
 	gnmi.Update(t, dut, d.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
-// configureNetworkInstance configures vrfs vrf1,vrf2,vrf3 and adds port1 to  vrf1
+// configureNetworkInstance configures vrfs vrfA,vrfB,vrfC and adds port1 to  vrfA
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	c := &oc.Root{}
-	vrfs := []string{vrf1, vrf2, vrf3}
+	vrfs := []string{vrfA, vrfB, vrfC}
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		if vrf == vrf1 {
+		if vrf == vrfA {
 			p1 := dut.Port(t, "port1")
 			niIntf := ni.GetOrCreateInterface(p1.Name())
 			niIntf.Subinterface = ygot.Uint32(0)
@@ -216,22 +201,9 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
 	if *deviations.ExplicitGRIBIUnderNetworkInstance {
-		for _, vrf := range []string{vrf1, vrf2, vrf3, *deviations.DefaultNetworkInstance} {
+		for _, vrf := range []string{vrfA, vrfB, vrfC, *deviations.DefaultNetworkInstance} {
 			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
 		}
-	}
-
-	ni := c.GetOrCreateNetworkInstance(vrfName)
-	ni.Description = ygot.String("Non Default routing instance created for testing")
-	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	p1 := dut.Port(t, "port1")
-	niIntf := ni.GetOrCreateInterface(p1.Name())
-	niIntf.Subinterface = ygot.Uint32(0)
-	niIntf.Interface = ygot.String(p1.Name())
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), ni)
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfName)
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
 	}
 }
 
@@ -268,12 +240,12 @@ func TestBackupNHGAction(t *testing.T) {
 	}{
 		{
 			name: "testBackupDecap",
-			desc: "Usecase3 with 2 NHOP Groups - Backup Pointing to Decap",
+			desc: "Usecase with 2 NHOP Groups - Backup Pointing to Decap",
 			fn:   testBackupDecap,
 		},
 		{
 			name: "testDecapEncap",
-			desc: "Usecase3 with 3 NHOP Groups - Redirect pointing to back up DecapEncap and its Backup Pointing to Decap",
+			desc: "Usecase with 3 NHOP Groups - Redirect pointing to back up DecapEncap and its Backup Pointing to Decap",
 			fn:   testDecapEncap,
 		},
 	}
@@ -310,27 +282,27 @@ func TestBackupNHGAction(t *testing.T) {
 // TE11.3 - case 1: next-hop viability triggers decap in backup NHG.
 func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
-	t.Logf("Adding VIP %v/32 with NHG %d NH %d and  atePort2 via gRIBI", VIP1, NHG1ID, NH1ID)
-	args.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddNHG(t, NHG1ID, map[uint64]uint64{NH1ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddIPv4(t, VIP1+"/"+mask, NHG1ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding VIP %v/32 with NHG %d NH %d and  atePort2 via gRIBI", vip1, nhg1ID, nh1ID)
+	args.client.AddNH(t, nh1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddIPv4(t, vip1+"/"+mask, nhg1ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Adding NHG %d with NH %d as decap and DEFAULT vrf lookup via gRIBI", NHG100ID, NH100ID)
-	args.client.AddNH(t, NH100ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: *deviations.DefaultNetworkInstance})
-	args.client.AddNHG(t, NHG100ID, map[uint64]uint64{NH100ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding NHG %d with NH %d as decap and DEFAULT vrf lookup via gRIBI", nhg100ID, nh100ID)
+	args.client.AddNH(t, nh100ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: *deviations.DefaultNetworkInstance})
+	args.client.AddNHG(t, nhg100ID, map[uint64]uint64{nh100ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Adding NHG %d NH %d and  NH as %v  and backup NHG %d via gRIBI", NHG101ID, NH101ID, VIP1, NHG100ID)
-	args.client.AddNH(t, NH101ID, VIP1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddNHG(t, NHG101ID, map[uint64]uint64{NH101ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: NHG100ID})
+	t.Logf("Adding NHG %d NH %d and  NH as %v  and backup NHG %d via gRIBI", nhg101ID, nh101ID, vip1, nhg100ID)
+	args.client.AddNH(t, nh101ID, vip1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhg101ID, map[uint64]uint64{nh101ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: nhg100ID})
 
-	t.Logf("Adding an IPv4Entry for %s in VRF %s with primary atePort2, backup as Decap via gRIBI", outerDstIP1, vrf1)
-	args.client.AddIPv4(t, outerDstIP1+"/"+mask, NHG101ID, vrf1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding an IPv4Entry for %s in VRF %s with primary atePort2, backup as Decap via gRIBI", outerDstIP1, vrfA)
+	args.client.AddIPv4(t, outerDstIP1+"/"+mask, nhg101ID, vrfA, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Create flows with dst %s", outerDstIP1)
+	t.Logf("Create flows with dst %s for each path", outerDstIP1)
 	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow", &atePort2)
 	decapFlow := createFlow(t, args.ate, args.top, "DecapFlow", &atePort4)
 	t.Run("ValidatePrimaryPath", func(t *testing.T) {
-		t.Log("Validate primary path traffic passes through Port2")
+		t.Log("Validate primary path traffic recieved ate port2 and no traffic on decap flow/port4")
 		validateTrafficFlows(t, args.ate, []*ondatra.Flow{baseFlow}, []*ondatra.Flow{decapFlow}, baseFlowFilter)
 	})
 	t.Log("Shutdown Port2")
@@ -346,7 +318,7 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Errorf("Get(DUT port2 oper status): got %v, want %v", operStatus, want)
 	}
 	t.Run("ValidateDecapPath", func(t *testing.T) {
-		t.Log("Validate traffic passes through ATE port4 after decap")
+		t.Log("Validate Decap traffic recieved port 4 and no traffic on primary flow/port 2")
 		validateTrafficFlows(t, args.ate, []*ondatra.Flow{decapFlow}, []*ondatra.Flow{baseFlow}, decapFlowFliter)
 	})
 }
@@ -354,44 +326,44 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 // TE11.3 - case 2: new tunnel viability triggers decap in the backup NHG.
 func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 
-	t.Logf("Adding VIP %v/32 with NHG %d NH %d and  atePort2 via gRIBI", VIP1, NHG1ID, NH1ID)
-	args.client.AddNH(t, NH1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddNHG(t, NHG1ID, map[uint64]uint64{NH1ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddIPv4(t, VIP1+"/"+mask, NHG1ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding VIP1 %v/32 with NHG %d NH %d and  atePort2 via gRIBI", vip1, nhg1ID, nh1ID)
+	args.client.AddNH(t, nh1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddIPv4(t, vip1+"/"+mask, nhg1ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Adding VIP %v/32 with NHG %d , NH %d and  atePort3 via gRIBI", VIP2, NHG2ID, NH2ID)
-	args.client.AddNH(t, NH2ID, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddNHG(t, NHG2ID, map[uint64]uint64{NH2ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddIPv4(t, VIP2+"/"+mask, NHG2ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding VIP2 %v/32 with NHG %d , NH %d and  atePort3 via gRIBI", vip2, nhg2ID, nh2ID)
+	args.client.AddNH(t, nh2ID, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhg2ID, map[uint64]uint64{nh2ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddIPv4(t, vip2+"/"+mask, nhg2ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Adding NHG %d with NH %d as decap and DEFAULT vrf lookup via gRIBI", NHG100ID, NH100ID)
-	args.client.AddNH(t, NH100ID, "Vrf", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrf2})
-	args.client.AddNHG(t, NHG100ID, map[uint64]uint64{NH100ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding NHG %d with NH %d as redirect to vrfB via gRIBI", nhg100ID, nh100ID)
+	args.client.AddNH(t, nh100ID, "Vrf", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfB})
+	args.client.AddNHG(t, nhg100ID, map[uint64]uint64{nh100ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Adding NHG %d NH %d with  %v  and backup NHG %d via gRIBI", NHG101ID, NH101ID, VIP1, NHG100ID)
-	args.client.AddNH(t, NH101ID, VIP1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddNHG(t, NHG101ID, map[uint64]uint64{NH101ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: NHG100ID})
+	t.Logf("Adding NHG %d NH %d with  %v  and backup NHG %d via gRIBI", nhg101ID, nh101ID, vip1, nhg100ID)
+	args.client.AddNH(t, nh101ID, vip1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhg101ID, map[uint64]uint64{nh101ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: nhg100ID})
 
-	t.Logf("Adding an IPv4Entry for %s in VRF %s with primary VIP1, backup as VRF %s  via gRIBI", outerDstIP1, vrf1, vrf2)
-	args.client.AddIPv4(t, outerDstIP1+"/"+mask, NHG101ID, vrf1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding an IPv4Entry for %s in VRF %s with primary VIP1, backup as VRF %s  via gRIBI", outerDstIP1, vrfA, vrfB)
+	args.client.AddIPv4(t, outerDstIP1+"/"+mask, nhg101ID, vrfA, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Adding NHG %d with NH %d as decap and DEFAULT vrf lookup via gRIBI", NHG103ID, NH103ID)
-	args.client.AddNH(t, NH103ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: *deviations.DefaultNetworkInstance})
-	args.client.AddNHG(t, NHG103ID, map[uint64]uint64{NH103ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding NHG %d with NH %d as decap and DEFAULT vrf lookup via gRIBI", nhg103ID, nh103ID)
+	args.client.AddNH(t, nh103ID, "Decap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: *deviations.DefaultNetworkInstance})
+	args.client.AddNHG(t, nhg103ID, map[uint64]uint64{nh103ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Adding NHG %d NH %d and  NH as decap and encap with destination vrf as %v and backup NHG %d via gRIBI", NHG102ID, NH102ID, vrf3, NHG103ID)
-	args.client.AddNH(t, NH102ID, "DecapEncap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{Src: outerSrcIP2, Dest: outerDstIP2, VrfName: vrf3})
-	args.client.AddNHG(t, NHG102ID, map[uint64]uint64{NH102ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: NHG103ID})
+	t.Logf("Adding NHG %d NH %d and  NH as %v  and backup NHG %d via gRIBI", nhg104ID, nh104ID, vip2, nhg103ID)
+	args.client.AddNH(t, nh104ID, vip2, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhg104ID, map[uint64]uint64{nh104ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: nhg103ID})
 
-	t.Logf("Adding an IPv4Entry for %s in vrf %s with decap and encap destiantion  in  %s via gRIBI", outerDstIP1, vrf2, vrf3)
-	args.client.AddIPv4(t, outerDstIP1+"/"+mask, NHG102ID, vrf2, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding an IPv4Entry for %s in vrf %s with NHG %d via gRIBI", outerDstIP2, vrfC, nhg104ID)
+	args.client.AddIPv4(t, outerDstIP2+"/"+mask, nhg104ID, vrfC, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
-	t.Logf("Adding NHG %d NH %d and  NH as %v  and backup NHG %d via gRIBI", NHG104ID, NH104ID, VIP2, NHG103ID)
-	args.client.AddNH(t, NH104ID, VIP2, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	args.client.AddNHG(t, NHG104ID, map[uint64]uint64{NH104ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: NHG103ID})
+	t.Logf("Adding NHG %d NH %d and  NH as decap and encap with destination vrf as %v and backup NHG %d via gRIBI", nhg102ID, nh102ID, vrfC, nhg103ID)
+	args.client.AddNH(t, nh102ID, "DecapEncap", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{Src: outerSrcIP2, Dest: outerDstIP2, VrfName: vrfC})
+	args.client.AddNHG(t, nhg102ID, map[uint64]uint64{nh102ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: nhg103ID})
 
-	t.Logf("Adding an IPv4Entry for %s in vrf %s with NHG %d via gRIBI", outerDstIP2, vrf3, NHG104ID)
-	args.client.AddIPv4(t, outerDstIP2+"/"+mask, NHG104ID, vrf3, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Logf("Adding an IPv4Entry for %s in vrf %s with decap and encap destiantion  in  %s via gRIBI", outerDstIP1, vrfB, vrfC)
+	args.client.AddIPv4(t, outerDstIP1+"/"+mask, nhg102ID, vrfB, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	p2 := args.dut.Port(t, "port2")
 	t.Log("Capture port2 status if Up")
@@ -407,7 +379,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	decapFLow := createFlow(t, args.ate, args.top, "DecapFlow", &atePort4)
 
 	t.Run("ValidatePrimaryPath", func(t *testing.T) {
-		t.Logf("Validate Primary path traffic passes through port2")
+		t.Logf("Validate Primary path traffic recieved on port 2 and no traffic on other flows/ate ports")
 		validateTrafficFlows(t, args.ate, []*ondatra.Flow{baseFlow}, []*ondatra.Flow{encapFLow, decapFLow}, baseFlowFilter)
 	})
 
@@ -423,7 +395,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Errorf("Get(DUT port2 oper status): got %v, want %v", operStatus, want)
 	}
 	t.Run("ValidateDecapEncapPath", func(t *testing.T) {
-		t.Log("Validate traffic passes through port3 with encap header")
+		t.Log("Validate traffic with encap header recieved on port 3 and no traffic on other flows/ate ports")
 		validateTrafficFlows(t, args.ate, []*ondatra.Flow{encapFLow}, []*ondatra.Flow{baseFlow, decapFLow}, encapFlowFilter)
 	})
 	t.Log("Shutdown Port3")
@@ -439,7 +411,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Errorf("Get(DUT port3 oper status): got %v, want %v", operStatus, want)
 	}
 	t.Run("ValidateDecapPath", func(t *testing.T) {
-		t.Log("Validate traffic passes through port4 with decap and inner header lookup")
+		t.Log("Validate traffic after decap is recieved on port4 and no traffic on other flows/ate ports")
 		validateTrafficFlows(t, args.ate, []*ondatra.Flow{decapFLow}, []*ondatra.Flow{baseFlow, encapFLow}, decapFlowFliter)
 	})
 }

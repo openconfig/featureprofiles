@@ -92,7 +92,7 @@ Different test scenarios requires different setups.
 
     *   Shutdown DUT port-3 interface, and validate that ATE port-4 receives the
         traffic with decapsulated traffic with destination IP as `InnerDstIP_1`
-        at ATE port-3.
+        at ATE port-4.
 
 ## Config Parameter coverage
 
