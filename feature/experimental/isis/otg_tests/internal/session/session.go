@@ -111,18 +111,36 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	prot.Enabled = ygot.Bool(true)
+	if !*deviations.ISISprotocolEnabledNotRequired {
+		prot.Enabled = ygot.Bool(true)
+	}
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
-	glob.Instance = ygot.String(ISISName)
+	if !*deviations.ISISInstanceEnabledNotRequired {
+		glob.Instance = ygot.String(ISISName)
+	}
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if *deviations.IsisAfMetricStyleWideLevelRequired {
+		level := isis.GetOrCreateLevel(2)
+		level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	}
 	intf := isis.GetOrCreateInterface(ifaceName)
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
-	intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+	// Configure ISIS level at global mode if true else at interface mode
+	if *deviations.ISISInterfaceLevel1DisableRequired {
+		intf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+	} else {
+		intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+	}
 	glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
+	// Configure ISIS enable flag at interface level
+	if *deviations.MissingIsisInterfaceAfiSafiEnable {
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	}
 }
 
 // addISISTopo configures basic IS-IS on an ATETopology interface.
@@ -143,7 +161,8 @@ func addISISTopo(dev gosnappi.Device, areaAddress, sysID string) {
 		SetEthName(dev.Ethernets().Items()[0].Name()).
 		SetName("devIsisInt").
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
-		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2)
+		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
+		SetMetric(10)
 
 	devIsisInt.Advanced().
 		SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
