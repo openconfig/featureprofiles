@@ -14,6 +14,7 @@ import (
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/povsister/scp"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -73,8 +74,8 @@ func TestSoftwareUpgrade(t *testing.T) {
 		}
 
 		dut := ondatra.DUT(t, d.dut)
-		preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
-		t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
+		preUpgradeCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+		t.Logf("DUT components status pre upgrade: %v", preUpgradeCompStatus)
 
 		if result, err := sendCLI(t, dut, installCmd); err == nil {
 			if !strings.Contains(result, "has started") {
@@ -116,18 +117,22 @@ func TestSoftwareUpgrade(t *testing.T) {
 		startComp := time.Now()
 		t.Logf("Wait for all the components on DUT to come up")
 
+		var postUpgradeCompStatus []oc.E_PlatformTypes_COMPONENT_OPER_STATUS
 		for {
-			postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
-
-			if len(preRebootCompStatus) == len(postRebootCompStatus) {
-				t.Logf("All components on the DUT are in responsive state")
-				time.Sleep(10 * time.Second)
-				break
-			}
-
-			if time.Since(startComp).Seconds() > compWaitTimeout.Seconds() {
-				t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
-				t.Fatalf("All the components are not in responsive state post reboot")
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				postUpgradeCompStatus = gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+			}); errMsg != nil {
+				t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+			} else {
+				if len(preUpgradeCompStatus) == len(postUpgradeCompStatus) {
+					t.Logf("All components on the DUT are in responsive state")
+					break
+				}
+				if time.Since(startComp).Seconds() > compWaitTimeout.Seconds() {
+					t.Logf("DUT components status post uprade: %v", postUpgradeCompStatus)
+					t.Fatalf("All the components are not in responsive state post upgrade")
+				}
+				t.Logf("Not all components on DUT are in responsive state, keep polling...: %v", postUpgradeCompStatus)
 			}
 			time.Sleep(10 * time.Second)
 		}
