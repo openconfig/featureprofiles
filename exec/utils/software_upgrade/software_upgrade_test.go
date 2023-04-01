@@ -75,7 +75,6 @@ func TestSoftwareUpgrade(t *testing.T) {
 
 		dut := ondatra.DUT(t, d.dut)
 		preUpgradeCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
-		t.Logf("DUT components status pre upgrade: %v", preUpgradeCompStatus)
 
 		if result, err := sendCLI(t, dut, installCmd); err == nil {
 			if !strings.Contains(result, "has started") {
@@ -132,7 +131,7 @@ func TestSoftwareUpgrade(t *testing.T) {
 					t.Logf("DUT components status post uprade: %v", postUpgradeCompStatus)
 					t.Fatalf("All the components are not in responsive state post upgrade")
 				}
-				t.Logf("Not all components on DUT are in responsive state, keep polling...: %v", postUpgradeCompStatus)
+				t.Logf("Not all components on DUT are in responsive state, keep polling...")
 			}
 			time.Sleep(10 * time.Second)
 		}
