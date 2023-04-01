@@ -10,6 +10,7 @@ import (
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -277,6 +278,11 @@ func canWrite(t *testing.T, args *testArgs) (bool, error) {
 		}
 		return false, writeErr
 	}
+	if !deviations.P4RTMissingDelete(ondatra.DUT(t, "dut")) {
+		if writeErr = writeTableEntry(args, t, pktIO, true); writeErr != nil {
+			t.Errorf("Error deleting table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
+		}
+	}
 	return true, nil
 }
 
@@ -311,6 +317,8 @@ func validateRWResp(t *testing.T, args *testArgs) bool {
 func removeClient(handle *p4rt_client.P4RTClient) {
 	handle.StreamChannelDestroy(&streamName)
 	handle.ServerDisconnect()
+	// Give some time for the client to disconnect
+	time.Sleep(2 * time.Second)
 }
 
 // Test client with unset electionId

@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "35e47706-04ec-44b2-a184-d1f274fb3182"
+plan_id: "P4RT-3.2"
+description: "Google Discovery Protocol: PacketOut"
