@@ -413,7 +413,7 @@ func flapinterface(t *testing.T, ate *ondatra.ATEDevice, port string, action boo
 
 func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string) {
 	// check prefix and get NHG ID
-	aftPfxNHG := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix).NextHopGroup()
+	aftPfxNHG := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).NextHopGroup()
 	aftPfxNHGVal, found := gnmi.Watch(t, dut, aftPfxNHG.State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		return val.IsPresent()
 	}).Await(t)
