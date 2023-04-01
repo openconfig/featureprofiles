@@ -617,7 +617,6 @@ tests:
     pr: 1361
   - name: TE-1.2 (My Station MAC)
     path: feature/experimental/interface/my_station_mac/ate_tests/my_station_mac_test
-    pr: 1359
     args:
       - '-deviation_mac_address_missing="true"'
     owners:
