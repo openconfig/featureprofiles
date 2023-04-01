@@ -47,11 +47,17 @@ func showRunningConfig(t *testing.T, dut *ondatra.DUTDevice) string {
 	return runningConfig
 }
 
+// testQoSWithCLIAndOCUpdates carries out a mixed-origin test for a QoS test case.
+//
+// TODO: If a truly permanent example of a mutual dependency between CLI and OC
+// exists that must be modelled partially in CLI even as OC modelling continues
+// to mature, then consider changing this test to that instead.
 func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase testCase, subtreeReplace bool) {
 	qosPath := gnmi.OC().Qos()
 
-	t.Logf("Step 1: Make sure QoS queue under test is not already set.")
-	// Make sure the current config does not contain new data already.
+	t.Logf("Step 1: Delete and make sure QoS queue under test is not already set.")
+	gnmi.Delete(t, dut, qosPath.Queue(tCase.queueName).Config())
+	// Make sure the test queue does not exist.
 	if existingQueue := gnmi.LookupConfig(t, dut, qosPath.Queue(tCase.queueName).Config()); existingQueue.IsPresent() {
 		t.Fatalf("Detected an existing %v queue. This is unexpected.", tCase.queueName)
 	}
@@ -69,6 +75,7 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 	}
 	t.Logf("gnmi.Replace on root response: %+v", result.RawResponse)
 
+	t.Logf("Step 4: Construct and send mixed-origin SetRequest")
 	// Create OC addition to the config.
 	qos := r.GetOrCreateQos()
 	qos.GetOrCreateQueue(tCase.queueName)
@@ -82,7 +89,6 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
 	}
 
-	t.Logf("Step 4: Send mixed-origin SetRequest")
 	mixedQuery := &gnmi.SetBatch{}
 	if subtreeReplace {
 		gnmi.BatchReplace(mixedQuery, qosPath.Config(), qos)
@@ -135,15 +141,15 @@ func getTestcase(t *testing.T, dut *ondatra.DUTDevice) testCase {
 	// TODO: additional vendor CLI to be added if and when necessary for compatibility with the OC QoS configuration.
 	switch vendor := dut.Vendor(); vendor {
 	case ondatra.ARISTA:
-		cliConfig = `qos traffic-class 0 name target-group-BE0
-qos tx-queue 0 name BE0`
+		cliConfig = `qos traffic-class 0 name target-group-TEST
+qos tx-queue 0 name TEST`
 	default:
 		t.Skipf("Unsupported vendor device: %v", vendor)
 	}
 
 	return testCase{
 		cliConfig:        cliConfig,
-		queueName:        "BE0",
-		forwardGroupName: "target-group-BE0",
+		queueName:        "TEST",
+		forwardGroupName: "target-group-TEST",
 	}
 }

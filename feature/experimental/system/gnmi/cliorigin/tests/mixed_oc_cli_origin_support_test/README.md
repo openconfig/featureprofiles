@@ -7,7 +7,8 @@ same `SetRequest`, with OC config as a `replace` operation and the CLI as an
 `update` operation. Note that this implies stale CLI config may remain after the
 `SetRequest` operation.
 
-e.g. QoS
+The configuration used in this test is a QoS configuration wherein the
+OpenConfig configuration depends on the CLI configuration:
 
 ```textproto
 SetRequest:
@@ -27,20 +28,27 @@ update:  {
     origin:  "cli"
   }
   val:  {
-    ascii_val:  "qos traffic-class 0 name target-group-BE0\nqos tx-queue 0 name BE0"
+    ascii_val:  "qos traffic-class 0 name target-group-TEST\nqos tx-queue 0 name TEST"
   }
 }
 ```
 
 ## Procedure
 
-1.  Make sure QoS queue under test is not already set.
-2.  Retrieve current OpenConfig and CLI configs.
+1.  Delete the queue in OpenConfig in case it is still there, and check that it
+    is no longer present.
+2.  Retrieve currently-running OpenConfig and CLI configs.
 3.  Validate that device can accept root replace of current OC config without
     any changes.
-4.  Send mixed-origin SetRequest.
-5.  Verify QoS queue configuration has been accepted by the target.
-6.  Repeat steps 1-5, but replacing on the `/qos` path instead of at root level.
+4.  Construct and send mixed-origin SetRequest.
+    1.  CLI configuration consists of the above example, where a name is given
+        to a traffic class and a queue.
+    2.  Modify currently-running OpenConfig to create the queue and traffic
+        classes as per named via CLI, and map the queue to the traffic class.
+5.  Verify QoS queue and traffic class configuration has been accepted by the
+    target.
+6.  Repeat above steps, but replacing on the `/qos` path instead of at root
+    level.
 
 ## Config Parameter Coverage
 
