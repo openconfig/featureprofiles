@@ -74,6 +74,7 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// GRIBIIPv4EntryMACOverride returns whether for a gRIBI IPv4 route the device does not support a mac-address only next-hop-entry.
 func GRIBIIPv4EntryMACOverride(_ *ondatra.DUTDevice) bool {
 	return *gribiIPv4EntryMACOverride
 }
