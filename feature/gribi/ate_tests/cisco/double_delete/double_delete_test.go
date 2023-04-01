@@ -18,23 +18,23 @@ import (
 	"context"
 	//"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
-	"strconv"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
+	gnps "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	gnps "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 )
 
@@ -92,7 +92,7 @@ type testArgs struct {
 	dut    *ondatra.DUTDevice
 	ate    *ondatra.ATEDevice
 	top    *ondatra.ATETopology
-	rpfo 	bool
+	rpfo   bool
 }
 
 func testDeleteIpv4NHGNH(ctx context.Context, t *testing.T, args *testArgs) {
@@ -126,7 +126,7 @@ func testDeleteIpv4NHGNH(ctx context.Context, t *testing.T, args *testArgs) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	for s:=0;s<4;s++ {
+	for s := 0; s < 4; s++ {
 
 		args.client.DeleteIPv4Batch(t, prefixes, 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 100, 101, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -137,7 +137,7 @@ func testDeleteIpv4NHGNH(ctx context.Context, t *testing.T, args *testArgs) {
 		if *ciscoFlags.GRIBITrafficCheck {
 			args.validateTrafficFlows(t, args.allFlows(t), true, []string{bundleEther121, bundleEther127})
 		}
-		
+
 		//Non-existing
 		args.client.DeleteIPv4Batch(t, prefixes, 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 100, 101, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -193,8 +193,8 @@ func testDeleteIpv4(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
-	
-	for s:=0;s<4;s++ {
+
+	for s := 0; s < 4; s++ {
 
 		args.client.DeleteIPv4Batch(t, prefixes, 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4Batch(t, prefixes, 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -238,7 +238,7 @@ func testDeleteNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
-	
+
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
 	}
@@ -247,7 +247,7 @@ func testDeleteNHG(ctx context.Context, t *testing.T, args *testArgs) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	for s:=0;s<4;s++ {
+	for s := 0; s < 4; s++ {
 
 		args.client.DeleteIPv4Batch(t, prefixes, 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 100, 101, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -255,10 +255,10 @@ func testDeleteNHG(ctx context.Context, t *testing.T, args *testArgs) {
 		if *ciscoFlags.GRIBITrafficCheck {
 			args.validateTrafficFlows(t, args.allFlows(t), true, []string{bundleEther121, bundleEther127})
 		}
-		
+
 		//Non-existing
 		args.client.DeleteNHG(t, 100, 101, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		
+
 		//Random non-existing
 		args.client.DeleteNHG(t, 111, 121, map[uint64]uint64{111: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 111, 121, map[uint64]uint64{111: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -289,7 +289,6 @@ func testDeleteNH(ctx context.Context, t *testing.T, args *testArgs) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
 	}
@@ -298,7 +297,7 @@ func testDeleteNH(ctx context.Context, t *testing.T, args *testArgs) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	for s:=0;s<4;s++ {
+	for s := 0; s < 4; s++ {
 
 		args.client.DeleteIPv4Batch(t, prefixes, 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 100, 101, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -312,9 +311,9 @@ func testDeleteNH(ctx context.Context, t *testing.T, args *testArgs) {
 		if *ciscoFlags.GRIBITrafficCheck {
 			args.validateTrafficFlows(t, args.allFlows(t), true, []string{bundleEther121, bundleEther127})
 		}
-		
+
 		//Random non-existing
-		
+
 		args.client.DeleteNH(t, 111, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther127, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 121, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 111, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther127, false, ciscoFlags.GRIBIChecks)
@@ -353,7 +352,7 @@ func testwithBackup(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
-	
+
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
 	}
@@ -362,7 +361,7 @@ func testwithBackup(ctx context.Context, t *testing.T, args *testArgs) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
 	//Delete  twice
-	for s:=0;s<4;s++ {
+	for s := 0; s < 4; s++ {
 
 		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -380,7 +379,7 @@ func testwithBackup(ctx context.Context, t *testing.T, args *testArgs) {
 		args.client.DeleteNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1, "192.0.2.40/32", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 2, "192.0.2.42/32", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		
+
 		args.client.DeleteNHG(t, 1000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
@@ -426,7 +425,6 @@ func testwithBackupDelete(ctx context.Context, t *testing.T, args *testArgs) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
 
-	
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
 	}
@@ -437,25 +435,25 @@ func testwithBackupDelete(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//Delete  twice
 
-		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-		//Reprogram
-		args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	//Reprogram
+	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	for s:=0;s<4;s++ {
-	
+	for s := 0; s < 4; s++ {
+
 		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		//Delete NHG, NH	
-		
+		//Delete NHG, NH
+
 		args.client.DeleteNHG(t, 1, 2, map[uint64]uint64{1: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1, "192.0.2.40/32", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
@@ -465,7 +463,7 @@ func testwithBackupDelete(ctx context.Context, t *testing.T, args *testArgs) {
 
 		args.client.DeleteNH(t, 1, "192.0.2.40/32", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 2, "192.0.2.42/32", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		
+
 		args.client.DeleteNHG(t, 1000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
@@ -495,7 +493,7 @@ func testwithDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 1000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks,  &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+	args.client.AddNH(t, 1000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
 	args.client.AddNHG(t, 1000, 2000, map[uint64]uint64{1000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	prefixes := []string{}
@@ -516,9 +514,9 @@ func testwithDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	for s:=0;s<4;s++ {
+	for s := 0; s < 4; s++ {
 
-	//Delete  twice
+		//Delete  twice
 		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 1000, 2000, map[uint64]uint64{1000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -529,7 +527,6 @@ func testwithDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 		args.client.DeleteNHG(t, 3000, 0, map[uint64]uint64{3000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 3000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 
-		
 		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 1000, 2000, map[uint64]uint64{1000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -538,7 +535,7 @@ func testwithDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 		args.client.DeleteNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 3000, 0, map[uint64]uint64{3000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 3000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
-		
+
 	}
 }
 
@@ -556,7 +553,7 @@ func testwithDecapEncapDelete(ctx context.Context, t *testing.T, args *testArgs)
 	args.client.AddNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 1000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks,  &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+	args.client.AddNH(t, 1000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
 	args.client.AddNHG(t, 1000, 2000, map[uint64]uint64{1000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	prefixes := []string{}
@@ -568,7 +565,7 @@ func testwithDecapEncapDelete(ctx context.Context, t *testing.T, args *testArgs)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
-	
+
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
 	}
@@ -579,17 +576,17 @@ func testwithDecapEncapDelete(ctx context.Context, t *testing.T, args *testArgs)
 
 	//Delete  twice
 
-		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		
-		//Reprogram
+	args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-		args.client.AddIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.AddIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	//Reprogram
 
-	for s:=0;s<4;s++ {
+	args.client.AddIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	for s := 0; s < 4; s++ {
 
 		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -607,7 +604,7 @@ func testwithDecapEncapDelete(ctx context.Context, t *testing.T, args *testArgs)
 		args.client.DeleteNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 3000, 0, map[uint64]uint64{3000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 3000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
-	
+
 	}
 }
 
@@ -628,7 +625,7 @@ func testwithDecapEncapvrf(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 1000, "DecapEncapvrf", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks,  &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+	args.client.AddNH(t, 1000, "DecapEncapvrf", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
 	args.client.AddNHG(t, 1000, 2000, map[uint64]uint64{1000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	prefixes := []string{}
@@ -637,11 +634,10 @@ func testwithDecapEncapvrf(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	args.client.AddIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
-	
+
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
 	}
@@ -651,7 +647,7 @@ func testwithDecapEncapvrf(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	//Delete  twice
-	for s:=0;s<4;s++ {
+	for s := 0; s < 4; s++ {
 
 		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -662,7 +658,6 @@ func testwithDecapEncapvrf(ctx context.Context, t *testing.T, args *testArgs) {
 		args.client.DeleteNHG(t, 3000, 0, map[uint64]uint64{3000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 3000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 
-		
 		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 1000, 2000, map[uint64]uint64{1000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -671,7 +666,7 @@ func testwithDecapEncapvrf(ctx context.Context, t *testing.T, args *testArgs) {
 		args.client.DeleteNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 3000, 0, map[uint64]uint64{3000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 3000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
-	
+
 	}
 }
 
@@ -689,7 +684,7 @@ func testwithDecapEncapvrfDelete(ctx context.Context, t *testing.T, args *testAr
 	args.client.AddNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 1000, "DecapEncapvrf", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks,  &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+	args.client.AddNH(t, 1000, "DecapEncapvrf", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
 	args.client.AddNHG(t, 1000, 2000, map[uint64]uint64{1000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	prefixes := []string{}
@@ -711,17 +706,17 @@ func testwithDecapEncapvrfDelete(ctx context.Context, t *testing.T, args *testAr
 	}
 	//Delete  twice
 
-		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		
-		//Reprogram
-		args.client.AddIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.AddIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	for s:=0;s<4;s++ {
-	
+	//Reprogram
+	args.client.AddIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	for s := 0; s < 4; s++ {
+
 		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
@@ -731,15 +726,14 @@ func testwithDecapEncapvrfDelete(ctx context.Context, t *testing.T, args *testAr
 		args.client.DeleteNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 3000, 0, map[uint64]uint64{3000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 3000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
-		
-		
+
 		args.client.DeleteNHG(t, 1000, 2000, map[uint64]uint64{1000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 2000, 0, map[uint64]uint64{2000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNHG(t, 3000, 0, map[uint64]uint64{3000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 3000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
-	
+
 	}
 }
 
@@ -765,7 +759,6 @@ func testwithBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
 	}
@@ -775,7 +768,7 @@ func testwithBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	//Delete  twice
-	for s:=0;s<4;s++ {
+	for s := 0; s < 4; s++ {
 
 		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -816,7 +809,6 @@ func testwithBackupDecapDelete(ctx context.Context, t *testing.T, args *testArgs
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
 	}
@@ -829,11 +821,11 @@ func testwithBackupDecapDelete(ctx context.Context, t *testing.T, args *testArgs
 
 	args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		
+
 	args.client.AddIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	for s:=0;s<4;s++ {
-	
+	for s := 0; s < 4; s++ {
+
 		//Reprogram
 		args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -856,7 +848,7 @@ func testwithScale(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Program scale gribi entries ~17K NH, 500 NHG/NH decapencap, 1K NHG, 1K default prefixes, 60K vrf prefixes verify traffic and delete")
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
-	time.Sleep(10*time.Second)
+	time.Sleep(10 * time.Second)
 	dut := ondatra.DUT(t, "dut")
 	dstPfxx := "198.51.100.1"
 
@@ -872,7 +864,6 @@ func testwithScale(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(1))
 
-
 	for j = 1; j < 64; j++ {
 		nhg.AddNextHop(j, uint64(64))
 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -883,21 +874,21 @@ func testwithScale(ctx context.Context, t *testing.T, args *testArgs) {
 
 	for i = 2; i <= 499; i++ {
 		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID((i))
-	 	for j=0; j< 34; j++ {
+		for j = 0; j < 34; j++ {
 			NHEntry = NHEntry.WithIPAddress(atePort4.IPv4).WithIndex(uint64(200 + nh))
 			args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
-			nhg.AddNextHop(uint64(200 + nh), uint64(10))
+			nhg.AddNextHop(uint64(200+nh), uint64(10))
 			args.client.Fluent(t).Modify().AddEntry(t, nhg)
 			nh++
-	 	}
+		}
 	}
 
 	dstPfx3 := "198.101.1.1"
 	prefixes := []string{}
-	for s:= 0; s < 499; s++ {
+	for s := 0; s < 499; s++ {
 		prefixes = append(prefixes, util.GetIPPrefix(dstPfx3, s, mask))
 	}
-	
+
 	for _, prefix := range prefixes {
 		ipv4Entry := fluent.IPv4Entry().
 			WithNetworkInstance("DEFAULT").
@@ -907,37 +898,37 @@ func testwithScale(ctx context.Context, t *testing.T, args *testArgs) {
 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 	}
 
- 	var prefix string
- 	k, l:= 1, 1
- 	for j=1;j<31; j++ {
+	var prefix string
+	k, l := 1, 1
+	for j = 1; j < 31; j++ {
 		count := 0
- 		for i=1;i<499;i++ {
+		for i = 1; i < 499; i++ {
 			prefix = util.GetIPPrefix(dstPfxx, k, "32")
 			ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("TE").
-			WithPrefix(prefix).
-			WithNextHopGroup(uint64(2 + count)).
-			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-		
+				WithNetworkInstance("TE").
+				WithPrefix(prefix).
+				WithNextHopGroup(uint64(2 + count)).
+				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+
 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 			ipv4Entry1 := fluent.IPv4Entry().
-			WithNetworkInstance("TE2").
-			WithPrefix(prefix).
-			WithNextHopGroup(uint64(2 + count)).
-			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-			
+				WithNetworkInstance("TE2").
+				WithPrefix(prefix).
+				WithNextHopGroup(uint64(2 + count)).
+				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+
 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry1)
 			ipv4Entry2 := fluent.IPv4Entry().
-			WithNetworkInstance("TE3").
-			WithPrefix(prefix).
-			WithNextHopGroup(uint64(2 + count)).
-			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+				WithNetworkInstance("TE3").
+				WithPrefix(prefix).
+				WithNextHopGroup(uint64(2 + count)).
+				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry2)
 			ipv4Entry3 := fluent.IPv4Entry().
-			WithNetworkInstance("DEFAULT").
-			WithPrefix(prefix).
-			WithNextHopGroup(uint64(2 + count)).
-			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+				WithNetworkInstance("DEFAULT").
+				WithPrefix(prefix).
+				WithNextHopGroup(uint64(2 + count)).
+				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry3)
 			count++
 			k++
@@ -959,7 +950,7 @@ func testwithScale(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	NHEntry = fluent.NextHopEntry()
 
- 	for i = 20000; i < 20499; i++ {
+	for i = 20000; i < 20499; i++ {
 		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID((i))
 		NHEntry = NHEntry.WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithIndex(i)
 		NHEntry = NHEntry.WithDecapsulateHeader(fluent.IPinIP)
@@ -968,13 +959,13 @@ func testwithScale(ctx context.Context, t *testing.T, args *testArgs) {
 		args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 		nhg.AddNextHop(i, uint64(10))
 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
- 	}
+	}
 	prefixess := []string{}
 	dstPfx2 := "198.100.1.1"
 	for i := 0; i < 499; i++ {
 		prefixess = append(prefixess, util.GetIPPrefix(dstPfx2, i, mask))
 	}
-	count :=0
+	count := 0
 	for _, prefix := range prefixess {
 		ipv4Entry := fluent.IPv4Entry().
 			WithNetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).
@@ -987,57 +978,52 @@ func testwithScale(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	args.client.AddNH(t, 30000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther125, false, ciscoFlags.GRIBIChecks)
-	
+
 	args.client.AddNHG(t, 30000, 0, map[uint64]uint64{30000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "10.1.0.1/32", 30000, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: dstPfx3, Scalenum: 255}), false, []string{bundleEther123, bundleEther124})
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.101.2.1", Scalenum: 243}), false, []string{bundleEther123, bundleEther124})
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.51.100.1", Scalenum: 243}), false, []string{bundleEther123})
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: dstPfx3, Scalenum: 255}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.101.2.1", Scalenum: 243}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
 
-		
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.51.100.1", Scalenum: 243}), false, []string{bundleEther123})
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123})
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: dstPfx2, Scalenum: 255}), false, []string{bundleEther125})
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.100.2.1", Scalenum: 243}), false, []string{bundleEther125})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther120})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther120})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: dstPfx2, Scalenum: 255}), false, []string{bundleEther125}, &TGNoptions{Ifname: bundleEther120})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.100.2.1", Scalenum: 243}), false, []string{bundleEther125}, &TGNoptions{Ifname: bundleEther120})
 
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther121})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther121})
 
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.51.100.1", Scalenum: 243}), false, []string{bundleEther123})
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123})
-
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort3.IPv4, DstIP: "198.51.100.1", Scalenum: 243}), false, []string{bundleEther123})
-		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort3.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
 
 	}
 
-	
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	
 
 		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: dstPfx3, Scalenum: 255}), false, []string{bundleEther123, bundleEther124})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.101.2.1", Scalenum: 243}), false, []string{bundleEther123, bundleEther124})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.51.100.1", Scalenum: 243}), false, []string{bundleEther123})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: dstPfx3, Scalenum: 255}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.101.2.1", Scalenum: 243}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
 
-			
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.51.100.1", Scalenum: 243}), false, []string{bundleEther123})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: dstPfx2, Scalenum: 255}), false, []string{bundleEther125})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.100.2.1", Scalenum: 243}), false, []string{bundleEther125})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther120})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther120})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: dstPfx2, Scalenum: 255}), false, []string{bundleEther125}, &TGNoptions{Ifname: bundleEther120})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.100.2.1", Scalenum: 243}), false, []string{bundleEther125}, &TGNoptions{Ifname: bundleEther120})
 
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther121})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther121})
 
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.51.100.1", Scalenum: 243}), false, []string{bundleEther123})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
+			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
 
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort3.IPv4, DstIP: "198.51.100.1", Scalenum: 243}), false, []string{bundleEther123})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort3.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123})
 		}
-	}	
-		
+	}
+
 	prefixes1 := []string{}
 
 	for i := 0; i < 1000; i++ {
@@ -1050,7 +1036,7 @@ func testwithScale(ctx context.Context, t *testing.T, args *testArgs) {
 		prefixes3 = append(prefixes3, util.GetIPPrefix("198.52.101.0", i, mask))
 	}
 
-	for s:=0;s<4;s++ {
+	for s := 0; s < 4; s++ {
 		for _, prefix := range prefixes1 {
 			ipv4Entry := fluent.IPv4Entry().WithPrefix(prefix).WithNetworkInstance("DEFAULT")
 			args.client.Fluent(t).Modify().DeleteEntry(t, ipv4Entry)
@@ -1104,7 +1090,7 @@ func testwithStatic(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Program static route entries, and then through gribi, verify traffic, delete gribi entries")
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
-	time.Sleep(10*time.Second)
+	time.Sleep(10 * time.Second)
 
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.40/32 Bundle-Ether126 192.0.2.26")
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.42/32 Bundle-Ether126 192.0.2.26")
@@ -1136,13 +1122,13 @@ func testwithStatic(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	
+
 		if *ciscoFlags.GRIBITrafficCheck {
 			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
 		}
 	}
 
-	for s:=0;s<4;s++ {
+	for s := 0; s < 4; s++ {
 
 		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -1160,7 +1146,7 @@ func testwithStatic(ctx context.Context, t *testing.T, args *testArgs) {
 		args.client.DeleteNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1, "192.0.2.40/32", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 2, "192.0.2.42/32", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		
+
 		args.client.DeleteNHG(t, 1000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
@@ -1208,7 +1194,7 @@ func testwithStaticremove(ctx context.Context, t *testing.T, args *testArgs) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
-	
+
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
 	}
@@ -1217,7 +1203,7 @@ func testwithStaticremove(ctx context.Context, t *testing.T, args *testArgs) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
 
-	for s:=0;s<4;s++ {
+	for s := 0; s < 4; s++ {
 
 		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -1235,7 +1221,7 @@ func testwithStaticremove(ctx context.Context, t *testing.T, args *testArgs) {
 		args.client.DeleteNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1, "192.0.2.40/32", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 2, "192.0.2.42/32", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		
+
 		args.client.DeleteNHG(t, 1000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
@@ -1376,11 +1362,11 @@ func TestDoubleDelete(t *testing.T) {
 			rpfo: false,
 		},
 		{
-		 	name: "Double delete test16",
-		 	desc: "Delete ipv4, nhg, nh",
-		 	fn:   testDeleteIpv4NHGNH,
+			name: "Double delete test16",
+			desc: "Delete ipv4, nhg, nh",
+			fn:   testDeleteIpv4NHGNH,
 			rpfo: true,
-		 }, 
+		},
 		{
 			name: "Double delete test20",
 			desc: "Delete ipv4, nhg, nh",
@@ -1423,17 +1409,20 @@ func TestDoubleDelete(t *testing.T) {
 			fn:   testwithStaticremove,
 			rpfo: true,
 		},
-
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
+			fibcheck := *ciscoFlags.GRIBIFIBCheck
+			if tt.name == "Double_delete_test14" {
+				fibcheck = false
+			}
 
-			// Configure the gRIBI client 
+			// Configure the gRIBI client
 			client := gribi.Client{
 				DUT:                   dut,
-				FibACK:                *ciscoFlags.GRIBIFIBCheck,
+				FibACK:                fibcheck,
 				Persistence:           true,
 				InitialElectionIDLow:  10,
 				InitialElectionIDHigh: 0,
@@ -1448,7 +1437,7 @@ func TestDoubleDelete(t *testing.T) {
 				dut:    dut,
 				ate:    ate,
 				top:    top,
-				rpfo: 	tt.rpfo,
+				rpfo:   tt.rpfo,
 			}
 			tt.fn(ctx, t, args)
 		})

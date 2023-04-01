@@ -24,11 +24,13 @@ import (
 )
 
 type TGNoptions struct {
-	SrcIP	string
-	DstIP	string
-	SrcIf string
+	SrcIP    string
+	DstIP    string
+	SrcIf    string
 	Scalenum int
+	Ifname   string
 }
+
 // configureATE configures port1, port2 and port3 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	top := ate.Topology().New()
@@ -174,9 +176,9 @@ func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEn
 	hdr := ondatra.NewIPv4Header()
 	if len(opts) != 0 {
 		for _, opt := range opts {
-				hdr.WithSrcAddress(opt.SrcIP).DstAddressRange().WithMin(opt.DstIP).WithCount(uint32(opt.Scalenum)).WithStep("0.0.0.1")
-			}
-		} else {
+			hdr.WithSrcAddress(opt.SrcIP).DstAddressRange().WithMin(opt.DstIP).WithCount(uint32(opt.Scalenum)).WithStep("0.0.0.1")
+		}
+	} else {
 		hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
 	}
 
@@ -197,6 +199,7 @@ func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEn
 
 // allFlows designs all the flows needed for the backup testing
 func (a *testArgs) allFlows(t *testing.T, opts ...*TGNoptions) []*ondatra.Flow {
+
 	srcEndPoint := a.top.Interfaces()[atePort1.Name]
 	if len(opts) != 0 {
 		for _, opt := range opts {
@@ -204,7 +207,7 @@ func (a *testArgs) allFlows(t *testing.T, opts ...*TGNoptions) []*ondatra.Flow {
 				srcEndPoint = a.top.Interfaces()[opt.SrcIf]
 			}
 		}
-	} 
+	}
 	dstEndPoint := []ondatra.Endpoint{}
 	if len(opts) != 0 {
 		for _, opt := range opts {
@@ -225,12 +228,11 @@ func (a *testArgs) allFlows(t *testing.T, opts ...*TGNoptions) []*ondatra.Flow {
 	}
 	flows := []*ondatra.Flow{}
 
-
 	if len(opts) != 0 {
 		for _, opt := range opts {
-				bgp_flow := a.createFlow("BaseFlow_BGP", srcEndPoint, dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp, &TGNoptions{SrcIP: opt.SrcIP, DstIP: opt.DstIP, Scalenum: opt.Scalenum})
-				isis_flow := a.createFlow("BaseFlow_ISIS", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis, &TGNoptions{SrcIP: opt.SrcIP, DstIP: opt.DstIP, Scalenum: opt.Scalenum})
-				flows = append(flows, bgp_flow, isis_flow)
+			bgp_flow := a.createFlow("BaseFlow_BGP", srcEndPoint, dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp, &TGNoptions{SrcIP: opt.SrcIP, DstIP: opt.DstIP, Scalenum: opt.Scalenum})
+			isis_flow := a.createFlow("BaseFlow_ISIS", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis, &TGNoptions{SrcIP: opt.SrcIP, DstIP: opt.DstIP, Scalenum: opt.Scalenum})
+			flows = append(flows, bgp_flow, isis_flow)
 		}
 	} else {
 		bgp_flow := a.createFlow("BaseFlow_BGP", srcEndPoint, dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
@@ -242,8 +244,15 @@ func (a *testArgs) allFlows(t *testing.T, opts ...*TGNoptions) []*ondatra.Flow {
 }
 
 // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
-func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, drop bool, d_port []string) {
+func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, drop bool, d_port []string, opts ...*TGNoptions) {
 	src_port := gnmi.OC().Interface("Bundle-Ether120")
+	if len(opts) != 0 {
+		for _, opt := range opts {
+			if opt.SrcIf != "" {
+				src_port = gnmi.OC().Interface(opt.Ifname)
+			}
+		}
+	}
 	subintf1 := src_port.Subinterface(0)
 	dutOutPktsBeforeTraffic := map[string]uint64{"ipv4": gnmi.Get(t, a.dut, subintf1.Ipv4().Counters().InPkts().State())}
 
