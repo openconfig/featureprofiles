@@ -59,7 +59,7 @@ var (
 			fn:   testQoSOutputIntfConfig,
 		},
 	}
-	QoSConfigQosTestcases = []Testcase{
+	 QosCiscoConfigTestcase = []Testcase{
 
 		{
 			name: "testQoSCiscoClassifierConfig",
@@ -79,7 +79,7 @@ func TestQosConfigTests(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	switch dut.Vendor() {
 	case ondatra.CISCO:
-		for _, tt := range QoSConfigQosTestcases {
+		for _, tt := range  QosCiscoConfigTestcase {
 			t.Run(tt.name, func(t *testing.T) {
 				tt.fn(t)
 			})
