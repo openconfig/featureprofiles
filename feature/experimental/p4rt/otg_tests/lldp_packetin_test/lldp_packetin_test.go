@@ -154,7 +154,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 
 	ate.OTG().StopTraffic(t)
 
-	outPkts := gnmi.GetAll(t, ate, gnmi.OTG().FlowAny().Counters().OutPkts().State())
+	outPkts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().FlowAny().Counters().OutPkts().State())
 	total := 0
 	for _, count := range outPkts {
 		total += int(count)
