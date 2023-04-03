@@ -805,7 +805,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	nc1InputWeight := uint64(200)
-	if *deviations.SchedulerInputWeightLimit {
+	if deviations.SchedulerInputWeightLimit(ondatra.DUT(t, "dut")) {
 		nc1InputWeight = uint64(100)
 	}
 
