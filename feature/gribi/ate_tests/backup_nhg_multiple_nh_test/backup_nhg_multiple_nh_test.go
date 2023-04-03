@@ -340,7 +340,7 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// validate programming using AFT
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
-	aftCheck(t, args.dut, dstPfx)
+	aftCheck(t, args.dut, dstPfx, vrf2)
 	// Validate traffic over primary path port2, port3
 	t.Logf("Validate traffic over primary path port2, port3")
 	validateTrafficFlows(t, args.ate, BaseFlow, []string{"port2", "port3"})
@@ -411,9 +411,9 @@ func flapinterface(t *testing.T, ate *ondatra.ATEDevice, port string, action boo
 // aftCheck does ipv4, NHG and NH aft check
 // TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 
-func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string) {
+func aftCheck(t testing.TB, dut *ondatra.DUTDevice, instance string,  prefix string) {
 	// check prefix and get NHG ID
-	aftPfxNHG := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).NextHopGroup()
+	aftPfxNHG := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix).NextHopGroup()
 	aftPfxNHGVal, found := gnmi.Watch(t, dut, aftPfxNHG.State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		return val.IsPresent()
 	}).Await(t)
