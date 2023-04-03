@@ -155,23 +155,18 @@ func testTraffic(
 ) {
 	top.Flows().Clear()
 	flow := top.Flows().Add().SetName("Flow")
+	flow.TxRx().Port().SetTxName("port1").SetRxName("port2")
 	flow.Metrics().SetEnable(true)
 	eth := flow.Packet().Add().Ethernet()
 	flow.Size().SetFixed(100)
 	eth.Src().SetValue(ateSrc.MAC)
 	eth.Dst().SetChoice("value").SetValue(myStationMAC)
 	if ipType == "IPv4" {
-		flow.TxRx().Device().
-			SetTxNames([]string{ateSrc.Name + ".IPv4"}).
-			SetRxNames([]string{ateDst.Name + ".IPv4"})
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
 	}
 	if ipType == "IPv6" {
-		flow.TxRx().Device().
-			SetTxNames([]string{ateSrc.Name + ".IPv6"}).
-			SetRxNames([]string{ateDst.Name + ".IPv6"})
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
@@ -213,9 +208,11 @@ func TestMyStationMAC(t *testing.T) {
 	t.Logf("Configure MyStationMAC")
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), myStationMAC)
 
-	t.Logf("Verify configured MyStationMAC through telemetry")
-	if got := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State()); strings.ToUpper(got) != myStationMAC {
-		t.Errorf("MyStationMAC got %v, want %v", got, myStationMAC)
+	if !*deviations.MacAddressMissing {
+		t.Logf("Verify configured MyStationMAC through telemetry")
+		if got := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State()); strings.ToUpper(got) != myStationMAC {
+			t.Errorf("MyStationMAC got %v, want %v", got, myStationMAC)
+		}
 	}
 
 	t.Logf("Verify traffic flow")
