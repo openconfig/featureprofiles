@@ -122,7 +122,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 1181
     internal: false
   - name: TE-11.3 (Backup NHG Actions)
     path: feature/experimental/gribi/ate_tests/backup_nhg_action/
