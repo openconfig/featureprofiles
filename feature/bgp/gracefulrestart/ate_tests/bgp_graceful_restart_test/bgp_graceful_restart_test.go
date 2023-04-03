@@ -204,7 +204,13 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
 		pg1rpl6.SetExportPolicy([]string{"ALLOW"})
 		pg1rpl6.SetImportPolicy([]string{"ALLOW"})
-
+	} else {
+		rpl := pg.GetOrCreateApplyPolicy()
+		rpl.SetExportPolicy([]string{"ALLOW"})
+		rpl.SetImportPolicy([]string{"ALLOW"})
+		rplv6 := pgv6.GetOrCreateApplyPolicy()
+		rplv6.SetExportPolicy([]string{"ALLOW"})
+		rplv6.SetImportPolicy([]string{"ALLOW"})
 	}
 
 	for _, nbr := range nbrs {
@@ -215,8 +221,10 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 			nv4.GetOrCreateTimers().KeepaliveInterval = ygot.Uint16(60)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
-			af := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af.Enabled = ygot.Bool(true)
+			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(true)
+			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(false)
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerGroup = ygot.String(peerv6GrpName)
@@ -225,8 +233,10 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
 			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af.Enabled = ygot.Bool(true)
+			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(true)
+			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(false)
 		}
 	}
 	return ni_proto
@@ -458,9 +468,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	t.Run("configureDut", func(t *testing.T) {
 		t.Log("Start DUT interface Config")
 		configureDUT(t, dut)
-		if *deviations.RoutePolicyUnderPeerGroup {
-			configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-		}
+		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	})
 
 	// Configure BGP+Neighbors on the DUT
