@@ -264,25 +264,11 @@ func TestEstablish(t *testing.T) {
 
 	t.Log("Build Benchmarking BGP and ISIS test configs.")
 	dutBenchmarkConfig := setup.BuildBenchmarkingConfig(t)
-	fptest.LogQuery(t, "Benchmarking configs to configure on DUT", dutConfigPath.Config(), dutBenchmarkConfig)
-
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		for _, dp := range dut.Ports() {
-			ni := dutBenchmarkConfig.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
-			niIntf, _ := ni.NewInterface(dp.Name())
-			niIntf.Interface = ygot.String(dp.Name())
-			niIntf.Subinterface = ygot.Uint32(0)
-			niIntf.Id = ygot.String(dp.Name() + ".0")
-		}
+	if !*deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.LogQuery(t, "Benchmarking configs to configure on DUT", dutConfigPath.Config(), dutBenchmarkConfig)
 	}
 	// Apply benchmarking configs on dut
 	gnmi.Update(t, dut, dutConfigPath.Config(), dutBenchmarkConfig)
-
-	if *deviations.ExplicitPortSpeed {
-		for _, dp := range dut.Ports() {
-			fptest.SetPortSpeed(t, dp)
-		}
-	}
 
 	t.Log("Configure ATE with Interfaces, BGP, ISIS configs.")
 	ate := ondatra.ATE(t, "ate")
