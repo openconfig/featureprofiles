@@ -123,12 +123,13 @@ func TestIPv4Entry(t *testing.T) {
 	ecmpFlow := createFlow("Port 1 to Port 2 & 3", ate, ateTop, &atePort2, &atePort3)
 
 	cases := []struct {
-		desc                 string
-		entries              []fluent.GRIBIEntry
-		downPort             *ondatra.Port
-		wantGoodFlows        []*ondatra.Flow
-		wantBadFlows         []*ondatra.Flow
-		wantOperationResults []*client.OpResult
+		desc                          string
+		entries                       []fluent.GRIBIEntry
+		downPort                      *ondatra.Port
+		wantGoodFlows                 []*ondatra.Flow
+		wantBadFlows                  []*ondatra.Flow
+		wantOperationResults          []*client.OpResult
+		gribiMACOverrideWithStaticARP bool
 	}{
 		{
 			desc: "Single next-hop",
@@ -231,6 +232,7 @@ func TestIPv4Entry(t *testing.T) {
 					WithOperationType(constants.Add).
 					AsResult(),
 			},
+			gribiMACOverrideWithStaticARP: deviations.GRIBIMACOverrideWithStaticARP(ondatra.DUT(t, "dut")),
 		},
 		{
 			desc: "Nonexistant next-hop",
@@ -302,7 +304,7 @@ func TestIPv4Entry(t *testing.T) {
 			for _, tc := range cases {
 				t.Run(tc.desc, func(t *testing.T) {
 					//Creating a Static ARP entry for staticDstMAC
-					if deviations.GRIBIIPv4EntryMACOverride(ondatra.DUT(t, "dut")) && tc.desc == "Multiple next-hops with MAC override" {
+					if tc.gribiMACOverrideWithStaticARP {
 						d := gnmi.OC()
 						p2 := dut.Port(t, "port2")
 						p3 := dut.Port(t, "port3")
