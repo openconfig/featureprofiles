@@ -777,38 +777,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
-	type qosVals struct {
-		be0, be1, af1, af2, af3, af4, nc1 string
-	}
-
-	qos := qosVals{
-		be0: "BE0",
-		be1: "BE1",
-		af1: "AF1",
-		af2: "AF2",
-		af3: "AF3",
-		af4: "AF4",
-		nc1: "NC1",
-	}
-
-	if dut.Vendor() == ondatra.JUNIPER {
-		qos = qosVals{
-			be0: "6",
-			be1: "0",
-			af1: "4",
-			af2: "1",
-			af3: "5",
-			af4: "2",
-			nc1: "3",
-		}
-
-	}
-
-	nc1InputWeight := uint64(200)
-	if deviations.SchedulerInputWeightLimitDeviation(ondatra.DUT(t, "dut")) {
-		nc1InputWeight = uint64(100)
-	}
-
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
 		desc        string
@@ -816,31 +784,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   qos.be1,
+		queueName:   "BE1",
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   qos.be0,
+		queueName:   "BE0",
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   qos.af1,
+		queueName:   "AF1",
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   qos.af2,
+		queueName:   "AF2",
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   qos.af3,
+		queueName:   "AF3",
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   qos.af4,
+		queueName:   "AF4",
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   qos.nc1,
+		queueName:   "NC1",
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1016,10 +984,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
-		if *deviations.ExplicitInterfaceRefDefinition {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
-			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		}
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
@@ -1043,7 +1007,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   qos.be1,
+		queueName:   "BE1",
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -1052,7 +1016,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(2),
-		queueName:   qos.be0,
+		queueName:   "BE0",
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -1061,7 +1025,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
-		queueName:   qos.af1,
+		queueName:   "AF1",
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -1070,7 +1034,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(8),
-		queueName:   qos.af2,
+		queueName:   "AF2",
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -1079,7 +1043,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(12),
-		queueName:   qos.af3,
+		queueName:   "AF3",
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -1088,7 +1052,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(48),
-		queueName:   qos.af4,
+		queueName:   "AF4",
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -1096,8 +1060,8 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      nc1InputWeight,
-		queueName:   qos.nc1,
+		weight:      uint64(200),
+		queueName:   "NC1",
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1123,31 +1087,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		scheduler string
 	}{{
 		desc:      "output-interface-BE1",
-		queueName: qos.be1,
+		queueName: "BE1",
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-BE0",
-		queueName: qos.be0,
+		queueName: "BE0",
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF1",
-		queueName: qos.af1,
+		queueName: "AF1",
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF2",
-		queueName: qos.af2,
+		queueName: "AF2",
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF3",
-		queueName: qos.af3,
+		queueName: "AF3",
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF4",
-		queueName: qos.af4,
+		queueName: "AF4",
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-NC1",
-		queueName: qos.nc1,
+		queueName: "NC1",
 		scheduler: "scheduler",
 	}}
 
@@ -1155,9 +1119,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
-		if *deviations.ExplicitInterfaceRefDefinition {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
-		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
