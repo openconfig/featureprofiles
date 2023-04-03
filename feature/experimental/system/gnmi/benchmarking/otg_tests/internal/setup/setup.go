@@ -261,13 +261,10 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 			bgpDut1 := dev.Bgp().SetRouterId(ip.Address())
 			bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dev.Name() + ".BGP4.peer")
 			bgpDut1Peer.SetPeerAddress(DUTIPList[dp.ID()].String()).SetAsNumber(ATEAs2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-			// bgpDut1 := iDut1.BGP()
-			// bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ATEAs2).
-			// 	WithTypeExternal()
 
 			devIsis := dev.Isis().
 				SetSystemId("640000000001").
-				SetName("devIsis")
+				SetName("devIsis" + dp.Name())
 
 			devIsis.Basic().
 				SetHostname(devIsis.Name()).SetLearnedLspFilter(true)
@@ -304,31 +301,39 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 				SetCount(RouteCount).
 				SetStep(1)
 
-			// // Add ISIS on ATE
-			// isisDut1 := iDut1.ISIS()
-			// isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
-
-			// netCIDR := fmt.Sprintf("%s/%d", advertiseBGPRoutesv4, 32)
-			// bgpNeti1 := iDut1.AddNetwork("bgpNeti1")
-			// bgpNeti1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
-			// bgpNeti1.BGP().WithNextHopAddress(atePortAttr.IPv4)
-
-			// netCIDR = fmt.Sprintf("%s/%d", advertiseISISRoutesv4, 32)
-			// isisnet1 := iDut1.AddNetwork("isisnet1")
-			// isisnet1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
-			// isisnet1.ISIS().WithActive(true).WithIPReachabilityMetric(20)
-
 			continue
 		}
 
-		// // Add BGP on ATE
-		// bgpDut1 := iDut1.BGP()
-		// bgpDut1.AddPeer().WithPeerAddress(DUTIPList[dp.ID()].String()).WithLocalASN(ATEAs).
-		// 	WithTypeExternal()
+		// Add BGP on ATE
+		bgpDut1 := dev.Bgp().SetRouterId(ip.Address())
+		bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dev.Name() + ".BGP4.peer")
+		bgpDut1Peer.SetPeerAddress(DUTIPList[dp.ID()].String()).SetAsNumber(ATEAs).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 
-		// // Add BGP on ATE
-		// isisDut1 := iDut1.ISIS()
-		// isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
+		// Add ISIS on ATE
+
+		devIsis := dev.Isis().
+			SetSystemId("640000000002"). //TODO: Add in a list format
+			SetName("devIsis" + dp.Name())
+
+		devIsis.Basic().
+			SetHostname(devIsis.Name()).SetLearnedLspFilter(true)
+
+		devIsis.Advanced().
+			SetAreaAddresses([]string{"490002"})
+
+		devIsisInt := devIsis.Interfaces().
+			Add().
+			SetEthName(eth.Name()).
+			SetName("devIsisInt").
+			SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+			SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2)
+
+		devIsisInt.Authentication().SetAuthType("md5")
+		devIsisInt.Authentication().SetMd5(authPassword)
+
+		devIsisInt.Advanced().
+			SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
+
 	}
 
 	t.Log("Pushing config to ATE...")
