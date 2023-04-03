@@ -411,7 +411,7 @@ func flapinterface(t *testing.T, ate *ondatra.ATEDevice, port string, action boo
 // aftCheck does ipv4, NHG and NH aft check
 // TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 
-func aftCheck(t testing.TB, dut *ondatra.DUTDevice, instance string,  prefix string) {
+func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, instance string) {
 	// check prefix and get NHG ID
 	aftPfxNHG := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix).NextHopGroup()
 	aftPfxNHGVal, found := gnmi.Watch(t, dut, aftPfxNHG.State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
