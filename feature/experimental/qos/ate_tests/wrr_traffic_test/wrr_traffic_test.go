@@ -387,7 +387,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af3": {
 			frameSize:             1000,
 			trafficRate:           40,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 75.00,
 			dscp:                  24,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
 			inputIntf:             intf1,
@@ -395,7 +395,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af2": {
 			frameSize:             1000,
 			trafficRate:           20,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 100.00,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf1,
@@ -404,7 +404,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           40,
 			dscp:                  24,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 75.00,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
 			inputIntf:             intf2,
 		},
@@ -412,7 +412,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           20,
 			dscp:                  16,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 100.00,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf2,
 		},
@@ -457,7 +457,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af3": {
 			frameSize:             1000,
 			trafficRate:           50,
-			expectedThroughputPct: 66.71,
+			expectedThroughputPct: 60.00,
 			dscp:                  24,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
 			inputIntf:             intf1,
@@ -465,7 +465,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af2": {
 			frameSize:             1000,
 			trafficRate:           50,
-			expectedThroughputPct: 33.29,
+			expectedThroughputPct: 40.00,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf1,
@@ -474,7 +474,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           50,
 			dscp:                  24,
-			expectedThroughputPct: 66.71,
+			expectedThroughputPct: 60.00,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
 			inputIntf:             intf2,
 		},
@@ -482,7 +482,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           50,
 			dscp:                  16,
-			expectedThroughputPct: 33.29,
+			expectedThroughputPct: 40.00,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf2,
 		},
@@ -566,7 +566,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af2": {
 			frameSize:             1000,
 			trafficRate:           40,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 83.33,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf1,
@@ -574,7 +574,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af1": {
 			frameSize:             1000,
 			trafficRate:           20,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 83.33,
 			dscp:                  8,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
 			inputIntf:             intf1,
@@ -583,7 +583,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           40,
 			dscp:                  16,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 83.33,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf2,
 		},
@@ -591,7 +591,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           20,
 			dscp:                  8,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 83.33,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
 			inputIntf:             intf2,
 		},
@@ -636,7 +636,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af2": {
 			frameSize:             1000,
 			trafficRate:           50,
-			expectedThroughputPct: 66.71,
+			expectedThroughputPct: 66.67,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf1,
@@ -644,7 +644,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af1": {
 			frameSize:             1000,
 			trafficRate:           50,
-			expectedThroughputPct: 33.29,
+			expectedThroughputPct: 33.33,
 			dscp:                  8,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
 			inputIntf:             intf1,
@@ -653,7 +653,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           50,
 			dscp:                  16,
-			expectedThroughputPct: 66.71,
+			expectedThroughputPct: 66.67,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf2,
 		},
@@ -661,7 +661,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           50,
 			dscp:                  8,
-			expectedThroughputPct: 33.29,
+			expectedThroughputPct: 33.33,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
 			inputIntf:             intf2,
 		},
@@ -897,68 +897,68 @@ func TestWrrTraffic(t *testing.T) {
 	if dut.Vendor() == ondatra.CISCO {
 		cases = []test{
 			{
-				desc:            "Non-oversubscription AF3 and AF2 traffic",
+				desc:            "TC1: Non-oversubscription AF3 and AF2 traffic",
 				trafficFlows:    nonOversubscribedTrafficFlows1,
 				trafficDuration: 20 * time.Second,
 			},
 			{
-				desc:            "Non-oversubscription AF2 and AF1 traffic",
+				desc:            "TC2: Non-oversubscription AF2 and AF1 traffic",
 				trafficFlows:    nonOversubscribedTrafficFlows2,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Non-oversubscription AF1 and BE0 traffic",
+				desc:            "TC3: Non-oversubscription AF1 and BE0 traffic",
 				trafficFlows:    nonOversubscribedTrafficFlows3,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Non-oversubscription BE0 and BE1 traffic",
+				desc:            "TC4: Non-oversubscription BE0 and BE1 traffic",
 				trafficFlows:    nonOversubscribedTrafficFlows4,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with half AF3 dropped",
+				desc:            "TC5: Oversubscription AF3 and AF2 traffic with 50%% of AF3 and 0%% of AF2 dropped",
 				trafficFlows:    oversubscribedTrafficFlows1,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with half AF2 dropped",
+				desc:            "TC6: Oversubscription AF3 and AF2 traffic with 25%% of AF3 and 0%% of AF2 dropped",
 				trafficFlows:    oversubscribedTrafficFlows2Cisco,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with AF3 and AF2 dropped",
+				desc:            "TC7: Oversubscription AF2 and AF3 traffic with 60%% of AF2 and 40%% of AF3 dropped",
 				trafficFlows:    oversubscribedTrafficFlows3Cisco,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription AF2 and AF1 traffic with half AF2 dropped",
+				desc:            "TC8: Oversubscription AF2 and AF1 traffic with 50%% of AF2 and 0%% of AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows4,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription AF2 and AF1 traffic with half AF1 dropped",
+				desc:            "TC9: Oversubscription AF2 and AF1 traffic with 16.67%% of AF2 and 16.67%% of AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows5Cisco,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription AF2 and BE0 traffic with AF2 and AF1 dropped",
+				desc:            "TC10: Oversubscription AF2 and AF1 traffic with 33.33%% of AF2 and 66.67%% of AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows6Cisco,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Oversubscription AF1 and BE0 traffic with half BE0 dropped",
+				desc:            "TC11: Oversubscription BE0 and AF1 traffic with 0%% of BE0 and 50%% of AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows7,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription AF1 and BE0 traffic with half AF1 dropped",
+				desc:            "TC12: Oversubscription BE0 and AF1 traffic with 50%% of BE0 and 0%% of AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows8,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Oversubscription AF1 and BE0 traffic with AF1 and BE0 dropped",
+				desc:            "TC13: Oversubscription AF1 and BE0 traffic with 20.%% of AF1 and 80%% of BE0 dropped",
 				trafficFlows:    oversubscribedTrafficFlows9,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with half BE0 dropped",
+				desc:            "TC14: Oversubscription BE1 and BE0 traffic with 0%% of BE1 and 50%% of BE0 dropped",
 				trafficFlows:    oversubscribedTrafficFlows10,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with half BE1 dropped",
+				desc:            "TC15: Oversubscription BE0 and BE1 traffic with 25%% of BE0 and 0%% of BE1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows11,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with BE0 and BE1 dropped",
+				desc:            "TC16: Oversubscription BE0 and BE1 traffic with 66.67%% of BE0 and 33.33%% of BE1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows12,
 				trafficDuration: 120 * time.Second,
 			},
@@ -966,67 +966,67 @@ func TestWrrTraffic(t *testing.T) {
 	} else {
 		cases = []test{
 			{
-				desc:            "Non-oversubscription AF3 and AF2 traffic",
+				desc:            "TC1: Non-oversubscription AF3 and AF2 traffic",
 				trafficFlows:    nonOversubscribedTrafficFlows1,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Non-oversubscription AF2 and AF1 traffic",
+				desc:            "TC2: Non-oversubscription AF2 and AF1 traffic",
 				trafficFlows:    nonOversubscribedTrafficFlows2,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Non-oversubscription AF1 and BE0 traffic",
+				desc:            "TC3: Non-oversubscription AF1 and BE0 traffic",
 				trafficFlows:    nonOversubscribedTrafficFlows3,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Non-oversubscription BE0 and BE1 traffic",
+				desc:            "TC4: Non-oversubscription BE0 and BE1 traffic",
 				trafficFlows:    nonOversubscribedTrafficFlows4,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with 50%% of AF3 and 0%% of AF2 dropped",
+				desc:            "TC5: Oversubscription AF3 and AF2 traffic with 50%% of AF3 and 0%% of AF2 dropped",
 				trafficFlows:    oversubscribedTrafficFlows1,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with 25%% of AF3 and 0%% of AF2 dropped",
+				desc:            "TC6: Oversubscription AF3 and AF2 traffic with 25%% of AF3 and 0%% of AF2 dropped",
 				trafficFlows:    oversubscribedTrafficFlows2,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Oversubscription AF2 and AF3 traffic with 60%% of AF2 and 40%% of AF3 dropped",
+				desc:            "TC7: Oversubscription AF2 and AF3 traffic with 60%% of AF2 and 40%% of AF3 dropped",
 				trafficFlows:    oversubscribedTrafficFlows3,
 				trafficDuration: 20 * time.Second,
 			}, {
-				desc:            "Oversubscription AF2 and AF1 traffic with 50%% of AF2 and 0%% of AF1 dropped",
+				desc:            "TC8: Oversubscription AF2 and AF1 traffic with 50%% of AF2 and 0%% of AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows4,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription AF2 and AF1 traffic with 16.67%% of AF2 and 16.67%% of AF1 dropped",
+				desc:            "TC9: Oversubscription AF2 and AF1 traffic with 16.67%% of AF2 and 16.67%% of AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows5,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription AF2 and AF1 traffic with 33.33%% of AF2 and 66.67%% of AF1 dropped",
+				desc:            "TC10: Oversubscription AF2 and AF1 traffic with 33.33%% of AF2 and 66.67%% of AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows6,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription BE0 and AF1 traffic with 0%% of BE0 and 50%% of AF1 dropped",
+				desc:            "TC11: Oversubscription BE0 and AF1 traffic with 0%% of BE0 and 50%% of AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows7,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription BE0 and AF1 traffic with 50%% of BE0 and 0%% of AF1 dropped",
+				desc:            "TC12: Oversubscription BE0 and AF1 traffic with 50%% of BE0 and 0%% of AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows8,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription AF1 and BE0 traffic with 20.%% of AF1 and 80%% of BE0 dropped",
+				desc:            "TC13: Oversubscription AF1 and BE0 traffic with 20.%% of AF1 and 80%% of BE0 dropped",
 				trafficFlows:    oversubscribedTrafficFlows9,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription BE1 and BE0 traffic with 0%% of BE1 and 50%% of BE0 dropped",
+				desc:            "TC14: Oversubscription BE1 and BE0 traffic with 0%% of BE1 and 50%% of BE0 dropped",
 				trafficFlows:    oversubscribedTrafficFlows10,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with 25%% of BE0 and 0%% of BE1 dropped",
+				desc:            "TC15: Oversubscription BE0 and BE1 traffic with 25%% of BE0 and 0%% of BE1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows11,
 				trafficDuration: 120 * time.Second,
 			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with 66.67%% of BE0 and 33.33%% of BE1 dropped",
+				desc:            "TC16: Oversubscription BE0 and BE1 traffic with 66.67%% of BE0 and 33.33%% of BE1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows12,
 				trafficDuration: 120 * time.Second,
 			},
@@ -1718,7 +1718,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "g_BE1",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(2),
+		weight:       uint64(6),
 		queueName:    "g_BE1",
 		targetGrpoup: "target-group-BE1",
 	}, {
@@ -1727,7 +1727,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "f_BE0",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(1),
+		weight:       uint64(3),
 		queueName:    "f_BE0",
 		targetGrpoup: "target-group-BE0",
 	}, {
@@ -1736,7 +1736,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "e_AF1",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(4),
+		weight:       uint64(12),
 		queueName:    "e_AF1",
 		targetGrpoup: "target-group-AF1",
 	}, {
@@ -1745,7 +1745,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "d_AF2",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(8),
+		weight:       uint64(24),
 		queueName:    "d_AF2",
 		targetGrpoup: "target-group-AF2",
 	}, {
@@ -1754,7 +1754,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "c_AF3",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(12),
+		weight:       uint64(36),
 		queueName:    "c_AF3",
 		targetGrpoup: "target-group-AF3",
 	}, {
