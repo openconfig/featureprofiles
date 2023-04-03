@@ -190,6 +190,10 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		a4 := s4.GetOrCreateAddress(DUTIPList[dp.ID()].String())
 		a4.PrefixLength = ygot.Uint8(plenIPv4)
 
+		if *deviations.ExplicitPortSpeed {
+			i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dp)
+		}
+
 		// BGP neighbor configs.
 		nv4 := bgp.GetOrCreateNeighbor(ATEIPList[dp.ID()].String())
 		nv4.PeerGroup = ygot.String(PeerGrpName)
@@ -239,6 +243,15 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	p := gnmi.OC()
 	fptest.LogQuery(t, "DUT", p.Config(), d)
 
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		for _, dp := range dut.Ports() {
+			ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+			niIntf, _ := ni.NewInterface(dp.Name())
+			niIntf.Interface = ygot.String(dp.Name())
+			niIntf.Subinterface = ygot.Uint32(0)
+			niIntf.Id = ygot.String(dp.Name() + ".0")
+		}
+	}
 	return d
 }
 
