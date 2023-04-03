@@ -74,6 +74,11 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// SchedulerInputWeightLimitDeviation returns whether the device requires the Scheduler input weight limit.
+func SchedulerInputWeightLimitDeviation(_ *ondatra.DUTDevice) bool {
+	return *SchedulerInputWeightLimit
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -225,5 +230,5 @@ var (
 
 	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
-        SchedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "Device does not support weight above certain limit")
+	SchedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "Device does not support weight above certain limit")
 )
