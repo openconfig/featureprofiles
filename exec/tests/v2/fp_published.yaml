@@ -23,7 +23,7 @@ tests:
     path: feature/gribi/ate_tests/ipv4_entry_test
     args:
       - '-deviation_gribi_preserve_only="true"'
-      - '-deviation_gribi_ipv4_entry_mac_override="true"'
+      - '-deviation_gribi_mac_override_with_static_arp="true"'
     owners:
       - mananpat
     mustpass: true
