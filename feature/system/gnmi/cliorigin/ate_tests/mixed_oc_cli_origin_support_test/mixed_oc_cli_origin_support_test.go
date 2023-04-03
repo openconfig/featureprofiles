@@ -125,6 +125,9 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 }
 
 func TestQoSDependentCLIFullReplace(t *testing.T) {
+	// TODO: Skipping this test case until we can figure out how to signal
+	// different subtests' test results.
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	testQoSWithCLIAndOCUpdates(t, dut, getTestcase(t, dut), false)
