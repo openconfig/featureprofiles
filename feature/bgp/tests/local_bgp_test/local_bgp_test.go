@@ -163,7 +163,7 @@ func TestEstablish(t *testing.T) {
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 	// Remove any existing BGP config
 	bgpClearConfig(t, dut)
-	gnmi.Delete(t, ate, ateConfPath.Config())
+	bgpClearConfig(t, ate)
 
 	// Start a new session
 	dutConf := bgpWithNbr(dutAS, dutRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -237,7 +237,7 @@ func TestDisconnect(t *testing.T) {
 
 	// Clear any existing config
 	bgpClearConfig(t, dut)
-	gnmi.Delete(t, ate, ateConfPath.Config())
+	bgpClearConfig(t, ate)
 
 	// Apply simple config
 	dutConf := bgpWithNbr(dutAS, dutRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -439,7 +439,7 @@ func TestParameters(t *testing.T) {
 			}
 			// Disable BGP
 			bgpClearConfig(t, dut)
-			gnmi.Delete(t, ate, ateConfPath.Config())
+			bgpClearConfig(t, ate)
 			// Renable and wait to establish
 			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
 			gnmi.Replace(t, ate, ateConfPath.Config(), tc.ateConf)
