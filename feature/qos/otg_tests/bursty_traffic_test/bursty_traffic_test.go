@@ -450,8 +450,9 @@ func TestBurstyTraffic(t *testing.T) {
 			time.Sleep(30 * time.Second)
 
 			for trafficID, data := range trafficFlows {
-				ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
-				ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
+				flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().State())
+				ateTxPkts := flowMetrics.GetOutPkts()
+				ateRxPkts := flowMetrics.GetInPkts()
 				counters["ateOutPkts"][data.queue] += ateTxPkts
 				counters["ateInPkts"][data.queue] += ateRxPkts
 
@@ -951,7 +952,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 }
+
 func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 	dp3 := dut.Port(t, "port3")
