@@ -240,7 +240,7 @@ tests:
     mustpass: true
     priority: 6
   - name: gNMI-1.12 (Mixed OpenConfig or CLI Origin)
-    path: feature/experimental/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
+    path: feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test
     owners:
       - agvarghe
     mustpass: true
