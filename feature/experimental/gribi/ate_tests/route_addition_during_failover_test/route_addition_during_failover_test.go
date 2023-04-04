@@ -95,11 +95,13 @@ var (
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
 		ondatra.NOKIA:   "/var/core/",
+		ondatra.ARISTA:  "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]*regexp.Regexp{
 		ondatra.JUNIPER: regexp.MustCompile("rpd.*core*"),
 		ondatra.CISCO:   regexp.MustCompile("emsd.*core.*"),
 		ondatra.NOKIA:   regexp.MustCompile("coredump-sr_gribi_server-.*"),
+		ondatra.ARISTA:  regexp.MustCompile("core.*"),
 	}
 	fibProgrammedEntries []string
 )
@@ -279,9 +281,12 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	nextHops := []string{}
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
-		vlanID := uint16(i) + 1
+		vlanID := uint16(i)
+		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+			vlanID = uint16(i) + 1
+		}
 		name := fmt.Sprintf(`dst%d`, i)
-		Index := uint32(i) + 1
+		Index := uint32(i)
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
 		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4)
