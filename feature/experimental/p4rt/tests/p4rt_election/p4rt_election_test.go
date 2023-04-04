@@ -60,9 +60,8 @@ type PacketIOPacket struct {
 
 // Define Multiple Client Args Structure
 type mcTestArgs struct {
-	name     string
-	Items    [2]*testArgs
-	wantFail bool
+	name  string
+	Items [2]*testArgs
 }
 
 // Define Test Args Structure
@@ -171,7 +170,7 @@ func getRespCode(args *testArgs) (int32, error) {
 }
 
 // getGDPParameter returns GDP related parameters for testPacketIn testcase.
-func getGDPParameter(t *testing.T) PacketIO {
+func getGDPParameter(_ *testing.T) PacketIO {
 	return &GDPPacketIO{
 		PacketIOPacket: PacketIOPacket{
 			EthernetType: &gdpEtherType,
