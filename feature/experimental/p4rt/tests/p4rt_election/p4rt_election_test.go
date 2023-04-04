@@ -662,7 +662,7 @@ func TestArbitrationUpdate(t *testing.T) {
 
 	t.Run(test.desc, func(t *testing.T) {
 		resp, err := streamP4RTArb(&test)
-		if err != nil && !test.wantFail {
+		if err != nil {
 			t.Errorf("Failed to setup P4RT Client: %v", err)
 		}
 		// Validate status code
