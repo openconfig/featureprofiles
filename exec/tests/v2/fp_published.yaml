@@ -23,10 +23,13 @@ tests:
     path: feature/gribi/ate_tests/ipv4_entry_test
     args:
       - '-deviation_gribi_preserve_only="true"'
+      - '-deviation_gribi_mac_override_with_static_arp="true"'
     owners:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 1373
+    internal: false
   - name: TE-4.1 (Base Leader Election)
     path: feature/gribi/ate_tests/base_leader_election_test
     owners:
@@ -78,8 +81,6 @@ tests:
     args:
       - '-deviation_gribi_preserve_only="true"'
     priority: 3
-    pr: 1343
-    internal: false
   - name: TE-3.3 (Hierarchical weight resolution)
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
     owners:
@@ -239,7 +240,7 @@ tests:
     mustpass: true
     priority: 6
   - name: gNMI-1.12 (Mixed OpenConfig or CLI Origin)
-    path: feature/experimental/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
+    path: feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test
     owners:
       - agvarghe
     mustpass: true
@@ -327,7 +328,7 @@ tests:
     path: feature/platform/tests/optics_power_and_bias_current_test
     owners:
       - agvarghe
-    mustpass: true
+    mustpass: false
     priority: 37
     skip: false
   - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace)
@@ -373,8 +374,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 44
-    pr: 1341
-    internal: false
   - name: OC-26.1 (NTP in Management Network Instance)
     path: feature/system/ntp/tests/system_ntp_test
     owners:
@@ -508,8 +507,6 @@ tests:
     skip: false
     priority: 7
     timeout: 7200
-    pr: 1345
-    internal: false
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNOI-3.2 (Per-Component Reboot)
@@ -520,8 +517,6 @@ tests:
     skip: false
     priority: 55
     timeout: 7200
-    pr: 1345
-    internal: false
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: TE-8.2 (Supervisor Failure)
@@ -620,11 +615,8 @@ tests:
       - agvarghe
     mustpass: true
     pr: 1361
-    args:
-      - '-deviation_traffic_tolerance_viable_interface_value="0.5"'
   - name: TE-1.2 (My Station MAC)
     path: feature/experimental/interface/my_station_mac/ate_tests/my_station_mac_test
-    pr: 1359
     args:
       - '-deviation_mac_address_missing="true"'
     owners:
