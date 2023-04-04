@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -253,6 +254,16 @@ func TestBasic(t *testing.T) {
 			check.Present[bool](adj.RestartSuppress().State()),
 		} {
 			t.Run(vd.RelPath(adj), func(t *testing.T) {
+				if strings.Contains(vd.Path(), "multi-topology") {
+					if *deviations.ISISMultiTopologyUnsupported {
+						t.Skip("Multi-Topology Unsupported")
+					}
+				}
+				if strings.Contains(vd.Path(), "restart-suppress") {
+					if *deviations.ISISRestartSuppressUnsupported {
+						t.Skip("Restart-Suppress Unsupported")
+					}
+				}
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 					t.Error(err)
 				}
