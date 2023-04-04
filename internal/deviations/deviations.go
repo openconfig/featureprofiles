@@ -231,4 +231,6 @@ var (
 	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+
+	SkipUnsupportedModelDCS_7280CR3K_32D4 = flag.Bool("deviation_skip_unsupported_model_DCS_7280CR3K_32D4", false, "Device model DCS-7280CR3K-32D4 does not have certain hardware components")
 )

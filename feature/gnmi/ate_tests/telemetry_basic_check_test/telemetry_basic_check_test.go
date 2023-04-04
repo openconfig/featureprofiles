@@ -451,7 +451,7 @@ func TestComponentParent(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
-			if len(compList[tc.desc]) == 0 && dut.Model() == "DCS-7280CR3K-32D4" {
+			if len(compList[tc.desc]) == 0 && *deviations.SkipUnsupportedModelDCS_7280CR3K_32D4 {
 				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
 			}
 
@@ -545,7 +545,7 @@ func TestCPU(t *testing.T) {
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	if dut.Model() == "DCS-7280CR3K-32D4" {
+	if *deviations.SkipUnsupportedModelDCS_7280CR3K_32D4 {
 		t.Skipf("Test is skipped due to hardware platform compatibility")
 	}
 
