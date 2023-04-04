@@ -182,6 +182,11 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         with open(topo_file, "r") as fp:
             topo_yaml = yaml.safe_load(fp)
 
+        if not type(reserved_testbed['baseconf']) is dict:
+            reserved_testbed['baseconf'] = {
+                'dut': reserved_testbed['baseconf']
+            }
+
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, conf)
             baseconf_file_copy = os.path.join(testbed_logs_dir, f'baseconf_{dut}.conf')
@@ -438,6 +443,11 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
+
+    if not type(reserved_testbed['baseconf']) is dict:
+        reserved_testbed['baseconf'] = {
+            'dut': reserved_testbed['baseconf']
+        }
 
     if reserved_testbed.get('sim', False):
         vxr_testbed = kwargs['testbed_path']
