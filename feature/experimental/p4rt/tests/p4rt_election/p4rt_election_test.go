@@ -442,7 +442,7 @@ func TestPrimaryReconnect(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
 			resp, err := streamP4RTArb(&test)
-			if err != nil && !test.wantFail {
+			if err != nil {
 				t.Errorf("Failed to setup P4RT Client: %v", err)
 			}
 			// Validate status code
@@ -489,7 +489,7 @@ func TestPrimarySecondary(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
 			resp, err := streamP4RTArb(&test)
-			if err != nil && !test.wantFail {
+			if err != nil {
 				t.Errorf("Failed to setup P4RT Client: %v", err)
 			}
 			// Validate status code
@@ -566,8 +566,7 @@ func TestReplacePrimary(t *testing.T) {
 	configurePortId(t, dut)
 	testCases := []mcTestArgs{
 		{
-			name:     "Primary_secondary_OK",
-			wantFail: true,
+			name: "Primary_secondary_OK",
 			Items: [2]*testArgs{
 				{
 					desc:            pDesc,
@@ -599,7 +598,7 @@ func TestReplacePrimary(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			resp, err := streamP4RTArb(test.Items[0])
-			if err != nil && !test.wantFail {
+			if err != nil {
 				t.Errorf("Failed to setup P4RT Client: %v", err)
 			}
 			// Validate status code
@@ -653,7 +652,7 @@ func TestArbitrationUpdate(t *testing.T) {
 		highID:     inId0,
 		handle:     clientConnection(t, dut),
 		deviceID:   deviceId,
-		wantFail:   true,
+		wantFail:   false,
 		wantWrite:  true,
 		wantRead:   true,
 		wantStatus: 0,
@@ -680,7 +679,7 @@ func TestArbitrationUpdate(t *testing.T) {
 		// as this client is no longer primary
 		test.wantWrite = false
 		resp, err = streamP4RTArb(&test)
-		if err != nil && !test.wantFail {
+		if err != nil {
 			t.Errorf("Failed to setup P4RT Client: %v", err)
 		}
 		// Validate status code
