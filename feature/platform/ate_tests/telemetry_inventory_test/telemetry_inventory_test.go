@@ -309,38 +309,32 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
 	for compName := range componentType {
 		for _, c := range components {
-			if strings.Contains(c.GetName(), "Fan") {
-				t.Logf("Component %s type is missing from telemetry", c.GetName())
-			}
-
-			if c.GetType() == nil {
-				t.Logf("Component %s type is missing from telemetry", c.GetName())
+			if c.GetType() == nil || c.GetType() != componentType[compName] {
 				continue
 			}
-			t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
-			if v := c.GetType(); v == componentType[compName] {
-				if compName == "SwitchChip" && *args.SwitchChipNamePattern != "" {
-					if !isCompNameExpected(t, c.GetName(), *args.SwitchChipNamePattern) {
-						continue
-					}
+			switch compName {
+			case "SwitchChip":
+				if *args.SwitchChipNamePattern != "" &&
+					!isCompNameExpected(t, c.GetName(), *args.SwitchChipNamePattern) {
+					continue
 				}
-				if compName == "TempSensor" && *args.TempSensorNamePattern != "" {
-					if !isCompNameExpected(t, c.GetName(), *args.TempSensorNamePattern) {
-						continue
-					}
+			case "TempSensor":
+				if *args.TempSensorNamePattern != "" &&
+					!isCompNameExpected(t, c.GetName(), *args.TempSensorNamePattern) {
+					continue
 				}
-				if compName == "Fan" && *args.FanNamePattern != "" {
-					if !isCompNameExpected(t, c.GetName(), *args.FanNamePattern) {
-						continue
-					}
+			case "Fan":
+				if *args.FanNamePattern != "" &&
+					!isCompNameExpected(t, c.GetName(), *args.FanNamePattern) {
+					continue
 				}
-				if compName == "FabricChip" && *args.FabricChipNamePattern != "" {
-					if !isCompNameExpected(t, c.GetName(), *args.FabricChipNamePattern) {
-						continue
-					}
+
+			case "FabricChip":
+				if *args.FabricChipNamePattern != "" && !isCompNameExpected(t, c.GetName(), *args.FabricChipNamePattern) {
+					continue
 				}
-				componentsByType[compName] = append(componentsByType[compName], c.GetName())
 			}
+			componentsByType[compName] = append(componentsByType[compName], c.GetName())
 		}
 	}
 	return componentsByType
