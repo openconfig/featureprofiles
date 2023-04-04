@@ -330,7 +330,8 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 				}
 
 			case "FabricChip":
-				if *args.FabricChipNamePattern != "" && !isCompNameExpected(t, c.GetName(), *args.FabricChipNamePattern) {
+				if *args.FabricChipNamePattern != "" &&
+					!isCompNameExpected(t, c.GetName(), *args.FabricChipNamePattern) {
 					continue
 				}
 			}
