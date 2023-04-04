@@ -16,13 +16,13 @@ package per_component_reboot_test
 
 import (
 	"context"
-	"sort"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -93,7 +93,7 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
 	}
 
-	rpStandby, rpActive := findStandbyRP(t, dut, controllerCards)
+	rpStandby, rpActive := components.FindStandbyRP(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
@@ -167,7 +167,7 @@ func TestLinecardReboot(t *testing.T) {
 		},
 	}
 
-	intfsOperStatusUPBeforeReboot := fetchOperStatusUPIntfs(t, dut)
+	intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
 	t.Logf("OperStatusUP interfaces before reboot: %v", intfsOperStatusUPBeforeReboot)
 	t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
 	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
@@ -198,77 +198,6 @@ func TestLinecardReboot(t *testing.T) {
 	t.Logf("Validate removable linecard %v status", removableLinecard)
 	gnmi.Await(t, dut, gnmi.OC().Component(removableLinecard).Removable().State(), linecardBoottime, true)
 
-	t.Logf("Validate interface OperStatus.")
-	batch := gnmi.OCBatch()
-	upInterfaces := make(map[string]bool)
-	for _, port := range intfsOperStatusUPBeforeReboot {
-		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
-		upInterfaces[port] = true
-	}
-	watch := gnmi.Watch(t, dut, batch.State(), 10*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
-		root, present := val.Val()
-		if !present {
-			return false
-		}
-		for _, port := range intfsOperStatusUPBeforeReboot {
-			if root.GetInterface(port).GetOperStatus() != oc.Interface_OperStatus_UP {
-				upInterfaces[port] = false
-				return false
-			} else {
-				upInterfaces[port] = true
-			}
-		}
-		return true
-	})
-	if val, ok := watch.Await(t); !ok {
-		for intf, up := range upInterfaces {
-			if !up {
-				gnmi.Get(t, dut, gnmi.OC().Interface(intf).State())
-				t.Logf("Interface %s is not up after reloading line card %s", intf, removableLinecard)
-			}
-		}
-		t.Fatalf("DUT did not reach target state: got %v", val)
-	}
-
+	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeReboot, 10*time.Minute)
 	// TODO: Check the line card uptime has been reset.
-}
-
-func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
-	var activeRP, standbyRP string
-	for _, supervisor := range supervisors {
-		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 5*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
-			return val.IsPresent()
-		})
-		if val, ok := watch.Await(t); !ok {
-			t.Fatalf("DUT did not reach target state within %v: got %v", 5*time.Minute, val)
-		}
-		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
-		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
-		if role == standbyController {
-			standbyRP = supervisor
-		} else if role == activeController {
-			activeRP = supervisor
-		} else {
-			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
-		}
-	}
-	if standbyRP == "" || activeRP == "" {
-		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
-	}
-	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
-
-	return standbyRP, activeRP
-}
-
-func fetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice) []string {
-	intfsOperStatusUP := []string{}
-	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
-	for _, intf := range intfs {
-		operStatus := gnmi.Lookup(t, dut, gnmi.OC().Interface(intf).OperStatus().State())
-		if status, present := operStatus.Val(); present && status == oc.Interface_OperStatus_UP {
-			intfsOperStatusUP = append(intfsOperStatusUP, intf)
-		}
-	}
-	sort.Strings(intfsOperStatusUP)
-	return intfsOperStatusUP
 }

@@ -131,9 +131,13 @@ func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, subintfinde
 	s := i.GetOrCreateSubinterface(subintfindex)
 
 	if vlan != 0 {
-		// Add VLANs
-		singletag := s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged()
-		singletag.VlanId = ygot.Uint16(vlan)
+		// Add VLANs.
+		if *deviations.DeprecatedVlanID {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlan)
+		} else {
+			singletag := s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged()
+			singletag.VlanId = ygot.Uint16(vlan)
+		}
 	}
 	// Add IPv4 stack
 	s4 := s.GetOrCreateIpv4()
