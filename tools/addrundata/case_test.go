@@ -199,6 +199,21 @@ func TestCase_Check(t *testing.T) {
 		name: "nodata",
 		tc:   testcase{},
 		want: 2,
+	}, {
+		name: "deprecated",
+		tc: testcase{
+			markdown: &mpb.Metadata{
+				PlanId:      "XX-1.1",
+				Description: "Foo Functional Test",
+			},
+			existing: &mpb.Metadata{
+				Uuid:        "123e4567-e89b-42d3-8456-426614174000",
+				PlanId:      "XX-1.1",
+				Description: "Foo Functional Test",
+			},
+			deprecated: true,
+		},
+		want: 1,
 	}}
 
 	for _, c := range cases {
@@ -210,45 +225,6 @@ func TestCase_Check(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestCase_CheckDeprecated(t *testing.T) {
-	tc := testcase{
-		markdown: &mpb.Metadata{
-			PlanId:      "XX-1.1",
-			Description: "Foo Functional Test",
-		},
-		existing: &mpb.Metadata{
-			Uuid:        "123e4567-e89b-42d3-8456-426614174000",
-			PlanId:      "XX-1.1",
-			Description: "Foo Functional Test",
-		},
-		deprecated: true,
-	}
-
-	t.Run("true", func(t *testing.T) {
-		*checkDeprecated = true
-		errs := tc.check()
-		t.Logf("Errors from check: %#q", errs)
-		if want, got := 1, len(errs); got != want {
-			t.Errorf("Check got number of errors %d, want %d.", got, want)
-		}
-		if len(errs) > 0 {
-			err := errs[0]
-			if want := "deprecated"; !strings.Contains(err.Error(), want) {
-				t.Errorf("Check got error %v, want containing %q.", err, want)
-			}
-		}
-	})
-
-	t.Run("false", func(t *testing.T) {
-		*checkDeprecated = false
-		errs := tc.check()
-		t.Logf("Errors from check: %#q", errs)
-		if len(errs) > 0 {
-			t.Errorf("Check got unexpected errors: %v", errs)
-		}
-	})
 }
 
 func TestCase_Fix(t *testing.T) {
