@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "2b09c623-da44-4511-8d7a-bec872fdc20b"
+plan_id: "TE-6.2"
+description: "Route Removal In Non Default VRF"

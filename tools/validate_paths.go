@@ -291,7 +291,7 @@ func featureFiles() ([]string, error) {
 			if e.IsDir() {
 				return nil
 			}
-			if strings.HasSuffix(e.Name(), ".textproto") {
+			if e.Name() == "feature.textproto" {
 				files = append(files, path)
 			}
 			return nil

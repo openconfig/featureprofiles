@@ -137,6 +137,8 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 }
 
 func readFromMetadataProto() error {
+	// When "go test" runs, the current working directory is the test
+	// package directory, which is where we will find the metadata file.
 	const metadataFilename = "metadata.textproto"
 	bytes, err := os.ReadFile(metadataFilename)
 	if err != nil {
