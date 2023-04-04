@@ -130,7 +130,11 @@ func TestWrrTraffic(t *testing.T) {
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntf(t, dut)
-	ConfigureQoS(t, dut)
+	if dut.Vendor() == ondatra.CISCO {
+		ConfigureCiscoQos(t, dut)
+	} else {
+		ConfigureQoS(t, dut)
+	}
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
@@ -1125,7 +1129,7 @@ func TestWrrTraffic(t *testing.T) {
 				if ateTxPkts == 0 {
 					t.Fatalf("TxPkts == 0, want >0.")
 				}
-				lossPct := float32(((ateTxPkts - ateRxPkts) * 100) / ateTxPkts)
+				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
 				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
 				if got, want := 100.0-lossPct, data.expectedThroughputPct; got < want-tolerance || got > want+tolerance {
 					t.Errorf("Get(throughput for queue %q): got %.2f%%, want within [%.2f%%, %.2f%%]", data.queue, got, want-tolerance, want+tolerance)
