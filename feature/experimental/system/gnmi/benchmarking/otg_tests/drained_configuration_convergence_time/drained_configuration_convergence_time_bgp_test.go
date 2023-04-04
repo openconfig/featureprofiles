@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -155,7 +156,6 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	start := time.Now()
 	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setASpathPrependPolicy})
 	t.Run("BGP-AS-PATH Verification", func(t *testing.T) {
-		at := gnmi.OC()
 		for _, ap := range ate.Ports() {
 			if ap.ID() == "port1" {
 				// port1 is ingress, skip verification on ingress port.
@@ -165,19 +165,17 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			// Validate if all prefixes are received by ATE.
 			isConverged(t, dut, ate, ap)
 
-			rib := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "0").Bgp().Rib()
-			prefixPath := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
-				NeighborAny().AdjRibInPre().RouteAny().WithPathId(0).Prefix()
+			prefixPath := gnmi.OTG().BgpPeer(ap.ID() + ".BGP4.peer").UnicastIpv4PrefixAny()
 
-			gnmi.WatchAll(t, ate, prefixPath.State(), time.Minute, func(v *ygnmi.Value[string]) bool {
+			gnmi.WatchAll(t, ate.OTG(), prefixPath.Address().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
 				_, present := v.Val()
 				return present
 			}).Await(t)
 
 			singlepath := []uint32{setup.DUTAs, setup.DUTAs, setup.DUTAs, setup.DUTAs, setup.ATEAs2}
-			_, ok := gnmi.WatchAll(t, ate, rib.AttrSetAny().AsSegmentAny().State(), 5*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet_AsSegment]) bool {
+			_, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.AsPathAny().State(), 5*time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix_AsPath]) bool {
 				val, present := v.Val()
-				return present && cmp.Diff(val.Member, singlepath) == ""
+				return present && cmp.Diff(val.AsNumbers, singlepath) == ""
 			}).Await(t)
 			if !ok {
 				t.Errorf("Obtained AS path on ATE is not as expected")

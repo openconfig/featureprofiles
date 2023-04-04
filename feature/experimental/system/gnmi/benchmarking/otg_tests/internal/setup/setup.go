@@ -259,8 +259,11 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 		if dp.ID() == "port1" {
 			// Add BGP on ATE
 			bgpDut1 := dev.Bgp().SetRouterId(ip.Address())
-			bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dev.Name() + ".BGP4.peer")
+			bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dp.ID() + ".BGP4.peer")
 			bgpDut1Peer.SetPeerAddress(DUTIPList[dp.ID()].String()).SetAsNumber(ATEAs2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+
+			bgpDut1Peer.Capability().SetIpv4Unicast(true)
+			bgpDut1Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 			devIsis := dev.Isis().
 				SetSystemId("640000000001").
@@ -306,11 +309,13 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 
 		// Add BGP on ATE
 		bgpDut1 := dev.Bgp().SetRouterId(ip.Address())
-		bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dev.Name() + ".BGP4.peer")
+		bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dp.ID() + ".BGP4.peer")
 		bgpDut1Peer.SetPeerAddress(DUTIPList[dp.ID()].String()).SetAsNumber(ATEAs).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 
-		// Add ISIS on ATE
+		bgpDut1Peer.Capability().SetIpv4Unicast(true)
+		bgpDut1Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
+		// Add ISIS on ATE
 		devIsis := dev.Isis().
 			SetSystemId("640000000002"). //TODO: Add in a list format
 			SetName("devIsis" + dp.Name())
