@@ -331,6 +331,10 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         test_args += f'-v 5 ' \
             f'-alsologtostderr'
 
+    inactivity_timeout = 1800
+    if test_timeout == 0: test_timeout = inactivity_timeout
+    if test_timeout > 0: inactivity_timeout = 2*test_timeout
+
     go_args = f'{go_args} ' \
                 f'-json ' \
                 f'-p 1 ' \
@@ -343,9 +347,6 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     start_timestamp = int(time.time())
 
     try:
-        inactivity_timeout = 1800
-        if test_timeout > 0: inactivity_timeout = 2*test_timeout
-
         self.run_script(cmd,
                         inactivity_timeout=inactivity_timeout,
                         ok_nonzero_returncodes=(1,),
