@@ -231,4 +231,6 @@ var (
 	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+
+	UseNativeACLConfiguration = flag.Bool("deviation_use_native_acl_config", false, "Configure ACLs using native model specifically for RT-1.4")
 )
