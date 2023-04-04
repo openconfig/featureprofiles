@@ -536,13 +536,14 @@ func TestDuplicateElectionID(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
 			resp, err := streamP4RTArb(&test)
-			if !test.wantFail {
+			if err != nil && !test.wantFail {
+				t.Errorf("Failed to setup P4RT Client: %v", err)
+			}
+			if test.wantFail {
 				if err != nil {
-					t.Errorf("Failed to setup P4RT Client: %v", err)
-				}
-			} else {
-				if err != nil {
-					t.Logf("As expected failed to setup P4RT Client: %v", err)
+					t.Logf("Setup of P4RT Client %v failed as expected: %v", sDesc, err)
+				} else {
+					t.Errorf("Setup of P4RT Client %v did not fail as expected", sDesc)
 				}
 			}
 
