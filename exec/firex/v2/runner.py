@@ -506,7 +506,7 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir,
     logger.print("Performing Software Upgrade...")
     su_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/software_upgrade ' \
-            f'-timeout 0 ' \
+            f'-timeout 60m ' \
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
@@ -548,7 +548,7 @@ def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path,
 
     collect_debug_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/debug ' \
-            f'-timeout 0 ' \
+            f'-timeout 60m ' \
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {tmp_binding_file} ' \
@@ -573,7 +573,7 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
     logger.print("Collecting testbed info...")
     testbed_info_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/testbed ' \
-            f'-timeout 0 ' \
+            f'-timeout 10m ' \
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
