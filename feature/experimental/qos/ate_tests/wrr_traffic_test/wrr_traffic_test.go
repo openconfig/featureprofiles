@@ -278,7 +278,7 @@ func TestWrrTraffic(t *testing.T) {
 	nonOversubscribedTrafficFlows4 := map[string]*trafficData{
 		"intf1-be0": {
 			frameSize:             1000,
-			trafficRate:           40,
+			trafficRate:           25,
 			expectedThroughputPct: 100.0,
 			dscp:                  4,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
@@ -286,7 +286,7 @@ func TestWrrTraffic(t *testing.T) {
 		},
 		"intf1-be1": {
 			frameSize:             1000,
-			trafficRate:           10,
+			trafficRate:           25,
 			expectedThroughputPct: 100.0,
 			dscp:                  0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
@@ -294,7 +294,7 @@ func TestWrrTraffic(t *testing.T) {
 		},
 		"intf2-be0": {
 			frameSize:             1000,
-			trafficRate:           40,
+			trafficRate:           25,
 			dscp:                  4,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
@@ -302,7 +302,7 @@ func TestWrrTraffic(t *testing.T) {
 		},
 		"intf2-be1": {
 			frameSize:             1000,
-			trafficRate:           10,
+			trafficRate:           25,
 			dscp:                  0,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
@@ -353,7 +353,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af3": {
 			frameSize:             1000,
 			trafficRate:           40,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 100,
 			dscp:                  24,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
 			inputIntf:             intf1,
@@ -361,7 +361,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af2": {
 			frameSize:             1000,
 			trafficRate:           20,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 50,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf1,
@@ -370,7 +370,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           40,
 			dscp:                  24,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 100,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
 			inputIntf:             intf2,
 		},
@@ -378,7 +378,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           20,
 			dscp:                  16,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 50,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf2,
 		},
@@ -423,7 +423,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af3": {
 			frameSize:             1000,
 			trafficRate:           50,
-			expectedThroughputPct: 66.71,
+			expectedThroughputPct: 80,
 			dscp:                  24,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
 			inputIntf:             intf1,
@@ -431,7 +431,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af2": {
 			frameSize:             1000,
 			trafficRate:           50,
-			expectedThroughputPct: 33.29,
+			expectedThroughputPct: 20,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf1,
@@ -440,7 +440,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           50,
 			dscp:                  24,
-			expectedThroughputPct: 66.71,
+			expectedThroughputPct: 80,
 			queue:                 queueMap[dut.Vendor()]["AF3"],
 			inputIntf:             intf2,
 		},
@@ -448,7 +448,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           50,
 			dscp:                  16,
-			expectedThroughputPct: 33.29,
+			expectedThroughputPct: 20,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf2,
 		},
@@ -531,7 +531,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af2": {
 			frameSize:             1000,
 			trafficRate:           40,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 100,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf1,
@@ -539,7 +539,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af1": {
 			frameSize:             1000,
 			trafficRate:           20,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 50,
 			dscp:                  8,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
 			inputIntf:             intf1,
@@ -548,7 +548,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           40,
 			dscp:                  16,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 100,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf2,
 		},
@@ -556,7 +556,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           20,
 			dscp:                  8,
-			expectedThroughputPct: 83.48,
+			expectedThroughputPct: 50,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
 			inputIntf:             intf2,
 		},
@@ -602,7 +602,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af2": {
 			frameSize:             1000,
 			trafficRate:           50,
-			expectedThroughputPct: 66.71,
+			expectedThroughputPct: 80,
 			dscp:                  16,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf1,
@@ -610,7 +610,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-af1": {
 			frameSize:             1000,
 			trafficRate:           50,
-			expectedThroughputPct: 33.29,
+			expectedThroughputPct: 20,
 			dscp:                  8,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
 			inputIntf:             intf1,
@@ -619,7 +619,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           50,
 			dscp:                  16,
-			expectedThroughputPct: 66.71,
+			expectedThroughputPct: 80,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf2,
 		},
@@ -627,7 +627,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           50,
 			dscp:                  8,
-			expectedThroughputPct: 33.29,
+			expectedThroughputPct: 20,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
 			inputIntf:             intf2,
 		},
@@ -782,7 +782,7 @@ func TestWrrTraffic(t *testing.T) {
 	oversubscribedTrafficFlows10 := map[string]*trafficData{
 		"intf1-be0": {
 			frameSize:             1000,
-			trafficRate:           80,
+			trafficRate:           50,
 			expectedThroughputPct: 50.0,
 			dscp:                  4,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
@@ -790,7 +790,7 @@ func TestWrrTraffic(t *testing.T) {
 		},
 		"intf1-be1": {
 			frameSize:             1000,
-			trafficRate:           10,
+			trafficRate:           25,
 			expectedThroughputPct: 100.0,
 			dscp:                  0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
@@ -798,7 +798,7 @@ func TestWrrTraffic(t *testing.T) {
 		},
 		"intf2-be0": {
 			frameSize:             1000,
-			trafficRate:           80,
+			trafficRate:           50,
 			dscp:                  4,
 			expectedThroughputPct: 50.0,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
@@ -806,7 +806,7 @@ func TestWrrTraffic(t *testing.T) {
 		},
 		"intf2-be1": {
 			frameSize:             1000,
-			trafficRate:           10,
+			trafficRate:           25,
 			dscp:                  0,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
@@ -819,7 +819,7 @@ func TestWrrTraffic(t *testing.T) {
 	oversubscribedTrafficFlows11 := map[string]*trafficData{
 		"intf1-be0": {
 			frameSize:             1000,
-			trafficRate:           40,
+			trafficRate:           25,
 			expectedThroughputPct: 100.0,
 			dscp:                  4,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
@@ -827,7 +827,7 @@ func TestWrrTraffic(t *testing.T) {
 		},
 		"intf1-be1": {
 			frameSize:             1000,
-			trafficRate:           20,
+			trafficRate:           50,
 			expectedThroughputPct: 50.0,
 			dscp:                  0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
@@ -835,7 +835,7 @@ func TestWrrTraffic(t *testing.T) {
 		},
 		"intf2-be0": {
 			frameSize:             1000,
-			trafficRate:           40,
+			trafficRate:           25,
 			dscp:                  4,
 			expectedThroughputPct: 100.0,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
@@ -843,7 +843,7 @@ func TestWrrTraffic(t *testing.T) {
 		},
 		"intf2-be1": {
 			frameSize:             1000,
-			trafficRate:           20,
+			trafficRate:           50,
 			dscp:                  0,
 			expectedThroughputPct: 50.0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
@@ -852,12 +852,12 @@ func TestWrrTraffic(t *testing.T) {
 	}
 
 	// Test case 16: Oversubscription BE0 and BE1 traffic 3.
-	//   - There should be 20% of BE0 and 80% of BE1 drops.
+	//   - There should be 50% of BE0 and 50% of BE1 drops.
 	oversubscribedTrafficFlows12 := map[string]*trafficData{
 		"intf1-be0": {
 			frameSize:             1000,
 			trafficRate:           50,
-			expectedThroughputPct: 80.0,
+			expectedThroughputPct: 50.0,
 			dscp:                  4,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf1,
@@ -865,7 +865,7 @@ func TestWrrTraffic(t *testing.T) {
 		"intf1-be1": {
 			frameSize:             1000,
 			trafficRate:           50,
-			expectedThroughputPct: 20.0,
+			expectedThroughputPct: 50.0,
 			dscp:                  0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf1,
@@ -874,7 +874,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           50,
 			dscp:                  4,
-			expectedThroughputPct: 80.0,
+			expectedThroughputPct: 50.0,
 			queue:                 queueMap[dut.Vendor()]["BE0"],
 			inputIntf:             intf2,
 		},
@@ -882,7 +882,7 @@ func TestWrrTraffic(t *testing.T) {
 			frameSize:             1000,
 			trafficRate:           50,
 			dscp:                  0,
-			expectedThroughputPct: 20.0,
+			expectedThroughputPct: 50.0,
 			queue:                 queueMap[dut.Vendor()]["BE1"],
 			inputIntf:             intf2,
 		},
@@ -984,7 +984,7 @@ func TestWrrTraffic(t *testing.T) {
 			}, {
 				desc:            "Oversubscription AF3 and AF2 traffic with half AF3 dropped",
 				trafficFlows:    oversubscribedTrafficFlows1,
-				trafficDuration: 120 * time.Second,
+				trafficDuration: 20 * time.Second,
 			}, {
 				desc:            "Oversubscription AF3 and AF2 traffic with half AF2 dropped",
 				trafficFlows:    oversubscribedTrafficFlows2,
@@ -996,39 +996,39 @@ func TestWrrTraffic(t *testing.T) {
 			}, {
 				desc:            "Oversubscription AF2 and AF1 traffic with half AF2 dropped",
 				trafficFlows:    oversubscribedTrafficFlows4,
-				trafficDuration: 120 * time.Second,
+				trafficDuration: 20 * time.Second,
 			}, {
 				desc:            "Oversubscription AF2 and AF1 traffic with half AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows5,
-				trafficDuration: 120 * time.Second,
+				trafficDuration: 20 * time.Second,
 			}, {
 				desc:            "Oversubscription AF2 and AF1 traffic with AF2 and AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows6,
-				trafficDuration: 120 * time.Second,
+				trafficDuration: 20 * time.Second,
 			}, {
 				desc:            "Oversubscription AF1 and BE0 traffic with half AF1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows7,
-				trafficDuration: 120 * time.Second,
+				trafficDuration: 20 * time.Second,
 			}, {
 				desc:            "Oversubscription AF1 and BE0 traffic with half BE0 dropped",
 				trafficFlows:    oversubscribedTrafficFlows8,
-				trafficDuration: 120 * time.Second,
+				trafficDuration: 20 * time.Second,
 			}, {
 				desc:            "Oversubscription AF1 and BE0 traffic with AF1 and BE0 dropped",
 				trafficFlows:    oversubscribedTrafficFlows9,
-				trafficDuration: 120 * time.Second,
+				trafficDuration: 20 * time.Second,
 			}, {
 				desc:            "Oversubscription BE0 and BE1 traffic with half BE0 dropped",
 				trafficFlows:    oversubscribedTrafficFlows10,
-				trafficDuration: 120 * time.Second,
+				trafficDuration: 20 * time.Second,
 			}, {
 				desc:            "Oversubscription BE0 and BE1 traffic with half BE1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows11,
-				trafficDuration: 120 * time.Second,
+				trafficDuration: 20 * time.Second,
 			}, {
 				desc:            "Oversubscription BE0 and BE1 traffic with BE0 and BE1 dropped",
 				trafficFlows:    oversubscribedTrafficFlows12,
-				trafficDuration: 120 * time.Second,
+				trafficDuration: 20 * time.Second,
 			},
 		}
 	}
@@ -1409,7 +1409,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(4),
+		weight:      uint64(1),
 		queueName:   "BE0",
 		targetGroup: "target-group-BE0",
 	}, {
@@ -1418,7 +1418,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(16),
+		weight:      uint64(4),
 		queueName:   "AF1",
 		targetGroup: "target-group-AF1",
 	}, {
@@ -1427,7 +1427,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(64),
+		weight:      uint64(16),
 		queueName:   "AF2",
 		targetGroup: "target-group-AF2",
 	}, {
@@ -1436,7 +1436,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(256),
+		weight:      uint64(64),
 		queueName:   "AF3",
 		targetGroup: "target-group-AF3",
 	}, {
