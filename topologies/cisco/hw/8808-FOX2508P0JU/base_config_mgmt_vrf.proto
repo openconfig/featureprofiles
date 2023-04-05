@@ -10,7 +10,7 @@ replace: {
 "username cafyauto\n"
 " group root-lr\n"
 " group cisco-support\n"
-" secret 10 $6$ymqNNgRK4bZ/N...$LI6ixV0OvuH.6RWHTE0z/FLVoZ3NPIoLedmrH0QJeBPce0Plu2qpulW.nThYDvOtdUGT5zM7NH4jmpjo0j0L00\n"
+" secret 10 $6$weHB30uIHVpI630.$.6VcbRLV4fQtgTtEMpqvyk5/tCG5JTHQdxq1Tb/jSrJ5y5ILILwLoLLXByicSfYd9plcDrAe04qFraQw2def/1\n"
 "!\n"
 "grpc\n"
 " vrf mgmt\n"
