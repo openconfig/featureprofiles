@@ -26,8 +26,13 @@
 package aggregate_forwarding_viable_test
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
+	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"text/tabwriter"
@@ -35,9 +40,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -91,6 +98,7 @@ var (
 
 	ateSrc = attrs.Attributes{
 		Name:    "atesrc",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		IPv4Len: plen4,
@@ -107,6 +115,7 @@ var (
 
 	ateDst = attrs.Attributes{
 		Name:    "atedst",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: plen4,
@@ -117,7 +126,7 @@ var (
 type testArgs struct {
 	dut     *ondatra.DUTDevice
 	ate     *ondatra.ATEDevice
-	top     *ondatra.ATETopology
+	top     gosnappi.Config
 	lagType oc.E_IfAggregate_AggregationType
 
 	dutPorts []*ondatra.Port
@@ -232,7 +241,10 @@ func (tc *testArgs) clearAggregate(t *testing.T) {
 
 	// Clear the members of the aggregate.
 	for _, port := range tc.dutPorts[1:] {
-		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		resetBatch := &gnmi.SetBatch{}
+		gnmi.BatchDelete(resetBatch, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		gnmi.BatchDelete(resetBatch, gnmi.OC().Interface(port.Name()).ForwardingViable().Config())
+		resetBatch.Set(t, tc.dut)
 	}
 }
 
@@ -274,14 +286,23 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, *deviations.DefaultNetworkInstance, 0)
+	}
 
 	srcp := tc.dutPorts[0]
 	srci := &oc.Interface{Name: ygot.String(srcp.Name())}
 	tc.configSrcDUT(srci, &dutSrc)
 	srci.Type = ethernetCsmacd
 	srciPath := d.Interface(srcp.Name())
+	if *deviations.ExplicitPortSpeed {
+		srci.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, srcp)
+	}
 	fptest.LogQuery(t, srcp.String(), srciPath.Config(), srci)
 	gnmi.Replace(t, tc.dut, srciPath.Config(), srci)
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 
 	for _, port := range tc.dutPorts[1:] {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
@@ -293,7 +314,9 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 
 		tc.configDstMemberDUT(i, port)
 		iPath := d.Interface(port.Name())
-
+		if *deviations.ExplicitPortSpeed {
+			i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, port)
+		}
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
 	}
@@ -307,42 +330,74 @@ func (tc *testArgs) configureATE(t *testing.T) {
 	}
 
 	p0 := tc.atePorts[0]
-	i0 := tc.top.AddInterface(ateSrc.Name).WithPort(p0)
-	i0.IPv4().
-		WithAddress(ateSrc.IPv4CIDR()).
-		WithDefaultGateway(dutSrc.IPv4)
-	i0.IPv6().
-		WithAddress(ateSrc.IPv6CIDR()).
-		WithDefaultGateway(dutSrc.IPv6)
+	tc.top.Ports().Add().SetName(p0.ID())
+	d0 := tc.top.Devices().Add().SetName(ateSrc.Name)
+	srcEth := d0.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
+	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p0.ID())
+	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
-	// Don't use WithLACPEnabled which is for emulated Ixia LACP.
-	agg := tc.top.AddInterface(ateDst.Name)
-	lag := tc.top.AddLAG("lag").WithPorts(tc.atePorts[1:]...)
-	lag.LACP().WithEnabled(tc.lagType == lagTypeLACP)
-	agg.WithLAG(lag)
-
-	// Disable FEC for 100G-FR ports because Novus does not support it.
-	if p0.PMD() == ondatra.PMD100GBASEFR {
-		i0.Ethernet().FEC().WithEnabled(false)
-	}
-	is100gfr := false
-	for _, p := range tc.atePorts[1:] {
-		if p.PMD() == ondatra.PMD100GBASEFR {
-			is100gfr = true
+	// Adding the rest of the ports to the configuration and to the LAG
+	agg := tc.top.Lags().Add().SetName(ateDst.Name)
+	if tc.lagType == lagTypeSTATIC {
+		lagId, _ := strconv.Atoi(tc.aggID)
+		agg.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
+		for i, p := range tc.atePorts[1:] {
+			port := tc.top.Ports().Add().SetName(p.ID())
+			newMac, err := incrementMAC(ateDst.MAC, i+1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			agg.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
+		}
+	} else {
+		agg.Protocol().SetChoice("lacp")
+		for i, p := range tc.atePorts[1:] {
+			port := tc.top.Ports().Add().SetName(p.ID())
+			newMac, err := incrementMAC(ateDst.MAC, i+1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lagPort := agg.Ports().Add().SetPortName(port.Name())
+			lagPort.Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
+			lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(int32(i) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 		}
 	}
-	if is100gfr {
-		agg.Ethernet().FEC().WithEnabled(false)
+
+	dstDev := tc.top.Devices().Add().SetName(agg.Name())
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
+	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
+	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
+
+	tc.ate.OTG().PushConfig(t, tc.top)
+	tc.ate.OTG().StartProtocols(t)
+}
+
+// incrementMAC uses a mac string and increments it by the given i
+func incrementMAC(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
 	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
+}
 
-	agg.IPv4().
-		WithAddress(ateDst.IPv4CIDR()).
-		WithDefaultGateway(dutDst.IPv4)
-	agg.IPv6().
-		WithAddress(ateDst.IPv6CIDR()).
-		WithDefaultGateway(dutDst.IPv6)
-
-	tc.top.Push(t).StartProtocols(t)
+// generates a list of random tcp ports values
+func generateRandomPortList(count int) []int32 {
+	a := make([]int32, count)
+	for index := range a {
+		a[index] = int32(rand.Intn(65536-1) + 1)
+	}
+	return a
 }
 
 // normalize normalizes the input values so that the output values sum
@@ -386,38 +441,17 @@ func (tc *testArgs) portWantsNotViable(t *testing.T) []float64 {
 }
 
 // debugATEFlows logs detailed tracking information on traffic flows and find if there is any loss pct in the flow.
-func debugATEFlows(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, lp linkPairs) {
-	b := &strings.Builder{}
-	w := tabwriter.NewWriter(b, 0, 0, 1, ' ', 0)
+func debugATEFlows(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, lp linkPairs) {
 
-	fmt.Fprint(w, "IXIA ATE Flow Tracking\n\n")
-	fmt.Fprint(w, "DUT Source Port\tATE Source Port\tDUT Destination Port\tATE Destination Port\tLossPct\tTX Packets\tRX Packets\n")
+	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+	lostPackets := txPackets - rxPackets
+	lossPct := lostPackets * 100 / txPackets
 
-	m := make(map[string]string)
-	for _, link := range lp {
-		m[link.ATEPort.Name()] = link.DUTPort.Name()
+	if got := lossPct; got > 0 {
+		t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
 	}
-
-	for _, flow := range flows {
-		ingressTracking := gnmi.GetAll(t, ate, gnmi.OC().Flow(flow.Name()).IngressTrackingAny().State())
-		for _, a := range ingressTracking {
-			_, after, _ := strings.Cut(a.GetSrcPort(), "/")
-			srcDUTPort := m[after]
-			_, after, _ = strings.Cut(a.GetDstPort(), "/")
-			dstDUTPort := m[after]
-			lossPct := ygot.BinaryToFloat32(a.GetLossPct())
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%.3f\t%d\t%d\n",
-				srcDUTPort, a.GetSrcPort(), dstDUTPort, a.GetDstPort(),
-				lossPct, a.GetCounters().GetOutPkts(), a.GetCounters().GetInPkts())
-		}
-		t.Run("Loss", func(t *testing.T) {
-			if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > 0 {
-				t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
-			}
-		})
-	}
-	w.Flush()
-	t.Log(b)
 }
 
 // verifyCounterDiff finds the difference between counter values before and after sending traffic. It also calculates if there is any packet loss.
@@ -460,36 +494,40 @@ func (tc *testArgs) verifyCounterDiff(t *testing.T, before, after []*oc.Interfac
 func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable bool) {
 	var want []float64
 	lp := newLinkPairs(tc.dut, tc.ate)
-	l3header := []ondatra.Header{ondatra.NewIPv4Header()}
 	// Update the interface config of one port in port-channel when the forwarding flag is set as false.
 	if !forwardingViable {
 		t.Log("First port does not forward traffic because it is marked as not viable.")
 		gnmi.Update(t, tc.dut, gnmi.OC().Interface(tc.dutPorts[1].Name()).ForwardingViable().Config(), forwardingViable)
 	}
 
-	i1 := tc.top.Interfaces()[ateSrc.Name]
-	i2 := tc.top.Interfaces()[ateDst.Name]
-	headers := []ondatra.Header{ondatra.NewEthernetHeader()}
-	headers = append(headers, l3header...)
-	tcpHeader := ondatra.NewTCPHeader()
-	tcpHeader.SrcPortRange().
-		WithMin(1).
-		WithCount(65534).
-		WithRandom()
-	headers = append(headers, tcpHeader)
+	i1 := ateSrc.Name
+	i2 := ateDst.Name
+
+	tc.top.Flows().Clear().Items()
+	flow := tc.top.Flows().Add().SetName("flow")
+	flow.Metrics().SetEnable(true)
+	flow.Size().SetFixed(128)
+	flow.Packet().Add().Ethernet().Src().SetValue(ateSrc.MAC)
+
+	flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
+	v4 := flow.Packet().Add().Ipv4()
+	v4.Src().SetValue(ateSrc.IPv4)
+	v4.Dst().SetValue(ateDst.IPv4)
+	tcp := flow.Packet().Add().Tcp()
+	tcp.SrcPort().SetValues(generateRandomPortList(65534))
+	tc.ate.OTG().PushConfig(t, tc.top)
+	tc.ate.OTG().StartProtocols(t)
+
 	beforeTrafficCounters := tc.getCounters(t, "before")
 
-	flow := tc.ate.Traffic().NewFlow("flow").
-		WithSrcEndpoints(i1).
-		WithDstEndpoints(i2).
-		WithHeaders(headers...).
-		WithIngressTrackingByPorts(true)
-
-	tc.ate.Traffic().Start(t, flow)
+	tc.ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	tc.ate.Traffic().Stop(t)
+	tc.ate.OTG().StopTraffic(t)
 
-	debugATEFlows(t, tc.ate, []*ondatra.Flow{flow}, lp)
+	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
+	otgutils.LogPortMetrics(t, tc.ate.OTG(), tc.top)
+
+	debugATEFlows(t, tc.ate, flow, lp)
 
 	pkts := gnmi.Get(t, tc.ate, gnmi.OC().Flow("flow").Counters().OutPkts().State())
 	if pkts == 0 {
@@ -534,11 +572,10 @@ func TestAggregateForwardingViable(t *testing.T) {
 
 	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 	for _, lagType := range lagTypes {
-		top := ate.Topology().New()
 		args := &testArgs{
 			dut:      dut,
 			ate:      ate,
-			top:      top,
+			top:      ate.OTG().NewConfig(t),
 			lagType:  lagType,
 			dutPorts: sortPorts(dut.Ports()),
 			atePorts: sortPorts(ate.Ports()),
@@ -546,8 +583,8 @@ func TestAggregateForwardingViable(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
 			args.configureDUT(t)
-			args.verifyDUT(t)
 			args.configureATE(t)
+			args.verifyDUT(t)
 
 			for _, forwardingViable := range []bool{true, false} {
 				t.Run(fmt.Sprintf("ForwardingViable=%t", forwardingViable), func(t *testing.T) {
