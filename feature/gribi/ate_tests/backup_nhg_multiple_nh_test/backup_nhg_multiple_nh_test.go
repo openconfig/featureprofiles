@@ -42,7 +42,7 @@ const (
 	vrf1           = "vrfA"
 	vrf2           = "vrfB"
 	fps            = 1000000 // traffic frames per second
-	switchovertime = 1000.0  // switchovertime during interface shut in milliseconds
+	switchovertime = 250.0   // switchovertime during interface shut in milliseconds
 )
 
 // testArgs holds the objects needed by a test case.
@@ -409,19 +409,22 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, expect
 		receivedPkts = receivedPkts + outPkts
 	}
 
-	// Get traffic received on expected port
+	// Get traffic received on expected port after interface shut
 	for _, outPort := range expected_outgoing_port {
 		outgoing_traffic_counters := gnmi.OC().Interface(outPort.Name()).Counters()
 		outPkts := gnmi.Get(t, a.ate, outgoing_traffic_counters.InPkts().State())
 		receivedPkts = receivedPkts + outPkts
 	}
 
-	// Check if traffic loss during interface shut is less than expected time in millisecond
-	// else if there is not interface trigger, validate received packets (control+data) are more than send packets
+	// Check if traffic restores with in expected time in milliseconds during interface shut
+	// else if there is no interface trigger, validate received packets (control+data) are more than send packets
 	if len(shut_ports) > 0 {
-		if ((sentPkts - receivedPkts) / (fps / 1000)) > switchovertime {
-			t.Fatalf("Traffic loss more than expected %f millisec", switchovertime)
+		// Time took for traffic to restore in milliseconds after trigger
+		fpm := ((sentPkts - receivedPkts) / (fps / 1000))
+		if fpm > switchovertime {
+			t.Fatalf("Traffic loss %v msecs more than expected %v msecs", fpm, switchovertime)
 		}
+		t.Logf("Traffic loss during path change : %v msecs", fpm)
 	} else if sentPkts > receivedPkts {
 		t.Fatalf("Traffic didn't switch to the expected outgoing port")
 	}
