@@ -1,4 +1,4 @@
-name: "arista-ceos"
+name: "arista-ceos-lag"
 nodes: {
     name: "dut"
     vendor: ARISTA
@@ -64,6 +64,27 @@ nodes: {
             inside: 50051
         }
     }
+    interfaces: {
+        key: "eth1"
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            group: "lag"
+        }
+    }
 }
 links: {
     a_node: "otg"
@@ -76,4 +97,16 @@ links: {
     a_int: "eth2"
     z_node: "otg"
     z_int: "eth2"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth3"
+    z_node: "otg"
+    z_int: "eth3"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth4"
+    z_node: "otg"
+    z_int: "eth4"
 }

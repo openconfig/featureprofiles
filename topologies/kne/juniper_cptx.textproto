@@ -1,20 +1,32 @@
-name: "arista-ceos"
+name: "juniper-cptx"
 nodes: {
     name: "dut"
-    vendor: ARISTA
-    model: "ceos"
-    os: "eos"
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
     config: {
-        image: "ceos:latest"
-        file: "arista_ceos.config"
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
+        image: "cptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "juniper_cptx.config"
         cert: {
             self_signed: {
-                cert_name: "gnmiCert.pem",
-                key_name: "gnmiCertKey.pem",
+                cert_name: "grpc-server-cert",
+                key_name: "N/A",
                 key_size: 4096,
             }
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth20"
+        value: {
+          name: "et-0/0/2:0"
         }
     }
     services: {
@@ -25,17 +37,31 @@ nodes: {
         }
     }
     services: {
-        key: 6030
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 32767
+        }
+    }
+    services: {
+        key: 9339
         value: {
             name: "gnmi"
-            inside: 6030
+            inside: 32767
         }
     }
     services: {
         key: 9340
         value: {
             name: "gribi"
-            inside: 9340
+            inside: 32767
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 32767
         }
     }
 }
@@ -69,11 +95,11 @@ links: {
     a_node: "otg"
     a_int: "eth1"
     z_node: "dut"
-    z_int: "eth1"
+    z_int: "eth12"
 }
 links: {
     a_node: "dut"
-    a_int: "eth2"
+    a_int: "eth20"
     z_node: "otg"
     z_int: "eth2"
 }

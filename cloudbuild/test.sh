@@ -17,24 +17,19 @@ set -xe
 
 case $1 in
   arista_ceos)
-    topology=arista_ixia.textproto
-    user=admin
-    pass=admin
+    topology=arista_ceos.textproto
     ;;
   juniper_cptx)
-    topology=juniper_ixia.textproto
-    user=root
-    pass=Google123
+    topology=juniper_cptx.textproto
     ;;
   cisco_8000e)
-    topology=cisco_ixia.textproto
-    user=cisco
-    pass=cisco123
+    topology=cisco_8000e.textproto
+    ;;
+  cisco_xrd)
+    topology=cisco_xrd.textproto
     ;;
   nokia_srlinux)
-    topology=nokia_ixia.textproto
-    user=admin
-    pass=NokiaSrl1!
+    topology=nokia_srlinux.textproto
     ;;
   :)
     echo "Model $1 not valid"
@@ -52,16 +47,18 @@ cp -r "$PWD"/topologies/kne /tmp
 sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/kne/"$topology"
 sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/kne/"$topology"
 sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" /tmp/kne/"$topology"
+sed -i "s/xrd:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/xrd:ga/g" /tmp/kne/"$topology"
 sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" /tmp/kne/"$topology"
 
 kne create /tmp/kne/"$topology"
-cat >/tmp/testbed.kne.yml << EOF
-username: $user
-password: $pass
-topology: /tmp/kne/$topology
-skip_reset: true
-EOF
 
-go test -v ./feature/system/tests/... -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
+go test -v ./feature/system/tests/... \
+  -testbed "$PWD"/topologies/dut.testbed \
+  -kne-config /tmp/testbed.kne.yml \
+  -kne-skip-reset \
+  -vendor_creds ARISTA/admin/admin \
+  -vendor_creds JUNIPER/root/Google123 \
+  -vendor_creds CISCO/cisco/cisco123 \
+  -vendor_creds NOKIA/admin/NokiaSrl1!
 
 popd

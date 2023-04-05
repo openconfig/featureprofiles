@@ -41,6 +41,7 @@ var (
 	kneConfig   = flag.String("kne-config", "", "YAML configuration file")
 	pushConfig  = flag.Bool("push-config", true, "push device reset config supplied to static binding")
 	kneTopo     = flag.String("kne-topo", "", "KNE topology file")
+	kneSkipReset  = flag.Bool("kne-skip-reset", false, "skip the initial config reset phase when using KNE")
 	credFlags   = knecreds.DefineFlags()
 )
 
@@ -87,6 +88,7 @@ func newBind() (binding.Binding, error) {
 		return knebind.New(&knebind.Config{
 			Topology:    *kneTopo,
 			Credentials: cred,
+			SkipReset:   *kneSkipReset,
 		})
 	}
 	if *kneConfig != "" {
