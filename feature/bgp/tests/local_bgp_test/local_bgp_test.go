@@ -239,7 +239,7 @@ func TestDisconnect(t *testing.T) {
 			t.Errorf("On disconnect: expected error code %v, got %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE, value)
 		}
 	} else {
-		if deviations.MissingBgpLastNotificationErrorCode(ondatra.DUT(t, "dut1")) {
+		if deviations.MissingBgpLastNotificationErrorCode(dut) {
 			t.Log("Last notification error code leaf not present. The validation result is ignored due to the deviation missingBgpLastNotificationErrorCode")
 		} else {
 			t.Error("Last notification error code leaf not present.")
