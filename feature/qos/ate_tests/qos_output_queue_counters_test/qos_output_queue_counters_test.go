@@ -310,6 +310,11 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 
+	nc1InputWeight := uint64(200)
+	if deviations.SchedulerInputWeightLimit(ondatra.DUT(t, "dut")) {
+		nc1InputWeight = uint64(100)
+	}
+
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
 		desc        string
@@ -584,7 +589,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(200),
+		weight:      nc1InputWeight,
 		queueName:   "NC1",
 		targetGroup: "target-group-NC1",
 	}}
@@ -601,9 +606,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		input.SetInputType(tc.inputType)
 		input.SetQueue(tc.queueName)
 		input.SetWeight(tc.weight)
-		if !*deviations.SchedulerInputParamsUnsupported {
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		}
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
 	t.Logf("Create qos output interface config")
@@ -653,9 +656,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		if !*deviations.SchedulerInputParamsUnsupported {
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		}
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 }
 
