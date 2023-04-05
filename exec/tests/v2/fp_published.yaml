@@ -567,16 +567,19 @@ tests:
     owners:
       - saarvind
     mustpass: true
+    timeout: 5400
   - name: DP-1.8 (Two strict priority queue traffic test)
     path: feature/qos/ate_tests/two_sp_queue_traffic_test
     owners:
       - saarvind
     mustpass: true
+    timeout: 5400
   - name: DP-1.9 (WRR traffic-test)
     path: feature/experimental/qos/ate_tests/wrr_traffic_test
     owners:
       - saarvind
     mustpass: true
+    timeout: 5400
   - name: DP-1.11 (QoS Bursty Traffic)
     path: feature/qos/ate_tests/bursty_traffic_test
     owners:
