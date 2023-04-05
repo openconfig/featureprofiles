@@ -68,6 +68,7 @@ tests:
     path: feature/gribi/ate_tests/weighted_balancing_test
     mustpass: true
     priority: 3
+    timeout: 3200
   - name: TE-13.2 (gRIBI route DELETE during Failover)
     path: feature/experimental/gribi/ate_tests/route_removal_during_failover_test/
     mustpass: true
@@ -487,6 +488,7 @@ tests:
     mustpass: true
     skip: false
     priority: 6
+    timeout: 4200
   - name: gNMI-1.4 (Telemetry Inventory)
     path: feature/platform/ate_tests/telemetry_inventory_test
     pr: 1277
@@ -567,19 +569,19 @@ tests:
     owners:
       - saarvind
     mustpass: true
-    timeout: 5400
+    timeout: 2700
   - name: DP-1.8 (Two strict priority queue traffic test)
     path: feature/qos/ate_tests/two_sp_queue_traffic_test
     owners:
       - saarvind
     mustpass: true
-    timeout: 5400
+    timeout: 4200
   - name: DP-1.9 (WRR traffic-test)
     path: feature/experimental/qos/ate_tests/wrr_traffic_test
     owners:
       - saarvind
     mustpass: true
-    timeout: 5400
+    timeout: 4200
   - name: DP-1.11 (QoS Bursty Traffic)
     path: feature/qos/ate_tests/bursty_traffic_test
     owners:
