@@ -249,7 +249,7 @@ func TestBackup(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	//configure DUT
-	// configureDUT(t, dut)
+	configureDUT(t, dut)
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
