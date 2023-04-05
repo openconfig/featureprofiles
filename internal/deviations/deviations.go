@@ -232,6 +232,6 @@ var (
 
 	SubifIDZero = flag.Bool("deviation_subif_id_zero", false,
 		"Device does not support subinterface ID 0 in network-instance interface ID assignment")
-	
-  gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+
+	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
 )
