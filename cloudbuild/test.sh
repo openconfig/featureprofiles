@@ -54,7 +54,7 @@ kne create /tmp/kne/"$topology"
 
 go test -v ./feature/system/tests/... \
   -testbed "$PWD"/topologies/dut.testbed \
-  -kne-config /tmp/testbed.kne.yml \
+  -kne-topo /tmp/kne/"$topology" \
   -kne-skip-reset \
   -vendor_creds ARISTA/admin/admin \
   -vendor_creds JUNIPER/root/Google123 \
