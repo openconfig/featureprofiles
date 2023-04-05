@@ -74,6 +74,11 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// GRIBIMACOverrideWithStaticARP returns whether for a gRIBI IPv4 route the device does not support a mac-address only next-hop-entry.
+func GRIBIMACOverrideWithStaticARP(_ *ondatra.DUTDevice) bool {
+	return *gribiMACOverrideWithStaticARP
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -222,4 +227,8 @@ var (
 
 	ISISRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
+
+	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
+
+	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
 )
