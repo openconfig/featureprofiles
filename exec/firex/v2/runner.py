@@ -80,7 +80,7 @@ def _sim_get_vrf(base_conf_file):
             return matches.group(3).strip()
     return None
 
-def _sim_get_mgmt_ip(testbed_logs_dir):
+def _sim_get_mgmt_ips(testbed_logs_dir):
     vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
     with open(vxr_ports_file, "r") as fp:
         try:
@@ -88,9 +88,11 @@ def _sim_get_mgmt_ip(testbed_logs_dir):
         except yaml.YAMLError:
             logger.warning("Failed to parse vxr ports file...")
             return
-
-    mgmt_ip = vxr_ports.get("dut", {}).get("xr_mgmt_ip", None)
-    return mgmt_ip
+    mgmt_ips = {}
+    for dut, entry in vxr_ports.items():
+        if "xr_mgmt_ip" in entry:
+            mgmt_ips[dut] = entry["xr_mgmt_ip"]
+    return mgmt_ips
 
 def _cli_to_gnmi_set_file(cli_file, gnmi_file, extra_conf=[]):
     with open(cli_file, 'r') as cli:
@@ -143,7 +145,7 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_dir', 'reserved_testbed', 'ondatra_binding_path', 
-		'ondatra_testbed_path', 'ondatra_baseconf_path', 'testbed_info_path', 
+		'ondatra_testbed_path', 'testbed_info_path', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
@@ -176,12 +178,23 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
         reserved_testbed.update(overrides)
 
-        baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
-        baseconf_file_copy = os.path.join(testbed_logs_dir, 'baseconf.conf')
-        shutil.copyfile(baseconf_file, baseconf_file_copy)
-
         topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
-        check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file_copy}|g' {topo_file}")
+        with open(topo_file, "r") as fp:
+            topo_yaml = yaml.safe_load(fp)
+
+        if not type(reserved_testbed['baseconf']) is dict:
+            reserved_testbed['baseconf'] = {
+                'dut': reserved_testbed['baseconf']
+            }
+
+        for dut, conf in reserved_testbed['baseconf'].items():
+            baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, conf)
+            baseconf_file_copy = os.path.join(testbed_logs_dir, f'baseconf_{dut}.conf')
+            shutil.copyfile(baseconf_file, baseconf_file_copy)
+            topo_yaml['devices'][dut]['cvac'] = baseconf_file_copy
+
+        with open(topo_file, "w") as fp:
+            fp.write(yaml.dump(topo_yaml))
         c |= self.orig.s(plat='8000', topo_file=topo_file)
     else:
         c |= ReserveTestbed.s()
@@ -193,7 +206,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         c |= CollectTestbedInfo.s()
     result = self.enqueue_child_and_get_results(c)
     return (internal_fp_repo_dir, reserved_testbed, result["ondatra_binding_path"], 
-            result["ondatra_testbed_path"], result["ondatra_baseconf_path"], result["testbed_info_path"], 
+            result["ondatra_testbed_path"], result["testbed_info_path"], 
             result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
             result.get("slurm_jobid", None), result.get("topo_path", None))
 
@@ -298,7 +311,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
-        test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, ondatra_baseconf_path, 
+        test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
         test_path, test_args=None, test_timeout=0, test_debug=False, test_verbose=False, testbed_info_path=None):
     
     logger.print('Running Go test...')
@@ -313,8 +326,6 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
             os.path.join(test_log_directory_path, "ondatra_binding.txt"))
     shutil.copyfile(ondatra_testbed_path,
             os.path.join(test_log_directory_path, "ondatra_testbed.txt"))
-    shutil.copyfile(ondatra_baseconf_path,
-        os.path.join(test_log_directory_path, "ondatra_baseconf.txt"))
 
     if os.path.exists(testbed_info_path):
         shutil.copyfile(testbed_info_path,
@@ -425,13 +436,12 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'ondatra_baseconf_path', 'testbed_info_path', 'install_lock_file'))
+@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'install_lock_file'))
 def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed, test_name, **kwargs):
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
     ondatra_testbed_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.testbed')
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
-    ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
 
@@ -442,24 +452,31 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh statictestbed service {vxr_testbed}', 
             file=ondatra_testbed_path)
 
-        baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
-        shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
+        mgmt_ips = _sim_get_mgmt_ips(testbed_logs_dir)
+        if not type(reserved_testbed['baseconf']) is dict:
+            reserved_testbed['baseconf'] = {
+                'dut': reserved_testbed['baseconf']
+            }
 
-        extra_conf = []
-        mgmt_ip = _sim_get_mgmt_ip(testbed_logs_dir)
-        if not mgmt_ip: 
-            logger.warning("Could not find management ip for dut")
-        else: 
-            logger.info(f"Found dut manamgement ip: {mgmt_ip}")
+        for dut, conf in reserved_testbed['baseconf'].items():
+            baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
+            ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+            shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
+            extra_conf = []
+
+            mgmt_ip = mgmt_ips[dut]
+            logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
+            
             mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
             if mgmt_vrf:
                 extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
             else:
                 extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
-            
-        _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path, extra_conf)
-        check_output("sed -i 's|id: \"dut\"|id: \"dut\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
+
+            _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path, extra_conf)
+            check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
+        ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
         install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
@@ -479,7 +496,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
-    return ondatra_testbed_path, ondatra_binding_path, ondatra_baseconf_path, testbed_info_path, install_lock_file
+    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, install_lock_file
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
