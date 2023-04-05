@@ -231,10 +231,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, p4)
 	}
 	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p4.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf1)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf2)
 	}
 }
 
@@ -338,44 +342,33 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	// validate programming using AFT
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	a.aftCheck(t, dstPfx, vrf2)
-	// Validate traffic over primary path port2, port3
 	// Create flow
-	flow := a.createFlow("Baseline Path Flow", []*attrs.Attributes{&atePort2, &atePort3})
+	flow := a.createFlow("Baseline Flow")
+
+	// Validate traffic over primary path port2, port3
 	t.Logf("Validate traffic over primary path port2, port3")
-	a.validateTrafficFlows(t, flow)
+	a.validateTrafficFlows(t, flow, []*ondatra.Port{a.ate.Port(t, "port2"), a.ate.Port(t, "port3")})
 
 	//shutdown port2
-	a.flapinterface(t, "port2", false)
-	gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, "port2").Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
+	t.Logf("Shutdown port 2 and validate traffic switching over port3 primary path")
+	a.validateTrafficFlows(t, flow, []*ondatra.Port{a.ate.Port(t, "port3")}, "port2")
 	defer a.flapinterface(t, "port2", true)
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
-	// Create flow
-	flow = a.createFlow("Baseline Path Flow", []*attrs.Attributes{&atePort3})
-	// Validate traffic over primary path port3
-	t.Logf("Validate traffic over primary path port3")
-	a.validateTrafficFlows(t, flow)
 
 	//shutdown port3
-	a.flapinterface(t, "port3", false)
-	gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, "port3").Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
+	t.Logf("Shutdown port 3 and validate traffic switching over port4 backup path")
+	a.validateTrafficFlows(t, flow, []*ondatra.Port{a.ate.Port(t, "port4")}, "port3")
 	defer a.flapinterface(t, "port3", true)
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
-	// Create flow
-	flow = a.createFlow("Backup Flow", []*attrs.Attributes{&atePort4})
-	// validate traffic over backup
-	t.Logf("Validate traffic over backup")
-	a.validateTrafficFlows(t, flow)
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx
-func (a *testArgs) createFlow(name string, dst []*attrs.Attributes) *ondatra.Flow {
+func (a *testArgs) createFlow(name string) *ondatra.Flow {
 	srcEndPoint := a.top.Interfaces()[atePort1.Name]
 	dstEndPoint := []ondatra.Endpoint{}
-	for _, dstIntf := range dst {
-		for intf, intfData := range a.top.Interfaces() {
-			if dstIntf.Name == intf {
-				dstEndPoint = append(dstEndPoint, intfData)
-			}
+	for intf, intfData := range a.top.Interfaces() {
+		if intf != "atePort1" {
+			dstEndPoint = append(dstEndPoint, intfData)
 		}
 	}
 	hdr := ondatra.NewIPv4Header()
@@ -390,8 +383,13 @@ func (a *testArgs) createFlow(name string, dst []*attrs.Attributes) *ondatra.Flo
 }
 
 // validateTrafficFlows verifies that the flow on ATE and check interface counters on DUT
-func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow) {
+func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, expected_outgoing_port []*ondatra.Port, shut_ports ...string) {
 	a.ate.Traffic().Start(t, flow)
+	//Shutdown interface if provided while traffic is flowing and validate traffic
+	for _, port := range shut_ports {
+		a.flapinterface(t, port, false)
+		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
+	}
 	time.Sleep(60 * time.Second)
 	a.ate.Traffic().Stop(t)
 	flowPath := gnmi.OC().Flow(flow.Name())
@@ -404,6 +402,22 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow) {
 	}
 	if lossPct > 0 {
 		t.Fatalf("LossPct for flow %s got %f, want 0", flow.Name(), lossPct)
+	}
+
+	// Get send traffic
+	incoming_traffic_counters := gnmi.OC().Interface(a.ate.Port(t, "port1").Name()).Counters()
+	sentPkts := gnmi.Get(t, a.ate, incoming_traffic_counters.OutPkts().State())
+
+	// Get traffic received on expected port
+	var receivedPkts uint64
+	for _, outPort := range expected_outgoing_port {
+		outgoing_traffic_counters := gnmi.OC().Interface(outPort.Name()).Counters()
+		outPkts := gnmi.Get(t, a.ate, outgoing_traffic_counters.InPkts().State())
+		receivedPkts = receivedPkts + outPkts
+	}
+
+	if receivedPkts == 0 || sentPkts > receivedPkts {
+		t.Fatalf("Traffic didn't switch to the expected outgoing port")
 	}
 }
 
