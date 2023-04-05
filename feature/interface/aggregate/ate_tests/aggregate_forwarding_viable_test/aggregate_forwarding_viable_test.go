@@ -334,6 +334,7 @@ func (tc *testArgs) configureATE(t *testing.T) {
 	if is100gfr {
 		agg.Ethernet().FEC().WithEnabled(false)
 	}
+	tc.top.Push(t).StartProtocols(t)
 
 	agg.IPv4().
 		WithAddress(ateDst.IPv4CIDR()).
@@ -341,8 +342,8 @@ func (tc *testArgs) configureATE(t *testing.T) {
 	agg.IPv6().
 		WithAddress(ateDst.IPv6CIDR()).
 		WithDefaultGateway(dutDst.IPv6)
-
-	tc.top.Push(t).StartProtocols(t)
+	tc.top.Update(t)
+	tc.top.StartProtocols(t)
 }
 
 // normalize normalizes the input values so that the output values sum
