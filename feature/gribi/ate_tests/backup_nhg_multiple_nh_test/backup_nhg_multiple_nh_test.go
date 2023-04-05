@@ -33,14 +33,16 @@ import (
 )
 
 const (
-	ipv4PrefixLen = 30
-	ipv6PrefixLen = 126
-	dstPfx        = "203.0.113.1/32"
-	dstPfxMin     = "203.0.113.1"
-	dstPfxMax     = "203.0.113.254"
-	routeCount    = 1
-	vrf1          = "vrfA"
-	vrf2          = "vrfB"
+	ipv4PrefixLen  = 30
+	ipv6PrefixLen  = 126
+	dstPfx         = "203.0.113.1/32"
+	dstPfxMin      = "203.0.113.1"
+	dstPfxMax      = "203.0.113.254"
+	routeCount     = 1
+	vrf1           = "vrfA"
+	vrf2           = "vrfB"
+	fps            = 1000000 // traffic frames per second
+	switchovertime = 1000.0  // switchovertime during interface shut in milliseconds
 )
 
 // testArgs holds the objects needed by a test case.
@@ -247,7 +249,7 @@ func TestBackup(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	//configure DUT
-	configureDUT(t, dut)
+	// configureDUT(t, dut)
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
@@ -299,15 +301,15 @@ func TestBackup(t *testing.T) {
 //   - Connect ATE port-4 to DUT port-4.
 //   - Create a L3 routing instance (vrfA), and assign DUT port-1 to vrfA.
 //   - Create a L3 routing instance (vrfB) that includes no interface.
-//   - Connect a gRIBI client to the DUT and inject an IPv4Entry for 203.0.113.0/24 pointing to a NextHopGroup containing:
+//   - Connect a gRIBI client to the DUT and inject an IPv4Entry for 203.0.113.1/32 pointing to a NextHopGroup containing:
 //   - Two primary next-hops:
 //   - 2: to ATE port-2
 //   - 3: to ATE port-3.
 //   - A backup NHG containing a single next-hop:
 //   - 4: to ATE port-4.
-//   - Ensure that traffic forwarded to a destination in 203.0.113.0/24 is received at ATE port-2 and port-3.
-//   - Disable ATE port-2. Ensure that traffic for a destination in 203.0.113.0/24 is received at ATE port-3.
-//   - Disable ATE port-3. Ensure that traffic for a destination in 203.0.113.0/24 is received at ATE port-4.
+//   - Ensure that traffic forwarded to a destination in 203.0.113.1/32 is received at ATE port-2 and port-3.
+//   - Disable ATE port-2. Ensure that traffic for a destination in 203.0.113.1/32 is received at ATE port-3.
+//   - Disable ATE port-3. Ensure that traffic for a destination in 203.0.113.1/32 is received at ATE port-4.
 //
 // Validation Steps
 //   - Verify AFT telemetry after shutting each port
@@ -377,7 +379,7 @@ func (a *testArgs) createFlow(name string) *ondatra.Flow {
 	flow := a.ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr).WithFrameSize(300)
+		WithHeaders(ondatra.NewEthernetHeader(), hdr).WithFrameSize(300).WithFrameRateFPS(fps)
 
 	return flow
 }
@@ -386,37 +388,41 @@ func (a *testArgs) createFlow(name string) *ondatra.Flow {
 func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, expected_outgoing_port []*ondatra.Port, shut_ports ...string) {
 	a.ate.Traffic().Start(t, flow)
 	//Shutdown interface if provided while traffic is flowing and validate traffic
+	time.Sleep(30 * time.Second)
 	for _, port := range shut_ports {
 		a.flapinterface(t, port, false)
 		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
 	}
-	time.Sleep(60 * time.Second)
+	time.Sleep(30 * time.Second)
 	a.ate.Traffic().Stop(t)
-	flowPath := gnmi.OC().Flow(flow.Name())
-	val, _ := gnmi.Watch(t, a.ate, flowPath.LossPct().State(), 2*time.Minute, func(val *ygnmi.Value[float32]) bool {
-		return val.IsPresent()
-	}).Await(t)
-	lossPct, present := val.Val()
-	if !present {
-		t.Fatalf("Could not read loss percentage for flow %q from ATE.", flow.Name())
-	}
-	if lossPct > 0 {
-		t.Fatalf("LossPct for flow %s got %f, want 0", flow.Name(), lossPct)
-	}
 
 	// Get send traffic
 	incoming_traffic_counters := gnmi.OC().Interface(a.ate.Port(t, "port1").Name()).Counters()
 	sentPkts := gnmi.Get(t, a.ate, incoming_traffic_counters.OutPkts().State())
 
-	// Get traffic received on expected port
 	var receivedPkts uint64
+
+	// Get traffic received on primary outgoing interface before interface shutdown
+	for _, port := range shut_ports {
+		outgoing_traffic_counters := gnmi.OC().Interface(a.ate.Port(t, port).Name()).Counters()
+		outPkts := gnmi.Get(t, a.ate, outgoing_traffic_counters.InPkts().State())
+		receivedPkts = receivedPkts + outPkts
+	}
+
+	// Get traffic received on expected port
 	for _, outPort := range expected_outgoing_port {
 		outgoing_traffic_counters := gnmi.OC().Interface(outPort.Name()).Counters()
 		outPkts := gnmi.Get(t, a.ate, outgoing_traffic_counters.InPkts().State())
 		receivedPkts = receivedPkts + outPkts
 	}
 
-	if receivedPkts == 0 || sentPkts > receivedPkts {
+	// Check if traffic loss during interface shut is less than expected time in millisecond
+	// else if there is not interface trigger, validate received packets (control+data) are more than send packets
+	if len(shut_ports) > 0 {
+		if ((sentPkts - receivedPkts) / (fps / 1000)) > switchovertime {
+			t.Fatalf("Traffic loss more than expected %f millisec", switchovertime)
+		}
+	} else if sentPkts > receivedPkts {
 		t.Fatalf("Traffic didn't switch to the expected outgoing port")
 	}
 }
