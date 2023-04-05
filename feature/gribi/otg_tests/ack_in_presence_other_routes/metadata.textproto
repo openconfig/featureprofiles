@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "5eda1e33-0978-4ee4-9c9a-41a1129f7ae0"
+plan_id: "TE-3.6"
+description: "ACK in the Presence of Other Routes"
