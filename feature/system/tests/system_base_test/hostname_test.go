@@ -58,7 +58,7 @@ func TestHostname(t *testing.T) {
 				}
 			})
 
-			if deviations.CliTakesPrecedenceOverOC(dut) {
+			if deviations.CLITakesPrecedenceOverOC(dut) {
 				t.Logf("Skipping hostname telemetry check")
 			} else {
 				t.Run("Get Hostname Telemetry", func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestDomainName(t *testing.T) {
 				}
 			})
 
-			if deviations.CliTakesPrecedenceOverOC(dut) {
+			if deviations.CLITakesPrecedenceOverOC(dut) {
 				t.Logf("Skipping domain-name telemetry check")
 			} else {
 				t.Run("Get Domainname Telemetry", func(t *testing.T) {
