@@ -23,17 +23,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	closer "github.com/openconfig/gocloser"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/testt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	ospb "github.com/openconfig/gnoi/os"
 	spb "github.com/openconfig/gnoi/system"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var packageReader func(context.Context) (io.ReadCloser, error) = func(ctx context.Context) (io.ReadCloser, error) {
@@ -89,19 +87,30 @@ func TestOSInstall(t *testing.T) {
 	tc.fetchStandbySupervisorStatus(ctx, t)
 	tc.transferOS(ctx, t, false)
 	tc.activateOS(ctx, t, false)
-	if tc.dualSup {
+
+	if *deviations.InstallOSForStandbyRP && tc.dualSup {
 		tc.transferOS(ctx, t, true)
 		tc.activateOS(ctx, t, true)
 	}
-	tc.rebootDUT(ctx, t)
+
+	if *deviations.OSActivateNoReboot {
+		tc.rebootDUT(ctx, t)
+	}
+
 	tc.verifyInstall(ctx, t)
 }
 
 func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) {
+	t.Helper()
+	if standby {
+		t.Log("OS.Activate is started for standby RP.")
+	} else {
+		t.Log("OS.Activate is started for active RP.")
+	}
 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
 		StandbySupervisor: standby,
 		Version:           *osVersion,
-		NoReboot:          true,
+		NoReboot:          *deviations.OSActivateNoReboot,
 	})
 	if err != nil {
 		t.Fatalf("OS.Activate request failed: %s", err)
@@ -146,9 +155,6 @@ func (tc *testCase) fetchStandbySupervisorStatus(ctx context.Context, t *testing
 }
 
 func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
-	bootTime := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
-	deadline := time.Now().Add(*timeout)
-
 	t.Log("Send DUT Reboot Request")
 	_, err := tc.sc.Reboot(ctx, &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
@@ -157,33 +163,6 @@ func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
 	})
 	if err != nil && status.Code(err) != codes.Unavailable {
 		t.Fatalf("System.Reboot request failed: %s", err)
-	}
-	for {
-		var curBootTime *ygnmi.Value[uint64]
-
-		// While the device is rebooting, Lookup will fatal due to unresponsive GNMI service.
-		testt.CaptureFatal(t, func(t testing.TB) {
-			curBootTime = gnmi.Lookup(t, tc.dut, gnmi.OC().System().BootTime().State())
-		})
-
-		if curBootTime != nil {
-			val, present := curBootTime.Val()
-			if !present {
-				t.Log("Reboot time not present")
-			}
-			if val > bootTime {
-				t.Log("Reboot completed.")
-				break
-			} else if val == bootTime {
-				t.Log("DUT has not rebooted.")
-			}
-		}
-
-		if time.Now().After(deadline) {
-			t.Fatal("Past reboot deadline")
-		}
-		t.Log("Waiting for reboot to complete...")
-		time.Sleep(10 * time.Second)
 	}
 }
 
@@ -257,29 +236,51 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) 
 // verifyInstall validates the OS.Verify RPC returns no failures and version numbers match the
 // newly requested software version.
 func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
-	r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
-	if err != nil {
-		t.Fatalf("OS.Verify request failed: %s", err)
-	}
-
-	if got, want := r.GetActivationFailMessage(), ""; got != want {
-		t.Errorf("OS.Verify ActivationFailMessage: got %q, want %q", got, want)
-	}
-	if got, want := r.GetVersion(), *osVersion; got != want {
-		t.Errorf("OS.Verify Version: got %q, want %q", got, want)
-	}
-
-	if tc.dualSup {
-		if got, want := r.GetVerifyStandby().GetVerifyResponse().GetActivationFailMessage(), ""; got != want {
-			t.Errorf("OS.Verify Standby ActivationFailMessage: got %q, want %q", got, want)
+	rebootWait := time.Minute
+	deadline := time.Now().Add(*timeout)
+	for time.Now().Before(deadline) {
+		r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
+		switch status.Code(err) {
+		case codes.OK:
+		case codes.Unavailable:
+			t.Log("Reboot in progress.")
+			time.Sleep(rebootWait)
+			continue
+		default:
+			t.Fatalf("OS.Verify request failed: %v", err)
+		}
+		// when noreboot is set to false, the device returns "in-progress" before initiating the reboot
+		if r.GetActivationFailMessage() == "in-progress" {
+			t.Logf("Waiting for reboot to initiate.")
+			time.Sleep(rebootWait)
+			continue
+		}
+		if got, want := r.GetActivationFailMessage(), ""; got != want {
+			t.Fatalf("OS.Verify ActivationFailMessage: got %q, want %q", got, want)
+		}
+		if got, want := r.GetVersion(), *osVersion; got != want {
+			t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
+			time.Sleep(rebootWait)
+			continue
 		}
 
-		if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
-			t.Errorf("OS.Verify Standby Version: got %q, want %q", got, want)
+		if tc.dualSup {
+			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetActivationFailMessage(), ""; got != want {
+				t.Fatalf("OS.Verify Standby ActivationFailMessage: got %q, want %q", got, want)
+			}
+
+			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), *osVersion; got != want {
+				t.Log("Standby not ready.")
+				time.Sleep(rebootWait)
+				continue
+			}
 		}
+
+		t.Log("OS.Verify complete")
+		return
 	}
 
-	t.Log("OS.Verify complete")
+	t.Fatal("OS.Verify did not return the correct version before deadline.")
 }
 
 func transferContent(ic ospb.OS_InstallClient, reader io.ReadCloser) error {

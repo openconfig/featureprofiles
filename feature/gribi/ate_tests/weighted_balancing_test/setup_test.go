@@ -91,8 +91,7 @@ const (
 	ateDstNet       = "203.0.113.0"
 	ateDstNetCIDR   = "203.0.113.0/24"
 
-	discardCIDR = "192.0.2.0/24"
-	nhgIndex    = 42
+	nhgIndex = 42
 )
 
 var (
@@ -170,27 +169,21 @@ func dutInterface(p *ondatra.Port) *oc.Interface {
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
-
-	// We add a discard route so that when the nexthop interface goes
-	// down, the device does not attempt to route packets through the
-	// default gateway 0.0.0.0/0.  Packets destined to the more specific
-	// next hop CIDRs will be routed.
-	static := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(discardCIDR),
-	}
-	static.GetOrCreateNextHop("AUTO_drop_2").
-		NextHop = oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP
-	staticp := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).
-		Static(discardCIDR)
-	fptest.LogQuery(t, "discard route", staticp.Config(), static)
-	gnmi.Replace(t, dut, staticp.Config(), static)
-
 	for _, dp := range dut.Ports() {
 		if i := dutInterface(dp); i != nil {
 			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
 			t.Fatalf("No address found for port %v", dp)
+		}
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		for _, dp := range dut.Ports() {
+			fptest.AssignToNetworkInstance(t, dut, dp.Name(), *deviations.DefaultNetworkInstance, 0)
+		}
+	}
+	if *deviations.ExplicitPortSpeed {
+		for _, dp := range dut.Ports() {
+			fptest.SetPortSpeed(t, dp)
 		}
 	}
 }

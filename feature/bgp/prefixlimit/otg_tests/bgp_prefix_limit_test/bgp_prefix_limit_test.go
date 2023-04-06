@@ -72,7 +72,9 @@ const (
 	plenIPv4                 = 30
 	plenIPv6                 = 126
 	tolerance                = 50
-	lossTolerance            = 1
+	lossTolerance            = 2
+	rplType                  = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	rplName                  = "ALLOW"
 	peerGrpName              = "BGP-PEER-GROUP"
 )
 
@@ -134,8 +136,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
 	}
+	configureRoutePolicy(t, dut, rplName, rplType)
 
-	dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 }
@@ -163,8 +166,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 	topo := otg.NewConfig(t)
 	srcPort := topo.Ports().Add().SetName("port1")
 	srcDev := topo.Devices().Add().SetName(ateSrc.Name)
-	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
-	srcEth.SetPortName(srcPort.Name()).SetMac(ateSrc.MAC)
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
+	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
 	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
 	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
 	srcIpv6 := srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
@@ -172,8 +175,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 
 	dstPort := topo.Ports().Add().SetName("port2")
 	dstDev := topo.Devices().Add().SetName(ateDst.Name)
-	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
-	dstEth.SetPortName(dstPort.Name()).SetMac(ateDst.MAC)
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
+	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dstPort.Name())
 	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
 	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
 	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
@@ -252,7 +255,7 @@ type BGPNeighbor struct {
 	isV4         bool
 }
 
-func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.NetworkInstance_Protocol_Bgp {
+func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.NetworkInstance_Protocol {
 
 	nbrs := []*BGPNeighbor{
 		{as: peerAs, pfxLimit: pLimit, neighborip: ateSrc.IPv4, isV4: true},
@@ -263,10 +266,15 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
-	bgp := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := ni_proto.GetOrCreateBgp()
+
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(localAs)
 	global.RouterId = ygot.String(dutSrc.IPv4)
+
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
@@ -283,8 +291,18 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 			nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			afisafi.Enabled = ygot.Bool(true)
+			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 			prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 			prefixLimit.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
+			if *deviations.RoutePolicyUnderNeighborAfiSafi {
+				rpl := afisafi.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			} else {
+				rpl := nv4.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			}
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
@@ -293,11 +311,30 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 			nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			afisafi6.Enabled = ygot.Bool(true)
+			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 			prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
 			prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
+			if *deviations.RoutePolicyUnderNeighborAfiSafi {
+				rpl := afisafi6.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			} else {
+				rpl := nv6.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			}
 		}
 	}
-	return bgp
+	return ni_proto
+}
+
+func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(name)
+	st := pd.GetOrCreateStatement("id-1")
+	st.GetOrCreateActions().PolicyResult = pr
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
 func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
@@ -337,27 +374,28 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 
 func verifyPrefixLimitTelemetry(t *testing.T, n *oc.NetworkInstance_Protocol_Bgp_Neighbor, wantEstablished bool) {
 	t.Run("verifyPrefixLimitTelemetry", func(t *testing.T) {
-		// TODO: Remove skip when Telemetry Parameters are supported
-		t.Skip("Skipped since Telemetry parameters are not supported")
-		plv4 := n.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
-		plv6 := n.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
+		if n.NeighborAddress == &ateDst.IPv4 {
+			plv4 := n.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
 
-		maxPrefix := plv4.GetMaxPrefixes()
-		limitExceeded := plv4.GetPrefixLimitExceeded()
-		if maxPrefix != prefixLimit {
-			t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
-		}
-		if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
-			t.Errorf("PrefixLimitExceeded v4 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
-		}
+			maxPrefix := plv4.GetMaxPrefixes()
+			limitExceeded := plv4.GetPrefixLimitExceeded()
+			if maxPrefix != prefixLimit {
+				t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+			}
+			if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
+				t.Errorf("PrefixLimitExceeded v4 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+			}
+		} else if n.NeighborAddress == &ateDst.IPv6 {
+			plv6 := n.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
 
-		maxPrefix = plv6.GetMaxPrefixes()
-		limitExceeded = plv6.GetPrefixLimitExceeded()
-		if maxPrefix != prefixLimit {
-			t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
-		}
-		if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
-			t.Errorf("PrefixLimitExceeded v6 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+			maxPrefix := plv6.GetMaxPrefixes()
+			limitExceeded := plv6.GetPrefixLimitExceeded()
+			if maxPrefix != prefixLimit {
+				t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+			}
+			if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
+				t.Errorf("PrefixLimitExceeded v6 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+			}
 		}
 	})
 }

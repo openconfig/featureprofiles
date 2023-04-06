@@ -32,7 +32,7 @@ func TestDUTShortVendor(t *testing.T) {
 		{"Yoyodyne Systems", "YOYODYNE"},         // Not a recognized enum.
 	}
 	for _, c := range cases {
-		di := &dutInfo{vendor: c.vendor}
+		di := &DUTInfo{Vendor: c.vendor}
 		got := di.shortVendor()
 		if got != c.want {
 			t.Errorf("Case %q got %q, want %q", c.vendor, got, c.want)
@@ -50,7 +50,7 @@ func TestDUTShortModel(t *testing.T) {
 		{"JNP10001 [PTX10001]", "PTX10001"},
 	}
 	for _, c := range cases {
-		di := &dutInfo{model: c.model}
+		di := &DUTInfo{Model: c.model}
 		got := di.shortModel()
 		if got != c.want {
 			t.Errorf("Case %q got %q, want %q", c.model, got, c.want)
@@ -61,14 +61,14 @@ func TestDUTShortModel(t *testing.T) {
 func TestDUTPut(t *testing.T) {
 	cases := []struct {
 		name string
-		di   *dutInfo
+		di   *DUTInfo
 		want map[string]string
 	}{{
 		name: "Arista",
-		di: &dutInfo{
-			vendor: "Arista Networks",
-			model:  "DCS-7280CR3K-32D4",
-			osver:  "4.29.0F",
+		di: &DUTInfo{
+			Vendor: "Arista Networks",
+			Model:  "DCS-7280CR3K-32D4",
+			OSVer:  "4.29.0F",
 		},
 		want: map[string]string{
 			"dut.vendor.full": "Arista Networks",
@@ -79,10 +79,10 @@ func TestDUTPut(t *testing.T) {
 		},
 	}, {
 		name: "Cisco",
-		di: &dutInfo{
-			vendor: "Cisco Systems, Inc.",
-			model:  "Cisco 9999 9-slot Chassis",
-			osver:  "7.7.1",
+		di: &DUTInfo{
+			Vendor: "Cisco Systems, Inc.",
+			Model:  "Cisco 9999 9-slot Chassis",
+			OSVer:  "7.7.1",
 		},
 		want: map[string]string{
 			"dut.vendor.full": "Cisco Systems, Inc.",
@@ -93,10 +93,10 @@ func TestDUTPut(t *testing.T) {
 		},
 	}, {
 		name: "Juniper",
-		di: &dutInfo{
-			vendor: "Juniper Networks, Inc.",
-			model:  "JNP10001 [PTX10001]",
-			osver:  "21.42-S2-EVO",
+		di: &DUTInfo{
+			Vendor: "Juniper Networks, Inc.",
+			Model:  "JNP10001 [PTX10001]",
+			OSVer:  "21.42-S2-EVO",
 		},
 		want: map[string]string{
 			"dut.vendor.full": "Juniper Networks, Inc.",
@@ -107,10 +107,10 @@ func TestDUTPut(t *testing.T) {
 		},
 	}, {
 		name: "Yoyodyne",
-		di: &dutInfo{
-			vendor: "Yoyodyne Systems",
-			model:  "YY1608",
-			osver:  "6.22",
+		di: &DUTInfo{
+			Vendor: "Yoyodyne Systems",
+			Model:  "YY1608",
+			OSVer:  "6.22",
 		},
 		want: map[string]string{
 			"dut.vendor.full": "Yoyodyne Systems",

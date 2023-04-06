@@ -214,8 +214,8 @@ func configureNetworkInstance(t *testing.T) {
 
 // configStaticRoute configures a static route.
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
-	ni1 := gnmi.GetConfig(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Config())
-	static := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	ni := oc.NetworkInstance{Name: deviations.DefaultNetworkInstance}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	sr := static.GetOrCreateStatic(prefix)
 	nh := sr.GetOrCreateNextHop("0")
 	nh.NextHop = oc.UnionString(nexthop)

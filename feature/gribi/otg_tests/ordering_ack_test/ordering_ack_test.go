@@ -157,16 +157,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
-	eth1 := i1.Ethernets().Add().SetName(ateSrc.Name + ".Eth").
-		SetPortName(i1.Name()).SetMac(ateSrc.MAC)
+	eth1 := i1.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").
 		SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).
 		SetPrefix(int32(ateSrc.IPv4Len))
 
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
-	eth2 := i2.Ethernets().Add().SetName(ateDst.Name + ".Eth").
-		SetPortName(i2.Name()).SetMac(ateDst.MAC)
+	eth2 := i2.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").
 		SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).
 		SetPrefix(int32(ateDst.IPv4Len))

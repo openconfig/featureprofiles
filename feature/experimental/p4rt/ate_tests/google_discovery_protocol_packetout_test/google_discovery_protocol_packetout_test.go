@@ -46,7 +46,6 @@ const (
 
 var (
 	p4InfoFile                                = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName                              = flag.String("p4rt_node_name", "0/1/CPU0-NPU1", "component name for P4RT Node")
 	streamName                                = "p4rt"
 	gdpInLayers           layers.EthernetType = 0x6007
 	deviceID                                  = *ygot.Uint64(1)
@@ -232,14 +231,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portID)}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 
 	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portID + 1)}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
@@ -269,21 +268,19 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// configureDeviceId configures p4rt device-id on the DUT.
-func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	component := oc.Component{}
-	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-	component.Name = ygot.String(*p4rtNodeName)
-	component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
-	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), &component)
-}
-
-// configurePortId configures p4rt port-id on the DUT.
-func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	ports := sortPorts(dut.Ports())
-	for i, port := range ports {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Id().Config(), uint32(i)+portID)
+// configureDeviceIDs configures p4rt device-id on the DUT.
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	p4rtNode, ok := nodes["port1"]
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port1")
 	}
+	t.Logf("Configuring P4RT Node: %s", p4rtNode)
+	c := oc.Component{}
+	c.Name = ygot.String(p4rtNode)
+	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
+	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
 // setupP4RTClient sends client arbitration message for both leader and follower clients,
@@ -313,10 +310,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 					},
 				},
 			}); err != nil {
-				return errors.New("Errors seen when sending ClientArbitration message.")
+				return fmt.Errorf("errors seen when sending ClientArbitration message: %v", err)
 			}
 			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
-				return errors.New("Errors seen in ClientArbitration response.")
+				if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+					return err
+				}
+				return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
 			}
 		}
 	}
@@ -362,24 +362,23 @@ func TestPacketOut(t *testing.T) {
 	top := configureATE(t, ate)
 	top.Push(t).StartProtocols(t)
 
-	// Configure P4RT device-id and port-id on the DUT
-	configureDeviceId(ctx, t, dut)
-	configurePortId(ctx, t, dut)
+	// Configure P4RT device-id
+	configureDeviceID(ctx, t, dut)
 
-	leader := p4rt_client.P4RTClient{}
+	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	follower := p4rt_client.P4RTClient{}
+	follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	args := &testArgs{
 		ctx:      ctx,
-		leader:   &leader,
-		follower: &follower,
+		leader:   leader,
+		follower: follower,
 		dut:      dut,
 		ate:      ate,
 		top:      top,

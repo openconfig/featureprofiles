@@ -1,10 +1,11 @@
 name: "juniper-ixia"
 nodes: {
-    name: "cptx"
+    name: "dut"
     vendor: JUNIPER
     model: "cptx"
     os: "evo"
     config: {
+      image: "cptx:latest"
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
       file: "juniper.config"
@@ -51,7 +52,6 @@ nodes: {
         key: 9337
         value: {
             name: "gnoi"
-            outside: 9337
             inside: 32767
         }
     }
@@ -59,7 +59,6 @@ nodes: {
         key: 9339
         value: {
             name: "gnmi"
-            outside: 9339
             inside: 32767
         }
     }
@@ -67,7 +66,6 @@ nodes: {
         key: 9340
         value: {
             name: "gribi"
-            outside: 9340
             inside: 32767
         }
     }
@@ -75,7 +73,6 @@ nodes: {
         key: 9559
         value: {
             name: "p4rt"
-            outside: 9559
             inside: 32767
         }
     }
@@ -109,23 +106,23 @@ nodes: {
 links: {
     a_node: "otg"
     a_int: "eth1"
-    z_node: "cptx"
+    z_node: "dut"
     z_int: "eth12"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth20"
     z_node: "otg"
     z_int: "eth2"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth28"
     z_node: "otg"
     z_int: "eth3"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth36"
     z_node: "otg"
     z_int: "eth4"

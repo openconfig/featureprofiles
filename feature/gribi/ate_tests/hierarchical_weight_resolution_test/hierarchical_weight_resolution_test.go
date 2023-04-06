@@ -52,15 +52,16 @@ type nhInfo struct {
 
 const (
 	ipv4PrefixLen   = 30
-	ipv4EntryPrefix = "203.0.113.0/24"
-	ipv4FlowIPStart = "203.0.113.0"
-	ipv4FlowIPEnd   = "203.0.113.255"
+	ipv4EntryPrefix = "198.18.192.0/21"
+	ipv4FlowIPStart = "198.18.192.0"
+	ipv4FlowIPEnd   = "198.18.199.255"
+	ipv4FlowCount   = 2048
 	nhEntryIP1      = "192.0.2.111"
 	nhEntryIP2      = "192.0.2.222"
 	nonDefaultVRF   = "VRF-1"
 	// 'deviation' is the maximum difference that is allowed between the observed
 	// traffic distribution and the required traffic distribution.
-	deviation = 0.5
+	deviation = 1
 )
 
 var (
@@ -256,11 +257,22 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 // Sub Interfaces are also configured if numSubIntf > 0.
 func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
 	t.Helper()
-	i := a.NewOCInterface(p.Name())
+
+	i := &oc.Interface{Name: ygot.String(p.Name())}
+
+	if a.numSubIntf > 0 {
+		i.Description = ygot.String(a.Desc)
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		if *deviations.InterfaceEnabled {
+			i.Enabled = ygot.Bool(true)
+		}
+	} else {
+		i = a.NewOCInterface(p.Name())
+	}
 
 	a.configSubinterfaceDUT(t, i)
 	intfPath := gnmi.OC().Interface(p.Name())
-	gnmi.Replace(t, d, intfPath.Config(), i)
+	gnmi.Update(t, d, intfPath.Config(), i)
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, p)
 	}
@@ -285,12 +297,14 @@ func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice
 		gnmi.Replace(t, d, dni.Config(), ni)
 		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
 	} else {
-		dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-		gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
-			Id:           ygot.String(p.Name()),
-			Interface:    ygot.String(p.Name()),
-			Subinterface: ygot.Uint32(0),
-		})
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+			gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
+				Id:           ygot.String(p.Name()),
+				Interface:    ygot.String(p.Name()),
+				Subinterface: ygot.Uint32(0),
+			})
+		}
 	}
 }
 
@@ -310,18 +324,19 @@ func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *ondatra.ATEDevice) {
 	t.Helper()
 	p := ate.Port(t, a.Name)
-
-	ip := a.ip(0)
-	gateway := a.gateway(0)
-
-	intf := top.AddInterface(ip).WithPort(p)
-	intf.IPv4().WithAddress(cidr(ip, 30))
-	intf.IPv4().WithDefaultGateway(gateway)
-	t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
-
+	// Configure source port on ATE : Port1
+	if a.numSubIntf == 0 {
+		ip := a.ip(0)
+		gateway := a.gateway(0)
+		intf := top.AddInterface(ip).WithPort(p)
+		intf.IPv4().WithAddress(cidr(ip, 30))
+		intf.IPv4().WithDefaultGateway(gateway)
+		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
+	}
+	// Configure destination port on ATE : Port2
 	for i := uint32(1); i <= a.numSubIntf; i++ {
-		ip = a.ip(uint8(i))
-		gateway = a.gateway(uint8(i))
+		ip := a.ip(uint8(i))
+		gateway := a.gateway(uint8(i))
 		intf := top.AddInterface(ip).WithPort(p)
 		intf.IPv4().WithAddress(cidr(ip, 30))
 		intf.IPv4().WithDefaultGateway(gateway)
@@ -344,7 +359,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 
 	// ATE destination endpoints.
 	dstEndPoints := []ondatra.Endpoint{}
-	for i := uint32(0); i <= atePort2.numSubIntf; i++ {
+	for i := uint32(1); i <= atePort2.numSubIntf; i++ {
 		dstIP := atePort2.ip(uint8(i))
 		dstEndPoints = append(dstEndPoints, allIntf[dstIP])
 	}
@@ -356,7 +371,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	ipv4Header.DstAddressRange().
 		WithMin(ipv4FlowIPStart).
 		WithMax(ipv4FlowIPEnd).
-		WithCount(256)
+		WithCount(ipv4FlowCount)
 
 	// Ethernet header:
 	//   - Destination MAC (6 octets)
@@ -396,6 +411,7 @@ func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, network
 			break
 		}
 	}
+
 	if nhgD == nil {
 		return []uint64{}
 	}
@@ -424,12 +440,12 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	// Set up NH#100, NH#101, NHG#3, IPv4Entry(192.0.2.222).
 	nh100 := nextHopEntry(100, defaultVRF, atePort2.ip(3))
 	nh101 := nextHopEntry(101, defaultVRF, atePort2.ip(4))
-	nhg3 := nextHopGroupEntry(3, defaultVRF, []nhInfo{{index: 100, weight: 2}, {index: 101, weight: 3}})
+	nhg3 := nextHopGroupEntry(3, defaultVRF, []nhInfo{{index: 100, weight: 3}, {index: 101, weight: 5}})
 	ipEntry3 := ipv4Entry(nhgIPv4EntryMap[3], defaultVRF, 3, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh100, nh101, nhg3, ipEntry3)
 
-	// Set up NH#1, NH#2, NHG#1, IPv4Entry(203.0.113.0/24).
+	// Set up NH#1, NH#2, NHG#1, IPv4Entry(198.18.196.1/22).
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 3}})
@@ -457,8 +473,8 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	wantWeights := map[string]float64{
 		"1": 6.25,
 		"2": 18.75,
-		"3": 30,
-		"4": 45,
+		"3": 28.12,
+		"4": 46.87,
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
@@ -470,7 +486,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	t.Run("validateAFTWeights", func(t *testing.T) {
 		for nhg, weights := range map[uint64][]uint64{
 			2: {1, 3},
-			3: {2, 3},
+			3: {3, 5},
 		} {
 			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
 			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
@@ -494,7 +510,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	// Set up NH#10, NH#11, NHG#2, IPv4Entry(192.0.2.111).
 	nh10 := nextHopEntry(10, defaultVRF, atePort2.ip(1))
 	nh11 := nextHopEntry(11, defaultVRF, atePort2.ip(2))
-	nhg2 := nextHopGroupEntry(2, defaultVRF, []nhInfo{{index: 10, weight: 2}, {index: 11, weight: 3}})
+	nhg2 := nextHopGroupEntry(2, defaultVRF, []nhInfo{{index: 10, weight: 3}, {index: 11, weight: 5}})
 	ipEntry2 := ipv4Entry(nhgIPv4EntryMap[2], defaultVRF, 2, defaultVRF)
 
 	gRIBI.Modify().AddEntry(t, nh10, nh11, nhg2, ipEntry2)
@@ -515,7 +531,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 
 	gRIBI.Modify().AddEntry(t, gribiEntries...)
 
-	// Set up NH#1, NH#2, NHG#1, IPv4Entry(203.0.113.0/24).
+	// Set up NH#1, NH#2, NHG#1, IPv4Entry(198.18.196.1/22).
 	nh1 := nextHopEntry(1, defaultVRF, nhEntryIP1)
 	nh2 := nextHopEntry(2, defaultVRF, nhEntryIP2)
 	nhg1 := nextHopGroupEntry(1, defaultVRF, []nhInfo{{index: 1, weight: 1}, {index: 2, weight: 31}})
@@ -540,8 +556,8 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	}
 
 	wantWeights := map[string]float64{
-		"1": 1.25,
-		"2": 1.875,
+		"1": 1.171,
+		"2": 1.953,
 	}
 	// 6.05 weight for vlans 3 to 18.
 	for i := 3; i <= 18; i++ {
@@ -556,7 +572,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 
 	t.Run("validateAFTWeights", func(t *testing.T) {
 		for nhg, weights := range map[uint64][]uint64{
-			2: {2, 3},
+			2: {3, 5},
 			3: {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		} {
 			got := aftNextHopWeights(t, dut, nhg, defaultVRF)

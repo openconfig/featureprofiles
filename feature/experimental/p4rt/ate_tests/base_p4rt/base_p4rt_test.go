@@ -16,11 +16,9 @@ package base_p4rt_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"sort"
 	"testing"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
@@ -35,6 +33,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 type testArgs struct {
@@ -59,10 +58,6 @@ var (
 	p4InfoFile  = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName1 = "p4rt1"
 	streamName2 = "p4rt2"
-
-	//Enter Component name used as string type
-	comp1name = flag.String("p4rt_node_name1", "FPC0:NPU0", "component name for P4RT Node1")
-	comp2name = flag.String("p4rt_node_name2", "FPC1:NPU0", "component name for P4RT Node2")
 
 	electionId = uint64(100)
 	//Enter the P4RT openconfig node-id and P4RT port-id to be configured in DUT and for client connection
@@ -115,49 +110,31 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	return i
 }
 
-// configureDeviceId configures p4rt device-id on the DUT.
-func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, components []string, deviceids []uint64) {
-	for i, comp := range components {
-		component := oc.Component{}
-		component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-		component.Name = ygot.String(comp)
-		component.IntegratedCircuit.NodeId = ygot.Uint64(deviceids[i])
-		gnmi.Replace(t, dut, gnmi.OC().Component(comp).Config(), &component)
+// configureDeviceIDs configures p4rt device-id on the DUT.
+func configureDeviceIDs(t *testing.T, dut *ondatra.DUTDevice, nodes map[string]string) {
+	deviceIDs := []uint64{deviceId1, deviceId2}
+	i := 0
+	for node := range nodes {
+		t.Logf("Configuring P4RT Node: %s", node)
+		c := oc.Component{}
+		c.Name = ygot.String(node)
+		c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+		c.IntegratedCircuit.NodeId = ygot.Uint64(deviceIDs[i])
+		gnmi.Replace(t, dut, gnmi.OC().Component(node).Config(), &c)
+		i++
 	}
 }
 
-// sortPorts sorts the ports by the testbed port ID.
-func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
-	sort.Slice(ports, func(i, j int) bool {
-		idi, idj := ports[i].ID(), ports[j].ID()
-		li, lj := len(idi), len(idj)
-		if li == lj {
-			return idi < idj
-		}
-		return li < lj // "port2" < "port10"
-	})
-	return ports
-}
-
-// configurePortId configures p4rt port-id on the DUT.
-func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	ports := sortPorts(dut.Ports())
-	for i, port := range ports {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Type().Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Id().Config(), uint32(i)+portId)
-	}
-}
-
-// configureDUT configures port1 and port2 on the DUT.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+// configureDUT configures two ports on the DUT.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ports []string) {
 	d := gnmi.OC()
 
-	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	p1 := dut.Port(t, ports[0])
+	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portId)}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 
-	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	p2 := dut.Port(t, ports[1])
+	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portId + 1)}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 
 	if *deviations.ExplicitPortSpeed {
@@ -170,17 +147,38 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// findP4RTNodes returns a map[string]string where keys are unique P4RT Device IDs
+// and values represent ONDATRA DUT port IDs from the devices
+func findP4RTNodes(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
+	nodes := make(map[string]string)
+	p4NodeMap := p4rtutils.P4RTNodesByPort(t, dut)
+	for k, v := range p4NodeMap {
+		// skip empty device IDs
+		if v == "" {
+			continue
+		}
+		nodes[v] = k
+		// quit when found two unique devices with available ports
+		if len(nodes) == 2 {
+			t.Logf("Found P4RT devices and corresponding ports: %+v", nodes)
+			return nodes
+		}
+	}
+	t.Fatalf("The test requires two DUT ports located on different P4RT Nodes (found %v), cannot proceed.", len(nodes))
+	return nodes
+}
+
 // ATE configuration with IP address
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, ports []string) *ondatra.ATETopology {
 	top := ate.Topology().New()
 
-	p1 := ate.Port(t, "port1")
+	p1 := ate.Port(t, ports[0])
 	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
 	i1.IPv4().
 		WithAddress(atePort1.IPv4CIDR()).
 		WithDefaultGateway(dutPort1.IPv4)
 
-	p2 := ate.Port(t, "port2")
+	p2 := ate.Port(t, ports[1])
 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
 	i2.IPv4().
 		WithAddress(atePort2.IPv4CIDR()).
@@ -223,10 +221,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 					},
 				},
 			}); err != nil {
-				return errors.New("Errors seen when sending ClientArbitration message.")
+				return fmt.Errorf("errors seen when sending ClientArbitration message: %v", err)
 			}
 			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamlist[index].Name, 1); arbErr != nil {
-				return errors.New("Errors seen in ClientArbitration response.")
+				if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+					return err
+				}
+				return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
 			}
 		}
 	}
@@ -236,7 +237,6 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	if err != nil {
 		return errors.New("Errors seen when loading p4info file.")
 	}
-	setp4Info, _ := json.Marshal(p4Info)
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
 	fmt.Println("Sending SetForwardingPipelineConfig for both clients")
@@ -267,30 +267,24 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 			return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
 		}
 		// Compare P4Info from GetForwardingPipelineConfig and SetForwardingPipelineConfig
-		getp4Info, _ := json.Marshal(resp.Config.P4Info)
-		if cmp.Equal(string(setp4Info), string(getp4Info)) {
-			fmt.Println("P4info matches fine for client", index)
-		} else {
-			err := fmt.Errorf("P4info does not match for client %d", index)
-			fmt.Println(err.Error())
+		if diff := cmp.Diff(&p4Info, resp.Config.P4Info, protocmp.Transform()); diff != "" {
+			return fmt.Errorf("P4info diff (-want +got): \n%s", diff)
 		}
 	}
 	return nil
 }
 
-// Function to compare and check if the expected table is present in RPC ReadResponse
-func verifyReadReceiveMatch(expected_update []*p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
-
+// Function to compare and check if the expected table is present in RPC ReadResponse.
+func verifyReadReceiveMatch(t *testing.T, expected_table *p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
 	matches := 0
 	for _, table := range received_entry.Entities {
-		if cmp.Equal(table.Entity, expected_update[0].Entity.Entity) {
-			fmt.Println("Table match succesful")
+		if cmp.Equal(table, expected_table.Entity, protocmp.Transform(), protocmp.IgnoreFields(&p4_v1.TableEntry{}, "meter_config", "counter_data")) {
+			t.Logf("Table match succesful")
 			matches += 1
-			break
 		}
 	}
 	if matches == 0 {
-		return errors.New("match unsuccesful")
+		return errors.New("no matches found")
 	}
 	return nil
 }
@@ -304,27 +298,31 @@ func TestP4rtConnect(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	// configure DUT with P4RT node-id and ids on different FAPs
-	configureDUT(t, dut)
-	configureDeviceId(ctx, t, dut, []string{*comp1name, *comp2name}, []uint64{deviceId1, deviceId2})
+	nodes := findP4RTNodes(t, dut)
+	configureDeviceIDs(t, dut, nodes)
 
-	configurePortId(ctx, t, dut)
-	top := configureATE(t, ate)
+	var ports []string
+	for _, v := range nodes {
+		ports = append(ports, v)
+	}
+	configureDUT(t, dut, ports)
+	top := configureATE(t, ate, ports)
 
 	// Setup two different clients for different FAPs
-	client1 := p4rt_client.P4RTClient{}
+	client1 := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := client1.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	client2 := p4rt_client.P4RTClient{}
+	client2 := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := client2.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	args := &testArgs{
 		ctx:     ctx,
-		client1: &client1,
-		client2: &client2,
+		client1: client1,
+		client2: client2,
 		dut:     dut,
 		ate:     ate,
 		top:     top,
@@ -404,8 +402,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority:      1,
 			},
 		})
-
-		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+		expected_entity := expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for GDP %s", err)
 			nomatch += 1
 		}
@@ -419,7 +417,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority:      1,
 			},
 		})
-		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for LLDP %s", err)
 			nomatch += 1
 		}
@@ -434,7 +433,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority: 1,
 			},
 		})
-		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for traceroute %s", err)
 			nomatch += 1
 		}

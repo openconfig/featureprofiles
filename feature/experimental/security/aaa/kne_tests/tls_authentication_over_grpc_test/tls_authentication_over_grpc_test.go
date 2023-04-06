@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"testing"
 
@@ -27,6 +26,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/knebind/solver"
 	"github.com/openconfig/ygot/ygot"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
@@ -34,15 +34,11 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-)
-
-var (
-	sshIP = flag.String("ssh_ip", "", "External IP address of management interface.")
+	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 const (
-	sshPort  = 22
-	gnmiPort = 6030
+	sshPort = 22
 )
 
 func TestMain(m *testing.M) {
@@ -58,10 +54,19 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
 	}
 }
 
-func gnmiClient(ctx context.Context) (gpb.GNMIClient, error) {
+func gnmiClient(ctx context.Context, sshIP string, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
+	// TODO(greg-dennis): Remove hard-coded gNMI port.
+	var gnmiPort int
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		gnmiPort = 9339
+	default:
+		gnmiPort = 6030
+	}
+
 	conn, err := grpc.DialContext(
 		ctx,
-		fmt.Sprintf("%s:%d", *sshIP, gnmiPort),
+		fmt.Sprintf("%s:%d", sshIP, gnmiPort),
 		grpc.WithTransportCredentials(
 			credentials.NewTLS(&tls.Config{
 				InsecureSkipVerify: true, // NOLINT
@@ -74,11 +79,14 @@ func gnmiClient(ctx context.Context) (gpb.GNMIClient, error) {
 }
 
 func TestAuthentication(t *testing.T) {
-	if *sshIP == "" {
-		t.Fatal("--ssh_ip flag must be set.")
-	}
-
 	dut := ondatra.DUT(t, "dut")
+	serviceMap := dut.CustomData(solver.KNEServiceMapKey).(map[string]*tpb.Service)
+	sshService, ok := serviceMap["ssh"]
+	if !ok {
+		t.Fatal("No SSH service available on dut")
+	}
+	sshIP := sshService.GetOutsideIp()
+
 	gnmi.Replace(t, dut, gnmi.OC().System().Aaa().Authentication().
 		User("alice").Config(), &oc.System_Aaa_Authentication_User{
 		Username: ygot.String("alice"),
@@ -108,7 +116,7 @@ func TestAuthentication(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Log("Trying SSH credentials")
-			sshClient, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", *sshIP, sshPort), &ssh.ClientConfig{
+			sshClient, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", sshIP, sshPort), &ssh.ClientConfig{
 				User: tc.user,
 				Auth: []ssh.AuthMethod{
 					ssh.KeyboardInteractive(keyboardInteraction(tc.pass)),
@@ -130,11 +138,29 @@ func TestAuthentication(t *testing.T) {
 				context.Background(),
 				"username", tc.user,
 				"password", tc.pass)
-			gnmi, err := gnmiClient(ctx)
+			gnmi, err := gnmiClient(ctx, sshIP, dut)
 			if err != nil {
 				t.Fatal(err)
 			}
-
+			t.Log("Configuring hostname using GNMI Set")
+			_, err = gnmi.Set(ctx, &gpb.SetRequest{
+				Replace: []*gpb.Update{{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "system"}, {Name: "config"}, {Name: "hostname"}},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: []byte("\"ondatraDUT\"")},
+					},
+				}},
+			})
+			if tc.wantErr != (err != nil) {
+				if tc.wantErr {
+					t.Errorf("gnmi.Set nil error when error expected for user %q", tc.user)
+				} else {
+					t.Errorf("gnmi.Set unexpected error for user %q: %v", tc.user, err)
+				}
+			}
 			t.Log("Trying credentials with GNMI Get")
 			_, err = gnmi.Get(ctx, &gpb.GetRequest{
 				Path: []*gpb.Path{{

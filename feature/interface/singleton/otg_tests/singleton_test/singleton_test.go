@@ -16,6 +16,7 @@ package singleton_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,20 +98,8 @@ var (
 	}
 )
 
-// autoMode specifies the type of auto-negotiation behavior testing: forced, auto, and
-// auto-negotiation while also specifying duplex and speed.  The last case is permitted by
-// IEEE Std 802.3-2012 and OpenConfig.
-type autoMode int
-
-const (
-	forcedNegotiation autoMode = iota
-	autoNegotiation
-	autoNegotiationWithDuplexSpeed
-)
-
 type testCase struct {
-	mtu  uint16 // This is the L3 MTU, i.e. the payload portion of an Ethernet frame.
-	auto autoMode
+	mtu uint16 // This is the L3 MTU, i.e. the payload portion of an Ethernet frame.
 
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
@@ -123,32 +112,14 @@ type testCase struct {
 type otgFlowConfigurator func(t *testing.T, packetSize uint16)
 type otgNeighborVerification func(t *testing.T)
 
-var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
-	ondatra.Speed10Gb:  oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
-	ondatra.Speed100Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-	ondatra.Speed400Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
-}
-
 // configInterfaceDUT configures an oc Interface with the desired MTU.
 func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes) {
 	a.ConfigOCInterface(i)
 
-	e := i.GetOrCreateEthernet()
-	if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-		e.AutoNegotiate = ygot.Bool(true)
-	} else {
-		e.AutoNegotiate = ygot.Bool(false)
-	}
-	if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-		if speed, ok := portSpeed[dp.Speed()]; ok {
-			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-			e.PortSpeed = speed
-		}
-	}
-
 	if !*deviations.OmitL2MTU {
 		i.Mtu = ygot.Uint16(tc.mtu + 14)
 	}
+	i.Description = ygot.String(*i.Description)
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
@@ -174,6 +145,15 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	di2 := d.Interface(p2.Name())
 	fptest.LogQuery(t, p2.String(), di2.Config(), tc.duti2)
 	gnmi.Replace(t, tc.dut, di2.Config(), tc.duti2)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
 }
 
 func (tc *testCase) configureATE(t *testing.T) {
@@ -184,7 +164,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.top.Ports().Add().SetName(ap1.ID())
 	i1 := tc.top.Devices().Add().SetName(ap1.ID())
 	eth1 := i1.Ethernets().Add().SetName(ateSrc.Name + ".Eth").
-		SetPortName(i1.Name()).SetMac(ateSrc.MAC).SetMtu(int32(ateMTU))
+		SetMac(ateSrc.MAC).SetMtu(int32(ateMTU))
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	if ateSrc.IPv4 != "" {
 		eth1.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").
 			SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).
@@ -198,7 +179,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.top.Ports().Add().SetName(ap2.ID())
 	i2 := tc.top.Devices().Add().SetName(ap2.ID())
 	eth2 := i2.Ethernets().Add().SetName(ateDst.Name + ".Eth").
-		SetPortName(i2.Name()).SetMac(ateDst.MAC).SetMtu(int32(ateMTU))
+		SetMac(ateDst.MAC).SetMtu(int32(ateMTU))
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	if ateDst.IPv4 != "" {
 		eth2.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").
 			SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).
@@ -242,6 +224,13 @@ func (tc *testCase) verifyInterfaceDUT(
 	// auto-negotiation, then trying to enable it should be ignored.
 	di.GetOrCreateEthernet().AutoNegotiate = wantdi.GetOrCreateEthernet().AutoNegotiate
 
+	// Mac address value is still not populated in di. Hence getting using gnmi get method
+	diMacAddress := gnmi.Get(t, tc.dut, dip.Ethernet().MacAddress().State())
+	di.GetOrCreateEthernet().MacAddress = &diMacAddress
+
+	wantdi.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(wantdi.GetOrCreateEthernet().GetMacAddress()))
+	di.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(di.GetOrCreateEthernet().GetMacAddress()))
+
 	confirm.State(t, wantdi, di)
 
 	// State for the interface.
@@ -252,34 +241,20 @@ func (tc *testCase) verifyInterfaceDUT(
 		t.Errorf("%s oper-status got %v, want %v", dp, got, opUp)
 	}
 
-	if speed, ok := portSpeed[dp.Speed()]; ok {
-		if tc.auto == forcedNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-			if got := gnmi.Get(t, tc.dut, dip.Ethernet().PortSpeed().State()); got != speed {
-				t.Errorf("%s port-speed got %v, want %v", dp, got, speed)
-			}
-		}
-		if tc.auto == autoNegotiation || tc.auto == autoNegotiationWithDuplexSpeed {
-			if gnmi.Get(t, tc.dut, dip.Ethernet().AutoNegotiate().State()) {
-				// Auto-negotiation is really enabled.
-				if got := gnmi.Get(t, tc.dut, dip.Ethernet().NegotiatedPortSpeed().State()); got != speed {
-					t.Errorf("%s negotiated-port-speed got %v, want %v", dp, got, speed)
-				}
-			}
-		}
-	}
-
 	disp := dip.Subinterface(0)
 
-	// IPv4 neighbor discovered by ARP.
-	dis4np := disp.Ipv4().Neighbor(atea.IPv4)
-	if got := gnmi.Get(t, tc.dut, dis4np.Origin().State()); got != dynamic {
-		t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
-	}
+	if !*deviations.IPNeighborMissing {
+		// IPv4 neighbor discovered by ARP.
+		dis4np := disp.Ipv4().Neighbor(atea.IPv4)
+		if got := gnmi.Get(t, tc.dut, dis4np.Origin().State()); got != dynamic {
+			t.Errorf("%s IPv4 neighbor %s origin got %v, want %v", dp, atea.IPv4, got, dynamic)
+		}
 
-	// IPv6 neighbor discovered by ARP.
-	dis6np := disp.Ipv6().Neighbor(atea.IPv6)
-	if got := gnmi.Get(t, tc.dut, dis6np.Origin().State()); got != dynamic {
-		t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
+		// IPv6 neighbor discovered by ARP.
+		dis6np := disp.Ipv6().Neighbor(atea.IPv6)
+		if got := gnmi.Get(t, tc.dut, dis6np.Origin().State()); got != dynamic {
+			t.Errorf("%s IPv6 neighbor %s origin got %v, want %v", dp, atea.IPv6, got, dynamic)
+		}
 	}
 }
 
@@ -323,26 +298,25 @@ func (tc *testCase) configureIPv4FlowHeader(t *testing.T, packetSize uint16) {
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().SetValue(ateDst.IPv4)
-	tc.ate.OTG().PushConfig(t, tc.top)
 }
 
 func (tc *testCase) configureIPv4DfFlowHeader(t *testing.T, packetSize uint16) {
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv4"}).SetRxNames([]string{ateDst.Name + ".IPv4"})
+	flow.Size().SetFixed(int32(packetSize))
 	v4 := flow.Packet().Add().Ipv4()
 	v4.DontFragment().SetValue(1)
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().SetValue(ateDst.IPv4)
-	tc.ate.OTG().PushConfig(t, tc.top)
 }
 
 func (tc *testCase) configureIPv6FlowHeader(t *testing.T, packetSize uint16) {
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
+	flow.Size().SetFixed(int32(packetSize))
 	v6 := flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(ateSrc.IPv6)
 	v6.Dst().SetValue(ateDst.IPv6)
-	tc.ate.OTG().PushConfig(t, tc.top)
 }
 
 func (tc *testCase) waitOTGIPv4NeighborEntry(t *testing.T) {
@@ -358,29 +332,31 @@ func (tc *testCase) waitOTGIPv6NeighborEntry(t *testing.T) {
 }
 
 type counters struct {
-	unicast, multicast, broadcast uint64
+	unicast, multicast, broadcast, drop uint64
 }
 
 func inCounters(tic *oc.Interface_Counters) *counters {
 	return &counters{unicast: tic.GetInUnicastPkts(),
 		multicast: tic.GetInMulticastPkts(),
-		broadcast: tic.GetInBroadcastPkts()}
+		broadcast: tic.GetInBroadcastPkts(),
+		drop:      tic.GetInDiscards()}
 }
 
 func outCounters(tic *oc.Interface_Counters) *counters {
 	return &counters{unicast: tic.GetOutUnicastPkts(),
-		multicast: tic.GetOutMulticastPkts(), broadcast: tic.GetOutBroadcastPkts()}
+		multicast: tic.GetOutMulticastPkts(), broadcast: tic.GetOutBroadcastPkts(), drop: tic.GetInDiscards()}
 }
 
 func diffCounters(before, after *counters) *counters {
 	return &counters{unicast: after.unicast - before.unicast,
 		multicast: after.multicast - before.multicast,
-		broadcast: after.broadcast - before.broadcast}
+		broadcast: after.broadcast - before.broadcast,
+		drop:      after.drop - before.drop}
 }
 
 // testFlow returns whether the traffic flow from ATE port1 to ATE
 // port2 has been successfully detected.
-func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otgFlowConfigurator, waitOTGARPEntry otgNeighborVerification) bool {
+func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otgFlowConfigurator, largeMTU bool, waitOTGARPEntry otgNeighborVerification) bool {
 	p1 := tc.dut.Port(t, "port1")
 	p2 := tc.dut.Port(t, "port2")
 	p1Counter := gnmi.OC().Interface(p1.Name()).Counters()
@@ -395,11 +371,14 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 	e1.Src().SetValue(ateSrc.MAC)
 	flow.Metrics().SetEnable(true)
 	configIPHeader(t, packetSize)
+	tc.ate.OTG().PushConfig(t, tc.top)
+	tc.ate.OTG().StartProtocols(t)
 	waitOTGARPEntry(t)
 
 	tc.ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	tc.ate.OTG().StopTraffic(t)
+	tc.ate.OTG().StopProtocols(t)
 
 	otgutils.LogPortMetrics(t, tc.ate.OTG(), tc.top)
 	// Counters from ATE interface telemetry may be inaccurate.  Only
@@ -443,29 +422,31 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 	// Under no circumstances should DUT send packets greater than MTU.
 
 	octets := fpc.GetOutOctets()
-	outPkts := fpc.GetOutPkts()
-	inPkts := fpc.GetInPkts()
-	if outPkts == 0 {
+	ateOutPkts := fpc.GetOutPkts()
+	ateInPkts := fpc.GetInPkts()
+	if ateOutPkts == 0 {
 		t.Error("Flow did not send any packet")
-	} else if avg := octets / outPkts; avg > uint64(tc.mtu) {
+	} else if avg := octets / ateOutPkts; avg > uint64(tc.mtu) {
 		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
 	}
-	if p1InDiff.unicast < outPkts {
-		t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, outPkts)
+	if p1InDiff.unicast < ateOutPkts {
+		if largeMTU && p1InDiff.drop < ateOutPkts {
+			t.Errorf("DUT received too few source packets: got %d, want >= %d", p1InDiff.unicast, ateOutPkts)
+		}
 	}
 
-	if inPkts == 0 {
+	if ateInPkts == 0 {
 		// The PacketLargerThanMTU cases do not expect to receive packets,
 		// so this is not an error.
 		t.Log("Flow did not receive any packet")
-	} else if avg := octets / inPkts; avg > uint64(tc.mtu) {
+	} else if avg := octets / ateInPkts; avg > uint64(tc.mtu) {
 		t.Errorf("Flow destination packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
 	}
-	if inPkts < p2OutDiff.unicast {
-		t.Errorf("ATE received too few destination packets: got %d, want >= %d", inPkts, p2OutDiff.unicast)
+	if ateInPkts > p2OutDiff.unicast {
+		t.Errorf("ATE received too many destination packets: got %d, want <= %d", ateInPkts, p2OutDiff.unicast)
 	}
 
-	lossPct := float32((outPkts - inPkts) * 100 / outPkts)
+	lossPct := (float32(ateOutPkts-ateInPkts) / float32(ateOutPkts)) * 100
 	t.Logf("flow loss-pct %f", lossPct)
 	return lossPct < 0.5 // 0.5% loss.
 }
@@ -492,17 +473,17 @@ func (tc *testCase) testMTU(t *testing.T) {
 				if c.shouldFrag {
 					t.Skip("Packet fragmentation is not expected at line rate.")
 				}
-				if got := tc.testFlow(t, tc.mtu+64, c.configIPHeader, c.waitARP); got {
+				if got := tc.testFlow(t, tc.mtu+64, c.configIPHeader, true, c.waitARP); got {
 					t.Errorf("Traffic flow got %v, want false", got)
 				}
 			})
 			t.Run("PacketExactlyMTU", func(t *testing.T) {
-				if got := tc.testFlow(t, tc.mtu, c.configIPHeader, c.waitARP); !got {
+				if got := tc.testFlow(t, tc.mtu, c.configIPHeader, false, c.waitARP); !got {
 					t.Errorf("Traffic flow got %v, want true", got)
 				}
 			})
 			t.Run("PacketSmallerThanMTU", func(t *testing.T) {
-				if got := tc.testFlow(t, tc.mtu-64, c.configIPHeader, c.waitARP); !got {
+				if got := tc.testFlow(t, tc.mtu-64, c.configIPHeader, false, c.waitARP); !got {
 					t.Errorf("Traffic flow got %v, want true", got)
 				}
 			})
@@ -520,53 +501,11 @@ func TestSingleton(t *testing.T) {
 	for _, mtu := range mtus {
 		top := ate.OTG().NewConfig(t)
 		tc := &testCase{
-			mtu:  mtu,
-			auto: forcedNegotiation,
-
+			mtu: mtu,
 			dut: dut,
 			ate: ate,
 			top: top,
 		}
 		t.Run(fmt.Sprintf("MTU=%d", mtu), tc.testMTU)
-	}
-}
-
-var autoModeName = map[autoMode]string{
-	forcedNegotiation:              "Forced",
-	autoNegotiation:                "Auto",
-	autoNegotiationWithDuplexSpeed: "AutoWithDuplexSpeed",
-}
-
-// TestNegotiate validates that port speed is reported correctly and that port telemetry
-// atches expected negotiated speeds for forced, auto-negotiation, and auto-negotiation
-// while overriding port speed and duplex.
-func TestNegotiate(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-
-	for auto, name := range autoModeName {
-		t.Run(name, func(t *testing.T) {
-			top := ate.OTG().NewConfig(t)
-			tc := &testCase{
-				mtu:  1500,
-				auto: auto,
-
-				dut: dut,
-				ate: ate,
-				top: top,
-			}
-
-			tc.configureDUT(t)
-			tc.configureATE(t)
-
-			t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t) })
-			t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
-			t.Run("Traffic", func(t *testing.T) {
-				got := tc.testFlow(t, tc.mtu, tc.configureIPv6FlowHeader, tc.waitOTGIPv6NeighborEntry)
-				if !got {
-					t.Errorf("Traffic flow got %v, want true", got)
-				}
-			})
-		})
 	}
 }

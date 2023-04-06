@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -89,6 +91,9 @@ func TestMain(m *testing.M) {
 func TestEthernetPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	want := portSpeed[dp.Speed()]
 	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Ethernet().PortSpeed().State())
 	t.Logf("Got %s PortSpeed from telmetry: %v, expected: %v", dp.Name(), got, want)
@@ -116,7 +121,9 @@ func TestEthernetMacAddress(t *testing.T) {
 func TestInterfaceAdminStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State())
 	t.Logf("Got %s AdminStatus from telmetry: %v", dp.Name(), adminStatus)
 	if adminStatus != adminStatusUp {
@@ -127,7 +134,9 @@ func TestInterfaceAdminStatus(t *testing.T) {
 func TestInterfaceOperStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
 	t.Logf("Got %s OperStatus from telmetry: %v", dp.Name(), operStatus)
 	if operStatus != operStatusUp {
@@ -163,7 +172,9 @@ func TestInterfaceStatusChange(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-
+			if *deviations.ExplicitPortSpeed {
+				fptest.SetPortSpeed(t, dp)
+			}
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedOperStatus)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State(), intUpdateTime, tc.expectedAdminStatus)
 			operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
@@ -184,10 +195,18 @@ func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
-	// Derive hardware port from interface name by removing the port number.
-	// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
-	i := strings.LastIndex(dp.Name(), "/")
-	want := dp.Name()[:i]
+	want := ""
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		in := dp.Name()
+		// e.g. Ethernet-3/35-Port
+		want = strings.Replace(in, "ethernet", "Ethernet", 1) + "-Port"
+	default:
+		// Derive hardware port from interface name by removing the port number.
+		// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
+		i := strings.LastIndex(dp.Name(), "/")
+		want = dp.Name()[:i]
+	}
 
 	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
 	t.Logf("Got %s HardwarePort from telmetry: %v, expected: %v", dp.Name(), got, want)
@@ -623,7 +642,9 @@ func TestP4rtInterfaceID(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Id = ygot.Uint32(tc.portID)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-
+			if *deviations.ExplicitPortSpeed {
+				fptest.SetPortSpeed(t, dp)
+			}
 			// Check path /interfaces/interface/state/id.
 			intfID := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Id().State())
 			intfVal, present := intfID.Val()
@@ -693,15 +714,15 @@ func TestIntfCounterUpdate(t *testing.T) {
 	config := otg.NewConfig(t)
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
-	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").
-		SetPortName(ap1.ID()).SetMac("02:00:01:01:01:01")
+	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").SetMac("02:00:01:01:01:01")
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
 	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
 		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
 		SetPrefix(31)
 	config.Ports().Add().SetName(ap2.ID())
 	intf2 := config.Devices().Add().SetName(ap2.Name())
-	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").
-		SetPortName(ap2.ID()).SetMac("02:00:01:02:01:01")
+	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").SetMac("02:00:01:02:01:01")
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
 	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
 		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
 		SetPrefix(31)
@@ -786,15 +807,15 @@ func TestQoSCounterUpdate(t *testing.T) {
 	config := otg.NewConfig(t)
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
-	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").
-		SetPortName(ap1.ID()).SetMac("02:00:01:01:01:01")
+	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").SetMac("02:00:01:01:01:01")
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
 	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
 		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
 		SetPrefix(31)
 	config.Ports().Add().SetName(ap2.ID())
 	intf2 := config.Devices().Add().SetName(ap2.Name())
-	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").
-		SetPortName(ap2.ID()).SetMac("02:00:01:02:01:01")
+	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").SetMac("02:00:01:02:01:01")
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
 	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
 		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
 		SetPrefix(31)
@@ -925,9 +946,20 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+			s.Enabled = ygot.Bool(true)
+		}
 		s.Enabled = ygot.Bool(true)
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 }

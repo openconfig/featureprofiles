@@ -101,15 +101,35 @@ type bgpTestParams struct {
 	peerIP                      string
 }
 
+// bgpClearConfig removes all BGP configuration from the DUT.
+func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	resetBatch := &gnmi.SetBatch{}
+	gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+
+	if *deviations.NetworkInstanceTableDeletionRequired {
+		tablePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).TableAny()
+		for _, table := range gnmi.LookupAll[*oc.NetworkInstance_Table](t, dut, tablePath.Config()) {
+			if val, ok := table.Val(); ok {
+				if val.GetProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP {
+					gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Table(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, val.GetAddressFamily()).Config())
+				}
+			}
+		}
+	}
+	resetBatch.Set(t, dut)
+}
+
 // bgpCreateNbr creates a BGP object with neighbors pointing to ate and returns bgp object.
-func bgpCreateNbr(bgpParams *bgpTestParams) *oc.NetworkInstance_Protocol_Bgp {
+func bgpCreateNbr(bgpParams *bgpTestParams) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
-	bgp := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(bgpParams.localAS)
 
 	global.RouterId = ygot.String(dutAttrs.IPv4)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
@@ -128,10 +148,12 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *oc.NetworkInstance_Protocol_Bgp {
 	nv4t := nv4.GetOrCreateTimers()
 	nv4t.HoldTime = ygot.Uint16(dutHoldTime)
 	nv4t.KeepaliveInterval = ygot.Uint16(dutKeepaliveTime)
-	nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
+	if !*deviations.ConnectRetry {
+		nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
+	}
 
 	nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	return bgp
+	return niProto
 }
 
 // Verify BGP capabilities like route refresh as32 and mpbgp.
@@ -163,7 +185,6 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP state")
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
-	nbr := gnmi.Get(t, dut, statePath.State()).GetNeighbor(ateAttrs.IPv4)
 
 	// Get BGP adjacency state
 	t.Log("Waiting for BGP neighbor to establish...")
@@ -189,6 +210,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	// Check BGP Transitions
+	nbr := gnmi.Get(t, dut, statePath.State()).GetNeighbor(ateAttrs.IPv4)
 	estTrans := nbr.GetEstablishedTransitions()
 	t.Logf("Got established transitions: %d", estTrans)
 	if estTrans != 1 {
@@ -251,15 +273,15 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	t.Log("Configure BGP")
-	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
-	gnmi.Delete(t, dut, dutConfPath.Config())
+	bgpClearConfig(t, dut)
 	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	// Configure Md5 auth password.
-	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
+	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
 
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 
@@ -293,8 +315,14 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	// Send Cease Notification from ATE to DUT
 	t.Log("Send Cease Notification from ATE to DUT")
 	ate.Actions().NewBGPPeerNotification().WithCode(6).WithSubCode(6).WithPeers(bgpPeer).Send(t)
-	t.Log("Verify BGP session state : ACTIVE")
-	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ACTIVE)
+	t.Log("Verify BGP session state : NOT in ESTABLISHED State")
+	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Second*60, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		currBgpState, present := val.Val()
+		return present && currBgpState != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+	}).Await(t)
+	if !ok {
+		t.Errorf("BGP neighborship is UP when cease Notification message is recieved")
+	}
 
 	// Verify if Cease notification is received on DUT.
 	t.Log("Verify Error code received on DUT: BgpTypes_BGP_ERROR_CODE_CEASE")
@@ -305,7 +333,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 
 	// Clear config on DUT and ATE
 	topo.StopProtocols(t)
-	gnmi.Delete(t, dut, dutConfPath.Config())
+	bgpClearConfig(t, dut)
 }
 
 // TestPassword is to verify md5 authentication password on DUT.
@@ -325,15 +353,15 @@ func TestPassword(t *testing.T) {
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	t.Log("Configure BGP")
-	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
-	gnmi.Delete(t, dut, dutConfPath.Config())
+	bgpClearConfig(t, dut)
 	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	t.Log("Configure matching Md5 auth password on DUT")
-	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
+	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
 
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 
@@ -345,7 +373,7 @@ func TestPassword(t *testing.T) {
 	iDut1 := topo.AddInterface(ateAttrs.Name).WithPort(port1)
 	iDut1.IPv4().WithAddress(ateAttrs.IPv4CIDR()).WithDefaultGateway(dutAttrs.IPv4)
 	bgpDut1 := iDut1.BGP()
-	bgpDut1.AddPeer().WithPeerAddress(dutAttrs.IPv4).WithLocalASN(ateAS).WithTypeExternal().
+	bgpPeer := bgpDut1.AddPeer().WithPeerAddress(dutAttrs.IPv4).WithLocalASN(ateAS).WithTypeExternal().
 		WithMD5Key(authPassword).WithHoldTime(ateHoldTime)
 
 	t.Log("Pushing config to ATE and starting protocols...")
@@ -355,27 +383,38 @@ func TestPassword(t *testing.T) {
 	// Verify BGP status
 	t.Log("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
+	if !*deviations.SkipBGPTestPasswordMismatch {
+		t.Log("Configure mismatching md5 auth password on DUT")
+		gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), "PASSWORDNEGSCENARIO")
 
-	t.Log("Configure mismatching md5 auth password on DUT")
-	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), "PASSWORDNEGSCENARIO")
-	t.Log("Wait till hold time expires...")
-	time.Sleep(time.Second * dutHoldTime)
+		// If the DUT will not fail a BGP session when the BGP MD5 key configuration changes,
+		// change the key from the ATE side to time out the session.
+		if *deviations.BGPMD5RequiresReset {
+			bgpPeer.WithMD5Key("PASSWORDNEGSCENARIO-ATE")
+			topo.UpdateBGPPeerStates(t)
+		}
+		t.Log("Wait till hold time expires: BGP should not be in ESTABLISHED state when passwords do not match.")
+		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), (dutHoldTime+10)*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			state, ok := val.Val()
+			return ok && state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		}).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+			t.Error("BGP Adjacency is ESTABLISHED when passwords are not matching")
+		}
 
-	t.Log("Verify BGP session state : Should not be in ESTABLISHED state when passwords does not match")
-	status := gnmi.Get(t, dut, nbrPath.SessionState().State())
-	if status == oc.Bgp_Neighbor_SessionState_ESTABLISHED {
-		t.Log("BGP Adjacency is UP when passwords are not matching")
-		t.Errorf("Md5 authentication verification failed, %v", status)
+		t.Log("Revert md5 auth password on DUT to match with ATE.")
+		gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
+		if *deviations.BGPMD5RequiresReset {
+			bgpPeer.WithMD5Key(authPassword)
+			topo.UpdateBGPPeerStates(t)
+		}
+		t.Log("Verify BGP session state : Should be ESTABLISHED")
+		gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
-
-	t.Log("Revert md5 auth password on DUT to match with ATE.")
-	gnmi.Replace(t, dut, dutConfPath.Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
-	t.Log("Verify BGP session state : Should be ESTABLISHED")
-	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-
 	// Clear config on DUT and ATE
 	topo.StopProtocols(t)
-	gnmi.Delete(t, dut, dutConfPath.Config())
+	bgpClearConfig(t, dut)
 }
 
 // TestParameters is to verify normal session establishment and termination
@@ -391,15 +430,14 @@ func TestParameters(t *testing.T) {
 	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateIP)
 
 	cases := []struct {
-		name      string
-		dutConf   *oc.NetworkInstance_Protocol_Bgp
-		ateConf   *ondatra.ATETopology
-		wantState *oc.NetworkInstance_Protocol_Bgp
+		name    string
+		dutConf *oc.NetworkInstance_Protocol
+		ateConf *ondatra.ATETopology
 	}{
 		{
 			name:    "Test the eBGP session establishment: Global AS",
@@ -418,14 +456,14 @@ func TestParameters(t *testing.T) {
 		},
 		{
 			name:    "Test the iBGP session establishment: Neighbor AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2, nbrLocalAS: dutAS2}),
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2}),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal),
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Log("Clear BGP Configs on DUT")
-			gnmi.Delete(t, dut, dutConfPath.Config())
+			bgpClearConfig(t, dut)
 			t.Log("Configure BGP Configs on DUT")
 			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
 			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
@@ -435,7 +473,12 @@ func TestParameters(t *testing.T) {
 			t.Log("Verify BGP session state : ESTABLISHED")
 			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*100, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 			stateDut := gnmi.Get(t, dut, statePath.State())
-			wantState := tc.dutConf
+			wantState := tc.dutConf.Bgp
+			if *deviations.MissingValueForDefaults {
+				wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName = 0
+				wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = nil
+				wantState.GetOrCreateNeighbor(ateAttrs.IPv4).Enabled = nil
+			}
 			confirm.State(t, wantState, stateDut)
 			t.Log("Clear BGP Configs on ATE")
 			tc.ateConf.StopProtocols(t)
