@@ -89,7 +89,7 @@ func GRIBIMACOverrideWithStaticARP(_ *ondatra.DUTDevice) bool {
 	return *gribiMACOverrideWithStaticARP
 }
 
-// CliTakesPrecedenceOverOC returns config pushed through origin CLI takes precedence over config pushed through origin OC.
+// CliTakesPrecedenceOverOC returns whether config pushed through origin CLI takes precedence over config pushed through origin OC.
 func CliTakesPrecedenceOverOC(_ *ondatra.DUTDevice) bool {
 	return *cliTakesPrecedenceOverOC
 }
