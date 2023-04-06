@@ -280,15 +280,18 @@ func TestBackup(t *testing.T) {
 //   - Connect ATE port-2 to DUT port-2.
 //   - Connect ATE port-3 to DUT port-3.
 //   - Connect ATE port-4 to DUT port-4.
-//   - Connect a gRIBI client to the DUT and inject an IPv4Entry for 203.0.113.1/32 pointing to a NextHopGroup containing:
+//   - Create a L3 routing instance (vrfA), and assign DUT port-1 to vrfA.
+//   - Create a L3 routing instance (vrfB) that includes no interface.
+//   - Connect a gRIBI client to the DUT, make it become leader and inject the following:
+//   - An IPv4Entry in VRF-A, pointing to a NextHopGroup (in DEFAULT VRF) containing:
 //   - Two primary next-hops:
-//   - 2: to ATE port-2
-//   - 3: to ATE port-3.
-//   - A backup NHG containing a single next-hop:
-//   - 4: to ATE port-4.
-//   - Ensure that traffic forwarded to a destination in 203.0.113.1/32 is received at ATE port-2 and port-3.
-//   - Disable ATE port-2. Ensure that traffic for a destination in 203.0.113.1/32 is received at ATE port-3.
-//   - Disable ATE port-3. Ensure that traffic for a destination in 203.0.113.1/32 is received at ATE port-4.
+//   - IP of ATE port-2
+//   - IP of ATE port-3
+//   - A backup NHG containing a single next-hop pointing to VRF-B.
+//   - The same IPv4Entry but in VRF-B, pointing to a NextHopGroup (in DEFAULT VRF) containing a primary next-hop to the IP of ATE port-4.
+//   - Ensure that traffic forwarded to a destination is received at ATE port-2 and port-3. Validate that AFT telemetry covers this case.
+//   - Disable ATE port-2. Ensure that traffic for a destination is received at ATE port-3.
+//   - Disable ATE port-3. Ensure that traffic for a destination is received at ATE port-4.
 //
 // Validation Steps
 //   - Verify AFT telemetry after shutting each port
