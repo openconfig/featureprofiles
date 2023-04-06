@@ -89,6 +89,11 @@ func GRIBIMACOverrideWithStaticARP(_ *ondatra.DUTDevice) bool {
 	return *gribiMACOverrideWithStaticARP
 }
 
+// CLITakesPrecedenceOverOC returns whether config pushed through origin CLI takes precedence over config pushed through origin OC.
+func CLITakesPrecedenceOverOC(_ *ondatra.DUTDevice) bool {
+	return *cliTakesPrecedenceOverOC
+}
+
 // BGPPrefixOverlimit returns whether the BGP prefix overlimit retry timer is supported.
 func BGPPrefixOverlimit(_ *ondatra.DUTDevice) bool {
 	return *bgpPrefixOverlimit
@@ -256,6 +261,8 @@ var (
 	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+
+	cliTakesPrecedenceOverOC = flag.Bool("deviation_cli_takes_precedence_over_oc", false, "Set to true for device in which config pushed through origin CLI takes precedence over config pushed through origin OC, default is false")
 
 	missingBgpLastNotificationErrorCode = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
 )
