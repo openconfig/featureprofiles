@@ -74,8 +74,7 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
-// ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check if value is true.
-// Default value is false
+// ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
 	return *isisRestartSuppressUnsupported
 }
