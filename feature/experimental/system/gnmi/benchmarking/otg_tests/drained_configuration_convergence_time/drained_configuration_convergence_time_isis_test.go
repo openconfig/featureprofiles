@@ -54,27 +54,25 @@ func setISISMetric(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyISISMetric(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 
 	t.Run("ISIS Metric verification", func(t *testing.T) {
-		at := gnmi.OC()
 		for _, ap := range ate.Ports() {
 			if ap.ID() == "port1" {
 				// Port1 is ingress, skip verification on ingress port
 				continue
 			}
 
-			const want = oc.Interface_OperStatus_UP
-
-			if got := gnmi.Get(t, ate, at.Interface(ap.Name()).OperStatus().State()); got != want {
-				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
-			}
-			is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
-			lsps := is.LevelAny().LspAny()
-
-			_, ok := gnmi.WatchAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Metric().State(), 5*time.Minute, func(v *ygnmi.Value[uint32]) bool {
-				val, present := v.Val()
-				return present && val == setup.ISISMetric
+			_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis"+ap.Name()).LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
+				metric, present := v.Val()
+				if present {
+					if metric == setup.ISISMetric {
+						return true
+					}
+				}
+				return false
 			}).Await(t)
+
+			metricInReceivedLsp := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis"+ap.Name()).LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State())[0]
 			if !ok {
-				t.Errorf("Obtained Metric on ATE is not as expected")
+				t.Fatalf("Metric not matched. Expected %d got %d ", setup.ISISMetric, metricInReceivedLsp)
 			}
 		}
 	})
@@ -85,21 +83,14 @@ func verifyISISMetric(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 func verifyISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 
 	t.Run("ISIS Overload bit verification", func(t *testing.T) {
-		at := gnmi.OC()
 		for _, ap := range ate.Ports() {
 			if ap.ID() == "port1" {
 				// port1 is ingress, skip verification on ingress port
 				continue
 			}
 
-			const want = oc.Interface_OperStatus_UP
-
-			if got := gnmi.Get(t, ate, at.Interface(ap.Name()).OperStatus().State()); got != want {
-				t.Errorf("%s oper-status got %v, want %v", ap, got, want)
-			}
-
 			otg := ate.OTG()
-			_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Flags().State(), time.Minute, func(v *ygnmi.Value[[]otgtelemetry.E_Lsps_Flags]) bool {
+			_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().IsisRouter("devIsis"+ap.Name()).LinkStateDatabase().LspsAny().Flags().State(), time.Minute, func(v *ygnmi.Value[[]otgtelemetry.E_Lsps_Flags]) bool {
 				flags, present := v.Val()
 				if present {
 					for _, flag := range flags {
@@ -114,16 +105,6 @@ func verifyISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 			if !ok {
 				t.Fatalf("OverLoad Bit not seen on learned lsp on ATE")
 			}
-			// TODO: SetBit retrieval is not working in ATE.
-			// Ref: https://github.com/openconfig/featureprofiles/issues/1176
-			// Below code will be uncommented once above issue is resolved.
-
-			// is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
-			// lsps := is.LevelAny().LspAny()
-			// gotIsisSetBit := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().SBit().State())
-			// if diff := cmp.Diff(setup.ISISSetBitList, gotIsisSetBit); diff != "" {
-			// t.Errorf("obtained setBit on ATE is not as expected, got %v, want %v", gotIsisSetBit, setup.ISISSetBitList)
-			// }
 		}
 	})
 }
