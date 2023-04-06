@@ -84,6 +84,16 @@ func GRIBIMACOverrideWithStaticARP(_ *ondatra.DUTDevice) bool {
 	return *gribiMACOverrideWithStaticARP
 }
 
+// BGPPrefixOverlimit returns whether the BGP prefix overlimit retry timer is supported.
+func BGPPrefixOverlimit(_ *ondatra.DUTDevice) bool {
+	return *bgpPrefixOverlimit
+}
+
+// BGPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
+func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
+	return *bgpTrafficTolerance
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -205,9 +215,9 @@ var (
 
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
-	BGPPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
+	bgpPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
 
-	BGPTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
+	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
 
 	ExplicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
