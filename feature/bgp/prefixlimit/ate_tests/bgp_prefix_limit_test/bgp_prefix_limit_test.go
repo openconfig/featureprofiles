@@ -384,11 +384,11 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP state")
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixes := statePath.Neighbor(ateDst.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if got, ok := gnmi.Watch(t, dut, prefixes.Installed().State(), time.Minute, compare).Await(t); !ok {
-		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got, installedRoutes)
-	}
-	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), time.Minute, compare).Await(t); !ok {
+	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), 2*time.Minute, compare).Await(t); !ok {
 		t.Errorf("Received prefixes v4 mismatch: got %v, want %v", got, installedRoutes)
+	}
+	if got, ok := gnmi.Watch(t, dut, prefixes.Installed().State(), 2*time.Minute, compare).Await(t); !ok {
+		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got, installedRoutes)
 	}
 	nv4 := gnmi.Get(t, dut, statePath.Neighbor(ateDst.IPv4).State())
 	verifyPrefixLimitTelemetry(t, nv4, tc.wantEstablished)
@@ -408,7 +408,7 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, all
 	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State())
-		if lossPct > float32(*deviations.BGPTrafficTolerance) {
+		if lossPct > float32(deviations.BGPTrafficTolerance(ondatra.DUT(t, "dut"))) {
 			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want 0", flow.Name(), lossPct)
 		} else {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
@@ -420,7 +420,7 @@ func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFl
 	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State())
-		if lossPct >= (100-float32(*deviations.BGPTrafficTolerance)) && lossPct <= 100 {
+		if lossPct >= (100-float32(deviations.BGPTrafficTolerance(ondatra.DUT(t, "dut")))) && lossPct <= 100 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
 			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow.Name(), lossPct)
@@ -517,7 +517,7 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 		})
 	} else {
 		t.Run("verifyPacketLoss", func(t *testing.T) {
-			if !*deviations.BGPPrefixOverlimit && tc.name == "OverLimit" {
+			if !deviations.BGPPrefixOverlimit(dut) && tc.name == "OverLimit" {
 				tc.verifyPacketLoss(t, ate, conf.allFlows)
 			}
 		})

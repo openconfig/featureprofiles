@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "5384dcdb-c427-4b35-94d3-d5f571960634"
+plan_id: "gNOI-5.2"
+description: "Traceroute Test"

@@ -160,15 +160,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 // Function to verify traffic
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
-	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
+	txPkts := flowMetrics.GetOutPkts()
+	rxPkts := flowMetrics.GetInPkts()
 
 	if txPkts == 0 {
 		t.Errorf("txPackets is 0")
 		return
 	}
-	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
-		t.Errorf("LossPct for flow %s got %v, want 0", flowName, got)
+	if got := 100 * float32(txPkts-rxPkts) / float32(txPkts); got > 0 {
+		t.Errorf("LossPct for flow %s got %f, want 0", flowName, got)
 	} else {
 		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
 	}
