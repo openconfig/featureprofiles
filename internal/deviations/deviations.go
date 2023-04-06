@@ -74,6 +74,11 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
+func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
+	return *isisRestartSuppressUnsupported
+}
+
 // MissingBgpLastNotificationErrorCode returns whether the last-notification-error-code leaf is missing in bgp.
 func MissingBgpLastNotificationErrorCode(_ *ondatra.DUTDevice) bool {
 	return *missingBgpLastNotificationErrorCode
@@ -92,6 +97,11 @@ func BGPPrefixOverlimit(_ *ondatra.DUTDevice) bool {
 // BGPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
 func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
 	return *bgpTrafficTolerance
+}
+
+// MacAddressMissing returns whether device does not support /system/mac-address/state
+func MacAddressMissing(_ *ondatra.DUTDevice) bool {
+	return *macAddressMissing
 }
 
 // Vendor deviation flags.
@@ -240,10 +250,10 @@ var (
 	ISISMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
 
-	ISISRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
+	isisRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
 
-	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
+	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
 
