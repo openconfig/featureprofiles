@@ -463,7 +463,7 @@ func configACLInterface(t *testing.T, iFace *oc.Acl_Interface, ifName string) *a
 	return aclConf
 }
 
-// Helper function to replicate configACL() configs in NOKIA native model
+// Helper function to replicate configACL() configs in native model
 // Define the values for each ACL entry and marshal for json encoding.
 // Then craft a gNMI set Request to update the changes.
 func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
@@ -584,11 +584,11 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 			t.Fatalf("Unexpected error configuring SRL ACL: %v", err)
 		}
 	default:
-		t.Fatalf("Got vendor: %s, want: NOKIA", d.Vendor())
+		t.Fatalf("Unsupported vendor, got vendor: %s, want: NOKIA", d.Vendor())
 	}
 }
 
-// Helper function to replicate AdminAllACL() configs in NOKIA native model
+// Helper function to replicate AdminAllACL() configs in native model
 // Remove ACL entries 10, 20
 // Then craft a gNMI set Request to update the changes.
 func configAdmitAllACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
@@ -621,11 +621,11 @@ func configAdmitAllACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 			t.Fatalf("Unexpected error removing SRL ACL: %v", err)
 		}
 	default:
-		t.Fatalf("Got vendor: %s, want: NOKIA", d.Vendor())
+		t.Fatalf("Unsupported vendor, got vendor: %s, want: NOKIA", d.Vendor())
 	}
 }
 
-// Helper function to replicate configACLInterface
+// Helper function to replicate configACLInterface in native model
 // Set ACL at interface ingress
 // Then craft a gNMI set Request to update the changes.
 func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string) {
@@ -670,7 +670,7 @@ func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string)
 			t.Fatalf("Unexpected error configuring interface ACL: %v", err)
 		}
 	default:
-		t.Fatalf("Got vendor: %s, want: NOKIA", d.Vendor())
+		t.Fatalf("Unsupported vendor, got vendor: %s, want: NOKIA", d.Vendor())
 	}
 }
 
@@ -722,13 +722,13 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
 		t.Log("Configure Acl to block BGP on port 179")
 		const stopDuration = 45 * time.Second
-		if !*deviations.UseNativeACLConfiguration {
+		if deviations.UseNativeACLConfig(dut) {
+			configACLNative(t, dut, aclName)
+			configACLInterfaceNative(t, dut, ifName)
+		} else {
 			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
 			aclConf := configACLInterface(t, iFace, ifName)
 			gnmi.Replace(t, dut, aclConf.Config(), iFace)
-		} else {
-			configACLNative(t, dut, aclName)
-			configACLInterfaceNative(t, dut, ifName)
 		}
 		t.Log("Starting traffic")
 		ate.Traffic().Start(t, allFlows...)
@@ -775,13 +775,13 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
 		t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
-		if !*deviations.UseNativeACLConfiguration {
+		if deviations.UseNativeACLConfig(dut) {
+			configAdmitAllACLNative(t, dut, aclName)
+			configACLInterfaceNative(t, dut, ifName)
+		} else {
 			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
 			aclPath := configACLInterface(t, iFace, ifName)
 			gnmi.Replace(t, dut, aclPath.Config(), iFace)
-		} else {
-			configAdmitAllACLNative(t, dut, aclName)
-			configACLInterfaceNative(t, dut, ifName)
 		}
 	})
 

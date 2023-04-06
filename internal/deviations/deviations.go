@@ -74,9 +74,39 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
+func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
+	return *isisRestartSuppressUnsupported
+}
+
+// MissingBgpLastNotificationErrorCode returns whether the last-notification-error-code leaf is missing in bgp.
+func MissingBgpLastNotificationErrorCode(_ *ondatra.DUTDevice) bool {
+	return *missingBgpLastNotificationErrorCode
+}
+
 // GRIBIMACOverrideWithStaticARP returns whether for a gRIBI IPv4 route the device does not support a mac-address only next-hop-entry.
 func GRIBIMACOverrideWithStaticARP(_ *ondatra.DUTDevice) bool {
 	return *gribiMACOverrideWithStaticARP
+}
+
+// BGPPrefixOverlimit returns whether the BGP prefix overlimit retry timer is supported.
+func BGPPrefixOverlimit(_ *ondatra.DUTDevice) bool {
+	return *bgpPrefixOverlimit
+}
+
+// BGPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
+func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
+	return *bgpTrafficTolerance
+}
+
+// MacAddressMissing returns whether device does not support /system/mac-address/state
+func MacAddressMissing(_ *ondatra.DUTDevice) bool {
+	return *macAddressMissing
+}
+
+// UseNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
+func UseNativeACLConfig(_ *ondatra.DUTDevice) bool {
+	return *UseNativeACLConfiguration
 }
 
 // Vendor deviation flags.
@@ -200,9 +230,9 @@ var (
 
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
-	BGPPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
+	bgpPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
 
-	BGPTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
+	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
 
 	ExplicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
@@ -225,12 +255,14 @@ var (
 	ISISMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
 
-	ISISRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
+	isisRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
 
-	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
+	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+
+	missingBgpLastNotificationErrorCode = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
 
 	UseNativeACLConfiguration = flag.Bool("deviation_use_native_acl_config", false, "Configure ACLs using native model specifically for RT-1.4")
 )
