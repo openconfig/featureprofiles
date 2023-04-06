@@ -115,7 +115,7 @@ ates {
   name: "10.85.84.155"  # Change this to the Ixia chassis name.
 
   ixnetwork {
-    target: "10.85.84.194"
+    target: "10.85.109.25"
     skip_verify: true
     username: "admin"
     password: "ixia123!" 
