@@ -28,7 +28,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 1373
     internal: false
   - name: TE-4.1 (Base Leader Election)
     path: feature/gribi/ate_tests/base_leader_election_test
@@ -154,7 +153,6 @@ tests:
     priority: 3
   - name: gNOI-4.1 (Software Upgrade)
     path: feature/gnoi/os/tests/osinstall
-    pr: 675
     args:
       - '-deviation_no_osinstall_for_standby_rp="true"'
     owners:
@@ -446,7 +444,6 @@ tests:
     skip: false
   - name: RT-1.5 (BGP Prefix Limit)
     path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
-    pr: 1123
     owners:
       - sprem
     mustpass: true
@@ -471,7 +468,6 @@ tests:
       - sprem
     mustpass: true
     priority: 55
-    pr: 1362
     skip: true # requires 2 dut
     args:
       - '-deviation_connect_retry="true"'
@@ -491,7 +487,6 @@ tests:
     timeout: 4200
   - name: gNMI-1.4 (Telemetry Inventory)
     path: feature/platform/ate_tests/telemetry_inventory_test
-    pr: 1277
     owners:
       - agvarghe
     mustpass: true
@@ -547,14 +542,12 @@ tests:
     path: feature/qos/ate_tests/qos_policy_config_test
     owners:
       - saarvind
-    pr: 1360
     mustpass: true
     priority: 802
   - name: DP-1.3 (QoS ECN feature config)
     path: feature/qos/ate_tests/qos_ecn_config_test
     owners:
       - saarvind
-    pr: 1363
     mustpass: true
     priority: 802
   - name: DP-1.10 (QoS policy feature config)
@@ -578,6 +571,7 @@ tests:
     timeout: 4200
   - name: DP-1.9 (WRR traffic-test)
     path: feature/experimental/qos/ate_tests/wrr_traffic_test
+    pr: 1391
     owners:
       - saarvind
     mustpass: true
@@ -609,7 +603,6 @@ tests:
     path: feature/experimental/qos/ate_tests/qos_basic_test/
     owners:
       - saarvind
-    pr: 1347
     internal: false
     mustpass: true
     args:
