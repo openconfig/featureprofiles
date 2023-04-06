@@ -105,8 +105,8 @@ func MacAddressMissing(_ *ondatra.DUTDevice) bool {
 }
 
 // UseNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
-func UseNativeACLConfig(_ *ondatra.DUTDevice) bool {
-	return *UseNativeACLConfiguration
+func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
+	return *UseVendorNativeACLConfiguration
 }
 
 // Vendor deviation flags.
@@ -264,5 +264,5 @@ var (
 
 	missingBgpLastNotificationErrorCode = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
 
-	UseNativeACLConfiguration = flag.Bool("deviation_use_native_acl_config", false, "Configure ACLs using native model specifically for RT-1.4")
+	UseVendorNativeACLConfiguration = flag.Bool("deviation_use_vendor_native_acl_config", false, "Configure ACLs using vendor native model specifically for RT-1.4")
 )

@@ -722,7 +722,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
 		t.Log("Configure Acl to block BGP on port 179")
 		const stopDuration = 45 * time.Second
-		if deviations.UseNativeACLConfig(dut) {
+		if deviations.UseVendorNativeACLConfig(dut) {
 			configACLNative(t, dut, aclName)
 			configACLInterfaceNative(t, dut, ifName)
 		} else {
@@ -775,7 +775,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
 		t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
-		if deviations.UseNativeACLConfig(dut) {
+		if deviations.UseVendorNativeACLConfig(dut) {
 			configAdmitAllACLNative(t, dut, aclName)
 			configACLInterfaceNative(t, dut, ifName)
 		} else {
