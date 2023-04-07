@@ -204,10 +204,6 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
 	switch address {
-	case "Vrf":
-		for _, opt := range opts {
-			nh = nh.WithNextHopNetworkInstance(opt.VrfName)
-		}
 	case "Decap":
 		nh = nh.WithDecapsulateHeader(fluent.IPinIP)
 		for _, opt := range opts {
@@ -219,6 +215,10 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 		for _, opt := range opts {
 			nh = nh.WithIPinIP(opt.Src, opt.Dest).
 				WithNextHopNetworkInstance(opt.VrfName)
+		}
+	case "VRFOnly":
+		for _, opt := range opts {
+			nh = nh.WithNextHopNetworkInstance(opt.VrfName)
 		}
 	default:
 		nh = nh.WithIPAddress(address)

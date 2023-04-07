@@ -337,7 +337,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, vip2+"/"+mask, nhg2ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	t.Logf("Adding NHG %d with NH %d as redirect to vrfB via gRIBI", nhg100ID, nh100ID)
-	args.client.AddNH(t, nh100ID, "Vrf", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfB})
+	args.client.AddNH(t, nh100ID, "VRFOnly", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfB})
 	args.client.AddNHG(t, nhg100ID, map[uint64]uint64{nh100ID: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
 
 	t.Logf("Adding NHG %d NH %d with  %v  and backup NHG %d via gRIBI", nhg101ID, nh101ID, vip1, nhg100ID)
