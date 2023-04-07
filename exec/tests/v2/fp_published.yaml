@@ -151,7 +151,7 @@ tests:
     priority: 3
   - name: gNOI-4.1 (Software Upgrade)
     path: feature/gnoi/os/tests/osinstall
-     owners:
+    owners:
       - agvarghe
     priority: 300
     mustpass: true
