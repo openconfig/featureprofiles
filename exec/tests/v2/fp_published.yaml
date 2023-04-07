@@ -122,7 +122,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 1181
     internal: false
   - name: TE-11.3 (Backup NHG Actions)
     path: feature/experimental/gribi/ate_tests/backup_nhg_action/
@@ -142,7 +141,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 1316
     internal: false
   - name: TE-14.1 (gRIBI Scaling)
     path: feature/gribi/ate_tests/gribi_scaling
@@ -153,9 +151,7 @@ tests:
     priority: 3
   - name: gNOI-4.1 (Software Upgrade)
     path: feature/gnoi/os/tests/osinstall
-    args:
-      - '-deviation_no_osinstall_for_standby_rp="true"'
-    owners:
+     owners:
       - agvarghe
     priority: 300
     mustpass: true
@@ -571,7 +567,6 @@ tests:
     timeout: 4200
   - name: DP-1.9 (WRR traffic-test)
     path: feature/experimental/qos/ate_tests/wrr_traffic_test
-    pr: 1391
     owners:
       - saarvind
     mustpass: true
