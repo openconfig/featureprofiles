@@ -286,4 +286,4 @@ var (
 	backplaneFacingCapacityUnsupported = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
 
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
-  )
+)
