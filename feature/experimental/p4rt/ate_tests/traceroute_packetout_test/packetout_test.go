@@ -27,7 +27,7 @@ import (
 )
 
 type PacketIO interface {
-	GetPacketOut(srcMAC net.HardwareAddr, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error)
+	GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error)
 }
 
 type testArgs struct {
