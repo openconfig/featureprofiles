@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strconv"
 	"strings"
 
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
@@ -44,38 +43,6 @@ func parseProto(r io.Reader) (*mpb.Metadata, error) {
 	}
 	md := new(mpb.Metadata)
 	return md, prototext.Unmarshal(bytes, md)
-}
-
-// rundataRE matches a line like this: `  rundata.TestUUID = "..."`
-var rundataRE = regexp.MustCompile(`\s+rundata\.(\w+) = (".*")`)
-
-// parseInit parses the rundata from the body of func init().
-func parseInit(sc *bufio.Scanner) (*mpb.Metadata, error) {
-	md := new(mpb.Metadata)
-	for sc.Scan() {
-		line := sc.Text()
-		if line == "}" {
-			return md, nil
-		}
-		m := rundataRE.FindStringSubmatch(line)
-		if len(m) < 3 {
-			continue
-		}
-		k := m[1]
-		v, err := strconv.Unquote(m[2])
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse rundata line: %s: %w", line, err)
-		}
-		switch k {
-		case "TestPlanID":
-			md.PlanId = v
-		case "TestDescription":
-			md.Description = v
-		case "TestUUID":
-			md.Uuid = v
-		}
-	}
-	return nil, errors.New("func init() was not terminated")
 }
 
 var marshaller = prototext.MarshalOptions{Multiline: true}
