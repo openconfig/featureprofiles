@@ -1,0 +1,15 @@
+devices:
+  dut:
+    connections:
+      a:
+        ip: 10.85.84.51
+        port: 2014
+        protocol: telnet
+    credentials:
+      default:
+        password: cisco123
+        username: cafyauto
+    type: spitfire_f
+topology:
+  dut:
+    interfaces: {}
