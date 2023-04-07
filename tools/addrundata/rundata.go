@@ -36,30 +36,6 @@ func parseMarkdown(r io.Reader) (*mpb.Metadata, error) {
 	}, nil
 }
 
-// parseCode reads metadata from a source code.
-func parseCode(r io.Reader) (*mpb.Metadata, error) {
-	var md *mpb.Metadata
-	sc := bufio.NewScanner(r)
-	for sc.Scan() {
-		if line := sc.Text(); line != "func init() {" {
-			continue
-		}
-		var err error
-		md, err = parseInit(sc)
-		if err != nil {
-			return nil, err
-		}
-		break
-	}
-	if err := sc.Err(); err != nil {
-		return nil, err
-	}
-	if md == nil {
-		return nil, errors.New("missing func init()")
-	}
-	return md, nil
-}
-
 // parseProto reads metadata from a textproto.
 func parseProto(r io.Reader) (*mpb.Metadata, error) {
 	bytes, err := io.ReadAll(r)
