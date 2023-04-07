@@ -114,6 +114,21 @@ func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
 	return *UseVendorNativeACLConfiguration
 }
 
+// SwitchChipIDUnsupported returns whether the device supports id leaf for SwitchChip components.
+func SwitchChipIDUnsupported(_ *ondatra.DUTDevice) bool {
+	return *switchChipIDUnsupported
+}
+
+// BackplaneFacingCapacityUnsupported returns whether the device supports backplane-facing-capacity leaves for some of the components.
+func BackplaneFacingCapacityUnsupported(_ *ondatra.DUTDevice) bool {
+	return *backplaneFacingCapacityUnsupported
+}
+
+// ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
+func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
+	return *componentsSoftwareModuleUnsupported
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -272,4 +287,10 @@ var (
 	missingBgpLastNotificationErrorCode = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
 
 	UseVendorNativeACLConfiguration = flag.Bool("deviation_use_vendor_native_acl_config", false, "Configure ACLs using vendor native model specifically for RT-1.4")
+
+	switchChipIDUnsupported = flag.Bool("deviation_switch_chip_id_unsupported", false, "Device does not support id leaf for SwitchChip components. Set this flag to skip checking the leaf.")
+
+	backplaneFacingCapacityUnsupported = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
+
+	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 )
