@@ -62,7 +62,7 @@ Verify that DUT forwards AF3, AF2, AF1, BE0 and BE1 traffic based on WRR weight.
 *   Connect DUT port-1 to ATE port-1, DUT port-2 to ATE port-2 and DUT port-3 to
     ATE port-3.
 
-*   Configure WRR for AF3, AF2, AF1, BE0 and BE1 with weight 256, 64, 16, 4 and
+*   Configure WRR for AF3, AF2, AF1, BE0 and BE1 with weight 64, 16, 4, 1 and
     1 respectively.
 
 *   AF3 vs AF2 traffic test

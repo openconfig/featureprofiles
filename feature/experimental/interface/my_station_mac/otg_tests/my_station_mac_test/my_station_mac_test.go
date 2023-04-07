@@ -19,9 +19,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -50,6 +52,7 @@ const (
 var (
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: ipv4PrefixLen,
@@ -74,6 +77,7 @@ var (
 
 	ateDst = attrs.Attributes{
 		Name:    "ateDst",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: ipv4PrefixLen,
@@ -130,26 +134,13 @@ func configureDUT(t *testing.T) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(ateSrc.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(ateSrc.IPv4CIDR()).
-		WithDefaultGateway(dutSrc.IPv4)
-	i1.IPv6().
-		WithAddress(ateSrc.IPv6CIDR()).
-		WithDefaultGateway(dutSrc.IPv6)
-
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(ateDst.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(ateDst.IPv4CIDR()).
-		WithDefaultGateway(dutDst.IPv4)
-	i2.IPv6().
-		WithAddress(ateDst.IPv6CIDR()).
-		WithDefaultGateway(dutDst.IPv6)
+	ateSrc.AddToOTG(top, p1, &dutSrc)
+	ateDst.AddToOTG(top, p2, &dutDst)
 
 	return top
 }
@@ -159,25 +150,45 @@ func testTraffic(
 	t *testing.T,
 	pktLossPct float32,
 	ate *ondatra.ATEDevice,
-	top *ondatra.ATETopology,
-	headers ...ondatra.Header,
+	top gosnappi.Config,
+	ipType string,
 ) {
-	i1 := top.Interfaces()[ateSrc.Name]
-	i2 := top.Interfaces()[ateDst.Name]
+	top.Flows().Clear()
+	flow := top.Flows().Add().SetName("Flow")
+	flow.TxRx().Port().SetTxName("port1").SetRxName("port2")
+	flow.Metrics().SetEnable(true)
+	eth := flow.Packet().Add().Ethernet()
+	flow.Size().SetFixed(100)
+	eth.Src().SetValue(ateSrc.MAC)
+	eth.Dst().SetChoice("value").SetValue(myStationMAC)
+	if ipType == "IPv4" {
+		v4 := flow.Packet().Add().Ipv4()
+		v4.Src().SetValue(ateSrc.IPv4)
+		v4.Dst().SetValue(ateDst.IPv4)
+	}
+	if ipType == "IPv6" {
+		v6 := flow.Packet().Add().Ipv6()
+		v6.Src().SetValue(ateSrc.IPv6)
+		v6.Dst().SetValue(ateDst.IPv6)
+	}
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(i1).
-		WithDstEndpoints(i2).
-		WithHeaders(headers...)
-
-	ate.Traffic().Start(t, flow)
+	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
-	ate.Traffic().Stop(t)
+	ate.OTG().StopTraffic(t)
 
-	flowPath := gnmi.OC().Flow(flow.Name())
+	otgutils.LogFlowMetrics(t, ate.OTG(), top)
+	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("Flow").State())
+	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+	lostPackets := txPackets - rxPackets
+	if txPackets == 0 {
+		t.Fatalf("Tx packets should be higher than 0")
+	}
 
-	if got := gnmi.Get(t, ate, flowPath.LossPct().State()); got != pktLossPct {
-		t.Errorf("Packet loss percentage for flow %s: got %g, want %g", flow.Name(), got, pktLossPct)
+	if got := lostPackets * 100 / txPackets; got != pktLossPct {
+		t.Errorf("Packet loss percentage for flow %s: got %f, want %f", flow.Name(), got, pktLossPct)
 	}
 }
 
@@ -191,7 +202,8 @@ func TestMyStationMAC(t *testing.T) {
 	t.Logf("Configure ATE")
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	t.Logf("Configure MyStationMAC")
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), myStationMAC)
@@ -205,18 +217,12 @@ func TestMyStationMAC(t *testing.T) {
 
 	t.Logf("Verify traffic flow")
 
-	ethHeader := ondatra.NewEthernetHeader()
-	ethHeader.WithDstAddress(myStationMAC)
-
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv6Header := ondatra.NewIPv6Header()
-
 	t.Run("With MyStationMAC", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testTraffic(t, 0 /* pkt loss percent */, ate, top, ethHeader, ipv4Header)
+			testTraffic(t, 0 /* pkt loss percent */, ate, top, "IPv4")
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testTraffic(t, 0 /* pkt loss percent */, ate, top, ethHeader, ipv6Header)
+			testTraffic(t, 0 /* pkt loss percent */, ate, top, "IPv6")
 		})
 	})
 
@@ -225,10 +231,10 @@ func TestMyStationMAC(t *testing.T) {
 
 	t.Run("Without MyStationMAC", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testTraffic(t, 100 /* pkt loss percent */, ate, top, ethHeader, ipv4Header)
+			testTraffic(t, 100 /* pkt loss percent */, ate, top, "IPv4")
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testTraffic(t, 100 /* pkt loss percent */, ate, top, ethHeader, ipv6Header)
+			testTraffic(t, 100 /* pkt loss percent */, ate, top, "IPv6")
 		})
 	})
 
