@@ -122,9 +122,6 @@ func TestProperties(t *testing.T) {
 		wantPlanID      = "TestProperties"
 		wantDescription = "TestProperties unit test"
 	)
-	TestUUID = ""
-	TestPlanID = ""
-	TestDescription = ""
 
 	metadataText := fmt.Sprintf(`
 uuid: "%s"
@@ -157,37 +154,6 @@ description: "%s"
 		"test.uuid":        wantUUID,
 		"test.plan_id":     wantPlanID,
 		"test.description": wantDescription,
-		"known_issue_url":  *knownIssueURL,
-	} {
-		if gotv := got[wantk]; gotv != wantv {
-			t.Errorf("Property %s got %q, want %q", wantk, gotv, wantv)
-		}
-	}
-
-	for _, wantk := range []string{
-		"test.path",
-		"topology",
-	} {
-		if _, ok := got[wantk]; !ok {
-			t.Errorf("Missing key from Properties: %s", wantk)
-		}
-	}
-}
-
-func TestPropertiesLegacy(t *testing.T) {
-	TestPlanID = "UnitTest-1.1"
-	TestDescription = "This is a Unit Test"
-	TestUUID = "123e4567-e89b-42d3-8456-426614174000"
-
-	*knownIssueURL = "https://example.com"
-
-	got := Properties(context.Background(), &binding.Reservation{})
-	t.Log(got)
-
-	for wantk, wantv := range map[string]string{
-		"test.plan_id":     TestPlanID,
-		"test.description": TestDescription,
-		"test.uuid":        TestUUID,
 		"known_issue_url":  *knownIssueURL,
 	} {
 		if gotv := got[wantk]; gotv != wantv {
