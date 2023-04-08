@@ -588,10 +588,14 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.operStatus != "" {
-			operStatus := gnmi.Get(t, dut, component.OperStatus().State()).String()
-			t.Logf("Hardware card %s OperStatus: %s", card, operStatus)
-			if operStatus != activeStatus {
-				t.Errorf("component.OperStatus().Get(t) for %q): got %v, want %v", card, operStatus, p.operStatus)
+			if deviations.FanOperStatusUnsupported(ondatra.DUT(t, "dut")) && regexp.MustCompile("Fan").Match([]byte(card)) {
+				t.Logf("Skipping check for fan oper-status")
+			} else {
+				operStatus := gnmi.Get(t, dut, component.OperStatus().State()).String()
+				t.Logf("Hardware card %s OperStatus: %s", card, operStatus)
+				if operStatus != activeStatus {
+					t.Errorf("component.OperStatus().Get(t) for %q): got %v, want %v", card, operStatus, p.operStatus)
+				}
 			}
 		}
 
@@ -629,10 +633,10 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 
 func TestSoftwareModule(t *testing.T) {
 
-	if deviations.ComponentsSoftwareModuleUnsupported(ondatra.DUT(t, "dut")) {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.ComponentsSoftwareModuleUnsupported(dut) {
 		t.Logf("Skipping check for components software module unsupport")
 	} else {
-		dut := ondatra.DUT(t, "dut")
 		moduleTypes := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().SoftwareModule().ModuleType().State())
 		if len(moduleTypes) == 0 {
 			t.Errorf("Get moduleType list for %q: got 0, want > 0", dut.Model())
