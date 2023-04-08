@@ -152,9 +152,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
-                        collect_tb_info=False,
+                        collect_tb_info=True,
                         install_image=False,
-                        ignore_install_errors=True):
+                        ignore_install_errors=False):
 
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
@@ -168,7 +168,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         self.enqueue_child_and_get_results(c)
 
     reserved_testbed = None
-    if len(testbeds) == 1:
+    if isinstance(testbeds, str):
+        reserved_testbed = _get_testbed_by_id(internal_fp_repo_dir, testbeds)
+    elif len(testbeds) == 1:
         reserved_testbed = _get_testbed_by_id(internal_fp_repo_dir, testbeds[0])
 
     c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
@@ -197,7 +199,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         with open(topo_file, "w") as fp:
             fp.write(yaml.dump(topo_yaml))
         c |= self.orig.s(plat='8000', topo_file=topo_file)
-    else:
+    elif not reserved_testbed:
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
@@ -248,7 +250,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         internal_test=False,
                         test_debug=True,
                         test_verbose=True,
-                        test_html_report=True,
+                        test_html_report=False,
                         release_ixia_ports=True,
                         testbed=None,
                         **kwargs):
@@ -517,7 +519,7 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
 @app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
-                    install_lock_file, images, ignore_install_errors=True):
+                    install_lock_file, images, ignore_install_errors=False):
     if os.path.exists(install_lock_file):
         return
     Path(install_lock_file).touch()
