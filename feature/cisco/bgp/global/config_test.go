@@ -8,11 +8,9 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/eventlis"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
-var event = eventlis.EventListener{}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
