@@ -1,62 +1,45 @@
 package yang_coverage
 
 import (
-	"strings"
-	"os"
-	"os/exec"
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
-	"time"
-	"text/template"
-	"bytes"
 	"io"
+	"os"
+	"os/exec"
+	"strings"
+	"testing"
+	"text/template"
+	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/proto/cisco/ycov"
+	"github.com/openconfig/ondatra"
 )
 
 var MGBL_PATH = "/ws/ncorran-sjc/yang-coverage/"
 
-type TestPhase int
-
-const (
-	UT TestPhase = iota + 10
-	IT
-	DT 
-	CVT 
-	BIT 
-	TB 
-	SIT 
-	ACCEPTANCE
-)
-
-type TestType int 
-
-const (
-	MANUAL TestType = iota + 10
-	PRECOMMIT
-	NIGHTLY
-	OCCASIONAL
-)
-
-// String - Creating common behavior - give the type a String function
-func (tp TestPhase) String() string {
-	return [...]string{"UT", "IT", "DT", "CVT", "BIT", "TB", "SIT", "ACCEPTANCE"}[tp-1]
-}
-
-
-// String - Creating common behavior - give the type a String function
-func (tt TestType) String() string {
-	return [...]string{"MANUAL", "PRECOMMIT", "NIGHTLY", "OCCASIONAL"}[tt-1]
-}
-
+/*
+ * YangCoverage provides the services to support collecting and
+ * reporting XR Yang Model Coverage.
+ * It provides services to supply RPCs to send to the device to
+ * - clear, enable and collect logging
+ * It provides services to run the coverage tooling and save
+ *the results. 
+ */
 type YangCoverage struct {
 	testName string
-	testPhase TestPhase
-	testType TestType
+	testPhase ycov.TestPhase
+	testType ycov.TestType
 	ws string
 	models string 
 }
-
-func New(ws string, models []string, testName string, testPhase TestPhase, testType TestType) (*YangCoverage, error) {
+/*
+ * Initialise with parameters needed to
+ * - pass through to the pyang yang_coverage tools
+ */
+func New(ws string, models []string, testName string, testPhase ycov.TestPhase, testType ycov.TestType) (*YangCoverage, error) {
 	yc := &YangCoverage{
 		testName: testName,
 		testPhase: testPhase,
@@ -67,6 +50,7 @@ func New(ws string, models []string, testName string, testPhase TestPhase, testT
 	return yc, err
 }
 
+// Validate models - for existence, then store in the form needed for the tools 
 func (yc *YangCoverage) isValidModel(models []string) error {
 	if (len(models) == 0) {
 		return errors.New("Dependent yang models not provided!!")
@@ -84,14 +68,52 @@ func (yc *YangCoverage) isValidModel(models []string) error {
 	return nil
 }
 
+// Send clear logs request using GNOI client
+func (yc *YangCoverage) clearCovLogs(ctx context.Context, t *testing.T) {
+	yclient, err := GetYcovClient(ctx, dut, t)
+	if err != nil {
+		t.Errorf("clearCovLogs Yclient creation Failed - %s", err.Error())
+	}
+	_, err = yclient.ClearYcLogs(ctx, &ycov.ClearYcLogsRequest{})
+	if err != nil {
+		t.Errorf("clearCovLogs Req Failed - %s", err.Error())	
+	}
+}
+
+// Send enable logs request using GNMI client
+func (yc *YangCoverage) enableCovLogs(ctx context.Context, t *testing.T) {
+	dut := ondatra.DUT(t, dut)
+	config := "aaa accounting commands default start-stop local \n"
+	util.GNMIWithText(ctx, t, dut, config)
+}
+
+// Send gather yang coverage logs using GNOI client
+func (yc *YangCoverage) collectCovLogs(ctx context.Context, t *testing.T) string {
+	yclient, err := GetYcovClient(ctx, dut, t)
+	if err != nil {
+		t.Errorf("collectCovLogs Yclient creation Failed - %s", err.Error())
+	}
+	req := &ycov.GatherYcLogsRequest{
+		TestName: yc.testName, 
+		TestPhase: yc.testPhase, 
+		TestType: yc.testType}
+	rsp, err := yclient.GatherYcLogs(ctx, req)
+	if err != nil {
+		t.Errorf("collectCovLogs Req Failed - %s", err.Error())	
+	}
+	return rsp.GetLogs()
+}
+
+
+// Run the pyang validate and report steps, gathering the results
 func (yc *YangCoverage) _generateReport(logFile, outFname string, verbose bool, prefixPaths string) (int, string) {
 	var ppaths, vmode string
-	/* Run the pyang validate and report steps, gathering the results*/
     //  Setup the files we are manipulating
     //  - validated_logs: validated output from input ycov logs + models + prefix_paths
     //  - report_outfile: report result file from processing validated_logs
     //  - ycov_logfile:   file collecting the output of running the tools
 	pathPrefix := fmt.Sprintf("%s/%s", yc.ws, outFname)
+	destPath := fmt.Sprintf("%s/%s_validated.json",MGBL_PATH, outFname)
 	validatedLogs := fmt.Sprintf("%s_validated.json", pathPrefix)
 	reportOutFile := fmt.Sprintf("%s_report.json", pathPrefix)
 	ycovLogFile := fmt.Sprintf("%s_ycov.log", pathPrefix)
@@ -100,7 +122,7 @@ func (yc *YangCoverage) _generateReport(logFile, outFname string, verbose bool, 
 	//  https://wiki.cisco.com/display/XRMGBLMOVE/Yang+Data-Model+Coverage
     //  - Setup prefix_paths and verbose_mode options if needed
 	if prefixPaths != "" {
-		ppaths = fmt.Sprintf("--prefix-path={%s}", prefixPaths)
+		ppaths = fmt.Sprintf("--prefix-path=%s", prefixPaths)
 	}
 
 	if verbose {
@@ -124,14 +146,17 @@ func (yc *YangCoverage) _generateReport(logFile, outFname string, verbose bool, 
 		source env.sh;
 		cd /nobackup/$USER;
 		rm -rf .venv/;
+		echo $(get_python_exec)
 		$(get_python_exec) -m venv --system-site-packages .venv/;
 		source .venv/bin/activate;
+		echo "GELLO"
 		cd {{.ws}};
 		{{.pyangcmd}} --validate --log-files {{.log_file}}  --output-file {{.validated_logs}} {{.models}} 2>&1;
 		{{.pyangcmd}} -f yang_coverage --report --log-files {{.validated_logs}} --output-file {{.report_outfile}} {{.models}}  2>&1;
+		echo "GELLO"
 		deactivate
 	`, data)
-	cmd := exec.Command(coverageScript)
+	cmd := exec.Command("bash", "-c", coverageScript)
 	logp, err := os.Create(ycovLogFile)
 	if err != nil {
 		return -1, fmt.Sprintf("File creation failed: %s", err.Error())
@@ -144,36 +169,22 @@ func (yc *YangCoverage) _generateReport(logFile, outFname string, verbose bool, 
     }
     cmd.Wait()
 
-	if err = copy(validatedLogs, MGBL_PATH); err != nil {
+	if err = copy(validatedLogs, destPath); err != nil {
+		fmt.Println(err)
 		return -1, fmt.Sprintf("WARNING: Coverage logs copy failed to %s. Current path of %s.Please copy reports manually. [Note: Copy needs to be done from sjc host.]", validatedLogs, MGBL_PATH)
 	}
 
 	return 0, fmt.Sprintf("Coverage logs stored at %s/%s_validated.json\nYCov tool logs at %s", MGBL_PATH, outFname, ycovLogFile)
 }
 
-func (yc *YangCoverage) GatherLogsRpc(testName string) {
-	if testName == "" {
-		testName = yc.testName
-	}
-	//todo: RPC
-}
-
+// Run the pyang validate and report steps, gathering the results
 func (yc *YangCoverage) generateReport(rawYcovLogs, outfile string, verboseMode bool, prefixPaths string) (int, string){
 	/* Run the pyang validate and report steps, gathering the results */
-	rawYcovLogs = strings.TrimSpace(rawYcovLogs)
 	if rawYcovLogs == "" {
 		return -1, "Coverage logs are empty!!"
 	}
-	// Extract the logs from the RPC response (should be JSON format) between the coverage-logs XML tags
-	logSlice := strings.Split(rawYcovLogs, "<coverage-logs xmlns=\"http://cisco.com/ns/yang/Cisco-IOS-XR-yang-coverage-act\">")
-	logs := logSlice[len(logSlice)-1]
-	logSlice = strings.Split(logs, "</coverage-logs>")
-	logs = logSlice[0]
 
-	// Clean the logs as the netconf tool can encode them into HTML
-    // - Replace &quot; with " etc.
     // - Save the logs to file
-	logs = strings.Replace(logs, "&quot;", "\"", -1)
 	logFile := fmt.Sprintf("%s/collected_ycov_logs.json", yc.ws)
 
 	f, err := os.Create(logFile)
@@ -183,7 +194,7 @@ func (yc *YangCoverage) generateReport(rawYcovLogs, outfile string, verboseMode 
 
     defer f.Close()
 
-    _, err = f.WriteString(logs)
+    _, err = f.WriteString(rawYcovLogs)
     if err != nil {
         return -1, err.Error()
     }
@@ -202,6 +213,10 @@ func (yc *YangCoverage) generateReport(rawYcovLogs, outfile string, verboseMode 
 	// Call the internal generate worker
 	return yc._generateReport(logFile, outfile, verboseMode, prefixPaths)
 }
+
+/* 
+ * HELPER Functions
+ */
 
 type fdata map[string]interface{}
 
@@ -237,4 +252,13 @@ func copy(src, dst string) error {
         return err
     }
 	return nil
+}
+
+func GetYcovClient(ctx context.Context, dutId string, t *testing.T) (ycov.YangCoverageClient, error){
+	conn, err := DialGNOI(ctx, dutId, t)
+	if err != nil {
+		return nil, err
+	}
+	return 	ycov.NewYangCoverageClient(conn), nil
+
 }
