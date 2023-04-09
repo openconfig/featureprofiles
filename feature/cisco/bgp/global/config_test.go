@@ -8,25 +8,14 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/eventlis"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/featureprofiles/tools/cisco/yang_coverage"
-	"github.com/openconfig/ondatra/eventlis"
 )
 var event = eventlis.EventListener{}
 
 func TestMain(m *testing.M) {
-	ws := "/nobackup/sanshety/ws/iosxr"
-	models := []string{
-		fmt.Sprintf("%s/manageability/yang/pyang/modules/openconfig-network-instance.yang", ws),
-		fmt.Sprintf("%s/manageability/yang/pyang/modules/cisco-xr-openconfig-network-instance-deviations.yang", ws),
-	}
-	prefixPaths := []string{"/network-instances/network-instance/protocols/protocol/bgp/global",
-	"/network-instances/network-instance/inter-instance-policies"}
-
-	err := yang_coverage.CreateInstance("oc-sanity", models, prefixPaths, ws, event)
 	fptest.RunTests(m)
-	fmt.Println("end of main ", err)
 }
 
 const (
