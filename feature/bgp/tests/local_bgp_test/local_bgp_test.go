@@ -117,7 +117,7 @@ func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 
 	if *deviations.NetworkInstanceTableDeletionRequired {
 		tablePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).TableAny()
-		for _, table := range gnmi.LookupAll[*oc.NetworkInstance_Table](t, dut, tablePath.Config()) {
+		for _, table := range gnmi.LookupAll(t, dut, tablePath.Config()) {
 			if val, ok := table.Val(); ok {
 				if val.GetProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP {
 					gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Table(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, val.GetAddressFamily()).Config())
