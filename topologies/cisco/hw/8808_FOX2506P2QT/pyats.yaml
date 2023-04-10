@@ -1,0 +1,25 @@
+devices:
+  dut:
+    connections:
+      a:
+        ip: 10.85.84.55
+        port: 2005
+        protocol: telnet
+      b:
+        ip: 10.85.84.55
+        port: 2006
+        protocol: telnet
+    credentials:
+      default:
+        password: cisco
+        username: cisco
+    passwords:
+      enable: cisco
+      tacacs: cisco
+    tacacs:
+      username: cisco
+    type: spitfire_d
+topology:
+  dut:
+    interfaces: {}
+    

@@ -146,14 +146,15 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_dir', 'reserved_testbed', 'ondatra_binding_path', 
 		'ondatra_testbed_path', 'testbed_info_path', 
-        'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path')
+        'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 
+        'topo_path', 'testbed')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
-                        collect_tb_info=False,
+                        collect_tb_info=True,
                         install_image=False,
-                        ignore_install_errors=True):
+                        ignore_install_errors=False):
 
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
@@ -167,7 +168,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         self.enqueue_child_and_get_results(c)
 
     reserved_testbed = None
-    if len(testbeds) == 1:
+    if isinstance(testbeds, str):
+        reserved_testbed = _get_testbed_by_id(internal_fp_repo_dir, testbeds)
+    elif len(testbeds) == 1:
         reserved_testbed = _get_testbed_by_id(internal_fp_repo_dir, testbeds[0])
 
     c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
@@ -196,7 +199,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
         with open(topo_file, "w") as fp:
             fp.write(yaml.dump(topo_yaml))
         c |= self.orig.s(plat='8000', topo_file=topo_file)
-    else:
+    elif not reserved_testbed:
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
@@ -208,7 +211,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
     return (internal_fp_repo_dir, reserved_testbed, result["ondatra_binding_path"], 
             result["ondatra_testbed_path"], result["testbed_info_path"], 
             result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
-            result.get("slurm_jobid", None), result.get("topo_path", None))
+            result.get("slurm_jobid", None), result.get("topo_path", None), result.get("testbed", None))
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, ws, testbed_logs_dir, 
@@ -247,7 +250,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         internal_test=False,
                         test_debug=True,
                         test_verbose=True,
-                        test_html_report=True,
+                        test_html_report=False,
                         release_ixia_ports=True,
                         testbed=None,
                         **kwargs):
@@ -302,7 +305,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
         chain |= GoReporting.s()
 
     if cflow and testbed:
-        chain |= CollectCoverageData.s(pyats_testbed=testbed)
+        chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
     return chain
 
 # noinspection PyPep8Naming
@@ -436,7 +439,7 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'install_lock_file'))
+@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'install_lock_file', 'testbed'))
 def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed, test_name, **kwargs):
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
@@ -444,7 +447,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
-
+    pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
+    
     if reserved_testbed.get('sim', False):
         vxr_testbed = kwargs['testbed_path']
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {vxr_testbed}', 
@@ -496,7 +500,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
-    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, install_lock_file
+    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, install_lock_file, pyats_testbed
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
@@ -515,7 +519,7 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
 @app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
-                    install_lock_file, images, ignore_install_errors=True):
+                    install_lock_file, images, ignore_install_errors=False):
     if os.path.exists(install_lock_file):
         return
     Path(install_lock_file).touch()
