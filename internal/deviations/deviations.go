@@ -131,7 +131,7 @@ func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 
 // SchedulerInputWeightLimit returns whether the device requires the Scheduler input weight limit.
 func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
-        return *schedulerInputWeightLimit
+	return *schedulerInputWeightLimit
 }
 
 // Vendor deviation flags.
