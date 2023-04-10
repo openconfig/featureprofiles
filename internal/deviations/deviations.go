@@ -74,7 +74,7 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
-// P4rtUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
+// P4RTUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
 func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
 	return *p4rtUnsetElectionIDUnsupported
 }
@@ -114,7 +114,7 @@ func MacAddressMissing(_ *ondatra.DUTDevice) bool {
 	return *macAddressMissing
 }
 
-// UseNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
+// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
 func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
 	return *UseVendorNativeACLConfiguration
 }
