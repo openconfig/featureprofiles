@@ -74,9 +74,9 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
-// P4RTSkipStreamError returns whether Stream Disconnect for UnsetElectionID needs to be skipped.
+// P4rtUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
 func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
-	return *P4rtUnsetElectionIDUnsupported
+	return *p4rtUnsetElectionIDUnsupported
 }
 
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
@@ -274,7 +274,7 @@ var (
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
 
-	P4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device closes stream channel for P4RT unset election ID")
+	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
