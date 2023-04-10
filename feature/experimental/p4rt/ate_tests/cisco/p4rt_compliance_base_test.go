@@ -50,7 +50,7 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	resp := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
 	component := oc.Component{}
 	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-	pattern, _ := regexp.Compile(`.*-NPU\d+`)
+	pattern, _ := regexp.Compile(`.*-NPU\d+$`)
 
 	i := uint64(0)
 	for _, c := range resp {
