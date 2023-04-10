@@ -74,12 +74,6 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
-
-// SchedulerInputWeightLimit returns whether the device requires the Scheduler input weight limit.
-func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
-	return *schedulerInputWeightLimit
-}
-
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
 	return *isisRestartSuppressUnsupported
@@ -133,6 +127,12 @@ func BackplaneFacingCapacityUnsupported(_ *ondatra.DUTDevice) bool {
 // ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
 func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 	return *componentsSoftwareModuleUnsupported
+
+}
+
+// SchedulerInputWeightLimit returns whether the device requires the Scheduler input weight limit.
+func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
+        return *schedulerInputWeightLimit
 }
 
 // Vendor deviation flags.
@@ -284,8 +284,6 @@ var (
 	isisRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
 
-	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "Device does not support weight above certain limit")
-
 	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
@@ -301,4 +299,6 @@ var (
 	backplaneFacingCapacityUnsupported = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
 
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
+
+        SchedulerInputParamsUnsupported = flag.Bool("deviation_scheduler_input_params_unsupported", false, "Device does not support scheduler input parameters")
 )
