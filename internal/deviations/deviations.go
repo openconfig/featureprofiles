@@ -127,7 +127,6 @@ func BackplaneFacingCapacityUnsupported(_ *ondatra.DUTDevice) bool {
 // ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
 func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 	return *componentsSoftwareModuleUnsupported
-
 }
 
 // SchedulerInputWeightLimit returns whether the device requires the Scheduler input weight limit.
