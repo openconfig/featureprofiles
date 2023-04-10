@@ -1,6 +1,6 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "fac966b2-292b-4c30-8160-d9e09e7057e0"
-plan_id: "TE-1.2"
-description: "My Station MAC"
+uuid: "fe01cad6-6775-45cd-a025-d960ca6c04af"
+plan_id: "gNMI-1.15"
+description: "Set Requests"
