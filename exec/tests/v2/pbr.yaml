@@ -1,0 +1,13 @@
+name: pbr
+owners: 
+  - sprem
+priority: 4
+testbeds: 
+  - 8201-1DUT-1ATE-9PORTS
+tests:
+- name: PBR
+  path: feature/gribi/ate_tests/cisco/pbr
+  mustpass: true
+  timeout: 21000
+  owners: 
+  - sprem
