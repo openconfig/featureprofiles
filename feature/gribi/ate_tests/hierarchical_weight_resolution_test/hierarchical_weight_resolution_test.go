@@ -312,8 +312,8 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 // else configures the Default Network Instance.
 func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	t.Helper()
+
 	// configure non-default VRF
-	// configure DEFAULT VRF
 	for _, vrf := range []string{nonDefaultVRF} {
 		ni := &oc.NetworkInstance{
 			Name: ygot.String(vrf),
