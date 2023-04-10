@@ -134,6 +134,10 @@ func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 	return *componentsSoftwareModuleUnsupported
 }
 
+// ECNProfileRequiredDefinition returns whether the device requires all the required config for ECN.
+func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
+	return *ecnProfileRequiredDefinition
+}
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -300,4 +304,6 @@ var (
 	backplaneFacingCapacityUnsupported = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
 
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
+
+	ecnProfileRequiredDefinition = flag.Bool("deviation_ecn_profile_required_definition", false, "Providing all the required config for ECN")
 )

@@ -1313,6 +1313,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
+    if deviations.ECNProfileRequiredDefinition(dut) {
 	t.Logf("Create qos queue management profile config")
 	ecnConfig := struct {
 		profileName               string
@@ -1337,7 +1338,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
 	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-
+}
 	t.Logf("Create qos Classifiers config")
 	classifiers := []struct {
 		desc        string
