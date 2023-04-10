@@ -78,6 +78,7 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 // SchedulerInputWeightLimit returns whether the device requires the Scheduler input weight limit.
 func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
 	return *schedulerInputWeightLimit
+}
 
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
@@ -301,5 +302,4 @@ var (
 	backplaneFacingCapacityUnsupported = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
 
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
-
 )
