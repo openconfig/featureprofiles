@@ -69,7 +69,6 @@ const (
 var (
 	DUTIPList      = make(map[string]net.IP)
 	ATEIPList      = make(map[string]net.IP)
-	ATEMACList     = []string{"02:00:01:01:01:01", "02:00:01:01:01:02", "02:00:01:01:01:03", "02:00:01:01:01:04"}
 	ISISMetricList []uint32
 	ISISSetBitList []bool
 )
@@ -250,7 +249,9 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 		dev := topo.Devices().Add().SetName(dp.ID() + "dev")
 		eth := dev.Ethernets().Add().SetName(dp.ID() + ".Eth")
 		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dp.ID())
-		eth.SetMac(ATEMACList[i])
+		mac := fmt.Sprintf("02:00:01:01:01:%02x", byte(i&0xff))
+
+		eth.SetMac(mac)
 
 		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
 		ip.SetAddress(atePortAttr.IPv4).SetGateway(DUTIPList[dp.ID()].String()).SetPrefix(int32(atePortAttr.IPv4Len))
@@ -266,7 +267,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 			bgpDut1Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 			devIsis := dev.Isis().
-				SetSystemId("640000000001").
+				SetSystemId(strconv.FormatInt(int64(i), 16)).
 				SetName("devIsis" + dp.Name())
 
 			devIsis.Basic().
@@ -317,7 +318,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 
 		// Add ISIS on ATE
 		devIsis := dev.Isis().
-			SetSystemId("640000000002"). //TODO: Add in a list format
+			SetSystemId(strconv.FormatInt(int64(i), 16)).
 			SetName("devIsis" + dp.Name())
 
 		devIsis.Basic().
