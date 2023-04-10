@@ -364,7 +364,7 @@ func TestUnsetElectionid(t *testing.T) {
 			if resp != test.wantStatus {
 				t.Fatalf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 			}
-			if err != nil && !deviations.P4RTSkipStreamError(ondatra.DUT(t, "dut")) {
+			if err != nil && !deviations.P4RTUnsetElectionIDUnsupported(dut) {
 				t.Errorf("Errors seen when sending Master Arbitration as expected for unset ElectionID: %v", err)
 			}
 			// Verify GetForwardingPipeline for unset electionId.
