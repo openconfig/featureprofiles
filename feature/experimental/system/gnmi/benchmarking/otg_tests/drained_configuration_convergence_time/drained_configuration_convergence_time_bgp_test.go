@@ -222,14 +222,21 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			// TODO: Below code will be uncommented once configuring MED in DUT as referred in below issue is supported.
 			// Ref: https://github.com/openconfig/featureprofiles/issues/759
 
-			// rib := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "0").Bgp().Rib()
-			// prefixPath := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
-			// NeighborAny().AdjRibInPre().RouteAny().WithPathId(0).Prefix()
-			// pref := gnmi.GetAll(t, ate, prefixPath.State())
-			// gotSetMED := gnmi.GetAll(t, ate, rib.AttrSetAny().Med().State())
-			// if diff := cmp.Diff(wantSetMED, gotSetMED); diff != "" {
-			// t.Errorf("obtained MED on ATE is not as expected, got %v, want %v, Prefixes %v", gotSetMED, wantSetMED, pref)
+			// prefixPath := gnmi.OTG().BgpPeer(ap.ID() + ".BGP4.peer").UnicastIpv4PrefixAny()
+
+			// gnmi.WatchAll(t, ate.OTG(), prefixPath.Address().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
+			// 	_, present := v.Val()
+			// 	return present
+			// }).Await(t)
+
+			// _, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.Med().State(), 5*time.Minute, func(v *ygnmi.Value[otgtelemetry.E_UnicastIpv4Prefix_Origin]) bool {
+			// 	gotSetMED, present := v.Val()
+			// 	return present && cmp.Diff(wantSetMED, gotSetMED) == ""
+			// }).Await(t)
+			// if !ok {
+			// 	t.Errorf("obtained MED on ATE is not as expected")
 			// }
+
 		}
 	})
 	// End the timer and calculate time taken to apply setMED.
