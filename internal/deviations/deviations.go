@@ -133,7 +133,6 @@ func BackplaneFacingCapacityUnsupported(_ *ondatra.DUTDevice) bool {
 // ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
 func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 	return *componentsSoftwareModuleUnsupported
-
 }
 
 // Vendor deviation flags.
