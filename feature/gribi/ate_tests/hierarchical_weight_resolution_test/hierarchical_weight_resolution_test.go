@@ -61,7 +61,8 @@ const (
 	nonDefaultVRF   = "VRF-1"
 	// 'deviation' is the maximum difference that is allowed between the observed
 	// traffic distribution and the required traffic distribution.
-	deviation = 1
+	deviation  = 1
+	policyName = "redirect-to-VRF1"
 )
 
 var (
@@ -73,7 +74,7 @@ var (
 			IPv4Len: ipv4PrefixLen,
 		},
 		numSubIntf:      0,
-		networkInstance: nonDefaultVRF,
+		networkInstance: *deviations.DefaultNetworkInstance,
 		ip:              dutPort1IPv4,
 	}
 
@@ -301,23 +302,37 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	a.configL3SubifDUT(t, i)
 	gnmi.Update(t, d, intfPath.Config(), i)
 
+	// apply PBF for src interface
+	if a.Name == "port1" {
+		applyForwardingPolicy(t, p.Name())
+	}
 }
 
 // configureNetworkInstance creates new Network Instance and configures it, if provided,
 // else configures the Default Network Instance.
-func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
+func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	t.Helper()
-	if a.networkInstance != *deviations.DefaultNetworkInstance {
+	// configure non-default VRF
+	// configure DEFAULT VRF
+	for _, vrf := range []string{nonDefaultVRF} {
 		ni := &oc.NetworkInstance{
-			Name: ygot.String(a.networkInstance),
+			Name: ygot.String(vrf),
 			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 		}
-		dni := gnmi.OC().NetworkInstance(a.networkInstance)
+		dni := gnmi.OC().NetworkInstance(vrf)
 		gnmi.Replace(t, d, dni.Config(), ni)
 		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
+		if *deviations.ExplicitGRIBIUnderNetworkInstance {
+			fptest.EnableGRIBIUnderNetworkInstance(t, d, vrf)
+		}
 	}
+
+	// configure PBF in DEFAULT vrf
+	defNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	pbfConfig := configurePBF()
+	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), pbfConfig)
 	if *deviations.ExplicitGRIBIUnderNetworkInstance {
-		fptest.EnableGRIBIUnderNetworkInstance(t, d, a.networkInstance)
+		fptest.EnableGRIBIUnderNetworkInstance(t, d, *deviations.DefaultNetworkInstance)
 	}
 }
 
@@ -335,12 +350,38 @@ func (a *attributes) assignSubifsToNetworkInstance(t *testing.T, d *ondatra.DUTD
 	}
 }
 
+func configurePBF() *oc.NetworkInstance_PolicyForwarding {
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	pf := ni.GetOrCreatePolicyForwarding()
+	vrfPolicy := pf.GetOrCreatePolicy(policyName)
+	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(dutPort1.IPv4 + "/32")
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(nonDefaultVRF)
+	return pf
+}
+
+// applyForwardingPolicy applies the forwarding policy on the interface.
+func applyForwardingPolicy(t *testing.T, ingressPort string) {
+	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
+	d := &oc.Root{}
+	dut := ondatra.DUT(t, "dut")
+	pfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
+	pfCfg := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	if *deviations.ExplicitInterfaceRefDefinition {
+		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	}
+	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
+}
+
 // configureDUT configures a DUT port by configuring the NetworkInstance and the
 // Interface + Sub Interfaces.
 func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p := dut.Port(t, a.Name)
-	a.configureNetworkInstance(t, dut)
+	configureNetworkInstance(t, dut)
 	a.configInterfaceDUT(t, dut, p)
 }
 
