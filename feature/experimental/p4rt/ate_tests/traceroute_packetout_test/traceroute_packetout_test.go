@@ -237,10 +237,15 @@ func TestPacketOut(t *testing.T) {
 	}
 
 	sm := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
-
 	srcMAC, err := net.ParseMAC(sm)
 	if err != nil {
 		t.Fatalf("Couldn't parse Source MAC: %v", err)
+	}
+
+	dm := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State())
+	dstMAC, err := net.ParseMAC(dm)
+	if err != nil {
+		t.Fatalf("Couldn't parse router MAC: %v", err)
 	}
 
 	args := &testArgs{
@@ -250,6 +255,7 @@ func TestPacketOut(t *testing.T) {
 		ate:    ate,
 		top:    top,
 		srcMAC: srcMAC,
+		dstMAC: dstMAC,
 	}
 
 	if err := setupP4RTClient(ctx, args); err != nil {
@@ -266,7 +272,7 @@ type TraceroutePacketIO struct {
 }
 
 // packetTracerouteRequestGet generates PacketOut payload for Traceroute packets.
-func packetTracerouteRequestGet(srcMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int) ([]byte, error) {
+func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int) ([]byte, error) {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
@@ -281,7 +287,7 @@ func packetTracerouteRequestGet(srcMAC net.HardwareAddr, isIPv4 bool, ttl uint8,
 	}
 	pktEth := &layers.Ethernet{
 		SrcMAC:       srcMAC,
-		DstMAC:       net.HardwareAddr{0x02, 0xF6, 0x65, 0x64, 0x00, 0x08},
+		DstMAC:       dstMAC,
 		EthernetType: ethType,
 	}
 
@@ -331,10 +337,10 @@ func packetTracerouteRequestGet(srcMAC net.HardwareAddr, isIPv4 bool, ttl uint8,
 
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
-func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error) {
+func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error) {
 	packets := []*p4v1.PacketOut{}
 	for i := 1; i <= numPkts; i++ {
-		pkt, err := packetTracerouteRequestGet(srcMAC, isIPv4, ttl, i)
+		pkt, err := packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl, i)
 		if err != nil {
 			return nil, err
 		}
