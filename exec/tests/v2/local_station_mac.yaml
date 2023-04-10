@@ -1,0 +1,13 @@
+name: local_station_mac
+owners: 
+  - sprem
+priority: 4
+testbeds: 
+  - 8808-1DUT-1ATE
+tests:
+- name: Local-Station-Mac
+  path: feature/system/ate_tests/cisco/local_station_mac_test
+  mustpass: true
+  timeout: 1200
+  owners: 
+  - sprem
