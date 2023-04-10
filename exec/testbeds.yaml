@@ -72,4 +72,7 @@ testbeds:
     testbed: topologies/cisco/hw/8808_FOX2643Q39J/testbed
     binding: topologies/cisco/hw/8808_FOX2643Q39J/binding_gnmi_v6
     baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt.proto       
-    
+  - id: 8201-1DUT-1ATE-9PORTS
+    sim: true
+    topology: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/basefp.conf    

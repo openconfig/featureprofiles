@@ -13,6 +13,8 @@ tests:
   timeout: 7200
   owners: 
   - sprem
+  internal: true
+  branch: master
 - name: PacketIO-LLDP
   path: feature/experimental/p4rt/ate_tests/cisco
   args:
@@ -21,6 +23,8 @@ tests:
   timeout: 7200
   owners: 
   - sprem
+  internal: true
+  branch: master
 - name: PacketIO-TTL-IPv4
   path: feature/experimental/p4rt/ate_tests/cisco
   args:
@@ -31,6 +35,8 @@ tests:
   timeout: 7200
   owners: 
   - sprem
+  internal: true
+  branch: master
 - name: PacketIO-TTL-IPv6
   path: feature/experimental/p4rt/ate_tests/cisco
   args:
@@ -42,4 +48,6 @@ tests:
   timeout: 7200
   owners: 
   - sprem
+  internal: true
+  branch: master
 
