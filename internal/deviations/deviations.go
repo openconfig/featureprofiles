@@ -300,5 +300,5 @@ var (
 
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
-        SchedulerInputParamsUnsupported = flag.Bool("deviation_scheduler_input_params_unsupported", false, "Device does not support scheduler input parameters")
+	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "Device does not support weight above certain limit")
 )
