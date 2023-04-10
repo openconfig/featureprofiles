@@ -161,6 +161,10 @@ func getPackets(t *testing.T, client *p4rt_client.P4RTClient, packetCount int) [
 			t.Logf("There is error seen when receving packets. %v, %s", err, err)
 			break
 		}
+		// sleep a second every 5 packets
+		if i%5 == 0 {
+			time.Sleep(time.Second)
+		}
 	}
 	return packets
 }
@@ -241,11 +245,12 @@ func testP4RTTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow
 	for _, flow := range flows {
 		flow.WithSrcEndpoints(srcEndPoint).WithDstEndpoints(srcEndPoint)
 	}
-
+	// t.Log("Flows :", flows)
 	ate.Traffic().Start(t, flows...)
 	time.Sleep(time.Duration(duration) * time.Second)
 
 	ate.Traffic().Stop(t)
+	// t.Log("Packets transmitted :", gnmi.GetAll(t, ate, gnmi.OC().FlowAny().Counters().OutPkts().State()))
 }
 
 func configureStaticRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, delete bool) {
@@ -1285,7 +1290,7 @@ func testEntryProgrammingPacketInWithSubInterface(ctx context.Context, t *testin
 	// Check PacketIn on P4Client
 	packets = getPackets(t, client, 40)
 
-	// t.Logf("Captured packets: %v", len(packets))
+	t.Logf("Captured packets: %v", len(packets))
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received.")
 	}
