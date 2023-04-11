@@ -277,14 +277,25 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
 	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
+}
+
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	// configure NI
+	configureNetworkInstance(t, dut)
+
+	// Configure DUT ports.
+	dp1 := dut.Port(t, dutPort1.Name)
+	dp2 := dut.Port(t, dutPort2.Name)
+
+	dutPort1.configInterfaceDUT(t, dut, dp1)
+	dutPort2.configInterfaceDUT(t, dut, dp2)
 
 	// assign subinterfaces to DEFAULT network instance if needed (deviation-based)
-	a.assignSubifsToNetworkInstance(t, d, p)
+	dutPort1.assignSubifsToNetworkInstance(t, dut, dp1)
+	dutPort2.assignSubifsToNetworkInstance(t, dut, dp2)
 
-	// apply PBF for src interface
-	if a.Name == "port1" {
-		applyForwardingPolicy(t, p.Name())
-	}
+	// apply PBF to src interface
+	applyForwardingPolicy(t, dp1.Name())
 }
 
 // configureNetworkInstance creates and configures non-default and default NIs
@@ -307,8 +318,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-	pbfConfig := configurePBF()
-	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), pbfConfig)
+	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF())
 	if *deviations.ExplicitGRIBIUnderNetworkInstance {
 		fptest.EnableGRIBIUnderNetworkInstance(t, d, *deviations.DefaultNetworkInstance)
 	}
@@ -352,15 +362,6 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	}
 	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
-}
-
-// configureDUT configures a DUT port by configuring the NetworkInstance and the
-// Interface + Sub Interfaces.
-func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	p := dut.Port(t, a.Name)
-	configureNetworkInstance(t, dut)
-	a.configInterfaceDUT(t, dut, p)
 }
 
 // ConfigureATE configures Ethernet + IPv4 on the ATE. If the number of
@@ -640,9 +641,8 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ctx := context.Background()
 
-	// Configure DUT ports.
-	dutPort1.configureDUT(t, dut)
-	dutPort2.configureDUT(t, dut)
+	// configure DUT
+	configureDUT(t, dut)
 
 	// Configure ATE ports and start Ethernet+IPv4.
 	top := ate.Topology().New()
