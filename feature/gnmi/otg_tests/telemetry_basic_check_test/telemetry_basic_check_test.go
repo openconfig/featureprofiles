@@ -663,6 +663,7 @@ func TestP4rtInterfaceID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Id = ygot.Uint32(tc.portID)
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			if *deviations.ExplicitPortSpeed {
 				fptest.SetPortSpeed(t, dp)
