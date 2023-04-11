@@ -333,6 +333,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	}
 }
 
+// assignSubifsToNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled
 func (a *attributes) assignSubifsToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		if a.numSubIntf == 0 {
@@ -345,6 +346,7 @@ func (a *attributes) assignSubifsToNetworkInstance(t *testing.T, d *ondatra.DUTD
 	}
 }
 
+// configurePBF returns a fully configured network-instance PF struct
 func configurePBF() *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
