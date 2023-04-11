@@ -74,9 +74,64 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// P4RTUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
+func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
+	return *p4rtUnsetElectionIDUnsupported
+}
+
+// ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
+func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
+	return *isisRestartSuppressUnsupported
+}
+
+// MissingBgpLastNotificationErrorCode returns whether the last-notification-error-code leaf is missing in bgp.
+func MissingBgpLastNotificationErrorCode(_ *ondatra.DUTDevice) bool {
+	return *missingBgpLastNotificationErrorCode
+}
+
 // GRIBIMACOverrideWithStaticARP returns whether for a gRIBI IPv4 route the device does not support a mac-address only next-hop-entry.
 func GRIBIMACOverrideWithStaticARP(_ *ondatra.DUTDevice) bool {
 	return *gribiMACOverrideWithStaticARP
+}
+
+// CLITakesPrecedenceOverOC returns whether config pushed through origin CLI takes precedence over config pushed through origin OC.
+func CLITakesPrecedenceOverOC(_ *ondatra.DUTDevice) bool {
+	return *cliTakesPrecedenceOverOC
+}
+
+// BGPPrefixOverlimit returns whether the BGP prefix overlimit retry timer is supported.
+func BGPPrefixOverlimit(_ *ondatra.DUTDevice) bool {
+	return *bgpPrefixOverlimit
+}
+
+// BGPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
+func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
+	return *bgpTrafficTolerance
+}
+
+// MacAddressMissing returns whether device does not support /system/mac-address/state
+func MacAddressMissing(_ *ondatra.DUTDevice) bool {
+	return *macAddressMissing
+}
+
+// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
+func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
+	return *UseVendorNativeACLConfiguration
+}
+
+// SwitchChipIDUnsupported returns whether the device supports id leaf for SwitchChip components.
+func SwitchChipIDUnsupported(_ *ondatra.DUTDevice) bool {
+	return *switchChipIDUnsupported
+}
+
+// BackplaneFacingCapacityUnsupported returns whether the device supports backplane-facing-capacity leaves for some of the components.
+func BackplaneFacingCapacityUnsupported(_ *ondatra.DUTDevice) bool {
+	return *backplaneFacingCapacityUnsupported
+}
+
+// ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
+func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
+	return *componentsSoftwareModuleUnsupported
 }
 
 // ISISGlobalAuthenticationNotRequired returns true if ISIS Global authentication not required
@@ -210,9 +265,9 @@ var (
 
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
-	BGPPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
+	bgpPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
 
-	BGPTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
+	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
 
 	ExplicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
@@ -229,18 +284,32 @@ var (
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
 
+	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
+
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
 	ISISMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
 
-	ISISRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
+	isisRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
 
-	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
+	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+
+	cliTakesPrecedenceOverOC = flag.Bool("deviation_cli_takes_precedence_over_oc", false, "Set to true for device in which config pushed through origin CLI takes precedence over config pushed through origin OC, default is false")
+
+	missingBgpLastNotificationErrorCode = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
+
+	UseVendorNativeACLConfiguration = flag.Bool("deviation_use_vendor_native_acl_config", false, "Configure ACLs using vendor native model specifically for RT-1.4")
+
+	switchChipIDUnsupported = flag.Bool("deviation_switch_chip_id_unsupported", false, "Device does not support id leaf for SwitchChip components. Set this flag to skip checking the leaf.")
+
+	backplaneFacingCapacityUnsupported = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
+
+	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
 	isisGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
 		"Don't set isis global authentication-check on the device if value is true, Default value is false and ISIS global authentication-check is set")
