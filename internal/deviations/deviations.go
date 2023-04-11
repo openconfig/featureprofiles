@@ -134,7 +134,7 @@ func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 	return *componentsSoftwareModuleUnsupported
 }
 
-// SchedulerInputWeightLimit returns whether the device requires the Scheduler input weight limit.
+// SchedulerInputWeightLimit returns whether the device does not support weight above 100.
 func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
 	return *schedulerInputWeightLimit
 }
@@ -306,5 +306,5 @@ var (
 
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
-	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "Device does not support weight above certain limit")
+	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 )
