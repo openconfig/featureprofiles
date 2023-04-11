@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -41,11 +40,7 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 	}
 	netInstIntf.Interface = ygot.String(intf.GetName())
 	netInstIntf.Subinterface = ygot.Uint32(si)
-	if si == 0 && *deviations.SubifIDZero {
-		netInstIntf.Id = ygot.String(intf.GetName())
-	} else {
-		netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
-	}
+	netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
 	if intf.GetOrCreateSubinterface(si) != nil {
 		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
 	}
