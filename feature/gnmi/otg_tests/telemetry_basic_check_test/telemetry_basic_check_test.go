@@ -61,7 +61,7 @@ var (
 	vendorQueueNo = map[ondatra.Vendor]int{
 		ondatra.ARISTA:  16,
 		ondatra.CISCO:   6,
-		ondatra.JUNIPER: 6,
+		ondatra.JUNIPER: 8,
 	}
 )
 
@@ -333,12 +333,19 @@ func TestQoSCounters(t *testing.T) {
 		desc:     "DroppedPkts",
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
-	}, {
-		desc:     "DroppedOctets",
-		path:     qosQueuePath + "dropped-octets",
-		counters: gnmi.LookupAll(t, dut, queues.DroppedOctets().State()),
 	}}
-
+	if !*deviations.QOSDroppedOctets {
+		cases = append(cases,
+			struct {
+				desc     string
+				path     string
+				counters []*ygnmi.Value[uint64]
+			}{
+				desc:     "DroppedOctets",
+				path:     qosQueuePath + "dropped-octets",
+				counters: gnmi.LookupAll(t, dut, queues.DroppedOctets().State()),
+			})
+	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
