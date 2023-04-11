@@ -254,9 +254,9 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 
 // configInterfaceDUT configures the DUT interface with the provided IP Address.
 // Sub Interfaces are also configured if numSubIntf > 0.
-func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
+func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 	t.Helper()
-
+	p := d.Port(t, a.Name)
 	i := &oc.Interface{Name: ygot.String(p.Name())}
 
 	if a.numSubIntf > 0 {
@@ -284,17 +284,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureNetworkInstance(t, dut)
 
 	// Configure DUT ports.
-	dp1 := dut.Port(t, dutPort1.Name)
-	dp2 := dut.Port(t, dutPort2.Name)
-
-	dutPort1.configInterfaceDUT(t, dut, dp1)
-	dutPort2.configInterfaceDUT(t, dut, dp2)
+	dutPort1.configInterfaceDUT(t, dut)
+	dutPort2.configInterfaceDUT(t, dut)
 
 	// assign subinterfaces to DEFAULT network instance if needed (deviation-based)
-	dutPort1.assignSubifsToNetworkInstance(t, dut, dp1)
-	dutPort2.assignSubifsToNetworkInstance(t, dut, dp2)
+	dutPort1.assignSubifsToNetworkInstance(t, dut)
+	dutPort2.assignSubifsToNetworkInstance(t, dut)
 
 	// apply PBF to src interface
+	dp1 := dut.Port(t, dutPort1.Name)
 	applyForwardingPolicy(t, dp1.Name())
 }
 
@@ -325,7 +323,8 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 }
 
 // assignSubifsToNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled
-func (a *attributes) assignSubifsToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
+func (a *attributes) assignSubifsToNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
+	p := d.Port(t, a.Name)
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		if a.numSubIntf == 0 {
 			fptest.AssignToNetworkInstance(t, d, p.Name(), *deviations.DefaultNetworkInstance, 0)
