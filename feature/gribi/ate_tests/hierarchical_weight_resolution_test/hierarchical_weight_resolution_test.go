@@ -230,12 +230,7 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4
 func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 	t.Helper()
-	if a.numSubIntf == 0 {
-		s := intf.GetOrCreateSubinterface(0)
-		if *deviations.InterfaceEnabled {
-			s.Enabled = ygot.Bool(true)
-		}
-	}
+
 	for i := uint32(1); i <= a.numSubIntf; i++ {
 		s := intf.GetOrCreateSubinterface(i)
 		if *deviations.InterfaceEnabled {
@@ -246,18 +241,6 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
 		}
-	}
-}
-
-func (a *attributes) configL3SubifDUT(t *testing.T, intf *oc.Interface) {
-	// determine the index of the first subinterface: 0 for untagged interfaces, 1 for tagged
-	startIdx := uint32(0)
-	if a.numSubIntf > 0 {
-		startIdx++
-	}
-
-	for i := startIdx; i <= a.numSubIntf; i++ {
-		s := intf.GetOrCreateSubinterface(i)
 		ip := a.ip(uint8(i))
 		s4 := s.GetOrCreateIpv4()
 		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
@@ -265,7 +248,7 @@ func (a *attributes) configL3SubifDUT(t *testing.T, intf *oc.Interface) {
 		}
 		s4a := s4.GetOrCreateAddress(ip)
 		s4a.PrefixLength = ygot.Uint8(a.IPv4Len)
-		t.Logf("Configuring DUT Subinterface with ID: %d and IPv4 address: %s", i, ip)
+		t.Logf("Configuring DUT Subinterface with ID: %d, VLAN: %d, and IPv4 address: %s", i, i, ip)
 	}
 }
 
@@ -291,7 +274,6 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	}
 
 	a.configSubinterfaceDUT(t, i)
-	a.configL3SubifDUT(t, i)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
 	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
