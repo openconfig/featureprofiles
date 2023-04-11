@@ -74,6 +74,11 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// P4RTUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
+func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
+	return *p4rtUnsetElectionIDUnsupported
+}
+
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
 	return *isisRestartSuppressUnsupported
@@ -89,6 +94,11 @@ func GRIBIMACOverrideWithStaticARP(_ *ondatra.DUTDevice) bool {
 	return *gribiMACOverrideWithStaticARP
 }
 
+// CLITakesPrecedenceOverOC returns whether config pushed through origin CLI takes precedence over config pushed through origin OC.
+func CLITakesPrecedenceOverOC(_ *ondatra.DUTDevice) bool {
+	return *cliTakesPrecedenceOverOC
+}
+
 // BGPPrefixOverlimit returns whether the BGP prefix overlimit retry timer is supported.
 func BGPPrefixOverlimit(_ *ondatra.DUTDevice) bool {
 	return *bgpPrefixOverlimit
@@ -102,6 +112,26 @@ func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
 // MacAddressMissing returns whether device does not support /system/mac-address/state
 func MacAddressMissing(_ *ondatra.DUTDevice) bool {
 	return *macAddressMissing
+}
+
+// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
+func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
+	return *UseVendorNativeACLConfiguration
+}
+
+// SwitchChipIDUnsupported returns whether the device supports id leaf for SwitchChip components.
+func SwitchChipIDUnsupported(_ *ondatra.DUTDevice) bool {
+	return *switchChipIDUnsupported
+}
+
+// BackplaneFacingCapacityUnsupported returns whether the device supports backplane-facing-capacity leaves for some of the components.
+func BackplaneFacingCapacityUnsupported(_ *ondatra.DUTDevice) bool {
+	return *backplaneFacingCapacityUnsupported
+}
+
+// ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
+func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
+	return *componentsSoftwareModuleUnsupported
 }
 
 // Vendor deviation flags.
@@ -244,6 +274,8 @@ var (
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
 
+	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
+
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
@@ -257,5 +289,15 @@ var (
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
 
+	cliTakesPrecedenceOverOC = flag.Bool("deviation_cli_takes_precedence_over_oc", false, "Set to true for device in which config pushed through origin CLI takes precedence over config pushed through origin OC, default is false")
+
 	missingBgpLastNotificationErrorCode = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
+
+	UseVendorNativeACLConfiguration = flag.Bool("deviation_use_vendor_native_acl_config", false, "Configure ACLs using vendor native model specifically for RT-1.4")
+
+	switchChipIDUnsupported = flag.Bool("deviation_switch_chip_id_unsupported", false, "Device does not support id leaf for SwitchChip components. Set this flag to skip checking the leaf.")
+
+	backplaneFacingCapacityUnsupported = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
+
+	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 )
