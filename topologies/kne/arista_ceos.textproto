@@ -32,10 +32,10 @@ nodes: {
         }
     }
     services: {
-        key: 9340
+        key: 6040
         value: {
             name: "gribi"
-            inside: 9340
+            inside: 6040
         }
     }
 }
