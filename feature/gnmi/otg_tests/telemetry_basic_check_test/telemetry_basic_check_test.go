@@ -54,6 +54,7 @@ const (
 	fabricType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	switchChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
+	portType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT
 )
 
 var (
@@ -214,24 +215,22 @@ func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
-	want := ""
-	switch dut.Vendor() {
-	case ondatra.NOKIA:
-		in := dp.Name()
-		// e.g. Ethernet-3/35-Port
-		want = strings.Replace(in, "ethernet", "Ethernet", 1) + "-Port"
-	default:
-		// Derive hardware port from interface name by removing the port number.
-		// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
-		i := strings.LastIndex(dp.Name(), "/")
-		want = dp.Name()[:i]
+	// Verify HardwarePort leaf is present under interface.
+	got := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
+	val, present := got.Val()
+	if !present {
+		t.Errorf("DUT port1 %s HardwarePort leaf not found", dp.Name())
+	}
+	t.Logf("For interface %s, HardwarePort is %s", dp.Name(), val)
+
+	// Verify HardwarePort is a component of type PORT.
+	typeGot := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+	if typeGot != portType {
+		t.Errorf("HardwarePort leaf's component type got %s, want %s", typeGot, portType)
 	}
 
-	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
-	t.Logf("Got %s HardwarePort from telmetry: %v, expected: %v", dp.Name(), got, want)
-	if got != want {
-		t.Errorf("Get(DUT port1 HardwarePort): got %v, want %v", got, want)
-	}
+	// Verify HardwarePort component has CHASSIS as an ancestor.
+	verifyChassisIsAncestor(t, dut, val)
 }
 
 func TestInterfaceCounters(t *testing.T) {
@@ -383,6 +382,32 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 	return s
 }
 
+// verifyChassisIsAncestor verifies that a given component has
+// a component of type CHASSIS as an ancestor.
+func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) {
+	visited := make(map[string]bool)
+	for curr := comp; ; {
+		if visited[curr] {
+			t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
+			break
+		}
+		visited[curr] = true
+		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
+		val, present := parent.Val()
+		if !present {
+			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
+			break
+		}
+		got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+		if got == chassisType {
+			t.Logf("Found chassis component as an ancestor of component %s", comp)
+			break
+		}
+		// Not reached chassis yet; go one level up.
+		curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
+	}
+}
+
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	componentParent := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -429,27 +454,7 @@ func TestComponentParent(t *testing.T) {
 			// Validate parent component.
 			for _, comp := range compList[tc.desc] {
 				t.Logf("Validate component %s", comp)
-				visited := make(map[string]bool)
-				for curr := comp; ; {
-					if visited[curr] {
-						t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
-						break
-					}
-					visited[curr] = true
-					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
-					val, present := parent.Val()
-					if !present {
-						t.Errorf("Chassis component NOT found in the hierarchy tree of component %s", comp)
-						break
-					}
-					got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
-					if got == chassisType {
-						t.Logf("Found chassis component in the hierarchy tree of component %s", comp)
-						break
-					}
-					// Not reached chassis yet; go one level up.
-					curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
-				}
+				verifyChassisIsAncestor(t, dut, comp)
 			}
 		})
 	}
