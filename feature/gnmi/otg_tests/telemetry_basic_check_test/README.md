@@ -59,17 +59,6 @@ following features:
 
     *   Check some counters are updated correctly.
 
-*   QoS counters
-
-    *   Send the traffic with all forwarding class NC1, AF4, AF3, AF2, AF1 and
-        BE1 over the DUT
-    *   Check the QoS queue counters exist and are updated correctly
-        *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-        *   TODO:
-            /qos/interfaces/interface/output/queues/queue/state/transmit-octets
-        *   TODO:
-            /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
-
 *   Component
 
     *   Check the following component paths exists
