@@ -39,10 +39,9 @@ import (
 
 type attributes struct {
 	attrs.Attributes
-	numSubIntf      uint32
-	networkInstance string
-	ip              func(vlan uint8) string
-	gateway         func(vlan uint8) string
+	numSubIntf uint32
+	ip         func(vlan uint8) string
+	gateway    func(vlan uint8) string
 }
 
 type nhInfo struct {
