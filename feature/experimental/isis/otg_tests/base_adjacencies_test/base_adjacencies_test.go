@@ -260,7 +260,7 @@ func TestBasic(t *testing.T) {
 					}
 				}
 				if strings.Contains(vd.Path(), "restart-suppress") {
-					if *deviations.ISISRestartSuppressUnsupported {
+					if deviations.ISISRestartSuppressUnsupported(ts.DUT) {
 						t.Skip("Restart-Suppress Unsupported")
 					}
 				}
