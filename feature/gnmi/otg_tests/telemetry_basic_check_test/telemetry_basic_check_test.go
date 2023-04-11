@@ -147,6 +147,9 @@ func TestInterfaceOperStatus(t *testing.T) {
 }
 
 func TestInterfacePhysicalChannel(t *testing.T) {
+	if *deviations.MissingInterfacePhysicalChannel {
+		t.Skip("Test is skipped due to MissingInterfacePhysicalChannel deviation")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
@@ -204,7 +207,9 @@ func TestInterfaceStatusChange(t *testing.T) {
 }
 
 func TestHardwarePort(t *testing.T) {
-	t.Skip("Hardware port not supported on KNE.")
+	if *deviations.MissingInterfaceHardwarePort {
+		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
+	}
 
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
@@ -305,6 +310,9 @@ func TestInterfaceCounters(t *testing.T) {
 }
 
 func TestQoSCounters(t *testing.T) {
+	if !*args.QoSBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for QoS is not loaded.")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
 	queues := gnmi.OC().Qos().Interface(dp.Name()).Output().QueueAny()
@@ -503,12 +511,15 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-			t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
+		if !*deviations.MissingCPUMfgName {
+			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
+				t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
+			} else {
+				t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
+			}
 		} else {
-			t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
+			t.Logf("Check MfgName for CPU %s is skipped due to MissingCPUMfgName deviation", cpu)
 		}
-
 		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
@@ -570,6 +581,9 @@ func TestAFT(t *testing.T) {
 }
 
 func TestLacpMember(t *testing.T) {
+	if !*args.LACPBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for LACP is not present")
+	}
 	dut := ondatra.DUT(t, "dut")
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
