@@ -305,8 +305,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	}
 }
 
-// configureNetworkInstance creates new Network Instance and configures it, if provided,
-// else configures the Default Network Instance.
+// configureNetworkInstance creates and configures non-default and default NIs
 func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	t.Helper()
 
