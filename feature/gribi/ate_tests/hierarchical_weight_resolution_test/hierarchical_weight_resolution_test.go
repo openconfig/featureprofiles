@@ -73,9 +73,8 @@ var (
 			IPv4:    dutPort1IPv4(0),
 			IPv4Len: ipv4PrefixLen,
 		},
-		numSubIntf:      0,
-		networkInstance: *deviations.DefaultNetworkInstance,
-		ip:              dutPort1IPv4,
+		numSubIntf: 0,
+		ip:         dutPort1IPv4,
 	}
 
 	atePort1 = attributes{
@@ -96,9 +95,8 @@ var (
 			IPv4:    dutPort2IPv4(0),
 			IPv4Len: ipv4PrefixLen,
 		},
-		numSubIntf:      18,
-		networkInstance: *deviations.DefaultNetworkInstance,
-		ip:              dutPort2IPv4,
+		numSubIntf: 18,
+		ip:         dutPort2IPv4,
 	}
 
 	atePort2 = attributes{
@@ -337,14 +335,12 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 }
 
 func (a *attributes) assignSubifsToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
-	niName := a.networkInstance
-
-	if niName != *deviations.DefaultNetworkInstance || *deviations.ExplicitInterfaceInDefaultVRF {
+	if *deviations.ExplicitInterfaceInDefaultVRF {
 		if a.numSubIntf == 0 {
-			fptest.AssignToNetworkInstance(t, d, p.Name(), niName, 0)
+			fptest.AssignToNetworkInstance(t, d, p.Name(), *deviations.DefaultNetworkInstance, 0)
 		} else {
 			for i := uint32(1); i <= a.numSubIntf; i++ {
-				fptest.AssignToNetworkInstance(t, d, p.Name(), niName, i)
+				fptest.AssignToNetworkInstance(t, d, p.Name(), *deviations.DefaultNetworkInstance, i)
 			}
 		}
 	}
