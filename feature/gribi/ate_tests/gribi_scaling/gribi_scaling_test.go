@@ -344,7 +344,7 @@ func configurePBF() *oc.NetworkInstance_PolicyForwarding {
 	pf := ni.GetOrCreatePolicyForwarding()
 	vrfPolicy := pf.GetOrCreatePolicy(policyName)
 	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(dutPort1.IPv4 + "/32")
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(atePort1.IPv4 + "/32")
 	vrfPolicy.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(vrf1)
 	return pf
 }
