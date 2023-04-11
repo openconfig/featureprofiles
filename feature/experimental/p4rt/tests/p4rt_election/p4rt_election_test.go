@@ -169,16 +169,6 @@ func getRespCode(args *testArgs) (int32, error) {
 	return 0, errors.New("Missing Client")
 }
 
-// getGDPParameter returns GDP related parameters for testPacketIn testcase.
-func getGDPParameter(_ *testing.T) PacketIO {
-	return &GDPPacketIO{
-		PacketIOPacket: PacketIOPacket{
-			EthernetType: &gdpEtherType,
-		},
-		IngressPort: fmt.Sprint(portId),
-	}
-}
-
 // GetTableEntry creates wbb acl entry related to GDP.
 func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
@@ -269,7 +259,12 @@ func canRead(t *testing.T, args *testArgs) (bool, error) {
 
 // Only Primary should be able to write
 func canWrite(t *testing.T, args *testArgs) (bool, error) {
-	pktIO := getGDPParameter(t)
+	pktIO := &GDPPacketIO{
+		PacketIOPacket: PacketIOPacket{
+			EthernetType: &gdpEtherType,
+		},
+		IngressPort: fmt.Sprint(portId),
+	}
 	writeErr := writeTableEntry(args, t, pktIO, false)
 	if writeErr != nil {
 		if args.wantWrite == false {
