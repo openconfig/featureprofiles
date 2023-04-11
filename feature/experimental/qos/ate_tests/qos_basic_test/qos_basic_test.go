@@ -1313,32 +1313,32 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
-    if deviations.ECNProfileRequiredDefinition(dut) {
-	t.Logf("Create qos queue management profile config")
-	ecnConfig := struct {
-		profileName               string
-		ecnEnabled                bool
-		minThreshold              uint64
-		maxThreshold              uint64
-		maxDropProbabilityPercent uint8
-	}{
-		profileName:               "ECNProfile",
-		ecnEnabled:                true,
-		minThreshold:              uint64(0),
-		maxThreshold:              uint64(55),
-		maxDropProbabilityPercent: uint8(25),
+	if deviations.ECNProfileRequiredDefinition(dut) {
+		t.Logf("Create qos queue management profile config")
+		ecnConfig := struct {
+			profileName               string
+			ecnEnabled                bool
+			minThreshold              uint64
+			maxThreshold              uint64
+			maxDropProbabilityPercent uint8
+		}{
+			profileName:               "ECNProfile",
+			ecnEnabled:                true,
+			minThreshold:              uint64(0),
+			maxThreshold:              uint64(55),
+			maxDropProbabilityPercent: uint8(25),
+		}
+		t.Logf("qos queue management profile config: %v", ecnConfig)
+		queueMgmtProfile := q.GetOrCreateQueueManagementProfile(ecnConfig.profileName)
+		queueMgmtProfile.SetName("ECNProfile")
+		wred := queueMgmtProfile.GetOrCreateWred()
+		uniform := wred.GetOrCreateUniform()
+		uniform.SetEnableEcn(ecnConfig.ecnEnabled)
+		uniform.SetMinThreshold(ecnConfig.minThreshold)
+		uniform.SetMaxThreshold(ecnConfig.maxThreshold)
+		uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
-	t.Logf("qos queue management profile config: %v", ecnConfig)
-	queueMgmtProfile := q.GetOrCreateQueueManagementProfile(ecnConfig.profileName)
-	queueMgmtProfile.SetName("ECNProfile")
-	wred := queueMgmtProfile.GetOrCreateWred()
-	uniform := wred.GetOrCreateUniform()
-	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
-	uniform.SetMinThreshold(ecnConfig.minThreshold)
-	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
-	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-}
 	t.Logf("Create qos Classifiers config")
 	classifiers := []struct {
 		desc        string
