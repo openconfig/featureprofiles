@@ -67,6 +67,7 @@ const (
 	nhID3         = 18565             // nhID3 is the starting nh index for entries in VRF3
 	tunnelSrcIP   = "198.18.204.1"    // tunnelSrcIP represents Source IP of IPinIP Tunnel
 	tunnelDstIP   = "198.18.208.1"    // tunnelDstIP represents Dest IP of IPinIP Tunnel
+	policyName    = "redirect-to-VRF1"
 )
 
 var (
@@ -301,10 +302,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureInterfaceDUT(t, d, dut, dp1, "src")
 	configureInterfaceDUT(t, d, dut, dp2, "dst")
 
-	// configure an L3 subinterface without vlan tagging under DUT port#1 and assign it to vrf1
-	createSubifDUT(t, d, dut, dp1, 0, 0)
-	fptest.AssignToNetworkInstance(t, dut, dp1.Name(), vrf1, 0)
-	configureL3SubifDUT(t, d, dut, dp1, 0, dutPort1.IPv4)
+	// configure an L3 subinterface without vlan tagging under DUT port#1
+	createSubifDUT(t, d, dut, dp1, 0, 0, dutPort1.IPv4)
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+
+	applyForwardingPolicy(t, dp1.Name())
 
 	// configure 64 L3 subinterfaces under DUT port#2 and assign them to DEFAULT vrf
 	configureDUTSubIfs(t, d, dut, dp2)
@@ -323,11 +327,41 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 			// configure DEFAULT vrf
 			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
 		}
 		if *deviations.ExplicitGRIBIUnderNetworkInstance {
 			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
 		}
 	}
+	// configure PBF
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), configurePBF())
+}
+
+// configurePBF returns a fully configured network-instance PF struct
+func configurePBF() *oc.NetworkInstance_PolicyForwarding {
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	pf := ni.GetOrCreatePolicyForwarding()
+	vrfPolicy := pf.GetOrCreatePolicy(policyName)
+	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(dutPort1.IPv4 + "/32")
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(vrf1)
+	return pf
+}
+
+// applyForwardingPolicy applies the forwarding policy on the interface.
+func applyForwardingPolicy(t *testing.T, ingressPort string) {
+	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
+	d := &oc.Root{}
+	dut := ondatra.DUT(t, "dut")
+	pfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
+	pfCfg := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	if *deviations.ExplicitInterfaceRefDefinition {
+		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	}
+	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
 
 // configureInterfaceDUT configures a single DUT port.
@@ -346,8 +380,8 @@ func configureInterfaceDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dut
 	t.Logf("DUT port %s configured", dutPort)
 }
 
-// createSubifDUT creates a single subinterface without IP configuration
-func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, index uint32, vlanID uint16) {
+// createSubifDUT creates a single L3 subinterface
+func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, index uint32, vlanID uint16, ipv4Addr string) {
 	ifName := dutPort.Name()
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
@@ -358,20 +392,13 @@ func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *o
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
 		}
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Subinterface(index).Config(), s)
-}
-
-// configureL3SubifDUT configures L3 addresses on a single subinterface
-func configureL3SubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, index uint32, ipv4Addr string) {
-	ifName := dutPort.Name()
-	s := d.GetOrCreateInterface(ifName).GetOrCreateSubinterface(index)
 	s4 := s.GetOrCreateIpv4()
 	a := s4.GetOrCreateAddress(ipv4Addr)
 	a.PrefixLength = ygot.Uint8(uint8(ipv4PrefixLen))
 	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
-	gnmi.Update(t, dut, gnmi.OC().Interface(ifName).Subinterface(index).Config(), s)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Subinterface(index).Config(), s)
 }
 
 // configureDUTSubIfs configures 64 DUT subinterfaces on the target device
@@ -383,8 +410,7 @@ func configureDUTSubIfs(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPor
 			vlanID = uint16(i) + 1
 		}
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+2)
-		createSubifDUT(t, d, dut, dutPort, index, vlanID)
-		configureL3SubifDUT(t, d, dut, dutPort, index, dutIPv4)
+		createSubifDUT(t, d, dut, dutPort, index, vlanID, dutIPv4)
 		if *deviations.ExplicitInterfaceInDefaultVRF {
 			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), *deviations.DefaultNetworkInstance, index)
 		}
