@@ -316,6 +316,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, d, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF())
 	if *deviations.ExplicitGRIBIUnderNetworkInstance {
 		fptest.EnableGRIBIUnderNetworkInstance(t, d, *deviations.DefaultNetworkInstance)
