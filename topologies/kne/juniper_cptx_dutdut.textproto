@@ -1,0 +1,127 @@
+name: "juniper-cptx-dutdut"
+nodes: {
+    name: "dut1"
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
+    config: {
+        image: "cptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "juniper_cptx.config"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert",
+                key_name: "N/A",
+                key_size: 4096,
+            }
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services: {
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 32767
+        }
+    }
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 32767
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 32767
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 32767
+        }
+    }
+}
+nodes: {
+    name: "dut2"
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
+    config: {
+        image: "cptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "juniper_cptx.config"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert",
+                key_name: "N/A",
+                key_size: 4096,
+            }
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services: {
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 32767
+        }
+    }
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 32767
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 32767
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 32767
+        }
+    }
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth12"
+    z_node: "dut2"
+    z_int: "eth12"
+}
