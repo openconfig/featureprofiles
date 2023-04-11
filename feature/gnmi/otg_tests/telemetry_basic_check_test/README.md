@@ -135,6 +135,7 @@ No configuration coverage.
 *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
 *   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
 *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+*   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
 
 ## Protocol/RPC Parameter coverage
 
