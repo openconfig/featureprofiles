@@ -74,6 +74,11 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// P4RTUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
+func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
+	return *p4rtUnsetElectionIDUnsupported
+}
+
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
 	return *isisRestartSuppressUnsupported
@@ -109,7 +114,7 @@ func MacAddressMissing(_ *ondatra.DUTDevice) bool {
 	return *macAddressMissing
 }
 
-// UseNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
+// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
 func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
 	return *UseVendorNativeACLConfiguration
 }
@@ -268,6 +273,8 @@ var (
 	SchedulerInputParamsUnsupported = flag.Bool("deviation_scheduler_input_params_unsupported", false, "Device does not support scheduler input parameters")
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
+
+	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
