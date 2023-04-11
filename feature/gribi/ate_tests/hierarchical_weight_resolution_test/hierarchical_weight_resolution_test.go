@@ -291,14 +291,13 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	}
 
 	a.configSubinterfaceDUT(t, i)
+	a.configL3SubifDUT(t, i)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
 	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
 
-	// assign subinterfaces to network-instances and update subif L3 configuration after that
+	// assign subinterfaces to DEFAULT network instance if needed (deviation-based)
 	a.assignSubifsToNetworkInstance(t, d, p)
-	a.configL3SubifDUT(t, i)
-	gnmi.Update(t, d, intfPath.Config(), i)
 
 	// apply PBF for src interface
 	if a.Name == "port1" {
