@@ -232,7 +232,10 @@ func (tc *testArgs) clearAggregate(t *testing.T) {
 
 	// Clear the members of the aggregate.
 	for _, port := range tc.dutPorts[1:] {
-		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		resetBatch := &gnmi.SetBatch{}
+		gnmi.BatchDelete(resetBatch, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		gnmi.BatchDelete(resetBatch, gnmi.OC().Interface(port.Name()).ForwardingViable().Config())
+		resetBatch.Set(t, tc.dut)
 	}
 }
 
@@ -274,14 +277,23 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, *deviations.DefaultNetworkInstance, 0)
+	}
 
 	srcp := tc.dutPorts[0]
 	srci := &oc.Interface{Name: ygot.String(srcp.Name())}
 	tc.configSrcDUT(srci, &dutSrc)
 	srci.Type = ethernetCsmacd
 	srciPath := d.Interface(srcp.Name())
+	if *deviations.ExplicitPortSpeed {
+		srci.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, srcp)
+	}
 	fptest.LogQuery(t, srcp.String(), srciPath.Config(), srci)
 	gnmi.Replace(t, tc.dut, srciPath.Config(), srci)
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 
 	for _, port := range tc.dutPorts[1:] {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
@@ -293,7 +305,9 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 
 		tc.configDstMemberDUT(i, port)
 		iPath := d.Interface(port.Name())
-
+		if *deviations.ExplicitPortSpeed {
+			i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, port)
+		}
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
 	}
@@ -546,8 +560,8 @@ func TestAggregateForwardingViable(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
 			args.configureDUT(t)
-			args.verifyDUT(t)
 			args.configureATE(t)
+			args.verifyDUT(t)
 
 			for _, forwardingViable := range []bool{true, false} {
 				t.Run(fmt.Sprintf("ForwardingViable=%t", forwardingViable), func(t *testing.T) {

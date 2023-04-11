@@ -1,4 +1,8 @@
-name: "arista-ixia"
+name: "openconfig-lemming-lag"
+nodes: {
+    name: "dut"
+    vendor: OPENCONFIG
+}
 nodes: {
     name: "otg"
     vendor: KEYSIGHT
@@ -24,44 +28,25 @@ nodes: {
             inside: 50051
         }
     }
-}
-nodes: {
-    name: "dut"
-    vendor: ARISTA
-    model: "ceos"
-    os: "eos"
-    config: {
-        cert: {
-            self_signed: {
-                cert_name: "gnmiCert.pem",
-                key_name: "gnmiCertKey.pem",
-                key_size: 4096,
-            }
-        }
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
-        file: "arista_ceos.config"
-        image: "ceos:latest"
+    interfaces: {
+        key: "eth1"
     }
-    services:{
-        key: 22
+    interfaces: {
+        key: "eth2"
         value: {
-            name: "ssh"
-            inside: 22
+            group: "lag"
         }
     }
-    services:{
-        key: 6030
+    interfaces: {
+        key: "eth3"
         value: {
-            name: "gnmi"
-            inside: 6030
+            group: "lag"
         }
     }
-    services:{
-        key: 9340
+    interfaces: {
+        key: "eth4"
         value: {
-            name: "gribi"
-            inside: 9340
+            group: "lag"
         }
     }
 }

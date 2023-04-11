@@ -16,24 +16,15 @@ import (
 
 // testcase carries parsed rundata from different sources to be fixed and checked.
 type testcase struct {
-	markdown   *mpb.Metadata // From the README.md.
-	existing   *mpb.Metadata // From existing source code.
-	deprecated bool          // Whether a deprecated rundata_test.go file was found.
-	fixed      *mpb.Metadata // Fixed rundata to write back, populated by fix().
+	markdown *mpb.Metadata // From the README.md.
+	existing *mpb.Metadata // From the existing metadata proto.
+	fixed    *mpb.Metadata // Fixed rundata to write back, populated by fix().
 }
 
 // read reads the markdown and existing rundata from the test directory.
 func (tc *testcase) read(testdir string) error {
 	if err := readFile(filepath.Join(testdir, "README.md"), tc.readMarkdown); err != nil {
 		return fmt.Errorf("could not parse README.md: %w", err)
-	}
-	switch err := readFile(filepath.Join(testdir, "rundata_test.go"), tc.readCode); {
-	case err == nil:
-		tc.deprecated = true
-	case os.IsNotExist(err):
-		// This is desired.
-	default:
-		return fmt.Errorf("could not parse rundata_test.go: %w", err)
 	}
 	if err := readFile(filepath.Join(testdir, "metadata.textproto"), tc.readProto); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("could not parse metadata.textproto: %w", err)
@@ -59,26 +50,12 @@ func (tc *testcase) readMarkdown(r io.Reader) error {
 	return nil
 }
 
-func (tc *testcase) readCode(r io.Reader) error {
-	md, err := parseCode(r)
-	if err != nil {
-		return err
-	}
-	tc.existing = md
-	return nil
-}
-
 func (tc *testcase) readProto(r io.Reader) error {
 	md, err := parseProto(r)
 	if err != nil {
 		return err
 	}
-	// TODO(greg-dennis): Remove when no longer reading rundata_test.go.
-	if tc.existing == nil {
-		tc.existing = md
-	} else {
-		proto.Merge(tc.existing, md)
-	}
+	tc.existing = md
 	return nil
 }
 
@@ -94,9 +71,6 @@ func (tc *testcase) check() []error {
 	}
 	if tc.markdown == nil {
 		errs = append(errs, errors.New("existing markdown is missing"))
-	}
-	if tc.deprecated {
-		errs = append(errs, errors.New("deprecated rundata_test.go file found"))
 	}
 
 	if tc.markdown != nil && tc.existing != nil {
@@ -166,7 +140,7 @@ func (tc *testcase) write(testdir string) error {
 	if tc.fixed == nil {
 		return errors.New("test case was not fixed")
 	}
-	if !tc.deprecated && proto.Equal(tc.existing, tc.fixed) {
+	if proto.Equal(tc.existing, tc.fixed) {
 		return errNoop
 	}
 
