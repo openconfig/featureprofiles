@@ -7,6 +7,8 @@ testbeds:
 tests:
 - name: PBR
   path: feature/gribi/ate_tests/cisco/pbr
+  internal: true
+  branch: master
   mustpass: true
   timeout: 21000
   owners: 
