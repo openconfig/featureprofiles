@@ -1,21 +1,12 @@
-name: "arista-ceos"
+name: "cisco-xrd"
 nodes: {
     name: "dut"
-    vendor: ARISTA
-    model: "ceos"
-    os: "eos"
+    vendor: CISCO
+    model: "xrd"
+    os: "ios-xr"
     config: {
-        image: "ceos:latest"
-        file: "arista_ceos.config"
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
-        cert: {
-            self_signed: {
-                cert_name: "gnmiCert.pem",
-                key_name: "gnmiCertKey.pem",
-                key_size: 4096,
-            }
-        }
+        image: "xrd:latest"
+        file: "cisco.config"
     }
     services: {
         key: 22
@@ -25,17 +16,43 @@ nodes: {
         }
     }
     services: {
-        key: 6030
+        key: 9339
         value: {
             name: "gnmi"
-            inside: 6030
+            inside: 57400
         }
     }
     services: {
-        key: 6040
+        key: 9340
         value: {
             name: "gribi"
-            inside: 6040
+            inside: 57400
+        }
+    }
+    services: {
+        key: 9337
+        value: {
+            name: "gnoi"
+            inside: 57400
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 57400
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "GigabitEthernet0/0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "GigabitEthernet0/0/0/1"
         }
     }
 }
