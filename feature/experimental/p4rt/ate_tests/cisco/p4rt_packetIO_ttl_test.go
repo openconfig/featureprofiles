@@ -40,13 +40,11 @@ var (
 			name: "Program TTL Match Entry and Sent traffic to forus IP and check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:009 Programm match TTL=[1,2], send outter TTL=[0,1,2] with destnation IP as local IP(for us IP) packet from tgen and verify traffic is not sent to controller",
 			fn:   testEntryProgrammingPacketInWithForUsIP,
-			skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Sent traffic to non-exist IP and check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:010 Programm match TTL=[1,2], send outter TTL=[0,1,2] with destnation IP not in lpm packet from tgen and verify traffic is not sent to controller",
 			fn:   testEntryProgrammingPacketInWithNonExistIP,
-			skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Sent traffic to physical interface and check PacketIn",

@@ -388,7 +388,7 @@ func testEntryProgrammingPacketInWithNewMAC(ctx context.Context, t *testing.T, a
 }
 
 func testEntryProgrammingPacketInWithForUsIP(ctx context.Context, t *testing.T, args *testArgs) {
-	testEntryProgrammingPacketInWithNewIP(ctx, t, args, "100.101.102.103", false)
+	testEntryProgrammingPacketInWithNewIP(ctx, t, args, "100.120.1.1", false)
 }
 
 func testEntryProgrammingPacketInWithNonExistIP(ctx context.Context, t *testing.T, args *testArgs) {
@@ -403,8 +403,12 @@ func testEntryProgrammingPacketInWithNewIP(ctx context.Context, t *testing.T, ar
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
-	// Modify Traffic DstMAC to Unicast MAC
+	// Modify Traffic DstIPv4 to Unicast MAC
 	dstIP := args.packetIO.GetPacketTemplate(t).DstIPv4
+	currentIP := *dstIP
+	*dstIP = ipAddress
+	defer func() { *dstIP = currentIP }()
+
 	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
 
 	if isIPv6 {
@@ -413,18 +417,17 @@ func testEntryProgrammingPacketInWithNewIP(ctx context.Context, t *testing.T, ar
 	} else {
 		flows = []*ondatra.Flow{flows[0]}
 	}
-	currentIP := *dstIP
-	*dstIP = ipAddress
-	defer func() { *dstIP = currentIP }()
 
 	// Send Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
 	testP4RTTraffic(t, args.ate, flows, srcEndPoint, 10)
 
 	// Check PacketIn on P4Client
 	packets := getPackets(t, client, 40)
 
-	// t.Logf("Captured packets: %v", len(packets))
+	t.Logf("Captured packets: %v", len(packets))
+
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received")
 	}
@@ -1249,6 +1252,7 @@ func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *t
 	}
 
 	validatePackets(t, args, packets)
+
 }
 
 func testEntryProgrammingPacketInWithSubInterface(ctx context.Context, t *testing.T, args *testArgs) {
