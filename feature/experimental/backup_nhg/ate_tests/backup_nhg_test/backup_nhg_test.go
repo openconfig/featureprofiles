@@ -328,7 +328,7 @@ func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow 
 }
 
 // validateAftTelmetry verifies aft telemetry entries.
-func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName string, prefix string, ipAddress, resolvedNhIpAddress string) {
+func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix, ipAddress, resolvedNhIpAddress string) {
 	aftPfxNHG := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(prefix + "/" + mask).NextHopGroup()
 	aftPfxNHGVal, found := gnmi.Watch(t, a.dut, aftPfxNHG.State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		if val.IsPresent() {
