@@ -80,4 +80,4 @@ testbeds:
     owner: saarvind
     testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
-    baseconf: topologies/cisco/hw/8808_FOX2643Q39J/qos-base-config.proto    
+    baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto    
