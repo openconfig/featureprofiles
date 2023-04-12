@@ -1,0 +1,13 @@
+name: qos-oc
+owners: 
+  - saarvind
+testbeds:
+  - 8808-1DUT-1ATE
+tests:
+- name: qos-ate
+  path: feature/cisco/qos/...
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master
+  
