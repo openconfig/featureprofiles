@@ -139,9 +139,14 @@ func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
 	return *schedulerInputWeightLimit
 }
 
+// ECNProfileRequiredDefinition returns whether the device requires additional config for ECN.
+func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
+	return *ecnProfileRequiredDefinition
+
 // FanOperStatusUnsupported returns whether the device supports oper-status leaf for fan components
 func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
+
 }
 
 // Vendor deviation flags.
@@ -313,5 +318,8 @@ var (
 
 	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 
+	ecnProfileRequiredDefinition = flag.Bool("deviation_ecn_profile_required_definition", false, "device requires additional config for ECN")
+
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
+
 )
