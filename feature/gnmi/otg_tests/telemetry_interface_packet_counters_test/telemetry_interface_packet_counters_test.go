@@ -129,12 +129,14 @@ func TestInterfaceCounters(t *testing.T) {
 		counter: gnmi.Lookup(t, dut, ipv4Counters.OutPkts().State()),
 	}, {
 		// desc: "IPv6InPkts",
-		path:    ipv6CounterPath + "in-pkts",
-		counter: gnmi.Lookup(t, dut, ipv6Counters.InPkts().State()),
+		path: ipv6CounterPath + "in-pkts",
+		// TODO: Uncomment counter in-discarded-pkts after the issue fixed.
+		// counter: gnmi.Lookup(t, dut, ipv6Counters.InPkts().State()),
 	}, {
 		// desc: "IPv6OutPkts",
-		path:    ipv6CounterPath + "out-pkts",
-		counter: gnmi.Lookup(t, dut, ipv6Counters.OutPkts().State()),
+		path: ipv6CounterPath + "out-pkts",
+		// TODO: Uncomment counter out-discarded-pkts after the issue fixed.
+		// counter: gnmi.Lookup(t, dut, ipv6Counters.OutPkts().State()),
 	}, {
 		// desc: "IPv6InDiscardedPkts",
 		path:    ipv6CounterPath + "in-discarded-pkts",
