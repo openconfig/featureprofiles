@@ -226,7 +226,7 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // configSubinterfaceDUT configures the Sub Interfaces of an Interfaces,
 // starting from Sub Interface 1. Each Subinterface is configured with a
 // unique VlanID starting from 1 and an IP address. The starting IP Address
-// for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4
+// for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4.
 func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 	t.Helper()
 
@@ -280,23 +280,23 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	// configure NI
+	// configure NI.
 	configureNetworkInstance(t, dut)
 
 	// Configure DUT ports.
 	dutPort1.configInterfaceDUT(t, dut)
 	dutPort2.configInterfaceDUT(t, dut)
 
-	// assign subinterfaces to DEFAULT network instance if needed (deviation-based)
+	// assign subinterfaces to DEFAULT network instance if needed (deviation-based).
 	dutPort1.assignSubifsToDefaultNetworkInstance(t, dut)
 	dutPort2.assignSubifsToDefaultNetworkInstance(t, dut)
 
-	// apply PBF to src interface
+	// apply PBF to src interface.
 	dp1 := dut.Port(t, dutPort1.Name)
 	applyForwardingPolicy(t, dp1.Name())
 }
 
-// configureNetworkInstance creates and configures non-default and default NIs
+// configureNetworkInstance creates and configures non-default and default NIs.
 func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	t.Helper()
 
@@ -320,7 +320,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	}
 }
 
-// assignSubifsToDefaultNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled
+// assignSubifsToDefaultNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled.
 func (a *attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	p := d.Port(t, a.Name)
 	if *deviations.ExplicitInterfaceInDefaultVRF {
@@ -334,7 +334,7 @@ func (a *attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondat
 	}
 }
 
-// configurePBF returns a fully configured network-instance PF struct
+// configurePBF returns a fully configured network-instance PF struct.
 func configurePBF() *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
@@ -364,11 +364,11 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 // ConfigureATE configures Ethernet + IPv4 on the ATE. If the number of
 // Subinterfaces(numSubIntf) > 0, we then create additional sub-interfaces
 // each with a unique VlanID starting from 1. The IPv4 addresses start with
-// ATE:Port.IPv4 and then nextIP(ATE:Port.IPv4, 4) for each sub interface
+// ATE:Port.IPv4 and then nextIP(ATE:Port.IPv4, 4) for each sub interface.
 func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *ondatra.ATEDevice) {
 	t.Helper()
 	p := ate.Port(t, a.Name)
-	// Configure source port on ATE : Port1
+	// Configure source port on ATE : Port1.
 	if a.numSubIntf == 0 {
 		ip := a.ip(0)
 		gateway := a.gateway(0)
@@ -377,7 +377,7 @@ func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *o
 		intf.IPv4().WithDefaultGateway(gateway)
 		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
 	}
-	// Configure destination port on ATE : Port2
+	// Configure destination port on ATE : Port2.
 	for i := uint32(1); i <= a.numSubIntf; i++ {
 		ip := a.ip(uint8(i))
 		gateway := a.gateway(uint8(i))
@@ -638,7 +638,7 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ctx := context.Background()
 
-	// configure DUT
+	// configure DUT.
 	configureDUT(t, dut)
 
 	// Configure ATE ports and start Ethernet+IPv4.
