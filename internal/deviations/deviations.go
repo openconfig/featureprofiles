@@ -134,6 +134,11 @@ func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 	return *componentsSoftwareModuleUnsupported
 }
 
+// SchedulerInputWeightLimit returns whether the device does not support weight above 100.
+func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
+	return *schedulerInputWeightLimit
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -300,4 +305,6 @@ var (
 	backplaneFacingCapacityUnsupported = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
 
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
+
+	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 )
