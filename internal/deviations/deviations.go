@@ -134,13 +134,8 @@ func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 	return *componentsSoftwareModuleUnsupported
 }
 
-// FanOperStatusUnsupported returns whether the device supports fan oper-status leaf.
 func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
-
-// SchedulerInputWeightLimit returns whether the device does not support weight above 100.
-func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
-	return *schedulerInputWeightLimit
 }
 
 // Vendor deviation flags.
@@ -311,6 +306,4 @@ var (
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
-
-  schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 )
