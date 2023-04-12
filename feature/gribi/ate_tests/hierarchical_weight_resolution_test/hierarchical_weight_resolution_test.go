@@ -621,7 +621,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 		if deviations.UCMPTrafficTolerance(dut) != tolerance {
 			tolerance = deviations.UCMPTrafficTolerance(dut)
 		}
-		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
+		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, deviation)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
 	})
