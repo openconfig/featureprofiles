@@ -142,6 +142,7 @@ func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
 // UCMPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
 func UCMPTrafficTolerance(_ *ondatra.DUTDevice) bool {
 	return *ucmpTrafficTolerance
+}
 
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
