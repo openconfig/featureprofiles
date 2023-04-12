@@ -139,6 +139,12 @@ func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
 	return *schedulerInputWeightLimit
 }
 
+// ECNProfileRequiredDefinition returns whether the device requires additional config for ECN.
+func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
+	return *ecnProfileRequiredDefinition
+
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -305,4 +311,6 @@ var (
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
 	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
+
+	ecnProfileRequiredDefinition = flag.Bool("deviation_ecn_profile_required_definition", false, "device requires additional config for ECN")
 )
