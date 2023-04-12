@@ -136,6 +136,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		if *deviations.ExplicitPortSpeed {
 			fptest.SetPortSpeed(t, p1)
 		}
+		if *deviations.ExplicitIPv6EnableForGRIBI {
+			gnmi.Update(t, dut, d.Interface(p1.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
+		}
 	}
 
 	configureNetworkInstance(t, dut)
@@ -261,8 +264,16 @@ func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 		}
 		nh := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).State())
 		// for devices that return  the nexthop with resolving it recursively. For a->b->c the device returns c
-		if got := nh.GetIpAddress(); got != atePort2.IPv4 && got != ateIndirectNH {
-			t.Errorf("next-hop is incorrect: got %v, want %v or %v ", got, ateIndirectNH, atePort2.IPv4)
+		if got := nh.GetIpAddress(); got != ateIndirectNH {
+			if nhtype == "MAC" {
+				if gotMac := nh.GetMacAddress(); !strings.EqualFold(gotMac, nhMAC) {
+					t.Errorf("next-hop MAC is incorrect:  gotMac %v, wantMac %v", gotMac, nhMAC)
+				}
+			} else {
+				if got := nh.GetIpAddress(); got != atePort2.IPv4 {
+					t.Errorf("next-hop is incorrect: got %v, want %v ", got, atePort2.IPv4)
+				}
+			}
 		}
 	}
 
