@@ -106,55 +106,63 @@ func TestInterfaceCounters(t *testing.T) {
 	cases := []struct {
 		desc    string
 		path    string
-		counter *ygnmi.Value[uint64]
+		counter ygnmi.SingletonQuery[uint64]
+		skip    bool
 	}{{
 		desc:    "InUnicastPkts",
 		path:    intfCounterPath + "in-unicast-pkts",
-		counter: gnmi.Lookup(t, dut, intfCounters.InUnicastPkts().State()),
+		counter: intfCounters.InUnicastPkts().State(),
+	}, {
+		desc:    "InUnicastPkts",
+		path:    intfCounterPath + "in-unicast-pkts",
+		counter: intfCounters.InUnicastPkts().State(),
 	}, {
 		desc:    "InPkts",
 		path:    intfCounterPath + "in-pkts",
-		counter: gnmi.Lookup(t, dut, intfCounters.InPkts().State()),
+		counter: intfCounters.InPkts().State(),
 	}, {
 		desc:    "OutPkts",
 		path:    intfCounterPath + "out-pkts",
-		counter: gnmi.Lookup(t, dut, intfCounters.OutPkts().State()),
+		counter: intfCounters.OutPkts().State(),
 	}, {
-		// desc: "IPv4InPkts",
+		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
-		counter: gnmi.Lookup(t, dut, ipv4Counters.InPkts().State()),
+		counter: ipv4Counters.InPkts().State(),
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}, {
-		// desc: "IPv4OutPkts",
+		desc:    "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
-		counter: gnmi.Lookup(t, dut, ipv4Counters.OutPkts().State()),
+		counter: ipv4Counters.OutPkts().State(),
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}, {
-		// desc: "IPv6InPkts",
-		path: ipv6CounterPath + "in-pkts",
-		// TODO: Uncomment counter in-discarded-pkts after the issue fixed.
-		// counter: gnmi.Lookup(t, dut, ipv6Counters.InPkts().State()),
+		desc:    "IPv6InPkts",
+		path:    ipv6CounterPath + "in-pkts",
+		counter: ipv6Counters.InPkts().State(),
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}, {
-		// desc: "IPv6OutPkts",
-		path: ipv6CounterPath + "out-pkts",
-		// TODO: Uncomment counter out-discarded-pkts after the issue fixed.
-		// counter: gnmi.Lookup(t, dut, ipv6Counters.OutPkts().State()),
+		desc:    "IPv6OutPkts",
+		path:    ipv6CounterPath + "out-pkts",
+		counter: ipv6Counters.OutPkts().State(),
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}, {
-		// desc: "IPv6InDiscardedPkts",
+		desc:    "IPv6InDiscardedPkts",
 		path:    ipv6CounterPath + "in-discarded-pkts",
-		counter: gnmi.Lookup(t, dut, ipv6Counters.InDiscardedPkts().State()),
+		counter: ipv6Counters.InDiscardedPkts().State(),
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}, {
-		// desc: "IPv6OutDiscardedPkts",
+		desc:    "IPv6OutDiscardedPkts",
 		path:    ipv6CounterPath + "out-discarded-pkts",
-		counter: gnmi.Lookup(t, dut, ipv6Counters.OutDiscardedPkts().State()),
+		counter: ipv6Counters.OutDiscardedPkts().State(),
+		skip:    *deviations.SubinterfacePacketCountersMissing,
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			// TODO: Enable the test for in-maxsize-exceeded after the issue fixed.
-			if len(tc.desc) == 0 {
+			if tc.skip {
 				t.Skipf("Counter %v is not supported.", tc.desc)
 			}
 
-			val, present := tc.counter.Val()
+			val, present := gnmi.Lookup(t, dut, tc.counter).Val()
 			if !present {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
 			}
