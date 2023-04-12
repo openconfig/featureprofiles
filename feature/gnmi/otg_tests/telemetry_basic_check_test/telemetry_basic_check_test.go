@@ -889,7 +889,6 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 			s.Enabled = ygot.Bool(true)
 		}
-		s.Enabled = ygot.Bool(true)
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
