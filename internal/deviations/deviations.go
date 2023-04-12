@@ -74,6 +74,11 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// P4RTUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
+func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
+	return *p4rtUnsetElectionIDUnsupported
+}
+
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
 	return *isisRestartSuppressUnsupported
@@ -109,7 +114,7 @@ func MacAddressMissing(_ *ondatra.DUTDevice) bool {
 	return *macAddressMissing
 }
 
-// UseNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
+// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
 func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
 	return *UseVendorNativeACLConfiguration
 }
@@ -132,6 +137,10 @@ func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 // FanOperStatusUnsupported returns whether the device supports fan oper-status leaf.
 func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
+
+// SchedulerInputWeightLimit returns whether the device does not support weight above 100.
+func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
+	return *schedulerInputWeightLimit
 }
 
 // Vendor deviation flags.
@@ -274,6 +283,8 @@ var (
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
 
+	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
+
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
@@ -300,4 +311,6 @@ var (
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
+
+  schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 )
