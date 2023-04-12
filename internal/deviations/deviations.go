@@ -142,6 +142,7 @@ func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
 // Ipv6DiscardedPktsUnsupported returns whether the device supports interface ipv6 discarded packet stats
 func Ipv6DiscardedPktsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *ipv6DiscardedPktsUnsupported
+}
 
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
