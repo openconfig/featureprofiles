@@ -142,6 +142,7 @@ func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
 // ECNProfileRequiredDefinition returns whether the device requires additional config for ECN.
 func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
 	return *ecnProfileRequiredDefinition
+}
 
 // FanOperStatusUnsupported returns whether the device supports oper-status leaf for fan components
 func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
