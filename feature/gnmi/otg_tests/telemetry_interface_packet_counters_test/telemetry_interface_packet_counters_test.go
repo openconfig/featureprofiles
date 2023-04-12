@@ -309,7 +309,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	for k, v := range ateOutPkts {
 		if v == 0 {
-			t.Errorf("otg.Telemetry().Flow(%v).GetCounters().GetOutPkts() = %v, want nonzero", k, v)
+			t.Errorf("gnmi.Get(t, ate.OTG(), gnmi.OC().Flow(%v).Counters().OutPkts().State()) = %v, want nonzero", k, v)
 		}
 	}
 	for _, flow := range []string{flowipv4.Name(), flowipv6.Name()} {
