@@ -68,7 +68,7 @@ WCMP width of 16 nexthops:
 *   Flush previous gRIBI Entries for all NIs and establish a new connection with
     DUT with PERSISTENCE and install the following Entries:
 
-    *   IPv4Entry  198.18.192.0/21 in VRF-1, pointing to NextHopGroup(NHG#1) in
+    *   IPv4Entry 198.18.192.0/21 in VRF-1, pointing to NextHopGroup(NHG#1) in
         default VRF, with two NextHops(NH#1, NH#2) in default VRF:
 
         *   NH#1 with weight:1, pointing to 192.0.2.111
