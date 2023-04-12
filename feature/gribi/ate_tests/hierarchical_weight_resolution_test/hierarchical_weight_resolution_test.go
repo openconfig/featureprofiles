@@ -113,7 +113,7 @@ var (
 		2: cidr(nhEntryIP1, 32),
 		3: cidr(nhEntryIP2, 32),
 	}
-	tolerance = 0.0
+	deviation = 0.0
 )
 
 func TestMain(m *testing.M) {
@@ -576,12 +576,12 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
 
-		if *deviations.UCMPTrafficTolerance {
-			tolerance = 1.5
+		if deviations.UCMPTrafficTolerance(dut) {
+			deviation = 1.5
 		} else {
-			tolerance = 0.2
+			deviation = 0.2
 		}
-		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
+		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, deviation)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
 	})

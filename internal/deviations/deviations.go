@@ -134,6 +134,11 @@ func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 	return *componentsSoftwareModuleUnsupported
 }
 
+// UCMPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
+func UCMPTrafficTolerance(_ *ondatra.DUTDevice) bool {
+	return *ucmpTrafficTolerance
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -301,5 +306,5 @@ var (
 
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
-	UCMPTrafficTolerance = flag.Bool("deviation_ucmp_traffic_tolerance", false, "Set to true to validate traffic with larger tolerance value set in the tc")
+	ucmpTrafficTolerance = flag.Bool("deviation_ucmp_traffic_tolerance", false, "Set to true to validate traffic with larger tolerance value set in the tc")
 )
