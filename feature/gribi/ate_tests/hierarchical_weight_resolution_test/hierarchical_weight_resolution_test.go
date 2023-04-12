@@ -59,9 +59,6 @@ const (
 	nhEntryIP1      = "192.0.2.111"
 	nhEntryIP2      = "192.0.2.222"
 	nonDefaultVRF   = "VRF-1"
-	// 'deviation' is the maximum difference that is allowed between the observed
-	// traffic distribution and the required traffic distribution.
-	deviation = 1
 )
 
 var (
@@ -116,6 +113,7 @@ var (
 		2: cidr(nhEntryIP1, 32),
 		3: cidr(nhEntryIP2, 32),
 	}
+	tolerance = 0.0
 )
 
 func TestMain(m *testing.M) {
@@ -263,6 +261,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *o
 	if a.numSubIntf > 0 {
 		i.Description = ygot.String(a.Desc)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		i = a.NewOCInterface(p.Name())
 		if *deviations.InterfaceEnabled {
 			i.Enabled = ygot.Bool(true)
 		}
@@ -332,16 +331,22 @@ func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *o
 		intf.IPv4().WithAddress(cidr(ip, 30))
 		intf.IPv4().WithDefaultGateway(gateway)
 		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
-	}
-	// Configure destination port on ATE : Port2
-	for i := uint32(1); i <= a.numSubIntf; i++ {
-		ip := a.ip(uint8(i))
-		gateway := a.gateway(uint8(i))
-		intf := top.AddInterface(ip).WithPort(p)
-		intf.IPv4().WithAddress(cidr(ip, 30))
-		intf.IPv4().WithDefaultGateway(gateway)
-		intf.Ethernet().WithVLANID(uint16(i))
-		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s and VlanID: %d", cidr(ip, 30), gateway, i)
+	} else {
+		// Configure destination port on ATE : Port2
+		for i := uint32(0); i <= a.numSubIntf; i++ {
+			ip := a.ip(uint8(i))
+			gateway := a.gateway(uint8(i))
+			intf := top.AddInterface(ip).WithPort(p)
+			intf.IPv4().WithAddress(cidr(ip, 30))
+			intf.IPv4().WithDefaultGateway(gateway)
+			if i == 0 {
+				intf.Ethernet().WithVLANID(uint16(i))
+				t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
+			} else {
+				intf.Ethernet().WithVLANID(uint16(i))
+				t.Logf("Adding ATE Ipv4 address: %s with gateway: %s and VlanID: %d", cidr(ip, 30), gateway, i)
+			}
+		}
 	}
 }
 
@@ -478,7 +483,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
-		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, deviation)); diff != "" {
+		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, 0.5)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
 	})
@@ -522,7 +527,11 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	for i := 0; i < 16; i++ {
 		nh := nextHopEntry(nhIdx, defaultVRF, atePort2.ip(uint8(3+i)))
 		gribiEntries = append(gribiEntries, nh)
-		nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 1})
+		if nhIdx == 100 {
+			nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 1})
+		} else {
+			nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 16})
+		}
 		nhIdx++
 	}
 	nhg3 := nextHopGroupEntry(3, defaultVRF, nextHopWeights)
@@ -558,14 +567,21 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	wantWeights := map[string]float64{
 		"1": 1.171,
 		"2": 1.953,
+		"3": 0.402,
 	}
-	// 6.05 weight for vlans 3 to 18.
-	for i := 3; i <= 18; i++ {
-		wantWeights[strconv.Itoa(i)] = 6.05
+	// 6.432 weight for vlans 3 to 18.
+	for i := 4; i <= 18; i++ {
+		wantWeights[strconv.Itoa(i)] = 6.432
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
-		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, deviation)); diff != "" {
+
+		if *deviations.UCMPTrafficTolerance {
+			tolerance = 1.5
+		} else {
+			tolerance = 0.2
+		}
+		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
 	})
@@ -573,7 +589,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	t.Run("validateAFTWeights", func(t *testing.T) {
 		for nhg, weights := range map[uint64][]uint64{
 			2: {3, 5},
-			3: {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+			3: {1, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16},
 		} {
 			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
 			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
