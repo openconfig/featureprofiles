@@ -144,10 +144,9 @@ func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
 	return *ecnProfileRequiredDefinition
 }
 
-// FanOperStatusUnsupported returns whether the device supports oper-status leaf for fan components
+// FanOperStatusUnsupported returns whether the device supports oper-status leaf for fan components.
 func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
-
 }
 
 // Vendor deviation flags.
