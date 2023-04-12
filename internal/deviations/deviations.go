@@ -137,6 +137,10 @@ func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 // Ipv6DiscardedPktsUnsupported returns whether the device supports interface ipv6 discarded packet stats
 func Ipv6DiscardedPktsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *ipv6DiscardedPktsUnsupported
+
+// SchedulerInputWeightLimit returns whether the device does not support weight above 100.
+func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
+	return *schedulerInputWeightLimit
 }
 
 // Vendor deviation flags.
@@ -307,4 +311,6 @@ var (
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
 	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
+
+schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 )
