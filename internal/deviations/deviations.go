@@ -139,6 +139,12 @@ func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
 	return *schedulerInputWeightLimit
 }
 
+// ECNProfileRequiredDefinition returns whether the device requires additional config for ECN.
+func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
+	return *ecnProfileRequiredDefinition
+
+}
+
 // UCMPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
 func UCMPTrafficTolerance(_ *ondatra.DUTDevice) bool {
 	return *ucmpTrafficTolerance
@@ -312,6 +318,8 @@ var (
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
 	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
+
+	ecnProfileRequiredDefinition = flag.Bool("deviation_ecn_profile_required_definition", false, "device requires additional config for ECN")
 
 	ucmpTrafficTolerance = flag.Bool("deviation_ucmp_traffic_tolerance", false, "Set to true to validate traffic with larger tolerance value set in the tc")
 )
