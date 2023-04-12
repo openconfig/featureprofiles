@@ -1492,7 +1492,6 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority bool
 		priority    oc.E_Scheduler_Priority
 		inputID     string
-		inputType   oc.E_Input_InputType
 		setWeight   bool
 		weight      uint64
 		queueName   string
@@ -1503,7 +1502,6 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "BE1",
-		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
 		queueName:   "6",
 		targetGroup: "target-group-BE1",
@@ -1513,7 +1511,6 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "BE0",
-		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
 		queueName:   "0",
 		targetGroup: "target-group-BE0",
@@ -1523,7 +1520,6 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "AF1",
-		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
 		queueName:   "4",
 		targetGroup: "target-group-AF1",
@@ -1533,7 +1529,6 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "AF2",
-		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(8),
 		queueName:   "1",
 		targetGroup: "target-group-AF2",
@@ -1543,7 +1538,6 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "AF3",
-		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(12),
 		queueName:   "5",
 		targetGroup: "target-group-AF3",
@@ -1553,7 +1547,6 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "AF4",
-		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(48),
 		queueName:   "2",
 		targetGroup: "target-group-AF4",
@@ -1564,7 +1557,6 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
-		inputType:   oc.Input_InputType_QUEUE,
 		queueName:   "3",
 		targetGroup: "target-group-NC1",
 	}}
@@ -1580,7 +1572,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		input := s.GetOrCreateInput(tc.inputID)
 		input.SetId(tc.inputID)
-		input.SetInputType(tc.inputType)
+		input.SetInputType(oc.Input_InputType_QUEUE)
 		input.SetQueue(tc.queueName)
 		if tc.setWeight {
 			input.SetWeight(tc.weight)
@@ -1590,45 +1582,29 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("Create qos output interface config")
 	schedulerIntfs := []struct {
-		desc       string
-		queueName  string
-		scheduler  string
-		ecnProfile string
+		desc      string
+		queueName string
 	}{{
-		desc:       "output-interface-BE1",
-		queueName:  "6",
-		scheduler:  "scheduler",
-		ecnProfile: "ECNProfile",
+		desc:      "output-interface-BE1",
+		queueName: "6",
 	}, {
-		desc:       "output-interface-BE0",
-		queueName:  "0",
-		scheduler:  "scheduler",
-		ecnProfile: "ECNProfile",
+		desc:      "output-interface-BE0",
+		queueName: "0",
 	}, {
-		desc:       "output-interface-AF1",
-		queueName:  "4",
-		scheduler:  "scheduler",
-		ecnProfile: "ECNProfile",
+		desc:      "output-interface-AF1",
+		queueName: "4",
 	}, {
-		desc:       "output-interface-AF2",
-		queueName:  "1",
-		scheduler:  "scheduler",
-		ecnProfile: "ECNProfile",
+		desc:      "output-interface-AF2",
+		queueName: "1",
 	}, {
-		desc:       "output-interface-AF3",
-		queueName:  "5",
-		scheduler:  "scheduler",
-		ecnProfile: "ECNProfile",
+		desc:      "output-interface-AF3",
+		queueName: "5",
 	}, {
-		desc:       "output-interface-AF4",
-		queueName:  "2",
-		scheduler:  "scheduler",
-		ecnProfile: "ECNProfile",
+		desc:      "output-interface-AF4",
+		queueName: "2",
 	}, {
-		desc:       "output-interface-NC1",
-		queueName:  "3",
-		scheduler:  "scheduler",
-		ecnProfile: "ECNProfile",
+		desc:      "output-interface-NC1",
+		queueName: "3",
 	}}
 
 	t.Logf("qos output interface config: %v", schedulerIntfs)
@@ -1640,10 +1616,10 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
-		schedulerPolicy.SetName(tc.scheduler)
+		schedulerPolicy.SetName("scheduler")
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		queue.SetQueueManagementProfile(tc.ecnProfile)
+		queue.SetQueueManagementProfile("ECNProfile")
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 }
