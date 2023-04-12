@@ -9,9 +9,9 @@ recursive resolution and traffic is load-shared according to these weights.
 
 Configure ATE and DUT:
 
-*   Connect ATE port-1 to DUT port-1. ATE port-2 to DUT port-2
+*   Connect ATE port-1 to DUT port-1. ATE port-2 to DUT port-2.
 
-*   Create a non-default VRF (VRF-1) that contains no interfaces
+*   Create a non-default VRF (VRF-1) that contains no interfaces.
 
 *   On DUT port-2 and ATE port-2 create 18 L3 sub-interfaces each with a /30
     subnet as below:
@@ -25,9 +25,9 @@ Configure ATE and DUT:
         192.0.2.74 and default gateways as 192.0.2.5, 192.0.2.9, ..., 192.0.2.73
         respectively.
 
-* On DUT port-1 and ATE port-1 create a single L3 interface
+* On DUT port-1 and ATE port-1 create a single L3 interface.
 
-* On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-1 (based on src. IP match criteria)
+* On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-1 (based on src. IP match criteria).
 
 Test case for basic hierarchical weight:
 

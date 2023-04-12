@@ -288,8 +288,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dutPort2.configInterfaceDUT(t, dut)
 
 	// assign subinterfaces to DEFAULT network instance if needed (deviation-based)
-	dutPort1.assignSubifsToNetworkInstance(t, dut)
-	dutPort2.assignSubifsToNetworkInstance(t, dut)
+	dutPort1.assignSubifsToDefaultNetworkInstance(t, dut)
+	dutPort2.assignSubifsToDefaultNetworkInstance(t, dut)
 
 	// apply PBF to src interface
 	dp1 := dut.Port(t, dutPort1.Name)
@@ -301,30 +301,27 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	t.Helper()
 
 	// configure non-default VRF
-	for _, vrf := range []string{nonDefaultVRF} {
-		ni := &oc.NetworkInstance{
-			Name: ygot.String(vrf),
-			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
-		}
-		dni := gnmi.OC().NetworkInstance(vrf)
-		gnmi.Replace(t, d, dni.Config(), ni)
-		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
-		if *deviations.ExplicitGRIBIUnderNetworkInstance {
-			fptest.EnableGRIBIUnderNetworkInstance(t, d, vrf)
-		}
+	ni := &oc.NetworkInstance{
+		Name: ygot.String(nonDefaultVRF),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 	}
+	dni := gnmi.OC().NetworkInstance(nonDefaultVRF)
+	gnmi.Replace(t, d, dni.Config(), ni)
+	fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 	gnmi.Replace(t, d, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF())
+
 	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, d, nonDefaultVRF)
 		fptest.EnableGRIBIUnderNetworkInstance(t, d, *deviations.DefaultNetworkInstance)
 	}
 }
 
-// assignSubifsToNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled
-func (a *attributes) assignSubifsToNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
+// assignSubifsToDefaultNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled
+func (a *attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	p := d.Port(t, a.Name)
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		if a.numSubIntf == 0 {
@@ -344,7 +341,7 @@ func configurePBF() *oc.NetworkInstance_PolicyForwarding {
 	pf := ni.GetOrCreatePolicyForwarding()
 	vrfPolicy := pf.GetOrCreatePolicy(policyName)
 	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(dutPort1.IPv4 + "/32")
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(atePort1.IPv4 + "/32")
 	vrfPolicy.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(nonDefaultVRF)
 	return pf
 }
@@ -394,7 +391,7 @@ func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *o
 
 // testTraffic creates a traffic flow with ATE source & destination endpoints
 // and configures a VlanID filter for output frames. The IPv4 header for the
-// flow contains the DUT:Port1 address as source and the configured gRIBI-
+// flow contains the ATE:Port1 address as source and the configured gRIBI-
 // IndirectEntry as the destination. The function also takes as input a map of
 // <VlanID::TrafficDistribution> that is wanted and compares it to the actual
 // traffic test result.
@@ -414,7 +411,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	// Configure Ethernet+IPv4 headers.
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.WithSrcAddress(dutPort1.IPv4)
+	ipv4Header.WithSrcAddress(atePort1.IPv4)
 	ipv4Header.DstAddressRange().
 		WithMin(ipv4FlowIPStart).
 		WithMax(ipv4FlowIPEnd).
