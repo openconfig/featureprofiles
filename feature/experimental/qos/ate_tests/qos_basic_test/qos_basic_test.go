@@ -792,6 +792,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority bool
 		priority    oc.E_Scheduler_Priority
 		inputID     string
+		inputType   oc.E_Input_InputType
 		setWeight   bool
 		weight      uint64
 		queueName   string
@@ -802,6 +803,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "BE1",
+		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
 		queueName:   "BE1",
 		targetGroup: "target-group-BE1",
@@ -811,6 +813,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "BE0",
+		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
 		queueName:   "BE0",
 		targetGroup: "target-group-BE0",
@@ -820,6 +823,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "AF1",
+		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
 		queueName:   "AF1",
 		targetGroup: "target-group-AF1",
@@ -829,6 +833,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "AF2",
+		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(8),
 		queueName:   "AF2",
 		targetGroup: "target-group-AF2",
@@ -838,6 +843,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "AF3",
+		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(12),
 		queueName:   "AF3",
 		targetGroup: "target-group-AF3",
@@ -847,6 +853,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		setPriority: false,
 		setWeight:   true,
 		inputID:     "AF4",
+		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(48),
 		queueName:   "AF4",
 		targetGroup: "target-group-AF4",
@@ -857,6 +864,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
+		inputType:   oc.Input_InputType_QUEUE,
 		queueName:   "NC1",
 		targetGroup: "target-group-NC1",
 	}}
@@ -872,7 +880,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		input := s.GetOrCreateInput(tc.inputID)
 		input.SetId(tc.inputID)
-		input.SetInputType(oc.Input_InputType_QUEUE)
+		input.SetInputType(tc.inputType)
 		input.SetQueue(tc.queueName)
 		if tc.setWeight {
 			input.SetWeight(tc.weight)
@@ -887,30 +895,41 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		scheduler  string
 		ecnProfile string
 	}{{
-		desc:      "output-interface-BE1",
-		queueName: "BE1",
+		desc:       "output-interface-BE1",
+		queueName:  "BE1",
+		scheduler:  "scheduler",
+		ecnProfile: "ECNProfile",
 	}, {
-		desc:      "output-interface-BE0",
-		queueName: "BE0",
+		desc:       "output-interface-BE0",
+		queueName:  "BE0",
+		scheduler:  "scheduler",
+		ecnProfile: "ECNProfile",
 	}, {
-		desc:      "output-interface-AF1",
-		queueName: "AF1",
+		desc:       "output-interface-AF1",
+		queueName:  "AF1",
+		scheduler:  "scheduler",
+		ecnProfile: "ECNProfile",
 	}, {
-		desc:      "output-interface-AF2",
-		queueName: "AF2",
+		desc:       "output-interface-AF2",
+		queueName:  "AF2",
+		scheduler:  "scheduler",
+		ecnProfile: "ECNProfile",
 	}, {
-		desc:      "output-interface-AF3",
-		queueName: "AF3",
+		desc:       "output-interface-AF3",
+		queueName:  "AF3",
+		scheduler:  "scheduler",
+		ecnProfile: "ECNProfile",
 	}, {
-		desc:      "output-interface-AF4",
-		queueName: "AF4",
+		desc:       "output-interface-AF4",
+		queueName:  "AF4",
+		scheduler:  "scheduler",
+		ecnProfile: "ECNProfile",
 	}, {
-		desc:      "output-interface-NC1",
-		queueName: "NC1",
+		desc:       "output-interface-NC1",
+		queueName:  "NC1",
+		scheduler:  "scheduler",
+		ecnProfile: "ECNProfile",
 	}}
-
-	scheduler := string("scheduler")
-	ecnProfile := string("ecnProfile")
 
 	t.Logf("qos output interface config: %v", schedulerIntfs)
 	for _, tc := range schedulerIntfs {
@@ -918,10 +937,10 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		i.SetInterfaceId(dp3.Name())
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
-		schedulerPolicy.SetName(scheduler)
+		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		queue.SetQueueManagementProfile(ecnProfile)
+		queue.SetQueueManagementProfile(tc.ecnProfile)
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 }
