@@ -152,6 +152,7 @@ func ISISGlobalAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 // ISISLevelAuthenticationNotRequired returns true if ISIS Level authentication not required.
 func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisLevelAuthenticationNotRequired
+}
 
 // Ipv6DiscardedPktsUnsupported returns whether the device supports interface ipv6 discarded packet stats.
 func Ipv6DiscardedPktsUnsupported(_ *ondatra.DUTDevice) bool {
