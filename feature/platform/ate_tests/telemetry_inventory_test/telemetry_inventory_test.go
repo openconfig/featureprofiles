@@ -589,7 +589,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 
 		if p.operStatus != "" {
 			if deviations.FanOperStatusUnsupported(dut) && strings.Contains(card, "Fan") {
-				t.Logf("Skipping check for fan oper-status")
+				t.Logf("Skipping check for fan oper-status due to deviation FanOperStatusUnsupported")
 			} else {
 				operStatus := gnmi.Get(t, dut, component.OperStatus().State()).String()
 				t.Logf("Hardware card %s OperStatus: %s", card, operStatus)
