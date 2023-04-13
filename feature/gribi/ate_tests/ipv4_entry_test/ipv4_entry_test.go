@@ -232,7 +232,7 @@ func TestIPv4Entry(t *testing.T) {
 					WithOperationType(constants.Add).
 					AsResult(),
 			},
-			gribiMACOverrideWithStaticARP: deviations.GRIBIMACOverrideWithStaticARP(ondatra.DUT(t, "dut")),
+			gribiMACOverrideWithStaticARP: deviations.GRIBIMACOverrideWithStaticARP(dut),
 		},
 		{
 			desc: "Nonexistant next-hop",
