@@ -261,6 +261,15 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 				NH = NH.WithIPinIP(opt.Src, dst)
 			}
 		}
+	} else if address == "DecapEncapvrf" {
+		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
+		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			for _, dst := range opt.Dest {
+				NH = NH.WithIPinIP(opt.Src, dst)
+				NH = NH.WithNextHopNetworkInstance("TE")
+			}
+		}
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)
 		aftNh.IpAddress = &address

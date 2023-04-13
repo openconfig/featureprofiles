@@ -60,12 +60,9 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 	gnmi.Replace(t, dut, pfpath.Interface(intfName).ApplyVrfSelectionPolicy().Config(), pbrName)
 }
 
-
-
 // unconfigbasePBR, creates class map, policy and configures under source interface
 func unconfigbasePBR(t *testing.T, dut *ondatra.DUTDevice, pbrName string, intfName string) {
 	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
 	gnmi.Delete(t, dut, pfpath.Interface(intfName).ApplyVrfSelectionPolicy().Config())
 	gnmi.Delete(t, dut, pfpath.Policy(pbrName).Config())
-	gnmi.Delete(t, dut, pfpath.Config())
 }

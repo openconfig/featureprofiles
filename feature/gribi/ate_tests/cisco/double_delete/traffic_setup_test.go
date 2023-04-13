@@ -248,7 +248,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 	src_port := gnmi.OC().Interface("Bundle-Ether120")
 	if len(opts) != 0 {
 		for _, opt := range opts {
-			if opt.SrcIf != "" {
+			if opt.Ifname != "" {
 				src_port = gnmi.OC().Interface(opt.Ifname)
 			}
 		}

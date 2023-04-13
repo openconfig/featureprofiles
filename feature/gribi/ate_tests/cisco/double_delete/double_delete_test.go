@@ -16,6 +16,7 @@ package double_delete_test
 
 import (
 	"context"
+
 	//"fmt"
 	"net"
 	"strconv"
@@ -291,10 +292,10 @@ func testDeleteNH(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		if *ciscoFlags.GRIBITrafficCheck {
+			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		}
 	}
 
 	for s := 0; s < 4; s++ {
@@ -328,6 +329,9 @@ func testwithBackup(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Program gribi entries with backup path, verify traffic, delete ipv4/NHG/NH")
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
+	dut := ondatra.DUT(t, "dut")
+
+	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", bundleEther120)
 
 	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
@@ -355,10 +359,10 @@ func testwithBackup(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
+		if *ciscoFlags.GRIBITrafficCheck {
+			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
+		}
 	}
 	//Delete  twice
 	for s := 0; s < 4; s++ {
@@ -427,10 +431,10 @@ func testwithBackupDelete(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
+		if *ciscoFlags.GRIBITrafficCheck {
+			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
+		}
 	}
 
 	//Delete  twice
@@ -508,10 +512,10 @@ func testwithDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		if *ciscoFlags.GRIBITrafficCheck {
+			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		}
 	}
 
 	for s := 0; s < 4; s++ {
@@ -568,10 +572,10 @@ func testwithDecapEncapDelete(ctx context.Context, t *testing.T, args *testArgs)
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		if *ciscoFlags.GRIBITrafficCheck {
+			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		}
 	}
 
 	//Delete  twice
@@ -640,10 +644,10 @@ func testwithDecapEncapvrf(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		if *ciscoFlags.GRIBITrafficCheck {
+			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		}
 	}
 
 	//Delete  twice
@@ -699,10 +703,10 @@ func testwithDecapEncapvrfDelete(ctx context.Context, t *testing.T, args *testAr
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		if *ciscoFlags.GRIBITrafficCheck {
+			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		}
 	}
 	//Delete  twice
 
@@ -761,10 +765,10 @@ func testwithBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		if *ciscoFlags.GRIBITrafficCheck {
+			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		}
 	}
 
 	//Delete  twice
@@ -811,10 +815,10 @@ func testwithBackupDecapDelete(ctx context.Context, t *testing.T, args *testArgs
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		if *ciscoFlags.GRIBITrafficCheck {
+			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+		}
 	}
 
 	//Delete  twice
@@ -854,6 +858,8 @@ func testwithScale(ctx context.Context, t *testing.T, args *testArgs) {
 
 	configbasePBR(t, dut, "TE2", "ipv4", 2, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR2", bundleEther121)
 	configbasePBR(t, dut, "TE3", "ipv4", 3, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR3", bundleEther122)
+	defer unconfigbasePBR(t, dut, "PBR2", bundleEther121)
+	defer unconfigbasePBR(t, dut, "PBR3", bundleEther122)
 	var nh1, nh2 uint64 = 1, 33
 	var i, j uint64
 	for i = 1; i <= 32; i++ {
@@ -1098,7 +1104,6 @@ func testwithStatic(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 60, 1100: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	args.client.AddNH(t, 2000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther123, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -1197,11 +1202,12 @@ func testwithStaticremove(ctx context.Context, t *testing.T, args *testArgs) {
 
 	if args.rpfo {
 		args.dorpfo(args.ctx, t, true)
-	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
+		if *ciscoFlags.GRIBITrafficCheck {
+			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
+		}
 	}
+	time.Sleep(20 * time.Minute)
 
 	for s := 0; s < 4; s++ {
 
@@ -1272,139 +1278,139 @@ func TestDoubleDelete(t *testing.T) {
 		rpfo bool
 	}{
 		{
-			name: "Double delete test1",
+			name: "testDeleteIpv4NHGNH",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testDeleteIpv4NHGNH,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test2",
+			name: "testDeleteIpv4",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testDeleteIpv4,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test3",
+			name: "testDeleteNHG",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testDeleteNHG,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test4",
+			name: "testDeleteNH",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testDeleteNH,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test5",
+			name: "testwithBackup",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithBackup,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test6",
+			name: "testwithBackupDelete",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithBackupDelete,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test7",
+			name: "testwithDecapEncap",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithDecapEncap,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test8",
+			name: "testwithDecapEncapDelete",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithDecapEncapDelete,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test9",
+			name: "testwithDecapEncapvrf",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithDecapEncapvrf,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test10",
+			name: "testwithDecapEncapvrfDelete",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithDecapEncapvrfDelete,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test11",
+			name: "testwithBackupDecap",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithBackupDecap,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test12",
+			name: "testwithBackupDecapDelete",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithBackupDecapDelete,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test13",
+			name: "testwithScale",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithScale,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test14",
+			name: "testwithStatic",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithStatic,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test15",
+			name: "testwithStaticremove",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithStaticremove,
 			rpfo: false,
 		},
 		{
-			name: "Double delete test16",
+			name: "testDeleteIpv4NHGNHrpfo",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testDeleteIpv4NHGNH,
 			rpfo: true,
 		},
 		{
-			name: "Double delete test20",
+			name: "testwithBackuprpfo",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithBackup,
 			rpfo: true,
 		},
 		{
-			name: "Double delete test22",
+			name: "testwithDecapEncaprpfo",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithDecapEncap,
 			rpfo: true,
 		},
 		{
-			name: "Double delete test24",
+			name: "testwithDecapEncapvrfrpfo",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithDecapEncapvrf,
 			rpfo: true,
 		},
 		{
-			name: "Double delete test26",
+			name: "testwithBackupDecaprpfo",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithBackupDecap,
 			rpfo: true,
 		},
 		{
-			name: "Double delete test28",
+			name: "testwithScalerpfo",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithScale,
 			rpfo: true,
 		},
 		{
-			name: "Double delete test29",
+			name: "testwithStaticrpfo",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithStatic,
 			rpfo: true,
 		},
 		{
-			name: "Double delete test30",
+			name: "testwithStaticremoverpfo",
 			desc: "Delete ipv4, nhg, nh",
 			fn:   testwithStaticremove,
 			rpfo: true,
@@ -1414,15 +1420,11 @@ func TestDoubleDelete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
-			fibcheck := *ciscoFlags.GRIBIFIBCheck
-			if tt.name == "Double_delete_test14" {
-				fibcheck = false
-			}
 
 			// Configure the gRIBI client
 			client := gribi.Client{
 				DUT:                   dut,
-				FibACK:                fibcheck,
+				FibACK:                *ciscoFlags.GRIBIFIBCheck,
 				Persistence:           true,
 				InitialElectionIDLow:  10,
 				InitialElectionIDHigh: 0,
