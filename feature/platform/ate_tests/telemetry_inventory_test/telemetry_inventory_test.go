@@ -481,7 +481,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.idValidation {
-			if deviations.SwitchChipIDUnsupported(ondatra.DUT(t, "dut")) {
+			if deviations.SwitchChipIDUnsupported(dut) {
 				t.Logf("Skipping check for switch chip id unsupport")
 			} else {
 				id := gnmi.Get(t, dut, component.Id().State())
@@ -628,11 +628,10 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 }
 
 func TestSoftwareModule(t *testing.T) {
-
-	if deviations.ComponentsSoftwareModuleUnsupported(ondatra.DUT(t, "dut")) {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.ComponentsSoftwareModuleUnsupported(dut) {
 		t.Logf("Skipping check for components software module unsupport")
 	} else {
-		dut := ondatra.DUT(t, "dut")
 		moduleTypes := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().SoftwareModule().ModuleType().State())
 		if len(moduleTypes) == 0 {
 			t.Errorf("Get moduleType list for %q: got 0, want > 0", dut.Model())
