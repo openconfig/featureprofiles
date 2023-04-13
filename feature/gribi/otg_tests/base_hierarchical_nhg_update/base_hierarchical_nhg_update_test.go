@@ -39,20 +39,20 @@ import (
 const (
 	vrfName = "VRF-1"
 
-	// Destination ATE MAC address for port-2 and port-3
+	// Destination ATE MAC address for port-2 and port-3.
 	pMAC = "00:1A:11:00:1A:BC"
 
-	// port-2 nexthop ID
+	// port-2 nexthop ID.
 	p2NHID = 40
-	// port-3 nexthop ID
+	// port-3 nexthop ID.
 	p3NHID = 41
 
-	// Interface route next-hop-group ID
-	interfaceNHGID = 42
-	// Interface route nexthop IP
-	interfaceNH = "203.0.113.1"
-	// Interface route prefix
-	interfacePfx = "203.0.113.1/32"
+	// VirtualIP route next-hop-group ID.
+	virtualIPNHGID = 42
+	// VirtualIP route nexthop.
+	virtualIP = "203.0.113.1"
+	// VirtualIP route prefix.
+	virtualPfx = "203.0.113.1/32"
 
 	// Destination route next-hop ID
 	dstNHID = 43
@@ -139,24 +139,24 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	dutP3 := dut.Port(t, "port3").Name()
 
 	t.Logf("Adding gribi routes and validating traffic forwarding via port %v and NH ID %v", dutP2, p2NHID)
-	addInterfaceRoute(ctx, t, gribic, p2NHID, dutP2)
+	addVIPRoute(ctx, t, gribic, p2NHID, dutP2)
 	addDestinationRoute(ctx, t, gribic)
-
 	waitOTGARPEntry(t)
 	validateTrafficFlows(t, p2flow, p3flow)
 
 	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
 	addNH(ctx, t, gribic, p3NHID, dutP3, pMAC)
+
 	t.Logf("Performing implicit in-place replace with two next-hops (NH IDs: %v and %v)", p2NHID, p3NHID)
-	addNHG(ctx, t, gribic, interfaceNHGID, []uint64{p2NHID, p3NHID})
+	addNHG(ctx, t, gribic, virtualIPNHGID, []uint64{p2NHID, p3NHID})
 	// TODO: implement traffic validation for two next hops case
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p3NHID)
-	addNHG(ctx, t, gribic, interfaceNHGID, []uint64{p3NHID})
+	addNHG(ctx, t, gribic, virtualIPNHGID, []uint64{p3NHID})
 	validateTrafficFlows(t, p3flow, p2flow)
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p2NHID)
-	addNHG(ctx, t, gribic, interfaceNHGID, []uint64{p2NHID})
+	addNHG(ctx, t, gribic, virtualIPNHGID, []uint64{p2NHID})
 	validateTrafficFlows(t, p2flow, p3flow)
 }
 
@@ -203,10 +203,10 @@ func addNHG(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id ui
 	}
 }
 
-// addDestinationRoute creates a GRIBI route to dstPfx via interfaceNH.
+// addDestinationRoute adds a GRIBI route to dstPfx via the VirtualIP GRIBI nexthop.
 func addDestinationRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient) {
 	dnh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithIndex(dstNHID).WithIPAddress(interfaceNH)
+		WithIndex(dstNHID).WithIPAddress(virtualIP)
 	dnhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithID(dstNHGID).AddNextHop(dstNHID, 1)
 	dpfx := fluent.IPv4Entry().WithNetworkInstance(vrfName).WithPrefix(dstPfx).WithNextHopGroup(dstNHGID).WithNextHopGroupNetworkInstance(*deviations.DefaultNetworkInstance)
@@ -239,15 +239,15 @@ func addDestinationRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBI
 	}
 }
 
-// addInterfaceRoute creates a GRIBI route that points to the egress interface defined by id,
+// addVIPRoute creates a GRIBI route that points to the egress interface defined by id,
 // port, and nhip.
-func addInterfaceRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, port string) {
+func addVIPRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, port string) {
 	inh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithIndex(id).WithInterfaceRef(port).WithMacAddress(pMAC)
 	inhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithID(interfaceNHGID).AddNextHop(id, 1)
+		WithID(virtualIPNHGID).AddNextHop(id, 1)
 	ipfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithPrefix(interfacePfx).WithNextHopGroup(interfaceNHGID)
+		WithPrefix(virtualPfx).WithNextHopGroup(virtualIPNHGID)
 
 	gribic.Modify().AddEntry(t, inh, inhg, ipfx)
 	if err := awaitTimeout(ctx, gribic, t, time.Minute); err != nil {
@@ -261,12 +261,12 @@ func addInterfaceRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBICl
 			WithOperationType(constants.Add).
 			AsResult(),
 		fluent.OperationResult().
-			WithNextHopGroupOperation(interfaceNHGID).
+			WithNextHopGroupOperation(virtualIPNHGID).
 			WithProgrammingResult(fluent.InstalledInFIB).
 			WithOperationType(constants.Add).
 			AsResult(),
 		fluent.OperationResult().
-			WithIPv4Operation(interfacePfx).
+			WithIPv4Operation(virtualPfx).
 			WithProgrammingResult(fluent.InstalledInFIB).
 			WithOperationType(constants.Add).
 			AsResult(),
