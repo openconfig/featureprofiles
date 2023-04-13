@@ -311,8 +311,10 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	nc1InputWeight := uint64(200)
+	af4InputWeight := uint64(100)
 	if deviations.SchedulerInputWeightLimit(dut) {
 		nc1InputWeight = uint64(100)
+		af4InputWeight = uint64(99)
 	}
 
 	t.Logf("Create qos forwarding groups config")
@@ -580,7 +582,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(100),
+		weight:      af4InputWeight,
 		queueName:   qos.af4,
 		targetGroup: "target-group-AF4",
 	}, {
