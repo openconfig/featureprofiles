@@ -154,6 +154,11 @@ func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisLevelAuthenticationNotRequired
 }
 
+// Ipv6DiscardedPktsUnsupported returns whether the device supports interface ipv6 discarded packet stats.
+func Ipv6DiscardedPktsUnsupported(_ *ondatra.DUTDevice) bool {
+	return *ipv6DiscardedPktsUnsupported
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -328,4 +333,6 @@ var (
 
 	isisLevelAuthenticationNotRequired = flag.Bool("deviation_isis_level_authentication_not_required", false,
 		"Don't set isis level authentication on the device if value is true, Default value is false and ISIS level authentication is configured")
+
+	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
 )
