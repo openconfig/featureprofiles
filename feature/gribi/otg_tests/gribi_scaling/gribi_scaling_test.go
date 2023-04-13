@@ -301,10 +301,12 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, vrfs []string) 
 		if vrf != *deviations.DefaultNetworkInstance {
 			i := d.GetOrCreateNetworkInstance(vrf)
 			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-			i.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 			nip := gnmi.OC().NetworkInstance(vrf)
 			fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
+		}
+		if *deviations.ExplicitGRIBIUnderNetworkInstance {
+			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
 		}
 	}
 }
@@ -394,9 +396,8 @@ func configureATE(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, ate
 	t.Helper()
 
 	dev := top.Devices().Add().SetName(Name + ".Dev")
-	eth := dev.Ethernets().Add().SetName(Name + ".Eth")
-	eth.Connection().SetChoice("port_name").SetPortName(atePort.ID())
-	eth.SetMac(MAC)
+	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(MAC)
+	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(atePort.ID())
 	if vlanID != 0 {
 		eth.Vlans().Add().SetName(Name).SetId(int32(vlanID))
 	}

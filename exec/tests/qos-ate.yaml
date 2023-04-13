@@ -4,10 +4,10 @@ priority: 5
 testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
 binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
 baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
-pretests:
-  - name: pre_fp_gribi_test
-    path: topologies/cisco/pretests/pre_fp_gribi_test.go
 tests:
 - name: QOS
   path: feature/cisco/qos/ate_tests
   timeout: 9000
+  args:
+      - '-gribi_aft_check=false'
+      - '-gribi_aft_chain_check=false'

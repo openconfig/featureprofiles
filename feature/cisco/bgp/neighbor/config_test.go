@@ -535,7 +535,7 @@ func TestGracefulRestartRestartTime(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.String() == "120" {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/config/restart-time fail: got %v", qs)
 				}
 			})
@@ -579,7 +579,7 @@ func TestGracefulRestartStaleRoutesTime(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.IsPresent() {
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint16]) bool { return true }).Await(t); qs.String() == "360" {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/config/stale-routes-time fail: got %v", qs)
 				}
 			})
@@ -919,12 +919,15 @@ func TestAfiSafiEnabled(t *testing.T) {
 			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
 			time.Sleep(configApplyTime)
 
-			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := gnmi.Get(t, dut, state.State())
-				if stateGot != input {
-					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/enabled: got %v, want %v", stateGot, input)
-				}
-			})
+			// CSCwe29261 : "config/enabled” is set to FALSE means neighbor under “router bgp <AS>” doesn’t have that AFI
+			if input == true {
+				t.Run("Subscribe", func(t *testing.T) {
+					stateGot := gnmi.Get(t, dut, state.State())
+					if stateGot != input {
+						t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/enabled: got %v, want %v", stateGot, input)
+					}
+				})
+			}
 		})
 	}
 }

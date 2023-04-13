@@ -49,7 +49,7 @@ const (
 	dutAS = 64500
 	ateAS = 64501
 
-	keepAlive   = 50
+	keepAlive   = 25
 	holdTime    = keepAlive * 3 // Should be 3x keepAlive, see RFC 4271 - A Border Gateway Protocol 4, Sec. 10
 	peerGrpName = "BGP-PEER-GROUP"
 	policyName  = "ALLOW"
@@ -402,7 +402,7 @@ func TestParameters(t *testing.T) {
 				NeighborAddress: ygot.String(ateIP),
 				Timers: &oc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
 					HoldTime:           ygot.Uint16(holdTime),
-					NegotiatedHoldTime: ygot.Uint16(135),
+					NegotiatedHoldTime: ygot.Uint16(holdTime),
 					KeepaliveInterval:  ygot.Uint16(keepAlive),
 				},
 			}),

@@ -226,19 +226,21 @@ func getSubInterface(ipv4 string, prefixlen4 uint8, ipv6 string, prefixlen6 uint
 	return s
 }
 
-func addIpv6Address(ipv6 string, prefixlen uint8, index uint32) *oc.Interface_Subinterface {
-	s := &oc.Interface_Subinterface{}
-	s.Index = ygot.Uint32(index)
+func addIpv6Address(i *oc.Interface, ipv6 string, prefixlen uint8, index uint32) *oc.Interface {
+	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	s := i.GetOrCreateSubinterface(index)
 	s4 := s.GetOrCreateIpv6()
-	a := s4.GetOrCreateAddress(ipv6)
-	a.PrefixLength = ygot.Uint8(prefixlen)
-	return s
-}
+	s4a := s4.GetOrCreateAddress(ipv6)
+	s4a.PrefixLength = ygot.Uint8(prefixlen)
 
+	return i
+}
 func configureIpv6AndVlans(t *testing.T, dut *ondatra.DUTDevice) {
 	//Configure IPv6 address on Bundle-Ether120, Bundle-Ether121
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether120").Subinterface(0).Config(), addIpv6Address(dutPort1.IPv6, dutPort1.IPv6Len, 0))
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether121").Subinterface(0).Config(), addIpv6Address(dutPort2.IPv6, dutPort2.IPv6Len, 0))
+	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
+	i2 := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
+	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether120").Config(), addIpv6Address(i1, dutPort1.IPv6, dutPort1.IPv6Len, 0))
+	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether121").Config(), addIpv6Address(i2, dutPort2.IPv6, dutPort2.IPv6Len, 0))
 
 	//Configure VLANs on Bundle-Ether121
 	for i := 1; i <= 3; i++ {

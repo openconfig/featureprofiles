@@ -1,0 +1,703 @@
+{
+	"openconfig-interfaces:interfaces": {
+		"interface": [
+			{
+				"config": {
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "Bundle-Ether1",
+					"type": "iana-if-type:ieee8023adLag"
+				},
+				"name": "Bundle-Ether1",
+				"openconfig-if-aggregate:aggregation": {
+					"config": {
+						"lag-type": "STATIC",
+						"min-links": 1
+					}
+				}
+			},
+			{
+				"config": {
+					"description": "test interface",
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/10",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/10"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/11",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/11"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/12",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/12"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/13",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/13"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/14",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/14"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/15",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/15"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/16",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/16"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/17",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/17"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/18",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/18"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/19",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/19"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/20",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/20"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/21",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/21"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/22",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/22"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/23",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/23"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/24",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/24"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/25",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/25"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/26",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/26"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/27",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/27"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/28",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/28"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/29",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/29"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/30",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/30"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/31",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/31"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/32",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/32"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/33",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/33"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/34",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/34"
+			},
+			{
+				"config": {
+					"description": "test interface",
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/35",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/35"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/8",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/8"
+			},
+			{
+				"config": {
+					"description": "not connected interface",
+					"enabled": false,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "FourHundredGigE0/0/0/9",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "FourHundredGigE0/0/0/9"
+			},
+			{
+				"config": {
+					"description": "dutPort1",
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "HundredGigE0/0/0/0",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "HundredGigE0/0/0/0",
+				"subinterfaces": {
+					"subinterface": [
+						{
+							"config": {
+								"index": 0
+							},
+							"index": 0,
+							"openconfig-if-ip:ipv4": {
+								"addresses": {
+									"address": [
+										{
+											"config": {
+												"ip": "192.0.2.0",
+												"prefix-length": 31
+											},
+											"ip": "192.0.2.0"
+										}
+									]
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"config": {
+					"description": "dutPort2",
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "HundredGigE0/0/0/1",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "HundredGigE0/0/0/1",
+				"subinterfaces": {
+					"subinterface": [
+						{
+							"config": {
+								"index": 0
+							},
+							"index": 0,
+							"openconfig-if-ip:ipv4": {
+								"addresses": {
+									"address": [
+										{
+											"config": {
+												"ip": "192.0.2.2",
+												"prefix-length": 31
+											},
+											"ip": "192.0.2.2"
+										}
+									]
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"config": {
+					"description": "dutPort3",
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "HundredGigE0/0/0/2",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "HundredGigE0/0/0/2",
+				"subinterfaces": {
+					"subinterface": [
+						{
+							"config": {
+								"index": 0
+							},
+							"index": 0,
+							"openconfig-if-ip:ipv4": {
+								"addresses": {
+									"address": [
+										{
+											"config": {
+												"ip": "192.0.2.4",
+												"prefix-length": 31
+											},
+											"ip": "192.0.2.4"
+										}
+									]
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"config": {
+					"description": "connection to ixia 10.85.84.214/2.4",
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "HundredGigE0/0/0/3",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "HundredGigE0/0/0/3"
+			},
+			{
+				"config": {
+					"description": "connection to ixia 10.85.84.214/6.1",
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "HundredGigE0/0/0/4",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "HundredGigE0/0/0/4"
+			},
+			{
+				"config": {
+					"description": "connection to ixia 10.85.84.214/6.2",
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "HundredGigE0/0/0/5",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "HundredGigE0/0/0/5"
+			},
+			{
+				"config": {
+					"description": "connection to ixia 10.85.84.214/6.3",
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "HundredGigE0/0/0/6",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "HundredGigE0/0/0/6"
+			},
+			{
+				"config": {
+					"description": "connection to ixia 10.85.84.214/6.4",
+					"enabled": true,
+					"loopback-mode": false,
+					"mtu": 1514,
+					"name": "HundredGigE0/0/0/7",
+					"type": "iana-if-type:ethernetCsmacd"
+				},
+				"hold-time": {
+					"config": {
+						"down": 0,
+						"up": 10
+					}
+				},
+				"name": "HundredGigE0/0/0/7"
+			}
+		]
+	}
+}

@@ -17,6 +17,21 @@ var (
 	testSampleSizeInput []uint16 = []uint16{
 		256,
 	}
+	testAgentIdv4Input []string = []string{
+		"5.5.5.1",
+	}
+	testAgentIdv6Input []string = []string{
+		"5::1",
+	}
+	testDscpInput []uint8 = []uint8{
+		60,
+	}
+	testPollingIntervalInput []uint16 = []uint16{
+		60,
+	}
+	testIngressSamplingRate []uint32 = []uint32{
+		100,
+	}
 )
 
 func setupSampling(t *testing.T, dut *ondatra.DUTDevice) *oc.Sampling {

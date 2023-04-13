@@ -27,8 +27,15 @@ import (
 
 var (
 	bgpProcName = map[ondatra.Vendor]string{
-		ondatra.NOKIA:  "sr_bgp_mgr",
-		ondatra.ARISTA: "bgp",
+		ondatra.NOKIA:   "sr_bgp_mgr",
+		ondatra.ARISTA:  "bgp",
+		ondatra.JUNIPER: "rpd",
+	}
+	components = map[ondatra.Vendor]string{
+		ondatra.ARISTA:  "Chassis",
+		ondatra.CISCO:   "Chassis",
+		ondatra.JUNIPER: "CHASSIS0",
+		ondatra.NOKIA:   "Chassis",
 	}
 )
 
@@ -74,7 +81,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 	t.Logf("Wait 60 seconds for process to restart ...")
 	time.Sleep(60 * time.Second)
 
-	componentName := map[string]string{"name": "Chassis"}
+	componentName := map[string]string{"name": components[dut.Vendor()]}
 	req := &hpb.GetRequest{
 		Path: &tpb.Path{
 			Elem: []*tpb.PathElem{

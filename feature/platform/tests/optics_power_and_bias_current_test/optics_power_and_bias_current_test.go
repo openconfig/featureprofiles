@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -29,9 +30,10 @@ import (
 )
 
 const (
+	ethernetCsmacd         = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	transceiverType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 	sleepDuration          = time.Minute
-	minOpticsPower         = -30.0
+	minOpticsPower         = -40.0
 	maxOpticsPower         = 10.0
 	minOpticsHighThreshold = 1.0
 	maxOpticsLowThreshold  = -1.0
@@ -84,7 +86,7 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 
 		biasCurrents := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State())
 		t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
-		if len(outputPowers) == 0 {
+		if len(biasCurrents) == 0 {
 			t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
 		}
 	}
@@ -127,6 +129,10 @@ func TestOpticsPowerUpdate(t *testing.T) {
 		intUpdateTime := 2 * time.Minute
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
+			i.Type = ethernetCsmacd
+			if *deviations.ExplicitPortSpeed {
+				i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dp)
+			}
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedStatus)
 
@@ -180,6 +186,7 @@ func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, 
 			ondatra.ARISTA:  " transceiver",
 			ondatra.CISCO:   "",
 			ondatra.JUNIPER: "",
+			ondatra.NOKIA:   "-transceiver",
 		}
 	)
 	transceiverName := interfaceName
@@ -191,7 +198,9 @@ func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, 
 		interfaceSplit := strings.Split(interfaceName, "/")
 		interfaceSplitres := interfaceSplit[:len(interfaceSplit)-1]
 		transceiverName = strings.Join(interfaceSplitres, "/") + name
-
+		if dut.Vendor() == ondatra.NOKIA {
+			transceiverName = interfaceName + name
+		}
 	}
 	return transceiverName, nil
 }

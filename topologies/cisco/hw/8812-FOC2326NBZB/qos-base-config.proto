@@ -32,6 +32,8 @@ replace: {
 "  destination transport-method http\n"
 " !\n"
 "!\n"
+"ipv4 virtual address 6.1.2.43/16\n"
+"!\n"
 "interface HundredGigE0/2/0/1\n"
 " bundle id 120 mode on\n"
 " no shutdown\n"

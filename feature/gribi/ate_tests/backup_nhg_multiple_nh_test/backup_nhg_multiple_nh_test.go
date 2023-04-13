@@ -361,8 +361,8 @@ func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []
 
 	// using NHG ID validate NH
 	aftNHG := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhg).State())
-	if got := len(aftNHG.NextHop); got < 1 && aftNHG.BackupNextHopGroup == nil {
-		t.Fatalf("Prefix %s reachability didn't switch to backup path", prefix)
+	if len(aftNHG.NextHop) == 0 && aftNHG.BackupNextHopGroup == nil {
+		t.Fatalf("Prefix %s references a NHG that has neither NH or backup NHG", prefix)
 	}
 	if len(aftNHG.NextHop) != 0 {
 		for k := range aftNHG.NextHop {

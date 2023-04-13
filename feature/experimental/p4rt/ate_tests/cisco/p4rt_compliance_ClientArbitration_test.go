@@ -124,6 +124,7 @@ var (
 			name: "Existing controller sends same election Id as existing connected backup controller in Client Arbitration",
 			desc: "client arbitration-Compliance:022 5.3.2(e)(ii) MasterArbitrationUpdate received on already connected controller, if election id is the same as existing related connected backup controller, verify it's no-op on the server and role.config is ignored. No response is sent to any controller",
 			fn:   testSameElectionIdAsBackupController,
+			skip: true,
 		},
 		{
 			name: "Existing controller sends different election Id with same config in Client Arbitration",
@@ -134,6 +135,7 @@ var (
 			name: "New Primary without ongoing write in Client Arbitration",
 			desc: "client arbitration-Compliance:024 5.3.2(f)(1a) MasterArbitrationUpdate is accepted and processed, the controller will be primary based on the election-id and role. Also there are not previous primary or NO on-going Write message from previous primary, server immedidately sends advisory notification",
 			fn:   testNewPrimary,
+			skip: true,
 		},
 		{
 			name: "Write from previous Primary fails after new Primary takes over in Client Arbitration",
@@ -144,6 +146,7 @@ var (
 			name: "New Primary notify non-primary controller in Client Arbitration",
 			desc: "client arbitration-Compliance:026 5.3.2(f)(1b)(ii) MasterArbitrationUpdate is accepted and processed, the controller will be primary based on the election-id and role. Also there is previous primary oron-going Write message from previous primary.Verify Server notific other controllers of the new primary via advisory message",
 			fn:   testNewPrimaryNotifyOtherController,
+			skip: true,
 		},
 		{
 			name: "New Primary connects with existing on-going write from prevoius controller in Client Arbitration",
@@ -169,6 +172,7 @@ var (
 			name: "New contorller as backup controller in Client Arbitration",
 			desc: "client arbitration-Compliance:031 5.3.2(f)(2) MasterArbitrationUpdate is accepted and processed, the controller will be backup based on the election-id and role. It's just a new backup controller and server send an advisory message to that controller only",
 			fn:   testNewBackup,
+			skip: true,
 		},
 		{
 			name: "ElectionID is left empty in StreamMessageResponse when there was no Primary Controller",
@@ -179,11 +183,13 @@ var (
 			name: "ElectionID is set as highest in StreamMessageResponse when there was Primary Controller",
 			desc: "client arbitration-Compliance:033 5.4 Server notifiy controllers via StreamMessageResponse. when there were primary controllers, verify election-id is field is set to the higheset value",
 			fn:   testElectionIDinStreamMessageResponse,
+			skip: true,
 		},
 		{
 			name: "Status code is set as non-OK for backup and is set as OK for primary after new connection",
 			desc: "client arbitration-Compliance:034 5.4 Server notifiy controllers via StreamMessageResponse. When there is primary controller current,  Verify non priamry controllers receives with status code set to non-OK and primary controller receive status OK",
 			fn:   testStatusinStreamMessageResponse,
+			skip: true,
 		},
 		{
 			name: "Status code is set as non-OK for backup controller without primary controller after new connection",

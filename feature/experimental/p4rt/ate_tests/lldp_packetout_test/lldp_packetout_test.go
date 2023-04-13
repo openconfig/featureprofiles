@@ -228,6 +228,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureATE configures port1 and port2 on the ATE.

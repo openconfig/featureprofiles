@@ -251,6 +251,8 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 	if address == DECAP {
 		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
 		aftNh.DecapsulateHeader = oc.Aft_EncapsulationHeaderType_IPV4
+		tempAddress := "0.0.0.0"
+		aftNh.IpAddress = &tempAddress
 	} else if address == ENCAP {
 		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
 	} else if address == DecapEncap {

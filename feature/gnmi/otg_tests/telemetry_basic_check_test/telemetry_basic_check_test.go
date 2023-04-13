@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -693,15 +694,15 @@ func TestIntfCounterUpdate(t *testing.T) {
 	config := otg.NewConfig(t)
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
-	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").
-		SetPortName(ap1.ID()).SetMac("02:00:01:01:01:01")
+	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").SetMac("02:00:01:01:01:01")
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
 	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
 		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
 		SetPrefix(31)
 	config.Ports().Add().SetName(ap2.ID())
 	intf2 := config.Devices().Add().SetName(ap2.Name())
-	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").
-		SetPortName(ap2.ID()).SetMac("02:00:01:02:01:01")
+	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").SetMac("02:00:01:02:01:01")
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
 	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
 		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
 		SetPrefix(31)
@@ -786,15 +787,15 @@ func TestQoSCounterUpdate(t *testing.T) {
 	config := otg.NewConfig(t)
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
-	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").
-		SetPortName(ap1.ID()).SetMac("02:00:01:01:01:01")
+	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").SetMac("02:00:01:01:01:01")
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
 	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
 		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
 		SetPrefix(31)
 	config.Ports().Add().SetName(ap2.ID())
 	intf2 := config.Devices().Add().SetName(ap2.Name())
-	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").
-		SetPortName(ap2.ID()).SetMac("02:00:01:02:01:01")
+	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").SetMac("02:00:01:02:01:01")
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
 	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
 		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
 		SetPrefix(31)

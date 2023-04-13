@@ -190,12 +190,14 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string) *oc.NetworkInstance_Pro
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
 			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerGroup = ygot.String(peerGrpName)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
 			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 		}
 
 	}
@@ -357,16 +359,16 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	dstPort := config.Ports().Add().SetName("port2")
 
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
-	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
-	srcEth.SetPortName(srcPort.Name()).SetMac(ateSrc.MAC)
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
+	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
 	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
 	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
 	srcIpv6 := srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
 	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
 	dstDev := config.Devices().Add().SetName(ateDst.Name)
-	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
-	dstEth.SetPortName(dstPort.Name()).SetMac(ateDst.MAC)
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
+	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dstPort.Name())
 	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
 	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
 	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")

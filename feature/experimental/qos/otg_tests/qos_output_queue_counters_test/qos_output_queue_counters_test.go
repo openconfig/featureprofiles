@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -91,13 +92,13 @@ func TestQoSCounters(t *testing.T) {
 	top.Ports().Add().SetName(ap2.ID())
 
 	dev1 := top.Devices().Add().SetName(ateSrcName)
-	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth")
-	eth1.SetPortName(ap1.ID()).SetMac(ateSrcMac)
+	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac(ateSrcMac)
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
 	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(ateSrcIp).SetGateway(ateSrcGateway).SetPrefix(int32(prefixLen))
 
 	dev2 := top.Devices().Add().SetName(ateDstName)
-	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth")
-	eth2.SetPortName(ap2.ID()).SetMac(ateDstMac)
+	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth").SetMac(ateDstMac)
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
 	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(ateDstIp).SetGateway(ateDstGateway).SetPrefix(int32(prefixLen))
 
 	var trafficFlows map[string]*trafficData
@@ -114,12 +115,13 @@ func TestQoSCounters(t *testing.T) {
 		}
 	case ondatra.ARISTA:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: dp2.Name() + "-7"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: dp2.Name() + "-4"},
-			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: dp2.Name() + "-3"},
-			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: dp2.Name() + "-2"},
-			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: dp2.Name() + "-0"},
-			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: dp2.Name() + "-1"},
+			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: "NC1"},
+			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "AF4"},
+			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: "AF3"},
+			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: "AF2"},
+			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: "AF1"},
+			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: "BE0"},
+			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: "BE1"},
 		}
 	case ondatra.CISCO:
 		trafficFlows = map[string]*trafficData{

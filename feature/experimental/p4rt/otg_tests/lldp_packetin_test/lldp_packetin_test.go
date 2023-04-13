@@ -19,7 +19,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"sort"
 	"testing"
 	"time"
@@ -49,12 +48,12 @@ var (
 	lldpSrcMAC          = flag.String("lldp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
 	streamName          = "p4rt"
 	lldpMAC             = "01:80:c2:00:00:0e"
-	lldpEtherType       = *ygot.Uint32(0x88cc)
-	deviceID            = *ygot.Uint64(1)
-	portID              = *ygot.Uint32(10)
-	electionID          = *ygot.Uint64(100)
-	metadataIngressPort = *ygot.Uint32(1)
-	metadataEgressPort  = *ygot.Uint32(2)
+	lldpEtherType       = uint32(0x88cc)
+	deviceID            = uint64(1)
+	portID              = uint32(10)
+	electionID          = uint64(100)
+	metadataIngressPort = uint32(1)
+	metadataEgressPort  = uint32(2)
 )
 
 var (
@@ -139,8 +138,9 @@ func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType)
 	return "", layers.EthernetType(0)
 }
 
-// testTraffic sends traffic flow for duration seconds.
-func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) []uint64 {
+// testTraffic sends traffic flow for duration seconds and returns the
+// number of packets sent out.
+func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) int {
 	t.Helper()
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
@@ -155,34 +155,12 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 
 	ate.OTG().StopTraffic(t)
 
-	txPackets := []uint64{}
-	for _, flow := range flows {
-		txPackets = append(txPackets, gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
+	outPkts := gnmi.GetAll(t, ate, gnmi.OTG().FlowAny().Counters().OutPkts().State())
+	total := 0
+	for _, count := range outPkts {
+		total += int(count)
 	}
-	return txPackets
-}
-
-// fetchPackets reads p4rt packets sent to p4rt client.
-func fetchPackets(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, expectNumber int, timeout time.Duration) []*p4rt_client.P4RTPacketInfo {
-	t.Helper()
-	packets := []*p4rt_client.P4RTPacketInfo{}
-	for start := time.Now(); len(packets) < expectNumber && time.Since(start) < timeout; {
-		_, packet, err := client.StreamChannelGetPacket(&streamName, 0)
-		if err == io.EOF {
-			t.Logf("EOF error is seen in PacketIn.")
-			break
-		} else if err == nil {
-			if packet != nil {
-				packets = append(packets, packet)
-			} else {
-				time.Sleep(time.Second)
-			}
-		} else {
-			t.Fatalf("There is error seen when receiving packets. %v, %s", err, err)
-			break
-		}
-	}
-	return packets
+	return total
 }
 
 // testPacketIn programs p4rt table entry and sends traffic related to LLDP,
@@ -199,67 +177,48 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Send LLDP traffic from ATE
 	srcEndPoint := ateInterface(args.top, "port1")
-	txPackets := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 10)
+	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 10)
 
-	packetInTests := []struct {
-		desc       string
-		client     *p4rt_client.P4RTClient
-		expectPass bool
-	}{{
-		desc:       "PacketIn to Primary Controller",
-		client:     leader,
-		expectPass: true,
-	}}
+	// Extract packets from PacketIn message sent to p4rt client
+	_, packets, err := leader.StreamChannelGetPackets(&streamName, uint64(pktOut), 30*time.Second)
+	if err != nil {
+		t.Errorf("Unexpected error on fetchPackets: %v", err)
+	}
 
-	for _, test := range packetInTests {
-		t.Run(test.desc, func(t *testing.T) {
-			// Extract packets from PacketIn message sent to p4rt client
-			wantPktCnt := int(txPackets[0])
-			packets := fetchPackets(ctx, t, test.client, wantPktCnt, 10*time.Second)
-
-			if !test.expectPass {
-				if len(packets) > 0 {
-					t.Fatalf("Unexpected packets received.")
+	if got, want := len(packets), pktOut; got != want {
+		t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
+	}
+	t.Logf("Start to decode packet and compare with expected packets.")
+	wantPacket := args.packetIO.GetPacketTemplate()
+	for _, packet := range packets {
+		if packet != nil {
+			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
+				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
+					t.Fatalf("Packet in PacketIn message is not matching wanted packet.")
 				}
-			} else {
-				if len(packets) != wantPktCnt {
-					t.Fatalf("Not all the packets are received, want %v have %v", wantPktCnt, len(packets))
-				}
-				t.Logf("Start to decode packet and compare with expected packets.")
-				wantPacket := args.packetIO.GetPacketTemplate()
-				for _, packet := range packets {
-					if packet != nil {
-						if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
-							dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
-							if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
-								t.Fatalf("Packet in PacketIn message is not matching wanted packet.")
-							}
-						}
+			}
 
-						metaData := packet.Pkt.GetMetadata()
-						for _, data := range metaData {
-							if data.GetMetadataId() == metadataIngressPort {
-								if string(data.GetValue()) != args.packetIO.GetIngressPort() {
-									t.Fatalf("Ingress Port Id is not matching expectation.")
-								}
-							}
-							if data.GetMetadataId() == metadataEgressPort {
-								found := false
-								for _, portData := range args.packetIO.GetEgressPort() {
-									if string(data.GetValue()) == portData {
-										found = true
-									}
-								}
-								if !found {
-									t.Fatalf("Egress Port Id is not matching expectation.")
-								}
-
-							}
+			metaData := packet.Pkt.GetMetadata()
+			for _, data := range metaData {
+				switch data.GetMetadataId() {
+				case metadataIngressPort:
+					if string(data.GetValue()) != args.packetIO.GetIngressPort() {
+						t.Fatalf("Ingress Port Id is not matching expectation.")
+					}
+				case metadataEgressPort:
+					found := false
+					for _, portData := range args.packetIO.GetEgressPort() {
+						if string(data.GetValue()) == portData {
+							found = true
 						}
+					}
+					if !found {
+						t.Fatalf("Egress Port Id is not matching expectation.")
 					}
 				}
 			}
-		})
+		}
 	}
 }
 
@@ -310,6 +269,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureATE configures port1 and port2 on the ATE.

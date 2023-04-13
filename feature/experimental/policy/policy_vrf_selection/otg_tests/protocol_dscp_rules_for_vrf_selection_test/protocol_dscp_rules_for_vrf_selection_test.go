@@ -151,37 +151,37 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p1 := ate.Port(t, "port1")
 	top.Ports().Add().SetName(p1.ID())
 	srcDev := top.Devices().Add().SetName(atePort1.Name)
-	ethSrc := srcDev.Ethernets().Add().SetName(atePort1.Name + ".eth")
-	ethSrc.SetPortName(p1.ID()).SetMac(atePort1.MAC)
+	ethSrc := srcDev.Ethernets().Add().SetName(atePort1.Name + ".eth").SetMac(atePort1.MAC)
+	ethSrc.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p1.ID())
 	ethSrc.Ipv4Addresses().Add().SetName(srcDev.Name() + ".ipv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(int32(atePort1.IPv4Len))
 	ethSrc.Ipv6Addresses().Add().SetName(srcDev.Name() + ".ipv6").SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(int32(atePort1.IPv6Len))
 
 	p2 := ate.Port(t, "port2")
 	top.Ports().Add().SetName(p2.ID())
 	dstDev := top.Devices().Add().SetName(atePort2.Name)
-	ethDst := dstDev.Ethernets().Add().SetName(atePort2.Name + ".eth")
-	ethDst.SetPortName(p2.ID()).SetMac(atePort2.MAC)
+	ethDst := dstDev.Ethernets().Add().SetName(atePort2.Name + ".eth").SetMac(atePort2.MAC)
+	ethDst.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
 	ethDst.Ipv4Addresses().Add().SetName(dstDev.Name() + ".ipv4").SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(int32(atePort2.IPv4Len))
 	ethDst.Ipv6Addresses().Add().SetName(dstDev.Name() + ".ipv6").SetAddress(atePort2.IPv6).SetGateway(dutPort2.IPv6).SetPrefix(int32(atePort2.IPv6Len))
 
 	// configure vlans on ATE port2
 	dstDevVlan10 := top.Devices().Add().SetName(atePort2Vlan10.Name)
-	ethDstVlan10 := dstDevVlan10.Ethernets().Add().SetName(atePort2Vlan10.Name + ".eth")
-	ethDstVlan10.SetPortName(p2.ID()).SetMac(atePort2Vlan10.MAC)
+	ethDstVlan10 := dstDevVlan10.Ethernets().Add().SetName(atePort2Vlan10.Name + ".eth").SetMac(atePort2Vlan10.MAC)
+	ethDstVlan10.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
 	ethDstVlan10.Vlans().Add().SetName(atePort2Vlan10.Name + "vlan").SetId(10)
 	ethDstVlan10.Ipv4Addresses().Add().SetName(atePort2Vlan10.Name + ".ipv4").SetAddress(atePort2Vlan10.IPv4).SetGateway(dutPort2Vlan10.IPv4).SetPrefix(int32(atePort2Vlan10.IPv4Len))
 	ethDstVlan10.Ipv6Addresses().Add().SetName(atePort2Vlan10.Name + ".ipv6").SetAddress(atePort2Vlan10.IPv6).SetGateway(dutPort2Vlan10.IPv6).SetPrefix(int32(atePort2Vlan10.IPv6Len))
 
 	dstDevVlan20 := top.Devices().Add().SetName(atePort2Vlan20.Name)
-	ethDstVlan20 := dstDevVlan20.Ethernets().Add().SetName(atePort2Vlan20.Name + ".eth")
-	ethDstVlan20.SetPortName(p2.ID()).SetMac(atePort2Vlan20.MAC)
+	ethDstVlan20 := dstDevVlan20.Ethernets().Add().SetName(atePort2Vlan20.Name + ".eth").SetMac(atePort2Vlan20.MAC)
+	ethDstVlan20.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
 	ethDstVlan20.Vlans().Add().SetName(atePort2Vlan20.Name + "vlan").SetId(20)
 	ethDstVlan20.Ipv4Addresses().Add().SetName(atePort2Vlan20.Name + ".ipv4").SetAddress(atePort2Vlan20.IPv4).SetGateway(dutPort2Vlan20.IPv4).SetPrefix(int32(atePort2Vlan20.IPv4Len))
 	ethDstVlan20.Ipv6Addresses().Add().SetName(atePort2Vlan20.Name + ".ipv6").SetAddress(atePort2Vlan20.IPv6).SetGateway(dutPort2Vlan20.IPv6).SetPrefix(int32(atePort2Vlan20.IPv6Len))
 
 	dstDevVlan30 := top.Devices().Add().SetName(atePort2Vlan30.Name)
-	ethDstVlan30 := dstDevVlan30.Ethernets().Add().SetName(atePort2Vlan30.Name + ".eth")
-	ethDstVlan30.SetPortName(p2.ID()).SetMac(atePort2Vlan30.MAC)
+	ethDstVlan30 := dstDevVlan30.Ethernets().Add().SetName(atePort2Vlan30.Name + ".eth").SetMac(atePort2Vlan30.MAC)
+	ethDstVlan30.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
 	ethDstVlan30.Vlans().Add().SetName(atePort2Vlan30.Name + "vlan").SetId(30)
 	ethDstVlan30.Ipv4Addresses().Add().SetName(atePort2Vlan30.Name + ".ipv4").SetAddress(atePort2Vlan30.IPv4).SetGateway(dutPort2Vlan30.IPv4).SetPrefix(int32(atePort2Vlan30.IPv4Len))
 	ethDstVlan30.Ipv6Addresses().Add().SetName(atePort2Vlan30.Name + ".ipv6").SetAddress(atePort2Vlan30.IPv6).SetGateway(dutPort2Vlan30.IPv6).SetPrefix(int32(atePort2Vlan30.IPv6Len))
@@ -214,9 +214,15 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc
 	}
 	s.Index = ygot.Uint32(index)
 	s4 := s.GetOrCreateIpv4()
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		s4.Enabled = ygot.Bool(true)
+	}
 	a := s4.GetOrCreateAddress(dutPort.IPv4)
 	a.PrefixLength = ygot.Uint8(dutPort.IPv4Len)
 	s6 := s.GetOrCreateIpv6()
+	if *deviations.InterfaceEnabled {
+		s6.Enabled = ygot.Bool(true)
+	}
 	a6 := s6.GetOrCreateAddress(dutPort.IPv6)
 	a6.PrefixLength = ygot.Uint8(dutPort.IPv6Len)
 	if index != 0 {
@@ -231,6 +237,9 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc
 
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
+	if *deviations.InterfaceEnabled {
+		i.Enabled = ygot.Bool(true)
+	}
 	i.Description = ygot.String(dutPort.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	i.AppendSubinterface(getSubInterface(dutPort, 0, 0))

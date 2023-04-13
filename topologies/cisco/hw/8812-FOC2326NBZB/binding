@@ -34,16 +34,16 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.106.211.41:57780"
+    target: "10.106.211.41:57783"
   }
   gnmi {
-    target: "10.106.211.41:57780"
+    target: "10.106.211.41:57783"
   }
   gribi{
-    target: "10.106.211.41:57780"
+    target: "10.106.211.41:57783"
   }
   ssh{
-    target: "10.106.211.41:62636"
+    target: "10.106.211.41:62641"
   }
 
   # Before this binding can be used with a topology, add ports mapping

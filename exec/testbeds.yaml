@@ -4,9 +4,7 @@ testbeds:
     testbed: topologies/cisco/hw/8808_FOX2506P2QT/testbed
     binding: topologies/cisco/hw/8808_FOX2506P2QT/binding
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
-    overrides:
-      P4RT-1.1:
-        binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_p4rt_1_1
+    pyats_testbed: topologies/cisco/hw/8808_FOX2506P2QT/pyats.yaml
   - id: 8808-36FH_FOX2613PHWL
     owner: wdolaast
     testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
@@ -30,6 +28,7 @@ testbeds:
     testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
     binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
+    pyats_testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/pyats.yaml
   - id: 8201-32FH_FLM253900HJ
     owner: arvbaska
     testbed: topologies/cisco/hw/8201-32FH_FLM253900HJ/testbed
@@ -43,9 +42,42 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp.conf
+  - id: 8808-1DUT-1ATE-vrf-mgmt
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp-mgmt-vrf.conf
+  - id: 8808-2DUT
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-2DUT/topo.yaml
+    baseconf: 
+      dut1: topologies/cisco/pyvxr/8808-2DUT/basefp.conf
+      dut2: topologies/cisco/pyvxr/8808-2DUT/basefp_peer.conf
   - id: 8808_FOX2625PLW8
     owner: arvbaska
     testbed: topologies/cisco/hw/8808_FOX2625PLW8/testbed
     binding: topologies/cisco/hw/8808_FOX2625PLW8/binding
     baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig.proto
-    
+  - id: 8808_FOX2625PLW8_v6_gNMI
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8808_FOX2625PLW8/testbed
+    binding: topologies/cisco/hw/8808_FOX2625PLW8/binding_gnmi_v6
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto   
+  - id: moji_sfd
+    owner: mbagherz
+    testbed: topologies/cisco/hw/8808-36FH_FOX2506P5XE/testbed
+    binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE/binding
+    baseconf: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
+  - id: 8808_FOX2643Q39J
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8808_FOX2643Q39J/testbed
+    binding: topologies/cisco/hw/8808_FOX2643Q39J/binding_gnmi_v6
+    baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt.proto       
+  - id: 8201-1DUT-1ATE-9PORTS
+    sim: true
+    topology: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/basefp.conf 
+  - id: 8812-FOC2326NBZB
+    owner: saarvind
+    testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
+    binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
+    baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto    

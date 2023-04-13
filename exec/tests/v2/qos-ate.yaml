@@ -1,0 +1,15 @@
+name: qos-ate 
+owners: 
+  - saarvind
+testbeds:
+  - 8812-FOC2326NBZB
+tests:
+- name: qos-ate
+  path: feature/cisco/qos/ate_tests
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master
+  args:
+      - '-gribi_aft_check=false'
+      - '-gribi_aft_chain_check=false'

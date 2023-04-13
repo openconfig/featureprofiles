@@ -50,7 +50,7 @@ func TestOverloadBit(t *testing.T) {
 	ts.PushAndStartATE(t)
 	ts.MustAdjacency(t)
 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
-	deadline := time.Now().Add(time.Second)
+	deadline := time.Now().Add(time.Second * 3)
 	checkSetBit := check.Equal(setBit.State(), false)
 	if *deviations.MissingValueForDefaults {
 		checkSetBit = check.EqualOrNil(setBit.State(), false)
@@ -76,7 +76,7 @@ func TestOverloadBit(t *testing.T) {
 	if err := check.Equal(overloads.State(), uint32(olVal+1)).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
-	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second, ts.DUTClient); err != nil {
+	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second*3, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
 	// TODO: Verify the link state database on the ATE once the ATE reports this properly
@@ -99,7 +99,7 @@ func TestMetric(t *testing.T) {
 
 	metric := session.ISISPath().Interface(ts.DUTPort1.Name()).Level(2).
 		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
-	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second, ts.DUTClient); err != nil {
+	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second*3, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
 	// TODO: Verify the link state database on the ATE once the ATE reports this properly

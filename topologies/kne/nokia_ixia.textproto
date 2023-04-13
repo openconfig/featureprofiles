@@ -27,12 +27,12 @@ nodes: {
 }
 
 nodes: {
-    name: "nokia"
+    name: "dut"
     vendor: NOKIA
     model: "ixr10"
     config: {
         file: "nokia_srl.json"
-        image: "srlinux:latest"
+        image: "ghcr.io/nokia/srlinux:latest"
         cert: {
             self_signed: {
                 cert_name: "kne-profile"
@@ -69,11 +69,11 @@ nodes: {
 links: {
     a_node: "otg"
     a_int: "eth1"
-    z_node: "nokia"
+    z_node: "dut"
     z_int: "e1-1"
 }
 links: {
-    a_node: "nokia"
+    a_node: "dut"
     a_int: "e1-2"
     z_node: "otg"
     z_int: "eth2"

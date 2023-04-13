@@ -1,0 +1,193 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+#
+#router static
+# address-family ipv4 unicast
+#  0.0.0.0/0 5.78.0.1
+#  5.0.0.0/8 5.78.0.1
+#  5.5.14.197/32 5.78.0.1
+#  5.24.27.1/32 5.78.0.1
+#  223.255.253.253/32 5.78.0.1
+#  223.255.254.0/24 5.78.0.1
+#  223.255.254.254/32 5.78.0.1
+# !
+
+#interface MgmtEth0/RP0/CPU0/0
+# ipv4 address 5.78.26.2 255.255.0.0
+# no shut
+#!
+
+#interface MgmtEth0/RP1/CPU0/0
+# ipv4 address 5.78.26.3 255.255.0.0
+# no shut
+#!
+
+#telnet: RP0 -  telnet 10.85.84.53 2011
+#telnet: RP1 -  telnet 10.85.84.53 2012
+
+##Exec server:
+#ssh ott2lab-as3
+
+## Consoe server:
+# telnet 10.85.84.53
+# Pass1: lab
+# Pass2: lab
+
+# Username: cisco
+# Password: cisco
+
+## Management interface RP0:
+# ipv4 address 5.78.26.3
+
+## Management interface RP1:
+# ipv4 address 5.78.26.4
+
+## Management Virtual IP:
+# ipv4 address 5.78.26.1
+
+options {
+  username: "cisco"
+  password: "cisco"
+}
+
+duts {
+  id: "dut"
+  name: "8808"  # Change this to the device hostname.
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+  # telnet RP0: 10.85.84.54 2005
+  # telnet RP1: 10.85.84.54 2006
+  # Mgmt RP0: 5.78.26.27
+  # Mgmt RP0: 5.78.26.28
+  # Rack Location : 22-18-27
+  # Exec server: ott2lab-as3
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cisco"
+    password: "cisco"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.84.159:55999"
+  }
+  gnmi {
+    target: "10.85.84.159:55999" 
+  }
+
+  gribi{
+    target: "10.85.84.159:55999"
+  }
+  ssh{
+    target: "10.85.84.159:5999"
+  }
+  p4rt{
+    target: "10.85.84.159:55999"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+  # ports {
+  #   id: "port1"
+  #   name: "HundredGigE0/7/0/34"  # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port2"
+  #   name: "HundredGigE0/7/0/2"  # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port3"
+  #   name: "HundredGigE0/7/0/4" # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port4"
+  #   name: "HundredGigE0/7/0/5"  # Change this to the actual port name.
+  # }
+  ports {
+    id: "port1"
+    name: "HundredGigE0/7/0/34"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "HundredGigE0/7/0/22"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "HundredGigE0/7/0/33"  # Change this to the actual port name.
+  }
+  ports {
+   id: "port4"
+   name: "HundredGigE0/7/0/21"  # Change this to the actual port name.
+  }
+}
+
+ates {
+  id: "ate"
+  name: "10.85.84.214"  # Change this to the Ixia chassis name.
+
+  # Options specific to the IxNetwork API.  Remove if not needed.
+  ixnetwork {
+    # Change this to the Web UI hostname, if it differs from the Ixia
+    # chassis name.
+   #linux
+   target: "10.85.84.194"
+   skip_verify: true
+   username: "admin"
+   password: "ixia123!" 
+
+   #linux
+   #target: "10.85.84.214"
+   #skip_verify: true
+   #username: "admin"
+   #password: "Admin!@#123123" 
+
+   # windows
+   # target: "10.85.84.161:12009" 
+   # skip_verify: true
+   # session_id: 1
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  # ports {
+  #   id: "port1"
+  #   name: "1/68"  # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port2"
+  #   name: "1/50"  # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port3"
+  #   name: "1/51"  # Change this to the actual port name.
+  # }
+  # ports {
+  #   id: "port4"
+  #   name: "1/52"  # Change this to the actual port name.
+  # }
+  ports {
+    id: "port1"
+    name: "1/68" # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "1/66"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "1/67"  # Change this to the actual port name.
+  }
+  ports {
+   id: "port4"
+   name: "1/65"  # Change this to the actual port name.
+  }
+}

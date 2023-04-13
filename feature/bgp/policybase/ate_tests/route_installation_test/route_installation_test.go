@@ -186,6 +186,8 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string) *oc.NetworkInstance_Pro
 			nv4.Enabled = ygot.Bool(true)
 			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(true)
+			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(false)
 			if *deviations.RoutePolicyUnderPeerGroup {
 				af4.GetOrCreateApplyPolicy().ImportPolicy = []string{policy}
 			}
@@ -196,6 +198,8 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string) *oc.NetworkInstance_Pro
 			nv6.Enabled = ygot.Bool(true)
 			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(true)
+			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(false)
 			if *deviations.RoutePolicyUnderPeerGroup {
 				af6.GetOrCreateApplyPolicy().ImportPolicy = []string{policy}
 			}

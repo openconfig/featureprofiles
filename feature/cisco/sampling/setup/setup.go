@@ -52,7 +52,7 @@ func init() {
 
 // SkipSubscribe returns true when the test cases do not need to do subscribe for the leafs
 func SkipSubscribe() bool {
-	return true
+	return false
 }
 
 // SkipGet returns true when the test cases do not need to do subscribe for the leafs

@@ -30,7 +30,7 @@ def _get_test_id_name_map(logs_dir):
             matches = re.match("<div><a\shref=\".*\/tests_logs/(.*)\">(.*)</a></div>", line)
             if len(matches.groups()) == 2:
                 id, name = [x.strip() for x in matches.groups()]
-                name = name.replace('(Patched)', '').strip()
+                name = re.sub(r'\((I-)?(BR|PR)#.*?\)', '', name).strip()
                 name = name.replace('(Deviation)', '').strip()
                 name = name.replace('(MP)', '').strip()
                 name = name.strip()
@@ -80,6 +80,7 @@ parser.add_argument('test_suites', help='Testsuite files')
 parser.add_argument('firex_ids', help='FireX run IDs')
 parser.add_argument('out_dir', help='Output directory')
 parser.add_argument('--patches', default=False, action='store_true', help="include patches")
+parser.add_argument('--patched-only', default=False, action='store_true', help="skip patched tests")
 parser.add_argument('--skip-patched', default=False, action='store_true', help="skip patched tests")
 parser.add_argument('--update_failed', default=False, action='store_true', help="update failed tests only")
 parser.add_argument('--set-property', action='store', type=str, nargs='*')
@@ -90,6 +91,7 @@ firex_ids= args.firex_ids
 out_dir = args.out_dir
 include_patches = args.patches
 skip_patched = args.skip_patched
+patched_only = args.patched_only
 update_failed = args.update_failed
 set_properties = args.set_property
 
@@ -115,10 +117,13 @@ for firex_id in firex_ids.split(','):
                 test_out_dir = os.path.join(out_dir, _get_test_pkg(tree))
                 test_log_file = os.path.join(test_out_dir, "test.xml")
 
-                if skip_patched and 'patch' in t:
+                if patched_only and not ('branch' in t or 'pr' in t):
+                    continue
+                
+                if skip_patched and ('branch' in t or 'pr' in t):
                     print("Skipped " + t['name'] + " because it is patched")
                     continue
-
+                
                 if update_failed:
                     if _did_fail(log_files[0]):
                         print("Skipped " + t['name'] + " due to failures")
@@ -132,5 +137,5 @@ for firex_id in firex_ids.split(','):
                 os.makedirs(test_out_dir, exist_ok=True)
                 shutil.copyfile(log_files[0], test_log_file)
                 _update_properties(tree, test_log_file, properties)
-                if include_patches and 'patch' in t and os.path.exists(t['patch']):
-                    shutil.copyfile(t['patch'], os.path.join(test_out_dir, "test.patch"))
+                # if include_patches and 'patch' in t and os.path.exists(t['patch']):
+                #     shutil.copyfile(t['patch'], os.path.join(test_out_dir, "test.patch"))

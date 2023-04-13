@@ -50,7 +50,7 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	resp := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
 	component := oc.Component{}
 	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-	pattern, _ := regexp.Compile(`.*-NPU\d+`)
+	pattern, _ := regexp.Compile(`.*-NPU\d+$`)
 
 	i := uint64(0)
 	for _, c := range resp {
@@ -85,6 +85,8 @@ func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) 
 		}
 		if strings.Contains(port.Name(), "Bundle") {
 			conf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		} else {
+			conf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		}
 		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), conf)
 		// dut.Config().Interface(port.Name()).Update(t, conf)
@@ -196,6 +198,9 @@ func TestP4RTCompliance(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
+			if tt.skip {
+				t.Skip("testcase marked for skip")
+			}
 
 			tt.fn(ctx, t, args)
 

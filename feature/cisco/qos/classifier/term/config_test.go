@@ -112,14 +112,18 @@ func TestDeleteAllClassMaps(t *testing.T) {
 			gnmi.Delete(t, dut, config.Config())
 		}
 	})
+	//gnmi.Delete(t, dut, gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Config())
+
 	t.Run(fmt.Sprintf("Verify whether %s is deleted or not", *baseConfigClassifier.Name), func(t *testing.T) {
-		config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.GetConfig(t, dut, config.Config()) //catch the error  as it is expected and absorb the panic.
-		}); errMsg != nil {
-			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-		} else {
-			t.Errorf("This update should have failed ")
+		for termId := range baseConfigClassifier.Term {
+			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(termId)
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.GetConfig(t, dut, config.Config()) //catch the error  as it is expected and absorb the panic.
+			}); errMsg != nil {
+				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+			} else {
+				t.Errorf("This update should have failed ")
+			}
 		}
 	})
 }

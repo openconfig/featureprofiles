@@ -20,6 +20,12 @@ var (
 		"FourHundredGigE0/0/0/0",
 		"FourHundredGigE0/0/0/0.1",
 	}
+	testInterfaceIngressSamplingRate []uint32 = []uint32{
+		60,
+	}
+	testInterfaceEgressSamplingRate []uint32 = []uint32{
+		70,
+	}
 )
 
 func setupSampling(t *testing.T, dut *ondatra.DUTDevice) *oc.Sampling {

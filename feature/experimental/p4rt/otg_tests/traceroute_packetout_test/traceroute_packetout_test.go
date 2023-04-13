@@ -29,7 +29,9 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -41,17 +43,15 @@ import (
 const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
-	deviceId      = uint64(100)
+	deviceID      = uint64(100)
 	portId        = uint32(2100)
 	electionId    = uint64(100)
 )
 
 var (
-	p4InfoFile                                 = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	p4rtNodeName                               = flag.String("p4rt_node_name", "FPC0:NPU0", "component name for P4RT Node")
-	streamName                                 = "p4rt"
-	tracerouteipv4InLayers layers.EthernetType = 0x0800
-	checksum                                   = uint16(200)
+	p4InfoFile = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	streamName = "p4rt"
+	checksum   = uint16(200)
 )
 
 var (
@@ -118,6 +118,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2").Name()
 	i2 := dutPort2.NewOCInterface(p2)
 	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
+
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -133,15 +142,19 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-// configureDeviceId configures p4rt device-id on the DUT.
-func configureDeviceId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	component := oc.Component{
-		IntegratedCircuit: &oc.Component_IntegratedCircuit{
-			NodeId: ygot.Uint64(deviceId),
-		},
-		Name: ygot.String(*p4rtNodeName),
+// configureDeviceIDs configures p4rt device-id on the DUT.
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	p4rtNode, ok := nodes["port1"]
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port1")
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).Config(), &component)
+	t.Logf("Configuring P4RT Node: %s", p4rtNode)
+	c := oc.Component{}
+	c.Name = ygot.String(p4rtNode)
+	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
+	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
 // configurePortId configures p4rt port-id on the DUT.
@@ -158,7 +171,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Setup p4rt-client stream parameters
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
-		DeviceId:    deviceId,
+		DeviceId:    deviceID,
 		ElectionIdH: uint64(0),
 		ElectionIdL: electionId,
 	}
@@ -179,10 +192,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 				},
 			},
 		}); err != nil {
-			return errors.New("Errors seen when sending ClientArbitration message.")
+			return fmt.Errorf("errors seen when sending ClientArbitration message: %v", err)
 		}
 		if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
-			return errors.New("Errors seen in ClientArbitration response.")
+			if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+				return err
+			}
+			return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
 		}
 	}
 	// Load p4info file.
@@ -192,7 +208,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	}
 	// Send SetForwardingPipelineConfig for p4rt leader client.
 	if err := args.leader.SetForwardingPipelineConfig(&p4v1.SetForwardingPipelineConfigRequest{
-		DeviceId:   deviceId,
+		DeviceId:   deviceID,
 		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4v1.ForwardingPipelineConfig{
@@ -227,17 +243,17 @@ func TestPacketOut(t *testing.T) {
 	otg.StartProtocols(t)
 
 	// Configure P4RT device-id and port-id on the DUT
-	configureDeviceId(ctx, t, dut)
+	configureDeviceID(ctx, t, dut)
 	configurePortId(ctx, t, dut)
 
-	leader := p4rt_client.P4RTClient{}
+	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	args := &testArgs{
 		ctx:    ctx,
-		leader: &leader,
+		leader: leader,
 		dut:    dut,
 		ate:    ate,
 		top:    top,
@@ -266,13 +282,6 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 	payload := []byte{}
 	payLoadLen := 64
 
-	pktEthipv4 := &layers.Ethernet{
-		EthernetType: tracerouteipv4InLayers,
-		SrcMAC:       net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
-		// traceroute MAC is 68:F3:8E:64:F3:FC
-		DstMAC: net.HardwareAddr{0x02, 0xF6, 0x65, 0x64, 0x00, 0x08},
-	}
-
 	pktICMP4 := &layers.ICMPv4{
 		TypeCode: layers.ICMPv4TypeTimeExceeded,
 		Checksum: checksum,
@@ -286,14 +295,6 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 		Protocol: layers.IPProtocolICMPv4,
 	}
 
-	//for ipv6
-	pktEthipv6 := &layers.Ethernet{
-		EthernetType: 0x86DD,
-		SrcMAC:       net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
-		// traceroute MAC is 68:F3:8E:64:F3:FC (HW)
-		//traceroute MAC is 02:f6:65:64:00:08 (Virtual)
-		DstMAC: net.HardwareAddr{0x68, 0xF3, 0x8E, 0x64, 0xF3, 0xFC},
-	}
 	pktIpv6 := &layers.IPv6{
 		Version:    6,
 		HopLimit:   ttl,
@@ -307,12 +308,12 @@ func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
 	}
 	if isIPv4 {
 		gopacket.SerializeLayers(buf, opts,
-			pktEthipv4, pktIpv4, pktICMP4, gopacket.Payload(payload),
+			pktIpv4, pktICMP4, gopacket.Payload(payload),
 		)
 		return buf.Bytes()
 	} else {
 		gopacket.SerializeLayers(buf, opts,
-			pktEthipv6, pktIpv6, gopacket.Payload(payload),
+			pktIpv6, gopacket.Payload(payload),
 		)
 		return buf.Bytes()
 	}
@@ -326,7 +327,7 @@ func (traceroute *TraceroutePacketIO) GetPacketOut(portID uint32, isIPv4 bool, t
 		Payload: packetTracerouteRequestGet(isIPv4, ttl),
 		Metadata: []*p4v1.PacketMetadata{
 			{
-				MetadataId: uint32(2), // "egress_port"
+				MetadataId: uint32(2), // "submit_to_ingress"
 				Value:      []byte{1},
 			},
 		},

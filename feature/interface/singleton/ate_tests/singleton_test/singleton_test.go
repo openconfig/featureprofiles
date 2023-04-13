@@ -162,6 +162,15 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	di2 := d.Interface(p2.Name())
 	fptest.LogQuery(t, p2.String(), di2.Config(), tc.duti2)
 	gnmi.Replace(t, tc.dut, di2.Config(), tc.duti2)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
 }
 
 func (tc *testCase) configInterfaceATE(ap *ondatra.Port, atea, duta *attrs.Attributes) {

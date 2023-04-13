@@ -50,10 +50,9 @@ const (
 	ATEAreaAddress = "49.0002"
 	DUTSysID       = "1920.0000.2001"
 	ATESysID       = "640000000001"
-	// TODO: Change the name to DEFAULT
-	ISISName = "osisis"
-	pLen4    = 30
-	pLen6    = 126
+	ISISName       = "DEFAULT"
+	pLen4          = 30
+	pLen6          = 126
 )
 
 var (
@@ -314,7 +313,7 @@ func (s *TestSession) MustATEInterface(t testing.TB, portID string) gosnappi.Dev
 	}
 	for _, d := range s.ATETop.Devices().Items() {
 		Eth := d.Ethernets().Items()[0]
-		if Eth.PortName() == portID {
+		if Eth.Connection().PortName() == portID {
 			return d
 		}
 	}

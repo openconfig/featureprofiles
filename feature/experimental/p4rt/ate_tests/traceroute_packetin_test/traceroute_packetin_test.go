@@ -40,9 +40,9 @@ import (
 var (
 	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName            = "p4rt"
-	deviceID              = *ygot.Uint64(1)
-	portId                = *ygot.Uint32(10)
-	electionId            = *ygot.Uint64(100)
+	deviceID              = uint64(1)
+	portId                = uint32(10)
+	electionId            = uint64(100)
 	METADATA_INGRESS_PORT = uint32(1)
 	METADATA_EGRESS_PORT  = uint32(2)
 	TTL1                  = uint8(1)
@@ -268,7 +268,7 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 			HopLimit: &HopLimit1,
 		},
 		IngressPort: fmt.Sprint(portId),
-		EgressPort:  fmt.Sprint(portId),
+		EgressPort:  fmt.Sprint(portId + 1),
 	}
 }
 
@@ -330,34 +330,37 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
 			actionType = p4_v1.Update_DELETE
 		}
 		return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
-			Type:    actionType,
-			IsIpv4:  0x1,
-			TTL:     0x1,
-			TTLMask: 0xFF,
+			Type:     actionType,
+			IsIpv4:   0x1,
+			TTL:      0x1,
+			TTLMask:  0xFF,
+			Priority: 1,
 		},
 			{
-				Type:    actionType,
-				IsIpv4:  0x1,
-				TTL:     0x0,
-				TTLMask: 0xFF,
-			},
-		}
+				Type:     actionType,
+				IsIpv4:   0x1,
+				TTL:      0x0,
+				TTLMask:  0xFF,
+				Priority: 1,
+			}}
 	} else {
 		actionType := p4_v1.Update_INSERT
 		if delete {
 			actionType = p4_v1.Update_DELETE
 		}
 		return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
-			Type:    actionType,
-			IsIpv6:  0x1,
-			TTL:     0x1,
-			TTLMask: 0xFF,
+			Type:     actionType,
+			IsIpv6:   0x1,
+			TTL:      0x1,
+			TTLMask:  0xFF,
+			Priority: 1,
 		},
 			{
-				Type:    actionType,
-				IsIpv6:  0x1,
-				TTL:     0x0,
-				TTLMask: 0xFF,
+				Type:     actionType,
+				IsIpv6:   0x1,
+				TTL:      0x0,
+				TTLMask:  0xFF,
+				Priority: 1,
 			}}
 	}
 }
@@ -369,8 +372,8 @@ func (traceroute *TraceroutePacketIO) GetPacketTemplate() *PacketIOPacket {
 
 func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow {
 	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(dutPort1.IPv4).WithTTL(uint8(TTL)) //ttl=1 is traceroute/lldp traffic
-	ipv6Header := ondatra.NewIPv6Header().WithSrcAddress(atePort1.IPv6).WithDstAddress(dutPort1.IPv6).WithHopLimit(uint8(TTL))
+	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(atePort2.IPv4).WithTTL(uint8(TTL)) //ttl=1 is traceroute traffic
+	ipv6Header := ondatra.NewIPv6Header().WithSrcAddress(atePort1.IPv6).WithDstAddress(atePort2.IPv6).WithHopLimit(uint8(TTL))
 	if isIpv4 {
 		flow := ate.Traffic().NewFlow("IP4").WithFrameSize(frameSize).WithFrameRateFPS(frameRate).WithHeaders(ethHeader, ipv4Header)
 		return []*ondatra.Flow{flow}

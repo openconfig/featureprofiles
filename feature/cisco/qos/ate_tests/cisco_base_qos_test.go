@@ -13,6 +13,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // Testcase defines testcase structure
@@ -273,6 +274,9 @@ func TestScheduler(t *testing.T) {
 
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Type().Config(), oc.IETFInterfaces_InterfaceType_ieee8023adLag)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Type().Config(), oc.IETFInterfaces_InterfaceType_ieee8023adLag)
+
 	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Ethernet().MacAddress().Config(), mac1)
 	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Ethernet().MacAddress().Config(), mac2)
 
@@ -450,6 +454,8 @@ func TestGooglePopgate(t *testing.T) {
 
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Type().Config(), oc.IETFInterfaces_InterfaceType_ieee8023adLag)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Type().Config(), oc.IETFInterfaces_InterfaceType_ieee8023adLag)
 	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Ethernet().MacAddress().Config(), mac1)
 	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Ethernet().MacAddress().Config(), mac2)
 

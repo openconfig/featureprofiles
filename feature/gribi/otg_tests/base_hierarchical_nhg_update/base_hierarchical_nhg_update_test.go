@@ -264,6 +264,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
 
+	if *deviations.ExplicitIPv6EnableForGRIBI {
+		gnmi.Update(t, dut, d.Interface(p2.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
+		gnmi.Update(t, dut, d.Interface(p3.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
+	}
+
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
@@ -272,6 +277,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfName)
 	}
 }
 

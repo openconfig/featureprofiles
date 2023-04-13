@@ -779,6 +779,8 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			breakoutContainer := &oc.Component_Port{BreakoutMode: groupContainer}
 			portContainer := &oc.Component{Port: breakoutContainer, Name: ygot.String(componentName)}
 			fmt.Printf("COMBO : %v*%v ", tc.numbreakouts, tc.breakoutspeed)
+
+			gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(1).Config())
 			t.Run("Update//component[0/0/CPU0-QSFP_DD Optics Port 20]/config/port/breakout-mode/group[1]/config", func(t *testing.T) {
 				fmt.Printf("The component name inside test: %v", componentName)
 				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(1)
@@ -1011,6 +1013,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				gnmi.Delete(t, dut, path.Config())
 				verifyDelete(t, dut, componentName)
 			})
+
 		}
 	}
 

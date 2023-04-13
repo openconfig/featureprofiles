@@ -7,7 +7,7 @@ baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1-tra
 tests:
 - name: TRANSIT_WECMP (CD2 TC) 
   path: feature/gribi/ate_tests/cisco/transit_wecmp_flush
+  patch: exec/firex/plugins/internal_fp_patch/disable_aft_check.patch
   timeout: 36000
   mustpass: true
-  args:
-      - '-gribi_aft_check="false"'
+

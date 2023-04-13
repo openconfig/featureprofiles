@@ -84,12 +84,12 @@ Verify QoS policy feature configuration.
 
         Queue | Priority | Sequence | Weight
         ----- | -------- | -------- | ------
-        BE0   | not set  | 1        | 1
-        BE1   | not set  | 1        | 2
-        AF1   | not set  | 1        | 4
-        AF2   | not set  | 1        | 8
-        AF3   | not set  | 1        | 16
-        AF4   | STRICT   | 0        | 100
+        BE1   | not set  | 6        | 1
+        BE0   | not set  | 5        | 2
+        AF1   | not set  | 4        | 4
+        AF2   | not set  | 3        | 8
+        AF3   | not set  | 2        | 16
+        AF4   | STRICT   | 1        | 100
         NC1   | STRICT   | 0        | 200
 
     *   Validate that the following values can be configured

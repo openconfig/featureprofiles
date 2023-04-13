@@ -63,7 +63,9 @@ The directory tree is organized as follows:
     routers in containers on [KNE](https://github.com/openconfig/kne)
 *   `feature/` contains definition and tests of feature profiles.
 *   `feature/experimental` contains new features and tests which are not yet
-    categorized or not confirmed to pass.
+    categorized or not confirmed to pass on any hardware platform or software
+    release. When the test is deemed more mature, it is moved to the `feature/`
+    directory.
 *   `internal/` contains packages used by feature profile tests.
 *   `proto/` contains protobuf files for feature profiles.
 *   `tools/` contains code used for CI checks.
@@ -103,11 +105,12 @@ For example:
 *   `feature/interface/singleton/feature.textproto` - defines the singleton
     interface feature profile in machine readable format.
 *   `feature/interface/singleton/ate_tests/` contains the singleton interfaces
-    test suite using ATE traffic generation.
+    test suite using ATE traffic generation API.
 *   `feature/interface/singleton/otg_tests/` contains the singleton interfaces
-    test suite using OTG traffic generation.
+    test suite using OTG traffic generation API.
 *   `feature/interface/singleton/kne_tests/` contains the singleton interfaces
-    test suite that can only run under KNE but not on hardware devices.
+    test suite that are intended to only run under KNE and not on hardware
+    devices.
 *   `feature/interface/singleton/tests/` contains the singleton interfaces test
     suite without traffic generation.
 *   `internal/deviations` contains code which overrides test behavior where
@@ -364,6 +367,31 @@ In particular:
 *   2001:DB8:2::/64: data plane addresses used for traffic testing as the
     destination address; split as needed.
 
+### Rationale
+
+The properties being tested in the test plan are agnostic to the IP addresses
+being used, so tests do not require a specific hard-coded IP address. However,
+tests must avoid choosing addresses already used by a public network or a local
+network, in order to avoid misconfigured DUT from flooding the network with test
+traffic and causing service disruption.
+
+Here are some examples why certain addresses commonly found in networking
+tutorials online could be problematic. **DO NOT USE** these addresses.
+
+*   [1.1.1.1](https://bgp.he.net/ip/1.1.1.1) belongs to APNIC and Cloudflare DNS
+    Resolver project.
+*   [2.2.2.2](https://bgp.he.net/ip/2.2.2.2) belongs to Orange S.A. in France.
+*   [9.9.9.9](https://bgp.he.net/ip/9.9.9.9) belongs to Quad9 in Switzerland.
+*   [111.111.111.111](https://bgp.he.net/ip/111.111.111.111) belongs to KDDI
+    CORPORATION in Japan.
+*   [222.222.222.222](https://bgp.he.net/ip/222.222.222.222) belongs to CHINANET
+    hebei province network in China.
+
+We also avoid using the private addresses commonly used in a local network, such
+as 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, because test traffic destined to
+these addresses may disrupt your local network. We also avoid 100.64.0.0/10
+which is used by Carrier Grade NAT.
+
 ## ASN Assignment
 
 Autonomous System numbers used in test should follow Autonomous System (AS)
@@ -412,6 +440,11 @@ To contribute a pull request:
     additions, as well as any relevant additions to tests. Tests should be
     written in Go using the [ONDATRA](https://github.com/openconfig/ondatra)
     framework.
+
+1.  We are in the process of migrating tests using the Ondatra ATE API to the
+    OTG API, so many tests have both versions. When making changes to an ATE
+    test, please port the changes to its OTG test unless it is missing. ATE
+    tests are found under the path `ate_tests`, and OTG tests under `otg_tests`.
 
 1.  The automated CI running against each pull request will check the pull
     request for compliance. The author should resolve any issues found by CI.

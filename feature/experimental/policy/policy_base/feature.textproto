@@ -196,16 +196,10 @@ config_path {
 config_path {
   path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port"
 }
-config_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/tcp-flags"
-}
 telemetry_path {
   path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/state/source-port"
 }
 telemetry_path {
   path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/state/destination-port"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/state/tcp-flags"
 }
 

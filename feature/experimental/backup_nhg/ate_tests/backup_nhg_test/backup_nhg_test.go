@@ -132,6 +132,11 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
 	}
+	gribi.BecomeLeader(t, c)
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
+		t.Errorf("Cannot flush: %v", err)
+	}
 
 	tcArgs := &testArgs{
 		ate:    ate,

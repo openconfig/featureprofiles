@@ -2,24 +2,94 @@
 
 ## Testcase summary
 
-Ensure that protocol and DSCP based VRF selection is configured correctly.
+Test different VRF selection policies.
 
-## Testcase procedure
+## Topology
 
-*   Configure DUT with 1 input interface and egress VLANs via a single DUT port-2 connected to ATE port-2 corresponding to:
-    *   network-instance “10”, default route to egress via VLAN 10
-    *   network-instance “20”, default route to egress via VLAN 20
-*   Configure DUT and validate packet forwarding for:
-    *   Matching of IPv4 protocol - to network-instance 10 for all input IPv4.
-        No received IPv6 in network-instance 10.
-    *   Matching of a specific IPv4 source address - to network-instance 10. 
-        No other received IPv4 in network-instance 10
-    *   Matching of IPinIP protocol - to network-instance 10 for all input IPinIP
-        No received IPv4 or IPv6 in network-instance 10.
-    *   Matching of IPv4 to network-instance 10, and IPv6 to network-instance 20 
-        Ensure that only IPv4 packets are seen at egress VLAN 10, and IPv6 at received VLAN 20.
-    *   Match IPinIP, single DSCP 46 - routed to network-instance 10
-        Ensure that only DSCP 46 packets are received at VLAN 10.
-        Ensure that DSCP 0 packets are not received at VLAN 10.
-    *   Match IPinIP, DSCP 42, 46 - routed to network-instance 10, ensure that DSCP 42 and 46 packets are received at VLAN
-        Ensure that DSCP 0 packets are not received at VLAN 10.
+*   Connect ATE Port-1 to DUT Port-1, and ATE Port-2 to DUT Port-2.
+
+*   Configure DUT with ingress interface as Port-1 and egress interface as Port-2. DUT Port-2 is connected to ATE Port-2 and is configured for VLAN-10 and VLAN-20 such that sub-interfaces Port-2.10 and Port-2.20 are part of VLAN 10 and VLAN 20 respectively.
+
+*   Configure DUT with network-instance “VRF-10” of type L3VRF and assign Port2.10 to network-instance "VRF-10".
+        
+*   Configure DUT network-instance “DEFAULT” of type DEFAULT_INSTANCE. DUT-Port1 and DUT Port-2.20 should be part of "DEFAULT" Network w/o requiring 
+    explicit configuration.
+    
+*   Configure ATE to advertise following IP addresses.
+
+        *   IPv4: ATE-DEST-IPv4-VLAN10 in VLAN10
+        *   IPv4: ATE-DEST-IPv4-VLAN20 in VLAN20
+        *   IPv6: ATE-DEST-IPv6 in VLAN20
+
+*   Configure DUT with following static routes for each VRF.
+
+         *   Static route in VRF-10: ATE-DEST-IPv4-VLAN10 next-hop DUT:Port-2.10
+         *   Static route in VRF DEFAULT: ATE-DEST-IPv4-VLAN20 next-hop DUT:Port-2.20
+         *   Static route in VRF DEFAULT: ATE-DEST-IPv6 next-hop DUT:Port-2.20
+
+## Procedure
+
+*   Test-Case 1
+
+        *   Configure DUT to match on IPinIP protocol (protocol number 4) in the outer IPv4 header and punt it to 
+            network-instance VRF-10. All other traffic should be punted to the Default VRF. These will be, native IPv4, 
+            native IPv6 and IPv6inIP (protocol 41 in the outer IPv4 header) traffic with and without "222.222.222.222 
+            as source.
+
+        *   Start flows, Flow#1, Flow#3, Flow#6, Flow#8, Flow#9 and Flow#10 and validate packet forwarding. Drop of any 
+            flows is considered as a failure.
+
+*   Test-Case 2
+
+        *   Configure DUT to match on IPinIP protocol (protocol number 4 in the outer IPv4 header) with specific outer 
+            IPv4 source address as "222.222.222.222" and punt it to network-instance VRF-10. All other traffic should be 
+            punted to the Default VRF. These will be, IPinIP w/o source as "222.222.222.222", native IPv4, native IPv6 and 
+            IPv6inIP (protocol 41 in the outer IPv4 header) traffic with and without "222.222.222.222 as source.
+
+        *   Start flows, Flow#2, Flow#3, Flow#6, Flow#8, Flow#9 and Flow#10 and validate packet forwarding. Drop of any 
+            flows is considered as a failure.
+
+*   Test-Case 3
+
+        *   Configure DUT to match on IPv6inIP protocol (protocol number 41 in the outer IPv4 header) and punt it to 
+            network-instance VRF-10. All other traffic should be punted to the Default VRF. These will be, native IPv4, 
+            native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic with and without "222.222.222.222 
+            as source.
+
+        *   Start flows, Flow#2, Flow#4, Flow#5, Flow#7, Flow#9 and Flow#10 and validate packet forwarding. Drop of any 
+            flows is considered as a failure.
+
+* Test-Case 4
+          
+        *  Configure DUT to match on IPv6inIP protocol (protocol number 41 in the outer IPv4 header) with specific 
+           outer IPv4 source address "222.222.222.222" and punt it to the network-instance VRF-10. 
+           All other traffic should be punted to the Default VRF. These will be, IPv6inIP without source as 
+           "222.222.222.222", native IPv4, native IPv6 and IPinIP (protocol 4 in the outer IPv4 header) traffic 
+           with and without "222.222.222.222 as source.
+
+        *   Start flows, Flow#2, Flow#4, Flow#6, Flow#7, Flow#9 and Flow#10 and validate packet forwarding. Drop of any 
+            flows is considered as a failure.
+
+## Flows
+
+*   IPinIP
+
+        *   Flow#1: IPinIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#2: IPinIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
+        *   Flow#3: IPinIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#4: IPinIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
+
+*   IPv6inIP
+
+        *   Flow#5: IPv6inIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#6: IPv6inIP with outer source as not "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
+        *   Flow#7: IPv6inIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN10
+        *   Flow#8: IPv6inIP with outer source as "222.222.222.222" and outer destination as ATE-DEST-IPv4-VLAN20
+
+*   Native IPv4
+
+        *   Flow#9: Native IPv4 flow with any source address and destination as ATE-DEST-IPv4-VLAN20
+
+*   Native IPv6
+
+        *   Flow#10: Native IPv6 flow with any source address and destination as ATE-DEST-IPv6-VLAN20

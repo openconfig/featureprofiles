@@ -4,7 +4,7 @@ nodes: {
     vendor: NOKIA
     config: {
         file: "nokia_srl.json"
-        image: "srlinux:latest"
+        image: "ghcr.io/nokia/srlinux:latest"
         cert: {
             self_signed: {
                 cert_name: "kne-profile"

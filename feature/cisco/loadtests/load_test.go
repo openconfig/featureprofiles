@@ -5,10 +5,12 @@ import (
 	"context"
 	"flag"
 	"io"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
@@ -250,8 +252,13 @@ func configVRFS(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func TestLoad(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
+	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+	t.Logf(resp)
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	// ate := ondatra.ATE(t, "ate")
 	configVRFS(t, dut)
 

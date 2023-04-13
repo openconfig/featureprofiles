@@ -1,0 +1,99 @@
+simulation: 
+  pyvxr_flags: 
+    port_file_timeout: 10000
+    spitfire_cvac_override: true
+  sim_flags: 
+    - "-k ConfigEnableNgdp=true"
+  slurm_flags: 
+    hours: 72
+    pending_timeout: 30
+devices:
+  dut1: 
+    dual_rp: true
+    num_linecards: 1
+    linecard_types: 
+      - 8800-LC-36FH-2
+    platform: spitfire_d
+    xr_hostname: dut
+    xr_password: cisco123
+    xr_port_redir: 
+      - 22
+      - 23
+      - 57777
+    xr_username: cisco
+  dut2: 
+    linecard_types: 
+      - churchill
+    platform: spitfire_f
+    xr_hostname: dut
+    xr_password: cisco123
+    xr_port_redir: 
+      - 22
+      - 23
+      - 57777
+    xr_username: cisco
+connections: 
+  hubs: 
+    port1: 
+      - dut1.FourHundredGigE0/0/0/0
+      - dut2.FourHundredGigE0/0/0/0
+    port2: 
+      - dut1.FourHundredGigE0/0/0/1
+      - dut2.FourHundredGigE0/0/0/1
+
+custom:
+  ondatra:
+    dut1:
+      vendor: CISCO
+      hardware_model: "CISCO-8808"
+      ports: 
+        gnmi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        gnoi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        gribi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        p4rt: 
+          opts: 
+            - skip_verify
+          port: 57777
+        ssh: 
+          opts: 
+            - skip_verify
+          port: 22
+        telnet: 
+          port: 23
+    dut2: 
+      vendor: CISCO
+      hardware_model: "CISCO-8201"
+      ports: 
+        gnmi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        gnoi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        gribi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        p4rt: 
+          opts: 
+            - skip_verify
+          port: 57777
+        ssh: 
+          opts: 
+            - skip_verify
+          port: 22
+        telnet: 
+          port: 23
+    
+    name: Topo
