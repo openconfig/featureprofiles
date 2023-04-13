@@ -359,7 +359,7 @@ func TestSwitchChip(t *testing.T) {
 		t.Logf("Validate card %s", card)
 		component := gnmi.OC().Component(card)
 
-		if deviations.BackplaneFacingCapacityUnsupported(ondatra.DUT(t, "dut")) && regexp.MustCompile("NPU[0-9]$").Match([]byte(card)) {
+		if deviations.BackplaneFacingCapacityUnsupported(dut) && regexp.MustCompile("NPU[0-9]$").Match([]byte(card)) {
 			// Vendor does not support backplane-facing-capacity for nodes named 'NPU'.
 			continue
 		} else {
