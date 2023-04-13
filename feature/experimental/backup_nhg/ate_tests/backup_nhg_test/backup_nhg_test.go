@@ -206,9 +206,9 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Run("Validate Baseline AFT Telemetry", func(t *testing.T) {
-				tcArgs.validateAftTelemetry(t, *deviations.DefaultNetworkInstance, nhip, atePort2.IPv4)
-				tcArgs.validateAftTelemetry(t, vrfA, dstPfx, nhip)
-				tcArgs.validateAftTelemetry(t, vrfB, dstPfx, atePort3.IPv4)
+				tcArgs.validateAftTelemetry(t, *deviations.DefaultNetworkInstance, nhip, atePort2.IPv4, atePort2.IPv4)
+				tcArgs.validateAftTelemetry(t, vrfA, dstPfx, nhip, atePort2.IPv4)
+				tcArgs.validateAftTelemetry(t, vrfB, dstPfx, atePort3.IPv4, atePort3.IPv4)
 			})
 
 			t.Run("Validate Baseline Traffic Delivery", func(t *testing.T) {
@@ -328,7 +328,7 @@ func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow 
 }
 
 // validateAftTelmetry verifies aft telemetry entries.
-func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName string, prefix string, ipaddress string) {
+func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix, ipAddress, resolvedNhIpAddress string) {
 	aftPfxNHG := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(prefix + "/" + mask).NextHopGroup()
 	aftPfxNHGVal, found := gnmi.Watch(t, a.dut, aftPfxNHG.State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
 		if val.IsPresent() {
@@ -351,8 +351,10 @@ func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName string, prefix str
 
 	for k := range aftNHG.NextHop {
 		aftnh := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).State())
-		if got, want := aftnh.GetIpAddress(), ipaddress; got != want {
-			t.Fatalf("Prefix %s next-hop IP: got %s, want %s", prefix+"/"+mask, got, want)
+		// Handle the cases where the device returns the indirect NH or the recursively resolved NH.
+		// For e.g. in case of a->b->c, device should return either b or c.
+		if got := aftnh.GetIpAddress(); got != ipAddress && got != resolvedNhIpAddress {
+			t.Fatalf("Prefix %s next-hop IP: got %s, want %s or %s", prefix+"/"+mask, got, ipAddress, resolvedNhIpAddress)
 		}
 	}
 }
