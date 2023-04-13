@@ -134,6 +134,16 @@ func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 	return *componentsSoftwareModuleUnsupported
 }
 
+// SchedulerInputWeightLimit returns whether the device does not support weight above 100.
+func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
+	return *schedulerInputWeightLimit
+}
+
+// ECNProfileRequiredDefinition returns whether the device requires additional config for ECN.
+func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
+	return *ecnProfileRequiredDefinition
+}
+
 // ISISGlobalAuthenticationNotRequired returns true if ISIS Global authentication not required
 func ISISGlobalAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisGlobalAuthenticationNotRequired
@@ -310,6 +320,10 @@ var (
 	backplaneFacingCapacityUnsupported = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
 
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
+
+	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
+
+	ecnProfileRequiredDefinition = flag.Bool("deviation_ecn_profile_required_definition", false, "device requires additional config for ECN")
 
 	isisGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
 		"Don't set isis global authentication-check on the device if value is true, Default value is false and ISIS global authentication-check is set")
