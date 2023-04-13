@@ -481,7 +481,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.idValidation {
-			if deviations.SwitchChipIDUnsupported(ondatra.DUT(t, "dut")) {
+			if deviations.SwitchChipIDUnsupported(dut) {
 				t.Logf("Skipping check for switch chip id unsupport")
 			} else {
 				id := gnmi.Get(t, dut, component.Id().State())
@@ -632,7 +632,6 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 }
 
 func TestSoftwareModule(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
 	if deviations.ComponentsSoftwareModuleUnsupported(dut) {
 		t.Logf("Skipping check for components software module unsupport")
