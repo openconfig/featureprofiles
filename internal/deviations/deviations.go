@@ -144,6 +144,15 @@ func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
 	return *ecnProfileRequiredDefinition
 }
 
+// ISISGlobalAuthenticationNotRequired returns true if ISIS Global authentication not required.
+func ISISGlobalAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisGlobalAuthenticationNotRequired
+}
+
+// ISISLevelAuthenticationNotRequired returns true if ISIS Level authentication not required.
+func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisLevelAuthenticationNotRequired
+
 // FanOperStatusUnsupported returns whether the device supports oper-status leaf for fan components.
 func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
@@ -319,6 +328,12 @@ var (
 	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 
 	ecnProfileRequiredDefinition = flag.Bool("deviation_ecn_profile_required_definition", false, "device requires additional config for ECN")
+
+	isisGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
+		"Don't set isis global authentication-check on the device if value is true, Default value is false and ISIS global authentication-check is set")
+
+	isisLevelAuthenticationNotRequired = flag.Bool("deviation_isis_level_authentication_not_required", false,
+		"Don't set isis level authentication on the device if value is true, Default value is false and ISIS level authentication is configured")
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
 )
