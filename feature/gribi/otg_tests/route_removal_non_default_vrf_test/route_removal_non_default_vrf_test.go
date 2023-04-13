@@ -105,9 +105,10 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
 
+	configureNetworkInstance(t, dut)
 	ate.OTG().PushConfig(t, ateTop)
 	ate.OTG().StartProtocols(t)
-	configureNetworkInstance(t, dut)
+	otgutils.WaitForARP(t, ate.OTG(), ateTop, "IPv4")
 
 	// Configure the gRIBI client clientA and make it leader.
 	clientA := &gribi.Client{
