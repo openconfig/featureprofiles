@@ -139,13 +139,21 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	dutP3 := dut.Port(t, "port3").Name()
 
 	t.Logf("Adding gribi routes and validating traffic forwarding via port %v and NH ID %v", dutP2, p2NHID)
-	addVIPRoute(ctx, t, gribic, p2NHID, dutP2)
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		addVIPRoute(ctx, t, gribic, p2NHID, dutP2, atePort2.IPv4)
+	} else {
+		addVIPRoute(ctx, t, gribic, p2NHID, dutP2)
+	}
 	addDestinationRoute(ctx, t, gribic)
 	waitOTGARPEntry(t)
 	validateTrafficFlows(t, p2flow, p3flow)
 
 	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
-	addNH(ctx, t, gribic, p3NHID, dutP3, pMAC)
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		addNH(ctx, t, gribic, p3NHID, dutP3, pMAC, atePort3.IPv4)
+	} else {
+		addNH(ctx, t, gribic, p3NHID, dutP3, pMAC)
+	}
 
 	t.Logf("Performing implicit in-place replace with two next-hops (NH IDs: %v and %v)", p2NHID, p3NHID)
 	addNHG(ctx, t, gribic, virtualIPNHGID, []uint64{p2NHID, p3NHID})
@@ -161,9 +169,13 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 }
 
 // addNH adds a GRIBI NH with a FIB ACK confirmation via Modify RPC
-func addNH(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, intf, mac string) {
+func addNH(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, intf, mac string, nhip ...string) {
 	nh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithIndex(id).WithInterfaceRef(intf).WithMacAddress(mac)
+	if len(nhip) > 0 {
+		nh = nh.WithIPAddress(nhip[0])
+	}
+
 	gribic.Modify().AddEntry(t, nh)
 	if err := awaitTimeout(ctx, gribic, t, time.Minute); err != nil {
 		t.Fatalf("Await got error for entries: %v", err)
@@ -241,13 +253,16 @@ func addDestinationRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBI
 
 // addVIPRoute creates a GRIBI route that points to the egress interface defined by id,
 // port, and nhip.
-func addVIPRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, port string) {
+func addVIPRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, port string, nhip ...string) {
 	inh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithIndex(id).WithInterfaceRef(port).WithMacAddress(pMAC)
 	inhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithID(virtualIPNHGID).AddNextHop(id, 1)
 	ipfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithPrefix(virtualPfx).WithNextHopGroup(virtualIPNHGID)
+	if len(nhip) > 0 {
+		inh = inh.WithIPAddress(nhip[0])
+	}
 
 	gribic.Modify().AddEntry(t, inh, inhg, ipfx)
 	if err := awaitTimeout(ctx, gribic, t, time.Minute); err != nil {
@@ -346,6 +361,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfName)
 	}
+
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configStaticArp(p2, atePort2.IPv4, pMAC))
+		gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), configStaticArp(p3, atePort3.IPv4, pMAC))
+	}
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
@@ -423,4 +443,14 @@ func waitOTGARPEntry(t *testing.T) {
 	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 		return val.IsPresent()
 	}).Await(t)
+}
+
+func configStaticArp(p *ondatra.Port, ipv4addr string, macAddr string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p.Name())}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
 }
