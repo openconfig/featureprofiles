@@ -74,6 +74,11 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
+// P4RTUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
+func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
+	return *p4rtUnsetElectionIDUnsupported
+}
+
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
 	return *isisRestartSuppressUnsupported
@@ -109,7 +114,7 @@ func MacAddressMissing(_ *ondatra.DUTDevice) bool {
 	return *macAddressMissing
 }
 
-// UseNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
+// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
 func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
 	return *UseVendorNativeACLConfiguration
 }
@@ -127,6 +132,36 @@ func BackplaneFacingCapacityUnsupported(_ *ondatra.DUTDevice) bool {
 // ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
 func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
 	return *componentsSoftwareModuleUnsupported
+}
+
+// SchedulerInputWeightLimit returns whether the device does not support weight above 100.
+func SchedulerInputWeightLimit(_ *ondatra.DUTDevice) bool {
+	return *schedulerInputWeightLimit
+}
+
+// ECNProfileRequiredDefinition returns whether the device requires additional config for ECN.
+func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
+	return *ecnProfileRequiredDefinition
+}
+
+// ISISGlobalAuthenticationNotRequired returns true if ISIS Global authentication not required.
+func ISISGlobalAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisGlobalAuthenticationNotRequired
+}
+
+// ISISLevelAuthenticationNotRequired returns true if ISIS Level authentication not required.
+func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisLevelAuthenticationNotRequired
+}
+
+// Ipv6DiscardedPktsUnsupported returns whether the device supports interface ipv6 discarded packet stats.
+func Ipv6DiscardedPktsUnsupported(_ *ondatra.DUTDevice) bool {
+	return *ipv6DiscardedPktsUnsupported
+}
+
+// FanOperStatusUnsupported returns whether the device supports oper-status leaf for fan components.
+func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
+	return *fanOperStatusUnsupported
 }
 
 // Vendor deviation flags.
@@ -208,9 +243,6 @@ var (
 	ISISInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
 		"Disable isis level1 under interface mode on the device if value is true, Default value is false and enables isis level2 under interface mode")
 
-	IsisAfMetricStyleWideLevelRequired = flag.Bool("deviation_isis_af_metric_style_wide_level_required", false,
-		"Set isis address family metric style wide level 2 on the device if value is true, Default value is false")
-
 	MissingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
 		"Set and validate isis interface address family enable on the device if value is true, Default value is false and validate isis address family enable at global mode")
 
@@ -265,9 +297,9 @@ var (
 	SkipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
-	SchedulerInputParamsUnsupported = flag.Bool("deviation_scheduler_input_params_unsupported", false, "Device does not support scheduler input parameters")
-
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
+
+	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
@@ -293,4 +325,18 @@ var (
 	backplaneFacingCapacityUnsupported = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
 
 	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
+
+	schedulerInputWeightLimit = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
+
+	ecnProfileRequiredDefinition = flag.Bool("deviation_ecn_profile_required_definition", false, "device requires additional config for ECN")
+
+	isisGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
+		"Don't set isis global authentication-check on the device if value is true, Default value is false and ISIS global authentication-check is set")
+
+	isisLevelAuthenticationNotRequired = flag.Bool("deviation_isis_level_authentication_not_required", false,
+		"Don't set isis level authentication on the device if value is true, Default value is false and ISIS level authentication is configured")
+
+	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
+
+	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
 )
