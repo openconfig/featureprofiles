@@ -64,8 +64,9 @@ func TestMain(m *testing.M) {
 // A traffic flow is configured from ate:port1 as source and ate:port{2-9}
 // as destination.
 const (
-	plen4 = 30
-	plen6 = 126
+	plen4     = 30
+	plen6     = 126
+	ateDstLAG = "LAG"
 )
 
 var (
@@ -275,7 +276,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
 	// Adding the rest of the ports to the configuration and to the LAG
-	agg := tc.top.Lags().Add().SetName(ateDst.Name)
+	agg := tc.top.Lags().Add().SetName(ateDstLAG)
 	if tc.lagType == lagTypeSTATIC {
 		lagId, _ := strconv.Atoi(tc.aggID)
 		agg.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
@@ -301,7 +302,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 		}
 	}
 
-	dstDev := tc.top.Devices().Add().SetName(agg.Name())
+	dstDev := tc.top.Devices().Add().SetName(ateDst.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
@@ -378,7 +379,7 @@ func (tc *testCase) verifyATE(t *testing.T) {
 		t.Errorf("%s oper-status got %v, want %v", ap.ID(), portMetrics.GetLink(), otgtelemetry.Port_Link_UP)
 	}
 	t.Logf("Checking if LAG is up on OTG")
-	gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lag(ateDst.Name).OperStatus().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
+	gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lag(ateDstLAG).OperStatus().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
 		state, present := val.Val()
 		return present && state.String() == "UP"
 	}).Await(t)
