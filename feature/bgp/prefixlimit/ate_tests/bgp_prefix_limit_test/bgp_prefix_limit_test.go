@@ -404,11 +404,11 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	verifyPrefixLimitTelemetry(t, nv6, tc.wantEstablished)
 }
 
-func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
+func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow, tolerance float32) {
 	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State())
-		if lossPct > float32(deviations.BGPTrafficTolerance(ondatra.DUT(t, "dut"))) {
+		if lossPct > tolerance {
 			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want 0", flow.Name(), lossPct)
 		} else {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
@@ -416,11 +416,11 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, all
 	}
 }
 
-func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
+func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow, tolerance float32) {
 	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State())
-		if lossPct >= (100-float32(deviations.BGPTrafficTolerance(ondatra.DUT(t, "dut")))) && lossPct <= 100 {
+		if lossPct >= (100-tolerance) && lossPct <= 100 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
 			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow.Name(), lossPct)
@@ -511,14 +511,15 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 		trafficDuration = trafficDuration - time.Duration(elapsed.Nanoseconds())
 	}
 	sendTraffic(t, ate, conf.allFlows, trafficDuration)
+	tolerance := float32(deviations.BGPTrafficTolerance(dut))
 	if tc.wantNoPacketLoss {
 		t.Run("verifyNoPacketLoss", func(t *testing.T) {
-			tc.verifyNoPacketLoss(t, ate, conf.allFlows)
+			tc.verifyNoPacketLoss(t, ate, conf.allFlows, tolerance)
 		})
 	} else {
 		t.Run("verifyPacketLoss", func(t *testing.T) {
 			if !deviations.BGPPrefixOverlimit(dut) && tc.name == "OverLimit" {
-				tc.verifyPacketLoss(t, ate, conf.allFlows)
+				tc.verifyPacketLoss(t, ate, conf.allFlows, tolerance)
 			}
 		})
 	}
