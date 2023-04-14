@@ -42,9 +42,6 @@ Validate IPv4 support in gRIBI.
             destination MAC (mac_address), ensure that `FIB_PROGRAMMED` is
             returned.
 
-If the device supports it, repeat this test with gRIBI client persistence mode
-`DELETE` without flushing entries between cases.
-
 ## Config Parameter coverage
 
 N/A
