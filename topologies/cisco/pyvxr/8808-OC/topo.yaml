@@ -43,7 +43,7 @@ devices:
     linecard_types: 
       - churchill
     platform: spitfire_f
-    xr_hostname: dut
+    xr_hostname: peer
     xr_password: cisco123
     xr_port_redir: 
       - 22
