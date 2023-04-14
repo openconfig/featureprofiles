@@ -27,7 +27,7 @@ Configure ATE and DUT:
 
 * On DUT port-1 and ATE port-1 create a single L3 interface.
 
-* On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-1 
+* On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-1
 (based on src. IP match criteria).
 
 Test case for basic hierarchical weight:
@@ -66,8 +66,8 @@ Test case for basic hierarchical weight:
 
     *   NH101: (3/4) * (5/8) = 46.87% traffic received by ATE port-2 VLAN 4
 
-    *   A deviation of 0.5% is allowed for each VLAN for now, since we only test for
-        2 mins.
+    *   A deviation of 0.5% is allowed for each VLAN for now, since we only test 
+        for 2 mins.
 
 Test case for hierarchical weight in boundary scenarios, with maximum expected
 WCMP width of 16 nexthops:
