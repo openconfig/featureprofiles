@@ -144,12 +144,12 @@ func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
 	return *ecnProfileRequiredDefinition
 }
 
-// ISISGlobalAuthenticationNotRequired returns true if ISIS Global authentication not required
+// ISISGlobalAuthenticationNotRequired returns true if ISIS Global authentication not required.
 func ISISGlobalAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisGlobalAuthenticationNotRequired
 }
 
-// ISISLevelAuthenticationNotRequired returns true if ISIS Level authentication not required
+// ISISLevelAuthenticationNotRequired returns true if ISIS Level authentication not required.
 func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisLevelAuthenticationNotRequired
 }
@@ -157,6 +157,11 @@ func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 // Ipv6DiscardedPktsUnsupported returns whether the device supports interface ipv6 discarded packet stats.
 func Ipv6DiscardedPktsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *ipv6DiscardedPktsUnsupported
+}
+
+// FanOperStatusUnsupported returns whether the device supports oper-status leaf for fan components.
+func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
+	return *fanOperStatusUnsupported
 }
 
 // Vendor deviation flags.
@@ -335,4 +340,6 @@ var (
 		"Don't set isis level authentication on the device if value is true, Default value is false and ISIS level authentication is configured")
 
 	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
+
+	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
 )
