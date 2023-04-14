@@ -52,6 +52,12 @@ testbeds:
     baseconf: 
       dut1: topologies/cisco/pyvxr/8808-2DUT/basefp.conf
       dut2: topologies/cisco/pyvxr/8808-2DUT/basefp_peer.conf
+  - id: 8808-OC
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-OC/topo.yaml
+    baseconf: 
+      dut1: topologies/cisco/pyvxr/8808-OC/basefp.conf
+      dut2: topologies/cisco/pyvxr/8808-OC/basefp-peer.conf
   - id: 8808_FOX2625PLW8
     owner: arvbaska
     testbed: topologies/cisco/hw/8808_FOX2625PLW8/testbed
