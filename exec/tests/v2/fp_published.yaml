@@ -164,8 +164,6 @@ tests:
     mustpass: true
   - name: P4RT-1.1 (Base P4RT Functionality)
     path: feature/experimental/p4rt/ate_tests/base_p4rt
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
@@ -174,56 +172,42 @@ tests:
       - 8201-32FH_FLM254206E7
   - name: P4RT-2.1 (P4RT Election)
     path: feature/experimental/p4rt/tests/p4rt_election
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
   - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
     path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
   - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
     path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetin_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
   - name: P4RT-7.1 (LLDP PacketIn)
     path: feature/experimental/p4rt/ate_tests/lldp_packetin_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
   - name: P4RT-7.2 (LLDP PacketOut)
     path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
   - name: P4RT-5.2 (Traceroute Packetout)
     path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
   - name: P4RT-5.1 (Traceroute Packetin)
     path: feature/experimental/p4rt/ate_tests/traceroute_packetin_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
