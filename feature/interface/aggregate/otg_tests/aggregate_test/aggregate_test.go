@@ -475,9 +475,9 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 
 				}
 				if tc.lagType == oc.IfAggregate_AggregationType_STATIC {
-					// Setting admin state down on the DUT interface. Setting the otg interface down has no effect in kne
-					dp := tc.dut.Port(t, port.ID())
-					tc.setDutInterfaceWithState(t, dp, false)
+					portState := gosnappi.NewControlState()
+					portState.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+					tc.ate.OTG().SetControlState(t, portState)
 				}
 			}
 			if *deviations.InterfaceOperStatus && tf.want == oc.Interface_OperStatus_LOWER_LAYER_DOWN {
