@@ -116,8 +116,10 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 
 	p2flow := "Port 1 to Port 2"
 	p3flow := "Port 1 to Port 3"
+	lbFlow := "Port 1 to Port 2 and Port 3"
 	createFlow(t, p2flow, top, &atePort2)
 	createFlow(t, p3flow, top, &atePort3)
+	createFlow(t, lbFlow, top, &atePort2, &atePort3)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
@@ -157,7 +159,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 
 	t.Logf("Performing implicit in-place replace with two next-hops (NH IDs: %v and %v)", p2NHID, p3NHID)
 	addNHG(ctx, t, gribic, virtualIPNHGID, []uint64{p2NHID, p3NHID})
-	// TODO: implement traffic validation for two next hops case
+	validateTrafficFlows(t, lbFlow, "")
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p3NHID)
 	addNHG(ctx, t, gribic, virtualIPNHGID, []uint64{p3NHID})
@@ -369,12 +371,22 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
-func createFlow(t testing.TB, name string, ateTop gosnappi.Config, dst *attrs.Attributes) {
+func createFlow(t *testing.T, name string, ateTop gosnappi.Config, dsts ...*attrs.Attributes) {
+	var rxEndpoints []string
+	for _, dst := range dsts {
+		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
+	}
+
 	flowipv4 := ateTop.Flows().Add().SetName(name)
 	flowipv4.Metrics().SetEnable(true)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{dst.Name + ".IPv4"})
+	e1.Dst().SetChoice("value").SetValue(pMAC)
+	if len(dsts) > 1 {
+		flowipv4.TxRx().Port().SetTxName(atePort1.Name)
+	} else {
+		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
+	}
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
@@ -400,8 +412,6 @@ func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fl
 
 // validateTrafficFlows starts traffic and ensures that good flows have 0% loss and bad flows have
 // 100% loss.
-//
-// TODO: Packets should be validated to arrive at ATE with destination MAC pMAC.
 func validateTrafficFlows(t *testing.T, goodFlow, badFlow string) {
 
 	otg := ondatra.ATE(t, "ate").OTG()
@@ -415,10 +425,11 @@ func validateTrafficFlows(t *testing.T, goodFlow, badFlow string) {
 	if got := getLossPct(t, goodFlow); got > 0 {
 		t.Errorf("LossPct for flow %s: got %v, want 0", goodFlow, got)
 	}
-	if got := getLossPct(t, badFlow); got < 100 {
-		t.Errorf("LossPct for flow %s: got %v, want 100", badFlow, got)
+	if badFlow != "" {
+		if got := getLossPct(t, badFlow); got < 100 {
+			t.Errorf("LossPct for flow %s: got %v, want 100", badFlow, got)
+		}
 	}
-
 }
 
 // getLossPct returns the loss percentage for a given flow
