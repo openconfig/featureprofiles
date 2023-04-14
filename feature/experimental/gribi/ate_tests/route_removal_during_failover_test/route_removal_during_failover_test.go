@@ -89,11 +89,13 @@ var (
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
 		ondatra.NOKIA:   "/var/core/",
+		ondatra.ARISTA:  "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "rpd",
 		ondatra.CISCO:   "emsd.*core.*",
 		ondatra.NOKIA:   "coredump-sr_gribi_server-.*",
+		ondatra.ARISTA:  "core.*",
 	}
 )
 

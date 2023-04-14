@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -32,7 +33,6 @@ var activeStatus string = "ACTIVE"
 var componentType = map[string]string{
 	"chassis":     "CHASSIS",
 	"fabric":      "FABRIC",
-	"fabricchip":  "INTEGRATED_CIRCUIT",
 	"linecard":    "LINECARD",
 	"fan":         "FAN",
 	"powersupply": "POWER_SUPPLY",
@@ -169,23 +169,6 @@ func TestHardwarecards(t *testing.T) {
 				pType:                 fabricType,
 			},
 		}, {
-			desc: "FabricChip",
-			cardFields: properties{
-				descriptionValidation: true,
-				idValidation:          true,
-				nameValidation:        true,
-				partNoValidation:      false,
-				serialNoValidation:    false,
-				mfgNameValidation:     false,
-				mfgDateValidation:     false,
-				hwVerValidation:       false,
-				fwVerValidation:       false,
-				rrValidation:          false,
-				operStatus:            "",
-				parentValidation:      false,
-				pType:                 switchChipType,
-			},
-		}, {
 			desc: "Fan",
 			cardFields: properties{
 				descriptionValidation: true,
@@ -299,7 +282,6 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 		"SwitchChip":  switchChipType,
 		"Transceiver": transceiverType,
 		"Fan":         fanType,
-		"FabricChip":  switchChipType,
 		"TempSensor":  sensorType,
 	}
 	if len(componentsByType) != 0 {
@@ -329,11 +311,6 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 					continue
 				}
 
-			case "FabricChip":
-				if *args.FabricChipNamePattern != "" &&
-					!isCompNameExpected(t, c.GetName(), *args.FabricChipNamePattern) {
-					continue
-				}
 			}
 			componentsByType[compName] = append(componentsByType[compName], c.GetName())
 		}
@@ -382,32 +359,37 @@ func TestSwitchChip(t *testing.T) {
 		t.Logf("Validate card %s", card)
 		component := gnmi.OC().Component(card)
 
-		// For SwitchChip, check OC integrated-circuit paths.
-		bpCapacity := component.IntegratedCircuit().BackplaneFacingCapacity()
+		if deviations.BackplaneFacingCapacityUnsupported(dut) && regexp.MustCompile("NPU[0-9]$").Match([]byte(card)) {
+			// Vendor does not support backplane-facing-capacity for nodes named 'NPU'.
+			continue
+		} else {
+			// For SwitchChip, check OC integrated-circuit paths.
+			bpCapacity := component.IntegratedCircuit().BackplaneFacingCapacity()
 
-		totalCapacity := gnmi.Get(t, dut, bpCapacity.TotalOperationalCapacity().State())
-		t.Logf("Hardware card %s totalCapacity: %d", card, totalCapacity)
-		if totalCapacity <= 0 {
-			t.Errorf("bpCapacity.TotalOperationalCapacity().Get(t) for %q): got %v, want > 0", card, totalCapacity)
-		}
+			totalCapacity := gnmi.Get(t, dut, bpCapacity.TotalOperationalCapacity().State())
+			t.Logf("Hardware card %s totalCapacity: %d", card, totalCapacity)
+			if totalCapacity <= 0 {
+				t.Errorf("bpCapacity.TotalOperationalCapacity().Get(t) for %q): got %v, want > 0", card, totalCapacity)
+			}
 
-		total := gnmi.Get(t, dut, bpCapacity.Total().State())
-		t.Logf("Hardware card %s total: %d", card, totalCapacity)
-		if total <= 0 {
-			t.Errorf("bpCapacity.Total().Get(t) for %q): got %v, want > 0", card, total)
-		}
+			total := gnmi.Get(t, dut, bpCapacity.Total().State())
+			t.Logf("Hardware card %s total: %d", card, totalCapacity)
+			if total <= 0 {
+				t.Errorf("bpCapacity.Total().Get(t) for %q): got %v, want > 0", card, total)
+			}
 
-		if !gnmi.Lookup(t, dut, bpCapacity.AvailablePct().State()).IsPresent() {
-			t.Errorf("bpCapacity.AvailablePct() for %q): got none, want >= 0", card)
-		}
-		availablePct := gnmi.Get(t, dut, bpCapacity.AvailablePct().State())
-		t.Logf("Hardware card %s availablePct: %d", card, availablePct)
+			if !gnmi.Lookup(t, dut, bpCapacity.AvailablePct().State()).IsPresent() {
+				t.Errorf("bpCapacity.AvailablePct() for %q): got none, want >= 0", card)
+			}
+			availablePct := gnmi.Get(t, dut, bpCapacity.AvailablePct().State())
+			t.Logf("Hardware card %s availablePct: %d", card, availablePct)
 
-		if !gnmi.Lookup(t, dut, bpCapacity.ConsumedCapacity().State()).IsPresent() {
-			t.Errorf("bpCapacity.ConsumedCapacity() for %q): got none, want >= 0", card)
+			if !gnmi.Lookup(t, dut, bpCapacity.ConsumedCapacity().State()).IsPresent() {
+				t.Errorf("bpCapacity.ConsumedCapacity() for %q): got none, want >= 0", card)
+			}
+			consumedCapacity := gnmi.Get(t, dut, bpCapacity.ConsumedCapacity().State())
+			t.Logf("Hardware card %s consumedCapacity: %d", card, consumedCapacity)
 		}
-		consumedCapacity := gnmi.Get(t, dut, bpCapacity.ConsumedCapacity().State())
-		t.Logf("Hardware card %s consumedCapacity: %d", card, consumedCapacity)
 	}
 }
 
@@ -499,10 +481,14 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.idValidation {
-			id := gnmi.Get(t, dut, component.Id().State())
-			t.Logf("Hardware card %s Id: %s", card, id)
-			if id == "" {
-				t.Errorf("component.Id().Get(t) for %q): got empty string, want non-empty string", card)
+			if deviations.SwitchChipIDUnsupported(dut) {
+				t.Logf("Skipping check for switch chip id unsupport")
+			} else {
+				id := gnmi.Get(t, dut, component.Id().State())
+				t.Logf("Hardware card %s Id: %s", card, id)
+				if id == "" {
+					t.Errorf("component.Id().Get(t) for %q): got empty string, want non-empty string", card)
+				}
 			}
 		}
 
@@ -602,10 +588,14 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.operStatus != "" {
-			operStatus := gnmi.Get(t, dut, component.OperStatus().State()).String()
-			t.Logf("Hardware card %s OperStatus: %s", card, operStatus)
-			if operStatus != activeStatus {
-				t.Errorf("component.OperStatus().Get(t) for %q): got %v, want %v", card, operStatus, p.operStatus)
+			if deviations.FanOperStatusUnsupported(dut) && strings.Contains(card, "Fan") {
+				t.Logf("Skipping check for fan oper-status due to deviation FanOperStatusUnsupported")
+			} else {
+				operStatus := gnmi.Get(t, dut, component.OperStatus().State()).String()
+				t.Logf("Hardware card %s OperStatus: %s", card, operStatus)
+				if operStatus != activeStatus {
+					t.Errorf("component.OperStatus().Get(t) for %q): got %v, want %v", card, operStatus, p.operStatus)
+				}
 			}
 		}
 
@@ -642,19 +632,22 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 }
 
 func TestSoftwareModule(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
-	moduleTypes := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().SoftwareModule().ModuleType().State())
-	if len(moduleTypes) == 0 {
-		t.Errorf("Get moduleType list for %q: got 0, want > 0", dut.Model())
-	}
-
-	for i, moduleType := range moduleTypes {
-		modVal, present := moduleType.Val()
-		if !present {
-			t.Fatalf("moduleType.IsPresent() item %d: got false, want true", i)
+	if deviations.ComponentsSoftwareModuleUnsupported(dut) {
+		t.Logf("Skipping check for components software module unsupport")
+	} else {
+		moduleTypes := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().SoftwareModule().ModuleType().State())
+		if len(moduleTypes) == 0 {
+			t.Errorf("Get moduleType list for %q: got 0, want > 0", dut.Model())
 		}
-		t.Logf("Telemetry moduleType path/value %d: %v=>%v.", i, moduleType.Path.String(), modVal)
+
+		for i, moduleType := range moduleTypes {
+			modVal, present := moduleType.Val()
+			if !present {
+				t.Fatalf("moduleType.IsPresent() item %d: got false, want true", i)
+			}
+			t.Logf("Telemetry moduleType path/value %d: %v=>%v.", i, moduleType.Path.String(), modVal)
+		}
 	}
 }
 
