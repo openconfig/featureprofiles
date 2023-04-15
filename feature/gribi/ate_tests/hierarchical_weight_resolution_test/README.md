@@ -66,7 +66,7 @@ Test case for basic hierarchical weight:
 
     *   NH101: (3/4) * (5/8) = 46.87% traffic received by ATE port-2 VLAN 4
 
-    *   A deviation of 0.5% is allowed for each VLAN for now, since we only test 
+    *   A tolerance of 0.5% is allowed for each VLAN for now, since we only test
         for 2 mins.
 
 Test case for hierarchical weight in boundary scenarios, with maximum expected
@@ -113,7 +113,7 @@ WCMP width of 16 nexthops:
 
         *   NH: (31/32) * (16/241) ~ 6.432% traffic received by ATE port-2 VLAN ID
 
-    *   A deviation of 0.2% is allowed for each VLAN for now.
+    *   A tolerance of 0.2% is allowed for each VLAN for now.
 
 ## Config Parameter Coverage
 
