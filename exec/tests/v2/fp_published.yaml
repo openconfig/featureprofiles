@@ -168,6 +168,7 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: P4RT-2.1 (P4RT Election)
@@ -176,12 +177,14 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
     path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
     path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetin_test
     owners:
@@ -194,24 +197,28 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-7.2 (LLDP PacketOut)
     path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-5.2 (Traceroute Packetout)
     path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-5.1 (Traceroute Packetin)
     path: feature/experimental/p4rt/ate_tests/traceroute_packetin_test
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: gNMI-1.1 (cli Origin)
     path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
     owners:
@@ -292,6 +299,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 34
+    pr: 1428
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
     args:
