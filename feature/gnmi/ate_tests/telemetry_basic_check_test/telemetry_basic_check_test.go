@@ -969,11 +969,15 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 		}
 	}
 
-	ports := make(map[string]string) // <hardware-port>:<portID>
+	ports := make(map[string][]string) // <hardware-port>:[<portID>]
 	for _, p := range dut.Ports() {
 		hp := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
 		if v, ok := hp.Val(); ok {
-			ports[v] = p.ID()
+			if _, ok = ports[v]; !ok {
+				ports[v] = []string{p.ID()}
+			} else {
+				ports[v] = append(ports[v], p.ID())
+			}
 		}
 	}
 	nodes := make(map[string]string) // <hardware-port>:<p4rtComponentName>
@@ -993,7 +997,9 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 		if ct != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
 			continue
 		}
-		res[ports[k]] = v
+		for _, p := range ports[k] {
+			res[p] = v
+		}
 	}
 	return res
 }
