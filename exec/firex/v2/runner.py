@@ -207,7 +207,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
     c |= GenerateOndatraTestbedFiles.s()
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s(ignore_install_errors=ignore_install_errors)
-    if force_reboot:
+        c |= ForceReboot.s()
+    elif force_reboot:
         c |= ForceReboot.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
