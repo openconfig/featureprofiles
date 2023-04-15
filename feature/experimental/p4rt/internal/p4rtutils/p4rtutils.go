@@ -270,7 +270,7 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 		}
 	}
 
-	ports := make(map[string][]string) // <hardware-port>:<portID>
+	ports := make(map[string][]string) // <hardware-port>:[<portID>]
 	for _, p := range dut.Ports() {
 		hp := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
 		if v, ok := hp.Val(); ok {
