@@ -10,10 +10,8 @@ devices:
         password: cisco123
         username: cafyauto
     passwords:
-      enable: cisco123
-      tacacs: cisco123
-    tacacs:
-      username: cafyauto
+      enable: roZes!23
+      tacacs: lab
     type: spitfire_f
 topology:
   dut:
