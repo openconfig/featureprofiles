@@ -1,20 +1,17 @@
 devices:
-  dut:
+  R3:
     connections:
       a:
-        ip: 10.85.84.51
-        port: 2014
-        protocol: telnet
+        ip: 10.85.84.159
+        port: 47401
+        protocol: ssh
     credentials:
       default:
         password: cisco123
         username: cafyauto
     passwords:
       enable: cisco123
-      tacacs: cisco123
-    tacacs:
-      username: cafyauto
     type: spitfire_f
 topology:
-  dut:
+  R3:
     interfaces: {}
