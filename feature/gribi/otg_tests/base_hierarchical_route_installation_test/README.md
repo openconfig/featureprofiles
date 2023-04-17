@@ -9,7 +9,7 @@ Validate IPv4 AFT support in gRIBI with recursion.
 Topology:
 
 *   Connect ATE port-1 to DUT port-1 and ATE port-2 to DUT port-2.
-*   TODO: create a non-default VRF (VRF-1) that includes DUT port-1.
+*   Create a non-default VRF (VRF-1) that includes DUT port-1.
 *   Establish gRIBI client connection with DUT using default parameters and
     persistence mode `PRESERVE`, make it become leader and flush all entries
     after each case.
@@ -22,7 +22,7 @@ Validate hierarchical resolution across VRFs:
     1.  Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF)
         containing one NextHop (default VRF) specified to be the address of ATE
         port-2.
-    2.  Add 198.51.100.0/24 (TODO: VRF-1) to NextHopGroup (default VRF)
+    2.  Add 198.51.100.0/24 (VRF-1) to NextHopGroup (default VRF)
         containing one NextHop (default VRF) specified to be 203.0.113.1/32 in
         the default VRF.
 
@@ -34,7 +34,7 @@ Validate hierarchical resolution across VRFs:
 4.  Ensure that removing the IPv4Entry 203.0.113.1/32 with a DELETE operation
     results in traffic loss, and removal from AFT.
 
-TODO: Validate hierarchical resolution using egress interface and MAC:
+Validate hierarchical resolution using egress interface and MAC:
 
 1.  Using gRIBI Modify RPC install the following IPv4Entry set per the following
     order, and ensure FIB ACK is received for each of the AFTOperation:
@@ -48,30 +48,6 @@ TODO: Validate hierarchical resolution using egress interface and MAC:
 2.  Forward packets between ATE port-1 and ATE port-2 (destined to
     198.51.100.0/24) and ensure that ATE port-2 receives packet with
     `00:1A:11:00:00:01` as the destination MAC address.
-
-TODO: Validate error reporting:
-
-1.  Use gRIBI Modify RPC to install the following entries:
-
-    1.  Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF)
-        containing one NextHop (default VRF) specified to be the address of ATE
-        port-2.
-    2.  Add 198.51.100.0/24 (VRF-1) to NextHopGroup (default VRF) containing one
-        NextHop (default VRF) specified to be 203.0.113.1/32 in the default VRF.
-
-    But with the following (table) scenarios:
-
-    *   Replace 203.0.113.1/32 with a syntax invalid IP address.
-    *   Missing NextHopGroup for the IPv4Entry 203.0.113.1/32.
-    *   Empty NextHopGroup for the IPv4Entry 203.0.113.1/32.
-    *   Empty NextHop for the IPv4Entry 203.0.113.1/32.
-    *   Invalid IPv4 address in NextHop for the IPv4Entry 203.0.113.1/32.
-
-2.  Ensure FAILED returned for the related IPv4Entry, NHG and NH in all the
-    above scenarios.
-
-3.  Ensure RIB ACK, but not FIB ACK, is returned for the IPv4Entry
-    198.51.100.0/24 in all the above scenarios.
 
 If the device supports it, repeat the cases in this test with gRIBI client
 persistence mode `DELETE` without flushing entries between cases.
