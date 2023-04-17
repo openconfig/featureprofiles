@@ -246,8 +246,8 @@ tests:
     priority: 38
   - name: RT-5.2 (Aggregate Interfaces)
     path: feature/interface/aggregate/ate_tests/aggregate_test
-    args:
-      - '-deviation_interface_operstatus="true"'
+    # args:
+    #  - '-deviation_interface_operstatus="true"'
     owners:
       - agvarghe
     mustpass: true
