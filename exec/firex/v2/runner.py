@@ -51,6 +51,7 @@ def _get_go_env():
     return {
         'GOPATH': os.path.join(gorootpath, 'go'),
         'GOCACHE': os.path.join(gorootpath, '.gocache'),
+	'GOTMPDIR': os.path.join(gorootpath, '.gocache'),
         'GOROOT': '/auto/firex/sw/go'
     }
 
@@ -154,7 +155,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_rev=None,
                         collect_tb_info=True,
                         install_image=False,
-                        ignore_install_errors=False):
+                        ignore_install_errors=False,
+                        force_reboot=False):
 
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
@@ -205,6 +207,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
     c |= GenerateOndatraTestbedFiles.s()
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s(ignore_install_errors=ignore_install_errors)
+        c |= ForceReboot.s()
+    elif force_reboot:
+        c |= ForceReboot.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     result = self.enqueue_child_and_get_results(c)
@@ -542,6 +547,21 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir,
             os.remove(install_lock_file)
             raise
         else: logger.warning(f'Software upgrade failed. Ignoring...')
+
+# noinspection PyPep8Naming
+@app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
+def ForceReboot(self, ws, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path):
+    logger.print("Rebooting...")
+    reboot_command = f'{GO_BIN} test -v ' \
+            f'./feature/gnoi/system/tests/complete_chassis_reboot ' \
+            f'-timeout 45m ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} '
+
+    env = dict(os.environ)
+    env.update(_get_go_env())
+    check_output(reboot_command, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
