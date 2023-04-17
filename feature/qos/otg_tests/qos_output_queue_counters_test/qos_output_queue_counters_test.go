@@ -610,6 +610,11 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
 		s.SetSequence(tc.sequence)
 		s.SetPriority(tc.priority)
+		if dut.Vendor() == ondatra.JUNIPER {
+			t.Logf("Scheduler should be bound to a forwarding group")
+			Output := s.GetOrCreateOutput()
+			Output.SetOutputFwdGroup(tc.targetGroup)
+		}
 		input := s.GetOrCreateInput(tc.inputID)
 		input.SetId(tc.inputID)
 		input.SetInputType(tc.inputType)
@@ -657,6 +662,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp2.Name())
 		i.SetInterfaceId(dp2.Name())
+		if *deviations.ExplicitInterfaceRefDefinition {
+			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp2.Name())
+		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
