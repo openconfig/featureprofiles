@@ -116,14 +116,13 @@ func TestQoSCounters(t *testing.T) {
 		}
 	case ondatra.ARISTA:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: dp2.Name() + "-6"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: dp2.Name() + "-5"},
-			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: dp2.Name() + "-4"},
-			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: dp2.Name() + "-3"},
-			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: dp2.Name() + "-2"},
-			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: dp2.Name() + "-0"},
+			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: "NC1"},
+			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "AF4"},
+			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: "AF3"},
+			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: "AF2"},
+			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: "AF1"},
+			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: "BE0"},
 			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: "BE1"},
-		}
 	case ondatra.CISCO:
 		trafficFlows = map[string]*trafficData{
 			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "7"},
