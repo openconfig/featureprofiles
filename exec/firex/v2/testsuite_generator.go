@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -575,10 +576,27 @@ func main() {
 	for i := range suite {
 		for j := range suite[i].Tests {
 			suite[i].Tests[j].ShortName = strings.Split(suite[i].Tests[j].Name, " ")[0]
-
 			if len(testRepoRev) > 0 {
-				suite[i].Tests[j].Revision = testRepoRev
-				suite[i].Tests[j].Internal = true
+				parts := strings.Split(testRepoRev, "=")
+				switch parts[0] {
+				case "I-PR":
+					suite[i].Tests[j].Internal = true
+					fallthrough
+				case "PR":
+					if pr, err := strconv.Atoi(parts[1]); err == nil {
+						suite[i].Tests[j].PrNum = pr
+					} else {
+						log.Fatalf("%v is not a valid integer pr number", parts[1])
+					}
+				case "I-BR":
+					suite[i].Tests[j].Internal = true
+					fallthrough
+				case "BR":
+					suite[i].Tests[j].Branch = parts[1]
+				default:
+					suite[i].Tests[j].Revision = testRepoRev
+					suite[i].Tests[j].Internal = true
+				}
 			}
 
 			if len(testbeds) > 0 {
