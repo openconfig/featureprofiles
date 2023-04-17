@@ -14,7 +14,7 @@ import (
     "google.golang.org/grpc"
 )
 
-var RAW_LOGS_PATH = "/ws/ncorran-sjc/yang-covereage/rawlogs/"
+var RAW_LOGS_PATH = "/ws/ncorran-sjc/yang-coverage/rawlogs/"
 
 func GetYcovClient(dutId string, t *testing.T) (ycov.YangCoverageClient, error) {
     dut := ondatra.DUT(t, dutId)
