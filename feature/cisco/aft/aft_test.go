@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	yc "github.com/openconfig/featureprofiles/tools/cisco/yang_coverage"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -37,6 +38,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	yc.Init("")
 	fptest.RunTests(m)
 }
 

@@ -7,28 +7,28 @@
 
 syntax = "proto3";
 
-package YCOV;
+package ycov;
 
-// The current semantic version of the gNOI YangCoverage service.
+// The current semantic version of the YangCoverage service.
 option go_package = ".;ycov";
 
 service YangCoverage {
-  // ClearYcLogs clears any existing Yang coverage test logs 
-  rpc ClearYcLogs(ClearYcLogsRequest)
-    returns (ClearYcLogsResponse) {}
+  // ClearLogs clears any existing YANG coverage test logs 
+  rpc ClearLogs(ClearLogsRequest)
+    returns (ClearLogsResponse) {}
 
-  // GatherYcLogs gets the current set of Yang coverage test logs
-  rpc GatherYcLogs(GatherYcLogsRequest) 
-    returns (GatherYcLogsResponse) {}
+  // GatherLogs gathers the current set of YANG coverage test logs
+  rpc GatherLogs(GatherLogsRequest) 
+    returns (GatherLogsResponse) {}
 }
 
-message ClearYcLogsRequest {
+message ClearLogsRequest {
 }
 
-message ClearYcLogsResponse {
+message ClearLogsResponse {
 }
 
-// Supported test phases for Yang coverage logging
+// Supported test phases for YANG coverage logging
 enum TestPhase {
   UT             = 0;
   IT             = 1;
@@ -48,12 +48,12 @@ enum TestType {
   OCCASIONAL  = 3;
 }
 
-message GatherYcLogsRequest {
-  string testName = 1;
-  TestPhase testPhase = 2;
-  TestType testType = 3;
+message GatherLogsRequest {
+  string test_name = 1;
+  TestPhase test_phase = 2;
+  TestType test_type = 3;
 }
 
-message GatherYcLogsResponse {
-  string logs = 1;
+message GatherLogsResponse {
+  string log = 1;
 }

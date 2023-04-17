@@ -7,12 +7,14 @@ import (
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	yc "github.com/openconfig/featureprofiles/tools/cisco/yang_coverage"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
+	yc.Init("global")
 	fptest.RunTests(m)
 }
 

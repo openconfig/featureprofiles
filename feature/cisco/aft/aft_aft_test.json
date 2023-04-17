@@ -1,0 +1,3 @@
+{"logs":[
+{"xpath":"/Cisco-IOS-XR-yang-coverage-act:yang-coverage-clear-test-logs", "operation": "merge", "protocol": "ems", "xr_ver": "7.11.1.03I", "platform": "8000", "timestamp": "2023/04/16 17:19:44"}
+], "test-name":"oc_aft", "test-phase":"IT", "test-type":"PRECOMMIT"}
