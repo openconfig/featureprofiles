@@ -60,9 +60,8 @@ type PacketIOPacket struct {
 
 // Define Multiple Client Args Structure
 type mcTestArgs struct {
-	name     string
-	Items    [2]*testArgs
-	wantFail bool
+	name  string
+	Items [2]*testArgs
 }
 
 // Define Test Args Structure
@@ -170,16 +169,6 @@ func getRespCode(args *testArgs) (int32, error) {
 	return 0, errors.New("Missing Client")
 }
 
-// getGDPParameter returns GDP related parameters for testPacketIn testcase.
-func getGDPParameter(t *testing.T) PacketIO {
-	return &GDPPacketIO{
-		PacketIOPacket: PacketIOPacket{
-			EthernetType: &gdpEtherType,
-		},
-		IngressPort: fmt.Sprint(portId),
-	}
-}
-
 // GetTableEntry creates wbb acl entry related to GDP.
 func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
 	actionType := p4_v1.Update_INSERT
@@ -270,7 +259,12 @@ func canRead(t *testing.T, args *testArgs) (bool, error) {
 
 // Only Primary should be able to write
 func canWrite(t *testing.T, args *testArgs) (bool, error) {
-	pktIO := getGDPParameter(t)
+	pktIO := &GDPPacketIO{
+		PacketIOPacket: PacketIOPacket{
+			EthernetType: &gdpEtherType,
+		},
+		IngressPort: fmt.Sprint(portId),
+	}
 	writeErr := writeTableEntry(args, t, pktIO, false)
 	if writeErr != nil {
 		if args.wantWrite == false {
@@ -364,10 +358,9 @@ func TestUnsetElectionid(t *testing.T) {
 			if resp != test.wantStatus {
 				t.Fatalf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 			}
-			if err != nil {
-				t.Errorf("Errors seen in ClientArbitration response: %v", err)
+			if err != nil && !deviations.P4RTUnsetElectionIDUnsupported(dut) {
+				t.Errorf("Errors seen when sending Master Arbitration as expected for unset ElectionID: %v", err)
 			}
-			t.Logf("Arbitration response status code is as expected for unset ElectionId")
 			// Verify GetForwardingPipeline for unset electionId.
 			_, err = test.handle.GetForwardingPipelineConfig(&p4_v1.GetForwardingPipelineConfigRequest{
 				DeviceId:     deviceId,
@@ -442,7 +435,7 @@ func TestPrimaryReconnect(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
 			resp, err := streamP4RTArb(&test)
-			if err != nil && test.wantFail {
+			if err != nil {
 				t.Errorf("Failed to setup P4RT Client: %v", err)
 			}
 			// Validate status code
@@ -489,7 +482,7 @@ func TestPrimarySecondary(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
 			resp, err := streamP4RTArb(&test)
-			if err != nil && test.wantFail {
+			if err != nil {
 				t.Errorf("Failed to setup P4RT Client: %v", err)
 			}
 			// Validate status code
@@ -536,13 +529,14 @@ func TestDuplicateElectionID(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
 			resp, err := streamP4RTArb(&test)
-			if !test.wantFail {
+			if err != nil && !test.wantFail {
+				t.Errorf("Failed to setup P4RT Client: %v", err)
+			}
+			if test.wantFail {
 				if err != nil {
-					t.Errorf("Failed to setup P4RT Client: %v", err)
-				}
-			} else {
-				if err != nil {
-					t.Logf("As expected failed to setup P4RT Client: %v", err)
+					t.Logf("Setup of P4RT Client %v failed as expected: %v", sDesc, err)
+				} else {
+					t.Errorf("Setup of P4RT Client %v did not fail as expected", sDesc)
 				}
 			}
 
@@ -566,8 +560,7 @@ func TestReplacePrimary(t *testing.T) {
 	configurePortId(t, dut)
 	testCases := []mcTestArgs{
 		{
-			name:     "Primary_secondary_OK",
-			wantFail: true,
+			name: "Primary_secondary_OK",
 			Items: [2]*testArgs{
 				{
 					desc:            pDesc,
@@ -599,7 +592,7 @@ func TestReplacePrimary(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			resp, err := streamP4RTArb(test.Items[0])
-			if err != nil && test.wantFail {
+			if err != nil {
 				t.Errorf("Failed to setup P4RT Client: %v", err)
 			}
 			// Validate status code
@@ -653,7 +646,7 @@ func TestArbitrationUpdate(t *testing.T) {
 		highID:     inId0,
 		handle:     clientConnection(t, dut),
 		deviceID:   deviceId,
-		wantFail:   true,
+		wantFail:   false,
 		wantWrite:  true,
 		wantRead:   true,
 		wantStatus: 0,
@@ -662,7 +655,7 @@ func TestArbitrationUpdate(t *testing.T) {
 
 	t.Run(test.desc, func(t *testing.T) {
 		resp, err := streamP4RTArb(&test)
-		if err != nil && test.wantFail {
+		if err != nil {
 			t.Errorf("Failed to setup P4RT Client: %v", err)
 		}
 		// Validate status code
@@ -680,7 +673,7 @@ func TestArbitrationUpdate(t *testing.T) {
 		// as this client is no longer primary
 		test.wantWrite = false
 		resp, err = streamP4RTArb(&test)
-		if err != nil && test.wantFail {
+		if err != nil {
 			t.Errorf("Failed to setup P4RT Client: %v", err)
 		}
 		// Validate status code
