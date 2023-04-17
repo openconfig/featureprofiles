@@ -125,6 +125,10 @@ var (
 		"use_short_names", false, "output short test names",
 	)
 
+	ignoreDeviationsFlag = flag.Bool(
+		"ignore_deviations", false, "ignore all deviation flags",
+	)
+
 	files            []string
 	testNames        []string
 	groupNames       []string
@@ -141,6 +145,7 @@ var (
 	randomize        bool
 	sorted           bool
 	useShortName     bool
+	ignoreDeviations bool
 )
 
 var (
@@ -274,6 +279,7 @@ func init() {
 	randomize = *randomizeFlag
 	sorted = *sortFlag
 	useShortName = *useShortNameFlag
+	ignoreDeviations = *ignoreDeviationsFlag
 }
 
 func main() {
@@ -509,6 +515,20 @@ func main() {
 		for j := range suite[i].Tests {
 			suite[i].Tests[j].ID = fmt.Sprintf("%0"+fmt.Sprint(widthNeeded)+"d", id)
 			id = id + 1
+		}
+	}
+
+	if ignoreDeviations {
+		for i := range suite {
+			for j := range suite[i].Tests {
+				keptsArgs := []string{}
+				for k := range suite[i].Tests[j].Args {
+					if !strings.HasPrefix(suite[i].Tests[j].Args[k], "-deviation") {
+						keptsArgs = append(keptsArgs, suite[i].Tests[j].Args[k])
+					}
+				}
+				suite[i].Tests[j].Args = keptsArgs
+			}
 		}
 	}
 
