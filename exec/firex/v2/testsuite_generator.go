@@ -577,7 +577,7 @@ func main() {
 		for j := range suite[i].Tests {
 			suite[i].Tests[j].ShortName = strings.Split(suite[i].Tests[j].Name, " ")[0]
 			if len(testRepoRev) > 0 {
-				parts := strings.Split(testRepoRev, "=")
+				parts := strings.Split(testRepoRev, "#")
 				switch parts[0] {
 				case "I-PR":
 					suite[i].Tests[j].Internal = true
