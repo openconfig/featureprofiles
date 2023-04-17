@@ -1,0 +1,27 @@
+# proto-file: featureprofiles/proto/cisco/ycov/metadata.proto
+# Yang-coverage to be enabled on which dut
+dut_id: "dut"
+# Name of sanity
+sanity_name: "oc_aft"
+# Testing Phase
+test_phase: IT
+# Testing Type
+test_type: PRECOMMIT
+
+# Default yang coverage flow is -
+# 1. Clear logs
+# 2. Enable logs
+# 3. Gather logs
+# Below step will be enable only if process_log is true 
+# 4. Process raw logs and generate reports
+# else 4. Store raw logs
+process_log: false
+
+# XR ws related params to be passed if process_log=true
+# Below is sample 
+# options {
+#    xr_ws: "/nobackup/sanshety/ws/iosxr"
+#    models: ["/nobackup/sanshety/ws/iosxr/manageability/yang/pyang/modules/openconfig-network-instance.yang", "/nobackup/sanshety/ws/iosxr/manageability/yang/pyang/modules/cisco-xr-openconfig-network-instance-deviations.yang"]
+#    prefix_paths: ["/network-instances/network-instance/afts"]
+#    verbose: true
+# }
