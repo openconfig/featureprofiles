@@ -628,17 +628,14 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
 		s.SetSequence(tc.sequence)
 		s.SetPriority(tc.priority)
-		if dut.Vendor() == ondatra.JUNIPER {
-			t.Logf("Scheduler should be bound to a forwarding group")
-			Output := s.GetOrCreateOutput()
-			Output.SetOutputFwdGroup(tc.targetGroup)
-		}
 		input := s.GetOrCreateInput(tc.inputID)
 		input.SetId(tc.inputID)
 		input.SetInputType(tc.inputType)
 		input.SetQueue(tc.queueName)
 		input.SetWeight(tc.weight)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		if !*deviations.SchedulerInputParamsUnsupported {
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		}
 	}
 
 	t.Logf("Create qos output interface config")
@@ -688,7 +685,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		if !*deviations.SchedulerInputParamsUnsupported {
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		}
 	}
 }
 
