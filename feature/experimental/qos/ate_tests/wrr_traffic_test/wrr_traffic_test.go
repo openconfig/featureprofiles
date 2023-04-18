@@ -383,40 +383,7 @@ func TestWrrTraffic(t *testing.T) {
 			inputIntf:             intf2,
 		},
 	}
-	oversubscribedTrafficFlows2Cisco := map[string]*trafficData{
-		"intf1-af3": {
-			frameSize:             1000,
-			trafficRate:           40,
-			expectedThroughputPct: 83.48,
-			dscp:                  24,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
-			inputIntf:             intf1,
-		},
-		"intf1-af2": {
-			frameSize:             1000,
-			trafficRate:           20,
-			expectedThroughputPct: 83.48,
-			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
-			inputIntf:             intf1,
-		},
-		"intf2-af3": {
-			frameSize:             1000,
-			trafficRate:           40,
-			dscp:                  24,
-			expectedThroughputPct: 83.48,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
-			inputIntf:             intf2,
-		},
-		"intf2-af2": {
-			frameSize:             1000,
-			trafficRate:           20,
-			dscp:                  16,
-			expectedThroughputPct: 83.48,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
-			inputIntf:             intf2,
-		},
-	}
+
 	// Test case 7: Oversubscription AF3 and AF2 traffic 3.
 	//   - There should be 20% of AF3 and 80% of AF2 drops.
 	oversubscribedTrafficFlows3 := map[string]*trafficData{
@@ -449,40 +416,6 @@ func TestWrrTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  16,
 			expectedThroughputPct: 20,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
-			inputIntf:             intf2,
-		},
-	}
-	oversubscribedTrafficFlows3Cisco := map[string]*trafficData{
-		"intf1-af3": {
-			frameSize:             1000,
-			trafficRate:           50,
-			expectedThroughputPct: 66.71,
-			dscp:                  24,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
-			inputIntf:             intf1,
-		},
-		"intf1-af2": {
-			frameSize:             1000,
-			trafficRate:           50,
-			expectedThroughputPct: 33.29,
-			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
-			inputIntf:             intf1,
-		},
-		"intf2-af3": {
-			frameSize:             1000,
-			trafficRate:           50,
-			dscp:                  24,
-			expectedThroughputPct: 66.71,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
-			inputIntf:             intf2,
-		},
-		"intf2-af2": {
-			frameSize:             1000,
-			trafficRate:           50,
-			dscp:                  16,
-			expectedThroughputPct: 33.29,
 			queue:                 queueMap[dut.Vendor()]["AF2"],
 			inputIntf:             intf2,
 		},
@@ -562,40 +495,6 @@ func TestWrrTraffic(t *testing.T) {
 		},
 	}
 
-	oversubscribedTrafficFlows5Cisco := map[string]*trafficData{
-		"intf1-af2": {
-			frameSize:             1000,
-			trafficRate:           40,
-			expectedThroughputPct: 83.48,
-			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
-			inputIntf:             intf1,
-		},
-		"intf1-af1": {
-			frameSize:             1000,
-			trafficRate:           20,
-			expectedThroughputPct: 83.48,
-			dscp:                  8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
-			inputIntf:             intf1,
-		},
-		"intf2-af2": {
-			frameSize:             1000,
-			trafficRate:           40,
-			dscp:                  16,
-			expectedThroughputPct: 83.48,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
-			inputIntf:             intf2,
-		},
-		"intf2-af1": {
-			frameSize:             1000,
-			trafficRate:           20,
-			dscp:                  8,
-			expectedThroughputPct: 83.48,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
-			inputIntf:             intf2,
-		},
-	}
 	// Test case 10: Oversubscription AF2 and AF1 traffic 3.
 	//   - There should be 20% of AF2 and 80% of AF1 drops.
 	oversubscribedTrafficFlows6 := map[string]*trafficData{
@@ -628,40 +527,6 @@ func TestWrrTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  8,
 			expectedThroughputPct: 20,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
-			inputIntf:             intf2,
-		},
-	}
-	oversubscribedTrafficFlows6Cisco := map[string]*trafficData{
-		"intf1-af2": {
-			frameSize:             1000,
-			trafficRate:           50,
-			expectedThroughputPct: 66.71,
-			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
-			inputIntf:             intf1,
-		},
-		"intf1-af1": {
-			frameSize:             1000,
-			trafficRate:           50,
-			expectedThroughputPct: 33.29,
-			dscp:                  8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
-			inputIntf:             intf1,
-		},
-		"intf2-af2": {
-			frameSize:             1000,
-			trafficRate:           50,
-			dscp:                  16,
-			expectedThroughputPct: 66.71,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
-			inputIntf:             intf2,
-		},
-		"intf2-af1": {
-			frameSize:             1000,
-			trafficRate:           50,
-			dscp:                  8,
-			expectedThroughputPct: 33.29,
 			queue:                 queueMap[dut.Vendor()]["AF1"],
 			inputIntf:             intf2,
 		},
@@ -893,144 +758,72 @@ func TestWrrTraffic(t *testing.T) {
 		trafficDuration time.Duration
 	}
 
-	var cases []test
-	if dut.Vendor() == ondatra.CISCO {
-		cases = []test{
-			{
-				desc:            "Non-oversubscription AF3 and AF2 traffic",
-				trafficFlows:    nonOversubscribedTrafficFlows1,
-				trafficDuration: 20 * time.Second,
-			},
-			{
-				desc:            "Non-oversubscription AF2 and AF1 traffic",
-				trafficFlows:    nonOversubscribedTrafficFlows2,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Non-oversubscription AF1 and BE0 traffic",
-				trafficFlows:    nonOversubscribedTrafficFlows3,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Non-oversubscription BE0 and BE1 traffic",
-				trafficFlows:    nonOversubscribedTrafficFlows4,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with half AF3 dropped",
-				trafficFlows:    oversubscribedTrafficFlows1,
-				trafficDuration: 120 * time.Second,
-			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with half AF2 dropped",
-				trafficFlows:    oversubscribedTrafficFlows2Cisco,
-				trafficDuration: 120 * time.Second,
-			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with AF3 and AF2 dropped",
-				trafficFlows:    oversubscribedTrafficFlows3Cisco,
-				trafficDuration: 120 * time.Second,
-			}, {
-				desc:            "Oversubscription AF2 and AF1 traffic with half AF2 dropped",
-				trafficFlows:    oversubscribedTrafficFlows4,
-				trafficDuration: 120 * time.Second,
-			}, {
-				desc:            "Oversubscription AF2 and AF1 traffic with half AF1 dropped",
-				trafficFlows:    oversubscribedTrafficFlows5Cisco,
-				trafficDuration: 120 * time.Second,
-			}, {
-				desc:            "Oversubscription AF2 and BE0 traffic with AF2 and AF1 dropped",
-				trafficFlows:    oversubscribedTrafficFlows6Cisco,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF1 and BE0 traffic with half BE0 dropped",
-				trafficFlows:    oversubscribedTrafficFlows7,
-				trafficDuration: 120 * time.Second,
-			}, {
-				desc:            "Oversubscription AF1 and BE0 traffic with half AF1 dropped",
-				trafficFlows:    oversubscribedTrafficFlows8,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF1 and BE0 traffic with AF1 and BE0 dropped",
-				trafficFlows:    oversubscribedTrafficFlows9,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with half BE0 dropped",
-				trafficFlows:    oversubscribedTrafficFlows10,
-				trafficDuration: 120 * time.Second,
-			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with half BE1 dropped",
-				trafficFlows:    oversubscribedTrafficFlows11,
-				trafficDuration: 120 * time.Second,
-			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with BE0 and BE1 dropped",
-				trafficFlows:    oversubscribedTrafficFlows12,
-				trafficDuration: 120 * time.Second,
-			},
-		}
-	} else {
-		cases = []test{
-			{
-				desc:            "Non-oversubscription AF3 and AF2 traffic",
-				trafficFlows:    nonOversubscribedTrafficFlows1,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Non-oversubscription AF2 and AF1 traffic",
-				trafficFlows:    nonOversubscribedTrafficFlows2,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Non-oversubscription AF1 and BE0 traffic",
-				trafficFlows:    nonOversubscribedTrafficFlows3,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Non-oversubscription BE0 and BE1 traffic",
-				trafficFlows:    nonOversubscribedTrafficFlows4,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with half AF3 dropped",
-				trafficFlows:    oversubscribedTrafficFlows1,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with half AF2 dropped",
-				trafficFlows:    oversubscribedTrafficFlows2,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF3 and AF2 traffic with AF3 and AF2 dropped",
-				trafficFlows:    oversubscribedTrafficFlows3,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF2 and AF1 traffic with half AF2 dropped",
-				trafficFlows:    oversubscribedTrafficFlows4,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF2 and AF1 traffic with half AF1 dropped",
-				trafficFlows:    oversubscribedTrafficFlows5,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF2 and AF1 traffic with AF2 and AF1 dropped",
-				trafficFlows:    oversubscribedTrafficFlows6,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF1 and BE0 traffic with half AF1 dropped",
-				trafficFlows:    oversubscribedTrafficFlows7,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF1 and BE0 traffic with half BE0 dropped",
-				trafficFlows:    oversubscribedTrafficFlows8,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription AF1 and BE0 traffic with AF1 and BE0 dropped",
-				trafficFlows:    oversubscribedTrafficFlows9,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with half BE0 dropped",
-				trafficFlows:    oversubscribedTrafficFlows10,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with half BE1 dropped",
-				trafficFlows:    oversubscribedTrafficFlows11,
-				trafficDuration: 20 * time.Second,
-			}, {
-				desc:            "Oversubscription BE0 and BE1 traffic with BE0 and BE1 dropped",
-				trafficFlows:    oversubscribedTrafficFlows12,
-				trafficDuration: 20 * time.Second,
-			},
-		}
+	cases := []test{
+		{
+			desc:            "Non-oversubscription AF3 and AF2 traffic",
+			trafficFlows:    nonOversubscribedTrafficFlows1,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Non-oversubscription AF2 and AF1 traffic",
+			trafficFlows:    nonOversubscribedTrafficFlows2,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Non-oversubscription AF1 and BE0 traffic",
+			trafficFlows:    nonOversubscribedTrafficFlows3,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Non-oversubscription BE0 and BE1 traffic",
+			trafficFlows:    nonOversubscribedTrafficFlows4,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription AF3 and AF2 traffic with half AF3 dropped",
+			trafficFlows:    oversubscribedTrafficFlows1,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription AF3 and AF2 traffic with half AF2 dropped",
+			trafficFlows:    oversubscribedTrafficFlows2,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription AF3 and AF2 traffic with AF3 and AF2 dropped",
+			trafficFlows:    oversubscribedTrafficFlows3,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription AF2 and AF1 traffic with half AF2 dropped",
+			trafficFlows:    oversubscribedTrafficFlows4,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription AF2 and AF1 traffic with half AF1 dropped",
+			trafficFlows:    oversubscribedTrafficFlows5,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription AF2 and AF1 traffic with AF2 and AF1 dropped",
+			trafficFlows:    oversubscribedTrafficFlows6,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription AF1 and BE0 traffic with half AF1 dropped",
+			trafficFlows:    oversubscribedTrafficFlows7,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription AF1 and BE0 traffic with half BE0 dropped",
+			trafficFlows:    oversubscribedTrafficFlows8,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription AF1 and BE0 traffic with AF1 and BE0 dropped",
+			trafficFlows:    oversubscribedTrafficFlows9,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription BE0 and BE1 traffic with half BE0 dropped",
+			trafficFlows:    oversubscribedTrafficFlows10,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription BE0 and BE1 traffic with half BE1 dropped",
+			trafficFlows:    oversubscribedTrafficFlows11,
+			trafficDuration: 60 * time.Second,
+		}, {
+			desc:            "Oversubscription BE0 and BE1 traffic with BE0 and BE1 dropped",
+			trafficFlows:    oversubscribedTrafficFlows12,
+			trafficDuration: 60 * time.Second,
+		},
 	}
 
 	for _, tc := range cases {
@@ -1171,6 +964,32 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
+	type qosVals struct {
+		be0, be1, af1, af2, af3, af4, nc1 string
+	}
+
+	qos := qosVals{
+		be0: "BE0",
+		be1: "BE1",
+		af1: "AF1",
+		af2: "AF2",
+		af3: "AF3",
+		af4: "AF4",
+		nc1: "NC1",
+	}
+
+	if dut.Vendor() == ondatra.JUNIPER {
+		qos = qosVals{
+			be0: "6",
+			be1: "0",
+			af1: "4",
+			af2: "1",
+			af3: "5",
+			af4: "2",
+			nc1: "3",
+		}
+	}
+
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
 		desc        string
@@ -1178,31 +997,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   "BE1",
+		queueName:   qos.be1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   "BE0",
+		queueName:   qos.be0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   "AF1",
+		queueName:   qos.af1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   "AF2",
+		queueName:   qos.af2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   "AF3",
+		queueName:   qos.af3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   "AF4",
+		queueName:   qos.af4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   "NC1",
+		queueName:   qos.nc1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1378,6 +1197,10 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
+		if *deviations.ExplicitInterfaceRefDefinition {
+			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
+			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		}
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
@@ -1401,7 +1224,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   "BE1",
+		queueName:   qos.be1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -1446,7 +1269,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(100),
-		queueName:   "AF4",
+		queueName:   qos.af4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -1455,7 +1278,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(200),
-		queueName:   "NC1",
+		queueName:   qos.nc1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1481,31 +1304,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		scheduler string
 	}{{
 		desc:      "output-interface-BE1",
-		queueName: "BE1",
+		queueName: qos.be1,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-BE0",
-		queueName: "BE0",
+		queueName: qos.be0,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF1",
-		queueName: "AF1",
+		queueName: qos.af1,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF2",
-		queueName: "AF2",
+		queueName: qos.af2,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF3",
-		queueName: "AF3",
+		queueName: qos.af3,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF4",
-		queueName: "AF4",
+		queueName: qos.af4,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-NC1",
-		queueName: "NC1",
+		queueName: qos.nc1,
 		scheduler: "scheduler",
 	}}
 
@@ -1513,6 +1336,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
+		if *deviations.ExplicitInterfaceRefDefinition {
+			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
@@ -1714,7 +1540,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup string
 	}{{
 		desc:         "scheduler-policy-BE1",
-		sequence:     uint32(6),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "g_BE1",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1723,34 +1549,34 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-BE1",
 	}, {
 		desc:         "scheduler-policy-BE0",
-		sequence:     uint32(5),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "f_BE0",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(4),
+		weight:       uint64(1),
 		queueName:    "f_BE0",
 		targetGrpoup: "target-group-BE0",
 	}, {
 		desc:         "scheduler-policy-AF1",
-		sequence:     uint32(4),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "e_AF1",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(16),
+		weight:       uint64(4),
 		queueName:    "e_AF1",
 		targetGrpoup: "target-group-AF1",
 	}, {
 		desc:         "scheduler-policy-AF2",
-		sequence:     uint32(3),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "d_AF2",
 		inputType:    oc.Input_InputType_QUEUE,
-		weight:       uint64(32),
+		weight:       uint64(16),
 		queueName:    "d_AF2",
 		targetGrpoup: "target-group-AF2",
 	}, {
 		desc:         "scheduler-policy-AF3",
-		sequence:     uint32(2),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
 		inputID:      "c_AF3",
 		inputType:    oc.Input_InputType_QUEUE,
@@ -1759,7 +1585,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup: "target-group-AF3",
 	}, {
 		desc:         "scheduler-policy-AF4",
-		sequence:     uint32(1),
+		sequence:     uint32(0),
 		priority:     oc.Scheduler_Priority_STRICT,
 		inputID:      "b_AF4",
 		inputType:    oc.Input_InputType_QUEUE,
