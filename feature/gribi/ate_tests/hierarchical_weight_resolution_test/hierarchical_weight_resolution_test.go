@@ -110,7 +110,7 @@ var (
 
 	// nhgIPv4EntryMap maps NextHopGroups to the ipv4 entries pointing to that NextHopGroup.
 	nhgIPv4EntryMap = map[uint64]string{
-		1: ipv4EntryPrefix,
+		1: dstIpv4EntryPrefix,
 		2: cidr(nhEntryIP1, 32),
 		3: cidr(nhEntryIP2, 32),
 	}
