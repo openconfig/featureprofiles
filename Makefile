@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 openconfig_public:
-	tools/clone_oc_public.sh openconfig_public v1
+	tools/clone_oc_public.sh openconfig_public
 
 .PHONY: validate_paths
 validate_paths: openconfig_public proto/feature_go_proto/feature.pb.go
