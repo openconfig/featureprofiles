@@ -50,15 +50,18 @@ type nhInfo struct {
 }
 
 const (
-	ipv4PrefixLen   = 30
-	ipv4EntryPrefix = "198.18.192.0/21"
-	ipv4FlowIPStart = "198.18.192.0"
-	ipv4FlowIPEnd   = "198.18.199.255"
-	ipv4FlowCount   = 2048
-	nhEntryIP1      = "192.0.2.111"
-	nhEntryIP2      = "192.0.2.222"
-	nonDefaultVRF   = "VRF-1"
-	policyName      = "redirect-to-VRF1"
+	srcEntryPrefix     = "198.1.0.0/16"
+	srcIpv4FlowIPStart = "198.1.0.0"
+	srcIpv4FlowIPEnd   = "198.1.255.255"
+	ipv4PrefixLen      = 30
+	dstIpv4EntryPrefix = "199.1.0.0/16"
+	dstIpv4FlowIPStart = "199.1.0.0"
+	dstIpv4FlowIPEnd   = "199.1.255.255"
+	ipv4FlowCount      = 65000
+	nhEntryIP1         = "192.0.2.111"
+	nhEntryIP2         = "192.0.2.222"
+	nonDefaultVRF      = "VRF-1"
+	policyName         = "redirect-to-VRF1"
 )
 
 var (
@@ -108,7 +111,7 @@ var (
 
 	// nhgIPv4EntryMap maps NextHopGroups to the ipv4 entries pointing to that NextHopGroup.
 	nhgIPv4EntryMap = map[uint64]string{
-		1: ipv4EntryPrefix,
+		1: dstIpv4EntryPrefix,
 		2: cidr(nhEntryIP1, 32),
 		3: cidr(nhEntryIP2, 32),
 	}
@@ -341,7 +344,7 @@ func configurePBF() *oc.NetworkInstance_PolicyForwarding {
 	pf := ni.GetOrCreatePolicyForwarding()
 	vrfPolicy := pf.GetOrCreatePolicy(policyName)
 	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(atePort1.IPv4 + "/32")
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().DscpSet = []uint8{1}
 	vrfPolicy.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(nonDefaultVRF)
 	return pf
 }
@@ -411,11 +414,16 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	// Configure Ethernet+IPv4 headers.
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.WithSrcAddress(atePort1.IPv4)
-	ipv4Header.DstAddressRange().
-		WithMin(ipv4FlowIPStart).
-		WithMax(ipv4FlowIPEnd).
+	ipv4Header.SrcAddressRange().
+		WithMin(srcIpv4FlowIPStart).
+		WithMax(srcIpv4FlowIPEnd).
 		WithCount(ipv4FlowCount)
+	// ipv4Header.WithSrcAddress(atePort1.IPv4)
+	ipv4Header.DstAddressRange().
+		WithMin(dstIpv4FlowIPStart).
+		WithMax(dstIpv4FlowIPEnd).
+		WithCount(ipv4FlowCount)
+	ipv4Header.WithDSCP(1)
 
 	// Ethernet header:
 	//   - Destination MAC (6 octets)
