@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "fe01cad6-6775-45cd-a025-d960ca6c04af"
+plan_id: "gNMI-1.15"
+description: "Set Requests"
