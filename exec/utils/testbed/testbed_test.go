@@ -25,8 +25,8 @@ func TestShowVersion(t *testing.T) {
 	}
 
 	commands := []string{
-		"show version",
 		"run cat /etc/build-info.txt",
+		"show version",
 		"show install fixes active",
 		"show platform",
 		"show context",
