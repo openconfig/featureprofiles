@@ -1,0 +1,152 @@
+simulation: 
+  pyvxr_flags: 
+    port_file_timeout: 10000
+    spitfire_cvac_override: true
+  sim_flags: 
+    - "-k ConfigEnableNgdp=true"
+  slurm_flags: 
+    hours: 72
+    pending_timeout: 30
+devices: 
+  ate: 
+    data_ports: 
+      - 1/1
+      - 1/2
+      - 1/3
+      - 1/4
+      - 1/5
+      - 1/6
+      - 1/7
+      - 1/8
+      - 1/9
+    ixia_images: 
+      chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.10_KVM.qcow2
+      load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.10_KVM.qcow2
+      windows: /auto/vxr/images/ixia/IxNetworkWeb_KVM_9.10.2011.180.qcow2
+    platform: ixia
+  dut: 
+    cvac: $BASE_CONF_PATH
+    dual_rp: true
+    num_linecards: 1
+    linecard_types: 
+      - 8800-LC-36FH-2
+    platform: spitfire_d
+    xr_hostname: dut
+    xr_password: cisco123
+    xr_port_redir: 
+      - 22
+      - 23
+      - 57777
+    xr_username: cisco
+  peer: 
+    cvac: $BASE_CONF_PATH
+    linecard_types: 
+      - churchill
+    platform: spitfire_f
+    xr_hostname: peer
+    xr_password: cisco123
+    xr_port_redir: 
+      - 22
+      - 23
+      - 57777
+    xr_username: cisco
+connections: 
+  hubs: 
+    port1: 
+      - dut.FourHundredGigE0/0/0/10
+      - ate.1/1
+    port2: 
+      - dut.FourHundredGigE0/0/0/20
+      - ate.1/2
+    port3: 
+      - dut.FourHundredGigE0/0/0/12
+      - ate.1/3
+    port4: 
+      - dut.FourHundredGigE0/0/0/13
+      - ate.1/4
+    port5: 
+      - dut.FourHundredGigE0/0/0/14
+      - ate.1/5
+    port6: 
+      - dut.FourHundredGigE0/0/0/15
+      - ate.1/6
+    port7: 
+      - dut.FourHundredGigE0/0/0/16
+      - ate.1/7
+    port8: 
+      - dut.FourHundredGigE0/0/0/17
+      - ate.1/8
+    port9: 
+      - dut.FourHundredGigE0/0/0/18
+      - ate.1/9
+    peer_dut_1: 
+      - dut.FourHundredGigE0/0/0/0
+      - peer.FourHundredGigE0/0/0/0
+    peer_dut_2: 
+      - dut.FourHundredGigE0/0/0/1
+      - peer.FourHundredGigE0/0/0/1
+
+custom: 
+  ondatra: 
+    ate:
+      ports: 
+        ixnetwork: 
+          opts: 
+            - skip_verify
+          password: admin
+          port: 443
+          username: admin
+    dut: 
+      vendor: CISCO
+      hardware_model: "CISCO-8808"
+      ports: 
+        gnmi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        gnoi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        gribi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        p4rt: 
+          opts: 
+            - skip_verify
+          port: 57777
+        ssh: 
+          opts: 
+            - skip_verify
+          port: 22
+        telnet: 
+          port: 23
+    peer: 
+      vendor: CISCO
+      hardware_model: "CISCO-8201"
+      ports: 
+        gnmi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        gnoi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        gribi: 
+          opts: 
+            - skip_verify
+          port: 57777
+        p4rt: 
+          opts: 
+            - skip_verify
+          port: 57777
+        ssh: 
+          opts: 
+            - skip_verify
+          port: 22
+        telnet: 
+          port: 23
+    
+    name: Topo

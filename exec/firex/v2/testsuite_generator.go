@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -125,6 +126,10 @@ var (
 		"use_short_names", false, "output short test names",
 	)
 
+	ignoreDeviationsFlag = flag.Bool(
+		"ignore_deviations", false, "ignore all deviation flags",
+	)
+
 	files            []string
 	testNames        []string
 	groupNames       []string
@@ -141,6 +146,7 @@ var (
 	randomize        bool
 	sorted           bool
 	useShortName     bool
+	ignoreDeviations bool
 )
 
 var (
@@ -274,6 +280,7 @@ func init() {
 	randomize = *randomizeFlag
 	sorted = *sortFlag
 	useShortName = *useShortNameFlag
+	ignoreDeviations = *ignoreDeviationsFlag
 }
 
 func main() {
@@ -512,6 +519,20 @@ func main() {
 		}
 	}
 
+	if ignoreDeviations {
+		for i := range suite {
+			for j := range suite[i].Tests {
+				keptsArgs := []string{}
+				for k := range suite[i].Tests[j].Args {
+					if !strings.HasPrefix(suite[i].Tests[j].Args[k], "-deviation") {
+						keptsArgs = append(keptsArgs, suite[i].Tests[j].Args[k])
+					}
+				}
+				suite[i].Tests[j].Args = keptsArgs
+			}
+		}
+	}
+
 	// Collect and remove -deviation flags
 	deviationSet := map[string]bool{}
 	for i := range suite {
@@ -555,10 +576,27 @@ func main() {
 	for i := range suite {
 		for j := range suite[i].Tests {
 			suite[i].Tests[j].ShortName = strings.Split(suite[i].Tests[j].Name, " ")[0]
-
 			if len(testRepoRev) > 0 {
-				suite[i].Tests[j].Revision = testRepoRev
-				suite[i].Tests[j].Internal = true
+				parts := strings.Split(testRepoRev, "#")
+				switch parts[0] {
+				case "I-PR":
+					suite[i].Tests[j].Internal = true
+					fallthrough
+				case "PR":
+					if pr, err := strconv.Atoi(parts[1]); err == nil {
+						suite[i].Tests[j].PrNum = pr
+					} else {
+						log.Fatalf("%v is not a valid integer pr number", parts[1])
+					}
+				case "I-BR":
+					suite[i].Tests[j].Internal = true
+					fallthrough
+				case "BR":
+					suite[i].Tests[j].Branch = parts[1]
+				default:
+					suite[i].Tests[j].Revision = testRepoRev
+					suite[i].Tests[j].Internal = true
+				}
 			}
 
 			if len(testbeds) > 0 {

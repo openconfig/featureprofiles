@@ -164,70 +164,62 @@ tests:
     mustpass: true
   - name: P4RT-1.1 (Base P4RT Functionality)
     path: feature/experimental/p4rt/ate_tests/base_p4rt
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: P4RT-2.1 (P4RT Election)
     path: feature/experimental/p4rt/tests/p4rt_election
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
     path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
     path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetin_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-7.1 (LLDP PacketIn)
     path: feature/experimental/p4rt/ate_tests/lldp_packetin_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-7.2 (LLDP PacketOut)
     path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-5.2 (Traceroute Packetout)
     path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: P4RT-5.1 (Traceroute Packetin)
     path: feature/experimental/p4rt/ate_tests/traceroute_packetin_test
-    args:
-      - '-deviation_explicit_p4rt_node_component="true"'
     owners:
       - sprem
     priority: 5
     mustpass: true
+    pr: 1428
   - name: gNMI-1.1 (cli Origin)
     path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
     owners:
@@ -254,8 +246,8 @@ tests:
     priority: 38
   - name: RT-5.2 (Aggregate Interfaces)
     path: feature/interface/aggregate/ate_tests/aggregate_test
-    args:
-      - '-deviation_interface_operstatus="true"'
+    # args:
+    #  - '-deviation_interface_operstatus="true"'
     owners:
       - agvarghe
     mustpass: true
@@ -302,13 +294,13 @@ tests:
       - '-deviation_missing_interface_physical_channel="true"'
       - '-deviation_missing_interface_hardware_port="true"'
       - '-deviation_missing_cpu_mfgName="true"'
-      - '-deviation_explicit_p4rt_node_component="true"'
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
     owners:
       - agvarghe
     mustpass: true
     priority: 34
+    pr: 1428
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
     args:
@@ -398,7 +390,6 @@ tests:
     owners:
       - mananpat
     args:
-      - '-deviation_isis_af_metric_style_wide_level_required="true"'
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
       - '-deviation_isis_protocol_enabled_not_required="true"'
       - '-deviation_isis_instance_enabled_not_required="true"'
@@ -411,7 +402,6 @@ tests:
       - mananpat
     args:
       - '-deviation_isis_interface_level1_disable_required="true"'
-      - '-deviation_isis_af_metric_style_wide_level_required="true"'
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
       - '-deviation_isis_hello_padding_adaptive_mode_not_supported="true"'
       - '-deviation_isis_single_topology_required="true"'
@@ -586,6 +576,7 @@ tests:
     mustpass: true
     args:
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
+      - '-deviation_isis_protocol_enabled_not_required="true"'
   - name: gNMI-1.3 (Benchmarking Drained Configuration Convergence Time)
     path: feature/experimental/system/gnmi/benchmarking/ate_tests/drained_configuration_convergence_time
     owners:

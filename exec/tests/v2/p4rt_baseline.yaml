@@ -1,0 +1,53 @@
+name: p4rt 
+owners: 
+  - sprem
+priority: 4
+testbeds: 
+  - 8808-1DUT-1ATE
+tests:
+- name: PacketIO-GDP
+  path: feature/experimental/p4rt/ate_tests/cisco
+  args:
+    - '-run_packetio_tests="true"'
+    - '-run_gdp_tests="true"'
+  timeout: 7200
+  owners: 
+  - sprem
+  internal: true
+  branch: master
+- name: PacketIO-LLDP
+  path: feature/experimental/p4rt/ate_tests/cisco
+  args:
+    - '-run_packetio_tests="true"'
+    - '-run_lldp_tests="true"'
+  timeout: 7200
+  owners: 
+  - sprem
+  internal: true
+  branch: master
+- name: PacketIO-TTL-IPv4
+  path: feature/experimental/p4rt/ate_tests/cisco
+  args:
+    - '-run_packetio_tests="true"'
+    - '-run_ttl_tests="true"'
+    - '-run_ttl_1_v4_tests=true'
+    - '-run_with_bundle_baseconfig=true'
+  timeout: 7200
+  owners: 
+  - sprem
+  internal: true
+  branch: master
+- name: PacketIO-TTL-IPv6
+  path: feature/experimental/p4rt/ate_tests/cisco
+  args:
+    - '-run_packetio_tests="true"'
+    - '-run_ttl_tests="true"'
+    - '-run_ttl_1_v4_tests=false'
+    - '-run_ttl_1_v6_tests=true'
+    - '-run_with_bundle_baseconfig=true'
+  timeout: 7200
+  owners: 
+  - sprem
+  internal: true
+  branch: master
+
