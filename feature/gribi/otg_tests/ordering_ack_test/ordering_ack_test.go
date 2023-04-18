@@ -504,7 +504,6 @@ func TestOrderingACK(t *testing.T) {
 
 	const usePreserve = "PRESERVE"
 
-
 	t.Run(fmt.Sprintf("Persistence=%s", usePreserve), func(t *testing.T) {
 		// Each case will run with its own gRIBI fluent client.
 		for _, tc := range cases {
