@@ -1,0 +1,13 @@
+name: double-delete
+owner: wdolaast@cisco.com
+priority: 5
+testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
+binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
+baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+tests:
+- name: Double delete tests
+  path: feature/gribi/ate_tests/cisco/backup_nh/double_delete
+  timeout: 36000
+  args:
+      - '-gribi_aft_check=false'
+      - '-gribi_aft_chain_check=false'
