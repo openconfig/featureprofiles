@@ -50,13 +50,13 @@ type nhInfo struct {
 }
 
 const (
-	srcEntryPrefix     = "198.1.0.0/16"
-	srcIpv4FlowIPStart = "198.1.0.0"
-	srcIpv4FlowIPEnd   = "198.1.255.255"
+	srcEntryPrefix     = "198.51.0.0/16"
+	srcIpv4FlowIPStart = "198.51.0.0"
+	srcIpv4FlowIPEnd   = "198.51.255.255"
 	ipv4PrefixLen      = 30
-	dstIpv4EntryPrefix = "199.1.0.0/16"
-	dstIpv4FlowIPStart = "199.1.0.0"
-	dstIpv4FlowIPEnd   = "199.1.255.255"
+	dstIpv4EntryPrefix = "203.0.0.0/16"
+	dstIpv4FlowIPStart = "203.0.0.0"
+	dstIpv4FlowIPEnd   = "203.0.255.255"
 	ipv4FlowCount      = 65000
 	nhEntryIP1         = "192.0.2.111"
 	nhEntryIP2         = "192.0.2.222"
