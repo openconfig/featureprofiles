@@ -115,10 +115,6 @@ func TestInterfaceCounters(t *testing.T) {
 		path:    intfCounterPath + "in-unicast-pkts",
 		counter: intfCounters.InUnicastPkts().State(),
 	}, {
-		desc:    "InUnicastPkts",
-		path:    intfCounterPath + "in-unicast-pkts",
-		counter: intfCounters.InUnicastPkts().State(),
-	}, {
 		desc:    "InPkts",
 		path:    intfCounterPath + "in-pkts",
 		counter: intfCounters.InPkts().State(),
