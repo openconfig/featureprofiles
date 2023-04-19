@@ -553,8 +553,8 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir,
 def ForceReboot(self, ws, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path):
     logger.print("Rebooting...")
     reboot_command = f'{GO_BIN} test -v ' \
-            f'./feature/gnoi/system/tests/complete_chassis_reboot ' \
-            f'-timeout 45m ' \
+            f'./exec/utils/reboot ' \
+            f'-timeout 30m ' \
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} '
