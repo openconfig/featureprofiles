@@ -35,6 +35,12 @@ nodes: {
           name: "et-0/0/3:0"
         }
     }
+    interfaces: {
+        key: "eth36"
+        value: {
+          name: "et-0/0/4:0"
+        }
+    }
     services: {
         key: 22
         value: {
@@ -114,4 +120,10 @@ links: {
     a_int: "eth28"
     z_node: "otg"
     z_int: "eth3"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth36"
+    z_node: "otg"
+    z_int: "eth4"
 }
