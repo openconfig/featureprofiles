@@ -64,7 +64,6 @@ func FindSWComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Pla
 	var s []string
 	for _, c := range components {
 		if c.GetType() == nil {
-			t.Logf("Component %s type is missing from telemetry", c.GetName())
 			continue
 		}
 		t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
@@ -74,7 +73,7 @@ func FindSWComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Pla
 				s = append(s, c.GetName())
 			}
 		default:
-			t.Logf("Detected non-software component: (%T, %v)", c.GetType(), c.GetName())
+			// no-op for non-software components.
 		}
 	}
 	return s
