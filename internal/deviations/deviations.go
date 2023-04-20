@@ -164,6 +164,11 @@ func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
 }
 
+// UCMPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
+func UCMPTrafficTolerance(_ *ondatra.DUTDevice) float64 {
+	return *ucmpTrafficTolerance
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -336,4 +341,6 @@ var (
 	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
+
+	ucmpTrafficTolerance = flag.Float64("deviation_ucmp_traffic_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
 )
