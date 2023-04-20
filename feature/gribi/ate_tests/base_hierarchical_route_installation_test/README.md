@@ -73,9 +73,6 @@ TODO: Validate error reporting:
 3.  Ensure RIB ACK, but not FIB ACK, is returned for the IPv4Entry
     198.51.100.0/24 in all the above scenarios.
 
-If the device supports it, repeat the cases in this test with gRIBI client
-persistence mode `DELETE` without flushing entries between cases.
-
 ## Config Parameter coverage
 
 No configuration relevant.

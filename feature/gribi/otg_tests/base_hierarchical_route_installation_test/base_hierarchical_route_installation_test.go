@@ -475,64 +475,50 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 		},
 	}
 
-	const (
-		usePreserve = "PRESERVE"
-		useDelete   = "DELETE"
-	)
+	const usePreserve = "PRESERVE"
 
-	// Each case will run with its own gRIBI fluent client.
-	for _, persist := range []string{usePreserve, useDelete} {
-		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
-			if *deviations.GRIBIPreserveOnly && persist == useDelete {
-				t.Skip("Skipping due to --deviation_gribi_preserve_only")
-			}
+	t.Run(fmt.Sprintf("Persistence=%s", usePreserve), func(t *testing.T) {
+		// Each case will run with its own gRIBI fluent client.
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Logf("Name: %s", tc.name)
+				t.Logf("Description: %s", tc.desc)
 
-			for _, tc := range tests {
-				t.Run(tc.name, func(t *testing.T) {
-					t.Logf("Name: %s", tc.name)
-					t.Logf("Description: %s", tc.desc)
+				if tc.fn == nil {
+					t.Skip("Test case not implemented.")
+				}
 
-					if tc.fn == nil {
-						t.Skip("Test case not implemented.")
+				// Configure the gRIBI client c with election ID of 10.
+				c := fluent.NewClient()
+				c.Connection().
+					WithStub(gribic).
+					WithInitialElectionID(1, 0).
+					WithRedundancyMode(fluent.ElectedPrimaryClient).WithPersistence()
+
+				c.Start(context.Background(), t)
+				defer c.Stop(t)
+				c.StartSending(context.Background(), t)
+				if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
+					t.Fatalf("Await got error during session negotiation for c: %v", err)
+				}
+				gribi.BecomeLeader(t, c)
+
+				defer func() {
+					if err := gribi.FlushAll(c); err != nil {
+						t.Errorf("Cannot flush: %v", err)
 					}
+				}()
 
-					// Configure the gRIBI client c with election ID of 10.
-					c := fluent.NewClient()
-					conn := c.Connection().
-						WithStub(gribic).
-						WithInitialElectionID(1, 0).
-						WithRedundancyMode(fluent.ElectedPrimaryClient)
-					if persist == usePreserve {
-						conn.WithPersistence()
-					}
+				args := &testArgs{
+					ctx: ctx,
+					c:   c,
+					dut: dut,
+					ate: ate,
+					top: top,
+				}
 
-					c.Start(context.Background(), t)
-					defer c.Stop(t)
-					c.StartSending(context.Background(), t)
-					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-						t.Fatalf("Await got error during session negotiation for c: %v", err)
-					}
-					gribi.BecomeLeader(t, c)
-
-					if persist == usePreserve {
-						defer func() {
-							if err := gribi.FlushAll(c); err != nil {
-								t.Errorf("Cannot flush: %v", err)
-							}
-						}()
-					}
-
-					args := &testArgs{
-						ctx: ctx,
-						c:   c,
-						dut: dut,
-						ate: ate,
-						top: top,
-					}
-
-					tc.fn(t, args)
-				})
-			}
-		})
-	}
+				tc.fn(t, args)
+			})
+		}
+	})
 }

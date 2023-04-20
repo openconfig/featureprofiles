@@ -16,21 +16,27 @@ Validate gRIBI route persistence during SSO
 
 *   Inject `1000` IPv4Entries(`IPBlock1: 198.18.196.1/22`) in default VRF with NHGID: `1`.
 
-*   Validate that the entries are installed as FIB_PROGRAMMED using getRPC.
+*   Validate that the entries are installed as FIB_PROGRAMMED using Get RPC.
 
-*   Send traffic from ATE port-1 to prefixes in IPBlock1 and ensure traffic flows 100% and reaches ATE port-2.
+*   Send traffic from ATE port-1 to prefixes in IPBlock1, ensure traffic flows 100% and reaches ATE port-2, stop the traffic.
 
 *   Start injecting another 1000 IPv4Entries(`IPBlock2: 198.18.100.1/22`) in default VRF with NHGID: #1. 
 
-*   Check for coredumps in the DUT and validate that none are present.
+*   Check for gRIBI core dumps in the DUT and validate that none are present.
 
-*   Concurrently, trigger a supervisor switchover using gNOI `SwitchControlProcessor`  while `IPBlock2` entries are only partially installed.
+    TODO: check for any core dumps generated during the test execution time
 
-*   Check for coredumps in the DUT and validate that none are present post failover 
+*   Concurrently, trigger a supervisor switchover using gNOI `SwitchControlProcessor` while `IPBlock2` entries are only partially installed.
 
-*   Following reconnection of the gRIBI client to a new master supervisor, validate if partially ACKed entries of `IPBlock2` are present as FIB_PROGRAMMED using a get RPC.
+*   Check for gRIBI core dumps in the DUT and validate that none are present post failover
+
+    TODO: check for any new core dumps post failover
+
+*   Following reconnection of the gRIBI client to a new master supervisor, validate if partially ACKed entries of `IPBlock2` are present as FIB_PROGRAMMED using a Get RPC.
 
 *   Re-inject `IPBlock2` in default VRF with NHGID: #1.
+
+*   Send traffic from ATE port-1 to prefixes in `IPBlock1`, ensure traffic flows 100% and reaches ATE port-2.
 
 *   Send traffic from ATE port-1 to prefixes in `IPBlock2` and ensure traffic flows 100% and reaches ATE port-2. 
 
