@@ -446,11 +446,12 @@ func debugATEFlows(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, lp 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+	if txPackets == 0 {
+		t.Fatalf("Tx packets should be higher than 0")
+	}
 	lostPackets := txPackets - rxPackets
-	lossPct := lostPackets * 100 / txPackets
-
-	if got := lossPct; got > 0 {
-		t.Fatalf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
+	if got := lostPackets * 100 / txPackets; got > 0 {
+		t.Fatalf("LossPct for flow %s: got %f, want 0", flow.Name(), got)
 	}
 }
 
