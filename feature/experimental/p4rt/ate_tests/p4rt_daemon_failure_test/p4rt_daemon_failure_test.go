@@ -79,7 +79,7 @@ var (
 	p4rtDaemons = map[ondatra.Vendor]string{
 		ondatra.ARISTA:  "P4Runtime",
 		ondatra.CISCO:   "emsd",
-		ondatra.JUNIPER: "rpd",
+		ondatra.JUNIPER: "p4-switch",
 		ondatra.NOKIA:   "sr_p4rt_server",
 	}
 )
