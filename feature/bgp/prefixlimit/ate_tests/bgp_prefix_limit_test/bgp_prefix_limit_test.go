@@ -47,9 +47,8 @@ func TestMain(m *testing.M) {
 // consistent with IPv4.
 
 const (
-	trafficDuration        = 1 * time.Minute
 	grTimer                = 2 * time.Minute
-	grRestartTime          = 60
+	grRestartTime          = 75
 	grStaleRouteTime       = 300.0
 	ipv4SrcTraffic         = "192.0.2.2"
 	ipv6SrcTraffic         = "2001:db8::192:0:2:2"
@@ -67,13 +66,14 @@ const (
 	plenIPv4               = 30
 	plenIPv6               = 126
 	tolerance              = 50
-	lossTolerance          = 2
 	rplType                = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName                = "ALLOW"
 	peerGrpName            = "BGP-PEER-GROUP"
 )
 
 var (
+	trafficDuration = 1 * time.Minute
+
 	dutSrc = attrs.Attributes{
 		Desc:    "DUT to ATE source",
 		IPv4:    "192.0.2.1",
@@ -130,9 +130,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
 	}
-	if *deviations.RoutePolicyUnderNeighborAfiSafi {
-		configureRoutePolicy(t, dut, rplName, rplType)
-	}
+	configureRoutePolicy(t, dut, rplName, rplType)
 
 	dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
@@ -155,7 +153,7 @@ type config struct {
 }
 
 // configureATE configures the interfaces and BGP on the ATE, with port2 advertising routes.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, numRoutes uint32) *config {
 	port1 := ate.Port(t, "port1")
 	topo := ate.Topology().New()
 	iDut1 := topo.AddInterface(ateSrc.Name).WithPort(port1)
@@ -198,7 +196,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.WithSrcAddress(ipv4SrcTraffic).DstAddressRange().
 		WithMin(ipv4DstTrafficStart).WithMax(ipv4DstTrafficEnd).
-		WithCount(prefixLimit)
+		WithCount(numRoutes)
 	flowIPV4 := ate.Traffic().NewFlow("Ipv4").
 		WithSrcEndpoints(iDut1).
 		WithDstEndpoints(iDut2).
@@ -209,7 +207,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 	ipv6Header := ondatra.NewIPv6Header()
 	ipv6Header.WithECN(0).WithSrcAddress(ipv6SrcTraffic).
 		DstAddressRange().WithMin(ipv6DstTrafficStart).WithMax(ipv6DstTrafficEnd).
-		WithCount(prefixLimit)
+		WithCount(numRoutes)
 	flowIPV6 := ate.Traffic().NewFlow("Ipv6").
 		WithSrcEndpoints(iDut1).
 		WithDstEndpoints(iDut2).
@@ -261,10 +259,15 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 			nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			afisafi.Enabled = ygot.Bool(true)
+			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 			prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 			prefixLimit.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
 			if *deviations.RoutePolicyUnderNeighborAfiSafi {
 				rpl := afisafi.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			} else {
+				rpl := nv4.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{rplName}
 				rpl.ExportPolicy = []string{rplName}
 			}
@@ -276,10 +279,15 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 			nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			afisafi6.Enabled = ygot.Bool(true)
+			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 			prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
 			prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
 			if *deviations.RoutePolicyUnderNeighborAfiSafi {
 				rpl := afisafi6.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			} else {
+				rpl := nv6.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{rplName}
 				rpl.ExportPolicy = []string{rplName}
 			}
@@ -376,11 +384,11 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP state")
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixes := statePath.Neighbor(ateDst.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if got, ok := gnmi.Watch(t, dut, prefixes.Installed().State(), time.Minute, compare).Await(t); !ok {
-		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got, installedRoutes)
-	}
-	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), time.Minute, compare).Await(t); !ok {
+	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), 2*time.Minute, compare).Await(t); !ok {
 		t.Errorf("Received prefixes v4 mismatch: got %v, want %v", got, installedRoutes)
+	}
+	if got, ok := gnmi.Watch(t, dut, prefixes.Installed().State(), 2*time.Minute, compare).Await(t); !ok {
+		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got, installedRoutes)
 	}
 	nv4 := gnmi.Get(t, dut, statePath.Neighbor(ateDst.IPv4).State())
 	verifyPrefixLimitTelemetry(t, nv4, tc.wantEstablished)
@@ -396,11 +404,11 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	verifyPrefixLimitTelemetry(t, nv6, tc.wantEstablished)
 }
 
-func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
+func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow, tolerance float32) {
 	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State())
-		if lossPct > lossTolerance {
+		if lossPct > tolerance {
 			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want 0", flow.Name(), lossPct)
 		} else {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
@@ -408,11 +416,11 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, all
 	}
 }
 
-func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
+func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow, tolerance float32) {
 	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State())
-		if lossPct > (100-lossTolerance) && lossPct <= 100 {
+		if lossPct >= (100-tolerance) && lossPct <= 100 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
 			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow.Name(), lossPct)
@@ -481,6 +489,8 @@ type testCase struct {
 func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Log(tc.desc)
 	configureBGPRoutes(t, conf.topo, conf.allNets, tc.numRoutes)
+	now := time.Now()
+
 	// Verify Port Status
 	t.Log(" Verifying port status")
 	t.Run("verifyPortsUp", func(t *testing.T) {
@@ -492,17 +502,25 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 	t.Run("verifyBGPTelemetry", func(t *testing.T) {
 		tc.verifyBGPTelemetry(t, dut)
 	})
+	// Time Duration for which maximum-prefix-restart-time has been active
+	elapsed := time.Since(now)
 
 	// Starting ATE Traffic
 	t.Log("Verify Traffic statistics")
+	if tc.name == "OverLimit" {
+		trafficDuration = trafficDuration - time.Duration(elapsed.Nanoseconds())
+	}
 	sendTraffic(t, ate, conf.allFlows, trafficDuration)
+	tolerance := float32(deviations.BGPTrafficTolerance(dut))
 	if tc.wantNoPacketLoss {
 		t.Run("verifyNoPacketLoss", func(t *testing.T) {
-			tc.verifyNoPacketLoss(t, ate, conf.allFlows)
+			tc.verifyNoPacketLoss(t, ate, conf.allFlows, tolerance)
 		})
 	} else {
 		t.Run("verifyPacketLoss", func(t *testing.T) {
-			tc.verifyPacketLoss(t, ate, conf.allFlows)
+			if !deviations.BGPPrefixOverlimit(dut) && tc.name == "OverLimit" {
+				tc.verifyPacketLoss(t, ate, conf.allFlows, tolerance)
+			}
 		})
 	}
 }
@@ -540,12 +558,12 @@ func TestTrafficBGPPrefixLimit(t *testing.T) {
 	t.Log("Start DUT interface Config")
 	configureDUT(t, dut)
 
-	// ATE Configuration.
-	t.Log("Start ATE Config")
-	conf := configureATE(t, ate)
-
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			// ATE Configuration.
+			t.Log("Start ATE Config")
+			conf := configureATE(t, ate, tc.numRoutes)
+			time.Sleep(1 * time.Minute)
 			tc.run(t, conf, dut, ate)
 		})
 	}

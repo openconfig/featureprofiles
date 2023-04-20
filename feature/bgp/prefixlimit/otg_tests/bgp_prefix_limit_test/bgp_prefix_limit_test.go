@@ -136,9 +136,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
 	}
-	if *deviations.RoutePolicyUnderNeighborAfiSafi {
-		configureRoutePolicy(t, dut, rplName, rplType)
-	}
+	configureRoutePolicy(t, dut, rplName, rplType)
 
 	dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
@@ -293,10 +291,15 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 			nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			afisafi.Enabled = ygot.Bool(true)
+			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 			prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 			prefixLimit.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
 			if *deviations.RoutePolicyUnderNeighborAfiSafi {
 				rpl := afisafi.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			} else {
+				rpl := nv4.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{rplName}
 				rpl.ExportPolicy = []string{rplName}
 			}
@@ -308,10 +311,15 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 			nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			afisafi6.Enabled = ygot.Bool(true)
+			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 			prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
 			prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
 			if *deviations.RoutePolicyUnderNeighborAfiSafi {
 				rpl := afisafi6.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{rplName}
+				rpl.ExportPolicy = []string{rplName}
+			} else {
+				rpl := nv6.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{rplName}
 				rpl.ExportPolicy = []string{rplName}
 			}

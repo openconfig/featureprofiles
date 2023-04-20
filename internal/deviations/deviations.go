@@ -164,6 +164,7 @@ func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
 }
 
+
 // StatePathsUnsupported returns whether the device supports following state paths
 func StatePathsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *statePathsUnsupported
@@ -342,5 +343,7 @@ var (
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
 
+
 	statePathsUnsupported = flag.Bool("deviation_state_path_unsupported", false, "Device does not support these state paths, Set this flag to skip checking the leaves")
+
 )

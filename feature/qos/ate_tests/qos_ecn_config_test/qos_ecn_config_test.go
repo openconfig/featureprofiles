@@ -18,6 +18,7 @@ import (
 	"math"
 	"testing"
 
+
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -54,6 +55,7 @@ var (
 			fn:   testCiscoECNConfig,
 		},
 	}
+
 	QoSJuniperEcnConfigTestcases = []Testcase{
 		{
 
@@ -61,6 +63,7 @@ var (
 			fn:   testJuniperECNConfig,
 		},
 	}
+
 )
 
 // QoS ecn OC config:
@@ -98,12 +101,14 @@ func TestQosEcnConfigTests(t *testing.T) {
 				tt.fn(t)
 			})
 		}
+
 	case ondatra.JUNIPER:
 		for _, tt := range QoSJuniperEcnConfigTestcases {
 			t.Run(tt.name, func(t *testing.T) {
 				tt.fn(t)
 			})
 		}
+
 	default:
 		for _, tt := range QoSEcnConfigTestcases {
 			t.Run(tt.name, func(t *testing.T) {
@@ -498,6 +503,7 @@ func testCiscoECNConfig(t *testing.T) {
 
 }
 
+
 func testJuniperECNConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
@@ -726,3 +732,4 @@ func testJuniperECNConfig(t *testing.T) {
 		}
 	}
 }
+
