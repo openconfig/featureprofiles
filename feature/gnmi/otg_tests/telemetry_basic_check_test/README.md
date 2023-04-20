@@ -22,6 +22,11 @@ following features:
         *   /interfaces/interfaces/interface/state/admin-status
         *   /interfaces/interfaces/interface/state/oper-status
 
+*   Interface physical channel
+
+    *   Check interface physical-channel exists.
+            *   /interfaces/interface/state/physical-channel
+
 *   Interface status change
 
     *   Check admin-status and oper-status are correct after interface flapping.
@@ -53,17 +58,6 @@ following features:
 *   Send the traffic over the DUT.
 
     *   Check some counters are updated correctly.
-
-*   QoS counters
-
-    *   Send the traffic with all forwarding class NC1, AF4, AF3, AF2, AF1 and
-        BE1 over the DUT
-    *   Check the QoS queue counters exist and are updated correctly
-        *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-        *   TODO:
-            /qos/interfaces/interface/output/queues/queue/state/transmit-octets
-        *   TODO:
-            /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
 
 *   Component
 
@@ -122,6 +116,7 @@ No configuration coverage.
 *   /interfaces/interface/state/hardware-port /interfaces/interface/state/id
 *   /interfaces/interface/state/oper-status
 *   /interfaces/interface/ethernet/state/port-speed
+*   /interfaces/interface/state/physical-channel
 *   /components/component/integrated-circuit/state/node-id
 *   /components/component/state/parent
 *   /interfaces/interface/state/counters/in-octets
@@ -140,6 +135,7 @@ No configuration coverage.
 *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
 *   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
 *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+*   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
 
 ## Protocol/RPC Parameter coverage
 
