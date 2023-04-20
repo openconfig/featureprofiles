@@ -264,7 +264,6 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 	if a.numSubIntf > 0 {
 		i.Description = ygot.String(a.Desc)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		i = a.NewOCInterface(p.Name())
 		if *deviations.InterfaceEnabled {
 			i.Enabled = ygot.Bool(true)
 		}
