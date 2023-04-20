@@ -71,7 +71,6 @@ var (
 			fn:   testCiscoSchedulerPoliciesConfig,
 		},
 	}
-
 	QosJuniperConfigTestcase = []Testcase{
 
 		{
@@ -97,14 +96,12 @@ func TestQosConfigTests(t *testing.T) {
 				tt.fn(t)
 			})
 		}
-
 	case ondatra.JUNIPER:
 		for _, tt := range QosJuniperConfigTestcase {
 			t.Run(tt.name, func(t *testing.T) {
 				tt.fn(t)
 			})
 		}
-
 	default:
 		for _, tt := range QoSConfigTestcases {
 			t.Run(tt.name, func(t *testing.T) {
@@ -1168,7 +1165,6 @@ func testCiscoSchedulerPoliciesConfig(t *testing.T) {
 
 }
 
-
 func testJuniperClassifierConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
@@ -1420,17 +1416,29 @@ func testJuniperClassifierConfig(t *testing.T) {
 		termID:              "0",
 		targetGroup:         "target-group-BE1",
 		queueName:           "0",
-	}, {
-		desc:                "Input Classifier Type IPV6",
-		inputClassifierType: oc.Input_Classifier_Type_IPV6,
-		classifier:          "dscp_based_classifier_ipv6",
-		classType:           oc.Qos_Classifier_Type_IPV6,
-		termID:              "0",
-		targetGroup:         "target-group-BE1",
-		dscpSet:             []uint8{0, 1, 2, 3},
-		queueName:           "0",
 	}}
-
+	if !deviations.StatePathsUnsupported(dut) {
+		cases = append(cases,
+			struct {
+				desc                string
+				inputClassifierType oc.E_Input_Classifier_Type
+				classifier          string
+				classType           oc.E_Qos_Classifier_Type
+				termID              string
+				dscpSet             []uint8
+				targetGroup         string
+				queueName           string
+			}{
+				desc:                "Input Classifier Type IPV6",
+				inputClassifierType: oc.Input_Classifier_Type_IPV6,
+				classifier:          "dscp_based_classifier_ipv6",
+				classType:           oc.Qos_Classifier_Type_IPV6,
+				termID:              "0",
+				targetGroup:         "target-group-BE1",
+				dscpSet:             []uint8{0, 1, 2, 3},
+				queueName:           "0",
+			})
+	}
 	dp := dut.Port(t, "port1")
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
@@ -1460,14 +1468,12 @@ func testJuniperClassifierConfig(t *testing.T) {
 		})
 
 		// Verify the Classifier is applied on interface by checking the telemetry path state values.
-		if !deviations.StatePathsUnsupported(dut) {
-			classifier := gnmi.OC().Qos().Interface(dp.Name()).Input().Classifier(tc.inputClassifierType)
-			if got, want := gnmi.Get(t, dut, classifier.Name().State()), tc.classifier; got != want {
-				t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, classifier.Type().State()), tc.inputClassifierType; got != want {
-				t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
-			}
+		classifier := gnmi.OC().Qos().Interface(dp.Name()).Input().Classifier(tc.inputClassifierType)
+		if got, want := gnmi.Get(t, dut, classifier.Name().State()), tc.classifier; got != want {
+			t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, classifier.Type().State()), tc.inputClassifierType; got != want {
+			t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
 		}
 	}
 
@@ -1628,8 +1634,6 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
 	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	uniform.SetDrop(ecnConfig.dropEnabled)
-	uniform.SetWeight(ecnConfig.weight)
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
@@ -1640,6 +1644,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 	if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), ecnConfig.maxDropProbabilityPercent; got != want {
 		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
 	}
+
 	if !deviations.StatePathsUnsupported(dut) {
 		if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
 			t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
@@ -1647,9 +1652,14 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().State()), ecnConfig.maxThreshold; got != want {
 			t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
-			t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
-		}
+	}
+
+	if !deviations.DropWeightLeavesUnsupported(dut) {
+
+		uniform.SetDrop(ecnConfig.dropEnabled)
+		uniform.SetWeight(ecnConfig.weight)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
 		if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
 			t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
 		}
@@ -1725,6 +1735,9 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 			if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), tc.ecnProfile; got != want {
 				t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
 			}
+		}
+		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
+			t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
 		}
 	}
 }

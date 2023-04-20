@@ -169,6 +169,11 @@ func StatePathsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *statePathsUnsupported
 }
 
+// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile
+func DropWeightLeavesUnsupported(_ *ondatra.DUTDevice) bool {
+	return *dropWeightLeavesUnsupported
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -342,4 +347,5 @@ var (
 
 	statePathsUnsupported = flag.Bool("deviation_state_path_unsupported", false, "Device does not support these state paths, Set this flag to skip checking the leaves")
 
+	dropWeightLeavesUnsupported = flag.Bool("deviation_drop_weight_leaves_unsupported", false, "Device does not support drop and weight leaves under queue management profile, Set this flag to skip checking the leaves")
 )
