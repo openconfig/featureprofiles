@@ -50,18 +50,17 @@ type nhInfo struct {
 }
 
 const (
-	srcEntryPrefix     = "198.51.0.0/16"
-	srcIpv4FlowIPStart = "198.51.0.0"
-	srcIpv4FlowIPEnd   = "198.51.255.255"
-	ipv4PrefixLen      = 30
-	dstIpv4EntryPrefix = "203.0.0.0/16"
-	dstIpv4FlowIPStart = "203.0.0.0"
-	dstIpv4FlowIPEnd   = "203.0.255.255"
-	ipv4FlowCount      = 65000
-	nhEntryIP1         = "192.0.2.111"
-	nhEntryIP2         = "192.0.2.222"
-	nonDefaultVRF      = "VRF-1"
-	policyName         = "redirect-to-VRF1"
+	ipv4EntryPrefix   = "203.0.113.0/32"
+	ipv4FlowIP        = "203.0.113.0"
+	innerSrcIpv4Start = "198.51.0.0"
+	innerDstIpv4Start = "198.52.0.0"
+	ipv4PrefixLen     = 30
+	ipv4FlowCount     = 65000
+	nhEntryIP1        = "192.0.2.111"
+	nhEntryIP2        = "192.0.2.222"
+	nonDefaultVRF     = "VRF-1"
+	policyName        = "redirect-to-VRF1"
+	ipipProtocol      = 4
 )
 
 var (
@@ -111,13 +110,13 @@ var (
 
 	// nhgIPv4EntryMap maps NextHopGroups to the ipv4 entries pointing to that NextHopGroup.
 	nhgIPv4EntryMap = map[uint64]string{
-		1: dstIpv4EntryPrefix,
+		1: ipv4EntryPrefix,
 		2: cidr(nhEntryIP1, 32),
 		3: cidr(nhEntryIP2, 32),
 	}
 	// 'deviation' is the maximum difference that is allowed between the observed
 	// traffic distribution and the required traffic distribution.
-	tolerance = 0.0
+	tolerance = 0.2
 )
 
 func TestMain(m *testing.M) {
@@ -344,7 +343,7 @@ func configurePBF() *oc.NetworkInstance_PolicyForwarding {
 	pf := ni.GetOrCreatePolicyForwarding()
 	vrfPolicy := pf.GetOrCreatePolicy(policyName)
 	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().DscpSet = []uint8{1}
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	vrfPolicy.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(nonDefaultVRF)
 	return pf
 }
@@ -414,16 +413,11 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	// Configure Ethernet+IPv4 headers.
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.SrcAddressRange().
-		WithMin(srcIpv4FlowIPStart).
-		WithMax(srcIpv4FlowIPEnd).
-		WithCount(ipv4FlowCount)
-	// ipv4Header.WithSrcAddress(atePort1.IPv4)
-	ipv4Header.DstAddressRange().
-		WithMin(dstIpv4FlowIPStart).
-		WithMax(dstIpv4FlowIPEnd).
-		WithCount(ipv4FlowCount)
-	ipv4Header.WithDSCP(1)
+	ipv4Header.WithSrcAddress(atePort1.IPv4)
+	ipv4Header.WithDstAddress(ipv4FlowIP)
+	innerIpv4Header := ondatra.NewIPv4Header()
+	innerIpv4Header.SrcAddressRange().WithMin(innerSrcIpv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
+	innerIpv4Header.DstAddressRange().WithMin(innerDstIpv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
 
 	// Ethernet header:
 	//   - Destination MAC (6 octets)
@@ -433,7 +427,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	flow := ate.Traffic().NewFlow("flow").
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoints...).
-		WithHeaders(ethHeader, ipv4Header)
+		WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
 
 	// VlanID is the last 12 bits in the 802.1q VLAN tag.
 	// Offset for VlanID: ((6+6+4) * 8)-12 = 116.
@@ -530,7 +524,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
-		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, 0.5)); diff != "" {
+		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
 	})
@@ -623,10 +617,8 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
 
-		if deviations.UCMPTrafficTolerance(dut) {
-			tolerance = 1.5
-		} else {
-			tolerance = 0.2
+		if deviations.UCMPTrafficTolerance(dut) != tolerance {
+			tolerance = deviations.UCMPTrafficTolerance(dut)
 		}
 		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)

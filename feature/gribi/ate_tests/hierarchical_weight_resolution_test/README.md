@@ -11,7 +11,7 @@ Configure ATE and DUT:
 
 *   Connect ATE port-1 to DUT port-1. ATE port-2 to DUT port-2.
 
-*   Create a non-default VRF (VRF-1) that includes DUT port-1.
+*   Create a non-default VRF (VRF-1) that contains no interfaces.
 
 *   On DUT port-2 and ATE port-2 create 18 L3 sub-interfaces each with a /30
     subnet as below:
@@ -27,15 +27,15 @@ Configure ATE and DUT:
 
 * On DUT port-1 and ATE port-1 create a single L3 interface.
 
-* On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-1
-(based on src. IP match criteria).
+* On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-1 (based on src. IP match
+criteria).
 
 Test case for basic hierarchical weight:
 
 *   Establish gRIBI client connection with DUT with PERSISTENCE, make it become
     leader and install the following Entries:
 
-    *   IPv4Entry 199.1.0.0/16 in VRF-1, pointing to NextHopGroup(NHG#1) in
+    *   IPv4Entry 203.0.113.0/32 in VRF-1, pointing to NextHopGroup(NHG#1) in
         default VRF, with two NextHops(NH#1, NH#2) in default VRF:
 
         *   NH#1 with weight:1, pointing to 192.0.2.111
@@ -66,7 +66,7 @@ Test case for basic hierarchical weight:
 
     *   NH101: (3/4) * (5/8) = 46.87% traffic received by ATE port-2 VLAN 4
 
-    *   A tolerance of 0.5% is allowed for each VLAN for now, since we only test
+    *   A tolerance of 0.2% is allowed for each VLAN for now, since we only test
         for 2 mins.
 
 Test case for hierarchical weight in boundary scenarios, with maximum expected
@@ -75,7 +75,7 @@ WCMP width of 16 nexthops:
 *   Flush previous gRIBI Entries for all NIs and establish a new connection with
     DUT with PERSISTENCE and install the following Entries:
 
-    *   IPv4Entry 199.1.0.0/16 in VRF-1, pointing to NextHopGroup(NHG#1) in
+    *   IPv4Entry 203.0.113.0/32 in VRF-1, pointing to NextHopGroup(NHG#1) in
         default VRF, with two NextHops(NH#1, NH#2) in default VRF:
 
         *   NH#1 with weight:1, pointing to 192.0.2.111
