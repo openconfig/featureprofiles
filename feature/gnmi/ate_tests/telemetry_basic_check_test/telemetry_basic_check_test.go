@@ -467,6 +467,10 @@ func TestComponentParent(t *testing.T) {
 func TestSoftwareVersion(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
+	if deviations.SwVersionUnsupported(dut) {
+		t.Skipf("Software version test is not supported by DUT")
+	}
+
 	// validate /system/state/software-version.
 	swVer := gnmi.Lookup(t, dut, gnmi.OC().System().SoftwareVersion().State())
 	if v, ok := swVer.Val(); ok && v != "" {
