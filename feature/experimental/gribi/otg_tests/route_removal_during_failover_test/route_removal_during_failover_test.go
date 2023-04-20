@@ -94,11 +94,13 @@ var (
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
 		ondatra.NOKIA:   "/var/core/",
+		ondatra.ARISTA:  "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "rpd",
 		ondatra.CISCO:   "emsd.*core.*",
 		ondatra.NOKIA:   "coredump-sr_gribi_server-.*",
+		ondatra.ARISTA:  "core.*",
 	}
 )
 
@@ -494,7 +496,8 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	// configure DUT port#1 - source port.
 	configureSubinterfaceDUT(d, dp1, 0, 0, dutPort1.IPv4)
 	configureInterfaceDUT(t, dp1, d, "src")
-	configureATE(top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4, atePort1.MAC)
+	configureATE(top, ap1, atePort1.Name, 0, dutPort1.IPv4, atePort1.IPv4, atePort1.MAC)
+	ate.OTG().PushConfig(t, top)
 	pushConfig(t, dut, dp1, d)
 	dp2 := dut.Port(t, "port2")
 	ap2 := ate.Port(t, "port2")
