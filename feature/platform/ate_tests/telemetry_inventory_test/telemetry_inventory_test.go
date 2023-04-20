@@ -359,7 +359,7 @@ func TestSwitchChip(t *testing.T) {
 		t.Logf("Validate card %s", card)
 		component := gnmi.OC().Component(card)
 
-		if deviations.BackplaneFacingCapacityUnsupported(ondatra.DUT(t, "dut")) && regexp.MustCompile("NPU[0-9]$").Match([]byte(card)) {
+		if deviations.BackplaneFacingCapacityUnsupported(dut) && regexp.MustCompile("NPU[0-9]$").Match([]byte(card)) {
 			// Vendor does not support backplane-facing-capacity for nodes named 'NPU'.
 			continue
 		} else {
@@ -481,7 +481,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.idValidation {
-			if deviations.SwitchChipIDUnsupported(ondatra.DUT(t, "dut")) {
+			if deviations.SwitchChipIDUnsupported(dut) {
 				t.Logf("Skipping check for switch chip id unsupport")
 			} else {
 				id := gnmi.Get(t, dut, component.Id().State())
@@ -588,10 +588,14 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.operStatus != "" {
-			operStatus := gnmi.Get(t, dut, component.OperStatus().State()).String()
-			t.Logf("Hardware card %s OperStatus: %s", card, operStatus)
-			if operStatus != activeStatus {
-				t.Errorf("component.OperStatus().Get(t) for %q): got %v, want %v", card, operStatus, p.operStatus)
+			if deviations.FanOperStatusUnsupported(dut) && strings.Contains(card, "Fan") {
+				t.Logf("Skipping check for fan oper-status due to deviation FanOperStatusUnsupported")
+			} else {
+				operStatus := gnmi.Get(t, dut, component.OperStatus().State()).String()
+				t.Logf("Hardware card %s OperStatus: %s", card, operStatus)
+				if operStatus != activeStatus {
+					t.Errorf("component.OperStatus().Get(t) for %q): got %v, want %v", card, operStatus, p.operStatus)
+				}
 			}
 		}
 
@@ -628,11 +632,10 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 }
 
 func TestSoftwareModule(t *testing.T) {
-
-	if deviations.ComponentsSoftwareModuleUnsupported(ondatra.DUT(t, "dut")) {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.ComponentsSoftwareModuleUnsupported(dut) {
 		t.Logf("Skipping check for components software module unsupport")
 	} else {
-		dut := ondatra.DUT(t, "dut")
 		moduleTypes := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().SoftwareModule().ModuleType().State())
 		if len(moduleTypes) == 0 {
 			t.Errorf("Get moduleType list for %q: got 0, want > 0", dut.Model())
