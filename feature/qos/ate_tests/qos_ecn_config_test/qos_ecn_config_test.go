@@ -18,7 +18,6 @@ import (
 	"math"
 	"testing"
 
-
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -55,7 +54,6 @@ var (
 			fn:   testCiscoECNConfig,
 		},
 	}
-
 	QoSJuniperEcnConfigTestcases = []Testcase{
 		{
 
@@ -63,7 +61,6 @@ var (
 			fn:   testJuniperECNConfig,
 		},
 	}
-
 )
 
 // QoS ecn OC config:
@@ -101,14 +98,12 @@ func TestQosEcnConfigTests(t *testing.T) {
 				tt.fn(t)
 			})
 		}
-
 	case ondatra.JUNIPER:
 		for _, tt := range QoSJuniperEcnConfigTestcases {
 			t.Run(tt.name, func(t *testing.T) {
 				tt.fn(t)
 			})
 		}
-
 	default:
 		for _, tt := range QoSEcnConfigTestcases {
 			t.Run(tt.name, func(t *testing.T) {
@@ -503,7 +498,6 @@ func testCiscoECNConfig(t *testing.T) {
 
 }
 
-
 func testJuniperECNConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
@@ -632,8 +626,6 @@ func testJuniperECNConfig(t *testing.T) {
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
 	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	uniform.SetDrop(ecnConfig.dropEnabled)
-	uniform.SetWeight(ecnConfig.weight)
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
@@ -644,6 +636,7 @@ func testJuniperECNConfig(t *testing.T) {
 	if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), ecnConfig.maxDropProbabilityPercent; got != want {
 		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
 	}
+
 	if !deviations.StatePathsUnsupported(dut) {
 		if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
 			t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
@@ -651,9 +644,14 @@ func testJuniperECNConfig(t *testing.T) {
 		if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().State()), ecnConfig.maxThreshold; got != want {
 			t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
-			t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
-		}
+	}
+
+	if !deviations.DropWeightLeavesUnsupported(dut) {
+
+		uniform.SetDrop(ecnConfig.dropEnabled)
+		uniform.SetWeight(ecnConfig.weight)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
 		if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
 			t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
 		}
@@ -730,6 +728,8 @@ func testJuniperECNConfig(t *testing.T) {
 				t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
 			}
 		}
+		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
+			t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
+		}
 	}
 }
-
