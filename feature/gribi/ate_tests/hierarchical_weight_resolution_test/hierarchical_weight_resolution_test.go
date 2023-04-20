@@ -110,7 +110,7 @@ var (
 
 	// nhgIPv4EntryMap maps NextHopGroups to the ipv4 entries pointing to that NextHopGroup.
 	nhgIPv4EntryMap = map[uint64]string{
-		1: dstIpv4EntryPrefix,
+		1: ipv4EntryPrefix,
 		2: cidr(nhEntryIP1, 32),
 		3: cidr(nhEntryIP2, 32),
 	}
@@ -621,7 +621,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 		if deviations.UCMPTrafficTolerance(dut) != tolerance {
 			tolerance = deviations.UCMPTrafficTolerance(dut)
 		}
-		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, deviation)); diff != "" {
+		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
 	})
