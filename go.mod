@@ -18,7 +18,7 @@ require (
 	github.com/openconfig/goyang v1.2.0
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20230207233343-ef59db57c4fc
-	github.com/openconfig/kne v0.1.10
+	github.com/openconfig/kne v0.1.11
 	github.com/openconfig/ondatra v0.1.11
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.7.7
@@ -26,7 +26,7 @@ require (
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yuin/goldmark v1.4.13
-	golang.org/x/crypto v0.5.0
+	golang.org/x/crypto v0.6.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
 )
@@ -84,7 +84,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.7 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
-	github.com/scrapli/scrapligo v1.1.6 // indirect
+	github.com/scrapli/scrapligo v1.1.7 // indirect
 	github.com/scrapli/scrapligocfg v1.0.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4 // indirect
@@ -94,8 +94,8 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.15.0 // indirect
-	github.com/srl-labs/srl-controller v0.5.0 // indirect
-	github.com/srl-labs/srlinux-scrapli v0.5.0 // indirect
+	github.com/srl-labs/srl-controller v0.6.0 // indirect
+	github.com/srl-labs/srlinux-scrapli v0.6.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
