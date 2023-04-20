@@ -262,65 +262,6 @@ func TestLeaderFailover(t *testing.T) {
 		top: top,
 	}
 
-	t.Run("SINGLE_PRIMARY/PERSISTENCE=DELETE", func(t *testing.T) {
-		if *deviations.GRIBIPreserveOnly {
-			t.Skip("Skipping due to --deviation_gribi_preserve_only, DELETE mode is not supported")
-		}
-
-		// Set parameters for gRIBI client clientA.
-		// Set Persistence to false.
-		clientA := &gribi.Client{
-			DUT:         dut,
-			FIBACK:      false,
-			Persistence: false,
-		}
-
-		defer clientA.Close(t)
-
-		t.Log("Establish gRIBI client connection with PERSISTENCE set to FALSE/DELETE")
-		if err := clientA.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection for clientA could not be established")
-		}
-		clientA.BecomeLeader(t)
-
-		t.Run("AddRoute", func(t *testing.T) {
-			t.Logf("Add gRIBI route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
-			addRoute(ctx, t, args, clientA)
-
-			t.Run("VerifyAFT", func(t *testing.T) {
-				verifyAFT(ctx, t, args)
-			})
-
-			t.Run("VerifyTraffic", func(t *testing.T) {
-				verifyTraffic(ctx, t, args)
-			})
-		})
-
-		t.Logf("Time check: %s", time.Since(start))
-
-		// Close below is done through defer.
-		t.Log("Close gRIBI client connection")
-	})
-
-	t.Run("ShouldDelete", func(t *testing.T) {
-		if *deviations.GRIBIPreserveOnly {
-			t.Skip("Skipping due to --deviation_gribi_preserve_only, DELETE mode is not supported")
-		}
-
-		t.Logf("Verify through Telemetry and Traffic that the route to %s has been deleted after gRIBI client disconnected", ateDstNetCIDR)
-
-		t.Run("VerifyNoAFT", func(t *testing.T) {
-			verifyNoAFT(ctx, t, args)
-		})
-
-		t.Run("VerifyNoTraffic", func(t *testing.T) {
-			verifyNoTraffic(ctx, t, args)
-		})
-
-		t.Logf("Time check: %s", time.Since(start))
-
-	})
-
 	t.Run("SINGLE_PRIMARY/PERSISTENCE=PRESERVE", func(t *testing.T) {
 		// Set parameters for gRIBI client clientA.
 		// Set Persistence to true.

@@ -71,6 +71,7 @@ var (
 			fn:   testCiscoSchedulerPoliciesConfig,
 		},
 	}
+
 	QosJuniperConfigTestcase = []Testcase{
 
 		{
@@ -96,12 +97,14 @@ func TestQosConfigTests(t *testing.T) {
 				tt.fn(t)
 			})
 		}
+
 	case ondatra.JUNIPER:
 		for _, tt := range QosJuniperConfigTestcase {
 			t.Run(tt.name, func(t *testing.T) {
 				tt.fn(t)
 			})
 		}
+
 	default:
 		for _, tt := range QoSConfigTestcases {
 			t.Run(tt.name, func(t *testing.T) {
@@ -1164,6 +1167,7 @@ func testCiscoSchedulerPoliciesConfig(t *testing.T) {
 	}
 
 }
+
 
 func testJuniperClassifierConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")

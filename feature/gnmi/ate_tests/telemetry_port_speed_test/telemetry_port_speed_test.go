@@ -57,6 +57,7 @@ const (
 var (
 	dutIPs = attrs.Attributes{
 		Name:    "dutip",
+		Desc:    "LAG To ATE",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
 		IPv4Len: plen4,
@@ -192,6 +193,9 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		iPath := d.Interface(iName)
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
+		if *deviations.ExplicitPortSpeed {
+			fptest.SetPortSpeed(t, port)
+		}
 	}
 
 	if tc.lagType == lagTypeLACP {
@@ -211,6 +215,9 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, *deviations.DefaultNetworkInstance, 0)
+	}
 	t.Cleanup(func() {
 		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().MinLinks().Config())
 		for _, port := range tc.dutPorts {
@@ -218,9 +225,17 @@ func (tc *testCase) configureDUT(t *testing.T) {
 			iPath := d.Interface(iName)
 			gnmi.Replace(t, tc.dut, iPath.Config(), &oc.Interface{Name: ygot.String(iName), Type: ethernetCsmacd})
 		}
+		if *deviations.AggregateAtomicUpdate {
+			resetBatch := &gnmi.SetBatch{}
+			if *deviations.ExplicitInterfaceInDefaultVRF {
+				gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Interface(tc.aggID+".0").Config())
+			}
+			gnmi.BatchDelete(resetBatch, aggPath.Config())
+			gnmi.BatchDelete(resetBatch, d.Lacp().Interface(tc.aggID).Config())
+			resetBatch.Set(t, tc.dut)
+		}
 		gnmi.Delete(t, tc.dut, aggPath.Config())
 	})
-
 }
 
 func (tc *testCase) configureATE(t *testing.T) {

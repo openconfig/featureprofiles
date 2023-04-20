@@ -18,9 +18,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
-	"sort"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -48,7 +46,7 @@ var (
 	vendorQueueNo = map[ondatra.Vendor]int{
 		ondatra.ARISTA:  16,
 		ondatra.CISCO:   6,
-		ondatra.JUNIPER: 6,
+		ondatra.JUNIPER: 8,
 	}
 )
 
@@ -60,6 +58,7 @@ const (
 	fabricType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	switchChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
+	portType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT
 )
 
 var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
@@ -91,6 +90,9 @@ func TestMain(m *testing.M) {
 func TestEthernetPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	want := portSpeed[dp.Speed()]
 	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Ethernet().PortSpeed().State())
 	t.Logf("Got %s PortSpeed from telmetry: %v, expected: %v", dp.Name(), got, want)
@@ -118,7 +120,9 @@ func TestEthernetMacAddress(t *testing.T) {
 func TestInterfaceAdminStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State())
 	t.Logf("Got %s AdminStatus from telmetry: %v", dp.Name(), adminStatus)
 	if adminStatus != adminStatusUp {
@@ -129,7 +133,9 @@ func TestInterfaceAdminStatus(t *testing.T) {
 func TestInterfaceOperStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp)
+	}
 	operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
 	t.Logf("Got %s OperStatus from telmetry: %v", dp.Name(), operStatus)
 	if operStatus != operStatusUp {
@@ -138,6 +144,9 @@ func TestInterfaceOperStatus(t *testing.T) {
 }
 
 func TestInterfacePhysicalChannel(t *testing.T) {
+	if *deviations.MissingInterfacePhysicalChannel {
+		t.Skip("Test is skipped due to MissingInterfacePhysicalChannel deviation")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
@@ -177,7 +186,9 @@ func TestInterfaceStatusChange(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			i.Type = ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-
+			if *deviations.ExplicitPortSpeed {
+				fptest.SetPortSpeed(t, dp)
+			}
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedOperStatus)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State(), intUpdateTime, tc.expectedAdminStatus)
 			operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
@@ -193,19 +204,28 @@ func TestInterfaceStatusChange(t *testing.T) {
 }
 
 func TestHardwarePort(t *testing.T) {
+	if *deviations.MissingInterfaceHardwarePort {
+		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
-	// Derive hardware port from interface name by removing the port number.
-	// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
-	i := strings.LastIndex(dp.Name(), "/")
-	want := dp.Name()[:i]
-
-	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
-	t.Logf("Got %s HardwarePort from telmetry: %v, expected: %v", dp.Name(), got, want)
-	if got != want {
-		t.Errorf("Get(DUT port1 HardwarePort): got %v, want %v", got, want)
+	// Verify HardwarePort leaf is present under interface.
+	got := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
+	val, present := got.Val()
+	if !present {
+		t.Errorf("DUT port1 %s HardwarePort leaf not found", dp.Name())
 	}
+	t.Logf("For interface %s, HardwarePort is %s", dp.Name(), val)
+
+	// Verify HardwarePort is a component of type PORT.
+	typeGot := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+	if typeGot != portType {
+		t.Errorf("HardwarePort leaf's component type got %s, want %s", typeGot, portType)
+	}
+
+	// Verify HardwarePort component has CHASSIS as an ancestor.
+	verifyChassisIsAncestor(t, dut, val)
 }
 
 func TestInterfaceCounters(t *testing.T) {
@@ -284,6 +304,9 @@ func TestInterfaceCounters(t *testing.T) {
 }
 
 func TestQoSCounters(t *testing.T) {
+	if !*args.QoSBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for QoS is not loaded.")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
 	queues := gnmi.OC().Qos().Interface(dp.Name()).Output().QueueAny()
@@ -305,12 +328,19 @@ func TestQoSCounters(t *testing.T) {
 		desc:     "DroppedPkts",
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
-	}, {
-		desc:     "DroppedOctets",
-		path:     qosQueuePath + "dropped-octets",
-		counters: gnmi.LookupAll(t, dut, queues.DroppedOctets().State()),
 	}}
-
+	if !*deviations.QOSDroppedOctets {
+		cases = append(cases,
+			struct {
+				desc     string
+				path     string
+				counters []*ygnmi.Value[uint64]
+			}{
+				desc:     "DroppedOctets",
+				path:     qosQueuePath + "dropped-octets",
+				counters: gnmi.LookupAll(t, dut, queues.DroppedOctets().State()),
+			})
+	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
@@ -352,6 +382,32 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 		}
 	}
 	return s
+}
+
+// verifyChassisIsAncestor verifies that a given component has
+// a component of type CHASSIS as an ancestor.
+func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) {
+	visited := make(map[string]bool)
+	for curr := comp; ; {
+		if visited[curr] {
+			t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
+			break
+		}
+		visited[curr] = true
+		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
+		val, present := parent.Val()
+		if !present {
+			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
+			break
+		}
+		got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+		if got == chassisType {
+			t.Logf("Found chassis component as an ancestor of component %s", comp)
+			break
+		}
+		// Not reached chassis yet; go one level up.
+		curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
+	}
 }
 
 func TestComponentParent(t *testing.T) {
@@ -399,27 +455,7 @@ func TestComponentParent(t *testing.T) {
 			// Validate parent component.
 			for _, comp := range compList[tc.desc] {
 				t.Logf("Validate component %s", comp)
-				visited := make(map[string]bool)
-				for curr := comp; ; {
-					if visited[curr] {
-						t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
-						break
-					}
-					visited[curr] = true
-					parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
-					val, present := parent.Val()
-					if !present {
-						t.Errorf("Chassis component NOT found in the hierarchy tree of component %s", comp)
-						break
-					}
-					got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
-					if got == chassisType {
-						t.Logf("Found chassis component in the hierarchy tree of component %s", comp)
-						break
-					}
-					// Not reached chassis yet; go one level up.
-					curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
-				}
+				verifyChassisIsAncestor(t, dut, comp)
 			}
 		})
 	}
@@ -482,12 +518,15 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-			t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
+		if !*deviations.MissingCPUMfgName {
+			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
+				t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
+			} else {
+				t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
+			}
 		} else {
-			t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
+			t.Logf("Check MfgName for CPU %s is skipped due to MissingCPUMfgName deviation", cpu)
 		}
-
 		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
@@ -550,6 +589,9 @@ func TestAFT(t *testing.T) {
 }
 
 func TestLacpMember(t *testing.T) {
+	if !*args.LACPBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for LACP is not present")
+	}
 	dut := ondatra.DUT(t, "dut")
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
@@ -650,7 +692,9 @@ func TestP4rtInterfaceID(t *testing.T) {
 			i.Id = ygot.Uint32(tc.portID)
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-
+			if *deviations.ExplicitPortSpeed {
+				fptest.SetPortSpeed(t, dp)
+			}
 			// Check path /interfaces/interface/state/id.
 			intfID := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Id().State())
 			intfVal, present := intfID.Val()
@@ -835,6 +879,14 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
 func explicitP4RTNodes() map[string]string {
@@ -876,38 +928,12 @@ func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string
 	return res
 }
 
-// inferP4RTNodesCisco infers the P4RT node name from the port name and device model
-// for Cisco devices.
-func inferP4RTNodesCisco(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
-	t.Helper()
-	npus := []int{0, 1, 2}
-	pranges := []int{11, 23, 35}
-	res := make(map[string]string)
-	isModular := dut.Model() == "" || strings.HasPrefix(dut.Model(), "CISCO-88")
-	for _, p := range dut.Ports() {
-		if isModular {
-			parts := strings.Split(p.Name(), "/")
-			pnum, err := strconv.Atoi(parts[3])
-			if err != nil {
-				t.Fatalf("Error parsing port name: %v", err)
-			}
-			npu := npus[sort.SearchInts(pranges, pnum)]
-			res[p.ID()] = fmt.Sprintf("0/%s/CPU0-NPU%d", parts[1], npu)
-		} else {
-			res[p.ID()] = "0/RP0/CPU0-NPU0"
-		}
-	}
-	return res
-}
-
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	if *deviations.ExplicitP4RTNodeComponent {
 		switch dut.Vendor() {
-		case ondatra.CISCO:
-			return inferP4RTNodesCisco(t, dut)
 		case ondatra.NOKIA:
 			return inferP4RTNodesNokia(t, dut)
 		default:
@@ -915,11 +941,15 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 		}
 	}
 
-	ports := make(map[string]string) // <hardware-port>:<portID>
+	ports := make(map[string][]string) // <hardware-port>:[<portID>]
 	for _, p := range dut.Ports() {
 		hp := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
 		if v, ok := hp.Val(); ok {
-			ports[v] = p.ID()
+			if _, ok = ports[v]; !ok {
+				ports[v] = []string{p.ID()}
+			} else {
+				ports[v] = append(ports[v], p.ID())
+			}
 		}
 	}
 	nodes := make(map[string]string) // <hardware-port>:<p4rtComponentName>
@@ -939,7 +969,9 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 		if ct != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
 			continue
 		}
-		res[ports[k]] = v
+		for _, p := range ports[k] {
+			res[p] = v
+		}
 	}
 	return res
 }

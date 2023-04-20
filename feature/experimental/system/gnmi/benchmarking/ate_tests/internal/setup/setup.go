@@ -40,6 +40,8 @@ const (
 	ISISInstance = "DEFAULT"
 	// PeerGrpName is BGP peer group name.
 	PeerGrpName = "BGP-PEER-GROUP"
+	// PeerGrpEgressName is Egress port BGP peer group name.
+	PeerGrpEgressName = "BGP-PEER-GROUP-EGRESS"
 	// DUTAs is DUT AS.
 	DUTAs = 64500
 	// ATEAs is ATE AS.
@@ -59,6 +61,7 @@ const (
 	authPassword          = "ISISAuthPassword"
 	advertiseBGPRoutesv4  = "203.0.113.1"
 	advertiseISISRoutesv4 = "198.18.0.0"
+	setALLOWPolicy        = "ALLOW"
 )
 
 // DUTIPList, ATEIPList are lists of DUT and ATE interface ip addresses.
@@ -126,14 +129,37 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	pg := bgp.GetOrCreatePeerGroup(PeerGrpName)
 	pg.PeerAs = ygot.Uint32(ATEAs)
 	pg.PeerGroupName = ygot.String(PeerGrpName)
+	afipg := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	afipg.Enabled = ygot.Bool(true)
+	rp := d.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
+	pdef.GetOrCreateStatement("id-1").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	rpl := pg.GetOrCreateApplyPolicy()
+	rpl.SetExportPolicy([]string{setALLOWPolicy})
+	rpl.SetImportPolicy([]string{setALLOWPolicy})
+
+	if *deviations.RoutePolicyUnderPeerGroup {
+		pg1 := bgp.GetOrCreatePeerGroup(PeerGrpEgressName)
+		pg1.PeerAs = ygot.Uint32(ATEAs)
+		pg1.PeerGroupName = ygot.String(PeerGrpEgressName)
+		afipg1 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		afipg1.Enabled = ygot.Bool(true)
+	}
 
 	// ISIS configs.
-	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).GetOrCreateIsis()
+	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
+	if !*deviations.ISISprotocolEnabledNotRequired {
+		prot.Enabled = ygot.Bool(true)
+	}
+	isis := prot.GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	globalISIS.AuthenticationCheck = ygot.Bool(true)
+	if !deviations.ISISGlobalAuthenticationNotRequired(dut) {
+		globalISIS.AuthenticationCheck = ygot.Bool(true)
+	}
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)
 	isisTimers := globalISIS.GetOrCreateTimers()
@@ -145,11 +171,13 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
-	isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
-	isisLevel2Auth.Enabled = ygot.Bool(true)
-	isisLevel2Auth.AuthPassword = ygot.String(authPassword)
-	isisLevel2Auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-	isisLevel2Auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+	if !deviations.ISISLevelAuthenticationNotRequired(dut) {
+		isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
+		isisLevel2Auth.Enabled = ygot.Bool(true)
+		isisLevel2Auth.AuthPassword = ygot.String(authPassword)
+		isisLevel2Auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+		isisLevel2Auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+	}
 
 	for _, dp := range dut.Ports() {
 		// Interfaces config.
@@ -169,18 +197,29 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		a4 := s4.GetOrCreateAddress(DUTIPList[dp.ID()].String())
 		a4.PrefixLength = ygot.Uint8(plenIPv4)
 
+		if *deviations.ExplicitPortSpeed {
+			i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dp)
+		}
+
 		// BGP neighbor configs.
 		nv4 := bgp.GetOrCreateNeighbor(ATEIPList[dp.ID()].String())
 		nv4.PeerGroup = ygot.String(PeerGrpName)
 		if dp.ID() == "port1" {
 			nv4.PeerAs = ygot.Uint32(ATEAs2)
 		} else {
+			if *deviations.RoutePolicyUnderPeerGroup {
+				nv4.PeerGroup = ygot.String(PeerGrpEgressName)
+			}
 			nv4.PeerAs = ygot.Uint32(ATEAs)
 		}
 		nv4.Enabled = ygot.Bool(true)
 
 		// ISIS configs.
-		isisIntf := isis.GetOrCreateInterface(dp.Name())
+		intfName := dp.Name()
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			intfName = dp.Name() + ".0"
+		}
+		isisIntf := isis.GetOrCreateInterface(intfName)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -211,6 +250,15 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	p := gnmi.OC()
 	fptest.LogQuery(t, "DUT", p.Config(), d)
 
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		for _, dp := range dut.Ports() {
+			ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+			niIntf, _ := ni.NewInterface(dp.Name())
+			niIntf.Interface = ygot.String(dp.Name())
+			niIntf.Subinterface = ygot.Uint32(0)
+			niIntf.Id = ygot.String(dp.Name() + ".0")
+		}
+	}
 	return d
 }
 
@@ -275,14 +323,18 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).Isis()
 	for _, dp := range dut.Ports() {
-		nbrPath := statePath.Interface(dp.Name())
+		intfName := dp.Name()
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			intfName = dp.Name() + ".0"
+		}
+		nbrPath := statePath.Interface(intfName)
 		query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 		_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
 			state, present := val.Val()
 			return present && state == oc.Isis_IsisInterfaceAdjState_UP
 		}).Await(t)
 		if !ok {
-			t.Logf("IS-IS state on %v has no adjacencies", dp.Name())
+			t.Logf("IS-IS state on %v has no adjacencies", intfName)
 			t.Fatal("No IS-IS adjacencies reported.")
 		}
 	}
@@ -295,6 +347,7 @@ func VerifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, peerAddr := range ATEIPList {
 		nbrIP := peerAddr.String()
 		nbrPath := statePath.Neighbor(nbrIP)
-		gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
+
 }

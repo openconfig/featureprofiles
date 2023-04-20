@@ -248,8 +248,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1VRF := vrf.GetOrCreateInterface(p1.Name())
 	p1VRF.Interface = ygot.String(p1.Name())
 	p1VRF.Subinterface = ygot.Uint32(0)
+
+	// For interface configuration, Arista prefers config Vrf first then the IP address
+	if *deviations.InterfaceConfigVrfBeforeAddress {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
+	}
+
 	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
+
+	if !*deviations.InterfaceConfigVrfBeforeAddress {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
+	}
 
 	gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 	gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))

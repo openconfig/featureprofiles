@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "24dc9bcf-f76c-4ac4-a268-35d417d01a3d"
+plan_id: "gNOI-5.1"
+description: "Ping Test"

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 openconfig_public:
-	git clone https://github.com/openconfig/public.git openconfig_public
+	tools/clone_oc_public.sh openconfig_public
 
 .PHONY: validate_paths
 validate_paths: openconfig_public proto/feature_go_proto/feature.pb.go
