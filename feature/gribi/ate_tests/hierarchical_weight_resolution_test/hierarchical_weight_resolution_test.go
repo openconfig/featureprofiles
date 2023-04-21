@@ -52,8 +52,8 @@ type nhInfo struct {
 const (
 	ipv4EntryPrefix   = "203.0.113.0/32"
 	ipv4FlowIP        = "203.0.113.0"
-	innerSrcIpv4Start = "198.18.0.0"
-	innerDstIpv4Start = "198.19.0.0"
+	innerSrcIPv4Start = "198.18.0.0"
+	innerDstIPv4Start = "198.19.0.0"
 	ipv4PrefixLen     = 30
 	ipv4FlowCount     = 65000
 	nhEntryIP1        = "192.0.2.111"
@@ -114,7 +114,7 @@ var (
 		2: cidr(nhEntryIP1, 32),
 		3: cidr(nhEntryIP2, 32),
 	}
-	// 'deviation' is the maximum difference that is allowed between the observed
+	// 'tolerance' is the maximum difference that is allowed between the observed
 	// traffic distribution and the required traffic distribution.
 	tolerance = 0.2
 )
@@ -416,8 +416,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	ipv4Header.WithSrcAddress(atePort1.IPv4)
 	ipv4Header.WithDstAddress(ipv4FlowIP)
 	innerIpv4Header := ondatra.NewIPv4Header()
-	innerIpv4Header.SrcAddressRange().WithMin(innerSrcIpv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
-	innerIpv4Header.DstAddressRange().WithMin(innerDstIpv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
+	innerIpv4Header.SrcAddressRange().WithMin(innerSrcIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
+	innerIpv4Header.DstAddressRange().WithMin(innerDstIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
 
 	// Ethernet header:
 	//   - Destination MAC (6 octets)
@@ -568,7 +568,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	for i := 0; i < 16; i++ {
 		nh := nextHopEntry(nhIdx, defaultVRF, atePort2.ip(uint8(3+i)))
 		gribiEntries = append(gribiEntries, nh)
-		if nhIdx == 100 {
+		if i == 0 {
 			nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 1})
 		} else {
 			nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 16})
@@ -617,8 +617,8 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
 
-		if deviations.UCMPTrafficTolerance(dut) != tolerance {
-			tolerance = deviations.UCMPTrafficTolerance(dut)
+		if deviations.HierarchicalWeightResolutionTolerance(dut) != tolerance {
+			tolerance = deviations.HierarchicalWeightResolutionTolerance(dut)
 		}
 		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
