@@ -443,7 +443,6 @@ tests:
     skip: true # requires 2 dut
     args:
       - '-deviation_connect_retry="true"'
-      - '-deviation_missing_bgp_neighbor_state_peer_group="true"'
       - '-deviation_rpl_under_neighbor_afisafi="true"'
       - '-deviation_missing_bgp_last_notification_error_code="true"'
   - name: RT-1.2 (BGP Policy and Route Installation)
