@@ -170,6 +170,12 @@ tests:
     mustpass: true
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+  - name: P4RT-1.2 (P4RT Daemon Failure)
+    path: feature/experimental/p4rt/ate_tests/p4rt_daemon_failure_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: false
   - name: P4RT-2.1 (P4RT Election)
     path: feature/experimental/p4rt/tests/p4rt_election
     owners:
