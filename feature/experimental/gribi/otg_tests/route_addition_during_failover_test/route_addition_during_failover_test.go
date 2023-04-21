@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -39,7 +40,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/raw"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	fpb "github.com/openconfig/gnoi/file"
@@ -290,8 +290,11 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
 		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4)
-		MAC, _ := incrementMAC(atePort1.MAC, i+1)
-		configureATE(t, top, atePort, vlanID, false, name, MAC, dutIPv4, ateIPv4)
+		MAC, err := incrementMAC(atePort1.MAC, i+1)
+		if err != nil {
+			t.Fatalf("Failed to generate mac address; %v", err)
+		}
+		configureATE(t, top, atePort, vlanID, name, MAC, dutIPv4, ateIPv4)
 		nextHops = append(nextHops, ateIPv4)
 	}
 	configureInterfaceDUT(t, dutPort, d, "dst")
@@ -329,11 +332,7 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 }
 
 // configureATE configures a single ATE layer 3 interface.
-func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, vlanID uint16, addPort bool, Name, MAC, dutIPv4, ateIPv4 string) {
-	t.Helper()
-	if addPort {
-		top.Ports().Add().SetName(atePort.ID())
-	}
+func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, vlanID uint16, Name, MAC, dutIPv4, ateIPv4 string) {
 	dev := top.Devices().Add().SetName(Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(MAC)
 	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(atePort.ID())
@@ -364,7 +363,6 @@ type testArgs struct {
 }
 
 // createTrafficFlow generates traffic flow from source network to destination network via
-// srcEndPoint to dstEndPoint and checks for packet loss.
 func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, flowArgs *flowArgs, dstMac string) gosnappi.Flow {
 	t.Helper()
 
@@ -379,8 +377,6 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(flowArgs.flowStartAddress).SetCount(int32(flowArgs.flowCount))
 
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
 	return flow
 }
 
@@ -503,15 +499,6 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// Waits for an ARP entry to be present for ATE Port1
-func waitOTGARPEntry(t *testing.T) {
-	t.Helper()
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-}
-
 // TestRouteAdditionDuringFailover is to test gRIBI route addition and slave switchover
 // concurrently, validate reinject of gRIBI programmed routes and traffic.
 func TestRouteAdditionDuringFailover(t *testing.T) {
@@ -524,10 +511,11 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
 	top := ate.OTG().NewConfig(t)
+	top.Ports().Add().SetName(ap1.ID())
 	// configure DUT port#1 - source port.
 	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4)
 	configureInterfaceDUT(t, dp1, d, "src")
-	configureATE(t, top, ap1, 0, true, atePort1.Name, atePort1.MAC, dutPort1.IPv4, atePort1.IPv4)
+	configureATE(t, top, ap1, 0, atePort1.Name, atePort1.MAC, dutPort1.IPv4, atePort1.IPv4)
 	pushConfig(t, dut, dp1, d)
 	dp2 := dut.Port(t, "port2")
 	ap2 := ate.Port(t, "port2")
@@ -607,9 +595,12 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 
 	// Send traffic from ATE port-1 to prefixes in ipBlock1 and ensure traffic
 	// flows 100% and reaches ATE port-2.
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
 	dstMac := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
-	testTraffic(t, *args, createTrafficFlow(t, args.ate, args.top, ipBlock1FlowArgs, dstMac))
+	flow := createTrafficFlow(t, args.ate, args.top, ipBlock1FlowArgs, dstMac)
+	args.ate.OTG().PushConfig(t, top)
+	args.ate.OTG().StartProtocols(t)
+	testTraffic(t, *args, flow)
 
 	controllers := cmp.FindComponentsByType(t, dut, controllerCardType)
 	t.Logf("Found controller list: %v", controllers)
@@ -728,9 +719,15 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 
 	// Send traffic to ipBlock1, ipBlock2.
 	t.Log("Send and validate traffic to ipBlock1 ipv4 entries.")
-	testTraffic(t, *args, createTrafficFlow(t, args.ate, args.top, ipBlock1FlowArgs, dstMac))
-	t.Log("Send and validate traffic to ipBlock2 ipv4 entries.")
-	testTraffic(t, *args, createTrafficFlow(t, args.ate, args.top, ipBlock2FlowArgs, dstMac))
+	flow = createTrafficFlow(t, args.ate, args.top, ipBlock1FlowArgs, dstMac)
+	args.ate.OTG().PushConfig(t, top)
+	args.ate.OTG().StartProtocols(t)
+	testTraffic(t, *args, flow)
 
+	t.Log("Send and validate traffic to ipBlock2 ipv4 entries.")
+	flow = createTrafficFlow(t, args.ate, args.top, ipBlock2FlowArgs, dstMac)
+	args.ate.OTG().PushConfig(t, top)
+	args.ate.OTG().StartProtocols(t)
+	testTraffic(t, *args, flow)
 	ate.OTG().StopProtocols(t)
 }
