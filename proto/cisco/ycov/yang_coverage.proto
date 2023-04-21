@@ -9,6 +9,8 @@ syntax = "proto3";
 
 package ycov;
 
+import "metadata.proto";
+
 // The current semantic version of the YangCoverage service.
 option go_package = ".;ycov";
 
@@ -26,26 +28,6 @@ message ClearLogsRequest {
 }
 
 message ClearLogsResponse {
-}
-
-// Supported test phases for YANG coverage logging
-enum TestPhase {
-  UT             = 0;
-  IT             = 1;
-  DT             = 2;
-  CVT            = 3;
-  BIT            = 4;
-  MTB            = 5;
-  SIT            = 6;
-  ACCEPTANCE     = 7;
-}
-
-// Supported types of testing for Yang coverage logging
-enum TestType {
-  MANUAL      = 0; 
-  PRECOMMIT   = 1;
-  NIGHTLY     = 2;
-  OCCASIONAL  = 3;
 }
 
 message GatherLogsRequest {

@@ -7,7 +7,7 @@
 
 syntax = "proto3";
 
-package meta;
+package ycov;
 
 // The current semantic version of the YangCoverage Metadata.
 option go_package = ".;ycov";
@@ -21,19 +21,18 @@ message Metadata {
     string sanity_name         = 2;
 
     // Test phase the current logs on box were collected in.
-    Phase test_phase       = 3;
+    TestPhase test_phase       = 3;
 
     // Type of testing the current logs on box were collected in.
-    Type  test_type        = 4;
+    TestType  test_type        = 4;
 
     // Flag indicating processing of log and generating report.
-    bool process_log           = 5;
-    ProcessLogOptions options  = 6;
+    ProcessLogOptions options  = 5;
 
 }
 
 // Supported test phases for YANG coverage logging
-enum Phase {
+enum TestPhase {
     UT             = 0;
     IT             = 1;
     DT             = 2;
@@ -45,7 +44,7 @@ enum Phase {
 }
 
 // Supported types of testing for Yang coverage logging
-enum Type {
+enum TestType {
     MANUAL      = 0; 
     PRECOMMIT   = 1;
     NIGHTLY     = 2;
@@ -54,16 +53,13 @@ enum Type {
 
 // XR based parameters to process log and generate report.
 message ProcessLogOptions {
-    // Path of xr ws 
-    string xr_ws                     = 1;
-
     // The yang models specified are those the report is run against
-    repeated string models           = 2;
+    repeated string models           = 1;
 
     // List of prefix xpaths to constrain the calculations and verbose reporting (to paths that match any 1 of the prefixes)
-    repeated string prefix_paths     = 3;
+    repeated string prefix_paths     = 2;
 
     // Indicate whether to include the verbose output
-    bool verbose                     = 4;
+    bool verbose                     = 3;
 
 }

@@ -11,16 +11,15 @@ test_type: PRECOMMIT
 # Default yang coverage flow is -
 # 1. Clear logs
 # 2. Enable logs
-# 3. Gather logs
-# Below step will be enable only if process_log is true 
-# 4. Process raw logs and generate reports
-# else 4. Store raw logs
-process_log: false
+# 3. Testsuite Run
+# 4. Gather logs
+# Below step will be enable only if xr_ws flag is passed and accessible 
+# 5. Process raw logs and generate reports
+# else 5. Store raw logs
 
-# XR ws related params to be passed if process_log=true
+# XR ws related params to be passed for processing logs
 # Below is sample 
 # options {
-#    xr_ws: "/nobackup/sanshety/ws/iosxr"
 #    models: ["/nobackup/sanshety/ws/iosxr/manageability/yang/pyang/modules/openconfig-network-instance.yang", "/nobackup/sanshety/ws/iosxr/manageability/yang/pyang/modules/cisco-xr-openconfig-network-instance-deviations.yang"]
 #    prefix_paths: ["/network-instances/network-instance/protocols/protocol/bgp",
 #	"/network-instances/network-instance/inter-instance-policies"]
