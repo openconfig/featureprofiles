@@ -1216,7 +1216,7 @@ func testEntryProgrammingPacketInWithFlowLabel(ctx context.Context, t *testing.T
 		for _, header := range headers {
 			if v, ok := header.(*ondatra.IPv6Header); ok {
 				skipFlag = false
-				v.WithFlowLabel(111111111).FlowLabelRange().WithMin(0).WithMax(1048575).WithCount(1000).WithRandom()
+				v.WithFlowLabel(11111).FlowLabelRange().WithMin(0).WithMax(1048575).WithCount(1000).WithRandom()
 			}
 		}
 	}
