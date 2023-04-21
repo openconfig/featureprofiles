@@ -34,7 +34,7 @@ var (
 	METADATA_EGRESS_PORT  = uint32(2)
 	SUBMIT_TO_INGRESS     = uint32(1)
 	SUBMIT_TO_EGRESS      = uint32(0)
-	forusIP               = "10.10.10.10"
+	forusIP               = "100.120.1.1"
 	maxPortID             = uint32(0xFFFFFEFF)
 	//intMACAddress         = "00:01:00:02:00:03"
 )
