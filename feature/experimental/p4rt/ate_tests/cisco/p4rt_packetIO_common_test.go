@@ -757,7 +757,7 @@ func testEntryProgrammingPacketInDowngradePrimaryController(ctx context.Context,
 
 	// Check PacketIn on P4Client
 	packets = getPackets(t, newClient, 40)
-	validatePackets(t, args, packets)
+
 	t.Logf("Captured packets: %v", len(packets))
 	if len(packets) != 0 {
 		t.Errorf("There are unexpected packets received.")
