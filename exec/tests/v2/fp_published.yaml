@@ -22,7 +22,6 @@ tests:
   - name: TE-2.1 (gRIBI IPv4 Entry)
     path: feature/gribi/ate_tests/ipv4_entry_test
     args:
-      - '-deviation_gribi_preserve_only="true"'
       - '-deviation_gribi_mac_override_with_static_arp="true"'
     owners:
       - mananpat
@@ -37,8 +36,6 @@ tests:
     priority: 3
   - name: TE-4.2 (Persistence Mode)
     path: feature/gribi/ate_tests/persistence_mode_test
-    args:
-      - '-deviation_gribi_preserve_only="true"'
     priority: 4
     owners:
       - mananpat
@@ -51,8 +48,6 @@ tests:
     priority: 3
   - name: TE-3.5 (Ordering ACK Received)
     path: feature/gribi/ate_tests/ordering_ack_test
-    args:
-      - '-deviation_gribi_preserve_only="true"'
     owners:
       - mananpat
     mustpass: true
@@ -71,15 +66,11 @@ tests:
   - name: TE-13.2 (gRIBI route DELETE during Failover)
     path: feature/experimental/gribi/ate_tests/route_removal_during_failover_test/
     mustpass: true
-    args:
-      - '-deviation_gribi_preserve_only="true"'
     priority: 3
     # need pr/branch
   - name: TE-13.1 (gRIBI route Add during Failover)
     path: feature/experimental/gribi/ate_tests/route_addition_during_failover_test/
     mustpass: true
-    args:
-      - '-deviation_gribi_preserve_only="true"'
     priority: 3
   - name: TE-3.3 (Hierarchical weight resolution)
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
@@ -109,8 +100,6 @@ tests:
     mustpass: true
   - name: TE-3.1 (Base Hierarchical Route Installation)
     path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
-    args:
-      - '-deviation_gribi_preserve_only="true"'
     timeout: 4200
     owners:
       - mananpat
