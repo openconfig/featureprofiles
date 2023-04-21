@@ -54,20 +54,20 @@ func New(ws string, models []string, testName string,
     prefixPaths string, verbose bool, subCompId string) (*YangCoverage, error) {
     var err error
     yc := &YangCoverage{
-    	testName:    testName,
-    	testPhase:   testPhase,
-    	testType:    testType,
-    	ws:          ws,
-    	prefixPaths: prefixPaths,
-    	verbose:     verbose,
-    	subCompId:   subCompId,
+        testName:    testName,
+        testPhase:   testPhase,
+        testType:    testType,
+        ws:          ws,
+        prefixPaths: prefixPaths,
+        verbose:     verbose,
+        subCompId:   subCompId,
     }
     if len(models) != 0 {
-    	err = yc.isValidModel(models)
+        err = yc.isValidModel(models)
     }
     if ws != "" {
-    	yc.logFile = fmt.Sprintf("%s/collected_ycov_logs.json", yc.ws)
-    	yc.coverageScript, err = yc.setupCoverageScript(yc.logFile, yc.getOutFname())
+        yc.logFile = fmt.Sprintf("%s/collected_ycov_logs.json", yc.ws)
+        yc.coverageScript, err = yc.setupCoverageScript(yc.logFile, yc.getOutFname())
     }
     return yc, err
 }
@@ -77,9 +77,9 @@ func (yc *YangCoverage) setupCoverageScript(logFile, outFname string) (coverageS
 
     // Setup the file for the final report
     if outFname == "" {
-    	outFname = yc.getOutFname()
+        outFname = yc.getOutFname()
     } else {
-    	outFname = strings.Replace(outFname, ".json", "", -1)
+        outFname = strings.Replace(outFname, ".json", "", -1)
     }
 
     //  Setup the files we are manipulating
@@ -96,22 +96,22 @@ func (yc *YangCoverage) setupCoverageScript(logFile, outFname string) (coverageS
     //  https://wiki.cisco.com/display/XRMGBLMOVE/Yang+Data-Model+Coverage
     //  - Setup prefix_paths and verbose_mode options if needed
     if yc.prefixPaths != "" {
-    	ppaths = fmt.Sprintf("--prefix-path=%s", yc.prefixPaths)
+        ppaths = fmt.Sprintf("--prefix-path=%s", yc.prefixPaths)
     }
 
     if yc.verbose {
-    	vmode = "--verbose-mode"
+        vmode = "--verbose-mode"
     }
     // - Setup basic pyang invocation, extended with additional options
     pyangcmd := fmt.Sprintf("pyang -p %s/manageability/yang/pyang/modules -f yang_coverage %s %s", yc.ws, vmode, ppaths)
 
     data := fdata{
-    	"ws":             yc.ws,
-    	"pyangcmd":       pyangcmd,
-    	"log_file":       logFile,
-    	"validated_logs": yc.srcValidLogPath,
-    	"models":         yc.models,
-    	"report_outfile": reportOutFile,
+        "ws":             yc.ws,
+        "pyangcmd":       pyangcmd,
+        "log_file":       logFile,
+        "validated_logs": yc.srcValidLogPath,
+        "models":         yc.models,
+        "report_outfile": reportOutFile,
     }
     // - Setup the full interactions with the tools using the mgbl python and pyang env
     coverageScript, err = fstring(`
@@ -135,12 +135,12 @@ func (yc *YangCoverage) setupCoverageScript(logFile, outFname string) (coverageS
 // Validate models - for existence, then store in the form needed for the tools
 func (yc *YangCoverage) isValidModel(models []string) error {
     if len(models) == 0 {
-    	return errors.New("Dependent yang models not provided!!")
+        return errors.New("Dependent yang models not provided!!")
     }
     for _, item := range models {
-    	if rc, err := pathExists(item); !rc {
-    		return err
-    	}
+        if rc, err := pathExists(item); !rc {
+            return err
+        }
     }
     yc.models = strings.Join(models, " ")
     return nil
@@ -150,12 +150,12 @@ func (yc *YangCoverage) isValidModel(models []string) error {
 func (yc *YangCoverage) getOutFname() (outfile string) {
     t := time.Now()
     dnt := fmt.Sprintf("%d_%02d_%02d__%02d_%02d_%02d",
-    	t.Year(), t.Month(), t.Day(),
-    	t.Hour(), t.Minute(), t.Second())
+        t.Year(), t.Month(), t.Day(),
+        t.Hour(), t.Minute(), t.Second())
     if yc.subCompId != "" {
-    	outfile = fmt.Sprintf("%s_%s_%s_%s", dnt, yc.testName, yc.subCompId, yc.testType.String())
+        outfile = fmt.Sprintf("%s_%s_%s_%s", dnt, yc.testName, yc.subCompId, yc.testType.String())
     } else {
-    	outfile = fmt.Sprintf("%s_%s_%s", dnt, yc.testName, yc.testType.String())
+        outfile = fmt.Sprintf("%s_%s_%s", dnt, yc.testName, yc.testType.String())
     }
     return
 }
@@ -164,11 +164,11 @@ func (yc *YangCoverage) getOutFname() (outfile string) {
 func (yc *YangCoverage) clearCovLogs(ctx context.Context, t *testing.T) error {
     yclient, err := GetYcovClient(dut, t)
     if err != nil {
-    	return fmt.Errorf("clearCovLogs Yclient creation Failed - %s", err.Error())
+        return fmt.Errorf("clearCovLogs Yclient creation Failed - %s", err.Error())
     }
     _, err = yclient.ClearLogs(ctx, &ycov.ClearLogsRequest{})
     if err != nil {
-    	return fmt.Errorf("clearCovLogs Req Failed - %s", err.Error())
+        return fmt.Errorf("clearCovLogs Req Failed - %s", err.Error())
     }
     return nil
 }
@@ -184,15 +184,15 @@ func (yc *YangCoverage) enableCovLogs(ctx context.Context, t *testing.T) {
 func (yc *YangCoverage) collectCovLogs(ctx context.Context, t *testing.T) (string, error) {
     yclient, err := GetYcovClient(dut, t)
     if err != nil {
-    	return "", fmt.Errorf("collectCovLogs Yclient creation Failed - %s", err.Error())
+        return "", fmt.Errorf("collectCovLogs Yclient creation Failed - %s", err.Error())
     }
     req := &ycov.GatherLogsRequest{
-    	TestName:  yc.testName,
-    	TestPhase: yc.testPhase,
-    	TestType:  yc.testType}
+        TestName:  yc.testName,
+        TestPhase: yc.testPhase,
+        TestType:  yc.testType}
     rsp, err := yclient.GatherLogs(ctx, req)
     if err != nil {
-    	return "", fmt.Errorf("collectCovLogs Req Failed - %s", err.Error())
+        return "", fmt.Errorf("collectCovLogs Req Failed - %s", err.Error())
     }
     return rsp.GetLog(), nil
 }
@@ -204,27 +204,27 @@ func (yc *YangCoverage) generateReport(rawLogs string) (int, string) {
     // Save logs to file
     rc, errstr := writeLogsToFile(rawLogs, yc.logFile)
     if rc != 0 {
-    	return rc, errstr
+        return rc, errstr
     }
 
     // Execute coverage script
     cmd := exec.Command("bash", "-c", yc.coverageScript)
     logp, err := os.Create(yc.ycovLogPath)
     if err != nil {
-    	return -1, fmt.Sprintf("File creation failed: %s", err.Error())
+        return -1, fmt.Sprintf("File creation failed: %s", err.Error())
     }
     defer logp.Close()
 
     cmd.Stdout = logp
     err = cmd.Start()
     if err != nil {
-    	return -1, err.Error()
+        return -1, err.Error()
     }
     cmd.Wait()
 
     // Copy validated logfile to mgbl path
     if err = copy(yc.srcValidLogPath, yc.destValidLogPath); err != nil {
-    	return -1, fmt.Sprintf("WARNING: Coverage logs copy to %s failed: %s \n YCov tool logs at %s \n Please run manually: cp %s %s to add your logs to the collection", mgblPath, err.Error(), yc.ycovLogPath, yc.srcValidLogPath, mgblPath)
+        return -1, fmt.Sprintf("WARNING: Coverage logs copy to %s failed: %s \n YCov tool logs at %s \n Please run manually: cp %s %s to add your logs to the collection", mgblPath, err.Error(), yc.ycovLogPath, yc.srcValidLogPath, mgblPath)
     }
 
     return 0, fmt.Sprintf("Coverage logs stored at %s.\nYCov tool logs at %s", yc.destValidLogPath, yc.ycovLogPath)
@@ -239,12 +239,12 @@ func (yc *YangCoverage) storeRawLogs(logs string) (int, string) {
     // Save logs to file
     rc, errstr := writeLogsToFile(logs, outfile)
     if rc != 0 {
-    	return rc, errstr
+        return rc, errstr
     }
 
     // Copy log file to dest path
     if err := copy(outfile, destPath); err != nil {
-    	return -1, fmt.Sprintf("Copy of log file %s failed to %s: %s", outfile, rawLogsPath, err.Error())
+        return -1, fmt.Sprintf("Copy of log file %s failed to %s: %s", outfile, rawLogsPath, err.Error())
     }
     return 0, fmt.Sprintf("Raw log file at %s", destPath)
 }
@@ -258,7 +258,7 @@ func GetYcovClient(dutId string, t *testing.T) (ycov.YangCoverageClient, error) 
     conn := gconn.FieldByName("conn")
     clientConn, ok := (reflect.NewAt(conn.Type(), unsafe.Pointer(conn.UnsafeAddr())).Elem().Interface()).(*grpc.ClientConn)
     if !ok {
-    	return nil, errors.New("GNOI Client connection failed.")
+        return nil, errors.New("GNOI Client connection failed.")
     }
     return ycov.NewYangCoverageClient(clientConn), nil
 }
