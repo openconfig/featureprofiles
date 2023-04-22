@@ -164,7 +164,7 @@ tests:
     owners:
       - sprem
     priority: 5
-    mustpass: false
+    mustpass: true
   - name: P4RT-2.1 (P4RT Election)
     path: feature/experimental/p4rt/tests/p4rt_election
     owners:
