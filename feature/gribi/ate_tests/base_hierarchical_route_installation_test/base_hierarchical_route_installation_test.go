@@ -47,7 +47,8 @@ func TestMain(m *testing.M) {
 //   - ate:port2 -> dut:port2 subnet 192.0.2.4/30
 const (
 	ipv4PrefixLen     = 30
-	ateDstNetCIDR     = "198.51.100.0/24"
+	ateDstIP          = "198.51.100.1"
+	ateDstNetCIDR     = ateDstIP + "/32"
 	ateIndirectNH     = "203.0.113.1"
 	ateIndirectNHCIDR = ateIndirectNH + "/32"
 	nhIndex           = 1
@@ -169,10 +170,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, 
 	dstEndPoint := top.Interfaces()[atePort2.Name]
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("198.51.100.0").
-		WithMax("198.51.100.254").
-		WithCount(250)
+	ipv4Header.DstAddressRange().WithMin(ateDstIP).WithCount(1)
 
 	flow := ate.Traffic().NewFlow("Flow").
 		WithSrcEndpoints(srcEndPoint).
@@ -228,7 +226,7 @@ type testArgs struct {
 
 func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 
-	// Verify that the entry for 198.51.100.0/24 (a) is installed through AFT Telemetry. a->c or a->b are the expected results.
+	// Verify that the entry for 198.51.100.1/32 (a) is installed through AFT Telemetry. a->c or a->b are the expected results.
 	ipv4Entry := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Afts().Ipv4Entry(ateDstNetCIDR).State())
 	if got, want := ipv4Entry.GetPrefix(), ateDstNetCIDR; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix = %v, want %v", got, want)
@@ -305,7 +303,7 @@ func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 	}
 }
 
-// testRecursiveIPv4EntrywithIPNexthop verifies recursive IPv4 Entry for 198.51.100.0/24 (a) -> 203.0.113.1/32 (b) -> 192.0.2.6 (c).
+// testRecursiveIPv4EntrywithIPNexthop verifies recursive IPv4 Entry for 198.51.100.1/32 (a) -> 203.0.113.1/32 (b) -> 192.0.2.6 (c).
 // The IPv4 Entry is verified through AFT Telemetry and Traffic.
 func testRecursiveIPv4EntrywithIPNexthop(t *testing.T, args *testArgs) {
 
@@ -346,7 +344,7 @@ func testRecursiveIPv4EntrywithIPNexthop(t *testing.T, args *testArgs) {
 	})
 }
 
-// testRecursiveIPv4EntrywithMACNexthop verifies recursive IPv4 Entry for 198.51.100.0/24 (a) -> 203.0.113.1/32 (b) -> Port1 + MAC
+// testRecursiveIPv4EntrywithMACNexthop verifies recursive IPv4 Entry for 198.51.100.1/32 (a) -> 203.0.113.1/32 (b) -> Port1 + MAC
 // The IPv4 Entry is verified through AFT Telemetry and Traffic.
 func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 
