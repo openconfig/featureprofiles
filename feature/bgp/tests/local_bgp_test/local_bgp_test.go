@@ -75,9 +75,6 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(*nbr.PeerAs)
 	pg.PeerGroupName = ygot.String(peerGrpName)
-	if *deviations.MissingBgpNeighborStatePeerGroup {
-		nbr.PeerGroup = nil
-	}
 
 	if *deviations.RoutePolicyUnderNeighborAfiSafi {
 		af := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
