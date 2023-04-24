@@ -82,9 +82,15 @@ following features:
         *   (type=CONTROLLER_CARD)
             /components/component[name=<supervisor>]/state/last-reboot-reason
 
-*   Software version
+*   Active Controller Card Software version
 
-    *   Check the following component paths exists for SwitchChip cards.
+    *   Check the following component path and value exists.
+        *   /system/state/software-version
+
+*   Controller Card Software versions
+
+    *   Check the following component path and value exists for component type
+        `OPERATING_SYSTEM` that is present/installed, and whose parent component type is `CONTROLLER_CARD`.
         *   /components/component/state/software-version
 
 *   LACP
