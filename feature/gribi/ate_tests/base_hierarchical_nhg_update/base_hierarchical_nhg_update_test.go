@@ -102,6 +102,27 @@ var (
 		IPv4:    "192.0.2.10",
 		IPv4Len: 30,
 	}
+
+	dutPort2DummyIP = attrs.Attributes{
+		Desc:    "dutPort2",
+		IPv4:    "192.0.2.21",
+		IPv4Len: 30,
+	}
+	dutPort3DummyIP = attrs.Attributes{
+		Desc:    "dutPort3",
+		IPv4:    "192.0.2.41",
+		IPv4Len: 30,
+	}
+	atePort2DummyIP = attrs.Attributes{
+		Desc:    "atePort2",
+		IPv4:    "192.0.2.22",
+		IPv4Len: 30,
+	}
+	atePort3DummyIP = attrs.Attributes{
+		Desc:    "atePort3",
+		IPv4:    "192.0.2.42",
+		IPv4Len: 30,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -138,7 +159,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 
 	t.Logf("Adding gribi routes and validating traffic forwarding via port %v and NH ID %v", dutP2, p2NHID)
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		addVIPRoute(ctx, t, gribic, p2NHID, dutP2, atePort2.IPv4)
+		addVIPRoute(ctx, t, gribic, p2NHID, dutP2, atePort2DummyIP.IPv4)
 	} else {
 		addVIPRoute(ctx, t, gribic, p2NHID, dutP2)
 	}
@@ -147,7 +168,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 
 	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		addNH(ctx, t, gribic, p3NHID, dutP3, pMAC, atePort3.IPv4)
+		addNH(ctx, t, gribic, p3NHID, dutP3, pMAC, atePort3DummyIP.IPv4)
 	} else {
 		addNH(ctx, t, gribic, p3NHID, dutP3, pMAC)
 	}
@@ -360,8 +381,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configStaticArp(p2, atePort2.IPv4, pMAC))
-		gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), configStaticArp(p3, atePort3.IPv4, pMAC))
+		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name()))
+		gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name()))
+		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configStaticArp(p2, atePort2DummyIP.IPv4, pMAC))
+		gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), configStaticArp(p3, atePort3DummyIP.IPv4, pMAC))
 	}
 }
 
