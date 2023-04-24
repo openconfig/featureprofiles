@@ -135,7 +135,7 @@ func (yc *YangCoverage) setupCoverageScript(logFile, outFname string) (coverageS
 // Validate models - for existence, then store in the form needed for the tools
 func (yc *YangCoverage) isValidModel(models []string) error {
 	if len(models) == 0 {
-		return errors.New("Dependent yang models not provided!!")
+		return errors.New("dependent yang models not provided")
 	}
 	for _, item := range models {
 		if rc, err := pathExists(item); !rc {
@@ -232,8 +232,7 @@ func (yc *YangCoverage) generateReport(rawLogs string) (int, string) {
 
 // Stores the raw logs in case processing is not activated.
 func (yc *YangCoverage) storeRawLogs(logs string) (int, string) {
-	var outfile string
-	outfile = fmt.Sprintf("%s.json", yc.getOutFname())
+	outfile := fmt.Sprintf("%s.json", yc.getOutFname())
 	destPath := fmt.Sprintf("%s/%s", rawLogsPath, outfile)
 
 	// Save logs to file
@@ -258,7 +257,7 @@ func GetYcovClient(dutId string, t *testing.T) (ycov.YangCoverageClient, error) 
 	conn := gconn.FieldByName("conn")
 	clientConn, ok := (reflect.NewAt(conn.Type(), unsafe.Pointer(conn.UnsafeAddr())).Elem().Interface()).(*grpc.ClientConn)
 	if !ok {
-		return nil, errors.New("GNOI Client connection failed.")
+		return nil, errors.New("gNOI Client connection failed")
 	}
 	return ycov.NewYangCoverageClient(clientConn), nil
 }
