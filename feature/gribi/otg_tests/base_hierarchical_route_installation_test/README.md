@@ -49,8 +49,6 @@ Validate hierarchical resolution using egress interface and MAC:
     198.51.100.1/32) and ensure that ATE port-2 receives packet with
     `00:1A:11:00:00:01` as the destination MAC address.
 
-If the device supports it, repeat the cases in this test with gRIBI client
-persistence mode `DELETE` without flushing entries between cases.
 
 ## Config Parameter coverage
 

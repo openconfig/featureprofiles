@@ -16,7 +16,6 @@ package base_hierarchical_route_installation_test
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -417,53 +416,34 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 		},
 	}
 
-	const (
-		usePreserve = "PRESERVE"
-		useDelete   = "DELETE"
-	)
-
 	// Each case will run with its own gRIBI fluent client.
-	for _, persist := range []string{usePreserve, useDelete} {
-		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
-			if *deviations.GRIBIPreserveOnly && persist == useDelete {
-				t.Skip("Skipping due to --deviation_gribi_preserve_only")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("Name: %s", tc.name)
+			t.Logf("Description: %s", tc.desc)
+
+			// Configure the gRIBI client
+			client := gribi.Client{
+				DUT:         dut,
+				FIBACK:      true,
+				Persistence: true,
+			}
+			defer client.Close(t)
+			if err := client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection can not be established")
+			}
+			client.BecomeLeader(t)
+			defer client.FlushAll(t)
+			args := &testArgs{
+				ctx:    ctx,
+				dut:    dut,
+				ate:    ate,
+				top:    top,
+				client: &client,
 			}
 
-			for _, tc := range tests {
-				t.Run(tc.name, func(t *testing.T) {
-					t.Logf("Name: %s", tc.name)
-					t.Logf("Description: %s", tc.desc)
-
-					// Configure the gRIBI client
-					client := gribi.Client{
-						DUT:    dut,
-						FIBACK: true,
-					}
-					if persist == usePreserve {
-						client.Persistence = true
-					}
-
-					defer client.Close(t)
-					if err := client.Start(t); err != nil {
-						t.Fatalf("gRIBI Connection can not be established")
-					}
-					client.BecomeLeader(t)
-					if persist == usePreserve {
-						defer client.FlushAll(t)
-					}
-
-					args := &testArgs{
-						ctx:    ctx,
-						dut:    dut,
-						ate:    ate,
-						top:    top,
-						client: &client,
-					}
-
-					tc.fn(t, args)
-				})
-			}
+			tc.fn(t, args)
 		})
-
 	}
+
 }
