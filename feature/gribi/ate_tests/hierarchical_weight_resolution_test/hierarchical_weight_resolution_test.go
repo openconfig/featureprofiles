@@ -50,18 +50,17 @@ type nhInfo struct {
 }
 
 const (
-	ipv4PrefixLen   = 30
-	ipv4EntryPrefix = "198.18.192.0/21"
-	ipv4FlowIPStart = "198.18.192.0"
-	ipv4FlowIPEnd   = "198.18.199.255"
-	ipv4FlowCount   = 2048
-	nhEntryIP1      = "192.0.2.111"
-	nhEntryIP2      = "192.0.2.222"
-	nonDefaultVRF   = "VRF-1"
-	// 'deviation' is the maximum difference that is allowed between the observed
-	// traffic distribution and the required traffic distribution.
-	deviation  = 1
-	policyName = "redirect-to-VRF1"
+	ipv4EntryPrefix   = "203.0.113.0/32"
+	ipv4FlowIP        = "203.0.113.0"
+	innerSrcIPv4Start = "198.18.0.0"
+	innerDstIPv4Start = "198.19.0.0"
+	ipv4PrefixLen     = 30
+	ipv4FlowCount     = 65000
+	nhEntryIP1        = "192.0.2.111"
+	nhEntryIP2        = "192.0.2.222"
+	nonDefaultVRF     = "VRF-1"
+	policyName        = "redirect-to-VRF1"
+	ipipProtocol      = 4
 )
 
 var (
@@ -115,6 +114,9 @@ var (
 		2: cidr(nhEntryIP1, 32),
 		3: cidr(nhEntryIP2, 32),
 	}
+	// 'tolerance' is the maximum difference that is allowed between the observed
+	// traffic distribution and the required traffic distribution.
+	tolerance = 0.2
 )
 
 func TestMain(m *testing.M) {
@@ -341,7 +343,7 @@ func configurePBF() *oc.NetworkInstance_PolicyForwarding {
 	pf := ni.GetOrCreatePolicyForwarding()
 	vrfPolicy := pf.GetOrCreatePolicy(policyName)
 	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(atePort1.IPv4 + "/32")
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
 	vrfPolicy.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(nonDefaultVRF)
 	return pf
 }
@@ -412,10 +414,10 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.WithSrcAddress(atePort1.IPv4)
-	ipv4Header.DstAddressRange().
-		WithMin(ipv4FlowIPStart).
-		WithMax(ipv4FlowIPEnd).
-		WithCount(ipv4FlowCount)
+	ipv4Header.WithDstAddress(ipv4FlowIP)
+	innerIpv4Header := ondatra.NewIPv4Header()
+	innerIpv4Header.SrcAddressRange().WithMin(innerSrcIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
+	innerIpv4Header.DstAddressRange().WithMin(innerDstIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
 
 	// Ethernet header:
 	//   - Destination MAC (6 octets)
@@ -425,7 +427,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	flow := ate.Traffic().NewFlow("flow").
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoints...).
-		WithHeaders(ethHeader, ipv4Header)
+		WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
 
 	// VlanID is the last 12 bits in the 802.1q VLAN tag.
 	// Offset for VlanID: ((6+6+4) * 8)-12 = 116.
@@ -522,7 +524,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
-		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, deviation)); diff != "" {
+		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
 	})
@@ -566,7 +568,11 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	for i := 0; i < 16; i++ {
 		nh := nextHopEntry(nhIdx, defaultVRF, atePort2.ip(uint8(3+i)))
 		gribiEntries = append(gribiEntries, nh)
-		nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 1})
+		if i == 0 {
+			nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 1})
+		} else {
+			nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 16})
+		}
 		nhIdx++
 	}
 	nhg3 := nextHopGroupEntry(3, defaultVRF, nextHopWeights)
@@ -602,14 +608,19 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	wantWeights := map[string]float64{
 		"1": 1.171,
 		"2": 1.953,
+		"3": 0.402,
 	}
-	// 6.05 weight for vlans 3 to 18.
-	for i := 3; i <= 18; i++ {
-		wantWeights[strconv.Itoa(i)] = 6.05
+	// 6.432 weight for vlans 4 to 18.
+	for i := 4; i <= 18; i++ {
+		wantWeights[strconv.Itoa(i)] = 6.432
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
-		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, deviation)); diff != "" {
+
+		if deviations.HierarchicalWeightResolutionTolerance(dut) != tolerance {
+			tolerance = deviations.HierarchicalWeightResolutionTolerance(dut)
+		}
+		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
 	})
@@ -617,7 +628,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	t.Run("validateAFTWeights", func(t *testing.T) {
 		for nhg, weights := range map[uint64][]uint64{
 			2: {3, 5},
-			3: {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+			3: {1, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16},
 		} {
 			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
 			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
