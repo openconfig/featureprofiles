@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
 	yc "github.com/openconfig/featureprofiles/tools/cisco/yang_coverage"
+	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
 )
 
 const (
