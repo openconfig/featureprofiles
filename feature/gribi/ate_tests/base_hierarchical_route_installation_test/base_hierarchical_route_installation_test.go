@@ -206,7 +206,6 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, 
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().WithMin(ateDstIP).WithCount(1)
-	ipv4Header.WithProtocol(4)
 
 	flow := ate.Traffic().NewFlow("Flow").
 		WithSrcEndpoints(srcEndPoint).
