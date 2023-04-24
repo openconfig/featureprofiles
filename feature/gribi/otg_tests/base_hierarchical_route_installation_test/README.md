@@ -27,7 +27,7 @@ Validate hierarchical resolution across VRFs:
         the default VRF.
 
 2.  Forward packets between ATE port-1 and ATE port-2 (destined to
-    198.51.100.1/24) and determine that packets are forwarded successfully.
+    198.51.100.1/32) and determine that packets are forwarded successfully.
 
 3.  Validate that both routes are shown as installed via AFT telemetry.
 
