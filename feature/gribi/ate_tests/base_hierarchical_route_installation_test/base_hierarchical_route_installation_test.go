@@ -57,6 +57,7 @@ const (
 	nonDefaultVRF     = "VRF-1"
 	nhMAC             = "00:1A:11:00:00:01"
 	macFilter         = "1" // Decimal equalent of last 7 bits in nhMAC
+	policyName        = "redirect-to-VRF1"
 )
 
 var (
@@ -112,16 +113,25 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	return i
 }
 
-// configureNetworkInstance creates nonDefaultVRF and dutPort1 to VRF
+// configureNetworkInstance creates nonDefaultVRF
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(nonDefaultVRF)
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	p := dut.Port(t, "port1")
-	i := ni.GetOrCreateInterface(p.Name())
-	i.Interface = ygot.String(p.Name())
-	i.Subinterface = ygot.Uint32(0)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), ni)
+
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, nonDefaultVRF)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+	}
+
+	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	// configure PBF in DEFAULT vrf
+	defNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	gnmi.Replace(t, dut, defNIPath.PolicyForwarding().Config(), configurePBF())
 }
 
 // configureDUT configures port1 and port2 on the DUT.
@@ -137,17 +147,43 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		if *deviations.ExplicitIPv6EnableForGRIBI {
 			gnmi.Update(t, dut, d.Interface(p1.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
 		}
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		}
 	}
 
 	configureNetworkInstance(t, dut)
 
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port2").Name(), *deviations.DefaultNetworkInstance, 0)
+	// apply PBF to src interface.
+	dp1 := dut.Port(t, "port1")
+	applyForwardingPolicy(t, dp1.Name())
+}
+
+// configurePBF returns a fully configured network-instance PF struct.
+func configurePBF() *oc.NetworkInstance_PolicyForwarding {
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	pf := ni.GetOrCreatePolicyForwarding()
+	vrfPolicy := pf.GetOrCreatePolicy(policyName)
+	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(atePort1.IPv4 + "/32")
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(nonDefaultVRF)
+	return pf
+}
+
+// applyForwardingPolicy applies the forwarding policy on the interface.
+func applyForwardingPolicy(t *testing.T, ingressPort string) {
+	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
+	d := &oc.Root{}
+	dut := ondatra.DUT(t, "dut")
+	pfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
+	pfCfg := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	if *deviations.ExplicitInterfaceRefDefinition {
+		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	}
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, nonDefaultVRF)
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
-	}
+	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -170,6 +206,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, 
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.DstAddressRange().WithMin(ateDstIP).WithCount(1)
+	ipv4Header.WithProtocol(4)
 
 	flow := ate.Traffic().NewFlow("Flow").
 		WithSrcEndpoints(srcEndPoint).

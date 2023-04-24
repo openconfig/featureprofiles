@@ -9,7 +9,9 @@ Validate IPv4 AFT support in gRIBI with recursion.
 Topology:
 
 *   Connect ATE port-1 to DUT port-1 and ATE port-2 to DUT port-2.
-*   Create a non-default VRF (VRF-1) that includes DUT port-1.
+*   Create a non-default VRF (VRF-1) 
+*   Configure PBF policy in DEFAULT to match src address and redirect traffic to VRF-1
+*   Apply PBF policy on ingress interface DUT port-1
 *   Establish gRIBI client connection with DUT using default parameters and
     persistence mode `PRESERVE`, make it become leader and flush all entries
     after each case.
@@ -49,7 +51,6 @@ Validate hierarchical resolution using egress interface and MAC:
     198.51.100.1/32) and ensure that ATE port-2 receives packet with
     `00:1A:11:00:00:01` as the destination MAC address.
 
-
 ## Config Parameter coverage
 
 No configuration relevant.
@@ -74,11 +75,11 @@ No configuration relevant.
 *   next-hop-groups/next-hop-group/state/programmed-id
 *   next-hops/next-hop/index
 *   next-hops/next-hop/interface-ref/state/interface
-*   next-hops/next-hop/interface-ref/state/subinterface (not supported)
+*   next-hops/next-hop/interface-ref/state/subinterface
 *   next-hops/next-hop/state/index
-*   next-hops/next-hop/state/state/programmed-id (not supported)
+*   next-hops/next-hop/state/state/programmed-id 
 *   next-hops/next-hop/state/ip-address
-*   next-hops/next-hop/state/mac-address (not supported)
+*   next-hops/next-hop/state/mac-address
 
 ## Protocol/RPC Parameter coverage
 
