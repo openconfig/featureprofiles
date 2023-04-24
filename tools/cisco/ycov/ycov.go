@@ -1,4 +1,4 @@
-package yang_coverage
+package ycov
 
 import (
 	"context"
@@ -11,15 +11,134 @@ import (
 	"testing"
 	"time"
 	"unsafe"
+	"flag"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/proto/cisco/ycov"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc"
+	log "github.com/golang/glog"
+	"google.golang.org/protobuf/encoding/prototext"
+
 )
 
-var mgblPath = "/ws/ncorran-sjc/yang-coverage/"
-var rawLogsPath = "/ws/ncorran-sjc/yang-coverage/rawlogs/"
+const (	 
+	mgblPath = "/ws/ncorran-sjc/yang-coverage/"
+    rawLogsPath = "/ws/ncorran-sjc/yang-coverage/rawlogs/"
+)
+
+
+var (
+	yangCovCtx *yCov
+	ycovFile   = flag.String("yang_coverage", "/Users/mbagherz/git/test_ws/src/featureprofiles/feature/cisco/aft/aft_ycov.textproto", "yang coverage configuration file")
+	xrWs       = flag.String("xr_ws", "", "XR workspace path")
+	subComp    = flag.String("subcomp", "", "XR subcomponent name to be targeted for coverge analysis")
+	dut 	   = flag.String("dut", "dut1", "dut name from binding file for which the coverage will be collected")
+
+)
+
+/*
+ * Support for XR Yang Coverage gathering and reporting through go test
+Usage:
+- Create YCov object
+- Call add_yang_coverage once tests are setup (add pre/post YCov tests)
+  - The YCov collect will post process the data, generate a report
+    and log the results as required by the mgbl team
+*/
+
+type yCov struct {
+	sanityName string
+	ws         string
+	verbose    bool
+	processLog bool
+	subCompId  string
+	YC         *YangCoverage
+}
+
+func init() {
+	err := CreateInstance(*subComp)
+	if err != nil {
+		log.Warning(err.Error())
+	}
+}
+
+// Helps instantiate Yang-coverage
+func CreateInstance(subComp string) error {
+	var models []string
+	var ws, prefixPaths string
+	if !flag.Parsed() {
+		flag.Parse()
+		flag.Set("test.v", "true")
+	}
+
+	// ycovFile is yang-coverage configuration file name.
+	// passed using -yang_coverage option.
+	// This contains necessary parameters related to dut-id,
+	// test-phase, test-type, xr ws and log processing details
+	if *ycovFile != "" {
+		in, err := os.ReadFile(*ycovFile)
+		if err != nil {
+			return fmt.Errorf("unable to read yang_coverage file: %w", err)
+		}
+		// Unmarshal yang coverage config details into
+		// Metadata struct of metadata.proto
+		meta := &ycov.Metadata{}
+		if err = prototext.Unmarshal(in, meta); err != nil {
+			return fmt.Errorf("unable to parse yang_coverage file: %w", err)
+		}
+		ycObj := &yCov{
+			sanityName: meta.SanityName,
+			subCompId:  subComp,
+		}
+		tphase := meta.TestPhase
+		ttype := meta.TestType
+
+		if meta.Options != nil && *xrWs != "" {
+			opts := meta.Options
+			// Checks if XR workspace path is provided/accessible.
+			// If path is accessible then processing of logs is activated
+			// and configured options are considered.
+			// Else we skip processing and store raw logs.
+			if rc, _ := pathExists(*xrWs); !rc {
+				log.Warning("Xr Workspace path is not provided or inaccessible." +
+					"Processing of logs will be skipped!")
+			} else {
+				ycObj.processLog = true
+				ws = *xrWs
+				ycObj.ws = ws
+				ycObj.verbose = opts.Verbose
+				if len(opts.PrefixPaths) != 0 {
+					prefixPaths = strings.Join(opts.PrefixPaths, ",")
+				}
+				models = opts.Models
+			}
+		}
+
+		ycObj.YC, err = New(ws, models, meta.SanityName,
+			tphase, ttype, prefixPaths,
+			ycObj.verbose, subComp)
+		if err != nil {
+			return err
+		}
+		yangCovCtx = ycObj
+		log.Info("Yang Coverage Enabled!!")
+	}
+	return nil
+}
+
+
+func (ycov *yCov) ProcessYCov(logs string) (int,string){
+	if ycov.processLog {
+		return ycov.YC.processYCov(logs)
+	} else {
+		return ycov.YC.storeRawLogs(logs)
+	}
+}
+
+func GetYCovCtx() *yCov {
+	return yangCovCtx
+}
+
 
 /*
  * YangCoverage provides the services to support collecting and
@@ -161,8 +280,8 @@ func (yc *YangCoverage) getOutFname() (outfile string) {
 }
 
 // Send clear logs request using GNOI client
-func (yc *YangCoverage) clearCovLogs(ctx context.Context, t *testing.T) error {
-	yclient, err := GetYcovClient(dut, t)
+func (yc *YangCoverage) ClearCovLogs(ctx context.Context, t *testing.T) error {
+	yclient, err := GetYcovClient(*dut, t)
 	if err != nil {
 		return fmt.Errorf("clearCovLogs Yclient creation Failed - %s", err.Error())
 	}
@@ -174,31 +293,37 @@ func (yc *YangCoverage) clearCovLogs(ctx context.Context, t *testing.T) error {
 }
 
 // Send enable logs request using GNMI client
-func (yc *YangCoverage) enableCovLogs(ctx context.Context, t *testing.T) {
-	dut := ondatra.DUT(t, dut)
-	config := "aaa accounting commands default start-stop local \n"
-	util.GNMIWithText(ctx, t, dut, config)
+func (yc *YangCoverage) EnableCovLogs(ctx context.Context, t *testing.T) {
+	for _,dut := range ondatra.DUTs(t) {
+		config := "aaa accounting commands default start-stop local \n"
+		util.GNMIWithText(ctx, t, dut, config)
+	}
+
 }
 
 // Send gather yang coverage logs using GNOI client
-func (yc *YangCoverage) collectCovLogs(ctx context.Context, t *testing.T) (string, error) {
-	yclient, err := GetYcovClient(dut, t)
-	if err != nil {
-		return "", fmt.Errorf("collectCovLogs Yclient creation Failed - %s", err.Error())
+func (yc *YangCoverage) CollectCovLogs(ctx context.Context, t *testing.T) (string, error) {
+	for dut:= range ondatra.DUTs(t) {
+		//TODO: the current code only measure coverage for the first dut, we need to support multi dut. this is enough for most fp test.
+		yclient, err := GetYcovClient(dut, t)
+		if err != nil {
+			return "", fmt.Errorf("collectCovLogs Yclient creation Failed - %s", err.Error())
+		}
+		req := &ycov.GatherLogsRequest{
+			TestName:  yc.testName,
+			TestPhase: yc.testPhase,
+			TestType:  yc.testType}
+		rsp, err := yclient.GatherLogs(ctx, req)
+		if err != nil {
+			return "", fmt.Errorf("collectCovLogs Req Failed - %s", err.Error())
+		}
+		return rsp.GetLog(), nil
 	}
-	req := &ycov.GatherLogsRequest{
-		TestName:  yc.testName,
-		TestPhase: yc.testPhase,
-		TestType:  yc.testType}
-	rsp, err := yclient.GatherLogs(ctx, req)
-	if err != nil {
-		return "", fmt.Errorf("collectCovLogs Req Failed - %s", err.Error())
-	}
-	return rsp.GetLog(), nil
+	return "", fmt.Errorf("collectCovLogs Req Failed, no dut is in binding file")
 }
 
 // Run the pyang validate and report steps, gathering the results
-func (yc *YangCoverage) generateReport(rawLogs string) (int, string) {
+func  (yc *YangCoverage) generateReport(rawLogs string) (int, string) {
 	/* Run the pyang validate and report steps, gathering the results */
 
 	// Save logs to file
@@ -231,7 +356,7 @@ func (yc *YangCoverage) generateReport(rawLogs string) (int, string) {
 }
 
 // Stores the raw logs in case processing is not activated.
-func (yc *YangCoverage) storeRawLogs(logs string) (int, string) {
+func  (yc *YangCoverage) storeRawLogs(logs string) (int, string) {
 	outfile := fmt.Sprintf("%s.json", yc.getOutFname())
 	destPath := fmt.Sprintf("%s/%s", rawLogsPath, outfile)
 
@@ -249,15 +374,27 @@ func (yc *YangCoverage) storeRawLogs(logs string) (int, string) {
 }
 
 func GetYcovClient(dutId string, t *testing.T) (ycov.YangCoverageClient, error) {
-	dut := ondatra.DUT(t, dutId)
-	gnoiConn := dut.RawAPIs().GNOI().New(t)
-	gc := reflect.ValueOf(gnoiConn)
-	gconn := reflect.New(gc.Type()).Elem()
-	gconn.Set(gc)
-	conn := gconn.FieldByName("conn")
-	clientConn, ok := (reflect.NewAt(conn.Type(), unsafe.Pointer(conn.UnsafeAddr())).Elem().Interface()).(*grpc.ClientConn)
-	if !ok {
-		return nil, errors.New("gNOI Client connection failed")
+	for dutId := range ondatra.DUTs(t) {
+		//TODO: open a pull with ondatra to expose raw grpc connection and change this code to use that instead of unsafe pointer
+		//TODO: add support for multi dut case, the code only returns for the first dut
+		dut := ondatra.DUT(t, dutId)
+		gnoiConn := dut.RawAPIs().GNOI().New(t)
+		gc := reflect.ValueOf(gnoiConn)
+		gconn := reflect.New(gc.Type()).Elem()
+		gconn.Set(gc)
+		conn := gconn.FieldByName("conn")
+		clientConn, ok := (reflect.NewAt(conn.Type(), unsafe.Pointer(conn.UnsafeAddr())).Elem().Interface()).(*grpc.ClientConn)
+		if !ok {
+			return nil, errors.New("gNOI Client connection failed")
+		}
+		return ycov.NewYangCoverageClient(clientConn), nil
 	}
-	return ycov.NewYangCoverageClient(clientConn), nil
+	return nil, errors.New("no dut is found in binding file")
 }
+
+
+func (yc *YangCoverage) processYCov(logs string) (int, string) {
+	return yc.generateReport(logs)
+}
+
+
