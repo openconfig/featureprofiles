@@ -59,6 +59,7 @@ const (
 	switchChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
 	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
 	portType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT
+	osType          = oc.PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT_OPERATING_SYSTEM
 )
 
 var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
@@ -464,45 +465,45 @@ func TestComponentParent(t *testing.T) {
 func TestSoftwareVersion(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	cards := components.FindComponentsByType(t, dut, cpuType)
-	t.Logf("Found card list: %v", cards)
-	if len(cards) == 0 {
-		t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
+	if deviations.SwVersionUnsupported(dut) {
+		t.Skipf("Software version test is not supported by DUT")
 	}
 
-	// Validate Supervisor components include software version.
-	swVersionFound := false
-	for _, card := range cards {
-		t.Logf("Validate card %s", card)
-		softwareVersion := ""
-		// Only a subset of cards are expected to report Software Version.
-		swVersion := gnmi.Lookup(t, dut, gnmi.OC().Component(card).SoftwareVersion().State())
-		if val, present := swVersion.Val(); present {
-			softwareVersion = val
-			t.Logf("Hardware card %s SoftwareVersion: %s", card, softwareVersion)
-			swVersionFound = true
-			if softwareVersion == "" {
-				t.Errorf("swVersion.Val(t) for %q: got empty string, want non-empty string", card)
+	// validate /system/state/software-version.
+	swVer := gnmi.Lookup(t, dut, gnmi.OC().System().SoftwareVersion().State())
+	if v, ok := swVer.Val(); ok && v != "" {
+		t.Logf("Got a system software version value %q", v)
+	} else {
+		t.Errorf("System software version was not reported")
+	}
+
+	// validate OPERATING_SYSTEM component(s).
+	osList := components.FindSWComponentsByType(t, dut, osType)
+	if len(osList) == 0 {
+		t.Fatalf("Get OS component list: got 0, want > 0")
+	}
+	t.Logf("Found OS component list: %v", osList)
+
+	for _, os := range osList {
+		swVer = gnmi.Lookup(t, dut, gnmi.OC().Component(os).SoftwareVersion().State())
+		if v, ok := swVer.Val(); ok && v != "" {
+			t.Logf("Got a system software version value %q for component %v", v, os)
+		} else {
+			t.Errorf("System software version was not reported for component %v", v)
+		}
+
+		// validate OPERATING_SYSTEM component parent.
+		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(os).Parent().State())
+		if v, ok := parent.Val(); ok {
+			got := gnmi.Get(t, dut, gnmi.OC().Component(v).Type().State())
+			if got == supervisorType {
+				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+			} else {
+				t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
 			}
 		} else {
-			t.Logf("swVersion.Val(t) for %q: got no value.", card)
+			t.Errorf("Parent for the component %v was not found", os)
 		}
-	}
-	if !swVersionFound {
-		t.Errorf("Failed to find software version from %v", cards)
-	}
-
-	// Get /components/component/state/software-version directly.
-	swVersions := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
-	if len(swVersions) == 0 {
-		t.Errorf("SoftwareVersion().Lookup(t) for %q: got none, want non-empty string", dut.Name())
-	}
-	for i, ver := range swVersions {
-		val, present := ver.Val()
-		if !present {
-			t.Errorf("Telemetry path not present %d: %v:", i, ver.Path.String())
-		}
-		t.Logf("Telemetry path/value %d: %v=>%v:", i, ver.Path.String(), val)
 	}
 }
 
