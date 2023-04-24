@@ -1,4 +1,4 @@
-# RT-5.3: Interface Loopback mode
+# RT-5.6: Interface Loopback mode
 
 ## Summary
 
