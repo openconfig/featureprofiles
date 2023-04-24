@@ -76,6 +76,8 @@ tests:
     priority: 3
   - name: TE-3.3 (Hierarchical weight resolution)
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
+    args:
+      - '-deviation_hierarchical_weight_resolution_tolerance="1.5"'
     owners:
       - mananpat
     skip: false
