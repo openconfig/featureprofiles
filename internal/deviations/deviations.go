@@ -164,6 +164,16 @@ func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
 }
 
+// SwVersionUnsupported returns true if the device does not support reporting software version according to the requirements in gNMI-1.10.
+func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
+	return *swVersionUnsupported
+}
+
+// HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
+func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
+	return *hierarchicalWeightResolutionTolerance
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -230,8 +240,6 @@ var (
 	TraceRouteFragmentation = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
 
 	ConnectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
-
-	MissingBgpNeighborStatePeerGroup = flag.Bool("deviation_missing_bgp_neighbor_state_peer_group", false, "Device requires peer-group under bgp neighbor bgp/neighbors/neighbor/state/peer-group.")
 
 	ExplicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
 
@@ -334,4 +342,8 @@ var (
 	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
+
+	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
+
+	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
 )
