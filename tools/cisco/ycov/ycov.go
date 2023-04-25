@@ -22,18 +22,16 @@ import (
 
 )
 
-const (	 
-	mgblPath = "/ws/ncorran-sjc/yang-coverage/"
-    rawLogsPath = "/ws/ncorran-sjc/yang-coverage/rawlogs/"
-)
+
 
 
 var (
 	yangCovCtx *yCov
-	ycovFile   = flag.String("yang_coverage", "/Users/mbagherz/git/test_ws/src/featureprofiles/feature/cisco/aft/aft_ycov.textproto", "yang coverage configuration file")
-	xrWs       = flag.String("xr_ws", "", "XR workspace path")
-	subComp    = flag.String("subcomp", "", "XR subcomponent name to be targeted for coverge analysis")
-	dut 	   = flag.String("dut", "dut1", "dut name from binding file for which the coverage will be collected")
+	ycovFile    = flag.String("yang_coverage", "", "yang coverage configuration file")
+	xrWs        = flag.String("xr_ws", "", "XR workspace path")
+	subComp     = flag.String("subcomp", "", "XR subcomponent name to be targeted for coverge analysis")
+	mgblPath    = flag.String("mgbl_path","/ws/ncorran-sjc/yang-coverage/","location where the analysis result will be saved for extra analysis")
+    rawLogsPath = flag.String("rawLogs_path","/Users/mbagherz/Downloads/", "location where the raw coverage data will be saved for analysis")
 
 )
 
@@ -68,7 +66,7 @@ func CreateInstance(subComp string) error {
 	var ws, prefixPaths string
 	if !flag.Parsed() {
 		flag.Parse()
-		flag.Set("test.v", "true")
+		//flag.Set("test.v", "true")
 	}
 
 	// ycovFile is yang-coverage configuration file name.
@@ -122,8 +120,9 @@ func CreateInstance(subComp string) error {
 		}
 		yangCovCtx = ycObj
 		log.Info("Yang Coverage Enabled!!")
-	}
-	return nil
+		return nil
+	} 
+	return fmt.Errorf("yang coverage config file is missing")	
 }
 
 
@@ -206,7 +205,7 @@ func (yc *YangCoverage) setupCoverageScript(logFile, outFname string) (coverageS
 	//  - report_outfile: report result file from processing validated_logs
 	//  - ycov_logfile:   file collecting the output of running the tools
 	pathPrefix := fmt.Sprintf("%s/%s", yc.ws, outFname)
-	yc.destValidLogPath = fmt.Sprintf("%s/%s_validated.json", mgblPath, outFname)
+	yc.destValidLogPath = fmt.Sprintf("%s/%s_validated.json", *mgblPath, outFname)
 	yc.srcValidLogPath = fmt.Sprintf("%s_validated.json", pathPrefix)
 	reportOutFile := fmt.Sprintf("%s_report.json", pathPrefix)
 	yc.ycovLogPath = fmt.Sprintf("%s_ycov.log", pathPrefix)
@@ -281,7 +280,7 @@ func (yc *YangCoverage) getOutFname() (outfile string) {
 
 // Send clear logs request using GNOI client
 func (yc *YangCoverage) ClearCovLogs(ctx context.Context, t *testing.T) error {
-	yclient, err := GetYcovClient(*dut, t)
+	yclient, err := GetYcovClient(t)
 	if err != nil {
 		return fmt.Errorf("clearCovLogs Yclient creation Failed - %s", err.Error())
 	}
@@ -303,23 +302,20 @@ func (yc *YangCoverage) EnableCovLogs(ctx context.Context, t *testing.T) {
 
 // Send gather yang coverage logs using GNOI client
 func (yc *YangCoverage) CollectCovLogs(ctx context.Context, t *testing.T) (string, error) {
-	for dut:= range ondatra.DUTs(t) {
-		//TODO: the current code only measure coverage for the first dut, we need to support multi dut. this is enough for most fp test.
-		yclient, err := GetYcovClient(dut, t)
-		if err != nil {
-			return "", fmt.Errorf("collectCovLogs Yclient creation Failed - %s", err.Error())
-		}
-		req := &ycov.GatherLogsRequest{
-			TestName:  yc.testName,
-			TestPhase: yc.testPhase,
-			TestType:  yc.testType}
-		rsp, err := yclient.GatherLogs(ctx, req)
-		if err != nil {
-			return "", fmt.Errorf("collectCovLogs Req Failed - %s", err.Error())
-		}
-		return rsp.GetLog(), nil
+	//TODO: the current code only measure coverage for the first dut, we need to support multi dut. this is enough for most fp test.
+	yclient, err := GetYcovClient(t)
+	if err != nil {
+		return "", fmt.Errorf("collectCovLogs Yclient creation Failed - %s", err.Error())
 	}
-	return "", fmt.Errorf("collectCovLogs Req Failed, no dut is in binding file")
+	req := &ycov.GatherLogsRequest{
+		TestName:  yc.testName,
+		TestPhase: yc.testPhase,
+		TestType:  yc.testType}
+	rsp, err := yclient.GatherLogs(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("collectCovLogs Req Failed - %s", err.Error())
+	}
+	return rsp.GetLog(), nil
 }
 
 // Run the pyang validate and report steps, gathering the results
@@ -349,7 +345,7 @@ func  (yc *YangCoverage) generateReport(rawLogs string) (int, string) {
 
 	// Copy validated logfile to mgbl path
 	if err = copy(yc.srcValidLogPath, yc.destValidLogPath); err != nil {
-		return -1, fmt.Sprintf("WARNING: Coverage logs copy to %s failed: %s \n YCov tool logs at %s \n Please run manually: cp %s %s to add your logs to the collection", mgblPath, err.Error(), yc.ycovLogPath, yc.srcValidLogPath, mgblPath)
+		return -1, fmt.Sprintf("WARNING: Coverage logs copy to %s failed: %s \n YCov tool logs at %s \n Please run manually: cp %s %s to add your logs to the collection", *mgblPath, err.Error(), yc.ycovLogPath, yc.srcValidLogPath, *mgblPath)
 	}
 
 	return 0, fmt.Sprintf("Coverage logs stored at %s.\nYCov tool logs at %s", yc.destValidLogPath, yc.ycovLogPath)
@@ -358,7 +354,7 @@ func  (yc *YangCoverage) generateReport(rawLogs string) (int, string) {
 // Stores the raw logs in case processing is not activated.
 func  (yc *YangCoverage) storeRawLogs(logs string) (int, string) {
 	outfile := fmt.Sprintf("%s.json", yc.getOutFname())
-	destPath := fmt.Sprintf("%s/%s", rawLogsPath, outfile)
+	destPath := fmt.Sprintf("%s/%s", *rawLogsPath, outfile)
 
 	// Save logs to file
 	rc, errstr := writeLogsToFile(logs, outfile)
@@ -368,12 +364,12 @@ func  (yc *YangCoverage) storeRawLogs(logs string) (int, string) {
 
 	// Copy log file to dest path
 	if err := copy(outfile, destPath); err != nil {
-		return -1, fmt.Sprintf("Copy of log file %s failed to %s: %s", outfile, rawLogsPath, err.Error())
+		return -1, fmt.Sprintf("Copy of log file %s failed to %s: %s", outfile, *rawLogsPath, err.Error())
 	}
 	return 0, fmt.Sprintf("Raw log file at %s", destPath)
 }
 
-func GetYcovClient(dutId string, t *testing.T) (ycov.YangCoverageClient, error) {
+func GetYcovClient(t *testing.T) (ycov.YangCoverageClient, error) {
 	for dutId := range ondatra.DUTs(t) {
 		//TODO: open a pull with ondatra to expose raw grpc connection and change this code to use that instead of unsafe pointer
 		//TODO: add support for multi dut case, the code only returns for the first dut

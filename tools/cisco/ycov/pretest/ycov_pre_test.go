@@ -25,6 +25,7 @@ func TestPreCov(t *testing.T)  {
 			t.Errorf("Error while clearing existing coverage logs: %v",err.Error())
 		}
 		yobj.YC.EnableCovLogs(ctx, t)
+		t.Log("Yang Coverage is enabled successfully")
 	} else {
 		t.Error("Yang Coverage Initialization is failed")
 	}
