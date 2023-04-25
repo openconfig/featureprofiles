@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -43,7 +44,6 @@ const (
 	ipv4PrefixLen    = 30
 	ateDstNetCIDR    = "203.0.113.0/24"
 	ipv4TrafficStart = "203.0.113.1"
-	ipv4TrafficEnd   = "203.0.113.250"
 	nhIndex          = 1
 	nhgIndex         = 42
 	deviceID1        = uint64(1)
@@ -60,6 +60,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -72,6 +73,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
@@ -147,22 +149,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// configureATE configures port1 and port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	t.Helper()
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
+	atePort1.AddToOTG(top, p1, &dutPort1)
 
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+	atePort2.AddToOTG(top, p2, &dutPort2)
 
 	return top
 }
@@ -170,24 +165,23 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 // startTraffic generates traffic flow from source network to
 // destination network via atePort1 to atePort2.
 // Returns the flow object that it creates.
-func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology) *ondatra.Flow {
+func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) gosnappi.Flow {
 	t.Helper()
-	srcEndPoint := top.Interfaces()[atePort1.Name]
-	dstEndPoint := top.Interfaces()[atePort2.Name]
 
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin(ipv4TrafficStart).
-		WithMax(ipv4TrafficEnd).
-		WithCount(250)
+	otg := ate.OTG()
+	flow := top.Flows().Add().SetName("Flow")
+	flow.Metrics().SetEnable(true)
+	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort1.Name + ".IPv4"})
+	e1 := flow.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	v4 := flow.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart(ipv4TrafficStart).SetCount(250)
 
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint).
-		WithHeaders(ethHeader, ipv4Header)
+	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 
-	ate.Traffic().Start(t, flow)
+	otg.StartTraffic(t)
 
 	return flow
 }
@@ -269,7 +263,8 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	t.Logf("Configure ATE")
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	if err := installRoutes(t, dut); err != nil {
 		t.Fatalf("Could not install routes to DUT: %v", err)
@@ -303,9 +298,16 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	// let traffic keep running for another 10 seconds.
 	time.Sleep(10 * time.Second)
 
-	ate.Traffic().Stop(t)
+	t.Logf("Stop traffic")
+	ate.OTG().StopTraffic(t)
 
-	if got := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); got > lossTolerance {
-		t.Errorf("FAIL: LossPct for %s got: %f, want: 0", flow.Name(), got)
+	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	txPackets := recvMetric.GetCounters().GetOutPkts()
+	rxPackets := recvMetric.GetCounters().GetInPkts()
+	lostPackets := txPackets - rxPackets
+	lossPct := float32(lostPackets * 100 / txPackets)
+
+	if lossPct > lossTolerance {
+		t.Errorf("FAIL: LossPct for %s got: %f, want: 0", flow.Name(), lossPct)
 	}
 }
