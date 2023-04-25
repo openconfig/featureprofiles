@@ -252,7 +252,6 @@ func TestPacketOut(t *testing.T) {
 		t.Fatalf("Couldn't parse Source MAC: %v", err)
 	}
 
-	// dm := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State())
 	dstMAC, err := net.ParseMAC(dMAC(t, dut))
 	if err != nil {
 		t.Fatalf("Couldn't parse router MAC: %v", err)
