@@ -1,0 +1,55 @@
+duts {
+  id: "dut"
+  ports {
+    id: "port1"    
+  }
+  ports {
+    id: "port2"    
+  }
+  ports {
+    id: "port3"    
+  }
+  ports {
+    id: "port4"    
+  }
+}
+
+ates {
+  id: "ate"
+  vendor: IXIA
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+    group: "lag"
+  }
+  ports {
+    id: "port3"
+    group: "lag"
+  }
+  ports {
+    id: "port4"
+    group: "lag"
+  }
+}
+
+links {
+  a: "dut:port1"
+  b: "ate:port1"
+}
+
+links {
+  a: "dut:port2"
+  b: "ate:port2"
+}
+
+links {
+  a: "dut:port3"
+  b: "ate:port3"
+}
+
+links {
+  a: "dut:port4"
+  b: "ate:port4"
+}
