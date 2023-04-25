@@ -88,7 +88,7 @@ type Client struct {
 }
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
-func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
+func (c *Client) Fluent(_ testing.TB) *fluent.GRIBIClient {
 	return c.fluentC
 }
 
