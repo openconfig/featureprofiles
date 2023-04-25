@@ -31,7 +31,7 @@ var (
 	xrWs        = flag.String("xr_ws", "", "XR workspace path")
 	subComp     = flag.String("subcomp", "", "XR subcomponent name to be targeted for coverge analysis")
 	mgblPath    = flag.String("mgbl_path","/ws/ncorran-sjc/yang-coverage/","location where the analysis result will be saved for extra analysis")
-    rawLogsPath = flag.String("rawLogs_path","/Users/mbagherz/Downloads/", "location where the raw coverage data will be saved for analysis")
+    rawLogsPath = flag.String("rawLogs_path","/ws/ncorran-sjc/yang-coverage/rawlogs/", "location where the raw coverage data will be saved for analysis")
 
 )
 
