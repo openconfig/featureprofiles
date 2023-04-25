@@ -10,8 +10,9 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
+// WaitForARP waits for ARP to resolve on all OTG interfaces for a given ipType, which is
+// either "IPv4" or "IPv6".
 func WaitForARP(t *testing.T, otg *otg.OTG, c gosnappi.Config, ipType string) {
-
 	intfs := []string{}
 	for _, d := range c.Devices().Items() {
 		Eth := d.Ethernets().Items()[0]

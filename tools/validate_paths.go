@@ -198,7 +198,7 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 		}
 
 		// Validate feature profile ID name by checking path.
-		targetFeatureProfileName := getFeatureProfileNameFromPath(f, &tmp)
+		targetFeatureProfileName := getFeatureProfileNameFromPath(f)
 		featureProfileIDName := tmp.GetId().GetName()
 		validProfile[featureProfileIDName] = true
 		if targetFeatureProfileName != featureProfileIDName {
@@ -257,7 +257,7 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 }
 
 // getFeatureProfileNameFromPath gets feature profile id.name from path.
-func getFeatureProfileNameFromPath(file string, fp *fppb.FeatureProfile) string {
+func getFeatureProfileNameFromPath(file string) string {
 	featureProfileFilePath := strings.ReplaceAll(strings.TrimPrefix(file, featuresRoot), "/", " ")
 	featureProfileFilePathArray := strings.Fields(featureProfileFilePath)
 	featureProfileFilePathArray = featureProfileFilePathArray[0 : len(featureProfileFilePathArray)-1]
