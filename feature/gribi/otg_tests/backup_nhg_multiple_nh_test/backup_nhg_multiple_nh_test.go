@@ -382,8 +382,8 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
 	// Get send traffic
-	incoming_traffic_counters := gnmi.OC().Interface(a.ate.Port(t, "port1").Name()).Counters()
-	sentPkts := gnmi.Get(t, a.ate.OTG(), incoming_traffic_counters.OutPkts().State())
+	incoming_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
+	sentPkts := gnmi.Get(t, a.ate.OTG(), incoming_traffic_state).GetCounters().GetOutFrames()
 	if sentPkts == 0 {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
@@ -392,15 +392,15 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 
 	// Get traffic received on primary outgoing interface before interface shutdown
 	for _, port := range shut_ports {
-		outgoing_traffic_counters := gnmi.OC().Interface(a.ate.Port(t, port).Name()).Counters()
-		outPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_counters.InPkts().State())
+		outgoing_traffic_counters := gnmi.OTG().Port(a.ate.Port(t, port).ID()).State()
+		outPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_counters).GetCounters().GetInFrames()
 		receivedPkts = receivedPkts + outPkts
 	}
 
 	// Get traffic received on expected port after interface shut
 	for _, outPort := range expected_outgoing_port {
-		outgoing_traffic_counters := gnmi.OC().Interface(outPort.Name()).Counters()
-		outPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_counters.InPkts().State())
+		outgoing_traffic_counters := gnmi.OTG().Port(outPort.ID()).State()
+		outPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_counters).GetCounters().GetInFrames()
 		receivedPkts = receivedPkts + outPkts
 	}
 
