@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attributes) {
+func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attributes, dut *ondatra.DUTDevice) {
 	t.Helper()
 	ni := d.GetOrCreateNetworkInstance(niName)
 	if niName != *deviations.DefaultNetworkInstance {
@@ -43,6 +43,13 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 		niIntf := ni.GetOrCreateInterface(intf)
 		niIntf.Interface = ygot.String(intf)
 		niIntf.Subinterface = ygot.Uint32(0)
+	}
+
+	// For vendors that require n/w instance definition and interface in
+	// a n/w instance set before the address configuration, set nwInstance +
+	// interface creation in the nwInstance first.
+	if *deviations.InterfaceConfigVrfBeforeAddress {
+		gnmi.Update(t, dut, gnmi.OC().Config(), d)
 	}
 
 	ocInt := a.ConfigOCInterface(&oc.Interface{})
@@ -157,10 +164,10 @@ func TestDefaultAddressFamilies(t *testing.T) {
 
 			d := &oc.Root{}
 			// Assign two ports into the network instance & unnasign them at the end of the test
-			assignPort(t, d, dutP1.Name(), tc.niName, dutPort1)
+			assignPort(t, d, dutP1.Name(), tc.niName, dutPort1, dut)
 			defer unassignPort(t, dut, dutP1.Name(), tc.niName)
 
-			assignPort(t, d, dutP2.Name(), tc.niName, dutPort2)
+			assignPort(t, d, dutP2.Name(), tc.niName, dutPort2, dut)
 			defer unassignPort(t, dut, dutP2.Name(), tc.niName)
 
 			fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)

@@ -79,7 +79,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
-		MAC:     "01:00:02:01:01:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:6",
@@ -97,7 +97,7 @@ var (
 
 	atePort2Vlan10 = attrs.Attributes{
 		Name:    "atePort2Vlan10",
-		MAC:     "01:00:02:01:01:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:a",
@@ -115,7 +115,7 @@ var (
 
 	atePort2Vlan20 = attrs.Attributes{
 		Name:    "atePort2Vlan20",
-		MAC:     "01:00:02:01:01:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.14",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:e",
@@ -133,7 +133,7 @@ var (
 
 	atePort2Vlan30 = attrs.Attributes{
 		Name:    "atePort2Vlan30",
-		MAC:     "01:00:02:01:01:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.18",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:12",
