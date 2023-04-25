@@ -3,6 +3,7 @@ package ycov
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,28 +12,22 @@ import (
 	"testing"
 	"time"
 	"unsafe"
-	"flag"
 
+	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/proto/cisco/ycov"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc"
-	log "github.com/golang/glog"
 	"google.golang.org/protobuf/encoding/prototext"
-
 )
 
-
-
-
 var (
-	yangCovCtx *yCov
-	ycovFile    = flag.String("yang_coverage", "", "yang coverage configuration file")
+	yangCovCtx  *yCov
+	ycovFile    = flag.String("yang_coverage", "tools/cisco/ycov/conf/fp_public_ycov.textproto", "yang coverage configuration file")
 	xrWs        = flag.String("xr_ws", "", "XR workspace path")
 	subComp     = flag.String("subcomp", "", "XR subcomponent name to be targeted for coverge analysis")
-	mgblPath    = flag.String("mgbl_path","/ws/ncorran-sjc/yang-coverage/","location where the analysis result will be saved for extra analysis")
-    rawLogsPath = flag.String("rawLogs_path","/ws/ncorran-sjc/yang-coverage/rawlogs/", "location where the raw coverage data will be saved for analysis")
-
+	mgblPath    = flag.String("mgbl_path", "/ws/ncorran-sjc/yang-coverage/", "location where the analysis result will be saved for extra analysis")
+	rawLogsPath = flag.String("rawLogs_path", "/ws/ncorran-sjc/yang-coverage/rawlogs/", "location where the raw coverage data will be saved for analysis")
 )
 
 /*
@@ -50,7 +45,8 @@ type yCov struct {
 	verbose    bool
 	processLog bool
 	subCompId  string
-	YC         *YangCoverage
+	// YC is a pointer to call yang coverage apis
+	YC *YangCoverage
 }
 
 func init() {
@@ -121,12 +117,12 @@ func CreateInstance(subComp string) error {
 		yangCovCtx = ycObj
 		log.Info("Yang Coverage Enabled!!")
 		return nil
-	} 
-	return fmt.Errorf("yang coverage config file is missing")	
+	}
+	return fmt.Errorf("yang coverage config file is missing")
 }
 
-
-func (ycov *yCov) ProcessYCov(logs string) (int,string){
+// ProcessYCov is a wrapper to process collected coverage files
+func (ycov *yCov) ProcessYCov(logs string) (int, string) {
 	if ycov.processLog {
 		return ycov.YC.processYCov(logs)
 	} else {
@@ -134,10 +130,10 @@ func (ycov *yCov) ProcessYCov(logs string) (int,string){
 	}
 }
 
+// GetYCovCtx returns a pointer initialized ycov
 func GetYCovCtx() *yCov {
 	return yangCovCtx
 }
-
 
 /*
  * YangCoverage provides the services to support collecting and
@@ -293,7 +289,7 @@ func (yc *YangCoverage) ClearCovLogs(ctx context.Context, t *testing.T) error {
 
 // Send enable logs request using GNMI client
 func (yc *YangCoverage) EnableCovLogs(ctx context.Context, t *testing.T) {
-	for _,dut := range ondatra.DUTs(t) {
+	for _, dut := range ondatra.DUTs(t) {
 		config := "aaa accounting commands default start-stop local \n"
 		util.GNMIWithText(ctx, t, dut, config)
 	}
@@ -319,7 +315,7 @@ func (yc *YangCoverage) CollectCovLogs(ctx context.Context, t *testing.T) (strin
 }
 
 // Run the pyang validate and report steps, gathering the results
-func  (yc *YangCoverage) generateReport(rawLogs string) (int, string) {
+func (yc *YangCoverage) generateReport(rawLogs string) (int, string) {
 	/* Run the pyang validate and report steps, gathering the results */
 
 	// Save logs to file
@@ -352,7 +348,7 @@ func  (yc *YangCoverage) generateReport(rawLogs string) (int, string) {
 }
 
 // Stores the raw logs in case processing is not activated.
-func  (yc *YangCoverage) storeRawLogs(logs string) (int, string) {
+func (yc *YangCoverage) storeRawLogs(logs string) (int, string) {
 	outfile := fmt.Sprintf("%s.json", yc.getOutFname())
 	destPath := fmt.Sprintf("%s/%s", *rawLogsPath, outfile)
 
@@ -388,9 +384,6 @@ func GetYcovClient(t *testing.T) (ycov.YangCoverageClient, error) {
 	return nil, errors.New("no dut is found in binding file")
 }
 
-
 func (yc *YangCoverage) processYCov(logs string) (int, string) {
 	return yc.generateReport(logs)
 }
-
-

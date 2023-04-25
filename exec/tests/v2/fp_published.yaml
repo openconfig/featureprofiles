@@ -12,21 +12,21 @@ tests:
     owners:
       - mbagherz
     priority: 0
-    args:
-      - '-yang_coverage="tools/cisco/ycov/conf/fp_public_ycov.textproto"'
-      - '-xr_ws=""'
-      - '-mgbl_path="/ws/ncorran-sjc/yang-coverage/"'
-      - '-rawLogs_path="/ws/ncorran-sjc/yang-coverage/rawlogs/"'
+    #args:
+    #  - '-yang_coverage="tools/cisco/ycov/conf/fp_public_ycov.textproto"'
+    #  - '-xr_ws=""'
+    #  - '-mgbl_path="/ws/ncorran-sjc/yang-coverage/"'
+    #  - '-rawLogs_path="/ws/ncorran-sjc/yang-coverage/rawlogs/"'
   - name: YCOVPost (Post test to collect the xr yang coverage data)
     path: tools/cisco/ycov/posttest/
     owners:
       - mbagherz
     priority: 999999
-    args:
-      - '-yang_coverage="tools/cisco/ycov/conf/fp_public_ycov.textproto"'
-      - '-xr_ws=""'
-      - '-mgbl_path="/ws/ncorran-sjc/yang-coverage/"'
-      - '-rawLogs_path="/ws/ncorran-sjc/yang-coverage/rawlogs/"'
+    #args:
+    #  - '-yang_coverage="tools/cisco/ycov/conf/fp_public_ycov.textproto"'
+    #  - '-xr_ws=""'
+    #  - '-mgbl_path="/ws/ncorran-sjc/yang-coverage/"'
+    #  - '-rawLogs_path="/ws/ncorran-sjc/yang-coverage/rawlogs/"'
   - name: gNOI-3.1 (Complete Chassis Reboot)
     path: feature/gnoi/system/tests/complete_chassis_reboot
     owners:

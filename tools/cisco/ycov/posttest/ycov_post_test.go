@@ -24,7 +24,7 @@ func TestPostCov(t *testing.T)  {
 			t.Fatalf("Failure while collecting coverage: %v",err.Error())
 		}
 		rc, _ := yobj.ProcessYCov(logs); if rc != 0 {
-			t.Errorf("processing coverage response is failed, RC for processing coverage is expected to be 0, but got %d", rc)
+			t.Errorf("Processing coverage response is failed, RC for processing coverage is expected to be 0, but got %d", rc)
 		}
 	} else {
 		t.Error("Coverage collection is failed due to initialization")
