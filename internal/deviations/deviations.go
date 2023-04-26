@@ -172,6 +172,7 @@ func StatePathsUnsupported(_ *ondatra.DUTDevice) bool {
 // DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile
 func DropWeightLeavesUnsupported(_ *ondatra.DUTDevice) bool {
 	return *dropWeightLeavesUnsupported
+}
 
 // SwVersionUnsupported returns true if the device does not support reporting software version according to the requirements in gNMI-1.10.
 func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
