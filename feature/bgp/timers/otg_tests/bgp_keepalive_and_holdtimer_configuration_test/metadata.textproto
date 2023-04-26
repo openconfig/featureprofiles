@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "28b2521b-e5f2-4a33-b7c3-5efd5a81e7a2"
+plan_id:  "RT-1.10"
+description:  "BGP Keepalive and HoldTimer Configuration Test"

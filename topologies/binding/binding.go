@@ -62,6 +62,9 @@ var _ = binding.Binding(&staticBind{})
 const resvID = "STATIC"
 
 func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration, partial map[string]string) (*binding.Reservation, error) {
+	_ = runTime
+	_ = waitTime
+	_ = partial
 	if b.resv != nil {
 		return nil, fmt.Errorf("only one reservation is allowed")
 	}
@@ -94,7 +97,8 @@ func (b *staticBind) Release(ctx context.Context) error {
 	return nil
 }
 
-func (b *staticBind) FetchReservation(ctx context.Context, id string) (*binding.Reservation, error) {
+func (b *staticBind) FetchReservation(_ context.Context, id string) (*binding.Reservation, error) {
+	_ = id
 	return nil, errors.New("static binding does not support fetching an existing reservation")
 }
 
@@ -118,10 +122,7 @@ func (d *staticDUT) reset(ctx context.Context) error {
 	if err := resetGNMI(ctx, d.dev, d.r); err != nil {
 		return err
 	}
-	if err := resetGRIBI(ctx, d.dev, d.r); err != nil {
-		return err
-	}
-	return nil
+	return resetGRIBI(ctx, d.dev, d.r)
 }
 
 func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
@@ -172,7 +173,7 @@ func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb
 	return p4pb.NewP4RuntimeClient(conn), nil
 }
 
-func (d *staticDUT) DialCLI(ctx context.Context) (binding.StreamClient, error) {
+func (d *staticDUT) DialCLI(_ context.Context) (binding.StreamClient, error) {
 	dialer, err := d.r.ssh(d.Name())
 	if err != nil {
 		return nil, err
