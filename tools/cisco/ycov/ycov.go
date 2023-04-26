@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 	"unsafe"
-	"path/filepath"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
@@ -60,12 +60,14 @@ func CreateInstance() error {
 	// This contains necessary parameters related to
 	// test-phase, test-type, xr ws and log processing details
 	if *ycovFile != "" {
-		covFileFullPath:=*ycovFile
-		if ! filepath.IsAbs(covFileFullPath)  {
-			cwd, err :=os.Getwd(); if err!= nil {
+		covFileFullPath := *ycovFile
+		if !filepath.IsAbs(covFileFullPath) {
+			cwd, err := os.Getwd()
+			if err != nil {
 				return fmt.Errorf("failed reading  current directory: %w", err)
 			}
-			covFileFullPath, err = filepath.Abs(cwd+"/"+*ycovFile); if err!=nil {
+			covFileFullPath, err = filepath.Abs(cwd + "/" + *ycovFile)
+			if err != nil {
 				return fmt.Errorf("error creating path for yang config file: %w", err)
 			}
 		}
