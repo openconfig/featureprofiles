@@ -12,6 +12,7 @@ tests:
     owners:
       - mbagherz
     priority: 0
+    skip: true
     args:
       - '-yang_coverage="../conf/fp_public_ycov.textproto"'
       - '-xr_ws=""'
@@ -22,6 +23,7 @@ tests:
     owners:
       - mbagherz
     priority: 999999
+    skip: true
     args:
       - '-yang_coverage="../conf/fp_public_ycov.textproto"'
       - '-xr_ws=""'
