@@ -169,6 +169,11 @@ func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
 	return *swVersionUnsupported
 }
 
+// HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
+func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
+	return *hierarchicalWeightResolutionTolerance
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -339,4 +344,6 @@ var (
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
 
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
+
+	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
 )
