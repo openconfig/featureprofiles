@@ -18,6 +18,9 @@ func TestMain(m *testing.M) {
 
 func TestPostCov(t *testing.T)  {
 	ctx := context.Background()
+	if err:=ycov.CreateInstance(); err!= nil {
+		t.Fatal("Initialization of yang coverage is failed")
+	}
 	if yobj := ycov.GetYCovCtx(); yobj != nil {
 		logs, err := yobj.YC.CollectCovLogs(ctx, t)
 		if err != nil {

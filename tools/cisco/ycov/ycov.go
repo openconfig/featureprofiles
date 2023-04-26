@@ -23,7 +23,7 @@ import (
 
 var (
 	yangCovCtx  *yCov
-	ycovFile    = flag.String("yang_coverage", "tools/cisco/ycov/conf/fp_public_ycov.textproto", "yang coverage configuration file")
+	ycovFile    = flag.String("yang_coverage", "./tools/cisco/ycov/conf/fp_public_ycov.textproto", "yang coverage configuration file")
 	xrWs        = flag.String("xr_ws", "", "XR workspace path")
 	subComp     = flag.String("subcomp", "", "XR subcomponent name to be targeted for coverge analysis")
 	mgblPath    = flag.String("mgbl_path", "/ws/ncorran-sjc/yang-coverage/", "location where the analysis result will be saved for extra analysis")
@@ -49,21 +49,10 @@ type yCov struct {
 	YC *YangCoverage
 }
 
-func init() {
-	err := CreateInstance(*subComp)
-	if err != nil {
-		log.Warning(err.Error())
-	}
-}
-
 // Helps instantiate Yang-coverage
-func CreateInstance(subComp string) error {
+func CreateInstance() error {
 	var models []string
 	var ws, prefixPaths string
-	if !flag.Parsed() {
-		flag.Parse()
-		//flag.Set("test.v", "true")
-	}
 
 	// ycovFile is yang-coverage configuration file name.
 	// passed using -yang_coverage option.
@@ -82,7 +71,7 @@ func CreateInstance(subComp string) error {
 		}
 		ycObj := &yCov{
 			sanityName: meta.SanityName,
-			subCompId:  subComp,
+			subCompId:  *subComp,
 		}
 		tphase := meta.TestPhase
 		ttype := meta.TestType
@@ -110,7 +99,7 @@ func CreateInstance(subComp string) error {
 
 		ycObj.YC, err = New(ws, models, meta.SanityName,
 			tphase, ttype, prefixPaths,
-			ycObj.verbose, subComp)
+			ycObj.verbose, *subComp)
 		if err != nil {
 			return err
 		}
