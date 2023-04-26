@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 	"unsafe"
+	"path/filepath"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
@@ -23,7 +24,7 @@ import (
 
 var (
 	yangCovCtx  *yCov
-	ycovFile    = flag.String("yang_coverage", "./tools/cisco/ycov/conf/fp_public_ycov.textproto", "yang coverage configuration file")
+	ycovFile    = flag.String("yang_coverage", "../conf/fp_public_ycov.textproto", "yang coverage configuration file")
 	xrWs        = flag.String("xr_ws", "", "XR workspace path")
 	subComp     = flag.String("subcomp", "", "XR subcomponent name to be targeted for coverge analysis")
 	mgblPath    = flag.String("mgbl_path", "/ws/ncorran-sjc/yang-coverage/", "location where the analysis result will be saved for extra analysis")
@@ -56,10 +57,19 @@ func CreateInstance() error {
 
 	// ycovFile is yang-coverage configuration file name.
 	// passed using -yang_coverage option.
-	// This contains necessary parameters related to dut-id,
+	// This contains necessary parameters related to
 	// test-phase, test-type, xr ws and log processing details
 	if *ycovFile != "" {
-		in, err := os.ReadFile(*ycovFile)
+		covFileFullPath:=*ycovFile
+		if ! filepath.IsAbs(covFileFullPath)  {
+			cwd, err :=os.Getwd(); if err!= nil {
+				return fmt.Errorf("failed reading  current directory: %w", err)
+			}
+			covFileFullPath, err = filepath.Abs(cwd+"/"+*ycovFile); if err!=nil {
+				return fmt.Errorf("error creating path for yang config file: %w", err)
+			}
+		}
+		in, err := os.ReadFile(covFileFullPath)
 		if err != nil {
 			return fmt.Errorf("unable to read yang_coverage file: %w", err)
 		}
