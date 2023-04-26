@@ -1,4 +1,4 @@
-package yang_coverage
+package ycov
 
 import (
 	"bytes"

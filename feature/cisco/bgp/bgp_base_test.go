@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	yc "github.com/openconfig/featureprofiles/tools/cisco/yang_coverage"
 	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
 )
 
@@ -21,6 +20,5 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	yc.Init("")
 	fptest.RunTests(m)
 }

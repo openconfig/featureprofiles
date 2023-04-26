@@ -2,9 +2,9 @@
 # Yang-coverage to be enabled on which dut
 dut_id: "dut"
 # Name of sanity
-sanity_name: "oc_aft"
+sanity_name: "FeatureProfilesPublic"
 # Testing Phase
-test_phase: IT
+test_phase: DT
 # Testing Type
 test_type: PRECOMMIT
 
