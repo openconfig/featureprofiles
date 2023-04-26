@@ -73,7 +73,7 @@ func newCLI(sc *ssh.Client) (*cli, error) {
 	return c, nil
 }
 
-func (c *cli) SendCommand(ctx context.Context, cmd string) (string, error) {
+func (c *cli) SendCommand(_ context.Context, cmd string) (string, error) {
 	sess, err := c.ssh.NewSession()
 	if err != nil {
 		return "", fmt.Errorf("could not create session: %w", err)
