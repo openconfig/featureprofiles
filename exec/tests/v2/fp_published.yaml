@@ -614,3 +614,8 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+  - name: gNMI-1.15 (Set Requests)
+    path: feature/system/gnmi/set/tests/gnmi_set_test
+    owners:
+      - mbagherz
+    mustpass: false
