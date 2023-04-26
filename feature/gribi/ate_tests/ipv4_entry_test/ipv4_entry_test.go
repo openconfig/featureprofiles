@@ -304,8 +304,8 @@ func TestIPv4Entry(t *testing.T) {
 						d := gnmi.OC()
 						p2 := dut.Port(t, "port2")
 						p3 := dut.Port(t, "port3")
-						gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name()))
-						gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name()))
+						gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name()))
+						gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name()))
 						gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configStaticArp(t, p2, "192.0.2.22", staticDstMAC))
 						gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), configStaticArp(t, p3, "192.0.2.42", staticDstMAC))
 						//Programming a gRIBI flow with above IP/mac-address as the next-hop entry
