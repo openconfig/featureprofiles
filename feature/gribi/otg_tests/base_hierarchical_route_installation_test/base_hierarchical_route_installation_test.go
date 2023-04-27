@@ -57,7 +57,7 @@ const (
 	nhgIndex2         = 52
 	nonDefaultVRF     = "VRF-1"
 	nhMAC             = "00:1A:11:00:00:01"
-	macFilter         = "1" // Decimal equalent of last 7 bits in nhMAC
+	macFilter         = "0x001" // Hex equalent last 12 bits
 	policyName        = "redirect-to-VRF1"
 )
 
@@ -216,10 +216,12 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(ateDstIP).SetCount(1)
+	eth := flow.EgressPacket().Add().Ethernet()
+	ethTag := eth.Dst().MetricTags().Add()
+	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
 	return flow
 }
 
-// TODO: Egress Tracking to verify MAC in case of MAC NH
 // validateTraffic will return loss percentage of traffic
 func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, flowFilter string) float32 {
 	top := ate.OTG().FetchConfig(t)
@@ -232,14 +234,27 @@ func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, f
 
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(45 * time.Second)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-
-	time.Sleep(time.Minute)
 
 	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
 	lossPct := (txPkts - rxPkts) * 100 / txPkts
+	if int(lossPct) == 0 && flowFilter != "" {
+		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
+		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
+		if got := len(ets); got != 1 {
+			t.Errorf("EgressTracking got %d items, want %d", got, 1)
+		}
+		etTagspath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny().TagsAny()
+		etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
+		if got := etTags[0].GetTagValue().GetValueAsHex(); got != flowFilter {
+			t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
+		}
+		if got := ets[0].GetCounters().GetInPkts(); got != rxPkts {
+			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, rxPkts)
+		}
+	}
 	return float32(lossPct)
 }
 
