@@ -1,0 +1,73 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Feature Profile for TACACS Authentication
+id {
+  name: "security_aaa_tacacs"
+  version: 1
+}
+
+#
+# system
+#
+
+# authentication-method, authorization-method, and accounting-method
+# must include TACACS_ALL
+config_path { path: "/system/aaa/authentication/config/authentication-method" }
+config_path { path: "/system/aaa/authorization/config/authorization-method" }
+config_path { path: "/system/aaa/accounting/config/accounting-method" )
+
+telemetry_path { path: "/system/aaa/authentication/state/authentication-method" }
+telemetry_path { path: "/system/aaa/authorization/state/authorization-method" }
+telemetry_path { path: "/system/aaa/accounting/state/accounting-method" }
+
+#
+# server-group
+#
+
+config_path { path: "/system/aaa/server-groups/server-group/config/name" }
+# type must be TACACS
+config_path { path: "/system/aaa/server-groups/server-group/config/type" }
+
+telemetry_path { path: "/system/aaa/server-groups/server-group/state/name" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/state/type" }
+
+#
+# per server
+#
+
+config_path { path: "/system/aaa/server-groups/server-group/servers/server/config/name" }
+config_path { path: "/system/aaa/server-groups/server-group/servers/server/config/address" }
+config_path { path: "/system/aaa/server-groups/server-group/servers/server/config/timeout" }
+config_path { path: "/system/aaa/server-groups/server-group/servers/server/tacacs/config/port" }
+config_path { path: "/system/aaa/server-groups/server-group/servers/server/tacacs/config/secret-key" }
+config_path { path: "/system/aaa/server-groups/server-group/servers/server/tacacs/config/secret-key-hashed" }
+config_path { path: "/system/aaa/server-groups/server-group/servers/server/tacacs/config/source-address" }
+
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/name" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/address" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/timeout" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/connection-opens" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/connection-closes" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/connection-aborts" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/connection-failures" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/connection-timeouts" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/messages-sent" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/messages-received" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/state/errors-received" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/tacacs/state/port" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/tacacs/state/secret-key" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/tacacs/state/secret-key-hashed" }
+telemetry_path { path: "/system/aaa/server-groups/server-group/servers/server/tacacs/state/source-address" }
+
