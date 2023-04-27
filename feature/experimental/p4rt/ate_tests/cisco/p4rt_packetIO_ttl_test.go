@@ -86,7 +86,7 @@ var (
 			name: "Program TTL Match Entry and other match fields and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:027 Programm match TTL=[1,2] with other field matched in the entry, send TTL=[0,1,2] packets from tgen, and verify the packet sent to the controller",
 			fn:   testEntryProgrammingPacketInWithMoreMatchingField,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program Match Entry and Send traffic to non-configured port in P4RT and Check PacketIn",
