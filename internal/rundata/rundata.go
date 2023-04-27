@@ -65,17 +65,6 @@ import (
 )
 
 var (
-	// TestPlanID should be set by a test to self-report the test plan ID.
-	TestPlanID string
-
-	// TestDescription should be set by a test to self-report the one-line description.
-	TestDescription string
-
-	// TestUUID should be set by a test to self-report the test UUID.
-	TestUUID string
-)
-
-var (
 	knownIssueURL = flag.String("known_issue_url", "", "Report a known issue that explains why the test fails.  This should be a URL to the issue tracker.")
 )
 
@@ -104,24 +93,22 @@ func topology(resv *binding.Reservation) string {
 
 // Properties builds the test properties map representing run data.
 func Properties(ctx context.Context, resv *binding.Reservation) map[string]string {
-	switch err := readFromMetadataProto(); {
-	case os.IsNotExist(err):
-		// No metadata proto: use the values provided by rundata_test.
-	case err != nil:
+	md, err := readFromMetadataProto()
+	if err != nil {
 		log.Errorf("Error reading metadata proto: %v", err)
 	}
 
 	m := make(map[string]string)
 	local(m)
 
-	if TestPlanID != "" {
-		m["test.plan_id"] = TestPlanID
+	if uuid := md.GetUuid(); uuid != "" {
+		m["test.uuid"] = uuid
 	}
-	if TestDescription != "" {
-		m["test.description"] = TestDescription
+	if planID := md.GetPlanId(); planID != "" {
+		m["test.plan_id"] = planID
 	}
-	if TestUUID != "" {
-		m["test.uuid"] = TestUUID
+	if desc := md.GetDescription(); desc != "" {
+		m["test.description"] = desc
 	}
 
 	if *knownIssueURL != "" {
@@ -136,28 +123,16 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 	return m
 }
 
-func readFromMetadataProto() error {
+func readFromMetadataProto() (*mpb.Metadata, error) {
 	// When "go test" runs, the current working directory is the test
 	// package directory, which is where we will find the metadata file.
 	const metadataFilename = "metadata.textproto"
 	bytes, err := os.ReadFile(metadataFilename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	md := new(mpb.Metadata)
-	if err := prototext.Unmarshal(bytes, md); err != nil {
-		return err
-	}
-	if uuid := md.GetUuid(); uuid != "" {
-		TestUUID = uuid
-	}
-	if planID := md.GetPlanId(); planID != "" {
-		TestPlanID = planID
-	}
-	if desc := md.GetDescription(); desc != "" {
-		TestDescription = desc
-	}
-	return nil
+	return md, prototext.Unmarshal(bytes, md)
 }
 
 var timeBegin = time.Now()
