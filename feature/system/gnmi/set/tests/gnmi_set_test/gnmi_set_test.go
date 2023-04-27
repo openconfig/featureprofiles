@@ -663,6 +663,10 @@ func forEachPushOp(
 	dev gnmi.DeviceOrOpts,
 	f func(t *testing.T, op pushOp, config *oc.Root),
 ) {
+	if v := dut.Vendor(); v != ondatra.ARISTA {
+		t.Skipf("We have not vetted the test plan against %v.  Please ignore the results for now.", v)
+	}
+
 	baselineConfigOnce.Do(func() {
 		baselineConfig = getDeviceConfig(t, dev)
 	})
