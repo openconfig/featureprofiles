@@ -11,7 +11,7 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
-	github.com/open-traffic-generator/snappi/gosnappi v0.11.6
+	github.com/open-traffic-generator/snappi/gosnappi v0.11.14
 	github.com/openconfig/gnmi v0.9.1
 	github.com/openconfig/gnoi v0.0.0-20230221223856-1727ed932554
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
@@ -32,7 +32,7 @@ require (
 )
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.0 // indirect
+	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
