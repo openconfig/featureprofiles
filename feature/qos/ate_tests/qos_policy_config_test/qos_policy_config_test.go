@@ -1369,7 +1369,7 @@ func testJuniperClassifierConfig(t *testing.T) {
 			t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
 		}
 		if got, want := gnmi.Get(t, dut, classifier.Type().State()), tc.classType; got != want {
-			t.Errorf("classifier.Name().Type(): got %v, want %v", got, want)
+			t.Errorf("classifier.Type().State(): got %v, want %v", got, want)
 		}
 		if !deviations.StatePathsUnsupported(dut) {
 			if got, want := gnmi.Get(t, dut, term.Id().State()), tc.termID; got != want {
@@ -1392,7 +1392,7 @@ func testJuniperClassifierConfig(t *testing.T) {
 				}
 			} else if tc.name == "dscp_based_classifier_ipv6" {
 				if equal := cmp.Equal(condition.Ipv6().DscpSet().State(), tc.dscpSet, trans); !equal {
-					t.Errorf("condition.Ipv4().DscpSet().State(): got %v, want %v", condition.Ipv6().DscpSet().State(), tc.dscpSet)
+					t.Errorf("condition.Ipv6().DscpSet().State(): got %v, want %v", condition.Ipv6().DscpSet().State(), tc.dscpSet)
 				}
 			}
 		}
@@ -1473,7 +1473,7 @@ func testJuniperClassifierConfig(t *testing.T) {
 			t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
 		}
 		if got, want := gnmi.Get(t, dut, classifier.Type().State()), tc.inputClassifierType; got != want {
-			t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
+			t.Errorf("classifier.Type().State(): got %v, want %v", got, want)
 		}
 	}
 
