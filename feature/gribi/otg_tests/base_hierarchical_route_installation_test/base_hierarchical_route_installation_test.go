@@ -56,8 +56,8 @@ const (
 	nhIndex2          = 2
 	nhgIndex2         = 52
 	nonDefaultVRF     = "VRF-1"
-	nhMAC             = "00:1A:11:00:00:01"
-	macFilter         = "0x001" // Hex equalent last 12 bits
+	nhMAC             = "00:1A:11:00:0A:BC"
+	macFilter         = "0xABC" // Hex equalent last 12 bits
 	policyName        = "redirect-to-VRF1"
 )
 
@@ -248,7 +248,7 @@ func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, f
 		}
 		etTagspath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny().TagsAny()
 		etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
-		if got := etTags[0].GetTagValue().GetValueAsHex(); got != flowFilter {
+		if got := etTags[0].GetTagValue().GetValueAsHex(); !strings.EqualFold(got, macFilter) {
 			t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
 		}
 		if got := ets[0].GetCounters().GetInPkts(); got != rxPkts {

@@ -55,8 +55,8 @@ const (
 	nhIndex2          = 2
 	nhgIndex2         = 52
 	nonDefaultVRF     = "VRF-1"
-	nhMAC             = "00:1A:11:00:00:01"
-	macFilter         = "1" // Decimal equalent of last 7 bits in nhMAC
+	nhMAC             = "00:1A:11:00:0A:BC"
+	macFilter         = "2748" // Decimal equalent of last 15 bits in nhMAC
 	policyName        = "redirect-to-VRF1"
 )
 

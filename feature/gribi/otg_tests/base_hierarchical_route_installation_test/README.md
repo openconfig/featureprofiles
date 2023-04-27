@@ -43,7 +43,7 @@ Validate hierarchical resolution using egress interface and MAC:
 
     1.  Add 203.0.113.1/32 (default VRF) to NextHopGroup (default VRF)
         containing one NextHop (default VRF) that specifies DUT port-2 as the
-        egress interface and `00:1A:11:00:00:01` as the destination MAC address.
+        egress interface and `00:1A:11:00:0A:BC` as the destination MAC address.
     2.  Add 198.51.100.1/32 (VRF-1) to NextHopGroup (default VRF) containing one
         NextHop (default VRF) specified to be 203.0.113.1/32 in the default VRF.
 
