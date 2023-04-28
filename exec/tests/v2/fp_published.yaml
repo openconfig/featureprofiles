@@ -436,8 +436,8 @@ tests:
     mustpass: true
     priority: 54
     skip: false
+    pr: 1463
     args:
-      - '-deviation_bgp_state_active_acl_deny="true"'
       - '-deviation_rpl_under_peergroup="true"'
   - name: RT-1.7 (Local BGP Test)
     path: feature/bgp/tests/local_bgp_test
@@ -546,7 +546,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: DP-1.9 (WRR traffic-test)
-    path: feature/qos/ate_tests/wrr_traffic_test
+    path: feature/experimental/qos/ate_tests/wrr_traffic_test
     owners:
       - saarvind
     mustpass: true
