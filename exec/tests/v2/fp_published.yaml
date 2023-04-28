@@ -546,7 +546,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: DP-1.9 (WRR traffic-test)
-    path: feature/experimental/qos/ate_tests/wrr_traffic_test
+    path: feature/qos/ate_tests/wrr_traffic_test
     owners:
       - saarvind
     mustpass: true
