@@ -1,0 +1,120 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+
+# These options are inherited throughout the entire binding for both the
+# DUT and the ATE, unless overridden by a specific device or protocol.
+options {
+  username: "username"
+  password: "password"
+}
+
+duts {
+  id: "dut"
+  name: "dut-hostname"  # Change this to the device hostname.
+
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: true
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnmi {
+    target: "dut-proxy-hostname:6030"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "Ethernet1/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "Ethernet2/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "Ethernet3/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "Ethernet4/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "Ethernet5/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "Ethernet6/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "Ethernet7/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port8"
+    name: "Ethernet8/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port9"
+    name: "Ethernet9/1"  # Change this to the actual port name.
+  }
+}
+
+ates {
+  id: "ate"
+  name: "ate-hostname"  # Change this to the Ixia chassis name.
+
+  # Options specific to the IxNetwork API.  Remove if not needed.
+  ixnetwork {
+    # Change this to the Web UI hostname, if it differs from the Ixia
+    # chassis name.
+    target: "ixia-hostname"
+    skip_verify: true
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "1/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "1/2"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "1/3"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "1/4"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "1/5"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "1/6"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "1/7"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port8"
+    name: "1/8"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port9"
+    name: "1/9"  # Change this to the actual port name.
+  }
+}
