@@ -790,7 +790,6 @@ func TestIntfCounterUpdate(t *testing.T) {
 	dutOutPktsBeforeTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
 
 	isInterfaceCountersFromContainer := deviations.InterfaceCountersFromContainer(dut)
-
 	if isInterfaceCountersFromContainer {
 		dutInPktsBeforeTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
 		dutOutPktsBeforeTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts

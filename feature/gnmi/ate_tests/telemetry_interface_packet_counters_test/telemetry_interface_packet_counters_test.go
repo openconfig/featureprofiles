@@ -227,7 +227,6 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	isInterfaceCountersFromContainer := deviations.InterfaceCountersFromContainer(dut)
-
 	if isInterfaceCountersFromContainer {
 		dutInPktsBeforeTraffic = map[string]uint64{
 			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
