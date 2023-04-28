@@ -44,7 +44,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 			ntpServer := oc.System_Ntp_Server{
 				Address: &testCase.address,
 			}
-			if *deviations.NTPAssociationTypeRequired {
+			if deviations.NTPAssociationTypeRequired(dut) {
 				ntpServer.AssociationType = oc.Server_AssociationType_SERVER
 			}
 			gnmi.Replace(t, dut, config.Server(testCase.address).Config(), &ntpServer)
