@@ -788,7 +788,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	dutInPktsBeforeTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
 	dutOutPktsBeforeTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
-	if *deviations.InterfaceCountersFromContainer {
+
+	isInterfaceCountersFromContainer := deviations.InterfaceCountersFromContainer(dut)
+
+	if isInterfaceCountersFromContainer {
 		dutInPktsBeforeTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
 		dutOutPktsBeforeTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
 	}
@@ -826,7 +829,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 	dutInPktsAfterTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
 	dutOutPktsAfterTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
-	if *deviations.InterfaceCountersFromContainer {
+	if isInterfaceCountersFromContainer {
 		dutInPktsAfterTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
 		dutOutPktsAfterTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
 	}

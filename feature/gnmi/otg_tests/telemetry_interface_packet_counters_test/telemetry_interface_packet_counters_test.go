@@ -248,7 +248,9 @@ func TestIntfCounterUpdate(t *testing.T) {
 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
 	}
-	if *deviations.InterfaceCountersFromContainer {
+
+	isInterfaceCountersFromContainer := deviations.InterfaceCountersFromContainer(dut)
+	if isInterfaceCountersFromContainer {
 		dutInPktsBeforeTraffic = map[string]uint64{
 			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
 			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
@@ -335,7 +337,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
 	}
-	if *deviations.InterfaceCountersFromContainer {
+	if isInterfaceCountersFromContainer {
 		dutInPktsAfterTraffic = map[string]uint64{
 			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
 			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
