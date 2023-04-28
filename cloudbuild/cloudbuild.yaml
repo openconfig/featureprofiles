@@ -31,7 +31,7 @@ steps:
       - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne-untested --machine-type n2-standard-8 --boot-disk-size 100GB --enable-nested-virtualization --preemptible
       - ZONE=us-west1-a
       - REMOTE_WORKSPACE=/tmp/workspace
-      - COMMAND=sudo su -c "echo 'user ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/workspace/cloudbuild/test.sh cisco_8000e 2>&1
+      - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD: ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/workspace/cloudbuild/test.sh cisco_8000e 2>&1
   - id: cisco_xrd
     name: gcr.io/$PROJECT_ID/remote-builder
     waitFor: ["-"]
@@ -42,7 +42,7 @@ steps:
       - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type e2-standard-4 --boot-disk-size 100GB --preemptible
       - ZONE=us-west1-a
       - REMOTE_WORKSPACE=/tmp/workspace
-      - COMMAND=sudo su -c "echo 'user ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/workspace/cloudbuild/test.sh cisco_xrd 2>&1
+      - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD: ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/workspace/cloudbuild/test.sh cisco_xrd 2>&1
   - id: nokia_srlinux
     name: gcr.io/$PROJECT_ID/remote-builder
     waitFor: ["-"]
