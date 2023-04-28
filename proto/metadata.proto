@@ -25,7 +25,7 @@ message Metadata {
   // One-line description of the test.
   string description = 3;
 
-  // Types of testbeds on which the test may run
+  // Types of testbeds on which the test may run.
   enum Testbed {
     TESTBED_UNSPECIFIED = 0;
     TESTBED_DUT = 1;
