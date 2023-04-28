@@ -14,7 +14,7 @@
 
 # Feature Profile for TACACS Authentication
 id {
-  name: "security_aaa_tacacs"
+  name: "experimental_security_aaa_tacacs"
   version: 1
 }
 
