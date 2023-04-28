@@ -39,7 +39,7 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/global/state/as"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/bgp/global/state/total-prefixes
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/state/total-prefixes"
 }
 config_path {
     path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/afi-safi-name"
