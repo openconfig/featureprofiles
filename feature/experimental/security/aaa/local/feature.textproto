@@ -48,7 +48,7 @@ telemetry_path { path: "/system/aaa/authentication/users/user/state/username" }
 
 telemetry_path { path: "/system/aaa/authentication/users/user/state/ssh-key" }
 
-telemetry_path { path: "/system/aaa/authentication/users/user/config/password-hashed" }
+telemetry_path { path: "/system/aaa/authentication/users/user/state/password-hashed" }
 
 telemetry_path { path: "/system/aaa/authentication/users/user/state/role" }
 
