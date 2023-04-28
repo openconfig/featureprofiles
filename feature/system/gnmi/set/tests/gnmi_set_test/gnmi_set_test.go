@@ -664,6 +664,7 @@ func forEachPushOp(
 	f func(t *testing.T, op pushOp, config *oc.Root),
 ) {
 	if v := dut.Vendor(); v != ondatra.ARISTA {
+		// TODO: add coverage for other vendors.
 		t.Skipf("We have not vetted the test plan against %v.  Please ignore the results for now.", v)
 	}
 
