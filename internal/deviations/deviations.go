@@ -164,6 +164,16 @@ func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
 }
 
+// StatePathsUnsupported returns whether the device supports following state paths
+func StatePathsUnsupported(_ *ondatra.DUTDevice) bool {
+	return *statePathsUnsupported
+}
+
+// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile
+func DropWeightLeavesUnsupported(_ *ondatra.DUTDevice) bool {
+	return *dropWeightLeavesUnsupported
+}
+
 // SwVersionUnsupported returns true if the device does not support reporting software version according to the requirements in gNMI-1.10.
 func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
 	return *swVersionUnsupported
@@ -174,6 +184,12 @@ func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
 	return *hierarchicalWeightResolutionTolerance
 }
 
+// NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
+// OpenConfig defaults the association-type to SERVER if not set.
+func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
+	return *ntpAssociationTypeRequired
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -181,7 +197,7 @@ var (
 	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
-	NTPAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
+	ntpAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
 		"Device requires NTP association-type to be explicitly set.  OpenConfig defaults the association-type to SERVER if not set.")
 
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
@@ -342,6 +358,10 @@ var (
 	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
+
+	statePathsUnsupported = flag.Bool("deviation_state_path_unsupported", false, "Device does not support these state paths, Set this flag to skip checking the leaves")
+
+	dropWeightLeavesUnsupported = flag.Bool("deviation_drop_weight_leaves_unsupported", false, "Device does not support drop and weight leaves under queue management profile, Set this flag to skip checking the leaves")
 
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
