@@ -660,11 +660,16 @@ var (
 // this config as many times as it wants.
 func forEachPushOp(
 	t *testing.T,
-	dev gnmi.DeviceOrOpts,
+	dut *ondatra.DUTDevice,
 	f func(t *testing.T, op pushOp, config *oc.Root),
 ) {
+	if v := dut.Vendor(); v != ondatra.ARISTA {
+		// TODO: add coverage for other vendors.
+		t.Skipf("We have not vetted the test plan against %v.  Please ignore the results for now.", v)
+	}
+
 	baselineConfigOnce.Do(func() {
-		baselineConfig = getDeviceConfig(t, dev)
+		baselineConfig = getDeviceConfig(t, dut)
 	})
 
 	for _, op := range []pushOp{
