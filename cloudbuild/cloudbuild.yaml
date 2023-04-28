@@ -56,7 +56,7 @@ steps:
       - REMOTE_WORKSPACE=/tmp/workspace
       - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/workspace/cloudbuild/test.sh nokia_srlinux 2>&1
 
-timeout: 1800s
+timeout: 2700s
 
 options:
   pool:
