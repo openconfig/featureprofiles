@@ -99,11 +99,6 @@ func CLITakesPrecedenceOverOC(_ *ondatra.DUTDevice) bool {
 	return *cliTakesPrecedenceOverOC
 }
 
-// BGPPrefixOverlimit returns whether the BGP prefix overlimit retry timer is supported.
-func BGPPrefixOverlimit(_ *ondatra.DUTDevice) bool {
-	return *bgpPrefixOverlimit
-}
-
 // BGPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
 func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
 	return *bgpTrafficTolerance
@@ -297,8 +292,6 @@ var (
 		"Device does not support component/MfgName leaf for CPU components. Set this flag to skip skip checking the leaf.")
 
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
-
-	bgpPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
 
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
