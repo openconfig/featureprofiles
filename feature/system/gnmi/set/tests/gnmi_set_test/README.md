@@ -6,27 +6,32 @@ Ensures that the device respects certain gNMI SetRequest corner case behaviors.
 
 ## Procedure
 
-Each test should be implemented as two variants:
+Each test should be implemented as three variants:
 
+*   RootOp: performs a get-modify-set of the full config at root. The SetRequest
+    contains one `replace` operation.
 *   ContainerOp: performs a get-modify-set on both `/interfaces` and
-    `/network-instances`. The SetRequest should contain two `replace`
-    operations, one for each container of the list.
+    `/network-instances`. The SetRequest contains two `replace` operations, one
+    for each container of the list.
 *   ItemOp: SetRequest contains `delete`, `replace` or `update` on the list
     items (e.g. under `/interfaces/interface[name]` and
     `/network-instances/network-instance[name]`).
 
 The results MUST be the same.
 
-### Preparation
+Notes:
 
-*   Allocate two bundle interface names using [netutil.NextBundleInterface]. We
-    refer to them as `dut:bundle1` and `dut:bundle2` below.
 *   Use `--deviation_default_network_instance` for the name of the default VRF.
 *   Use `--deviation_static_protocol_name` for the name of the static protocol.
 
-[netutil.NextBundleInterface]: https://pkg.go.dev/github.com/openconfig/ondatra/netutil#NextBundleInterface
+### Test: Get and Set
 
-### Test: Delete to Reset
+This test checks that the config read from the device can be written back.
+
+1.  Obtain the full config at root using gNMI Get.
+2.  Deploy the config back to the same device using a gNMI SetRequest.
+
+### Test: Delete Interface
 
 This test checks that the config of a physical interface can be reset to the
 default value using the delete operation.
@@ -50,9 +55,14 @@ default value using the delete operation.
 This test checks that the IP address of a deleted interface can be immediately
 reused by another interface.
 
+Allocate two bundle interface names using [netutil.NextBundleInterface]. We
+refer to them as `dut:bundle1` and `dut:bundle2` below.
+
+[netutil.NextBundleInterface]: https://pkg.go.dev/github.com/openconfig/ondatra/netutil#NextBundleInterface
+
 1.  Initialize the interfaces in the same SetRequest.
 
-    *   Delete `dut:port1` and `dut:port2`.
+    *   Delete `dut:port1`, `dut:port2`, `dut:bundle1` and `dut:bundle2`.
     *   Configure `dut:bundle1` with member `dut:port1` and IP address
         192.0.2.1/30.
     *   Configure `dut:bundle2` with member `dut:port2` and IP address
@@ -88,63 +98,69 @@ same SetRequest.
 
     Verify through telemetry that the interfaces have the correct IP addresses.
 
-### Test: Move Interfaces from Default VRF to Non-Default VRF
+### Test: Delete Non-Existing VRF
 
-This test checks that interfaces can be moved from the default VRF to a
-non-default VRF while preserving the interface configs.
+This test checks that a non-existing VRF can be deleted.
+
+1.  Initialize by making sure the VRF `GREEN` does not exist.
+
+    This is no-op for ContainerOp and RootOp. Only ItemOp will generate a DELETE
+    operation in the SetRequest. The request should succeed.
+
+### Test: Delete Non-Default VRF
+
+This test checks that a non-default VRF can be deleted.
+
+1.  Initialize the interfaces in the same SetRequest:
+
+    *   Configure `dut:port1` with IP address 192.0.2.1/30.
+    *   Configure `dut:port2` with IP address 192.0.2.5/30.
+    *   Configure a non-default VRF `BLUE` attaching both interfaces.
+
+    Verify through telemetry that these interfaces are configured correctly and
+    attached to the non-default VRF.
+
+2.  Clean up by deleting VRF `BLUE`.
+
+    Verify through telemetry that the VRF is not present.
+
+### Test: Move Interfaces Between VRFs
+
+This test checks that interfaces can be moved from one VRF to a different VRF
+while preserving the interface configs.
+
+There should be two variants of this test:
+
+*   Moving from the default VRF to non-default VRF `BLUE`.
+*   Moving from non-default VRF `RED` to another non-default VRF `BLUE`.
+
+Steps:
 
 1.  Initialize the attachment in the same SetRequest:
 
     *   Configure `dut:port1` with IP address 192.0.2.1/30.
     *   Configure `dut:port2` with IP address 192.0.2.5/30.
-    *   Attach both interfaces to the default VRF.
+    *   Attach both interfaces to the first VRF. Create the first VRF as L3VRF
+        if it is not the default.
 
     Verify through telemetry that these interfaces are configured correctly and
-    attached to the default VRF.
+    attached to the first VRF.
 
 2.  Modify attachment in the same SetRequest:
 
-    *   Detach `dut:port1` and `dut:port2` from the default VRF.
+    *   Detach `dut:port1` and `dut:port2` from the first VRF. If the first VRF
+        is not the default VRF, delete it.
     *   In the ContainerOp variant, also replace the interfaces `dut:port1` and
         `dut:port2` with exactly the same config as before.
-    *   Configure a non-default VRF `BLUE` attaching `dut:port1` and
-        `dut:port2`.
+    *   Configure the second VRF as L3VRF attaching `dut:port1` and `dut:port2`.
 
 3.  Verify through telemetry:
 
     *   The IP addresses of `dut:port1` and `dut:port2` are as expected.
-    *   The `dut:port1` and `dut:port2` interfaces are attached to VRF `BLUE`.
+    *   The `dut:port1` and `dut:port2` interfaces are attached to the second
+        VRF.
 
-4.  Clean up by deleting VRF `BLUE`.
-
-### Test: Move Interfaces from Non-Default VRF to Non-Default VRF
-
-This test checks that interfaces can be moved from a non-default VRF to another
-non-default VRF while preserving the interface configs.
-
-1.  Initialize the attachment in the same SetRequest:
-
-    *   Configure `dut:port1` with IP address 192.0.2.1/30.
-    *   Configure `dut:port2` with IP address 192.0.2.5/30.
-    *   Configure a non-default VRF `RED` attaching both interfaces.
-
-    Verify through telemetry that these interfaces are configured correctly and
-    attached to the default VRF.
-
-2.  Modify attachment in the same SetRequest:
-
-    *   Delete VRF `RED`.
-    *   In the ContainerOp variant, also replace the interfaces `dut:port1` and
-        `dut:port2` with exactly the same config as before.
-    *   Configure a non-default VRF `BLUE` attaching `dut:port1` and
-        `dut:port2`.
-
-3.  Verify through telemetry:
-
-    *   The IP addresses of `dut:port1` and `dut:port2` are as expected.
-    *   The `dut:port1` and `dut:port2` interfaces are attached to VRF `BLUE`.
-
-4.  Clean up by deleting VRF `BLUE`.
+4.  Clean up by deleting the second VRF.
 
 ### Test: Static Protocol
 
