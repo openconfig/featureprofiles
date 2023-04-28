@@ -256,7 +256,8 @@ func TestBackup(t *testing.T) {
 		if err := client.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection can not be established")
 		}
-		// Client becomes leader
+
+		// Make client leader
 		client.BecomeLeader(t)
 
 		// Flush past entries before running the tc
@@ -352,9 +353,10 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 
 	flow := a.top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
+	flow.Size().SetFixed(300)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	flow.TxRx().Port().SetTxName(atePort1.Name)
+	flow.TxRx().Port().SetTxName("port1")
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
@@ -380,22 +382,25 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
 	// Get send traffic
-	incoming_traffic_counters := gnmi.OC().Interface(a.ate.Port(t, "port1").Name()).Counters()
-	sentPkts := gnmi.Get(t, a.ate, incoming_traffic_counters.OutPkts().State())
+	incoming_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
+	sentPkts := gnmi.Get(t, a.ate.OTG(), incoming_traffic_state).GetCounters().GetOutFrames()
+	if sentPkts == 0 {
+		t.Fatalf("Tx packets should be higher than 0")
+	}
 
 	var receivedPkts uint64
 
 	// Get traffic received on primary outgoing interface before interface shutdown
 	for _, port := range shut_ports {
-		outgoing_traffic_counters := gnmi.OC().Interface(a.ate.Port(t, port).Name()).Counters()
-		outPkts := gnmi.Get(t, a.ate, outgoing_traffic_counters.InPkts().State())
+		outgoing_traffic_counters := gnmi.OTG().Port(a.ate.Port(t, port).ID()).State()
+		outPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_counters).GetCounters().GetInFrames()
 		receivedPkts = receivedPkts + outPkts
 	}
 
 	// Get traffic received on expected port after interface shut
 	for _, outPort := range expected_outgoing_port {
-		outgoing_traffic_counters := gnmi.OC().Interface(outPort.Name()).Counters()
-		outPkts := gnmi.Get(t, a.ate, outgoing_traffic_counters.InPkts().State())
+		outgoing_traffic_counters := gnmi.OTG().Port(outPort.ID()).State()
+		outPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_counters).GetCounters().GetInFrames()
 		receivedPkts = receivedPkts + outPkts
 	}
 
