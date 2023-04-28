@@ -26,7 +26,7 @@ id {
 # must include TACACS_ALL
 config_path { path: "/system/aaa/authentication/config/authentication-method" }
 config_path { path: "/system/aaa/authorization/config/authorization-method" }
-config_path { path: "/system/aaa/accounting/config/accounting-method" )
+config_path { path: "/system/aaa/accounting/config/accounting-method" }
 
 telemetry_path { path: "/system/aaa/authentication/state/authentication-method" }
 telemetry_path { path: "/system/aaa/authorization/state/authorization-method" }
