@@ -171,7 +171,7 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 			nh := fluent.NextHopEntry().
 				WithNetworkInstance(*deviations.DefaultNetworkInstance).
 				WithIndex(ind).
-				WithIPinIP(tunnelSrcIP, tunnelDstIP).
+				WithIPinIP(tunnelSrcIP, ateAddr).
 				WithDecapsulateHeader(fluent.IPinIP).
 				WithEncapsulateHeader(fluent.IPinIP).
 				WithNextHopNetworkInstance(vrf1).

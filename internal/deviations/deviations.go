@@ -164,9 +164,24 @@ func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
 }
 
+// StatePathsUnsupported returns whether the device supports following state paths
+func StatePathsUnsupported(_ *ondatra.DUTDevice) bool {
+	return *statePathsUnsupported
+}
+
+// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile
+func DropWeightLeavesUnsupported(_ *ondatra.DUTDevice) bool {
+	return *dropWeightLeavesUnsupported
+}
+
 // SwVersionUnsupported returns true if the device does not support reporting software version according to the requirements in gNMI-1.10.
 func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
 	return *swVersionUnsupported
+}
+
+// HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
+func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
+	return *hierarchicalWeightResolutionTolerance
 }
 
 // Vendor deviation flags.
@@ -338,5 +353,11 @@ var (
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
 
+	statePathsUnsupported = flag.Bool("deviation_state_path_unsupported", false, "Device does not support these state paths, Set this flag to skip checking the leaves")
+
+	dropWeightLeavesUnsupported = flag.Bool("deviation_drop_weight_leaves_unsupported", false, "Device does not support drop and weight leaves under queue management profile, Set this flag to skip checking the leaves")
+
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
+
+	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
 )
