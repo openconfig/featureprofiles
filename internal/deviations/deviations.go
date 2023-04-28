@@ -190,6 +190,12 @@ func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
 	return *ipNeighborMissing
 }
 
+// NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
+// OpenConfig defaults the association-type to SERVER if not set.
+func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
+	return *ntpAssociationTypeRequired
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -197,7 +203,7 @@ var (
 	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
-	NTPAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
+	ntpAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
 		"Device requires NTP association-type to be explicitly set.  OpenConfig defaults the association-type to SERVER if not set.")
 
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
