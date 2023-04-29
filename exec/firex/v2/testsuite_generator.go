@@ -102,6 +102,10 @@ var (
 		"test_repo_rev", "", "fp repo rev to use for test execution",
 	)
 
+	defaultTestRepoRevFlag = flag.String(
+		"default_test_repo_rev", "", "fp repo rev to use for test execution by default",
+	)
+
 	showTestbedsFlag = flag.Bool(
 		"show_testbeds", false, "just output the testbeds used",
 	)
@@ -130,23 +134,24 @@ var (
 		"ignore_deviations", false, "ignore all deviation flags",
 	)
 
-	files            []string
-	testNames        []string
-	groupNames       []string
-	excludeTestNames []string
-	extraPlugins     []string
-	testbeds         []string
-	env              map[string]string
-	outDir           string
-	testRepoRev      string
-	internalRepoRev  string
-	showTestbeds     bool
-	mustPassOnly     bool
-	ignorePatched    bool
-	randomize        bool
-	sorted           bool
-	useShortName     bool
-	ignoreDeviations bool
+	files              []string
+	testNames          []string
+	groupNames         []string
+	excludeTestNames   []string
+	extraPlugins       []string
+	testbeds           []string
+	env                map[string]string
+	outDir             string
+	testRepoRev        string
+	defaultTestRepoRev string
+	internalRepoRev    string
+	showTestbeds       bool
+	mustPassOnly       bool
+	ignorePatched      bool
+	randomize          bool
+	sorted             bool
+	useShortName       bool
+	ignoreDeviations   bool
 )
 
 var (
@@ -272,6 +277,10 @@ func init() {
 
 	if len(*testRepoRevFlag) > 0 {
 		testRepoRev = *testRepoRevFlag
+	}
+
+	if len(*defaultTestRepoRevFlag) > 0 {
+		defaultTestRepoRev = *defaultTestRepoRevFlag
 	}
 
 	showTestbeds = *showTestbedsFlag
@@ -596,6 +605,12 @@ func main() {
 				default:
 					suite[i].Tests[j].Revision = testRepoRev
 					suite[i].Tests[j].Internal = true
+				}
+			}
+
+			if len(defaultTestRepoRev) > 0 {
+				if !isPatched(suite[i].Tests[j]) {
+					suite[i].Tests[j].Revision = defaultTestRepoRev
 				}
 			}
 
