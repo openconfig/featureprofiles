@@ -428,7 +428,6 @@ tests:
     skip: false
     args:
       - '-deviation_rpl_under_neighbor_afisafi="true"'
-      - '-deviation_bgp_prefix_overlimit="true"'
   - name: RT-1.4 (BGP Graceful Restart)
     path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
     owners:
