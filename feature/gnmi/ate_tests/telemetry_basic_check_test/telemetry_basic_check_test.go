@@ -22,15 +22,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/args"
-	"github.com/openconfig/featureprofiles/internal/components"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
+       "github.com/openconfig/featureprofiles/internal/args"
+       "github.com/openconfig/featureprofiles/internal/components"
+       "github.com/openconfig/featureprofiles/internal/deviations"
+       "github.com/openconfig/featureprofiles/internal/fptest"
+       "github.com/openconfig/ondatra"
+       "github.com/openconfig/ondatra/gnmi"
+       "github.com/openconfig/ondatra/gnmi/oc"
+       "github.com/openconfig/ygnmi/ygnmi"
+       "github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -754,6 +754,18 @@ func TestP4rtNodeID(t *testing.T) {
 	}
 }
 
+func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port, isInterfaceCountersFromContainer bool) (uint64, uint64) {
+	if isInterfaceCountersFromContainer {
+		inPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
+		outPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
+		return inPkts, outPkts
+	}
+
+	inPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
+	outPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
+	return inPkts, outPkts
+}
+
 func TestIntfCounterUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
@@ -786,14 +798,8 @@ func TestIntfCounterUpdate(t *testing.T) {
 		WithFrameRatePct(15)
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
-	dutInPktsBeforeTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
-	dutOutPktsBeforeTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
-
 	isInterfaceCountersFromContainer := deviations.InterfaceCountersFromContainer(dut)
-	if isInterfaceCountersFromContainer {
-		dutInPktsBeforeTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
-		dutOutPktsBeforeTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
-	}
+	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2, isInterfaceCountersFromContainer)
 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 
 	ate.Traffic().Start(t, flow)
@@ -826,12 +832,8 @@ func TestIntfCounterUpdate(t *testing.T) {
 	if lossPct >= 0.1 {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flow.Name(), lossPct)
 	}
-	dutInPktsAfterTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
-	dutOutPktsAfterTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
-	if isInterfaceCountersFromContainer {
-		dutInPktsAfterTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
-		dutOutPktsAfterTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
-	}
+
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2, isInterfaceCountersFromContainer)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
 	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < ateInPkts {
@@ -978,3 +980,4 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	}
 	return res
 }
+
