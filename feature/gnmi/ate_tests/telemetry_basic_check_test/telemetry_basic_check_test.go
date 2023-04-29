@@ -754,8 +754,8 @@ func TestP4rtNodeID(t *testing.T) {
 	}
 }
 
-func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port, isInterfaceCountersFromContainer bool) (uint64, uint64) {
-	if isInterfaceCountersFromContainer {
+func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
+	if deviations.InterfaceCountersFromContainer(dut) {
 		inPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
 		outPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
 		return inPkts, outPkts
@@ -798,8 +798,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		WithFrameRatePct(15)
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
-	isInterfaceCountersFromContainer := deviations.InterfaceCountersFromContainer(dut)
-	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2, isInterfaceCountersFromContainer)
+	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 
 	ate.Traffic().Start(t, flow)
@@ -832,8 +831,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	if lossPct >= 0.1 {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flow.Name(), lossPct)
 	}
-
-	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2, isInterfaceCountersFromContainer)
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
 	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < ateInPkts {
