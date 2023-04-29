@@ -179,6 +179,12 @@ func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
 	return *hierarchicalWeightResolutionTolerance
 }
 
+// IPNeighborMissing returns true if the device does not support interface/ipv4(6)/neighbor,
+// so test can suppress the related check for interface/ipv4(6)/neighbor.
+func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
+	return *ipNeighborMissing
+}
+
 // NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
 // OpenConfig defaults the association-type to SERVER if not set.
 func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
@@ -200,7 +206,7 @@ var (
 
 	IPv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
 
-	IPNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
+	ipNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
 
 	InterfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
