@@ -611,6 +611,7 @@ func main() {
 			if len(defaultTestRepoRev) > 0 {
 				if !isPatched(suite[i].Tests[j]) {
 					suite[i].Tests[j].Revision = defaultTestRepoRev
+					suite[i].Tests[j].Internal = true
 				}
 			}
 
