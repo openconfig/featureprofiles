@@ -335,28 +335,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
-	dutInPktsAfterTraffic := map[string]uint64{
-		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
-		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
-		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
-	}
-	dutOutPktsAfterTraffic := map[string]uint64{
-		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
-		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
-		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
-	}
-	if isInterfaceCountersFromContainer {
-		dutInPktsAfterTraffic = map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
-			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
-			// "ipv6": subintf1.Ipv6().Counters().Get(t).InPkts,
-		}
-		dutOutPktsAfterTraffic = map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i2.Counters().State()).OutUnicastPkts,
-			// "ipv4":   *subintf2.Ipv4().Counters().Get(t).OutPkts,
-			// "ipv6": *subintf2.Ipv6().Counters().Get(t).OutPkts,
-		}
-	}
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, i1, i2, isInterfaceCountersFromContainer)
 
 	t.Logf("inPkts: %v and outPkts: %v after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 	for k := range dutInPktsAfterTraffic {
