@@ -1013,4 +1013,3 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	}
 	return res
 }
-

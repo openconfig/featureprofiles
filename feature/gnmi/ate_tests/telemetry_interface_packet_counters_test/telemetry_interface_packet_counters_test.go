@@ -405,4 +405,3 @@ func TestInterfaceMgmt(t *testing.T) {
 		t.Logf("Got path/value: %s:%v", path, mgmt)
 	}
 }
-
