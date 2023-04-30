@@ -590,18 +590,30 @@ func main() {
 				switch parts[0] {
 				case "I-PR":
 					suite[i].Tests[j].Internal = true
-					fallthrough
+					if pr, err := strconv.Atoi(parts[1]); err == nil {
+						suite[i].Tests[j].PrNum = pr
+					} else {
+						log.Fatalf("%v is not a valid integer pr number", parts[1])
+					}
 				case "PR":
+					suite[i].Tests[j].Internal = false
 					if pr, err := strconv.Atoi(parts[1]); err == nil {
 						suite[i].Tests[j].PrNum = pr
 					} else {
 						log.Fatalf("%v is not a valid integer pr number", parts[1])
 					}
 				case "I-BR":
+					suite[i].Tests[j].Branch = parts[1]
 					suite[i].Tests[j].Internal = true
-					fallthrough
 				case "BR":
 					suite[i].Tests[j].Branch = parts[1]
+					suite[i].Tests[j].Internal = false
+				case "I-REV":
+					suite[i].Tests[j].Revision = parts[1]
+					suite[i].Tests[j].Internal = true
+				case "REV":
+					suite[i].Tests[j].Revision = parts[1]
+					suite[i].Tests[j].Internal = false
 				default:
 					suite[i].Tests[j].Revision = testRepoRev
 					suite[i].Tests[j].Internal = true
