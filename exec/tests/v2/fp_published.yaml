@@ -437,7 +437,6 @@ tests:
     mustpass: true
     priority: 54
     skip: false
-    pr: 1463
     args:
       - '-deviation_rpl_under_peergroup="true"'
   - name: RT-1.7 (Local BGP Test)
