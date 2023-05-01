@@ -95,11 +95,13 @@ var (
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
 		ondatra.NOKIA:   "/var/core/",
+		ondatra.ARISTA:  "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]*regexp.Regexp{
 		ondatra.JUNIPER: regexp.MustCompile("rpd.*core*"),
 		ondatra.CISCO:   regexp.MustCompile("emsd.*core.*"),
 		ondatra.NOKIA:   regexp.MustCompile("coredump-sr_gribi_server-.*"),
+		ondatra.ARISTA:  regexp.MustCompile("core.*"),
 	}
 	fibProgrammedEntries []string
 )
