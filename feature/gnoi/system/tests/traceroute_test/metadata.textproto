@@ -4,3 +4,4 @@
 uuid: "5384dcdb-c427-4b35-94d3-d5f571960634"
 plan_id: "gNOI-5.2"
 description: "Traceroute Test"
+testbed: TESTBED_DUT_ATE_2LINKS

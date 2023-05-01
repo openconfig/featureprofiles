@@ -4,3 +4,4 @@
 uuid: "be382dda-88e8-427c-be95-cb39f3253e18"
 plan_id: "TE-4.2"
 description: "Persistence Mode"
+testbed: TESTBED_DUT_ATE_2LINKS
