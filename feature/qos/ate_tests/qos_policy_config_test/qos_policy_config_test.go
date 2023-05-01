@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -70,6 +71,17 @@ var (
 			fn:   testCiscoSchedulerPoliciesConfig,
 		},
 	}
+	QosJuniperConfigTestcase = []Testcase{
+
+		{
+			name: "testJuniperClassifierConfig",
+			fn:   testJuniperClassifierConfig,
+		},
+		{
+			name: "testJuniperSchedulerPoliciesConfig",
+			fn:   testJuniperSchedulerPoliciesConfig,
+		},
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -80,6 +92,12 @@ func TestQosConfigTests(t *testing.T) {
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		for _, tt := range QosCiscoConfigTestcase {
+			t.Run(tt.name, func(t *testing.T) {
+				tt.fn(t)
+			})
+		}
+	case ondatra.JUNIPER:
+		for _, tt := range QosJuniperConfigTestcase {
 			t.Run(tt.name, func(t *testing.T) {
 				tt.fn(t)
 			})
@@ -1145,4 +1163,554 @@ func testCiscoSchedulerPoliciesConfig(t *testing.T) {
 		}
 	}
 
+}
+
+func testJuniperClassifierConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+
+	t.Logf("Create qos forwarding groups config")
+	forwardingGroups := []struct {
+		desc        string
+		queueName   string
+		targetGroup string
+	}{{
+		desc:        "forwarding-group-BE1",
+		queueName:   "6",
+		targetGroup: "target-group-BE1",
+	}, {
+		desc:        "forwarding-group-BE0",
+		queueName:   "0",
+		targetGroup: "target-group-BE0",
+	}, {
+		desc:        "forwarding-group-AF1",
+		queueName:   "4",
+		targetGroup: "target-group-AF1",
+	}, {
+		desc:        "forwarding-group-AF2",
+		queueName:   "1",
+		targetGroup: "target-group-AF2",
+	}, {
+		desc:        "forwarding-group-AF3",
+		queueName:   "5",
+		targetGroup: "target-group-AF3",
+	}, {
+		desc:        "forwarding-group-AF4",
+		queueName:   "2",
+		targetGroup: "target-group-AF4",
+	}, {
+		desc:        "forwarding-group-NC1",
+		queueName:   "3",
+		targetGroup: "target-group-NC1",
+	}}
+
+	t.Logf("qos forwarding groups config cases: %v", forwardingGroups)
+	for _, tc := range forwardingGroups {
+		t.Run(tc.desc, func(t *testing.T) {
+			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
+			fwdGroup.SetName(tc.targetGroup)
+			fwdGroup.SetOutputQueue(tc.queueName)
+			queue := q.GetOrCreateQueue(tc.queueName)
+			queue.SetName(tc.queueName)
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		})
+
+		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
+		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGroup)
+		if got, want := gnmi.Get(t, dut, forwardingGroup.Name().State()), tc.targetGroup; got != want {
+			t.Errorf("forwardingGroup.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, forwardingGroup.OutputQueue().State()), tc.queueName; got != want {
+			t.Errorf("forwardingGroup.OutputQueue().State(): got %v, want %v", got, want)
+		}
+	}
+
+	classifiers := []struct {
+		desc        string
+		name        string
+		classType   oc.E_Qos_Classifier_Type
+		termID      string
+		targetGroup string
+		dscpSet     []uint8
+	}{{
+		desc:        "classifier_ipv4_be1",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "0",
+		targetGroup: "target-group-BE1",
+		dscpSet:     []uint8{0, 1, 2, 3},
+	}, {
+		desc:        "classifier_ipv4_be0",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "1",
+		targetGroup: "target-group-BE0",
+		dscpSet:     []uint8{4, 5, 6, 7},
+	}, {
+		desc:        "classifier_ipv4_af1",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "2",
+		targetGroup: "target-group-AF1",
+		dscpSet:     []uint8{8, 9, 10, 11},
+	}, {
+		desc:        "classifier_ipv4_af2",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "3",
+		targetGroup: "target-group-AF2",
+		dscpSet:     []uint8{16, 17, 18, 19},
+	}, {
+		desc:        "classifier_ipv4_af3",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "4",
+		targetGroup: "target-group-AF3",
+		dscpSet:     []uint8{24, 25, 26, 27},
+	}, {
+		desc:        "classifier_ipv4_af4",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "5",
+		targetGroup: "target-group-AF4",
+		dscpSet:     []uint8{32, 33, 34, 35},
+	}, {
+		desc:        "classifier_ipv4_nc1",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "6",
+		targetGroup: "target-group-NC1",
+		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+	}, {
+		desc:        "classifier_ipv6_be1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "0",
+		targetGroup: "target-group-BE1",
+		dscpSet:     []uint8{0, 1, 2, 3},
+	}, {
+		desc:        "classifier_ipv6_be0",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "1",
+		targetGroup: "target-group-BE0",
+		dscpSet:     []uint8{4, 5, 6, 7},
+	}, {
+		desc:        "classifier_ipv6_af1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "2",
+		targetGroup: "target-group-AF1",
+		dscpSet:     []uint8{8, 9, 10, 11},
+	}, {
+		desc:        "classifier_ipv6_af2",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "3",
+		targetGroup: "target-group-AF2",
+		dscpSet:     []uint8{16, 17, 18, 19},
+	}, {
+		desc:        "classifier_ipv6_af3",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "4",
+		targetGroup: "target-group-AF3",
+		dscpSet:     []uint8{24, 25, 26, 27},
+	}, {
+		desc:        "classifier_ipv6_af4",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "5",
+		targetGroup: "target-group-AF4",
+		dscpSet:     []uint8{32, 33, 34, 35},
+	}, {
+		desc:        "classifier_ipv6_nc1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "6",
+		targetGroup: "target-group-NC1",
+		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+	}}
+
+	t.Logf("qos Classifiers config cases: %v", classifiers)
+	for _, tc := range classifiers {
+		t.Run(tc.desc, func(t *testing.T) {
+			classifier := q.GetOrCreateClassifier(tc.name)
+			classifier.SetName(tc.name)
+			classifier.SetType(tc.classType)
+			term, err := classifier.NewTerm(tc.termID)
+			if err != nil {
+				t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
+			}
+
+			term.SetId(tc.termID)
+			action := term.GetOrCreateActions()
+			action.SetTargetGroup(tc.targetGroup)
+			condition := term.GetOrCreateConditions()
+			if tc.name == "dscp_based_classifier_ipv4" {
+				condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
+			} else if tc.name == "dscp_based_classifier_ipv6" {
+				condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
+			}
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		})
+
+		// Verify the Classifier is applied by checking the telemetry path state values.
+		classifier := gnmi.OC().Qos().Classifier(tc.name)
+		term := classifier.Term(tc.termID)
+		action := term.Actions()
+		condition := term.Conditions()
+
+		cmp.Equal([]uint8{1, 2, 3}, []uint8{1, 2, 3})
+		cmp.Equal([]uint8{1, 2, 3}, []uint8{1, 3, 2})
+
+		if got, want := gnmi.Get(t, dut, classifier.Name().State()), tc.name; got != want {
+			t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, classifier.Type().State()), tc.classType; got != want {
+			t.Errorf("classifier.Type().State(): got %v, want %v", got, want)
+		}
+		if !deviations.StatePathsUnsupported(dut) {
+			if got, want := gnmi.Get(t, dut, term.Id().State()), tc.termID; got != want {
+				t.Errorf("term.Id().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, action.TargetGroup().State()), tc.targetGroup; got != want {
+				t.Errorf("action.TargetGroup().State(): got %v, want %v", got, want)
+			}
+
+			// This Transformer sorts a []uint8.
+			trans := cmp.Transformer("Sort", func(in []uint8) []uint8 {
+				out := append([]uint8(nil), in...)
+				sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+				return out
+			})
+
+			if tc.name == "dscp_based_classifier_ipv4" {
+				if equal := cmp.Equal(condition.Ipv4().DscpSet().State(), tc.dscpSet, trans); !equal {
+					t.Errorf("condition.Ipv4().DscpSet().State(): got %v, want %v", condition.Ipv4().DscpSet().State(), tc.dscpSet)
+				}
+			} else if tc.name == "dscp_based_classifier_ipv6" {
+				if equal := cmp.Equal(condition.Ipv6().DscpSet().State(), tc.dscpSet, trans); !equal {
+					t.Errorf("condition.Ipv6().DscpSet().State(): got %v, want %v", condition.Ipv6().DscpSet().State(), tc.dscpSet)
+				}
+			}
+		}
+	}
+
+	cases := []struct {
+		desc                string
+		inputClassifierType oc.E_Input_Classifier_Type
+		classifier          string
+		classType           oc.E_Qos_Classifier_Type
+		termID              string
+		dscpSet             []uint8
+		targetGroup         string
+		queueName           string
+	}{{
+		desc:                "Input Classifier Type IPV4",
+		inputClassifierType: oc.Input_Classifier_Type_IPV4,
+		classifier:          "dscp_based_classifier_ipv4",
+		classType:           oc.Qos_Classifier_Type_IPV4,
+		dscpSet:             []uint8{0, 1, 2, 3},
+		termID:              "0",
+		targetGroup:         "target-group-BE1",
+		queueName:           "0",
+	}}
+	if !deviations.StatePathsUnsupported(dut) {
+		cases = append(cases,
+			struct {
+				desc                string
+				inputClassifierType oc.E_Input_Classifier_Type
+				classifier          string
+				classType           oc.E_Qos_Classifier_Type
+				termID              string
+				dscpSet             []uint8
+				targetGroup         string
+				queueName           string
+			}{
+				desc:                "Input Classifier Type IPV6",
+				inputClassifierType: oc.Input_Classifier_Type_IPV6,
+				classifier:          "dscp_based_classifier_ipv6",
+				classType:           oc.Qos_Classifier_Type_IPV6,
+				termID:              "0",
+				targetGroup:         "target-group-BE1",
+				dscpSet:             []uint8{0, 1, 2, 3},
+				queueName:           "0",
+			})
+	}
+	dp := dut.Port(t, "port1")
+	i := q.GetOrCreateInterface(dp.Name())
+	i.SetInterfaceId(dp.Name())
+	if *deviations.ExplicitInterfaceRefDefinition {
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
+		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	}
+	ip := &oc.Interface{Name: ygot.String(dp.Name())}
+	ip.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := ip.GetOrCreateSubinterface(0)
+
+	t.Logf("qos input classifier config cases: %v", cases)
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if tc.classType == oc.Qos_Classifier_Type_IPV4 {
+				s4 := s.GetOrCreateIpv4()
+				s4.Enabled = ygot.Bool(true)
+			} else if tc.classType == oc.Qos_Classifier_Type_IPV6 {
+				s6 := s.GetOrCreateIpv6()
+				s6.Enabled = ygot.Bool(true)
+			}
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), ip)
+			c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
+			c.SetType(tc.inputClassifierType)
+			c.SetName(tc.classifier)
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		})
+
+		// Verify the Classifier is applied on interface by checking the telemetry path state values.
+		classifier := gnmi.OC().Qos().Interface(dp.Name()).Input().Classifier(tc.inputClassifierType)
+		if got, want := gnmi.Get(t, dut, classifier.Name().State()), tc.classifier; got != want {
+			t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, classifier.Type().State()), tc.inputClassifierType; got != want {
+			t.Errorf("classifier.Type().State(): got %v, want %v", got, want)
+		}
+	}
+
+}
+
+func testJuniperSchedulerPoliciesConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+	dp := dut.Port(t, "port2")
+	i := q.GetOrCreateInterface(dp.Name())
+	i.SetInterfaceId(dp.Name())
+	if *deviations.ExplicitInterfaceRefDefinition {
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
+		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	}
+
+	schedulers := []struct {
+		desc        string
+		sequence    uint32
+		priority    oc.E_Scheduler_Priority
+		inputID     string
+		weight      uint64
+		queueName   string
+		targetGroup string
+	}{{
+		desc:        "scheduler-policy-BE1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE1",
+		weight:      uint64(1),
+		queueName:   "6",
+		targetGroup: "BE1",
+	}, {
+		desc:        "scheduler-policy-BE0",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE0",
+		weight:      uint64(2),
+		queueName:   "0",
+		targetGroup: "BE0",
+	}, {
+		desc:        "scheduler-policy-AF1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF1",
+		weight:      uint64(4),
+		queueName:   "4",
+		targetGroup: "AF1",
+	}, {
+		desc:        "scheduler-policy-AF2",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF2",
+		weight:      uint64(8),
+		queueName:   "1",
+		targetGroup: "AF2",
+	}, {
+		desc:        "scheduler-policy-AF3",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF3",
+		weight:      uint64(16),
+		queueName:   "5",
+		targetGroup: "AF3",
+	}, {
+		desc:        "scheduler-policy-AF4",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "AF4",
+		weight:      uint64(99),
+		queueName:   "2",
+		targetGroup: "AF4",
+	}, {
+		desc:        "scheduler-policy-NC1",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "NC1",
+		weight:      uint64(100),
+		queueName:   "3",
+		targetGroup: "NC1",
+	}}
+
+	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
+	schedulerPolicy.SetName("scheduler")
+	t.Logf("qos scheduler policies config cases: %v", schedulers)
+	for _, tc := range schedulers {
+		t.Run(tc.desc, func(t *testing.T) {
+			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
+			fwdGroup.SetName(tc.targetGroup)
+			fwdGroup.SetOutputQueue(tc.queueName)
+			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
+			s.SetSequence(tc.sequence)
+			s.SetPriority(tc.priority)
+			input := s.GetOrCreateInput(tc.inputID)
+			input.SetId(tc.inputID)
+			input.SetInputType(oc.Input_InputType_QUEUE)
+			input.SetQueue(tc.queueName)
+			input.SetWeight(tc.weight)
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		})
+
+		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
+
+		scheduler := gnmi.OC().Qos().SchedulerPolicy("scheduler").Scheduler(tc.sequence)
+		input := scheduler.Input(tc.inputID)
+		if !deviations.StatePathsUnsupported(dut) {
+			if got, want := gnmi.Get(t, dut, input.Id().State()), tc.inputID; got != want {
+				t.Errorf("input.Id().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, input.InputType().State()), oc.Input_InputType_QUEUE; got != want {
+				t.Errorf("input.InputType().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, input.Weight().State()), tc.weight; got != want {
+				t.Errorf("input.Weight().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, input.Queue().State()), tc.queueName; got != want {
+				t.Errorf("input.Queue().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, scheduler.Sequence().State()), tc.sequence; got != want {
+				t.Errorf("scheduler.Sequence().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, scheduler.Priority().State()), tc.priority; got != want {
+				t.Errorf("scheduler.Priority().State(): got %v, want %v", got, want)
+			}
+		}
+	}
+
+	ecnConfig := struct {
+		ecnEnabled                bool
+		dropEnabled               bool
+		minThreshold              uint64
+		maxThreshold              uint64
+		maxDropProbabilityPercent uint8
+		weight                    uint32
+	}{
+		ecnEnabled:                true,
+		dropEnabled:               false,
+		minThreshold:              uint64(80000),
+		maxThreshold:              math.MaxUint64,
+		maxDropProbabilityPercent: uint8(1),
+		weight:                    uint32(0),
+	}
+
+	queueMgmtProfile := q.GetOrCreateQueueManagementProfile("DropProfile")
+	queueMgmtProfile.SetName("DropProfile")
+	wred := queueMgmtProfile.GetOrCreateWred()
+	uniform := wred.GetOrCreateUniform()
+	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
+	uniform.SetMinThreshold(ecnConfig.minThreshold)
+	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
+	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+
+	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
+	// Verify the QueueManagementProfile is applied by checking the telemetry path state values.
+	wredUniform := gnmi.OC().Qos().QueueManagementProfile("DropProfile").Wred().Uniform()
+
+	if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), ecnConfig.maxDropProbabilityPercent; got != want {
+		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
+	}
+	if !deviations.StatePathsUnsupported(dut) {
+		if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
+			t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().State()), ecnConfig.maxThreshold; got != want {
+			t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
+		}
+	}
+	if !deviations.DropWeightLeavesUnsupported(dut) {
+		uniform.SetDrop(ecnConfig.dropEnabled)
+		uniform.SetWeight(ecnConfig.weight)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
+		if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
+			t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
+			t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
+		}
+	}
+
+	cases := []struct {
+		desc        string
+		targetGroup string
+	}{{
+		desc:        "output-interface-BE1",
+		targetGroup: "BE1",
+	}, {
+		desc:        "output-interface-BE0",
+		targetGroup: "BE0",
+	}, {
+		desc:        "output-interface-AF1",
+		targetGroup: "AF1",
+	}, {
+		desc:        "output-interface-AF2",
+		targetGroup: "AF2",
+	}, {
+		desc:        "output-interface-AF3",
+		targetGroup: "AF3",
+	}, {
+		desc:        "output-interface-AF4",
+		targetGroup: "AF4",
+	}, {
+		desc:        "output-interface-NC1",
+		targetGroup: "NC1",
+	}}
+
+	t.Logf("qos output interface config cases: %v", cases)
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			output := i.GetOrCreateOutput()
+			schedulerPolicy := output.GetOrCreateSchedulerPolicy()
+			schedulerPolicy.SetName("scheduler")
+			queue := output.GetOrCreateQueue("scheduler")
+			queue.SetQueueManagementProfile("DropProfile")
+			queue.SetName(tc.targetGroup)
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		})
+
+		// Verify the policy is applied by checking the telemetry path state values.
+		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
+		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.targetGroup)
+		if !deviations.StatePathsUnsupported(dut) {
+			if got, want := gnmi.Get(t, dut, policy.Name().State()), "scheduler"; got != want {
+				t.Errorf("policy.Name().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.targetGroup; got != want {
+				t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), "DropProfile"; got != want {
+				t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
+			}
+		}
+		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
+			t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
+		}
+	}
 }
