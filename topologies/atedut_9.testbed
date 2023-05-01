@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
 
-# This testbed provides a DUT and ATE with 12 links between them.
+# This testbed provides a DUT and ATE with 9 links between them.
 
 duts {
   id: "dut"
@@ -31,15 +31,6 @@ duts {
   }
   ports {
     id: "port9"
-  }
-  ports {
-    id: "port10"
-  }
-  ports {
-    id: "port11"
-  }
-  ports {
-    id: "port12"
   }
 }
 
@@ -71,15 +62,6 @@ ates {
   }
   ports {
     id: "port9"
-  }
-  ports {
-    id: "port10"
-  }
-  ports {
-    id: "port11"
-  }
-  ports {
-    id: "port12"
   }
 }
 
@@ -126,19 +108,4 @@ links {
 links {
   a: "dut:port9"
   b: "ate:port9"
-}
-
-links {
-  a: "dut:port10"
-  b: "ate:port10"
-}
-
-links {
-  a: "dut:port11"
-  b: "ate:port11"
-}
-
-links {
-  a: "dut:port12"
-  b: "ate:port12"
 }
