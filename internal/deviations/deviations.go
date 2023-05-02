@@ -190,9 +190,6 @@ func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
 	return *ipNeighborMissing
 }
 
-// NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
-// OpenConfig defaults the association-type to SERVER if not set.
-
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
