@@ -4,3 +4,4 @@
 uuid: "8b86a8fd-3d9d-47a4-b607-79a3acd496ee"
 plan_id: "TE-1.1"
 description: "Static ARP"
+testbed: TESTBED_DUT_ATE_2LINKS
