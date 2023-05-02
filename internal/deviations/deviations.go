@@ -212,11 +212,6 @@ func MissingInterfaceHardwarePort(_ *ondatra.DUTDevice) bool {
 	return *missingInterfaceHardwarePort
 }
 
-// MissingCPUMfgName returns if device does not support component/MfgName leaf for CPU components.
-func MissingCPUMfgName(_ *ondatra.DUTDevice) bool {
-	return *missingCPUMfgName
-}
-
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
 // so the test will skip checking them.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
