@@ -225,7 +225,7 @@ var (
 
 	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
 
-	GNOISubcomponeAAAath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
+	GNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
 
 	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
