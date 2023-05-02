@@ -4,3 +4,4 @@
 uuid: "b1da9742-66f5-460d-860b-58ab3f5c34f3"
 plan_id: "DP-1.2"
 description: "QoS policy feature config"
+testbed: TESTBED_DUT_ATE_2LINKS

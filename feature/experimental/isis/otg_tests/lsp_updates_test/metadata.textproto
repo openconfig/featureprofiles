@@ -4,3 +4,4 @@
 uuid: "24249426-4ec4-417e-8885-f147d04eebf2"
 plan_id: "RT-2.2"
 description: "IS-IS LSP Updates"
+testbed: TESTBED_DUT_ATE_2LINKS

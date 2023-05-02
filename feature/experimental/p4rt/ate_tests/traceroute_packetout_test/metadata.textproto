@@ -4,3 +4,4 @@
 uuid: "6c2613a5-7579-4d2b-940b-d93a128d4fd5"
 plan_id: "P4RT-5.2"
 description: "Traceroute Packetout"
+testbed: TESTBED_DUT_ATE_2LINKS

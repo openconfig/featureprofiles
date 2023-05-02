@@ -4,3 +4,4 @@
 uuid: "a958cce5-60e2-4562-9b37-e24e0c520f99"
 plan_id: "gNMI-1.1"
 description: "cli Origin"
+testbed: TESTBED_DUT_ATE_2LINKS
