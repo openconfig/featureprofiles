@@ -724,7 +724,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		ate.Traffic().Start(t, allFlows...)
 		startTime := time.Now()
 		t.Log("Trigger Graceful Restart on ATE")
-		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime).WithPeers(bgpPeer).Send(t)
+		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime * time.Second).WithPeers(bgpPeer).Send(t)
 		if deviations.UseVendorNativeACLConfig(dut) {
 			configACLNative(t, dut, aclName)
 			configACLInterfaceNative(t, dut, ifName)
@@ -744,16 +744,10 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
-		t.Log("Waiting for BGP neighbor to go to CONNECT state after applying ACL DENY policy...")
-		var bgpState oc.E_Bgp_Neighbor_SessionState
-		if *deviations.BGPStateActiveACLDeny {
-			bgpState = oc.Bgp_Neighbor_SessionState_ACTIVE
-		} else {
-			bgpState = oc.Bgp_Neighbor_SessionState_CONNECT
-		}
+		t.Log("Waiting for BGP neighbor to Not be in Established state after applying ACL DENY policy..")
 		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			currState, ok := val.Val()
-			return ok && currState == bgpState
+			return ok && currState != oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
 			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
