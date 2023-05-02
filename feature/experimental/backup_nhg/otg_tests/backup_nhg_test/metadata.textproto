@@ -4,3 +4,4 @@
 uuid: "ac89b122-9979-432f-aa82-363308c56a67"
 plan_id: "TE-11.1"
 description: "Backup NHG: Single NH"
+testbed: TESTBED_DUT_ATE_4LINKS

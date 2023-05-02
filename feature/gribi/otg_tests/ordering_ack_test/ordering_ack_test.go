@@ -518,7 +518,7 @@ func TestOrderingACK(t *testing.T) {
 					WithRedundancyMode(fluent.ElectedPrimaryClient).
 					WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
 
-				if !*deviations.GRIBIRIBAckOnly {
+				if !deviations.GRIBIRIBAckOnly(dut) {
 					// The main difference WithFIBACK() made was that we are now expecting
 					// fluent.InstalledInFIB in []*client.OpResult, as opposed to
 					// fluent.InstalledInRIB.
@@ -541,7 +541,7 @@ func TestOrderingACK(t *testing.T) {
 
 				args := &testArgs{ctx: ctx, c: c, dut: dut, ate: ate, top: top}
 				args.wantInstalled = fluent.InstalledInFIB
-				if *deviations.GRIBIRIBAckOnly {
+				if deviations.GRIBIRIBAckOnly(dut) {
 					args.wantInstalled = fluent.InstalledInRIB
 				}
 				tc.fn(t, args)

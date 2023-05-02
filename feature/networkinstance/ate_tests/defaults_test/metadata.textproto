@@ -4,3 +4,4 @@
 uuid: "df5626eb-4199-4c68-bb62-1735ba682fa2"
 plan_id: "OC-1.2"
 description: "Default Address Families"
+testbed: TESTBED_DUT_ATE_2LINKS

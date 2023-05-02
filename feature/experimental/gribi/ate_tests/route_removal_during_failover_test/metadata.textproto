@@ -4,3 +4,4 @@
 uuid: "50a59a15-f856-48a9-b270-c194120b1789"
 plan_id: "TE-13.2"
 description: "gRIBI route DELETE during Failover"
+testbed: TESTBED_DUT_ATE_2LINKS
