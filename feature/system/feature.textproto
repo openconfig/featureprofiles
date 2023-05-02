@@ -111,6 +111,9 @@ config_path {
 telemetry_path {
     path: "/system/aaa/authentication/admin-user/state/admin-password-hashed"
 }
+config_path {
+    path: "/system/aaa/authentication/admin-user/config/admin-username"
+}
 telemetry_path {
     path: "/system/aaa/authentication/admin-user/state/admin-username"
 }
