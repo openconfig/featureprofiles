@@ -302,7 +302,7 @@ func TestIPv4Entry(t *testing.T) {
 						conn.WithPersistence()
 					}
 
-					if !*deviations.GRIBIRIBAckOnly {
+					if !deviations.GRIBIRIBAckOnly(dut) {
 						// The main difference WithFIBACK() made was that we are now expecting
 						// fluent.InstalledInFIB in []*client.OpResult, as opposed to
 						// fluent.InstalledInRIB.
