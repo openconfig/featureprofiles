@@ -333,6 +333,14 @@ func TestUnsetElectionid(t *testing.T) {
 			wantStatus: int32(codes.NotFound),
 		},
 	}
+	if *deviations.P4rtUnsetElectionIDPrimaryAllowed {
+		// For P4Runtime server implementations that allow 0 election id update the
+		// expected status to OK for primary and INVALID_ARGUMENT for the secondary
+		// connection that connected with the same accepted election id as the
+		// primary
+		clients[0].wantStatus = int32(codes.OK)
+		clients[1].wantStatus = int32(codes.InvalidArgument)
+	}
 	// Connect 2 clients to same deviceId with unset electionId.
 	for _, test := range clients {
 		t.Run(test.desc, func(t *testing.T) {
@@ -359,7 +367,9 @@ func TestUnsetElectionid(t *testing.T) {
 				t.Fatalf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 			}
 			if err != nil && !deviations.P4RTUnsetElectionIDUnsupported(dut) {
-				t.Errorf("Errors seen when sending Master Arbitration as expected for unset ElectionID: %v", err)
+				if *deviations.P4rtUnsetElectionIDPrimaryAllowed && test.desc != sDesc {
+					t.Errorf("Errors seen when sending Master Arbitration for unset ElectionID: %v", err)
+				}
 			}
 			// Verify GetForwardingPipeline for unset electionId.
 			_, err = test.handle.GetForwardingPipelineConfig(&p4_v1.GetForwardingPipelineConfigRequest{
@@ -384,7 +394,17 @@ func TestUnsetElectionid(t *testing.T) {
 					},
 				},
 			}); err == nil {
-				t.Errorf("SetForwardingPipelineConfig accepted for unset Election ID: %v", err)
+				if !*deviations.P4rtUnsetElectionIDPrimaryAllowed {
+					// Verify that SetForwardingPipelineConfig is rejected for implementations that do
+					// not allow 0 election id
+					t.Errorf("SetForwardingPipelineConfig accepted for unset Election ID: %v", err)
+				}
+			} else {
+				if *deviations.P4rtUnsetElectionIDPrimaryAllowed {
+					// Verify that SetForwardingPipelineConfig is allowed for implementations that
+					// allow 0 election id
+					t.Errorf("SetForwardingPipelineConfig unexpectedly failed for Election ID: %v", err)
+				}
 			}
 		})
 	}
@@ -431,6 +451,12 @@ func TestPrimaryReconnect(t *testing.T) {
 			wantRead:   true,
 			wantStatus: 0,
 		},
+	}
+	if *deviations.P4rtBackupArbitrationResponseCode {
+		// Change the expected status code to ALREADY_EXISTS for deviant implementations
+		// that send ALREADY_EXISTS instead of NOT_FOUND to secondary clients when there
+		// is no primary
+		testCases[1].wantStatus = 6
 	}
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
@@ -670,6 +696,14 @@ func TestArbitrationUpdate(t *testing.T) {
 		// After updating electionID, statusCode also changes
 		// to secondary without a primary
 		test.wantStatus = 5
+		if *deviations.P4rtBackupArbitrationResponseCode {
+			// Change the expected status code to ALREADY_EXISTS for deviant implementations
+			// that send ALREADY_EXISTS instead of NOT_FOUND to secondary clients when there
+			// is no primary
+			test.wantStatus = 6
+		} else {
+			test.wantStatus = 5
+		}
 		// After updating election, wantWrite is false
 		// as this client is no longer primary
 		test.wantWrite = false
