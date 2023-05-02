@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/interfaces"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -168,6 +169,27 @@ func TestInterfaceCounters(t *testing.T) {
 	}
 }
 
+func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath) (map[string]uint64, map[string]uint64) {
+	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
+	if deviations.InterfaceCountersFromContainer(dut) {
+		inPkts := map[string]uint64{
+			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
+		}
+		outPkts := map[string]uint64{
+			"parent": *gnmi.Get(t, dut, i2.Counters().State()).OutUnicastPkts,
+		}
+		return inPkts, outPkts
+	}
+
+	inPkts := map[string]uint64{
+		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
+	}
+	outPkts := map[string]uint64{
+		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
+	}
+	return inPkts, outPkts
+}
+
 func TestIntfCounterUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
@@ -210,34 +232,12 @@ func TestIntfCounterUpdate(t *testing.T) {
 		WithHeaders(ethHeader, ondatra.NewIPv6Header()).
 		WithFrameRatePct(15)
 
-	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
 	i1 := gnmi.OC().Interface(dp1.Name())
-	// subintf1 := i1.Subinterface(0)
-	dutInPktsBeforeTraffic := map[string]uint64{
-		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
-		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
-		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
-	}
 	i2 := gnmi.OC().Interface(dp2.Name())
-	// subintf2 := i2.Subinterface(0)
-	dutOutPktsBeforeTraffic := map[string]uint64{
-		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
-		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
-		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
-	}
-	if *deviations.InterfaceCountersFromContainer {
-		dutInPktsBeforeTraffic = map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
-			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
-			// "ipv6":   subintf1.Ipv6().Counters().Get(t).InPkts,
-		}
-		dutOutPktsBeforeTraffic = map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i2.Counters().State()).OutUnicastPkts,
-			// "ipv4":   *subintf2.Ipv4().Counters().Get(t).OutPkts,
-			// "ipv6":   *subintf2.Ipv6().Counters().Get(t).OutPkts,
-		}
-	}
+
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
+	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, i1, i2)
+
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	ate.Traffic().Start(t, ipv4Flow, ipv6Flow)
 	time.Sleep(10 * time.Second)
@@ -285,29 +285,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		}
 	}
 
-	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
-	dutInPktsAfterTraffic := map[string]uint64{
-		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
-		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
-		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
-	}
-	dutOutPktsAfterTraffic := map[string]uint64{
-		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
-		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
-		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
-	}
-	if *deviations.InterfaceCountersFromContainer {
-		dutInPktsAfterTraffic = map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
-			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
-			// "ipv6":   *subintf1.Ipv6().Counters().Get(t).InPkts,
-		}
-		dutOutPktsAfterTraffic = map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i2.Counters().State()).OutUnicastPkts,
-			// "ipv4":   *subintf2.Ipv4().Counters().Get(t).OutPkts,
-			// "ipv6":   *subintf2.Ipv6().Counters().Get(t).OutPkts,
-		}
-	}
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, i1, i2)
 
 	t.Logf("inPkts: %v and outPkts: %v after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 	for k := range dutInPktsAfterTraffic {
