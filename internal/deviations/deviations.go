@@ -190,28 +190,12 @@ func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
 	return *ipNeighborMissing
 }
 
-// NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
-// OpenConfig defaults the association-type to SERVER if not set.
-func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
-	return *ntpAssociationTypeRequired
-}
-
-// SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
-// so the test will skip checking them.
-// Full OpenConfig compliant devices should pass both with and without this deviation.
-func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
-	return *subinterfacePacketCountersMissing
-}
-
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
 var (
 	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
-
-	ntpAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
-		"Device requires NTP association-type to be explicitly set.  OpenConfig defaults the association-type to SERVER if not set.")
 
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
@@ -228,7 +212,7 @@ var (
 	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
 		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Full OpenConfig compliant devices should be able to use any operator-assigned value.")
 
-	subinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
+	SubinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
 		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	OmitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
