@@ -8,27 +8,23 @@ Ensure Interface mode can be set to loopback mode and can be added as part of st
 
 ### TestCase-1:
 
-*   Configure DUT port-1
+*   Configure DUT port-1 to ATE port-1
+*   Admin down ATE port-1 down
+*   Verify DUT port-1 is down
 *   Configure “loopback mode” set to “FACILITY”
 *   Add port-1 as part of Static LAG (lacp mode static(on))
 *   Validate that port-1 operational status is “UP”
 *   Validate that  LAG port status is “UP”
 
-### TestCase-2:
+### TestCase-2: (TBD)
 
-*   Configure DUT port-1
+*   Configure DUT port-1 to ATE port-1
 *   Configure “loopback mode” set to ”TERMINAL”
 *   Add port-1 as part of Static LAG (lacp mode static(on))
 *   Validate that port-1 operational status is “UP”
 *   Validate that  LAG port status is “UP”
-
-### TestCase-3:
-
-*   Configure DUT port-1
-*   Configure “loopback mode” set to ”None”
-*   Add port-1 as part of Static LAG (lacp mode static(on))
-*   Validate that port-1 operational status is “UP”
-*   Validate that  LAG port status is “UP”
+*   send traffic from ATE port-1
+*   Verify RX/TX on ATE port-1 should match(ATE port-1 packets sent to DUT port-1 in TERMINAL mode directs back to the ATE port-1)
 
 ## Config Parameter Coverage
 
