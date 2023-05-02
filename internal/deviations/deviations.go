@@ -196,6 +196,12 @@ func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
 	return *ntpAssociationTypeRequired
 }
 
+// GRIBIRIBAckOnly returns if device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.
+// Full gRIBI compliant devices should pass both with and without this deviation.
+func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
+	return *gRIBIRIBAckOnly
+}
+
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
 // so the test will skip checking them.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
@@ -234,7 +240,7 @@ var (
 	OmitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
 		"Device does not support setting the L2 MTU, so omit it.  OpenConfig allows a device to enforce that L2 MTU, which has a default value of 1514, must be set to a higher value than L3 MTU, so a full OpenConfig compliant device may fail with the deviation.")
 
-	GRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
+	gRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
 	MissingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
 		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
