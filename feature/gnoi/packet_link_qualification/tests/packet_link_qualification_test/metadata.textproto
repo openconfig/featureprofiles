@@ -4,3 +4,4 @@
 uuid: "e98e61ec-03cd-4bff-8094-2fc69491962a"
 plan_id: "gNOI-2.1"
 description: "Packet-based Link Qualification"
+testbed: TESTBED_DUT_DUT_4LINKS

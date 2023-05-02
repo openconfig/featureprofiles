@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/interfaces"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -103,7 +104,8 @@ func TestInterfaceCounters(t *testing.T) {
 	ipv4CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/"
 	ipv6CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/"
 
-	skipIpv6DiscardedPkts := *deviations.SubinterfacePacketCountersMissing || deviations.Ipv6DiscardedPktsUnsupported(dut)
+	skipSubinterfacePacketCountersMissing := deviations.SubinterfacePacketCountersMissing(dut)
+	skipIpv6DiscardedPkts := skipSubinterfacePacketCountersMissing || deviations.Ipv6DiscardedPktsUnsupported(dut)
 
 	cases := []struct {
 		desc    string
@@ -126,22 +128,22 @@ func TestInterfaceCounters(t *testing.T) {
 		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
 		counter: ipv4Counters.InPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
 		counter: ipv4Counters.OutPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
 		counter: ipv6Counters.InPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
 		counter: ipv6Counters.OutPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6InDiscardedPkts",
 		path:    ipv6CounterPath + "in-discarded-pkts",
@@ -167,6 +169,27 @@ func TestInterfaceCounters(t *testing.T) {
 			t.Logf("Got path/value: %s:%d", tc.path, val)
 		})
 	}
+}
+
+func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath) (map[string]uint64, map[string]uint64) {
+	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
+	if deviations.InterfaceCountersFromContainer(dut) {
+		inPkts := map[string]uint64{
+			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
+		}
+		outPkts := map[string]uint64{
+			"parent": *gnmi.Get(t, dut, i2.Counters().State()).OutUnicastPkts,
+		}
+		return inPkts, outPkts
+	}
+
+	inPkts := map[string]uint64{
+		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
+	}
+	outPkts := map[string]uint64{
+		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
+	}
+	return inPkts, outPkts
 }
 
 func TestIntfCounterUpdate(t *testing.T) {
@@ -233,35 +256,12 @@ func TestIntfCounterUpdate(t *testing.T) {
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
 
-	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
 	i1 := gnmi.OC().Interface(dp1.Name())
-	// subintf1 := i1.Subinterface(0)
-	dutInPktsBeforeTraffic := map[string]uint64{
-		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
-		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
-		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
-	}
 	i2 := gnmi.OC().Interface(dp2.Name())
-	// subintf2 := i2.Subinterface(0)
-	dutOutPktsBeforeTraffic := map[string]uint64{
-		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
-		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
-		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
-	}
-	if *deviations.InterfaceCountersFromContainer {
-		dutInPktsBeforeTraffic = map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
-			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
-			// "ipv6": subintf1.Ipv6().Counters().Get(t).InPkts,
-		}
-		dutOutPktsBeforeTraffic = map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i2.Counters().State()).OutUnicastPkts,
-			// "ipv4":   *subintf2.Ipv4().Counters().Get(t).OutPkts,
-			// "ipv6": *subintf2.Ipv6().Counters().Get(t).OutPkts,
-		}
-	}
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
+	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, i1, i2)
+
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	waitOTGARPEntry(t)
 
@@ -324,29 +324,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		}
 	}
 
-	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
-	dutInPktsAfterTraffic := map[string]uint64{
-		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
-		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
-		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
-	}
-	dutOutPktsAfterTraffic := map[string]uint64{
-		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
-		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
-		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
-	}
-	if *deviations.InterfaceCountersFromContainer {
-		dutInPktsAfterTraffic = map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i1.Counters().State()).InUnicastPkts,
-			// "ipv4":   *subintf1.Ipv4().Counters().Get(t).InPkts,
-			// "ipv6": subintf1.Ipv6().Counters().Get(t).InPkts,
-		}
-		dutOutPktsAfterTraffic = map[string]uint64{
-			"parent": *gnmi.Get(t, dut, i2.Counters().State()).OutUnicastPkts,
-			// "ipv4":   *subintf2.Ipv4().Counters().Get(t).OutPkts,
-			// "ipv6": *subintf2.Ipv6().Counters().Get(t).OutPkts,
-		}
-	}
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, i1, i2)
 
 	t.Logf("inPkts: %v and outPkts: %v after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 	for k := range dutInPktsAfterTraffic {

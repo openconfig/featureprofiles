@@ -4,3 +4,4 @@
 uuid: "a5b892e1-192d-45ff-89b5-a84a2865fdb2"
 plan_id: "RT-2.1"
 description: "Base IS-IS Process and Adjacencies"
+testbed: TESTBED_DUT_ATE_2LINKS
