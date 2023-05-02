@@ -125,7 +125,7 @@ var (
 			name: "Program TTL Match Entry and Configure ACL and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:037 Programm match TTL=[1,2], configured IPv4 ACL to match TTL=1 and set action to drop, verify packets dropped and not sent to controller",
 			fn:   testEntryProgrammingPacketInWithAcl,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Send scale TTL traffic",
