@@ -4,3 +4,4 @@
 uuid: "d944e6e8-268c-4e37-87a2-df779d19dbde"
 plan_id: "P4RT-3.1"
 description: "Google Discovery Protocol: PacketIn"
+testbed: TESTBED_DUT_ATE_2LINKS

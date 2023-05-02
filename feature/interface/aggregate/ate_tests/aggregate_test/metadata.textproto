@@ -4,3 +4,4 @@
 uuid: "43591332-f2c8-4ba6-8957-f010bc0f3cd1"
 plan_id: "RT-5.2"
 description: "Aggregate Interfaces"
+testbed: TESTBED_DUT_ATE_9LINKS

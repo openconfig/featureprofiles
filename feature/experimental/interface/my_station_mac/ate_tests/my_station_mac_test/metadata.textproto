@@ -4,3 +4,4 @@
 uuid: "fac966b2-292b-4c30-8160-d9e09e7057e0"
 plan_id: "TE-1.2"
 description: "My Station MAC"
+testbed: TESTBED_DUT_ATE_2LINKS
