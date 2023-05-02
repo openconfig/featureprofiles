@@ -1,0 +1,64 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id {
+  name: "experimental_management_cli"
+  version: 1
+}
+
+#
+# CLI banners
+#
+
+config_path { path: "/system/config/login-banner" }
+telemetry_path { path: "/system/state/login-banner" }
+
+config_path { path: "/system/config/motd-banner" }
+telemetry_path { path: "/system/state/motd-banner" }
+
+#
+# SSH CLI service
+#
+
+config_path { path: "/system/ssh-server/config/enable" }
+telemetry_path { path: "/system/ssh-server/state/enable" }
+
+config_path { path: "/system/ssh-server/config/protocol-version" }
+telemetry_path { path: "/system/ssh-server/state/protocol-version" }
+
+config_path { path: "/system/ssh-server/config/timeout" }
+telemetry_path { path: "/system/ssh-server/state/timeout" }
+
+config_path { path: "/system/ssh-server/config/rate-limit" }
+telemetry_path { path: "/system/ssh-server/state/rate-limit" }
+
+config_path { path: "/system/ssh-server/config/session-limit" }
+telemetry_path { path: "/system/ssh-server/state/session-limit" }
+
+#
+# Telnet CLI service
+#
+
+config_path { path: "/system/telnet-server/config/enable" }
+telemetry_path { path: "/system/telnet-server/state/enable" }
+
+config_path { path: "/system/telnet-server/config/timeout" }
+telemetry_path { path: "/system/telnet-server/state/timeout" }
+
+config_path { path: "/system/telnet-server/config/rate-limit" }
+telemetry_path { path: "/system/telnet-server/state/rate-limit" }
+
+config_path { path: "/system/telnet-server/config/session-limit" }
+telemetry_path { path: "/system/telnet-server/state/session-limit" }
+
