@@ -99,11 +99,6 @@ func CLITakesPrecedenceOverOC(_ *ondatra.DUTDevice) bool {
 	return *cliTakesPrecedenceOverOC
 }
 
-// BGPPrefixOverlimit returns whether the BGP prefix overlimit retry timer is supported.
-func BGPPrefixOverlimit(_ *ondatra.DUTDevice) bool {
-	return *bgpPrefixOverlimit
-}
-
 // BGPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
 func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
 	return *bgpTrafficTolerance
@@ -116,7 +111,7 @@ func MacAddressMissing(_ *ondatra.DUTDevice) bool {
 
 // UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
 func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
-	return *UseVendorNativeACLConfiguration
+	return *useVendorNativeACLConfiguration
 }
 
 // SwitchChipIDUnsupported returns whether the device supports id leaf for SwitchChip components.
@@ -164,6 +159,16 @@ func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
 }
 
+// StatePathsUnsupported returns whether the device supports following state paths
+func StatePathsUnsupported(_ *ondatra.DUTDevice) bool {
+	return *statePathsUnsupported
+}
+
+// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile
+func DropWeightLeavesUnsupported(_ *ondatra.DUTDevice) bool {
+	return *dropWeightLeavesUnsupported
+}
+
 // SwVersionUnsupported returns true if the device does not support reporting software version according to the requirements in gNMI-1.10.
 func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
 	return *swVersionUnsupported
@@ -174,6 +179,30 @@ func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
 	return *hierarchicalWeightResolutionTolerance
 }
 
+// InterfaceCountersFromContainer returns if the device only supports querying counters from the state container, not from individual counter leaves.
+func InterfaceCountersFromContainer(_ *ondatra.DUTDevice) bool {
+	return *interfaceCountersFromContainer
+}
+
+// IPNeighborMissing returns true if the device does not support interface/ipv4(6)/neighbor,
+// so test can suppress the related check for interface/ipv4(6)/neighbor.
+func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
+	return *ipNeighborMissing
+}
+
+// NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
+// OpenConfig defaults the association-type to SERVER if not set.
+func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
+	return *ntpAssociationTypeRequired
+}
+
+// SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
+// so the test will skip checking them.
+// Full OpenConfig compliant devices should pass both with and without this deviation.
+func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
+	return *subinterfacePacketCountersMissing
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -181,7 +210,7 @@ var (
 	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
-	NTPAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
+	ntpAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
 		"Device requires NTP association-type to be explicitly set.  OpenConfig defaults the association-type to SERVER if not set.")
 
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
@@ -189,9 +218,9 @@ var (
 
 	IPv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
 
-	IPNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
+	ipNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
 
-	InterfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
+	interfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
 	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
@@ -199,7 +228,7 @@ var (
 	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
 		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Full OpenConfig compliant devices should be able to use any operator-assigned value.")
 
-	SubinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
+	subinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
 		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	OmitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
@@ -268,9 +297,6 @@ var (
 
 	GRIBIDelayedAckResponse = flag.Bool("deviation_gribi_delayed_ack_response", false, "Device requires delay in sending ack response")
 
-	BGPStateActiveACLDeny = flag.Bool("deviation_bgp_state_active_acl_deny", false,
-		"Device requires bgp state to be active after ACL deny policy")
-
 	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
 
@@ -284,8 +310,6 @@ var (
 		"Device does not support component/MfgName leaf for CPU components. Set this flag to skip skip checking the leaf.")
 
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
-
-	bgpPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
 
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
@@ -321,7 +345,7 @@ var (
 
 	missingBgpLastNotificationErrorCode = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
 
-	UseVendorNativeACLConfiguration = flag.Bool("deviation_use_vendor_native_acl_config", false, "Configure ACLs using vendor native model specifically for RT-1.4")
+	useVendorNativeACLConfiguration = flag.Bool("deviation_use_vendor_native_acl_config", false, "Configure ACLs using vendor native model specifically for RT-1.4")
 
 	switchChipIDUnsupported = flag.Bool("deviation_switch_chip_id_unsupported", false, "Device does not support id leaf for SwitchChip components. Set this flag to skip checking the leaf.")
 
@@ -342,6 +366,10 @@ var (
 	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
+
+	statePathsUnsupported = flag.Bool("deviation_state_path_unsupported", false, "Device does not support these state paths, Set this flag to skip checking the leaves")
+
+	dropWeightLeavesUnsupported = flag.Bool("deviation_drop_weight_leaves_unsupported", false, "Device does not support drop and weight leaves under queue management profile, Set this flag to skip checking the leaves")
 
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
