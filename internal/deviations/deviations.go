@@ -223,5 +223,7 @@ var (
 	ISISRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
 
-	MacAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
+	MacAddressMissing                 = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
+	P4rtZeroElectionIdAllowed         = flag.Bool("deviation_p4rt_zero_election_id_allowed", false, "Device for allowing zero election id in P4RT server")
+	P4rtBackupArbitrationResponseCode = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
 )
