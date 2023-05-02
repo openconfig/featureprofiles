@@ -149,10 +149,10 @@ func TestInterfaceOperStatus(t *testing.T) {
 }
 
 func TestInterfacePhysicalChannel(t *testing.T) {
-	if *deviations.MissingInterfacePhysicalChannel {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.MissingInterfacePhysicalChannel(dut) {
 		t.Skip("Test is skipped due to MissingInterfacePhysicalChannel deviation")
 	}
-	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
 	phyChannel := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).PhysicalChannel().State())
@@ -209,11 +209,10 @@ func TestInterfaceStatusChange(t *testing.T) {
 }
 
 func TestHardwarePort(t *testing.T) {
-	if *deviations.MissingInterfaceHardwarePort {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.MissingInterfaceHardwarePort(dut) {
 		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
 	}
-
-	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
 	// Verify HardwarePort leaf is present under interface.
@@ -525,7 +524,7 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !*deviations.MissingCPUMfgName {
+		if !deviations.MissingCPUMfgName(dut) {
 			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
 				t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 			} else {
