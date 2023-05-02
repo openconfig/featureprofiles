@@ -299,9 +299,6 @@ var (
 	MissingInterfaceHardwarePort = flag.Bool("deviation_missing_interface_hardware_port", false,
 		"Device does not support interface/hardwareport leaf. Set this flag to skip checking the leaf.")
 
-	MissingCPUMfgName = flag.Bool("deviation_missing_cpu_mfgName", false,
-		"Device does not support component/MfgName leaf for CPU components. Set this flag to skip skip checking the leaf.")
-
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
