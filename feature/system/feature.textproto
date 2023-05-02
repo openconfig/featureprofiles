@@ -14,7 +14,7 @@
 
 id {
     name: "system"
-    version: 2
+    version: 1
 }
 
 # Name
@@ -98,21 +98,17 @@ telemetry_path {
     path: "/system/clock/state/timezone-name"
 }
 
-# Admin user authentication
 config_path {
-    path: "/system/aaa/authentication/admin-user/config/admin-password"
+    path: "/system/aaa/authentication/users/user/config/username"
 }
 telemetry_path {
-    path: "/system/aaa/authentication/admin-user/state/admin-password"
+    path: "/system/aaa/authentication/users/user/state/username"
 }
 config_path {
-    path: "/system/aaa/authentication/admin-user/config/admin-password-hashed"
+    path: "/system/aaa/authentication/users/user/config/ssh-key"
 }
 telemetry_path {
-    path: "/system/aaa/authentication/admin-user/state/admin-password-hashed"
-}
-telemetry_path {
-    path: "/system/aaa/authentication/admin-user/state/admin-username"
+    path: "/system/aaa/authentication/users/user/state/ssh-key"
 }
 
 # Alarms
