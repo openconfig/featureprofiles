@@ -79,6 +79,7 @@ const (
 	bundleEther123        = "Bundle-Ether123"
 	bundleEther124        = "Bundle-Ether124"
 	lc                    = "0/0/CPU0"
+	vrf1                  = "TE"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -2551,6 +2552,8 @@ func TestBackUp(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 
+	var vrfs = []string{vrf1}
+	configVRF(t, dut, vrfs)
 	// Configure the DUT
 	configureDUT(t, dut)
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})

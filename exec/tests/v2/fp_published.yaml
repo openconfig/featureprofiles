@@ -22,7 +22,6 @@ tests:
   - name: TE-2.1 (gRIBI IPv4 Entry)
     path: feature/gribi/ate_tests/ipv4_entry_test
     args:
-      - '-deviation_gribi_preserve_only="true"'
       - '-deviation_gribi_mac_override_with_static_arp="true"'
     owners:
       - mananpat
@@ -37,8 +36,6 @@ tests:
     priority: 3
   - name: TE-4.2 (Persistence Mode)
     path: feature/gribi/ate_tests/persistence_mode_test
-    args:
-      - '-deviation_gribi_preserve_only="true"'
     priority: 4
     owners:
       - mananpat
@@ -51,14 +48,14 @@ tests:
     priority: 3
   - name: TE-3.5 (Ordering ACK Received)
     path: feature/gribi/ate_tests/ordering_ack_test
-    args:
-      - '-deviation_gribi_preserve_only="true"'
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-3.7 (Base Hierarchical NHG Update)
     path: feature/gribi/ate_tests/base_hierarchical_nhg_update
+    args:
+      - '-deviation_gribi_mac_override_with_static_arp="true"'
     owners:
       - mananpat
     mustpass: true
@@ -71,18 +68,16 @@ tests:
   - name: TE-13.2 (gRIBI route DELETE during Failover)
     path: feature/experimental/gribi/ate_tests/route_removal_during_failover_test/
     mustpass: true
-    args:
-      - '-deviation_gribi_preserve_only="true"'
     priority: 3
     # need pr/branch
   - name: TE-13.1 (gRIBI route Add during Failover)
     path: feature/experimental/gribi/ate_tests/route_addition_during_failover_test/
     mustpass: true
-    args:
-      - '-deviation_gribi_preserve_only="true"'
     priority: 3
   - name: TE-3.3 (Hierarchical weight resolution)
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
+    args:
+      - '-deviation_hierarchical_weight_resolution_tolerance="1.5"'
     owners:
       - mananpat
     skip: false
@@ -109,8 +104,6 @@ tests:
     mustpass: true
   - name: TE-3.1 (Base Hierarchical Route Installation)
     path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
-    args:
-      - '-deviation_gribi_preserve_only="true"'
     timeout: 4200
     owners:
       - mananpat
@@ -154,7 +147,11 @@ tests:
     owners:
       - agvarghe
     priority: 300
+    timeout: 3600
     mustpass: true
+    args:
+      - '-osfile="/auto/prod_weekly_archive1/bin/7.11.1.162G.DT_IMAGE/8000/8000-x64-7.11.1.162G.iso"'
+      - '-osver="7.11.1.162G"'
     skip: true
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
@@ -168,58 +165,56 @@ tests:
       - sprem
     priority: 5
     mustpass: true
-    pr: 1428
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+  - name: P4RT-1.2 (P4RT Daemon Failure)
+    path: feature/experimental/p4rt/ate_tests/p4rt_daemon_failure_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
   - name: P4RT-2.1 (P4RT Election)
     path: feature/experimental/p4rt/tests/p4rt_election
     owners:
       - sprem
     priority: 5
     mustpass: true
-    pr: 1428
   - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
     path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
     owners:
       - sprem
     priority: 5
     mustpass: true
-    pr: 1428
   - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
     path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetin_test
     owners:
       - sprem
     priority: 5
     mustpass: true
-    pr: 1428
   - name: P4RT-7.1 (LLDP PacketIn)
     path: feature/experimental/p4rt/ate_tests/lldp_packetin_test
     owners:
       - sprem
     priority: 5
     mustpass: true
-    pr: 1428
   - name: P4RT-7.2 (LLDP PacketOut)
     path: feature/experimental/p4rt/ate_tests/lldp_packetout_test
     owners:
       - sprem
     priority: 5
     mustpass: true
-    pr: 1428
   - name: P4RT-5.2 (Traceroute Packetout)
     path: feature/experimental/p4rt/ate_tests/traceroute_packetout_test
     owners:
       - sprem
     priority: 5
     mustpass: true
-    pr: 1428
   - name: P4RT-5.1 (Traceroute Packetin)
     path: feature/experimental/p4rt/ate_tests/traceroute_packetin_test
     owners:
       - sprem
     priority: 5
     mustpass: true
-    pr: 1428
   - name: gNMI-1.1 (cli Origin)
     path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
     owners:
@@ -246,8 +241,6 @@ tests:
     priority: 38
   - name: RT-5.2 (Aggregate Interfaces)
     path: feature/interface/aggregate/ate_tests/aggregate_test
-    # args:
-    #  - '-deviation_interface_operstatus="true"'
     owners:
       - agvarghe
     mustpass: true
@@ -296,11 +289,11 @@ tests:
       - '-deviation_missing_cpu_mfgName="true"'
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
+      - '-deviation_sw_version_unsupported="true"'
     owners:
       - agvarghe
     mustpass: true
     priority: 34
-    pr: 1428
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
     args:
@@ -437,7 +430,6 @@ tests:
     skip: false
     args:
       - '-deviation_rpl_under_neighbor_afisafi="true"'
-      - '-deviation_bgp_prefix_overlimit="true"'
   - name: RT-1.4 (BGP Graceful Restart)
     path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
     owners:
@@ -446,7 +438,6 @@ tests:
     priority: 54
     skip: false
     args:
-      - '-deviation_bgp_state_active_acl_deny="true"'
       - '-deviation_rpl_under_peergroup="true"'
   - name: RT-1.7 (Local BGP Test)
     path: feature/bgp/tests/local_bgp_test
@@ -457,7 +448,6 @@ tests:
     skip: true # requires 2 dut
     args:
       - '-deviation_connect_retry="true"'
-      - '-deviation_missing_bgp_neighbor_state_peer_group="true"'
       - '-deviation_rpl_under_neighbor_afisafi="true"'
       - '-deviation_missing_bgp_last_notification_error_code="true"'
   - name: RT-1.2 (BGP Policy and Route Installation)
@@ -556,7 +546,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: DP-1.9 (WRR traffic-test)
-    path: feature/experimental/qos/ate_tests/wrr_traffic_test
+    path: feature/qos/ate_tests/wrr_traffic_test
     owners:
       - saarvind
     mustpass: true
@@ -605,3 +595,8 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+  - name: gNMI-1.15 (Set Requests)
+    path: feature/system/gnmi/set/tests/gnmi_set_test
+    owners:
+      - mbagherz
+    mustpass: false
