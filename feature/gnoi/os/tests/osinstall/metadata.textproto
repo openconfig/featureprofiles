@@ -4,3 +4,4 @@
 uuid: "562b09f5-05f6-4523-9bb2-c0b4a32310fe"
 plan_id: "gNOI-4.1"
 description: "Software Upgrade"
+testbed: TESTBED_DUT_ATE_2LINKS

@@ -508,9 +508,11 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 	// Starting ATE Traffic
 	t.Log("Verify Traffic statistics")
 	if tc.name == "OverLimit" {
-		trafficDuration = trafficDuration - time.Duration(elapsed.Nanoseconds())
+		trafficDurationOverlimit := grRestartTime - time.Duration(elapsed.Nanoseconds())
+		sendTraffic(t, ate, conf.allFlows, trafficDurationOverlimit)
+	} else {
+		sendTraffic(t, ate, conf.allFlows, trafficDuration)
 	}
-	sendTraffic(t, ate, conf.allFlows, trafficDuration)
 	tolerance := float32(deviations.BGPTrafficTolerance(dut))
 	if tc.wantNoPacketLoss {
 		t.Run("verifyNoPacketLoss", func(t *testing.T) {
@@ -518,9 +520,8 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 		})
 	} else {
 		t.Run("verifyPacketLoss", func(t *testing.T) {
-			if !deviations.BGPPrefixOverlimit(dut) && tc.name == "OverLimit" {
-				tc.verifyPacketLoss(t, ate, conf.allFlows, tolerance)
-			}
+			tc.verifyPacketLoss(t, ate, conf.allFlows, tolerance)
+
 		})
 	}
 }
