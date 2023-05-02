@@ -203,19 +203,16 @@ func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
 }
 
 // MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
-// Set this flag to skip checking the leaf.
 func MissingInterfacePhysicalChannel(_ *ondatra.DUTDevice) bool {
 	return *missingInterfacePhysicalChannel
 }
 
 // MissingInterfaceHardwarePort returns if device does not support interface/hardwareport leaf.
-// Set this flag to skip checking the leaf.
 func MissingInterfaceHardwarePort(_ *ondatra.DUTDevice) bool {
 	return *missingInterfaceHardwarePort
 }
 
 // MissingCPUMfgName returns if device does not support component/MfgName leaf for CPU components.
-// Set this flag to skip skip checking the leaf.
 func MissingCPUMfgName(_ *ondatra.DUTDevice) bool {
 	return *missingCPUMfgName
 }
