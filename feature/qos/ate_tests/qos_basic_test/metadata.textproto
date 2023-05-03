@@ -4,3 +4,4 @@
 uuid: "8e6a4bdd-7e4e-4c2a-90d8-55f3543f9e18"
 plan_id: "DP-1.14"
 description: "QoS basic test"
+testbed: TESTBED_DUT_ATE_4LINKS
