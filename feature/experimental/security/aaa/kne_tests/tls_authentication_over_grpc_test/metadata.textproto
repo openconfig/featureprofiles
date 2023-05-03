@@ -4,3 +4,4 @@
 uuid: "6163fd8a-2b42-4e3d-ad98-3c940aa70a4c"
 plan_id: "SEC-3.1"
 description: "Authentication"
+testbed: TESTBED_DUT

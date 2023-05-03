@@ -4,3 +4,4 @@
 uuid: "f28e7a1a-7ce4-4ccc-810e-1d6cc4eac21e"
 plan_id: "gNMI-1.2"
 description: "Benchmarking: Full Configuration Replace"
+testbed: TESTBED_DUT_ATE_2LINKS

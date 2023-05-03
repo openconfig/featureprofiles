@@ -4,3 +4,4 @@
 uuid: "3265f4c7-79eb-408e-ac89-f92f56fea4a9"
 plan_id: "TE-2.1"
 description: "gRIBI IPv4 Entry"
+testbed: TESTBED_DUT_ATE_4LINKS
