@@ -4,3 +4,4 @@
 uuid: "363b15d2-59c4-442d-a459-7f58b63559dc"
 plan_id: "TE-13.1"
 description: "gRIBI route ADD during Failover"
+testbed: TESTBED_DUT_ATE_2LINKS

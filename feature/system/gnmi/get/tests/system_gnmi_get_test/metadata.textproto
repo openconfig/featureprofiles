@@ -4,3 +4,4 @@
 uuid: "07d44bd3-fed4-4361-8884-a87fad8153bd"
 plan_id: "gNMI-1.9"
 description: "Get requests"
+testbed: TESTBED_DUT_ATE_2LINKS
