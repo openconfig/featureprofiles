@@ -101,7 +101,7 @@ func TestOSInstall(t *testing.T) {
 	tc.verifyInstall(ctx, t)
 }
 
-func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool, noReboot bool) {
+func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noReboot bool) {
 	t.Helper()
 	if standby {
 		t.Log("OS.Activate is started for standby RP.")
