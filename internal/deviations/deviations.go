@@ -229,7 +229,7 @@ func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
 	return *subinterfacePacketCountersMissing
 }
 
-// OSActivateNoReboot returns if device requires seperate reboot to activate OS.
+// OSActivateNoReboot returns if device requires separate reboot to activate OS.
 func OSActivateNoReboot(_ *ondatra.DUTDevice) bool {
 	return *osActivateNoReboot
 }
@@ -281,7 +281,7 @@ var (
 
 	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
-	osActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires seperate reboot to activate OS.")
+	osActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires separate reboot to activate OS.")
 
 	installOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
 
