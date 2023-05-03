@@ -4,3 +4,4 @@
 uuid: "58c13a5a-d3b3-4a2c-98a7-0404596ee8ea"
 plan_id: "gNMI-1.10"
 description: "Telemetry: Basic Check"
+testbed: TESTBED_DUT_ATE_2LINKS

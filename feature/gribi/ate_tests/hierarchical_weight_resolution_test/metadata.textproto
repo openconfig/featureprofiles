@@ -4,3 +4,4 @@
 uuid: "93695155-2898-47d4-9bbb-ac40611d3882"
 plan_id: "TE-3.3"
 description: "Hierarchical weight resolution"
+testbed: TESTBED_DUT_ATE_2LINKS
