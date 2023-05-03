@@ -396,7 +396,6 @@ tests:
     args:
       - '-deviation_isis_interface_level1_disable_required="true"'
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-      - '-deviation_isis_hello_padding_adaptive_mode_not_supported="true"'
       - '-deviation_isis_single_topology_required="true"'
       - '-deviation_isis_protocol_enabled_not_required="true"'
       - '-deviation_isis_instance_enabled_not_required="true"'
