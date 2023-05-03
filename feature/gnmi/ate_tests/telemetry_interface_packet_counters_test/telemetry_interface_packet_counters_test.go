@@ -100,7 +100,8 @@ func TestInterfaceCounters(t *testing.T) {
 	ipv4CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/"
 	ipv6CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/"
 
-	skipIpv6DiscardedPkts := *deviations.SubinterfacePacketCountersMissing || deviations.Ipv6DiscardedPktsUnsupported(dut)
+	skipSubinterfacePacketCountersMissing := deviations.SubinterfacePacketCountersMissing(dut)
+	skipIpv6DiscardedPkts := skipSubinterfacePacketCountersMissing || deviations.Ipv6DiscardedPktsUnsupported(dut)
 
 	cases := []struct {
 		desc    string
@@ -127,22 +128,22 @@ func TestInterfaceCounters(t *testing.T) {
 		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
 		counter: ipv4Counters.InPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
 		counter: ipv4Counters.OutPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
 		counter: ipv6Counters.InPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
 		counter: ipv6Counters.OutPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6InDiscardedPkts",
 		path:    ipv6CounterPath + "in-discarded-pkts",

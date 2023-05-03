@@ -4,3 +4,4 @@
 uuid: "dd744f00-c8a7-4604-8c46-241ff934d6e2"
 plan_id: "TE-8.2"
 description: "Supervisor Failure"
+testbed: TESTBED_DUT_ATE_2LINKS
