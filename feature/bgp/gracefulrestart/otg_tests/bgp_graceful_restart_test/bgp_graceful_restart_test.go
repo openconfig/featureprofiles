@@ -115,7 +115,7 @@ var (
 		IPv6Len: plenIPv6,
 	}
 	gRIBIDaemons = map[ondatra.Vendor]string{
-		ondatra.ARISTA:  "Gribi",
+		ondatra.ARISTA:  "Bgp-main",
 		ondatra.CISCO:   "emsd",
 		ondatra.JUNIPER: "rpd",
 		ondatra.NOKIA:   "sr_bgp_mgr",

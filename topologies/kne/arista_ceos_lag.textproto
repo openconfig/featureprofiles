@@ -32,6 +32,13 @@ nodes: {
         }
     }
     services: {
+        key: 6031
+        value: {
+            name: "gnoi"
+            inside: 6030
+        }
+    }
+    services: {
         key: 9340
         value: {
             name: "gribi"
