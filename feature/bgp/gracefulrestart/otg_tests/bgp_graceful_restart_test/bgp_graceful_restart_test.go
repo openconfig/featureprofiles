@@ -16,7 +16,6 @@ package bgp_graceful_restart_test
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -25,11 +24,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	gnps "github.com/openconfig/gnoi/system"
+
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/gnmi/oc/acl"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -56,7 +55,7 @@ const (
 	trafficDuration          = 1 * time.Minute
 	grTimer                  = 2 * time.Minute
 	grRestartTime            = 120
-	grStaleRouteTime         = 300
+	grStaleRouteTime         = 120
 	ipv4SrcTraffic           = "192.0.2.2"
 	ipv6SrcTraffic           = "2001:db8::192:0:2:2"
 	ipv4DstTrafficStart      = "203.0.113.1"
@@ -115,16 +114,13 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
+	gRIBIDaemons = map[ondatra.Vendor]string{
+		ondatra.ARISTA:  "Gribi",
+		ondatra.CISCO:   "emsd",
+		ondatra.JUNIPER: "rpd",
+		ondatra.NOKIA:   "sr_bgp_mgr",
+	}
 )
-
-func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
-	d := &oc.Root{}
-	rp := d.GetOrCreateRoutingPolicy()
-	pd := rp.GetOrCreatePolicyDefinition(name)
-	st := pd.GetOrCreateStatement("id-1")
-	st.GetOrCreateActions().PolicyResult = pr
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-}
 
 // configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -210,13 +206,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
 		pg1rpl6.SetExportPolicy([]string{"ALLOW"})
 		pg1rpl6.SetImportPolicy([]string{"ALLOW"})
-	} else {
-		rpl := pg.GetOrCreateApplyPolicy()
-		rpl.SetExportPolicy([]string{"ALLOW"})
-		rpl.SetImportPolicy([]string{"ALLOW"})
-		rplv6 := pgv6.GetOrCreateApplyPolicy()
-		rplv6.SetExportPolicy([]string{"ALLOW"})
-		rplv6.SetImportPolicy([]string{"ALLOW"})
+
 	}
 
 	for _, nbr := range nbrs {
@@ -311,45 +301,43 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-
+	t.Helper()
 	config := ate.OTG().NewConfig(t)
-	srcPort := config.Ports().Add().SetName("port1")
-	dstPort := config.Ports().Add().SetName("port2")
+	p1 := ate.Port(t, "port1")
+	ateSrc.AddToOTG(config, p1, &dutSrc)
+	p2 := ate.Port(t, "port2")
+	ateDst.AddToOTG(config, p2, &dutDst)
+	srcDev := config.Devices().Items()[0]
+	srcEth := srcDev.Ethernets().Items()[0]
+	srcIpv4 := srcEth.Ipv4Addresses().Items()[0]
+	srcIpv6 := srcEth.Ipv6Addresses().Items()[0]
+	dstDev := config.Devices().Items()[1]
+	dstEth := dstDev.Ethernets().Items()[0]
+	dstIpv4 := dstEth.Ipv4Addresses().Items()[0]
+	dstIpv6 := dstEth.Ipv6Addresses().Items()[0]
 
-	srcDev := config.Devices().Add().SetName(ateSrc.Name)
-	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
-	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
-	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
-	srcIpv6 := srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
-	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
-
-	dstDev := config.Devices().Add().SetName(ateDst.Name)
-	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
-	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dstPort.Name())
-	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
-	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
-	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
-	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
-
-	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
+	srcBgp := srcDev.Bgp().SetRouterId(ateSrc.IPv4)
 	srcBgp4Peer := srcBgp.Ipv4Interfaces().Add().SetIpv4Name(srcIpv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
+	srcBgp4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime).SetEnableLlgr(true)
 	srcBgp4Peer.SetPeerAddress(srcIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	srcBgp6Peer := srcBgp.Ipv6Interfaces().Add().SetIpv6Name(srcIpv6.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP6.peer")
+	srcBgp6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime).SetEnableLlgr(true)
 	srcBgp6Peer.SetPeerAddress(srcIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
 	dstBgp := dstDev.Bgp().SetRouterId(dstIpv4.Address())
 	dstBgp4Peer := dstBgp.Ipv4Interfaces().Add().SetIpv4Name(dstIpv4.Name()).Peers().Add().SetName(ateDst.Name + ".BGP4.peer")
+	dstBgp4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime).SetEnableLlgr(true)
 	dstBgp4Peer.SetPeerAddress(dstIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().SetIpv6Name(dstIpv6.Name()).Peers().Add().SetName(ateDst.Name + ".BGP6.peer")
+	dstBgp6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime).SetEnableLlgr(true)
 	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	srcBgp4PeerRoutes := dstBgp4Peer.V4Routes().Add().SetName("bgpNeti1")
+	srcBgp4PeerRoutes := srcBgp4Peer.V4Routes().Add().SetName("bgpNeti1")
 	srcBgp4PeerRoutes.SetNextHopIpv4Address(dstIpv4.Address()).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	srcBgp4PeerRoutes.Addresses().Add().SetAddress(advertisedRoutesv4Net2).SetPrefix(advertisedRoutesv4Prefix).SetCount(routeCount)
-	srcBgp6PeerRoutes := dstBgp6Peer.V6Routes().Add().SetName("bgpNeti1v6")
+	srcBgp6PeerRoutes := srcBgp6Peer.V6Routes().Add().SetName("bgpNeti1v6")
 	srcBgp6PeerRoutes.SetNextHopIpv6Address(dstIpv6.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
@@ -385,6 +373,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 	t.Log("Pushing config to ATE and starting protocols...")
+
 	return config
 }
 
@@ -403,7 +392,7 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config)
 		if lossPct := lostPackets * 100 / txPackets; lossPct < 5.0 {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
 		} else {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v", f.Name(), lossPct)
+			t.Errorf("Traffic Loss Pct for Flow %s: got %f", f.Name(), lossPct)
 		}
 	}
 }
@@ -414,8 +403,8 @@ func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) 
 	for _, f := range c.Flows().Items() {
 		t.Logf("Verifying flow metrics for flow %s\n", f.Name())
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 		lostPackets := txPackets - rxPackets
 		if txPackets == 0 {
 			t.Fatalf("Tx packets should be higher than 0 for flow %s", f.Name())
@@ -423,296 +412,70 @@ func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) 
 		if lossPct := lostPackets * 100 / txPackets; lossPct > 99.0 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
-			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", f.Name(), lossPct)
+			t.Errorf("Traffic %s is expected to fail: got %f, want 100%% failure", f.Name(), lossPct)
 		}
 	}
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) {
-	otg := ate.OTG()
+	t.Helper()
 	t.Logf("Starting traffic")
-	otg.StartTraffic(t)
+	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
 	t.Logf("Stop traffic")
-	otg.StopTraffic(t)
+	ate.OTG().StopTraffic(t)
 }
 
-func configACL(d *oc.Root, name string) *oc.Acl_AclSet {
-	acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
-	aclEntry10 := acl.GetOrCreateAclEntry(10)
-	aclEntry10.SequenceId = ygot.Uint32(10)
-	aclEntry10.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_DROP
-	a := aclEntry10.GetOrCreateIpv4()
-	a.SourceAddress = ygot.String(aclNullPrefix)
-	a.DestinationAddress = ygot.String(ateDstCIDR)
-
-	aclEntry20 := acl.GetOrCreateAclEntry(20)
-	aclEntry20.SequenceId = ygot.Uint32(20)
-	aclEntry20.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_DROP
-	a2 := aclEntry20.GetOrCreateIpv4()
-	a2.SourceAddress = ygot.String(ateDstCIDR)
-	a2.DestinationAddress = ygot.String(aclNullPrefix)
-
-	aclEntry30 := acl.GetOrCreateAclEntry(30)
-	aclEntry30.SequenceId = ygot.Uint32(30)
-	aclEntry30.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
-	a3 := aclEntry30.GetOrCreateIpv4()
-	a3.SourceAddress = ygot.String(aclNullPrefix)
-	a3.DestinationAddress = ygot.String(aclNullPrefix)
-	return acl
-}
-
-func configAdmitAllACL(d *oc.Root, name string) *oc.Acl_AclSet {
-	acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
-	acl.DeleteAclEntry(10)
-	acl.DeleteAclEntry(20)
-	return acl
-}
-
-func configACLInterface(t *testing.T, iFace *oc.Acl_Interface, ifName string) *acl.Acl_InterfacePath {
-	aclConf := gnmi.OC().Acl().Interface(ifName)
-	if ifName != "" {
-		iFace.GetOrCreateIngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
-		iFace.GetOrCreateInterfaceRef().Interface = ygot.String(ifName)
-		iFace.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	} else {
-		iFace.GetOrCreateIngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
-		iFace.DeleteIngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
-	}
-	return aclConf
-}
-
-// Helper function to replicate configACL() configs in native model
-// Define the values for each ACL entry and marshal for json encoding.
-// Then craft a gNMI set Request to update the changes.
-func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
+// createGracefulRestartAction create a bgp control action for initiating the graceful restart process
+func createGracefulRestartAction(t *testing.T, peerNames []string, restartDelay uint32) gosnappi.ControlAction {
 	t.Helper()
-	switch d.Vendor() {
-	case ondatra.NOKIA:
-		var aclEntry10Val = []any{
-			map[string]any{
-				"action": map[string]any{
-					"drop": map[string]any{},
-				},
-				"match": map[string]any{
-					"destination-ip": map[string]any{
-						"prefix": ateDstCIDR,
-					},
-					"source-ip": map[string]any{
-						"prefix": aclNullPrefix,
-					},
-				},
-			},
-		}
-		entry10Update, err := json.Marshal(aclEntry10Val)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
+	grAction := gosnappi.NewControlAction().SetChoice(gosnappi.ControlActionChoice.PROTOCOL)
+	grAction.Protocol().SetChoice(gosnappi.ActionProtocolChoice.BGP).Bgp().
+		SetChoice(gosnappi.ActionProtocolBgpChoice.INITIATE_GRACEFUL_RESTART).InitiateGracefulRestart().
+		SetPeerNames(peerNames).SetRestartDelay(restartDelay)
+	return grAction
+}
 
-		var aclEntry20Val = []any{
-			map[string]any{
-				"action": map[string]any{
-					"drop": map[string]any{},
-				},
-				"match": map[string]any{
-					"source-ip": map[string]any{
-						"prefix": ateDstCIDR,
-					},
-					"destination-ip": map[string]any{
-						"prefix": aclNullPrefix,
-					},
-				},
-			},
+// findProcessByName uses telemetry to find out the PID of a process
+func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
+	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	var pID uint64
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			pID = proc.GetPid()
+			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
 		}
-		entry20Update, err := json.Marshal(aclEntry20Val)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
+	}
+	return pID
+}
 
-		var aclEntry30Val = []any{
-			map[string]any{
-				"action": map[string]any{
-					"accept": map[string]any{},
-				},
-				"match": map[string]any{
-					"source-ip": map[string]any{
-						"prefix": aclNullPrefix,
-					},
-					"destination-ip": map[string]any{
-						"prefix": aclNullPrefix,
-					},
-				},
-			},
-		}
-		entry30Update, err := json.Marshal(aclEntry30Val)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-		gpbSetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "srl",
-			},
-			Update: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "acl"},
-							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
-							{Name: "entry", Key: map[string]string{"sequence-id": "10"}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: entry10Update,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "acl"},
-							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
-							{Name: "entry", Key: map[string]string{"sequence-id": "20"}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: entry20Update,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "acl"},
-							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
-							{Name: "entry", Key: map[string]string{"sequence-id": "30"}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: entry30Update,
-						},
-					},
-				},
-			},
-		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("Unexpected error configuring SRL ACL: %v", err)
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
+// gNOIKillProcess kills a daemon on the DUT, given its name and pid.
+func gNOIKillProcess(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string, pID uint32) {
+	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
+	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
+	t.Logf("Got kill process response: %v\n\n", killResponse)
+	if err != nil {
+		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
 	}
 }
 
-// Helper function to replicate AdmitAllACL() configs in native model,
-// then craft a gNMI set Request to update the changes.
-func configAdmitAllACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
-	t.Helper()
-	switch d.Vendor() {
-	case ondatra.NOKIA:
-		gpbDelRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "srl",
-			},
-			Delete: []*gpb.Path{
-				{
-					Elem: []*gpb.PathElem{
-						{Name: "acl"},
-						{Name: "ipv4-filter", Key: map[string]string{"name": name}},
-						{Name: "entry", Key: map[string]string{"sequence-id": "10"}},
-					},
-				},
-				{
-					Elem: []*gpb.PathElem{
-						{Name: "acl"},
-						{Name: "ipv4-filter", Key: map[string]string{"name": name}},
-						{Name: "entry", Key: map[string]string{"sequence-id": "20"}},
-					},
-				},
-			},
-		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
-		if _, err := gnmiClient.Set(context.Background(), gpbDelRequest); err != nil {
-			t.Fatalf("Unexpected error removing SRL ACL: %v", err)
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
-	}
-}
-
-// Helper function to replicate configACLInterface in native model.
-// Set ACL at interface ingress,
-// then craft a gNMI set Request to update the changes.
-func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string) {
-	t.Helper()
-	switch d.Vendor() {
-	case ondatra.NOKIA:
-		var interfaceAclVal = []any{
-			map[string]any{
-				"ipv4-filter": []any{
-					aclName,
-				},
-			},
-		}
-		interfaceAclUpdate, err := json.Marshal(interfaceAclVal)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-		gpbSetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "srl",
-			},
-			Update: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "interface", Key: map[string]string{"name": ifName}},
-							{Name: "subinterface", Key: map[string]string{"index": "0"}},
-							{Name: "acl"},
-							{Name: "input"},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: interfaceAclUpdate,
-						},
-					},
-				},
-			},
-		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("Unexpected error configuring interface ACL: %v", err)
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
-	}
-}
-
-func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
+func TestTrafficWithGracefulRestartReceiver(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
 	// Configure interface on the DUT
-	t.Run("configureDut", func(t *testing.T) {
-		t.Log("Start DUT interface Config")
-		configureDUT(t, dut)
-		if *deviations.RoutePolicyUnderPeerGroup {
-			configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-		}
-	})
+	t.Log("Start DUT interface Config")
+	configureDUT(t, dut)
 
 	// Configure BGP+Neighbors on the DUT
-	t.Run("configureBGP", func(t *testing.T) {
-		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
-		dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-		nbrList := buildNbrList(ateAS)
-		dutConf := bgpWithNbr(dutAS, nbrList)
-		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
-	})
+	t.Log("Configure BGP with Graceful Restart option under Global Bgp")
+	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	nbrList := buildNbrList(ateAS)
+	dutConf := bgpWithNbr(dutAS, nbrList)
+	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+
 	// ATE Configuration.
 	t.Log("Start ATE Config")
 	config := configureATE(t, ate)
@@ -726,40 +489,169 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		t.Log("Check BGP parameters")
 		checkBgpStatus(t, dut)
 	})
-	// Starting ATE Traffic
-	t.Run("VerifyTrafficPassBeforeAcLBlock", func(t *testing.T) {
-		t.Log("Send Traffic with GR timer enabled. Traffic should pass")
-		sendTraffic(t, ate, config)
-		verifyNoPacketLoss(t, ate, config)
-	})
-	// Configure an ACL to block BGP
-	d := &oc.Root{}
-	ifName := dut.Port(t, "port2").Name()
-	iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
-	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
-		t.Log("Configure Acl to block BGP on port 179")
-		const stopDuration = 45 * time.Second
-		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
-		aclConf := configACLInterface(t, iFace, ifName)
-		t.Log("Starting traffic")
+
+	var startTime time.Time
+	// Send Graceful Restart Trigger from ATE to DUT within the GR timer configured on the DUT
+	t.Run("InitiateGracefulRestartWithinDUTGRTimer", func(t *testing.T) {
+		// starting traffic before graceful restart
+		t.Log("Starting traffic before Graceful restrat Trigger from OTG")
 		ate.OTG().StartTraffic(t)
-		startTime := time.Now()
-		gnmi.Replace(t, dut, aclConf.Config(), iFace)
-		replaceDuration := time.Since(startTime)
-		time.Sleep(grTimer - stopDuration - replaceDuration)
+		startTime = time.Now()
 		t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
+		t.Log("Send Graceful Restart Trigger from OTG to DUT -- trigger GR Restart timer(60s) < configured GR restart Timer(120s)")
+		ate.OTG().SetControlAction(t, createGracefulRestartAction(t, []string{"atedst.BGP4.peer"}, 60))
+	})
+	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	nbrPath := statePath.Neighbor(ateDst.IPv4)
+
+	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
+		t.Log("Waiting for BGP neighbor to go to ACTIVE state after GR Trigger to DUT...")
+		bgpState := oc.Bgp_Neighbor_SessionState_ACTIVE
+		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			currState, ok := val.Val()
+			return ok && currState == bgpState
+		}).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+			t.Errorf("BGP session did not go Down as expected")
+		}
+	})
+
+	const stopDuration = 45 * time.Second
+	replaceDuration := time.Since(startTime)
+	time.Sleep(grTimer - stopDuration - replaceDuration)
+	ate.OTG().StopTraffic(t)
+	t.Log("Traffic stopped")
+	verifyNoPacketLoss(t, ate, config)
+
+	t.Run("VerifyBGPEstablished", func(t *testing.T) {
+		t.Logf("Waiting for BGP neighbor to establish...")
+		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			currState, ok := val.Val()
+			return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		}).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+			t.Errorf("BGP session not Established as expected")
+		}
+	})
+
+	// Send Graceful Restart Trigger from ATE to DUT after the expiration of the GR timer configured on the DUT
+	t.Run("InitiateGracefulRestartExceedingDUTGRTimer", func(t *testing.T) {
+		t.Log("Send Graceful Restart Trigger from OTG to DUT -- Trigger GR Restart timer(140s) > configured GR Stale Time (120s) ")
+		ate.OTG().SetControlAction(t, createGracefulRestartAction(t, []string{"atedst.BGP4.peer"}, grStaleRouteTime+20))
+		time.Sleep(time.Second * grStaleRouteTime)
+		ate.OTG().StartTraffic(t)
+	})
+	t.Run("VerifyBGPActiveState", func(t *testing.T) {
+		t.Log("Waiting for BGP neighbor to go to ACTIVE state after GR Trigger to DUT...")
+		bgpState := oc.Bgp_Neighbor_SessionState_ACTIVE
+		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			currState, ok := val.Val()
+			return ok && currState == bgpState
+		}).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+			t.Errorf("BGP session did not go Down as expected")
+		}
+	})
+
+	time.Sleep(10 * time.Second)
+	t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
+		t.Log("Send Traffic Again after GR timer has expired. This traffic should fail!")
 		ate.OTG().StopTraffic(t)
-		t.Log("Traffic stopped")
-		verifyNoPacketLoss(t, ate, config)
+		confirmPacketLoss(t, ate, config)
+	})
+}
+
+func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	ctx := context.Background()
+
+	// Configure interface on the DUT
+	t.Log("Start DUT interface Config")
+	configureDUT(t, dut)
+
+	// Configure BGP+Neighbors on the DUT
+	t.Log("Configure BGP with Graceful Restart option under Global Bgp")
+	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	nbrList := buildNbrList(ateAS)
+	dutConf := bgpWithNbr(dutAS, nbrList)
+	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+
+	// ATE Configuration.
+	t.Log("Start ATE Config")
+	config := configureATE(t, ate)
+
+	// Verify Port Status
+	t.Run("verifyDUTPorts", func(t *testing.T) {
+		t.Log("Verifying port status")
+		verifyPortsUp(t, dut.Device)
+	})
+	t.Run("VerifyBGPParameters", func(t *testing.T) {
+		t.Log("Check BGP parameters")
+		checkBgpStatus(t, dut)
+	})
+
+	// Starting traffic before graceful restart from DUT
+	t.Log("Starting traffic before Graceful restart trigger from DUT")
+	ate.OTG().StartTraffic(t)
+	startTime := time.Now()
+	t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
+
+	// Send GNOI Graceful Restart Trigger from DUT to ATE
+	// Find the PID of gRIBI Daemon.
+	var pId uint64
+	pName := gRIBIDaemons[dut.Vendor()]
+
+	t.Run("FindGRIBIDaemonPid", func(t *testing.T) {
+		pId = findProcessByName(ctx, t, dut, pName)
+		if pId == 0 {
+			t.Fatalf("Couldn't find pid of gRIBI daemon '%s'", pName)
+		} else {
+			t.Logf("Pid of gRIBI daemon '%s' is '%d'", pName, pId)
+		}
+	})
+
+	// Kill gRIBI daemon through gNOI Kill Request.
+	t.Run("ExecuteGnoiKill", func(t *testing.T) {
+		// TODO - pid type is uint64 in oc-system model, but uint32 in gNOI Kill Request proto.
+		// Until the models are brought in line, typecasting the uint64 to uint32.
+		gNOIKillProcess(ctx, t, dut, pName, uint32(pId))
+		// Wait for a bit for gRIBI daemon on the DUT to restart.
 	})
 
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
+
 	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
-		t.Log("Waiting for BGP neighbor to Not be in Established state after applying ACL DENY policy..")
+		t.Log("Waiting for BGP neighbor to go to ACTIVE state after GR Trigger to DUT...")
+		bgpState := oc.Bgp_Neighbor_SessionState_ACTIVE
 		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			currState, ok := val.Val()
-			return ok && currState != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+			return ok && currState == bgpState
+		}).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+			t.Errorf("BGP session did not go Down as expected")
+		}
+	})
+
+	const stopDuration = 45 * time.Second
+	replaceDuration := time.Since(startTime)
+	time.Sleep(grTimer - stopDuration - replaceDuration)
+	ate.OTG().StopTraffic(t)
+	t.Log("Traffic stopped")
+	verifyNoPacketLoss(t, ate, config)
+
+	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
+		t.Log("Waiting for BGP neighbor to go to ACTIVE state after initiating the restart")
+		bgpState := oc.Bgp_Neighbor_SessionState_ACTIVE
+		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			currState, ok := val.Val()
+			return ok && currState == bgpState
 		}).Await(t)
 		if !ok {
 			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
@@ -775,18 +667,6 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		t.Log("Send Traffic Again after GR timer has expired. This traffic should fail!")
 		sendTraffic(t, ate, config)
 		confirmPacketLoss(t, ate, config)
-	})
-
-	t.Run("RemoveAclInterface", func(t *testing.T) {
-		t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
-		if deviations.UseVendorNativeACLConfig(dut) {
-			configAdmitAllACLNative(t, dut, aclName)
-			configACLInterfaceNative(t, dut, ifName)
-		} else {
-			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
-			aclPath := configACLInterface(t, iFace, ifName)
-			gnmi.Replace(t, dut, aclPath.Config(), iFace)
-		}
 	})
 
 	t.Run("VerifyBGPEstablished", func(t *testing.T) {
