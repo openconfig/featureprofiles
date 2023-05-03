@@ -4,3 +4,4 @@
 uuid: "0a8a23e4-ea4e-45b6-ad09-fe763d1b8581"
 plan_id: "DP-1.3"
 description: "QoS ECN feature config"
+testbed: TESTBED_DUT_ATE_2LINKS

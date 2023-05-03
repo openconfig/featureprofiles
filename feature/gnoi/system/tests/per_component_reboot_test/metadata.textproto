@@ -4,3 +4,4 @@
 uuid: "7c282986-8100-416a-9364-1893ae9df055"
 plan_id: "gNOI-3.2"
 description: "Per-Component Reboot"
+testbed: TESTBED_DUT_ATE_2LINKS

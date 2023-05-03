@@ -1,9 +1,8 @@
 # proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
 
-# This testbed provides 2 DUTs and 4 ports between them, connected
-# pairwise.  This is used for control plane testing, not traffic
-# testing.
+# This testbed provides 2 DUTs with 4 links between them.
+# This is used for control plane testing, not traffic testing.
 
 duts {
   id: "dut1"

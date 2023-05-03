@@ -4,3 +4,4 @@
 uuid: "78ceceb4-cd33-4d4c-b5aa-b7844d4dd4f1"
 plan_id: "RT-1.7"
 description: "Local BGP Test"
+testbed: TESTBED_DUT_DUT_4LINKS

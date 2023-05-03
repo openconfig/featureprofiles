@@ -149,10 +149,10 @@ func TestInterfaceOperStatus(t *testing.T) {
 }
 
 func TestInterfacePhysicalChannel(t *testing.T) {
-	if *deviations.MissingInterfacePhysicalChannel {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.MissingInterfacePhysicalChannel(dut) {
 		t.Skip("Test is skipped due to MissingInterfacePhysicalChannel deviation")
 	}
-	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
 	phyChannel := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).PhysicalChannel().State())
@@ -209,11 +209,10 @@ func TestInterfaceStatusChange(t *testing.T) {
 }
 
 func TestHardwarePort(t *testing.T) {
-	if *deviations.MissingInterfaceHardwarePort {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.MissingInterfaceHardwarePort(dut) {
 		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
 	}
-
-	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
 	// Verify HardwarePort leaf is present under interface.
@@ -525,7 +524,7 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !*deviations.MissingCPUMfgName {
+		if !deviations.MissingCPUMfgName(dut) {
 			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
 				t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 			} else {
@@ -754,6 +753,18 @@ func TestP4rtNodeID(t *testing.T) {
 	}
 }
 
+func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
+	if deviations.InterfaceCountersFromContainer(dut) {
+		inPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
+		outPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
+		return inPkts, outPkts
+	}
+
+	inPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
+	outPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
+	return inPkts, outPkts
+}
+
 func TestIntfCounterUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
@@ -801,12 +812,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	otg.StartProtocols(t)
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
-	dutInPktsBeforeTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
-	dutOutPktsBeforeTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
-	if *deviations.InterfaceCountersFromContainer {
-		dutInPktsBeforeTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
-		dutOutPktsBeforeTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
-	}
+	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	otg.StartTraffic(t)
 	time.Sleep(10 * time.Second)
@@ -839,12 +845,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	if lossPct >= 1 {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 1", flowName, lossPct)
 	}
-	dutInPktsAfterTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
-	dutOutPktsAfterTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
-	if *deviations.InterfaceCountersFromContainer {
-		dutInPktsAfterTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
-		dutOutPktsAfterTraffic = *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
-	}
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
 	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < ateInPkts {

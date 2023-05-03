@@ -99,11 +99,6 @@ func CLITakesPrecedenceOverOC(_ *ondatra.DUTDevice) bool {
 	return *cliTakesPrecedenceOverOC
 }
 
-// BGPPrefixOverlimit returns whether the BGP prefix overlimit retry timer is supported.
-func BGPPrefixOverlimit(_ *ondatra.DUTDevice) bool {
-	return *bgpPrefixOverlimit
-}
-
 // BGPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
 func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
 	return *bgpTrafficTolerance
@@ -184,10 +179,49 @@ func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
 	return *hierarchicalWeightResolutionTolerance
 }
 
+// InterfaceCountersFromContainer returns if the device only supports querying counters from the state container, not from individual counter leaves.
+func InterfaceCountersFromContainer(_ *ondatra.DUTDevice) bool {
+	return *interfaceCountersFromContainer
+}
+
+// IPNeighborMissing returns true if the device does not support interface/ipv4(6)/neighbor,
+// so test can suppress the related check for interface/ipv4(6)/neighbor.
+func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
+	return *ipNeighborMissing
+}
+
 // NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
 // OpenConfig defaults the association-type to SERVER if not set.
 func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
 	return *ntpAssociationTypeRequired
+}
+
+// GRIBIRIBAckOnly returns if device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.
+// Full gRIBI compliant devices should pass both with and without this deviation.
+func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
+	return *gRIBIRIBAckOnly
+}
+
+// MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
+func MissingInterfacePhysicalChannel(_ *ondatra.DUTDevice) bool {
+	return *missingInterfacePhysicalChannel
+}
+
+// MissingInterfaceHardwarePort returns if device does not support interface/hardwareport leaf.
+func MissingInterfaceHardwarePort(_ *ondatra.DUTDevice) bool {
+	return *missingInterfaceHardwarePort
+}
+
+// MissingCPUMfgName returns if device does not support component/MfgName leaf for CPU components.
+func MissingCPUMfgName(_ *ondatra.DUTDevice) bool {
+	return *missingCPUMfgName
+}
+
+// SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
+// so the test will skip checking them.
+// Full OpenConfig compliant devices should pass both with and without this deviation.
+func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
+	return *subinterfacePacketCountersMissing
 }
 
 // Vendor deviation flags.
@@ -205,9 +239,9 @@ var (
 
 	IPv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
 
-	IPNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
+	ipNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
 
-	InterfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
+	interfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
 	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
@@ -215,13 +249,13 @@ var (
 	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
 		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Full OpenConfig compliant devices should be able to use any operator-assigned value.")
 
-	SubinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
+	subinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
 		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	OmitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
 		"Device does not support setting the L2 MTU, so omit it.  OpenConfig allows a device to enforce that L2 MTU, which has a default value of 1514, must be set to a higher value than L3 MTU, so a full OpenConfig compliant device may fail with the deviation.")
 
-	GRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
+	gRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
 	MissingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
 		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
@@ -265,9 +299,6 @@ var (
 	MissingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
 		"Set and validate isis interface address family enable on the device if value is true, Default value is false and validate isis address family enable at global mode")
 
-	IsisHelloPaddingAdaptiveModeNotSupported = flag.Bool("deviation_isis_hello_padding_adaptive_mode_not_supported", false,
-		"Skip isis hello padding adaptive mode TC if value is true, Default value is false")
-
 	IsisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
 		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
 
@@ -284,24 +315,19 @@ var (
 
 	GRIBIDelayedAckResponse = flag.Bool("deviation_gribi_delayed_ack_response", false, "Device requires delay in sending ack response")
 
-	BGPStateActiveACLDeny = flag.Bool("deviation_bgp_state_active_acl_deny", false,
-		"Device requires bgp state to be active after ACL deny policy")
-
 	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
 
-	MissingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
+	missingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
 		"Device does not support interface/physicalchannel leaf. Set this flag to skip checking the leaf.")
 
-	MissingInterfaceHardwarePort = flag.Bool("deviation_missing_interface_hardware_port", false,
+	missingInterfaceHardwarePort = flag.Bool("deviation_missing_interface_hardware_port", false,
 		"Device does not support interface/hardwareport leaf. Set this flag to skip checking the leaf.")
 
-	MissingCPUMfgName = flag.Bool("deviation_missing_cpu_mfgName", false,
+	missingCPUMfgName = flag.Bool("deviation_missing_cpu_mfgName", false,
 		"Device does not support component/MfgName leaf for CPU components. Set this flag to skip skip checking the leaf.")
 
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
-
-	bgpPrefixOverlimit = flag.Bool("deviation_bgp_prefix_overlimit", false, "BGP prefix overlimit retry timer support.")
 
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
