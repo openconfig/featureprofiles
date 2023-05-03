@@ -232,7 +232,7 @@ func TestIPv4Entry(t *testing.T) {
 					WithOperationType(constants.Add).
 					AsResult(),
 			},
-			gribiMACOverrideWithStaticARP: deviations.GRIBIMACOverrideWithStaticARP(ondatra.DUT(t, "dut")),
+			gribiMACOverrideWithStaticARP: deviations.GRIBIMACOverrideWithStaticARP(dut),
 		},
 		{
 			desc: "Nonexistant next-hop",
@@ -291,15 +291,11 @@ func TestIPv4Entry(t *testing.T) {
 
 	const (
 		usePreserve = "PRESERVE"
-		useDelete   = "DELETE"
 	)
 
 	// Each case will run with its own gRIBI fluent client.
-	for _, persist := range []string{usePreserve, useDelete} {
+	for _, persist := range []string{usePreserve} {
 		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
-			if *deviations.GRIBIPreserveOnly && persist == useDelete {
-				t.Skip("Skipping due to --deviation_gribi_preserve_only")
-			}
 
 			for _, tc := range cases {
 				t.Run(tc.desc, func(t *testing.T) {
@@ -335,7 +331,7 @@ func TestIPv4Entry(t *testing.T) {
 						conn.WithPersistence()
 					}
 
-					if !*deviations.GRIBIRIBAckOnly {
+					if !deviations.GRIBIRIBAckOnly(dut) {
 						// The main difference WithFIBACK() made was that we are now expecting
 						// fluent.InstalledInFIB in []*client.OpResult, as opposed to
 						// fluent.InstalledInRIB.

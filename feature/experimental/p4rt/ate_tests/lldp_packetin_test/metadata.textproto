@@ -4,3 +4,4 @@
 uuid: "f9782c58-1b28-41d0-b9c8-9bbbd7bb1b1c"
 plan_id: "P4RT-7.1"
 description: "LLDP: PacketIn"
+testbed: TESTBED_DUT_ATE_2LINKS
