@@ -78,6 +78,12 @@ config_path {
 telemetry_path {
   path: "/lacp/interfaces/interface/state/system-priority"
 }
+config_path {
+    path: "/lacp/interfaces/interface/config/key"
+}
+telemetry_path {
+    path: "/lacp/interfaces/interface/members/member/state/counters/lacp-unknown-errors"
+}
 
 # LACP telemetry-only
 telemetry_path {
