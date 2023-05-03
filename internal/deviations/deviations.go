@@ -212,11 +212,6 @@ func MissingInterfaceHardwarePort(_ *ondatra.DUTDevice) bool {
 	return *missingInterfaceHardwarePort
 }
 
-// MissingCPUMfgName returns if device does not support component/MfgName leaf for CPU components.
-func MissingCPUMfgName(_ *ondatra.DUTDevice) bool {
-	return *missingCPUMfgName
-}
-
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
 // so the test will skip checking them.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
@@ -299,9 +294,6 @@ var (
 	MissingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
 		"Set and validate isis interface address family enable on the device if value is true, Default value is false and validate isis address family enable at global mode")
 
-	IsisHelloPaddingAdaptiveModeNotSupported = flag.Bool("deviation_isis_hello_padding_adaptive_mode_not_supported", false,
-		"Skip isis hello padding adaptive mode TC if value is true, Default value is false")
-
 	IsisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
 		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
 
@@ -326,9 +318,6 @@ var (
 
 	missingInterfaceHardwarePort = flag.Bool("deviation_missing_interface_hardware_port", false,
 		"Device does not support interface/hardwareport leaf. Set this flag to skip checking the leaf.")
-
-	missingCPUMfgName = flag.Bool("deviation_missing_cpu_mfgName", false,
-		"Device does not support component/MfgName leaf for CPU components. Set this flag to skip skip checking the leaf.")
 
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 

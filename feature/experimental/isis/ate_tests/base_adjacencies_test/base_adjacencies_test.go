@@ -398,10 +398,6 @@ func TestHelloPadding(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Test is skipped due to IsisHelloPaddingAdaptiveModeNotSupported deviation
-			if *deviations.IsisHelloPaddingAdaptiveModeNotSupported && tc.name == "adaptive" {
-				t.Skip(tc.skip)
-			}
 			if tc.skip != "" {
 				t.Skip(tc.skip)
 			}
