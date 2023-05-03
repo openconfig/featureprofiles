@@ -1246,14 +1246,14 @@ func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *t
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	existingConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface(portName).Config())
 	// configureInterface(ctx, t, args.dut, portName, "100.120.1.1", 0)
-	existingBundleConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface("Bundle-Ether120").Config())
+	// existingBundleConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface("Bundle-Ether120").Config())
 
 	config.TextWithGNMI(context.Background(), t, args.dut, "no interface FourHundredGigE0/0/0/10\n")
 	config.TextWithGNMI(context.Background(), t, args.dut, "interface FourHundredGigE0/0/0/10\n ipv4 address 100.120.1.1 255.255.255.0 \n")
 	config.TextWithGNMI(context.Background(), t, args.dut, "interface FourHundredGigE0/0/0/10\n ipv6 address 100:120:1::1/126 \n")
 
 	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), existingConfig)
-	defer gnmi.Update(t, args.dut, gnmi.OC().Interface("Bundle-Ether120").Config(), existingBundleConfig)
+	// defer gnmi.Update(t, args.dut, gnmi.OC().Interface("Bundle-Ether120").Config(), existingBundleConfig)
 	defer config.TextWithGNMI(context.Background(), t, args.dut, "no interface FourHundredGigE0/0/0/10\n")
 
 	// Program the entry
