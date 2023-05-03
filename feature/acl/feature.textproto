@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-
 id {
   name: "acl"
   version: 1
@@ -56,6 +54,46 @@ config_path {
 telemetry_path {
   path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/actions/state/forwarding-action"
 }
+
+# ACL defined-sets 
+config_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address-prefix-set"
+}
+config_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address-prefix-set"
+}
+telemetry_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/state/destination-address-prefix-set"
+}
+telemetry_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/state/source-address-prefix-set"
+}
+config_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/destination-address-prefix-set"
+}
+config_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/source-address-prefix-set"
+}
+telemetry_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/state/destination-address-prefix-set"
+}
+telemetry_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/state/source-address-prefix-set"
+}
+config_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port-set"
+}
+config_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port-set"
+}
+telemetry_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/transport/state/destination-port-set"
+}
+telemetry_path {
+    path: "/acl/acl-sets/acl-set/acl-entries/acl-entry/transport/state/source-port-set"
+}
+
+
 
 # INTERFACES
 
