@@ -4,3 +4,4 @@
 uuid: "500a9a2e-8a3e-4993-ae1c-ac5bb194048e"
 plan_id: "RT-3.1"
 description: "Policy based VRF selection"
+testbed: TESTBED_DUT_ATE_2LINKS

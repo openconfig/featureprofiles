@@ -4,3 +4,4 @@
 uuid: "38497de1-f488-46f1-b972-15e51c3ca531"
 plan_id: "TE-14.1"
 description: "gRIBI Scaling"
+testbed: TESTBED_DUT_ATE_2LINKS

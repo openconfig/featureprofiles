@@ -4,3 +4,4 @@
 uuid: "1be40a09-1f0e-4891-aa7a-12ea8e8ee02f"
 plan_id: "RT-6.1"
 description: "Core LLDP TLV Population"
+testbed: TESTBED_DUT_DUT_4LINKS
