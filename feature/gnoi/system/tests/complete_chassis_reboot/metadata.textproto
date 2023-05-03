@@ -4,3 +4,4 @@
 uuid: "5f0c7b5c-5c52-4a4d-af59-fba9edb04b6d"
 plan_id: "gNOI-3.1"
 description: "Complete Chassis Reboot"
+testbed: TESTBED_DUT_ATE_2LINKS
