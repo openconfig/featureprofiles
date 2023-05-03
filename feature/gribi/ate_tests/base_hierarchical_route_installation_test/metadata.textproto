@@ -4,3 +4,4 @@
 uuid: "3d0dba19-fdf7-4911-8150-ac968b09a1ba"
 plan_id: "TE-3.1"
 description: "Base Hierarchical Route Installation"
+testbed: TESTBED_DUT_ATE_2LINKS

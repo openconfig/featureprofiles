@@ -4,3 +4,4 @@
 uuid: "15d601c4-43af-4d94-b6a8-da39cf42b14f"
 plan_id: "RT-1.5"
 description: "BGP Prefix Limit"
+testbed: TESTBED_DUT_ATE_2LINKS
