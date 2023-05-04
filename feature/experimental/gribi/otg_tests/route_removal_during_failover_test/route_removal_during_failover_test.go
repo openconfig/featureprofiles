@@ -694,7 +694,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	gnoiClient = dut.RawAPIs().GNOI().New(t) // reconnect gnoi connection after switchover
 	coreFilecheck(t, dut, gnoiClient, sysConfigTime)
 
-	if *deviations.GRIBIDelayedAckResponse {
+	if deviations.GRIBIDelayedAckResponse(dut) {
 		time.Sleep(3 * time.Minute)
 	}
 	t.Log("Re-inject routes from ipBlock1 in default VRF with NHGID: #1.")
