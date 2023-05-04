@@ -4,3 +4,4 @@
 uuid: "fd964d62-068c-486d-8b17-912dfd48f388"
 plan_id: "gNMI-1.13"
 description: "Telemetry: Optics Power and Bias Current"
+testbed: TESTBED_DUT_ATE_2LINKS

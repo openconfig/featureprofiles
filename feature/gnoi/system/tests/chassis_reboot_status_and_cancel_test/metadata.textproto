@@ -4,3 +4,4 @@
 uuid: "f86969ba-5ae6-437d-aca9-1a15e5b080e5"
 plan_id: "gNOI-3.4"
 description: "Chassis Reboot Status and Reboot Cancellation"
+testbed: TESTBED_DUT_ATE_2LINKS

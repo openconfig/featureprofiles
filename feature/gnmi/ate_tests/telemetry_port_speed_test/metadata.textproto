@@ -4,3 +4,4 @@
 uuid: "352d6fc8-5245-419a-9ae9-7da432a46cdf"
 plan_id: "gNMI-1.5"
 description: "Telemetry: Port Speed Test"
+testbed: TESTBED_DUT_ATE_2LINKS
