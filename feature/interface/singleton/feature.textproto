@@ -66,6 +66,12 @@ telemetry_path {
 telemetry_path {
   path: "/interfaces/interface/state/admin-status"
 }
+config_path {
+  path: "/interfaces/interface/config/mtu"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/mtu"
+}
 
 # Interface hold timers
 config_path {
