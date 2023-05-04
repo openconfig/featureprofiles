@@ -114,7 +114,7 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	gRIBIDaemons = map[ondatra.Vendor]string{
+	BGPDaemons = map[ondatra.Vendor]string{
 		ondatra.ARISTA:  "Bgp-main",
 		ondatra.CISCO:   "emsd",
 		ondatra.JUNIPER: "rpd",
@@ -604,7 +604,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	// Send GNOI Graceful Restart Trigger from DUT to ATE
 	// Find the PID of gRIBI Daemon.
 	var pId uint64
-	pName := gRIBIDaemons[dut.Vendor()]
+	pName := BGPDaemons[dut.Vendor()]
 
 	t.Run("FindGRIBIDaemonPid", func(t *testing.T) {
 		pId = findProcessByName(ctx, t, dut, pName)
