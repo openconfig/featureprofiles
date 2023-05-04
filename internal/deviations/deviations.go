@@ -229,6 +229,16 @@ func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
 	return *subinterfacePacketCountersMissing
 }
 
+// OSActivateNoReboot returns if device requires separate reboot to activate OS.
+func OSActivateNoReboot(_ *ondatra.DUTDevice) bool {
+	return *osActivateNoReboot
+}
+
+// InstallOSForStandbyRP returns if device requires OS installation on standby RP as well as active RP.
+func InstallOSForStandbyRP(_ *ondatra.DUTDevice) bool {
+	return *installOSForStandbyRP
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -271,9 +281,9 @@ var (
 
 	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
-	OSActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires seperate reboot to activate OS.")
+	osActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires separate reboot to activate OS.")
 
-	InstallOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
+	installOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
 
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
