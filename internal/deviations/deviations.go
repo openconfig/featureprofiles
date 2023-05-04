@@ -74,6 +74,13 @@ func GRIBIMACOverrideStaticARPStaticRoute(*ondatra.DUTDevice) bool {
 	return *gribiMACOverrideStaticARPStaticRoute
 }
 
+// AggregateAtomicUpdate returns if device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces.
+// Otherwise lag-type will be dropped, and no member can be added to the aggregate.
+// Full OpenConfig compliant devices should pass both with and without this deviation.
+func AggregateAtomicUpdate(_ *ondatra.DUTDevice) bool {
+	return *aggregateAtomicUpdate
+}
+
 // P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
 func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
@@ -217,9 +224,14 @@ func MissingInterfaceHardwarePort(_ *ondatra.DUTDevice) bool {
 	return *missingInterfaceHardwarePort
 }
 
-// MissingCPUMfgName returns if device does not support component/MfgName leaf for CPU components.
-func MissingCPUMfgName(_ *ondatra.DUTDevice) bool {
-	return *missingCPUMfgName
+// TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
+func TraceRouteL4ProtocolUDP(_ *ondatra.DUTDevice) bool {
+	return *traceRouteL4ProtocolUDP
+}
+
+// TraceRouteFragmentation returns if device does not support fragmentation bit for traceroute.
+func TraceRouteFragmentation(_ *ondatra.DUTDevice) bool {
+	return *traceRouteFragmentation
 }
 
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
@@ -227,6 +239,16 @@ func MissingCPUMfgName(_ *ondatra.DUTDevice) bool {
 // Full OpenConfig compliant devices should pass both with and without this deviation.
 func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
 	return *subinterfacePacketCountersMissing
+}
+
+// OSActivateNoReboot returns if device requires separate reboot to activate OS.
+func OSActivateNoReboot(_ *ondatra.DUTDevice) bool {
+	return *osActivateNoReboot
+}
+
+// InstallOSForStandbyRP returns if device requires OS installation on standby RP as well as active RP.
+func InstallOSForStandbyRP(_ *ondatra.DUTDevice) bool {
+	return *installOSForStandbyRP
 }
 
 // Vendor deviation flags.
@@ -248,7 +270,7 @@ var (
 
 	interfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
-	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
+	aggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
@@ -271,9 +293,9 @@ var (
 
 	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
-	OSActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires seperate reboot to activate OS.")
+	osActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires separate reboot to activate OS.")
 
-	InstallOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
+	installOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
 
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
@@ -290,9 +312,9 @@ var (
 
 	RoutePolicyUnderNeighborAfiSafi = flag.Bool("deviation_rpl_under_neighbor_afisafi", false, "Device requires route-policy configuration under bgp neighbor afisafi. Fully-compliant devices should pass with this deviation set to true.")
 
-	TraceRouteL4ProtocolUDP = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
+	traceRouteL4ProtocolUDP = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
 
-	TraceRouteFragmentation = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
+	traceRouteFragmentation = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
 
 	ConnectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 
@@ -328,9 +350,6 @@ var (
 
 	missingInterfaceHardwarePort = flag.Bool("deviation_missing_interface_hardware_port", false,
 		"Device does not support interface/hardwareport leaf. Set this flag to skip checking the leaf.")
-
-	missingCPUMfgName = flag.Bool("deviation_missing_cpu_mfgName", false,
-		"Device does not support component/MfgName leaf for CPU components. Set this flag to skip skip checking the leaf.")
 
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
