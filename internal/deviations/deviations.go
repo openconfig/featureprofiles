@@ -69,6 +69,13 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// AggregateAtomicUpdate returns if device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces.
+// Otherwise lag-type will be dropped, and no member can be added to the aggregate.
+// Full OpenConfig compliant devices should pass both with and without this deviation.
+func AggregateAtomicUpdate(_ *ondatra.DUTDevice) bool {
+	return *aggregateAtomicUpdate
+}
+
 // P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
 func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
@@ -258,7 +265,7 @@ var (
 
 	interfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
-	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
+	aggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
