@@ -273,6 +273,11 @@ func SkipBGPTestPasswordMismatch(_ *ondatra.DUTDevice) bool {
 	return *skipBGPTestPasswordMismatch
 }
 
+// BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
+func BGPMD5RequiresReset(_ *ondatra.DUTDevice) bool {
+	return *bgpMD5RequiresReset
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -381,7 +386,7 @@ var (
 	ExplicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
 		"Device requires gribi-protocol to be enabled under network-instance.")
 
-	BGPMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
+	bgpMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
 
 	QOSDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
 
