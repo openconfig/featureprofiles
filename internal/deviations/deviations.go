@@ -166,7 +166,6 @@ func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
 }
 
-
 // LinkQualWaitAfterDeleteRequired returns whether the device requires additional time to complete post delete link qualification cleanup.
 func LinkQualWaitAfterDeleteRequired(_ *ondatra.DUTDevice) bool {
 	return *linkQualWaitAfterDeleteRequired
