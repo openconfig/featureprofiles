@@ -5,6 +5,7 @@ replace: {
     val: {
       ascii_val:
 "hostname xx25.den8800\n"
+"clock timezone EST America/Toronto\n"
 "logging trap informational\n"
 "logging archive\n"
 " device harddisk\n"
@@ -304,11 +305,9 @@ replace: {
 " !\n"
 "!\n"
 "ntp\n"
-" server 5.9.0.1\n"
-" server 223.255.254.248\n"
-" server 223.255.254.249\n"
-" source vrf mgmt MgmtEth0/RP0/CPU0/0\n"
+" server vrf mgmt 5.18.23.199\n"
 " update-calendar\n"
+"!\n"
 "!\n"
 "mirror enable\n"
 " checksum\n"

@@ -169,7 +169,11 @@ tests:
     owners:
       - agvarghe
     priority: 300
+    timeout: 3600
     mustpass: true
+    args:
+      - '-osfile="/auto/prod_weekly_archive1/bin/7.11.1.162G.DT_IMAGE/8000/8000-x64-7.11.1.162G.iso"'
+      - '-osver="7.11.1.162G"'
     skip: true
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
@@ -259,8 +263,6 @@ tests:
     priority: 38
   - name: RT-5.2 (Aggregate Interfaces)
     path: feature/interface/aggregate/ate_tests/aggregate_test
-    # args:
-    #  - '-deviation_interface_operstatus="true"'
     owners:
       - agvarghe
     mustpass: true
@@ -309,6 +311,7 @@ tests:
       - '-deviation_missing_cpu_mfgName="true"'
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
+      - '-deviation_sw_version_unsupported="true"'
     owners:
       - agvarghe
     mustpass: true
@@ -415,7 +418,6 @@ tests:
     args:
       - '-deviation_isis_interface_level1_disable_required="true"'
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-      - '-deviation_isis_hello_padding_adaptive_mode_not_supported="true"'
       - '-deviation_isis_single_topology_required="true"'
       - '-deviation_isis_protocol_enabled_not_required="true"'
       - '-deviation_isis_instance_enabled_not_required="true"'
@@ -449,7 +451,6 @@ tests:
     skip: false
     args:
       - '-deviation_rpl_under_neighbor_afisafi="true"'
-      - '-deviation_bgp_prefix_overlimit="true"'
   - name: RT-1.4 (BGP Graceful Restart)
     path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
     owners:
@@ -458,7 +459,6 @@ tests:
     priority: 54
     skip: false
     args:
-      - '-deviation_bgp_state_active_acl_deny="true"'
       - '-deviation_rpl_under_peergroup="true"'
   - name: RT-1.7 (Local BGP Test)
     path: feature/bgp/tests/local_bgp_test
@@ -567,7 +567,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: DP-1.9 (WRR traffic-test)
-    path: feature/experimental/qos/ate_tests/wrr_traffic_test
+    path: feature/qos/ate_tests/wrr_traffic_test
     owners:
       - saarvind
     mustpass: true
@@ -597,7 +597,7 @@ tests:
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
       - '-deviation_rpl_under_peergroup="true"'
   - name: DP-1.14 (QoS base config)
-    path: feature/experimental/qos/ate_tests/qos_basic_test/
+    path: feature/qos/ate_tests/qos_basic_test/
     owners:
       - saarvind
     internal: false
