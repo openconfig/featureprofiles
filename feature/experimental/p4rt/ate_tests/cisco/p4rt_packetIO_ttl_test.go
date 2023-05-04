@@ -169,7 +169,7 @@ var (
 			skip: true,
 		},
 		{
-			name: "Check PacketOut Without Programming TTL Match Entry(submit_toegress)",
+			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:012-013 Egress: Without any match entries, Injecting IP packet with any TTL, verify packets sent out on those egress interfaces",
 			fn:   testPacketOutEgressWithoutMatchEntry,
 		},
