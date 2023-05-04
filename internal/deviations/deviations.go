@@ -250,8 +250,7 @@ var (
 	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
-	ntpAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
-		"Device requires NTP association-type to be explicitly set.  OpenConfig defaults the association-type to SERVER if not set.")
+	
 
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
