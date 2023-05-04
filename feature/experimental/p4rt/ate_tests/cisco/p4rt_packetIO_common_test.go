@@ -887,6 +887,7 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 
 	// Program the entry
 	tableEntry := args.packetIO.GetTableEntry(t, false)
+
 	if len(tableEntry) == 1 && tableEntry[0].IsIpv4 == 0 {
 		tableEntry[0].IsIpv4 = uint8(1)
 		client.Write(&p4_v1.WriteRequest{
@@ -900,6 +901,14 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 	} else {
 		for _, entry := range tableEntry {
 			entry.EtherType = uint16(123)
+			client.Write(&p4_v1.WriteRequest{
+				DeviceId:   deviceID,
+				ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+				Updates: wbb.ACLWbbIngressTableEntryGet(
+					tableEntry,
+				),
+				Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+			})
 		}
 	}
 
@@ -923,8 +932,8 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 	packets := getPackets(t, client, 40)
 
 	// t.Logf("Captured packets: %v", len(packets))
-	if len(packets) > 0 {
-		t.Errorf("Unexpected packets are received.")
+	if len(packets) == 0 {
+		t.Errorf("No packets are received.")
 	}
 }
 
@@ -1245,13 +1254,17 @@ func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *t
 
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	existingConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface(portName).Config())
+	existingBundle := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface("Bundle-Ether120").Config())
+	fmt.Printf("Interface %v ", existingConfig)
+	fmt.Printf("Bndle %v ", existingBundle)
+	// time.Sleep(30 * time.Minute)
 	// configureInterface(ctx, t, args.dut, portName, "100.120.1.1", 0)
 	// existingBundleConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface("Bundle-Ether120").Config())
 
 	config.TextWithGNMI(context.Background(), t, args.dut, "no interface FourHundredGigE0/0/0/10\n")
 	config.TextWithGNMI(context.Background(), t, args.dut, "interface FourHundredGigE0/0/0/10\n ipv4 address 100.120.1.1 255.255.255.0 \n")
 	config.TextWithGNMI(context.Background(), t, args.dut, "interface FourHundredGigE0/0/0/10\n ipv6 address 100:120:1::1/126 \n")
-
+	// time.Sleep(30 * time.Minute)
 	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Config(), existingConfig)
 	// defer gnmi.Update(t, args.dut, gnmi.OC().Interface("Bundle-Ether120").Config(), existingBundleConfig)
 	defer config.TextWithGNMI(context.Background(), t, args.dut, "no interface FourHundredGigE0/0/0/10\n")
@@ -1772,7 +1785,8 @@ func testPacketOutTTLOneWithForUsIP(ctx context.Context, t *testing.T, args *tes
 
 func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGige0/0/0/10")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the match entry")
@@ -1808,7 +1822,8 @@ func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 
 func testPacketOutEgressWithoutMatchEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGige0/0/0/10")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
@@ -1838,7 +1853,8 @@ func testPacketOutEgressWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 
 func testPacketOutEgressWithStaticroute(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGige0/0/0/10")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
@@ -1888,7 +1904,8 @@ func testPacketOutEgressWithStaticroute(ctx context.Context, t *testing.T, args 
 
 func testPacketOutEgressTTLOneWithUDP(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGige0/0/0/10")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the match entry")
@@ -1939,7 +1956,8 @@ func testPacketOutEgressTTLOneWithUDP(ctx context.Context, t *testing.T, args *t
 
 func testPacketOutEgressTTLOneWithUDPAndStaticRoute(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGige0/0/0/10")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the match entry")
@@ -1998,7 +2016,8 @@ func testPacketOutEgressTTLOneWithUDPAndStaticRoute(ctx context.Context, t *test
 
 func testPacketOutEgressTTLOneWithStaticroute(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGige0/0/0/10")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
