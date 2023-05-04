@@ -73,12 +73,6 @@ telemetry_path {
   path: "/interfaces/interface/state/mtu"
 }
 config_path {
-    path: "/interfaces/interface/ethernet/config/forwarding-viable"
-}
-telemetry_path {
-    path: "/interfaces/interface/ethernet/state/forwarding-viable"
-}
-config_path {
     path: "/interfaces/interface/name"
 }
 
@@ -222,10 +216,10 @@ telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu"
 }
 config_path {
-    path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/primary"
+    path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip"
 }
 config_path {
-    path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip"
+    path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip"
 }
 
 # Sub-interface ipv6
@@ -281,10 +275,4 @@ telemetry_path {
 }
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts"
-}
-telemetry_path {
-    path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-multicast-pkts"
-}
-telemetry_path {
-    path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-multicast-pkts"
 }
