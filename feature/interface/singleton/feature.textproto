@@ -72,6 +72,16 @@ config_path {
 telemetry_path {
   path: "/interfaces/interface/state/mtu"
 }
+config_path {
+    path: "/interfaces/interface/ethernet/config/forwarding-viable"
+}
+telemetry_path {
+    path: "/interfaces/interface/ethernet/state/forwarding-viable"
+}
+config_path {
+    path: "/interfaces/interface/name"
+}
+
 
 # Interface hold timers
 config_path {
@@ -194,6 +204,9 @@ config_path {
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/state/index"
 }
+config_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/index"
+}
 
 # Sub-interface ipv4
 config_path {
@@ -208,6 +221,12 @@ config_path {
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu"
 }
+config_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/primary"
+}
+config_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip"
+}
 
 # Sub-interface ipv6
 config_path {
@@ -221,6 +240,9 @@ config_path {
 }
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu"
+}
+config_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/ip"
 }
 
 # Sub-interface counters
@@ -259,4 +281,10 @@ telemetry_path {
 }
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts"
+}
+telemetry_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-multicast-pkts"
+}
+telemetry_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-multicast-pkts"
 }
