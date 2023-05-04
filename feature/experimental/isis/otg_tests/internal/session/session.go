@@ -108,15 +108,15 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 }
 
 // addISISOC configures basic IS-IS on a device.
-func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
+func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.DUTDevice) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	if !*deviations.ISISprotocolEnabledNotRequired {
+	if !deviations.ISISprotocolEnabledNotRequired(dut) {
 		prot.Enabled = ygot.Bool(true)
 	}
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
-	if !*deviations.ISISInstanceEnabledNotRequired {
+	if !deviations.ISISInstanceEnabledNotRequired(dut) {
 		glob.Instance = ygot.String(ISISName)
 	}
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
@@ -227,10 +227,11 @@ func MustNew(t testing.TB) *TestSession {
 
 // WithISIS adds ISIS to a test session.
 func (s *TestSession) WithISIS() *TestSession {
+	dut := s.DUT
 	if *deviations.ExplicitInterfaceInDefaultVRF {
-		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name()+".0")
+		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name()+".0", dut)
 	} else {
-		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name())
+		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name(), dut)
 	}
 	if s.ATE != nil {
 		addISISTopo(s.ATEIntf1, ATEAreaAddress, ATESysID)
