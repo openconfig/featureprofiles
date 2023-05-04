@@ -386,5 +386,9 @@ func GetYcovClient(t *testing.T) (ycov.YangCoverageClient, error) {
 }
 
 func (yc *YangCoverage) processYCov(logs string) (int, string) {
-	return yc.generateReport(logs)
+	rc, out := yc.generateReport(logs)
+	if rc == 0 {
+		log.Info(out)
+	}
+	return rc, out
 }
