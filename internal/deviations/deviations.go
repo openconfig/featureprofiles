@@ -199,9 +199,6 @@ func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
 
 // NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
 // OpenConfig defaults the association-type to SERVER if not set.
-func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
-	return *ntpAssociationTypeRequired
-}
 
 // GRIBIRIBAckOnly returns if device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.
 // Full gRIBI compliant devices should pass both with and without this deviation.
