@@ -101,12 +101,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	// Configure ingress interface
 	t.Logf("*** Configuring interfaces on DUT ...")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, 0, 0))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, 0, 0, dut))
 
 	// Configure egress interface
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, 10, vlan10))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst2, 20, vlan20))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, 10, vlan10, dut))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst2, 20, vlan20, dut))
 
 	if *deviations.ExplicitPortSpeed {
 		fptest.SetPortSpeed(t, p1)
@@ -134,7 +134,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 
 }
 
-func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint32, vlan uint16) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint32, vlan uint16, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(me.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
@@ -146,7 +146,7 @@ func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint
 
 	if vlan != 0 {
 		// Add VLANs.
-		if *deviations.DeprecatedVlanID {
+		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlan)
 		} else {
 			singletag := s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged()
