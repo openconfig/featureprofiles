@@ -73,7 +73,7 @@ telemetry_path {
   path: "/lacp/interfaces/interface/state/system-id-mac"
 }
 telemetry_path {
-    path: "/lacp/interfaces/interface/members/member/state/counters/lacp-unknown-errors"
+  path: "/lacp/interfaces/interface/members/member/state/counters/lacp-unknown-errors"
 }
 
 # LACP telemetry-only
