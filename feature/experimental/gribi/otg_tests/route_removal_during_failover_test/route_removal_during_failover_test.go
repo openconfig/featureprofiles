@@ -253,7 +253,7 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 		Index := uint32(i)
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
-		configureSubinterfaceDUT(d, dutPort, Index, vlanID, dutIPv4)
+		configureSubinterfaceDUT(d, dutPort, Index, vlanID, dutIPv4, dut)
 		MAC, err := incrementMAC(atePort1.MAC, i+1)
 		if err != nil {
 			t.Fatalf("Failed to increment MAC")
@@ -273,11 +273,11 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 }
 
 // configureSubinterfaceDUT configures a single DUT layer 3 sub-interface.
-func configureSubinterfaceDUT(d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string) {
+func configureSubinterfaceDUT(d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string, dut *ondatra.DUTDevice) {
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
-		if *deviations.DeprecatedVlanID {
+		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
@@ -494,7 +494,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	top := ate.OTG().NewConfig(t)
 	top.Ports().Add().SetName(ap1.ID())
 	// configure DUT port#1 - source port.
-	configureSubinterfaceDUT(d, dp1, 0, 0, dutPort1.IPv4)
+	configureSubinterfaceDUT(d, dp1, 0, 0, dutPort1.IPv4, dut)
 	configureInterfaceDUT(t, dp1, d, "src")
 	configureATE(top, ap1, atePort1.Name, 0, dutPort1.IPv4, atePort1.IPv4, atePort1.MAC)
 	ate.OTG().PushConfig(t, top)
