@@ -2041,11 +2041,6 @@ func TestBackUp(t *testing.T) {
 			desc: "Have same primary and backup decap with multiple nhg",
 			fn:   testIPv4MultipleNHG,
 		},
-		// {
-		// 	name: "testDelPbr",
-		// 	desc: "testDelPbr ",
-		// 	fn:   testDelPbr,
-		// },
 	}
 
 	for _, tt := range test {
