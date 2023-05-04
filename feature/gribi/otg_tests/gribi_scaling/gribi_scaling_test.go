@@ -389,7 +389,7 @@ func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *o
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
-		if *deviations.DeprecatedVlanID {
+		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
