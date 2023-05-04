@@ -213,7 +213,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 
 	d := gnmi.OC()
 
-	if deviations.AggregateAtomicUpdate(tc.dut) {
+	if *deviations.AggregateAtomicUpdate {
 		tc.clearAggregateMembers(t)
 		tc.setupAggregateAtomically(t)
 	}

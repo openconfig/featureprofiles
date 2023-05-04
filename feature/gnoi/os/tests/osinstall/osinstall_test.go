@@ -84,24 +84,23 @@ func TestOSInstall(t *testing.T) {
 		osc:    dut.RawAPIs().GNOI().Default(t).OS(),
 		sc:     dut.RawAPIs().GNOI().Default(t).System(),
 	}
-	noReboot := deviations.OSActivateNoReboot(dut)
 	tc.fetchStandbySupervisorStatus(ctx, t)
 	tc.transferOS(ctx, t, false)
-	tc.activateOS(ctx, t, false, noReboot)
+	tc.activateOS(ctx, t, false)
 
-	if deviations.InstallOSForStandbyRP(dut) && tc.dualSup {
+	if *deviations.InstallOSForStandbyRP && tc.dualSup {
 		tc.transferOS(ctx, t, true)
-		tc.activateOS(ctx, t, true, noReboot)
+		tc.activateOS(ctx, t, true)
 	}
 
-	if noReboot {
+	if *deviations.OSActivateNoReboot {
 		tc.rebootDUT(ctx, t)
 	}
 
 	tc.verifyInstall(ctx, t)
 }
 
-func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noReboot bool) {
+func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) {
 	t.Helper()
 	if standby {
 		t.Log("OS.Activate is started for standby RP.")
@@ -111,7 +110,7 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noReb
 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
 		StandbySupervisor: standby,
 		Version:           *osVersion,
-		NoReboot:          noReboot,
+		NoReboot:          *deviations.OSActivateNoReboot,
 	})
 	if err != nil {
 		t.Fatalf("OS.Activate request failed: %s", err)
