@@ -268,6 +268,11 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// NetworkInstanceTableDeletionRequired returns if device requires explicit deletion of network-instance table.
+func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
+	return *networkInstanceTableDeletionRequired
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -387,7 +392,7 @@ var (
 
 	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
 
-	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
+	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
 	ISISMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
