@@ -246,6 +246,11 @@ func OSActivateNoReboot(_ *ondatra.DUTDevice) bool {
 	return *osActivateNoReboot
 }
 
+// ConnectRetry returns if /bgp/neighbors/neighbor/timers/config/connect-retry is not supported.
+func ConnectRetry(_ *ondatra.DUTDevice) bool {
+	return *connectRetry
+}
+
 // InstallOSForStandbyRP returns if device requires OS installation on standby RP as well as active RP.
 func InstallOSForStandbyRP(_ *ondatra.DUTDevice) bool {
 	return *installOSForStandbyRP
@@ -322,7 +327,7 @@ var (
 
 	traceRouteFragmentation = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
 
-	ConnectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
+	connectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 
 	ExplicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
 
