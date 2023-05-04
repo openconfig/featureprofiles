@@ -308,7 +308,6 @@ tests:
       - '-deviation_subinterface_packet_counters_missing="true"'
       - '-deviation_missing_interface_physical_channel="true"'
       - '-deviation_missing_interface_hardware_port="true"'
-      - '-deviation_missing_cpu_mfgName="true"'
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
       - '-deviation_sw_version_unsupported="true"'
