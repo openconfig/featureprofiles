@@ -29,6 +29,12 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
     pyats_testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/pyats.yaml
+  - id: 8201-32FH_FLM254206E7_transit_wecmp
+    owner: kjahed
+    testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
+    binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
+    baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3-transit-wecmp.proto
+    pyats_testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/pyats.yaml
   - id: 8201-32FH_FLM253900HJ
     owner: arvbaska
     testbed: topologies/cisco/hw/8201-32FH_FLM253900HJ/testbed
