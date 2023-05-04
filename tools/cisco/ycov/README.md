@@ -1,13 +1,13 @@
 # YANG Coverage 
 
-Support for XR Yang Coverage gathering and reporting through go test.
+Support for XR Yang Coverage gathering and reporting through go test. \
 Refer: https://wiki.cisco.com/display/XRMGBLMOVE/Yang+Data-Model+Coverage
 
 **Default YANG coverage flow is -**
 1. Pretest - Clear and Enable logs
 2. Testsuite Run
-3. Post Test - 
-    3.1 Gather logs
+3. Post Test - \
+    3.1 Gather logs \
     3.2 If xr_ws flag is passed and accessible along with xr options, process raw logs and generate reports else store raw logs.
 
 ## Enable YANG Coverage
@@ -34,7 +34,7 @@ YCov tool logs at /nobackup/sanshety/ws/iosxr/2023_05_03__22_41_13_FeatureProfil
 ```
 
 #### FireX Integration:
-To enable and collect Yang Coverage logs, need to add YCov Pretest with priority 0 and YCov Post test with lowest priority. 
+To enable and collect Yang Coverage logs, need to add YCov Pretest with priority 0 and YCov Post test with lowest priority. \
 Refer: [fp_published.yaml](../../../exec/tests/v2/fp_published.yaml)
 
 ## YCov Flags
