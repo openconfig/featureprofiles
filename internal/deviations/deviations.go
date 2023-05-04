@@ -69,6 +69,13 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// AggregateAtomicUpdate returns if device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces.
+// Otherwise lag-type will be dropped, and no member can be added to the aggregate.
+// Full OpenConfig compliant devices should pass both with and without this deviation.
+func AggregateAtomicUpdate(_ *ondatra.DUTDevice) bool {
+	return *aggregateAtomicUpdate
+}
+
 // P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
 func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
@@ -229,6 +236,16 @@ func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
 	return *subinterfacePacketCountersMissing
 }
 
+// OSActivateNoReboot returns if device requires separate reboot to activate OS.
+func OSActivateNoReboot(_ *ondatra.DUTDevice) bool {
+	return *osActivateNoReboot
+}
+
+// InstallOSForStandbyRP returns if device requires OS installation on standby RP as well as active RP.
+func InstallOSForStandbyRP(_ *ondatra.DUTDevice) bool {
+	return *installOSForStandbyRP
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -248,7 +265,7 @@ var (
 
 	interfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
-	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
+	aggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
@@ -271,9 +288,9 @@ var (
 
 	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
-	OSActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires seperate reboot to activate OS.")
+	osActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires separate reboot to activate OS.")
 
-	InstallOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
+	installOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
 
 	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
