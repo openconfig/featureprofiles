@@ -75,9 +75,6 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(*nbr.PeerAs)
 	pg.PeerGroupName = ygot.String(peerGrpName)
-	if *deviations.MissingBgpNeighborStatePeerGroup {
-		nbr.PeerGroup = nil
-	}
 
 	if *deviations.RoutePolicyUnderNeighborAfiSafi {
 		af := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -443,7 +440,7 @@ func TestParameters(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if *deviations.ConnectRetry && tc.name == "connect-retry" || len(tc.skipMsg) > 0 {
+			if deviations.ConnectRetry(dut) && tc.name == "connect-retry" || len(tc.skipMsg) > 0 {
 				t.Skip(tc.skipMsg)
 			}
 			// Disable BGP

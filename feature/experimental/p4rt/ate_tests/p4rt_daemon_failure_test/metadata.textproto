@@ -4,3 +4,4 @@
 uuid: "78f99d29-c7db-4e6d-8284-614154efc0d1"
 plan_id: "P4RT-1.2"
 description: "P4RT Daemon Failure"
+testbed: TESTBED_DUT_ATE_2LINKS

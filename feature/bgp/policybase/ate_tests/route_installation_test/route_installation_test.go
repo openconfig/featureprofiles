@@ -319,7 +319,7 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled
 	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
 	}
-	if !*deviations.MissingPrePolicyReceivedRoutes {
+	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
 		if gotRx := gnmi.Get(t, dut, prefixesv4.ReceivedPrePolicy().State()); gotRx != wantRx {
 			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
 		}
@@ -338,7 +338,7 @@ func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 	if gotInstalledv6 := gnmi.Get(t, dut, prefixesv6.Installed().State()); gotInstalledv6 != wantInstalledv6 {
 		t.Errorf("IPV6 Installed prefixes mismatch: got %v, want %v", gotInstalledv6, wantInstalledv6)
 	}
-	if !*deviations.MissingPrePolicyReceivedRoutes {
+	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
 		if gotRxv6 := gnmi.Get(t, dut, prefixesv6.ReceivedPrePolicy().State()); gotRxv6 != wantRxv6 {
 			t.Errorf("IPV6 Received prefixes mismatch: got %v, want %v", gotRxv6, wantRxv6)
 		}
