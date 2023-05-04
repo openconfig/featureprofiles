@@ -383,7 +383,7 @@ func TestPassword(t *testing.T) {
 	// Verify BGP status
 	t.Log("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
-	if !*deviations.SkipBGPTestPasswordMismatch {
+	if !deviations.SkipBGPTestPasswordMismatch(dut) {
 		t.Log("Configure mismatching md5 auth password on DUT")
 		gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), "PASSWORDNEGSCENARIO")
 

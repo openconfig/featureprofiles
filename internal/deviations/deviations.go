@@ -268,6 +268,11 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
+func SkipBGPTestPasswordMismatch(_ *ondatra.DUTDevice) bool {
+	return *skipBGPTestPasswordMismatch
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -380,7 +385,7 @@ var (
 
 	QOSDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
 
-	SkipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
+	skipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
