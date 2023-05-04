@@ -148,7 +148,7 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *oc.NetworkInstance_Protocol {
 	nv4t := nv4.GetOrCreateTimers()
 	nv4t.HoldTime = ygot.Uint16(dutHoldTime)
 	nv4t.KeepaliveInterval = ygot.Uint16(dutKeepaliveTime)
-	if !*deviations.ConnectRetry {
+	if !deviations.ConnectRetry(dut) {
 		nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
 	}
 
