@@ -251,6 +251,12 @@ func InstallOSForStandbyRP(_ *ondatra.DUTDevice) bool {
 	return *installOSForStandbyRP
 }
 
+// GNOIStatusWithEmptySubcomponent returns if the response of gNOI reboot status is a single value (not a list),
+// the device requires explict component path to account for a situation when there is more than one active reboot requests.
+func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
+	return *gNOIStatusWithEmptySubcomponent
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -291,7 +297,7 @@ var (
 
 	GNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
 
-	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
+	gNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
 	osActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires separate reboot to activate OS.")
 
