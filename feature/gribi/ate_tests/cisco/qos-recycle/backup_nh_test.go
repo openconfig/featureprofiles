@@ -1855,13 +1855,6 @@ func testBackupUseCase3(ctx context.Context, t *testing.T, args *testArgs) {
 
 }
 
-func testDelPbr(ctx context.Context, t *testing.T, args *testArgs) {
-	args.client.BecomeLeader(t)
-	args.client.FlushServer(t)
-	ConfigureWrr(t, args.dut)
-
-}
-
 func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
