@@ -17,7 +17,7 @@ package fptest
 import (
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/metadata/metadata"
+	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 )
