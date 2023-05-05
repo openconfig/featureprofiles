@@ -106,12 +106,12 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.DUTDevice) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	if !*deviations.ISISprotocolEnabledNotRequired {
+	if !deviations.ISISprotocolEnabledNotRequired(dut) {
 		prot.Enabled = ygot.Bool(true)
 	}
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
-	if !*deviations.ISISInstanceEnabledNotRequired {
+	if !deviations.ISISInstanceEnabledNotRequired(dut) {
 		glob.Instance = ygot.String(ISISName)
 	}
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
