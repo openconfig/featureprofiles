@@ -118,6 +118,7 @@ func TestSuite_Check(t *testing.T) {
 			Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
 			PlanId:      "XX-2.1",
 			Description: "Qux Functional Test",
+			Testbed:     mpb.Metadata_TESTBED_DUT_ATE_4LINKS,
 		},
 	}
 	quuz := &testcase{
@@ -129,6 +130,7 @@ func TestSuite_Check(t *testing.T) {
 			Uuid:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
 			PlanId:      "XX-2.2",
 			Description: "Quuz Functional Test",
+			Testbed:     mpb.Metadata_TESTBED_DUT_DUT_4LINKS,
 		},
 	}
 	quuzDupPlanID := &testcase{
