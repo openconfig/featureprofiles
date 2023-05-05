@@ -108,7 +108,7 @@ func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
 }
 
 // addISISOC configures basic IS-IS on a device.
-func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
+func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.DUTDevice) {
 	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
 	if !*deviations.ISISprotocolEnabledNotRequired {
@@ -128,14 +128,14 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
 	// Configure ISIS level at global mode if true else at interface mode
-	if *deviations.ISISInterfaceLevel1DisableRequired {
+	if deviations.ISISInterfaceLevel1DisableRequired(dut) {
 		intf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
 	} else {
 		intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
 	}
 	glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	// Configure ISIS enable flag at interface level
-	if *deviations.MissingIsisInterfaceAfiSafiEnable {
+	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
 		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	}
@@ -228,9 +228,9 @@ func MustNew(t testing.TB) *TestSession {
 // WithISIS adds ISIS to a test session.
 func (s *TestSession) WithISIS() *TestSession {
 	if *deviations.ExplicitInterfaceInDefaultVRF {
-		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name()+".0")
+		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name()+".0", s.DUT)
 	} else {
-		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name())
+		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name(), s.DUT)
 	}
 	if s.ATE != nil {
 		addISISTopo(s.ATEIntf1, ATEAreaAddress, ATESysID)
