@@ -258,11 +258,9 @@ func bgpCreateNbr() *oc.NetworkInstance_Protocol {
 			afisafi.Enabled = ygot.Bool(true)
 			prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 			prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
-			if *deviations.RoutePolicyUnderNeighborAfiSafi {
-				rpl := afisafi.GetOrCreateApplyPolicy()
-				rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
-				rpl.ExportPolicy = []string{bgpGlobalAttrs.rplName}
-			}
+			rpl := afisafi.GetOrCreateApplyPolicy()
+			rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
+			rpl.ExportPolicy = []string{bgpGlobalAttrs.rplName}
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerAs = ygot.Uint32(nbr.peerAs)
@@ -273,11 +271,9 @@ func bgpCreateNbr() *oc.NetworkInstance_Protocol {
 			afisafi6.Enabled = ygot.Bool(true)
 			prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
 			prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
-			if *deviations.RoutePolicyUnderNeighborAfiSafi {
-				rpl := afisafi6.GetOrCreateApplyPolicy()
-				rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
-				rpl.ExportPolicy = []string{bgpGlobalAttrs.rplName}
-			}
+			rpl := afisafi6.GetOrCreateApplyPolicy()
+			rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
+			rpl.ExportPolicy = []string{bgpGlobalAttrs.rplName}
 		}
 	}
 	return niProto
