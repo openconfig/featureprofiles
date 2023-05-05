@@ -68,9 +68,10 @@ options {
 duts {
   id: "dut"
   name: "SFD-Moji"  # Change this to the device hostname.
-  #config:{
-  #  gnmi_set_file: "/Users/mananpat/Desktop/go/src/github.com/openconfig/featureprofiles/topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto"
-  #}
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+    #  gnmi_set_file: "/Users/mbagherz/git/test_ws/src/featureprofiles/topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto"
+  }
  
   options {
     insecure: false 
