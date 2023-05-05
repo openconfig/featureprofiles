@@ -459,7 +459,7 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, dsts ...*attr
 	e1.Src().SetValue(atePort1.MAC)
 	e1.Dst().SetChoice("value").SetValue(pMAC)
 	if len(dsts) > 1 {
-		flowipv4.TxRx().Port().SetTxName(atePort1.Name)
+		flowipv4.TxRx().Port().SetTxName("port1")
 	} else {
 		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
 	}
