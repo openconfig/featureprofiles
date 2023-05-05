@@ -220,7 +220,7 @@ func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
 	return *gRIBIRIBAckOnly
 }
 
-// GRIBIDelayedAckResponse returns if device requires delay in sending ack response
+// GRIBIDelayedAckResponse returns if device requires delay in sending ack response.
 func GRIBIDelayedAckResponse(_ *ondatra.DUTDevice) bool {
 	return *gRIBIDelayedAckResponse
 }
