@@ -241,7 +241,7 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
 		vlanID := uint16(i)
-		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 			vlanID = uint16(i) + 1
 		}
 		name := fmt.Sprintf(`dst%d`, i)
