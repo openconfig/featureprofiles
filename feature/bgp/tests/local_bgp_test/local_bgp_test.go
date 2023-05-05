@@ -440,7 +440,7 @@ func TestParameters(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if *deviations.ConnectRetry && tc.name == "connect-retry" || len(tc.skipMsg) > 0 {
+			if deviations.ConnectRetry(dut) && tc.name == "connect-retry" || len(tc.skipMsg) > 0 {
 				t.Skip(tc.skipMsg)
 			}
 			// Disable BGP
