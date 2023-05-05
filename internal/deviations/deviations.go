@@ -156,6 +156,27 @@ func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisLevelAuthenticationNotRequired
 }
 
+// ISISSingleTopologyRequired sets isis af ipv6 single topology on the device if value is true.
+func ISISSingleTopologyRequired(_ *ondatra.DUTDevice) bool {
+	return *isisSingleTopologyRequired
+}
+
+// ISISMultiTopologyUnsupported returns if device skips isis multi-topology check.
+func ISISMultiTopologyUnsupported(_ *ondatra.DUTDevice) bool {
+	return *isisMultiTopologyUnsupported
+}
+
+// ISISInterfaceLevel1DisableRequired returns if device should disable isis level1 under interface mode.
+func ISISInterfaceLevel1DisableRequired(_ *ondatra.DUTDevice) bool {
+	return *isisInterfaceLevel1DisableRequired
+}
+
+// MissingIsisInterfaceAfiSafiEnable returns if device should set and validate isis interface address family enable.
+// Default is validate isis address family enable at global mode.
+func MissingIsisInterfaceAfiSafiEnable(_ *ondatra.DUTDevice) bool {
+	return *missingIsisInterfaceAfiSafiEnable
+}
+
 // Ipv6DiscardedPktsUnsupported returns whether the device supports interface ipv6 discarded packet stats.
 func Ipv6DiscardedPktsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *ipv6DiscardedPktsUnsupported
@@ -207,6 +228,11 @@ func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
 // Full gRIBI compliant devices should pass both with and without this deviation.
 func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
 	return *gRIBIRIBAckOnly
+}
+
+// GRIBIDelayedAckResponse returns if device requires delay in sending ack response.
+func GRIBIDelayedAckResponse(_ *ondatra.DUTDevice) bool {
+	return *gRIBIDelayedAckResponse
 }
 
 // MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
@@ -271,6 +297,21 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 // ExplicitInterfaceRefDefinition returns if device requires explicit interface ref configuration when applying features to interface.
 func ExplicitInterfaceRefDefinition(_ *ondatra.DUTDevice) bool {
 	return *explicitInterfaceRefDefinition
+}
+
+// ISISprotocolEnabledNotRequired returns if isis protocol enable flag should be unset on the device.
+func ISISprotocolEnabledNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisprotocolEnabledNotRequired
+}
+
+// ISISInstanceEnabledNotRequired returns if isis instance enable flag should not be on the device.
+func ISISInstanceEnabledNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisInstanceEnabledNotRequired
+}
+
+// NoMixOfTaggedAndUntaggedSubinterfaces returns if device does not support a mix of tagged and untagged subinterfaces
+func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
+	return *noMixOfTaggedAndUntaggedSubinterfaces
 }
 
 // Vendor deviation flags.
@@ -342,27 +383,27 @@ var (
 
 	ExplicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
 
-	ISISInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
+	isisInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
 		"Disable isis level1 under interface mode on the device if value is true, Default value is false and enables isis level2 under interface mode")
 
-	MissingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
+	missingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
 		"Set and validate isis interface address family enable on the device if value is true, Default value is false and validate isis address family enable at global mode")
 
-	IsisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
+	isisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
 		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
 
-	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
+	isisprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
 		"Unset isis protocol enable flag on the device if value is true, Default value is false and protocol enable flag is set")
 
-	ISISInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
+	isisInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
 		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
 
 	explicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
 
-	NoMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
+	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
 
-	GRIBIDelayedAckResponse = flag.Bool("deviation_gribi_delayed_ack_response", false, "Device requires delay in sending ack response")
+	gRIBIDelayedAckResponse = flag.Bool("deviation_gribi_delayed_ack_response", false, "Device requires delay in sending ack response")
 
 	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
@@ -395,7 +436,7 @@ var (
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
-	ISISMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
+	isisMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
 
 	isisRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,

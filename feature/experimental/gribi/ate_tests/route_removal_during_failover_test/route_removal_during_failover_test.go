@@ -241,7 +241,7 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
 		vlanID := uint16(i)
-		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 			vlanID = uint16(i) + 1
 		}
 		name := fmt.Sprintf(`dst%d`, i)
@@ -653,7 +653,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	gnoiClient = dut.RawAPIs().GNOI().New(t) // reconnect gnoi connection after switchover
 	coreFilecheck(t, dut, gnoiClient, sysConfigTime)
 
-	if *deviations.GRIBIDelayedAckResponse {
+	if deviations.GRIBIDelayedAckResponse(dut) {
 		time.Sleep(3 * time.Minute)
 	}
 	t.Log("Re-inject routes from ipBlock1 in default VRF with NHGID: #1.")

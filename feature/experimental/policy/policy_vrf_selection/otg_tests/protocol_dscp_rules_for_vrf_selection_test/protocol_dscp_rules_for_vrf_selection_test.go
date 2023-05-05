@@ -146,7 +146,7 @@ func TestMain(m *testing.M) {
 }
 
 // configureATE configures port1, port2 and vlans on port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) gosnappi.Config {
 	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
@@ -161,7 +161,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top.Ports().Add().SetName(p2.ID())
 	dstDev := top.Devices().Add().SetName(atePort2.Name)
 	ethDst := dstDev.Ethernets().Add().SetName(atePort2.Name + ".eth").SetMac(atePort2.MAC)
-	if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+	if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 		ethDst.Vlans().Add().SetName(atePort2.Name + "vlan").SetId(1)
 	}
 	ethDst.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
@@ -268,7 +268,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
-	if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+	if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 		i3 := &oc.Interface{Name: ygot.String(p2.Name())}
 		s := i3.GetOrCreateSubinterface(0)
 		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(1)
@@ -419,7 +419,7 @@ func TestPBR(t *testing.T) {
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
+	top := configureATE(t, ate, dut)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
