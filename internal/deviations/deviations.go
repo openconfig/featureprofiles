@@ -177,12 +177,12 @@ func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
 }
 
-// StatePathsUnsupported returns whether the device supports following state paths
+// StatePathsUnsupported returns whether the device supports following state paths.
 func StatePathsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *statePathsUnsupported
 }
 
-// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile
+// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile.
 func DropWeightLeavesUnsupported(_ *ondatra.DUTDevice) bool {
 	return *dropWeightLeavesUnsupported
 }
@@ -279,12 +279,12 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
-// ExplicitIPv6EnableForGRIBI returns if device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address
+// ExplicitIPv6EnableForGRIBI returns if device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address.
 func ExplicitIPv6EnableForGRIBI(_ *ondatra.DUTDevice) bool {
 	return *explicitIPv6EnableForGRIBI
 }
 
-// NoMixOfTaggedAndUntaggedSubinterfaces returns if device does not support a mix of tagged and untagged subinterfaces
+// NoMixOfTaggedAndUntaggedSubinterfaces returns if device does not support a mix of tagged and untagged subinterfaces.
 func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
 	return *noMixOfTaggedAndUntaggedSubinterfaces
 }
