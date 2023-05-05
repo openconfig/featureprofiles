@@ -14,6 +14,7 @@ from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
 from helper import CommandFailed
 from getpass import getuser
+import xml.etree.ElementTree as ET
 from pathlib import Path
 import shutil
 import random
@@ -41,17 +42,17 @@ TESTBEDS_FILE = 'exec/testbeds.yaml'
 whitelist_arguments([
     'test_html_report',
     'release_ixia_ports',
+    'test_ignore_aborted',
+    'test_skip',
+    'test_fail_skipped',
 ])
-
-class GoTestSegFaultException(Exception):
-    pass
 
 def _get_go_env():
     gorootpath = os.path.join('/nobackup', getuser())
     return {
         'GOPATH': os.path.join(gorootpath, 'go'),
         'GOCACHE': os.path.join(gorootpath, '.gocache'),
-	'GOTMPDIR': os.path.join(gorootpath, '.gocache'),
+        'GOTMPDIR': os.path.join(gorootpath, '.gocache'),
         'GOROOT': '/auto/firex/sw/go'
     }
 
@@ -107,6 +108,39 @@ def _cli_to_gnmi_set_file(cli_file, gnmi_file, extra_conf=[]):
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
 
+def _get_dummy_suite_xml(test_name, fail):
+    if fail: 
+        failures = 1
+        body = '<failure message="Failed"></failure>'
+    else:
+        failures = 0
+        body = "<system-out></system-out>"
+
+    return f"""<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+    <!-- This dummy xunit result has been automatically generated since the test was aborted. -->
+    <!-- Check test logs for error details. -->
+    <testsuite name="{test_name}" tests="1" failures="{failures}" errors="0" skipped="0">
+        <testcase name="dummy">
+            {body}
+        </testcase>
+    </testsuite>
+</testsuites>
+    """
+
+def _write_dummy_xml_output(test_name, xml_file, fail):
+    with open(xml_file, 'w') as fp:
+        fp.write(_get_dummy_suite_xml(test_name, fail))
+
+def _get_testsuite_from_xml(file_name):
+    try:
+        tree = ET.parse(file_name)
+        for suite in tree.findall("testsuite"):
+            return suite
+        return None
+    except:
+        return None
+
 def _check_json_output(cmd):
     return json.loads(check_output(cmd))
 
@@ -153,7 +187,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
-                        collect_tb_info=True,
+                        collect_tb_info=False,
                         install_image=False,
                         ignore_install_errors=False,
                         force_reboot=False):
@@ -238,7 +272,7 @@ def max_testbed_requests():
 def decommission_testbed_after_tests():
     if 'B4_FIREX_DECOMMISSION_TESTBED' in os.environ:
         return bool(int(os.environ.get('B4_FIREX_DECOMMISSION_TESTBED')))
-    return False
+    return True
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
@@ -314,14 +348,16 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     return chain
 
 # noinspection PyPep8Naming
-@app.task(bind=True, base=FireXRunnerBase, max_retries=2, autoretry_for=[GoTestSegFaultException])
+@app.task(bind=True, base=FireXRunnerBase)
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
-        test_path, test_args=None, test_timeout=0, test_debug=False, test_verbose=False, testbed_info_path=None):
-    
+        test_name, test_path, test_args=None, test_timeout=0, test_debug=False, 
+        test_verbose=False, testbed_info_path=None, test_ignore_aborted=False,
+        test_skip=False, test_fail_skipped=False):
+
     logger.print('Running Go test...')
     json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
@@ -366,39 +402,32 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     start_timestamp = int(time.time())
 
     try:
-        self.run_script(cmd,
-                        inactivity_timeout=inactivity_timeout,
-                        ok_nonzero_returncodes=(1,),
-                        extra_env_vars=_get_go_env(),
-                        cwd=test_repo_dir)
+        if not test_skip:
+            self.run_script(cmd,
+                            inactivity_timeout=inactivity_timeout,
+                            ok_nonzero_returncodes=(1,),
+                            extra_env_vars=_get_go_env(),
+                            cwd=test_repo_dir)
         stop_time = self.get_current_time()
     finally:
-        have_output = self.console_output_file and Path(self.console_output_file).is_file()
-        have_xml_output = xml_results_file and Path(xml_results_file).is_file()
-
-        if have_output:
+        if self.console_output_file and Path(self.console_output_file).is_file():
             shutil.copyfile(self.console_output_file, json_results_file)
-
-        if have_xml_output:
+        
+        suite = _get_testsuite_from_xml(xml_results_file)
+        if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
-            if test_debug:
-                with open(xml_results_file, 'r') as f:
-                    if 'failures="0"' not in f.read():
-                        self.enqueue_child(CollectDebugFiles.s(
-                            internal_fp_repo_dir=internal_fp_repo_dir, 
-                            ondatra_binding_path=ondatra_binding_path, 
-                            ondatra_testbed_path=ondatra_testbed_path, 
-                            test_log_directory_path=test_log_directory_path,
-                            timestamp=start_timestamp
-                        ))
-        elif have_output:
-            with open(json_results_file, 'r') as f:
-                content = f.read() 
-                if 'segmentation fault (core dumped)' in content:
-                    raise GoTestSegFaultException
+            if test_debug and suite.attrib['failures'] != '0':
+                self.enqueue_child(CollectDebugFiles.s(
+                    internal_fp_repo_dir=internal_fp_repo_dir, 
+                    ondatra_binding_path=ondatra_binding_path, 
+                    ondatra_testbed_path=ondatra_testbed_path, 
+                    test_log_directory_path=test_log_directory_path,
+                    timestamp=start_timestamp
+                ))
+        elif test_ignore_aborted or test_skip:
+            _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
-
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         else: 
