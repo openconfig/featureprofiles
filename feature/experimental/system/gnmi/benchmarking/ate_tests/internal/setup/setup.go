@@ -241,7 +241,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
 
 		// Configure ISIS AfiSafi enable flag at the global level
-		if *deviations.MissingIsisInterfaceAfiSafiEnable {
+		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
 			isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 		} else {
 			isisIntfLevelAfi.Enabled = ygot.Bool(true)
