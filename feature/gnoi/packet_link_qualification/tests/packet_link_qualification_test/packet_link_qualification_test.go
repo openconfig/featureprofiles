@@ -94,7 +94,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 	}, {
 		desc: "Generator MaxMtu",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxMtu()),
-		min:  uint64(9000),
+		min:  uint64(8184),
 	}, {
 		desc: "Generator MaxBps",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxBps()),
@@ -225,7 +225,7 @@ func TestLinkQualification(t *testing.T) {
 				EndpointType: &plqpb.QualificationConfiguration_PacketGenerator{
 					PacketGenerator: &plqpb.PacketGeneratorConfiguration{
 						PacketRate: uint64(138888),
-						PacketSize: uint32(9000),
+						PacketSize: uint32(8184),
 					},
 				},
 				Timing: &plqpb.QualificationConfiguration_Rpc{
