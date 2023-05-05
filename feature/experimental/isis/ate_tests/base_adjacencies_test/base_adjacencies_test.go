@@ -255,7 +255,7 @@ func TestBasic(t *testing.T) {
 		} {
 			t.Run(vd.RelPath(adj), func(t *testing.T) {
 				if strings.Contains(vd.Path(), "multi-topology") {
-					if *deviations.ISISMultiTopologyUnsupported {
+					if deviations.ISISMultiTopologyUnsupported(ts.DUT) {
 						t.Skip("Multi-Topology Unsupported")
 					}
 				}
@@ -502,7 +502,7 @@ func TestTraffic(t *testing.T) {
 		global := isis.GetOrCreateGlobal()
 		global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
 		// configuring single topology for ISIS global ipv4 AF
-		if *deviations.IsisSingleTopologyRequired {
+		if deviations.ISISSingleTopologyRequired(ts.DUT) {
 			afv6 := global.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
 			afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
 			afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
