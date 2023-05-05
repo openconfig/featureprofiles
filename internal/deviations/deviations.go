@@ -268,6 +268,11 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// InterfaceConfigVrfBeforeAddress returns if vrf should be configured before IP address when configuring interface.
+func InterfaceConfigVrfBeforeAddress(_ *ondatra.DUTDevice) bool {
+	return *interfaceConfigVrfBeforeAddress
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -368,7 +373,7 @@ var (
 	missingInterfaceHardwarePort = flag.Bool("deviation_missing_interface_hardware_port", false,
 		"Device does not support interface/hardwareport leaf. Set this flag to skip checking the leaf.")
 
-	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
+	interfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
