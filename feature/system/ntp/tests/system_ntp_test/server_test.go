@@ -17,7 +17,6 @@ package system_ntp_test
 import (
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -44,9 +43,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 			ntpServer := oc.System_Ntp_Server{
 				Address: &testCase.address,
 			}
-			if deviations.NTPAssociationTypeRequired(dut) {
-				ntpServer.AssociationType = oc.Server_AssociationType_SERVER
-			}
+
 			gnmi.Replace(t, dut, config.Server(testCase.address).Config(), &ntpServer)
 
 			t.Run("Get NTP Server Config", func(t *testing.T) {
