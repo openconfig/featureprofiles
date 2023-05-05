@@ -156,8 +156,8 @@ func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisLevelAuthenticationNotRequired
 }
 
-// IsisSingleTopologyRequired sets isis af ipv6 single topology on the device if value is true.
-func IsisSingleTopologyRequired(_ *ondatra.DUTDevice) bool {
+// ISISSingleTopologyRequired sets isis af ipv6 single topology on the device if value is true.
+func ISISSingleTopologyRequired(_ *ondatra.DUTDevice) bool {
 	return *isisSingleTopologyRequired
 }
 
