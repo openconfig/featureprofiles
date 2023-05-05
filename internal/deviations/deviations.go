@@ -284,6 +284,16 @@ func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
 	return *networkInstanceTableDeletionRequired
 }
 
+// ISISprotocolEnabledNotRequired returns if isis protocol enable flag should be unset on the device.
+func ISISprotocolEnabledNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisprotocolEnabledNotRequired
+}
+
+// ISISInstanceEnabledNotRequired returns if isis instance enable flag should not be on the device.
+func ISISInstanceEnabledNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisInstanceEnabledNotRequired
+}
+
 // NoMixOfTaggedAndUntaggedSubinterfaces returns if device does not support a mix of tagged and untagged subinterfaces
 func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
 	return *noMixOfTaggedAndUntaggedSubinterfaces
@@ -367,10 +377,10 @@ var (
 	IsisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
 		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
 
-	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
+	isisprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
 		"Unset isis protocol enable flag on the device if value is true, Default value is false and protocol enable flag is set")
 
-	ISISInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
+	isisInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
 		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
 
 	ExplicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
