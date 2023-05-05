@@ -280,13 +280,11 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 }
 
 // ISISprotocolEnabledNotRequired returns if isis protocol enable flag should be unset on the device.
-// Protocol enable flag is set by default.
 func ISISprotocolEnabledNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisprotocolEnabledNotRequired
 }
 
 // ISISInstanceEnabledNotRequired returns if isis instance enable flag should not be on the device.
-// Instance enable flag is set by default.
 func ISISInstanceEnabledNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisInstanceEnabledNotRequired
 }
