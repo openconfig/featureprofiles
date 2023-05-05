@@ -67,7 +67,7 @@ func (tc *testcase) check() []error {
 	var errs []error
 
 	if tc.existing == nil {
-		errs = append(errs, errors.New("existing rundata is missing"))
+		errs = append(errs, errors.New("existing metadata is missing"))
 	}
 	if tc.markdown == nil {
 		errs = append(errs, errors.New("existing markdown is missing"))
@@ -76,26 +76,29 @@ func (tc *testcase) check() []error {
 	if tc.markdown != nil && tc.existing != nil {
 		if tc.existing.PlanId != tc.markdown.PlanId {
 			errs = append(errs, fmt.Errorf(
-				"rundata test plan ID needs update: was %q, will be %q",
+				"metadata test plan ID needs update: was %q, will be %q",
 				tc.existing.PlanId, tc.markdown.PlanId))
 		}
 
 		if tc.existing.Description != tc.markdown.Description {
 			errs = append(errs, fmt.Errorf(
-				"rundata test description needs update: was %q, will be %q",
+				"metadata test description needs update: was %q, will be %q",
 				tc.existing.Description, tc.markdown.Description))
 		}
 	}
 
 	if tc.existing != nil {
+		if tc.existing.Testbed == mpb.Metadata_TESTBED_UNSPECIFIED {
+			errs = append(errs, fmt.Errorf("missing testbed in metadata"))
+		}
 		if testUUID := tc.existing.Uuid; testUUID == "" {
-			errs = append(errs, errors.New("missing UUID from rundata"))
+			errs = append(errs, errors.New("missing UUID in metadata"))
 		} else if u, err := uuid.Parse(testUUID); err != nil {
 			errs = append(errs, fmt.Errorf(
-				"cannot parse UUID from rundata: %s: %w", testUUID, err))
+				"cannot parse UUID in metadata: %s: %w", testUUID, err))
 		} else if u.Variant() != uuid.RFC4122 || u.Version() != 4 {
 			errs = append(errs, fmt.Errorf(
-				"bad UUID from rundata: %s: got variant %s version %d; want variant RFC4122 version 4",
+				"bad UUID in metadata: %s: got variant %s version %d; want variant RFC4122 version 4",
 				testUUID, u.Variant(), u.Version()))
 		}
 	}
@@ -115,12 +118,18 @@ func (tc *testcase) fix() error {
 	}
 
 	if tc.existing != nil {
+		tc.fixed.Testbed = tc.existing.Testbed
 		u, err := uuid.Parse(tc.existing.Uuid)
 		if err == nil && u.Variant() == uuid.RFC4122 && u.Version() == 4 {
 			// Existing UUID is valid, but make sure it is normalized.
 			tc.fixed.Uuid = u.String()
 			return nil
 		}
+	}
+
+	// The most common, default testbed is a DUT and ATE with 2 links between them.
+	if tc.fixed.Testbed == mpb.Metadata_TESTBED_UNSPECIFIED {
+		tc.fixed.Testbed = mpb.Metadata_TESTBED_DUT_ATE_2LINKS
 	}
 
 	// Generate a new UUID.  Consistency between ATE and OTG tests is not handled here.  It
