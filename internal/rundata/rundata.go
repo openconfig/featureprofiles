@@ -53,22 +53,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
+	log "github.com/golang/glog"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra/binding"
-)
-
-var (
-	// TestPlanID should be set by a test to self-report the test plan ID.
-	TestPlanID string
-
-	// TestDescription should be set by a test to self-report the one-line description.
-	TestDescription string
-
-	// TestUUID should be set by a test to self-report the test UUID.
-	TestUUID string
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (
@@ -100,17 +93,22 @@ func topology(resv *binding.Reservation) string {
 
 // Properties builds the test properties map representing run data.
 func Properties(ctx context.Context, resv *binding.Reservation) map[string]string {
+	md, err := readFromMetadataProto()
+	if err != nil {
+		log.Errorf("Error reading metadata proto: %v", err)
+	}
+
 	m := make(map[string]string)
 	local(m)
 
-	if TestPlanID != "" {
-		m["test.plan_id"] = TestPlanID
+	if uuid := md.GetUuid(); uuid != "" {
+		m["test.uuid"] = uuid
 	}
-	if TestDescription != "" {
-		m["test.description"] = TestDescription
+	if planID := md.GetPlanId(); planID != "" {
+		m["test.plan_id"] = planID
 	}
-	if TestUUID != "" {
-		m["test.uuid"] = TestUUID
+	if desc := md.GetDescription(); desc != "" {
+		m["test.description"] = desc
 	}
 
 	if *knownIssueURL != "" {
@@ -123,6 +121,18 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 	}
 
 	return m
+}
+
+func readFromMetadataProto() (*mpb.Metadata, error) {
+	// When "go test" runs, the current working directory is the test
+	// package directory, which is where we will find the metadata file.
+	const metadataFilename = "metadata.textproto"
+	bytes, err := os.ReadFile(metadataFilename)
+	if err != nil {
+		return nil, err
+	}
+	md := new(mpb.Metadata)
+	return md, prototext.Unmarshal(bytes, md)
 }
 
 var timeBegin = time.Now()

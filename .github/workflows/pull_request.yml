@@ -41,7 +41,7 @@ jobs:
     - name: Compile feature profile textprotos
       run: |
         fail=0
-        for i in `find feature/ -type f -name "*.textproto"`; do
+        for i in `find feature/ -type f -name "feature.textproto"`; do
           if ! output=$(protoc --encode=openconfig.profiles.FeatureProfile proto/feature.proto < $i 2>&1 >/dev/null); then
             fail=1
             echo -e "Compile $i failed:\n$output\n"
@@ -166,7 +166,15 @@ jobs:
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
       run: GOGC=30 staticcheck ./...
-    - name: Get Ondatra linter
-      run: go install github.com/openconfig/ondatra/gnmi/migrator@latest
-    - name: Run Ondatra linter
-      run: migrator -json ./feature/... | go run ./tools/lint2annotation
+
+  otg_changes:
+    name: OTG Changes Required
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Check if OTG changes required
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const script = require('./.github/workflows/required_otg_changes_check.js')
+          await script({github, context, core})

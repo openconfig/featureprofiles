@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"path/filepath"
+
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 // listJSON writes the testsuite as a JSON map, mapping from the test package directory to
@@ -13,9 +15,9 @@ import (
 //
 //	{
 //	  "feature/subfeature/otg_tests/foo_test": {
+//	    "test.uuid": "123e4567-e89b-42d3-8456-426614174000",
 //	    "test.plan_id": "XX-1.1",
 //	    "test.description": "Foo Functional Test",
-//	    "test.uuid": "123e4567-e89b-42d3-8456-426614174000",
 //	  },
 //	  ...
 //	}
@@ -40,15 +42,15 @@ func listJSON(w io.Writer, featuredir string, ts testsuite) error {
 }
 
 type jsonCase struct {
+	UUID        string `json:"test.uuid,omitempty"`
 	PlanID      string `json:"test.plan_id,omitempty"`
 	Description string `json:"test.description,omitempty"`
-	UUID        string `json:"test.uuid,omitempty"`
 }
 
-func newJSONCase(pd parsedData) jsonCase {
+func newJSONCase(md *mpb.Metadata) jsonCase {
 	return jsonCase{
-		PlanID:      pd.testPlanID,
-		Description: pd.testDescription,
-		UUID:        pd.testUUID,
+		UUID:        md.Uuid,
+		PlanID:      md.PlanId,
+		Description: md.Description,
 	}
 }

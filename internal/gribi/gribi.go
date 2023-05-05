@@ -88,7 +88,7 @@ type Client struct {
 }
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
-func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
+func (c *Client) Fluent(_ testing.TB) *fluent.GRIBIClient {
 	return c.fluentC
 }
 
@@ -200,42 +200,41 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
 func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHOptions) {
 	t.Helper()
+	nh := fluent.NextHopEntry().
+		WithNetworkInstance(instance).
+		WithIndex(nhIndex)
 	switch address {
 	case "Decap":
-		c.fluentC.Modify().AddEntry(t,
-			fluent.NextHopEntry().
-				WithNetworkInstance(instance).
-				WithIndex(nhIndex).
-				WithDecapsulateHeader(fluent.IPinIP))
-	case "DecapEncap":
-		NH := fluent.NextHopEntry().
-			WithNetworkInstance(instance).
-			WithIndex(nhIndex)
-		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
-		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
+		nh = nh.WithDecapsulateHeader(fluent.IPinIP)
 		for _, opt := range opts {
-			NH = NH.WithIPinIP(opt.Src, opt.Dest)
-			NH = NH.WithNextHopNetworkInstance(opt.VrfName)
+			nh = nh.WithNextHopNetworkInstance(opt.VrfName)
 		}
-		c.fluentC.Modify().AddEntry(t, NH)
+	case "DecapEncap":
+		nh = nh.WithDecapsulateHeader(fluent.IPinIP).
+			WithEncapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			nh = nh.WithIPinIP(opt.Src, opt.Dest).
+				WithNextHopNetworkInstance(opt.VrfName)
+		}
+	case "VRFOnly":
+		for _, opt := range opts {
+			nh = nh.WithNextHopNetworkInstance(opt.VrfName)
+		}
 	default:
-		c.fluentC.Modify().AddEntry(t,
-			fluent.NextHopEntry().
-				WithNetworkInstance(instance).
-				WithIndex(nhIndex).
-				WithIPAddress(address))
-		if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
-			t.Fatalf("Error waiting to add NH: %v", err)
-		}
-		chk.HasResult(t, c.fluentC.Results(t),
-			fluent.OperationResult().
-				WithNextHopOperation(nhIndex).
-				WithOperationType(constants.Add).
-				WithProgrammingResult(expectedResult).
-				AsResult(),
-			chk.IgnoreOperationID(),
-		)
+		nh = nh.WithIPAddress(address)
 	}
+	c.fluentC.Modify().AddEntry(t, nh)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add NH: %v", err)
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithNextHopOperation(nhIndex).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
 }
 
 // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.

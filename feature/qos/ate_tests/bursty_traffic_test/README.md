@@ -22,7 +22,7 @@ Verify that DUT does not drop bursty traffic.
 
 *   Traffic classes:
 
-    *   We will use 7 traffic classes NC1, AF4, AF3, AF2, AF1, BE1 and BE0.
+    *   We will use 7 traffic classes NC1, AF4, AF3, AF2, AF1, BE0 and BE1.
 
 *   Traffic types:
 
@@ -32,9 +32,8 @@ Verify that DUT does not drop bursty traffic.
 
     *   NC1 will have strict priority queues
         *   AF4/AF3/AF2/AF1/BE1/BE0 will use WRR queues.
-    *   NC1 and AF4 will have strict priority queues with NC1 having higher
-        priority.
-        *   AF3, AF2, AF1, BE1 and BE0 will use WRR queues.
+    *   NC1 will have strict priority queue.
+        *   AF4, AF3, AF2, AF1, BE1 and BE0 will use WRR queues.
 
 *   Test results should be independent of the location of interfaces. For
     example, 2 input interfaces and output interface could be located on
@@ -66,8 +65,8 @@ Verify that DUT does not drop bursty traffic.
 
     *   Configure strict priority queues for NC1 and AF4 with NC1 having higher
         priority.
-    *   Configure WRR for AF3, AF2, AF1, BE1 and BE0 with weight 32, 16, 8, 4
-        and 1 respectively.
+    *   Configure WRR for AF4, AF3, AF2, AF1, BE0 and BE1 with weight 48, 12, 8,
+        4, 1 and 1 respectively.
 
 *   Verify that there is no traffic loss with bursty traffic
 
