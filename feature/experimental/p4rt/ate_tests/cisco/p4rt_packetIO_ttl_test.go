@@ -183,7 +183,7 @@ var (
 			name: "Program TTL Match Entry and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:016 Egress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
 			fn:   testPacketOutEgress,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 (submit_to_egress)",
