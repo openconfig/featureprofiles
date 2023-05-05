@@ -255,7 +255,7 @@ func TestBasic(t *testing.T) {
 		} {
 			t.Run(vd.RelPath(adj), func(t *testing.T) {
 				if strings.Contains(vd.Path(), "multi-topology") {
-					if *deviations.ISISMultiTopologyUnsupported {
+					if deviations.ISISMultiTopologyUnsupported(ts.DUT) {
 						t.Skip("Multi-Topology Unsupported")
 					}
 				}
