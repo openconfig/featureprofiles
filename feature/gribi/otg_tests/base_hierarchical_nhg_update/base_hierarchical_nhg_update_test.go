@@ -16,6 +16,7 @@ package base_hierarchical_nhg_update_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -113,12 +114,12 @@ var (
 	atePort2DummyIP = attrs.Attributes{
 		Desc:    "atePort2",
 		IPv4:    "192.0.2.22",
-		IPv4Len: 30,
+		IPv4Len: 32,
 	}
 	atePort3DummyIP = attrs.Attributes{
 		Desc:    "atePort3",
 		IPv4:    "192.0.2.42",
-		IPv4Len: 30,
+		IPv4Len: 32,
 	}
 )
 
@@ -155,6 +156,11 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 		if err = gribi.FlushAll(gribic); err != nil {
 			t.Error(err)
 		}
+		if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+			sp := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+			gnmi.Delete(t, dut, sp.Static(atePort2DummyIP.IPv4CIDR()).Config())
+			gnmi.Delete(t, dut, sp.Static(atePort3DummyIP.IPv4CIDR()).Config())
+		}
 	}()
 
 	gribi.BecomeLeader(t, gribic)
@@ -162,7 +168,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	dutP3 := dut.Port(t, "port3").Name()
 
 	t.Logf("Adding gribi routes and validating traffic forwarding via port %v and NH ID %v", dutP2, p2NHID)
-	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		addVIPRoute(ctx, t, gribic, p2NHID, dutP2, atePort2DummyIP.IPv4)
 	} else {
 		addVIPRoute(ctx, t, gribic, p2NHID, dutP2)
@@ -172,10 +178,10 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	validateTrafficFlows(t, p2flow, p3flow)
 
 	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
-	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		addNH(ctx, t, gribic, p3NHID, dutP3, pMAC, atePort3DummyIP.IPv4)
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		addNH(ctx, t, dut, gribic, p3NHID, dutP3, pMAC, atePort3DummyIP.IPv4)
 	} else {
-		addNH(ctx, t, gribic, p3NHID, dutP3, pMAC)
+		addNH(ctx, t, dut, gribic, p3NHID, dutP3, pMAC)
 	}
 
 	t.Logf("Performing implicit in-place replace with two next-hops (NH IDs: %v and %v)", p2NHID, p3NHID)
@@ -192,7 +198,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 }
 
 // addNH adds a GRIBI NH with a FIB ACK confirmation via Modify RPC
-func addNH(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, intf, mac string, nhip ...string) {
+func addNH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gribic *fluent.GRIBIClient, id uint64, intf, mac string, nhip ...string) {
 	nh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
 		WithIndex(id).WithInterfaceRef(intf).WithMacAddress(mac)
 	if len(nhip) > 0 {
@@ -200,13 +206,17 @@ func addNH(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uin
 	}
 
 	gribic.Modify().AddEntry(t, nh)
-	if err := awaitTimeout(ctx, gribic, t, time.Minute); err != nil {
+	if err := awaitTimeout(ctx, gribic, t, 2*time.Minute); err != nil {
 		t.Fatalf("Await got error for entries: %v", err)
+	}
+	result := fluent.InstalledInFIB
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		result = fluent.InstalledInRIB
 	}
 	wantOperationResults := []*client.OpResult{
 		fluent.OperationResult().
 			WithNextHopOperation(id).
-			WithProgrammingResult(fluent.InstalledInFIB).
+			WithProgrammingResult(result).
 			WithOperationType(constants.Add).
 			AsResult(),
 	}
@@ -386,11 +396,54 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name()))
-		gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name()))
-		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configStaticArp(p2, atePort2DummyIP.IPv4, pMAC))
-		gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), configStaticArp(p3, atePort3DummyIP.IPv4, pMAC))
+		staticARPWithSecondaryIP(t, dut)
 	}
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		staticARPWithMagicUniversalIP(t, dut)
+	}
+}
+
+func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name()))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name()))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2, atePort2DummyIP.IPv4, pMAC))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3, atePort3DummyIP.IPv4, pMAC))
+}
+
+func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	s2 := &oc.NetworkInstance_Protocol_Static{
+		Prefix: ygot.String(atePort2DummyIP.IPv4CIDR()),
+		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+			strconv.Itoa(p2NHID): {
+				Index: ygot.String(strconv.Itoa(p2NHID)),
+				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+					Interface: ygot.String(p2.Name()),
+				},
+			},
+		},
+	}
+	s3 := &oc.NetworkInstance_Protocol_Static{
+		Prefix: ygot.String(atePort3DummyIP.IPv4CIDR()),
+		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+			strconv.Itoa(p3NHID): {
+				Index: ygot.String(strconv.Itoa(p3NHID)),
+				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+					Interface: ygot.String(p3.Name()),
+				},
+			},
+		},
+	}
+	sp := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	gnmi.Replace(t, dut, sp.Static(atePort2DummyIP.IPv4CIDR()).Config(), s2)
+	gnmi.Replace(t, dut, sp.Static(atePort3DummyIP.IPv4CIDR()).Config(), s3)
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2, atePort2DummyIP.IPv4, pMAC))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3, atePort3DummyIP.IPv4, pMAC))
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
