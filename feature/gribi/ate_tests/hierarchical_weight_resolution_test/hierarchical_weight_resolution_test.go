@@ -229,7 +229,7 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // starting from Sub Interface 1. Each Subinterface is configured with a
 // unique VlanID starting from 1 and an IP address. The starting IP Address
 // for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4.
-func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
+func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	for i := uint32(1); i <= a.numSubIntf; i++ {
@@ -239,7 +239,7 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 		if *deviations.InterfaceEnabled {
 			s.Enabled = ygot.Bool(true)
 		}
-		if *deviations.DeprecatedVlanID {
+		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(i)
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
@@ -275,7 +275,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 		i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, p)
 	}
 
-	a.configSubinterfaceDUT(t, i)
+	a.configSubinterfaceDUT(t, i, d)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
 	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
