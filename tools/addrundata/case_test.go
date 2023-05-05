@@ -117,6 +117,7 @@ func TestCase_Check(t *testing.T) {
 				Uuid:        "123e4567-e89b-42d3-8456-426614174000",
 				PlanId:      "XX-1.1",
 				Description: "Foo Functional Test",
+				Testbed:     mpb.Metadata_TESTBED_DUT_ATE_4LINKS,
 			},
 		},
 		want: 0,
@@ -133,7 +134,7 @@ func TestCase_Check(t *testing.T) {
 				Description: "Description from Test",
 			},
 		},
-		want: 3,
+		want: 4,
 	}, {
 		name: "noexisting",
 		tc: testcase{
@@ -175,6 +176,7 @@ func TestCase_Fix(t *testing.T) {
 		Uuid:        got.Uuid,
 		PlanId:      tc.markdown.PlanId,
 		Description: tc.markdown.Description,
+		Testbed:     mpb.Metadata_TESTBED_DUT_ATE_2LINKS,
 	}
 	if diff := cmp.Diff(want, got, tcopts...); diff != "" {
 		t.Errorf("fixed -want,+got:\n%s", diff)
@@ -188,7 +190,8 @@ func TestCase_FixUUID(t *testing.T) {
 			Description: "Foo Functional Test",
 		},
 		existing: &mpb.Metadata{
-			Uuid: "urn:uuid:123e4567-e89b-42d3-8456-426614174000",
+			Testbed: mpb.Metadata_TESTBED_DUT,
+			Uuid:    "urn:uuid:123e4567-e89b-42d3-8456-426614174000",
 		},
 	}
 	if err := tc.fix(); err != nil {
@@ -199,6 +202,7 @@ func TestCase_FixUUID(t *testing.T) {
 		Uuid:        "123e4567-e89b-42d3-8456-426614174000",
 		PlanId:      tc.markdown.PlanId,
 		Description: tc.markdown.Description,
+		Testbed:     mpb.Metadata_TESTBED_DUT,
 	}
 	if diff := cmp.Diff(want, got, tcopts...); diff != "" {
 		t.Errorf("fixed -want,+got:\n%s", diff)
