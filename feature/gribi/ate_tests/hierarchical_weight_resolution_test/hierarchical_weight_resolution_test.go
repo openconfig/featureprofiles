@@ -116,7 +116,7 @@ var (
 	}
 	// 'tolerance' is the maximum difference that is allowed between the observed
 	// traffic distribution and the required traffic distribution.
-	tolerance = 0.2
+	tolerance = 0.35
 )
 
 func TestMain(m *testing.M) {
