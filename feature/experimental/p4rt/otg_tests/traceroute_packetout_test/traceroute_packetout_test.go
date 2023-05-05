@@ -46,13 +46,21 @@ const (
 	deviceID      = uint64(100)
 	portId        = uint32(2100)
 	electionId    = uint64(100)
+	dstMAC        = "00:1A:11:00:00:01"
 )
 
 var (
 	p4InfoFile = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName = "p4rt"
-	checksum   = uint16(200)
 )
+
+func dMAC(t *testing.T, dut *ondatra.DUTDevice) string {
+	if !deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		return dstMAC
+	}
+	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), dstMAC)
+	return dstMAC
+}
 
 var (
 	dutPort1 = attrs.Attributes{
@@ -244,12 +252,25 @@ func TestPacketOut(t *testing.T) {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
+	sm := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
+	srcMAC, err := net.ParseMAC(sm)
+	if err != nil {
+		t.Fatalf("Couldn't parse Source MAC: %v", err)
+	}
+
+	dstMAC, err := net.ParseMAC(dMAC(t, dut))
+	if err != nil {
+		t.Fatalf("Couldn't parse router MAC: %v", err)
+	}
+
 	args := &testArgs{
 		ctx:    ctx,
 		leader: leader,
 		dut:    dut,
 		ate:    ate,
 		top:    top,
+		srcMAC: srcMAC,
+		dstMAC: dstMAC,
 	}
 
 	if err := setupP4RTClient(ctx, args); err != nil {
@@ -266,65 +287,96 @@ type TraceroutePacketIO struct {
 }
 
 // packetTracerouteRequestGet generates PacketOut payload for Traceroute packets.
-func packetTracerouteRequestGet(isIPv4 bool, ttl uint8) []byte {
+func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int) ([]byte, error) {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
 	payload := []byte{}
-	payLoadLen := 64
+	payLoadLen := 32
 
-	pktICMP4 := &layers.ICMPv4{
-		TypeCode: layers.ICMPv4TypeTimeExceeded,
-		Checksum: checksum,
+	ethType := layers.EthernetTypeIPv4
+	if !isIPv4 {
+		ethType = layers.EthernetTypeIPv6
+	}
+	pktEth := &layers.Ethernet{
+		SrcMAC:       srcMAC,
+		DstMAC:       dstMAC,
+		EthernetType: ethType,
 	}
 
 	pktIpv4 := &layers.IPv4{
 		Version:  4,
 		TTL:      ttl,
-		SrcIP:    net.IP{192, 0, 2, 1},
-		DstIP:    net.IP{192, 0, 2, 2},
+		SrcIP:    net.ParseIP(dutPort1.IPv4).To4(),
+		DstIP:    net.ParseIP(atePort1.IPv4).To4(),
 		Protocol: layers.IPProtocolICMPv4,
+		Flags:    layers.IPv4DontFragment,
+	}
+	pktICMP4 := &layers.ICMPv4{
+		TypeCode: layers.CreateICMPv4TypeCode(layers.ICMPv4TypeEchoRequest, 0),
+		Seq:      uint16(seq),
 	}
 
 	pktIpv6 := &layers.IPv6{
 		Version:    6,
 		HopLimit:   ttl,
 		NextHeader: layers.IPProtocolICMPv6,
-		SrcIP:      net.ParseIP("2001:db8::192:0:2:1"),
-		DstIP:      net.ParseIP("2001:db8::192:0:2:2"),
+		SrcIP:      net.ParseIP(dutPort1.IPv6).To16(),
+		DstIP:      net.ParseIP(atePort1.IPv6).To16(),
 	}
+	pktICMP6 := &layers.ICMPv6{
+		TypeCode: layers.CreateICMPv6TypeCode(layers.ICMPv6TypeEchoRequest, 0),
+	}
+	pktICMP6.SetNetworkLayerForChecksum(pktIpv6)
 
 	for i := 0; i < payLoadLen; i++ {
 		payload = append(payload, byte(i))
 	}
 	if isIPv4 {
-		gopacket.SerializeLayers(buf, opts,
-			pktIpv4, pktICMP4, gopacket.Payload(payload),
-		)
-		return buf.Bytes()
-	} else {
-		gopacket.SerializeLayers(buf, opts,
-			pktIpv6, gopacket.Payload(payload),
-		)
-		return buf.Bytes()
+		if err := gopacket.SerializeLayers(buf, opts,
+			pktEth, pktIpv4, pktICMP4, gopacket.Payload(payload),
+		); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
 	}
+	if err := gopacket.SerializeLayers(buf, opts,
+		pktEth, pktIpv6, pktICMP6, gopacket.Payload(payload),
+	); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
-func (traceroute *TraceroutePacketIO) GetPacketOut(portID uint32, isIPv4 bool, ttl uint8) []*p4v1.PacketOut {
+func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error) {
 	packets := []*p4v1.PacketOut{}
-	packet := &p4v1.PacketOut{
-		Payload: packetTracerouteRequestGet(isIPv4, ttl),
-		Metadata: []*p4v1.PacketMetadata{
-			{
-				MetadataId: uint32(2), // "submit_to_ingress"
-				Value:      []byte{1},
+	for i := 1; i <= numPkts; i++ {
+		pkt, err := packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl, i)
+		if err != nil {
+			return nil, err
+		}
+		packet := &p4v1.PacketOut{
+			Payload: pkt,
+			Metadata: []*p4v1.PacketMetadata{
+				{
+					MetadataId: uint32(1), // "egress_port"
+					Value:      []byte("0"),
+				},
+				{
+					MetadataId: uint32(2), // "submit_to_ingress"
+					Value:      []byte{1},
+				},
+				{
+					MetadataId: uint32(3), // "unused_pad"
+					Value:      []byte{0},
+				},
 			},
-		},
+		}
+		packets = append(packets, packet)
 	}
-	packets = append(packets, packet)
-	return packets
+	return packets, nil
 }
