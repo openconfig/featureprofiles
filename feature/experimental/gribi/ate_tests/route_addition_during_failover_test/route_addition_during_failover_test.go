@@ -656,7 +656,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 		}
 	}
 
-	if *deviations.GRIBIDelayedAckResponse {
+	if deviations.GRIBIDelayedAckResponse(dut) {
 		time.Sleep(4 * time.Minute)
 	}
 

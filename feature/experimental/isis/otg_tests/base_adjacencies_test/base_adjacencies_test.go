@@ -92,7 +92,7 @@ func TestBasic(t *testing.T) {
 
 		// if MissingIsisInterfaceAfiSafiEnable is set, ignore enable flag check for AFI, SAFI at global level
 		// and validate enable at interface level
-		if *deviations.MissingIsisInterfaceAfiSafiEnable {
+		if deviations.MissingIsisInterfaceAfiSafiEnable(ts.DUT) {
 			checks = append(checks,
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
@@ -103,7 +103,7 @@ func TestBasic(t *testing.T) {
 		}
 
 		// if ISISInterfaceLevel1DisableRequired is set, validate Level1 enabled false at interface level else validate Level2 enabled at global level
-		if *deviations.ISISInterfaceLevel1DisableRequired {
+		if deviations.ISISInterfaceLevel1DisableRequired(ts.DUT) {
 			checks = append(checks, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
 		} else {
 			checks = append(checks, check.Equal(isisRoot.Level(2).Enabled().State(), true))
@@ -255,7 +255,7 @@ func TestBasic(t *testing.T) {
 		} {
 			t.Run(vd.RelPath(adj), func(t *testing.T) {
 				if strings.Contains(vd.Path(), "multi-topology") {
-					if *deviations.ISISMultiTopologyUnsupported {
+					if deviations.ISISMultiTopologyUnsupported(ts.DUT) {
 						t.Skip("Multi-Topology Unsupported")
 					}
 				}
@@ -502,7 +502,7 @@ func TestTraffic(t *testing.T) {
 		global := isis.GetOrCreateGlobal()
 		global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
 		// configuring single topology for ISIS global ipv4 AF
-		if *deviations.IsisSingleTopologyRequired {
+		if deviations.ISISSingleTopologyRequired(ts.DUT) {
 			afv6 := global.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
 			afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
 			afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
