@@ -386,7 +386,7 @@ func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *o
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
-		if *deviations.DeprecatedVlanID {
+		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
@@ -406,7 +406,7 @@ func configureDUTSubIfs(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPor
 	for i := 0; i < 64; i++ {
 		index := uint32(i)
 		vlanID := uint16(i)
-		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 			vlanID = uint16(i) + 1
 		}
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+2)
@@ -419,11 +419,11 @@ func configureDUTSubIfs(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPor
 
 // configureATESubIfs configures 64 ATE subinterfaces on the target device
 // It returns a slice of the corresponding ATE IPAddresses.
-func configureATESubIfs(t *testing.T, atePort *ondatra.Port, top *ondatra.ATETopology) []string {
+func configureATESubIfs(t *testing.T, atePort *ondatra.Port, top *ondatra.ATETopology, dut *ondatra.DUTDevice) []string {
 	nextHops := []string{}
 	for i := 0; i < 64; i++ {
 		vlanID := uint16(i)
-		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 			vlanID = uint16(i) + 1
 		}
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+2)
@@ -477,7 +477,7 @@ func TestScaling(t *testing.T) {
 
 	configureATE(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4CIDR())
 	// subIntfIPs is a []string slice with ATE IPv4 addresses for all the subInterfaces
-	subIntfIPs := configureATESubIfs(t, ap2, top)
+	subIntfIPs := configureATESubIfs(t, ap2, top, dut)
 
 	top.Push(t).StartProtocols(t)
 
