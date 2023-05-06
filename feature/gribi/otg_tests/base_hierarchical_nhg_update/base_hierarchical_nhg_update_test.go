@@ -60,9 +60,12 @@ const (
 	// Destination route next-hop-group ID
 	dstNHGID = 44
 	// Destination route prefix for DUT to ATE traffic.
-	dstPfx      = "198.51.100.0/24"
-	dstPfxMin   = "198.51.100.0"
-	dstPfxCount = 256
+	dstPfx            = "198.51.100.0/24"
+	dstPfxFlowIP      = "198.51.100.0"
+	ipv4PrefixLen     = 30
+	ipv4FlowCount     = 65000
+	innerSrcIPv4Start = "198.18.0.0"
+	innerDstIPv4Start = "198.19.0.0"
 )
 
 var (
@@ -463,9 +466,12 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, dsts ...*attr
 	} else {
 		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
 	}
-	v4 := flowipv4.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
+	outerIPHeader := flowipv4.Packet().Add().Ipv4()
+	outerIPHeader.Src().SetValue(atePort1.IPv4)
+	outerIPHeader.Dst().SetValue(dstPfxFlowIP)
+	innerIPHeader := flowipv4.Packet().Add().Ipv4()
+	innerIPHeader.Src().Increment().SetStart(innerSrcIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
+	innerIPHeader.Dst().Increment().SetStart(innerDstIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
 }
 
 func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fluent.GRIBIClient, error) {
