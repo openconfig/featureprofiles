@@ -69,6 +69,11 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// GRIBIMACOverrideStaticARPStaticRoute returns whether the device needs to configure Static ARP + Static Route to override setting MAC address in Next Hop.
+func GRIBIMACOverrideStaticARPStaticRoute(*ondatra.DUTDevice) bool {
+	return *gribiMACOverrideStaticARPStaticRoute
+}
+
 // AggregateAtomicUpdate returns if device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces.
 // Otherwise lag-type will be dropped, and no member can be added to the aggregate.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
@@ -439,6 +444,8 @@ var (
 	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+
+	gribiMACOverrideStaticARPStaticRoute = flag.Bool("deviation_gribi_mac_override_static_arp_static_route", false, "Set to true for device that requires gRIBI MAC Override using Static ARP + Static Route")
 
 	cliTakesPrecedenceOverOC = flag.Bool("deviation_cli_takes_precedence_over_oc", false, "Set to true for device in which config pushed through origin CLI takes precedence over config pushed through origin OC, default is false")
 
