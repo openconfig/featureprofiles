@@ -31,6 +31,9 @@ const (
 
 var (
 	imagePathFlag = flag.String("imagePath", "", "Full path to image iso")
+	lineupFlag    = flag.String("lineup", "", "lineup")
+	efrFlag       = flag.String("efr", "", "efr")
+	forceFlag     = flag.Bool("force", false, "Force install even if image already installed")
 )
 
 func TestMain(m *testing.M) {
@@ -50,13 +53,24 @@ func TestSoftwareUpgrade(t *testing.T) {
 		t.Fatal("Missing imagePath arg")
 	}
 
+	efr := *efrFlag
+	lineup := *lineupFlag
+	force := *forceFlag
 	imagePath := *imagePathFlag
 	if _, err := os.Stat(imagePath); err != nil {
 		t.Fatalf("Image {%s} does not exist: %v", imagePath, err)
 	}
 
 	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, d.dut)
 		target := fmt.Sprintf("%s:%s", d.sshIp, d.sshPort)
+		if !force && len(lineup) > 0 && len(efr) > 0 {
+			if !shouldInstall(t, dut, lineup, efr) {
+				t.Logf("Image already installed on %s, skipping...", dut.ID())
+				continue
+			}
+		}
+
 		t.Logf("Copying image to %s (%s)", d.dut, target)
 		sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
 		scpClient, err := scp.NewClient(target, sshConf, &scp.ClientOption{})
@@ -71,7 +85,6 @@ func TestSoftwareUpgrade(t *testing.T) {
 			t.Fatalf("Error copying image to target %s (%s:%s): %v", d.dut, d.sshIp, d.sshPort, err)
 		}
 
-		dut := ondatra.DUT(t, d.dut)
 		if result, err := sendCLI(t, dut, installCmd); err == nil {
 			if !strings.Contains(result, "has started") {
 				t.Fatalf("Unexpected response:\n%s\n", result)
@@ -118,6 +131,13 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	sshClient := dut.RawAPIs().CLI(t)
 	defer sshClient.Close()
 	return sshClient.SendCommand(ctx, cmd)
+}
+
+func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
+	if buildInfo, err := sendCLI(t, dut, "run cat /etc/build-info.txt"); err != nil {
+		return !(strings.Contains(buildInfo, lineup) && strings.Contains(buildInfo, efr))
+	}
+	return true
 }
 
 func parseBindingFile(t *testing.T) []targetInfo {
