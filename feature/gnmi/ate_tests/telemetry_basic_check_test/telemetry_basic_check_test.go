@@ -449,6 +449,11 @@ func TestComponentParent(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+
+			if len(compList[tc.desc]) == 0 && dut.Model() == "DCS-7280CR3K-32D4" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
+			}
+
 			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
 			if len(compList[tc.desc]) == 0 {
 				t.Fatalf("Get component list for %q: got 0, want > 0", dut.Model())
@@ -534,6 +539,10 @@ func TestCPU(t *testing.T) {
 
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	if dut.Model() == "DCS-7280CR3K-32D4" {
+		t.Skipf("Test is skipped due to hardware platform compatibility")
+	}
 
 	cards := components.FindComponentsByType(t, dut, supervisorType)
 	t.Logf("Found card list: %v", cards)
