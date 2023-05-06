@@ -61,10 +61,12 @@ const (
 	// Destination route next-hop-group ID.
 	dstNHGID = 44
 	// Destination route prefix for DUT to ATE traffic.
-	dstPfx      = "198.51.100.0/24"
-	dstPfxMin   = "198.51.100.0"
-	dstPfxMax   = "198.51.100.255"
-	dstPfxCount = 256
+	dstPfx            = "198.51.100.0/24"
+	dstPfxFlowIP      = "198.51.100.0"
+	ipv4PrefixLen     = 30
+	ipv4FlowCount     = 65000
+	innerSrcIPv4Start = "198.18.0.0"
+	innerDstIPv4Start = "198.19.0.0"
 
 	// load balancing precision, %. Defines expected +-% delta for ECMP flows.
 	// E.g. 48-52% with two equal-weighted NHs.
@@ -444,9 +446,12 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
 func createFlow(name string, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology, dsts ...*attrs.Attributes) *ondatra.Flow {
-	hdr := ondatra.NewIPv4Header()
-	hdr.WithSrcAddress(dutPort1.IPv4).
-		DstAddressRange().WithMin(dstPfxMin).WithMax(dstPfxMax).WithCount(dstPfxCount)
+	ipv4Header := ondatra.NewIPv4Header()
+	ipv4Header.WithSrcAddress(atePort1.IPv4)
+	ipv4Header.WithDstAddress(dstPfxFlowIP)
+	innerIpv4Header := ondatra.NewIPv4Header()
+	innerIpv4Header.SrcAddressRange().WithMin(innerSrcIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
+	innerIpv4Header.DstAddressRange().WithMin(innerDstIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
 
 	endpoints := []ondatra.Endpoint{}
 	for _, dst := range dsts {
@@ -456,7 +461,7 @@ func createFlow(name string, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology
 	flow := ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(ateTop.Interfaces()[atePort1.Name]).
 		WithDstEndpoints(endpoints...).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr)
+		WithHeaders(ondatra.NewEthernetHeader(), ipv4Header, innerIpv4Header)
 	flow.EgressTracking().WithOffset(33).WithWidth(15)
 	return flow
 }
