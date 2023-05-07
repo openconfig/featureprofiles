@@ -119,7 +119,8 @@ ates {
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
-    target: "10.85.109.25"
+    # target: "10.85.109.25"
+    target: "10.85.84.194"
     #target :"10.85.84.161:12009"
     skip_verify: true
     username: "admin"
