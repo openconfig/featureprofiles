@@ -184,7 +184,7 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 
         'topo_path', 'testbed')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, 
-                        lineup, tag, test_name,
+                        lineup, efr, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
@@ -550,7 +550,7 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
-def SoftwareUpgrade(self, ws, lineup, tag, internal_fp_repo_dir, testbed_logs_dir, 
+def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
                     images, force_install=False, ignore_install_errors=False):
     logger.print("Performing Software Upgrade...")
@@ -562,7 +562,7 @@ def SoftwareUpgrade(self, ws, lineup, tag, internal_fp_repo_dir, testbed_logs_di
             f'-binding {ondatra_binding_path} ' \
             f'-imagePath "{images[0]}" ' \
             f'-lineup {lineup} ' \
-            f'-efr {tag} '
+            f'-efr {efr} '
 
     if force_install:
         su_command += f'-force'
