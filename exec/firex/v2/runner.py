@@ -585,7 +585,7 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
-def ForceReboot(self, ws, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path):
+def ForceReboot(self, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path):
     logger.print("Rebooting...")
     reboot_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/reboot ' \
