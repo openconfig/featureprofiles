@@ -183,12 +183,14 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
 		'ondatra_testbed_path', 'testbed_info_path', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 
         'topo_path', 'testbed')
-def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
+def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, 
+                        lineup, tag, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
                         collect_tb_info=False,
                         install_image=False,
+                        force_install=False,
                         ignore_install_errors=False,
                         force_reboot=False):
 
@@ -240,7 +242,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
 
     c |= GenerateOndatraTestbedFiles.s()
     if install_image and not using_sim:
-        c |= SoftwareUpgrade.s(ignore_install_errors=ignore_install_errors)
+        c |= SoftwareUpgrade.s(force_install=force_install, ignore_install_errors=ignore_install_errors)
         c |= ForceReboot.s()
     elif force_reboot:
         c |= ForceReboot.s()
@@ -473,14 +475,13 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'install_lock_file', 'testbed'))
+@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'testbed'))
 def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed, test_name, **kwargs):
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
     ondatra_testbed_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.testbed')
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
-    install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
     
     if reserved_testbed.get('sim', False):
@@ -517,8 +518,6 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
-        install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
-            f'testbed_{reserved_testbed["id"]}_install.lock')
 
         overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
         reserved_testbed.update(overrides)
@@ -534,7 +533,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
-    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, install_lock_file, pyats_testbed
+    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, pyats_testbed
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
@@ -551,13 +550,9 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
-def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir, 
+def SoftwareUpgrade(self, ws, lineup, tag, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
-                    install_lock_file, images, ignore_install_errors=False):
-    if os.path.exists(install_lock_file):
-        return
-    Path(install_lock_file).touch()
-
+                    images, force_install=False, ignore_install_errors=False):
     logger.print("Performing Software Upgrade...")
     su_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/software_upgrade ' \
@@ -565,7 +560,13 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir,
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
-            f'-imagePath "{images[0]}"'
+            f'-imagePath "{images[0]}" ' \
+            f'-lineup {lineup} ' \
+            f'-efr {tag} '
+
+    if force_install:
+        su_command += f'-force'
+
     try:
         env = dict(os.environ)
         env.update(_get_go_env())
@@ -573,7 +574,6 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir,
     except:
         if not ignore_install_errors:
             _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
-            os.remove(install_lock_file)
             raise
         else: logger.warning(f'Software upgrade failed. Ignoring...')
 
