@@ -62,15 +62,7 @@ func TestSoftwareUpgrade(t *testing.T) {
 	}
 
 	for _, d := range parseBindingFile(t) {
-		dut := ondatra.DUT(t, d.dut)
 		target := fmt.Sprintf("%s:%s", d.sshIp, d.sshPort)
-		if !force && len(lineup) > 0 && len(efr) > 0 {
-			if !shouldInstall(t, dut, lineup, efr) {
-				t.Logf("Image already installed on %s, skipping...", dut.ID())
-				continue
-			}
-		}
-
 		t.Logf("Copying image to %s (%s)", d.dut, target)
 		sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
 		scpClient, err := scp.NewClient(target, sshConf, &scp.ClientOption{})
@@ -83,6 +75,15 @@ func TestSoftwareUpgrade(t *testing.T) {
 			Timeout: imgCopyTimeout,
 		}); err != nil {
 			t.Fatalf("Error copying image to target %s (%s:%s): %v", d.dut, d.sshIp, d.sshPort, err)
+		}
+
+		//TODO: move me before copy
+		dut := ondatra.DUT(t, d.dut)
+		if !force && len(lineup) > 0 && len(efr) > 0 {
+			if !shouldInstall(t, dut, lineup, efr) {
+				t.Logf("Image already installed on %s, skipping...", dut.ID())
+				continue
+			}
 		}
 
 		if result, err := sendCLI(t, dut, installCmd); err == nil {
@@ -135,7 +136,10 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 
 func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
 	if buildInfo, err := sendCLI(t, dut, "run cat /etc/build-info.txt"); err != nil {
+		t.Logf("Install image info:\n%s", buildInfo)
 		return !(strings.Contains(buildInfo, lineup) && strings.Contains(buildInfo, efr))
+	} else {
+		t.Logf("Could not get existing image build info. Ignoring...")
 	}
 	return true
 }
