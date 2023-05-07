@@ -243,7 +243,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
     c |= GenerateOndatraTestbedFiles.s()
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s(force_install=force_install, ignore_install_errors=ignore_install_errors)
-        c |= ForceReboot.s()
     elif force_reboot:
         c |= ForceReboot.s()
     if collect_tb_info:
@@ -570,7 +569,14 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
     try:
         env = dict(os.environ)
         env.update(_get_go_env())
-        check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+        output = check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+        #TODO: find a better way?
+        if not 'Image already installed' in output:
+            self.enqueue_child(ForceReboot.s(
+                internal_fp_repo_dir=internal_fp_repo_dir, 
+                ondatra_binding_path=ondatra_binding_path, 
+                ondatra_testbed_path=ondatra_testbed_path
+            ))
     except:
         if not ignore_install_errors:
             _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
