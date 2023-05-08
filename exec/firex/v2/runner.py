@@ -14,6 +14,7 @@ from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
 from helper import CommandFailed
 from getpass import getuser
+import xml.etree.ElementTree as ET
 from pathlib import Path
 import shutil
 import random
@@ -41,17 +42,17 @@ TESTBEDS_FILE = 'exec/testbeds.yaml'
 whitelist_arguments([
     'test_html_report',
     'release_ixia_ports',
+    'test_ignore_aborted',
+    'test_skip',
+    'test_fail_skipped',
 ])
-
-class GoTestSegFaultException(Exception):
-    pass
 
 def _get_go_env():
     gorootpath = os.path.join('/nobackup', getuser())
     return {
         'GOPATH': os.path.join(gorootpath, 'go'),
         'GOCACHE': os.path.join(gorootpath, '.gocache'),
-	'GOTMPDIR': os.path.join(gorootpath, '.gocache'),
+        'GOTMPDIR': os.path.join(gorootpath, '.gocache'),
         'GOROOT': '/auto/firex/sw/go'
     }
 
@@ -107,6 +108,39 @@ def _cli_to_gnmi_set_file(cli_file, gnmi_file, extra_conf=[]):
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
 
+def _get_dummy_suite_xml(test_name, fail):
+    if fail: 
+        failures = 1
+        body = '<failure message="Failed"></failure>'
+    else:
+        failures = 0
+        body = "<system-out></system-out>"
+
+    return f"""<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+    <!-- This dummy xunit result has been automatically generated since the test was aborted. -->
+    <!-- Check test logs for error details. -->
+    <testsuite name="{test_name}" tests="1" failures="{failures}" errors="0" skipped="0">
+        <testcase name="dummy">
+            {body}
+        </testcase>
+    </testsuite>
+</testsuites>
+    """
+
+def _write_dummy_xml_output(test_name, xml_file, fail):
+    with open(xml_file, 'w') as fp:
+        fp.write(_get_dummy_suite_xml(test_name, fail))
+
+def _get_testsuite_from_xml(file_name):
+    try:
+        tree = ET.parse(file_name)
+        for suite in tree.findall("testsuite"):
+            return suite
+        return None
+    except:
+        return None
+
 def _check_json_output(cmd):
     return json.loads(check_output(cmd))
 
@@ -149,12 +183,14 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
 		'ondatra_testbed_path', 'testbed_info_path', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 
         'topo_path', 'testbed')
-def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
+def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, 
+                        lineup, efr, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
-                        collect_tb_info=True,
+                        collect_tb_info=False,
                         install_image=False,
+                        force_install=False,
                         ignore_install_errors=False,
                         force_reboot=False):
 
@@ -206,8 +242,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
 
     c |= GenerateOndatraTestbedFiles.s()
     if install_image and not using_sim:
-        c |= SoftwareUpgrade.s(ignore_install_errors=ignore_install_errors)
-        c |= ForceReboot.s()
+        c |= SoftwareUpgrade.s(force_install=force_install, ignore_install_errors=ignore_install_errors)
     elif force_reboot:
         c |= ForceReboot.s()
     if collect_tb_info:
@@ -238,7 +273,7 @@ def max_testbed_requests():
 def decommission_testbed_after_tests():
     if 'B4_FIREX_DECOMMISSION_TESTBED' in os.environ:
         return bool(int(os.environ.get('B4_FIREX_DECOMMISSION_TESTBED')))
-    return False
+    return True
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
@@ -314,14 +349,16 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     return chain
 
 # noinspection PyPep8Naming
-@app.task(bind=True, base=FireXRunnerBase, max_retries=2, autoretry_for=[GoTestSegFaultException])
+@app.task(bind=True, base=FireXRunnerBase)
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
-        test_path, test_args=None, test_timeout=0, test_debug=False, test_verbose=False, testbed_info_path=None):
-    
+        test_name, test_path, test_args=None, test_timeout=0, test_debug=False, 
+        test_verbose=False, testbed_info_path=None, test_ignore_aborted=False,
+        test_skip=False, test_fail_skipped=False):
+
     logger.print('Running Go test...')
     json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
@@ -366,39 +403,32 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     start_timestamp = int(time.time())
 
     try:
-        self.run_script(cmd,
-                        inactivity_timeout=inactivity_timeout,
-                        ok_nonzero_returncodes=(1,),
-                        extra_env_vars=_get_go_env(),
-                        cwd=test_repo_dir)
+        if not test_skip:
+            self.run_script(cmd,
+                            inactivity_timeout=inactivity_timeout,
+                            ok_nonzero_returncodes=(1,),
+                            extra_env_vars=_get_go_env(),
+                            cwd=test_repo_dir)
         stop_time = self.get_current_time()
     finally:
-        have_output = self.console_output_file and Path(self.console_output_file).is_file()
-        have_xml_output = xml_results_file and Path(xml_results_file).is_file()
-
-        if have_output:
+        if self.console_output_file and Path(self.console_output_file).is_file():
             shutil.copyfile(self.console_output_file, json_results_file)
-
-        if have_xml_output:
+        
+        suite = _get_testsuite_from_xml(xml_results_file)
+        if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
-            if test_debug:
-                with open(xml_results_file, 'r') as f:
-                    if 'failures="0"' not in f.read():
-                        self.enqueue_child(CollectDebugFiles.s(
-                            internal_fp_repo_dir=internal_fp_repo_dir, 
-                            ondatra_binding_path=ondatra_binding_path, 
-                            ondatra_testbed_path=ondatra_testbed_path, 
-                            test_log_directory_path=test_log_directory_path,
-                            timestamp=start_timestamp
-                        ))
-        elif have_output:
-            with open(json_results_file, 'r') as f:
-                content = f.read() 
-                if 'segmentation fault (core dumped)' in content:
-                    raise GoTestSegFaultException
+            if test_debug and suite.attrib['failures'] != '0':
+                self.enqueue_child(CollectDebugFiles.s(
+                    internal_fp_repo_dir=internal_fp_repo_dir, 
+                    ondatra_binding_path=ondatra_binding_path, 
+                    ondatra_testbed_path=ondatra_testbed_path, 
+                    test_log_directory_path=test_log_directory_path,
+                    timestamp=start_timestamp
+                ))
+        elif test_ignore_aborted or test_skip:
+            _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
-
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         else: 
@@ -444,14 +474,13 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'install_lock_file', 'testbed'))
+@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'testbed'))
 def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed, test_name, **kwargs):
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
     ondatra_testbed_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.testbed')
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
-    install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
     
     if reserved_testbed.get('sim', False):
@@ -488,8 +517,6 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
-        install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
-            f'testbed_{reserved_testbed["id"]}_install.lock')
 
         overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
         reserved_testbed.update(overrides)
@@ -505,7 +532,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
-    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, install_lock_file, pyats_testbed
+    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, pyats_testbed
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
@@ -522,13 +549,9 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
-def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir, 
+def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
-                    install_lock_file, images, ignore_install_errors=False):
-    if os.path.exists(install_lock_file):
-        return
-    Path(install_lock_file).touch()
-
+                    images, force_install=False, ignore_install_errors=False):
     logger.print("Performing Software Upgrade...")
     su_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/software_upgrade ' \
@@ -536,21 +559,33 @@ def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir,
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
-            f'-imagePath "{images[0]}"'
+            f'-imagePath "{images[0]}" ' \
+            f'-lineup {lineup} ' \
+            f'-efr {efr} '
+
+    if force_install:
+        su_command += f'-force'
+
     try:
         env = dict(os.environ)
         env.update(_get_go_env())
-        check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+        output = check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+        #TODO: find a better way?
+        if not 'Image already installed' in output:
+            self.enqueue_child(ForceReboot.s(
+                internal_fp_repo_dir=internal_fp_repo_dir, 
+                ondatra_binding_path=ondatra_binding_path, 
+                ondatra_testbed_path=ondatra_testbed_path
+            ))
     except:
         if not ignore_install_errors:
             _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
-            os.remove(install_lock_file)
             raise
         else: logger.warning(f'Software upgrade failed. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
-def ForceReboot(self, ws, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path):
+def ForceReboot(self, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path):
     logger.print("Rebooting...")
     reboot_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/reboot ' \
