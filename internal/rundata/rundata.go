@@ -53,15 +53,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/metadata"
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra/binding"
-	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (
