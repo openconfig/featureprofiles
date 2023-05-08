@@ -200,7 +200,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
 		for _, vrf := range []string{vrfA, vrfB, vrfC, *deviations.DefaultNetworkInstance} {
 			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
 		}
@@ -412,7 +412,9 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	t.Run("ValidateDecapPath", func(t *testing.T) {
 		t.Log("Validate traffic after decap is recieved on port4 and no traffic on other flows/ate ports")
-		validateTrafficFlows(t, args.ate, []*ondatra.Flow{decapFLow}, []*ondatra.Flow{baseFlow, encapFLow}, decapFlowFliter)
+		if !deviations.SecondaryBackupPathTrafficFailover(ondatra.DUT(t, "dut")) {
+			validateTrafficFlows(t, args.ate, []*ondatra.Flow{decapFLow}, []*ondatra.Flow{baseFlow, encapFLow}, decapFlowFliter)
+		}
 	})
 }
 
