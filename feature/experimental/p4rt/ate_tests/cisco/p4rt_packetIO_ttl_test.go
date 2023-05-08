@@ -86,7 +86,7 @@ var (
 			name: "Program TTL Match Entry and other match fields and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:027 Programm match TTL=[1,2] with other field matched in the entry, send TTL=[0,1,2] packets from tgen, and verify the packet sent to the controller",
 			fn:   testEntryProgrammingPacketInWithMoreMatchingField,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program Match Entry and Send traffic to non-configured port in P4RT and Check PacketIn",
@@ -125,7 +125,7 @@ var (
 			name: "Program TTL Match Entry and Configure ACL and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:037 Programm match TTL=[1,2], configured IPv4 ACL to match TTL=1 and set action to drop, verify packets dropped and not sent to controller",
 			fn:   testEntryProgrammingPacketInWithAcl,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Send scale TTL traffic",
@@ -183,7 +183,7 @@ var (
 			name: "Program TTL Match Entry and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:016 Egress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
 			fn:   testPacketOutEgress,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 (submit_to_egress)",
