@@ -69,6 +69,11 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// GRIBIMACOverrideStaticARPStaticRoute returns whether the device needs to configure Static ARP + Static Route to override setting MAC address in Next Hop.
+func GRIBIMACOverrideStaticARPStaticRoute(*ondatra.DUTDevice) bool {
+	return *gribiMACOverrideStaticARPStaticRoute
+}
+
 // AggregateAtomicUpdate returns if device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces.
 // Otherwise lag-type will be dropped, and no member can be added to the aggregate.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
@@ -156,6 +161,16 @@ func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisLevelAuthenticationNotRequired
 }
 
+// ISISSingleTopologyRequired sets isis af ipv6 single topology on the device if value is true.
+func ISISSingleTopologyRequired(_ *ondatra.DUTDevice) bool {
+	return *isisSingleTopologyRequired
+}
+
+// ISISMultiTopologyUnsupported returns if device skips isis multi-topology check.
+func ISISMultiTopologyUnsupported(_ *ondatra.DUTDevice) bool {
+	return *isisMultiTopologyUnsupported
+}
+
 // ISISInterfaceLevel1DisableRequired returns if device should disable isis level1 under interface mode.
 func ISISInterfaceLevel1DisableRequired(_ *ondatra.DUTDevice) bool {
 	return *isisInterfaceLevel1DisableRequired
@@ -177,12 +192,17 @@ func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
 }
 
+// LinkQualWaitAfterDeleteRequired returns whether the device requires additional time to complete post delete link qualification cleanup.
+func LinkQualWaitAfterDeleteRequired(_ *ondatra.DUTDevice) bool {
+	return *linkQualWaitAfterDeleteRequired
+}
+
 // StatePathsUnsupported returns whether the device supports following state paths
 func StatePathsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *statePathsUnsupported
 }
 
-// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile
+// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile.
 func DropWeightLeavesUnsupported(_ *ondatra.DUTDevice) bool {
 	return *dropWeightLeavesUnsupported
 }
@@ -210,9 +230,6 @@ func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
 
 // NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
 // OpenConfig defaults the association-type to SERVER if not set.
-func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
-	return *ntpAssociationTypeRequired
-}
 
 // GRIBIRIBAckOnly returns if device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.
 // Full gRIBI compliant devices should pass both with and without this deviation.
@@ -284,6 +301,11 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// ExplicitIPv6EnableForGRIBI returns if device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address.
+func ExplicitIPv6EnableForGRIBI(_ *ondatra.DUTDevice) bool {
+	return *explicitIPv6EnableForGRIBI
+}
+
 // ISISprotocolEnabledNotRequired returns if isis protocol enable flag should be unset on the device.
 func ISISprotocolEnabledNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisprotocolEnabledNotRequired
@@ -305,9 +327,6 @@ func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
 var (
 	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
-
-	ntpAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
-		"Device requires NTP association-type to be explicitly set.  OpenConfig defaults the association-type to SERVER if not set.")
 
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
@@ -366,7 +385,7 @@ var (
 
 	connectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 
-	ExplicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
+	explicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
 
 	isisInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
 		"Disable isis level1 under interface mode on the device if value is true, Default value is false and enables isis level2 under interface mode")
@@ -374,7 +393,7 @@ var (
 	missingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
 		"Set and validate isis interface address family enable on the device if value is true, Default value is false and validate isis address family enable at global mode")
 
-	IsisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
+	isisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
 		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
 
 	isisprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
@@ -421,7 +440,7 @@ var (
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
-	ISISMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
+	isisMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
 
 	isisRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
@@ -430,6 +449,8 @@ var (
 	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+
+	gribiMACOverrideStaticARPStaticRoute = flag.Bool("deviation_gribi_mac_override_static_arp_static_route", false, "Set to true for device that requires gRIBI MAC Override using Static ARP + Static Route")
 
 	cliTakesPrecedenceOverOC = flag.Bool("deviation_cli_takes_precedence_over_oc", false, "Set to true for device in which config pushed through origin CLI takes precedence over config pushed through origin OC, default is false")
 
@@ -456,6 +477,8 @@ var (
 	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
+
+	linkQualWaitAfterDeleteRequired = flag.Bool("deviation_link_qual_wait_after_delete_required", false, "Device requires additional time to complete post delete link qualification cleanup.")
 
 	statePathsUnsupported = flag.Bool("deviation_state_path_unsupported", false, "Device does not support these state paths, Set this flag to skip checking the leaves")
 

@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
@@ -184,6 +185,9 @@ func TestListDelete(t *testing.T) {
 		if got, want := len(listResp.GetResults()), 0; got != want {
 			t.Errorf("len(listResp.GetResults()): got %v, want %v", got, want)
 		}
+	}
+	if deviations.LinkQualWaitAfterDeleteRequired(dut1) {
+		time.Sleep(10 * time.Second)
 	}
 }
 
