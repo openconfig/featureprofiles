@@ -301,6 +301,16 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
+func SkipBGPTestPasswordMismatch(_ *ondatra.DUTDevice) bool {
+	return *skipBGPTestPasswordMismatch
+}
+
+// BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
+func BGPMD5RequiresReset(_ *ondatra.DUTDevice) bool {
+	return *bgpMD5RequiresReset
+}
+
 // ExplicitIPv6EnableForGRIBI returns if device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address.
 func ExplicitIPv6EnableForGRIBI(_ *ondatra.DUTDevice) bool {
 	return *explicitIPv6EnableForGRIBI
@@ -426,11 +436,11 @@ var (
 	ExplicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
 		"Device requires gribi-protocol to be enabled under network-instance.")
 
-	BGPMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
+	bgpMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
 
 	QOSDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
 
-	SkipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
+	skipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
