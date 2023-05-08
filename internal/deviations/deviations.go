@@ -306,6 +306,11 @@ func QOSDroppedOctets(_ *ondatra.DUTDevice) bool {
 	return *qosDroppedOctets
 }
 
+// ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
+func ExplicitGRIBIUnderNetworkInstance(_ *ondatra.DUTDevice) bool {
+	return *explicitGRIBIUnderNetworkInstance
+}
+
 // SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
 func SkipBGPTestPasswordMismatch(_ *ondatra.DUTDevice) bool {
 	return *skipBGPTestPasswordMismatch
@@ -438,7 +443,7 @@ var (
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
 
-	ExplicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
+	explicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
 		"Device requires gribi-protocol to be enabled under network-instance.")
 
 	bgpMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
