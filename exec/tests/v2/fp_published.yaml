@@ -313,6 +313,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+    pr: 1542
     priority: 34
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
