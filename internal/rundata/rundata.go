@@ -123,18 +123,6 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 	return m
 }
 
-func readFromMetadataProto() (*mpb.Metadata, error) {
-	// When "go test" runs, the current working directory is the test
-	// package directory, which is where we will find the metadata file.
-	const metadataFilename = "metadata.textproto"
-	bytes, err := os.ReadFile(metadataFilename)
-	if err != nil {
-		return nil, err
-	}
-	md := new(mpb.Metadata)
-	return md, prototext.Unmarshal(bytes, md)
-}
-
 var timeBegin = time.Now()
 
 // Timing builds the test properties with the begin and end times.
