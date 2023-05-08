@@ -530,7 +530,7 @@ func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable b
 
 	debugATEFlows(t, tc.ate, flow, lp)
 
-	pkts := gnmi.Get(t, tc.ate, gnmi.OC().Flow("flow").Counters().OutPkts().State())
+	pkts := gnmi.Get(t, tc.ate.OTG(), gnmi.OC().Flow("flow").Counters().OutPkts().State())
 	if pkts == 0 {
 		t.Errorf("Flow sent packets: got %v, want non zero", pkts)
 	}
