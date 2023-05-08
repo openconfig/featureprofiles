@@ -200,7 +200,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
 		for _, vrf := range []string{vrfA, vrfB, vrfC, *deviations.DefaultNetworkInstance} {
 			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
 		}
