@@ -17,6 +17,8 @@ package fptest
 import (
 	"testing"
 
+	log "github.com/golang/glog"
+	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 )
@@ -32,5 +34,8 @@ import (
 //	  fptest.RunTests(m)
 //	}
 func RunTests(m *testing.M) {
+	if err := metadata.Init(); err != nil {
+		log.Exitf("Failed to initialize test metadata: %v", err)
+	}
 	ondatra.RunTests(m, binding.New)
 }
