@@ -202,7 +202,7 @@ func StatePathsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *statePathsUnsupported
 }
 
-// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile
+// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile.
 func DropWeightLeavesUnsupported(_ *ondatra.DUTDevice) bool {
 	return *dropWeightLeavesUnsupported
 }
@@ -301,6 +301,11 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// ExplicitIPv6EnableForGRIBI returns if device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address.
+func ExplicitIPv6EnableForGRIBI(_ *ondatra.DUTDevice) bool {
+	return *explicitIPv6EnableForGRIBI
+}
+
 // ISISprotocolEnabledNotRequired returns if isis protocol enable flag should be unset on the device.
 func ISISprotocolEnabledNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisprotocolEnabledNotRequired
@@ -380,7 +385,7 @@ var (
 
 	connectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 
-	ExplicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
+	explicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
 
 	isisInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
 		"Disable isis level1 under interface mode on the device if value is true, Default value is false and enables isis level2 under interface mode")
