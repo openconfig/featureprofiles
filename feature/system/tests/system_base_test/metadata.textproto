@@ -4,3 +4,4 @@
 uuid: "ec59d852-0828-4607-bea5-fbe2340c5414"
 plan_id: "OC-1.1"
 description: "System Configuration"
+testbed: TESTBED_DUT_ATE_2LINKS
