@@ -301,6 +301,31 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// ExplicitInterfaceRefDefinition returns if device requires explicit interface ref configuration when applying features to interface.
+func ExplicitInterfaceRefDefinition(_ *ondatra.DUTDevice) bool {
+	return *explicitInterfaceRefDefinition
+}
+
+// QOSDroppedOctets returns if device should skip checking QOS Dropped octets stats for interface.
+func QOSDroppedOctets(_ *ondatra.DUTDevice) bool {
+	return *qosDroppedOctets
+}
+
+// ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
+func ExplicitGRIBIUnderNetworkInstance(_ *ondatra.DUTDevice) bool {
+	return *explicitGRIBIUnderNetworkInstance
+}
+
+// SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
+func SkipBGPTestPasswordMismatch(_ *ondatra.DUTDevice) bool {
+	return *skipBGPTestPasswordMismatch
+}
+
+// BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
+func BGPMD5RequiresReset(_ *ondatra.DUTDevice) bool {
+	return *bgpMD5RequiresReset
+}
+
 // ExplicitIPv6EnableForGRIBI returns if device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address.
 func ExplicitIPv6EnableForGRIBI(_ *ondatra.DUTDevice) bool {
 	return *explicitIPv6EnableForGRIBI
@@ -402,7 +427,7 @@ var (
 	isisInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
 		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
 
-	ExplicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
+	explicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
 
 	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
@@ -423,14 +448,14 @@ var (
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
 
-	ExplicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
+	explicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
 		"Device requires gribi-protocol to be enabled under network-instance.")
 
-	BGPMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
+	bgpMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
 
-	QOSDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
+	qosDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
 
-	SkipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
+	skipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")

@@ -332,7 +332,7 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 		}
-		if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
 			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
 		}
 	}
@@ -360,7 +360,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	pfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
 	pfCfg := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
-	if *deviations.ExplicitInterfaceRefDefinition {
+	if deviations.ExplicitInterfaceRefDefinition(dut) {
 		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	}
