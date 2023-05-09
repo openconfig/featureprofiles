@@ -247,11 +247,6 @@ func MissingInterfacePhysicalChannel(_ *ondatra.DUTDevice) bool {
 	return *missingInterfacePhysicalChannel
 }
 
-// MissingInterfaceHardwarePort returns if device does not support interface/hardwareport leaf.
-func MissingInterfaceHardwarePort(_ *ondatra.DUTDevice) bool {
-	return *missingInterfaceHardwarePort
-}
-
 // TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
 func TraceRouteL4ProtocolUDP(_ *ondatra.DUTDevice) bool {
 	return *traceRouteL4ProtocolUDP
@@ -439,9 +434,6 @@ var (
 
 	missingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
 		"Device does not support interface/physicalchannel leaf. Set this flag to skip checking the leaf.")
-
-	missingInterfaceHardwarePort = flag.Bool("deviation_missing_interface_hardware_port", false,
-		"Device does not support interface/hardwareport leaf. Set this flag to skip checking the leaf.")
 
 	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
