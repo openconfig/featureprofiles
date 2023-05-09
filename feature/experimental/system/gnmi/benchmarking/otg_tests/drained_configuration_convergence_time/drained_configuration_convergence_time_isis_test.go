@@ -51,7 +51,6 @@ func setISISMetric(t *testing.T, dut *ondatra.DUTDevice) {
 		dutISISPathIntfAF := dutISISPath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		gnmi.Replace(t, dut, dutISISPathIntfAF.Metric().Config(), setup.ISISMetric)
 	}
-
 }
 
 // verifyISISMetric is used to verify on ATE to see how much time it
