@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -116,7 +117,7 @@ var (
 	}
 	// 'tolerance' is the maximum difference that is allowed between the observed
 	// traffic distribution and the required traffic distribution.
-	tolerance = 0.35
+	tolerance = 0.2
 )
 
 func TestMain(m *testing.M) {
@@ -617,7 +618,8 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
 
-		if deviations.HierarchicalWeightResolutionTolerance(dut) != tolerance {
+		tolerance = *args.HierarchicalWeightBoundaryResolutionTolerance
+		if deviations.HierarchicalWeightResolutionTolerance(dut) > tolerance {
 			tolerance = deviations.HierarchicalWeightResolutionTolerance(dut)
 		}
 		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {

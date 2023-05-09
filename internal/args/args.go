@@ -37,4 +37,5 @@ var (
 	FanNamePattern           = flag.String("arg_fan_name_pattern", "", "This name pattern is used to filter out Fan components.")
 	FabricChipNamePattern    = flag.String("arg_fabricChip_name_pattern", "", "This name pattern is used to filter out FabricChip components.")
 	CheckInterfacesInBinding = flag.Bool("arg_check_interfaces_in_binding", true, "GNOI tests perform interface status validation based on all interfaces. This can cause flakiness in testing environments where only connectivity of interfaces in binding is guaranteed.")
+	HierarchicalWeightBoundaryResolutionTolerance = flag.Float64("arg_hierarchical_weight_resolution_tolerance", 0.2, "Expected tolerance for load balancing in hierarchical weight resolution scenario")
 )
