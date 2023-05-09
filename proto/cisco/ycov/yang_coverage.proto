@@ -1,0 +1,41 @@
+//
+// ----------------------------------------------------------------
+//  Copyright (c) 2023 by cisco Systems, Inc.
+//  All rights reserved.
+// -----------------------------------------------------------------
+//
+
+syntax = "proto3";
+
+package ycov;
+
+import "metadata.proto";
+
+// The current semantic version of the YangCoverage service.
+option go_package = ".;ycov";
+
+service YangCoverage {
+  // ClearLogs clears any existing YANG coverage test logs 
+  rpc ClearLogs(ClearLogsRequest)
+    returns (ClearLogsResponse) {}
+
+  // GatherLogs gathers the current set of YANG coverage test logs
+  rpc GatherLogs(GatherLogsRequest) 
+    returns (GatherLogsResponse) {}
+}
+
+message ClearLogsRequest {
+}
+
+message ClearLogsResponse {
+}
+
+message GatherLogsRequest {
+  string test_name = 1;
+  TestPhase test_phase = 2;
+  TestType test_type = 3;
+}
+
+message GatherLogsResponse {
+  string log = 1;
+}

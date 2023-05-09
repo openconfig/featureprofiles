@@ -93,3 +93,8 @@ testbeds:
     testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto    
+  - id: 8808-36FH_FOX2506P5XE_OTG
+    owner: mananpat
+    testbed: topologies/cisco/hw/8808-36FH_FOX2506P5XE_OTG/atedut_otg_moji.testbed
+    binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE_OTG/atedut_otg_moji.binding
+    baseconf: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
