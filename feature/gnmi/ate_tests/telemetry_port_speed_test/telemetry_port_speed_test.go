@@ -181,7 +181,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 
 	d := gnmi.OC()
 
-	if *deviations.AggregateAtomicUpdate {
+	if deviations.AggregateAtomicUpdate(tc.dut) {
 		tc.clearAggregateMembers(t)
 		tc.setupAggregateAtomically(t)
 	}
@@ -225,7 +225,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 			iPath := d.Interface(iName)
 			gnmi.Replace(t, tc.dut, iPath.Config(), &oc.Interface{Name: ygot.String(iName), Type: ethernetCsmacd})
 		}
-		if *deviations.AggregateAtomicUpdate {
+		if deviations.AggregateAtomicUpdate(tc.dut) {
 			resetBatch := &gnmi.SetBatch{}
 			if *deviations.ExplicitInterfaceInDefaultVRF {
 				gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Interface(tc.aggID+".0").Config())
