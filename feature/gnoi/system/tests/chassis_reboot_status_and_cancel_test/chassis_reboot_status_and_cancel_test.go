@@ -88,7 +88,7 @@ func TestRebootStatus(t *testing.T) {
 	}
 
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
-	if !*deviations.GNOIStatusWithEmptySubcomponent {
+	if !deviations.GNOIStatusWithEmptySubcomponent(dut) {
 		statusReq.Subcomponents = append(statusReq.Subcomponents, getSubCompPath(t, dut))
 	}
 	for _, tc := range cases {
@@ -160,7 +160,7 @@ func TestCancelReboot(t *testing.T) {
 		t.Fatalf("Failed to request reboot with unexpected err: %v", err)
 	}
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
-	if !*deviations.GNOIStatusWithEmptySubcomponent {
+	if !deviations.GNOIStatusWithEmptySubcomponent(dut) {
 		statusReq.Subcomponents = append(statusReq.Subcomponents, getSubCompPath(t, dut))
 	}
 	rebootStatus, err := gnoiClient.System().RebootStatus(context.Background(), statusReq)
