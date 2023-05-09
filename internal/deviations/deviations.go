@@ -301,6 +301,11 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// ExplicitInterfaceRefDefinition returns if device requires explicit interface ref configuration when applying features to interface.
+func ExplicitInterfaceRefDefinition(_ *ondatra.DUTDevice) bool {
+	return *explicitInterfaceRefDefinition
+}
+
 // QOSDroppedOctets returns if device should skip checking QOS Dropped octets stats for interface.
 func QOSDroppedOctets(_ *ondatra.DUTDevice) bool {
 	return *qosDroppedOctets
@@ -422,7 +427,7 @@ var (
 	isisInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
 		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
 
-	ExplicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
+	explicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
 
 	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
