@@ -887,6 +887,7 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 
 	// Program the entry
 	tableEntry := args.packetIO.GetTableEntry(t, false)
+
 	if len(tableEntry) == 1 && tableEntry[0].IsIpv4 == 0 {
 		tableEntry[0].IsIpv4 = uint8(1)
 		client.Write(&p4_v1.WriteRequest{
@@ -900,6 +901,14 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 	} else {
 		for _, entry := range tableEntry {
 			entry.EtherType = uint16(123)
+			client.Write(&p4_v1.WriteRequest{
+				DeviceId:   deviceID,
+				ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+				Updates: wbb.ACLWbbIngressTableEntryGet(
+					tableEntry,
+				),
+				Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+			})
 		}
 	}
 
@@ -923,8 +932,8 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 	packets := getPackets(t, client, 40)
 
 	// t.Logf("Captured packets: %v", len(packets))
-	if len(packets) > 0 {
-		t.Errorf("Unexpected packets are received.")
+	if len(packets) == 0 {
+		t.Errorf("No packets are received.")
 	}
 }
 
@@ -1245,11 +1254,13 @@ func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *t
 
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	existingConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface(portName).Config())
-	// configureInterface(ctx, t, args.dut, portName, "100.120.1.1", 0)
+
 	config.TextWithGNMI(context.Background(), t, args.dut, "no interface FourHundredGigE0/0/0/10\n")
 	config.TextWithGNMI(context.Background(), t, args.dut, "interface FourHundredGigE0/0/0/10\n ipv4 address 100.120.1.1 255.255.255.0 \n")
 	config.TextWithGNMI(context.Background(), t, args.dut, "interface FourHundredGigE0/0/0/10\n ipv6 address 100:120:1::1/126 \n")
+
 	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Config(), existingConfig)
+	defer config.TextWithGNMI(context.Background(), t, args.dut, "no interface FourHundredGigE0/0/0/10\n")
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
@@ -2290,6 +2301,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 		util.SetInterfaceState(t, args.dut, port, true)
 		time.Sleep(10 * time.Second)
 	}()
+	time.Sleep(60 * time.Second)
 
 	sendPackets(t, client, packet, packet_count)
 
