@@ -334,7 +334,7 @@ func TestQoSCounters(t *testing.T) {
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
 	}}
-	if !*deviations.QOSDroppedOctets {
+	if !deviations.QOSDroppedOctets(dut) {
 		cases = append(cases,
 			struct {
 				desc     string
