@@ -120,7 +120,7 @@ func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ate and returns bgp object.
-func bgpCreateNbr(bgpParams *bgpTestParams) *oc.NetworkInstance_Protocol {
+func bgpCreateNbr(bgpParams *bgpTestParams, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -148,7 +148,7 @@ func bgpCreateNbr(bgpParams *bgpTestParams) *oc.NetworkInstance_Protocol {
 	nv4t := nv4.GetOrCreateTimers()
 	nv4t.HoldTime = ygot.Uint16(dutHoldTime)
 	nv4t.KeepaliveInterval = ygot.Uint16(dutKeepaliveTime)
-	if !*deviations.ConnectRetry {
+	if !deviations.ConnectRetry(dut) {
 		nv4t.ConnectRetry = ygot.Uint16(connRetryTime)
 	}
 
@@ -278,7 +278,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
 	bgpClearConfig(t, dut)
-	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
+	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS}, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	// Configure Md5 auth password.
 	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
@@ -358,7 +358,7 @@ func TestPassword(t *testing.T) {
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
 	bgpClearConfig(t, dut)
-	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS})
+	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS}, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	t.Log("Configure matching Md5 auth password on DUT")
 	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
@@ -383,13 +383,13 @@ func TestPassword(t *testing.T) {
 	// Verify BGP status
 	t.Log("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
-	if !*deviations.SkipBGPTestPasswordMismatch {
+	if !deviations.SkipBGPTestPasswordMismatch(dut) {
 		t.Log("Configure mismatching md5 auth password on DUT")
 		gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), "PASSWORDNEGSCENARIO")
 
 		// If the DUT will not fail a BGP session when the BGP MD5 key configuration changes,
 		// change the key from the ATE side to time out the session.
-		if *deviations.BGPMD5RequiresReset {
+		if deviations.BGPMD5RequiresReset(dut) {
 			bgpPeer.WithMD5Key("PASSWORDNEGSCENARIO-ATE")
 			topo.UpdateBGPPeerStates(t)
 		}
@@ -405,7 +405,7 @@ func TestPassword(t *testing.T) {
 
 		t.Log("Revert md5 auth password on DUT to match with ATE.")
 		gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
-		if *deviations.BGPMD5RequiresReset {
+		if deviations.BGPMD5RequiresReset(dut) {
 			bgpPeer.WithMD5Key(authPassword)
 			topo.UpdateBGPPeerStates(t)
 		}
@@ -441,22 +441,22 @@ func TestParameters(t *testing.T) {
 	}{
 		{
 			name:    "Test the eBGP session establishment: Global AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS}),
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS}, dut),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP}, connExternal),
 		},
 		{
 			name:    "Test the eBGP session establishment: Neighbor AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS}),
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS}, dut),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP}, connExternal),
 		},
 		{
 			name:    "Test the iBGP session establishment: Gloabl AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2}),
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2}, dut),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal),
 		},
 		{
 			name:    "Test the iBGP session establishment: Neighbor AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2}),
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2}, dut),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal),
 		},
 	}
