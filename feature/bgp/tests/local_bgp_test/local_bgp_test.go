@@ -75,9 +75,6 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(*nbr.PeerAs)
 	pg.PeerGroupName = ygot.String(peerGrpName)
-	if *deviations.MissingBgpNeighborStatePeerGroup {
-		nbr.PeerGroup = nil
-	}
 
 	if *deviations.RoutePolicyUnderNeighborAfiSafi {
 		af := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -108,6 +105,24 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	st := pd.GetOrCreateStatement("id-1")
 	st.GetOrCreateActions().PolicyResult = pr
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+}
+
+// bgpClearConfig removes all BGP configuration from the DUT.
+func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	resetBatch := &gnmi.SetBatch{}
+	gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+
+	if *deviations.NetworkInstanceTableDeletionRequired {
+		tablePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).TableAny()
+		for _, table := range gnmi.LookupAll(t, dut, tablePath.Config()) {
+			if val, ok := table.Val(); ok {
+				if val.GetProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP {
+					gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Table(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, val.GetAddressFamily()).Config())
+				}
+			}
+		}
+	}
+	resetBatch.Set(t, dut)
 }
 
 func TestEstablish(t *testing.T) {
@@ -144,8 +159,8 @@ func TestEstablish(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 	// Remove any existing BGP config
-	gnmi.Delete(t, dut, dutConfPath.Config())
-	gnmi.Delete(t, ate, ateConfPath.Config())
+	bgpClearConfig(t, dut)
+	bgpClearConfig(t, ate)
 
 	// Start a new session
 	dutConf := bgpWithNbr(dutAS, dutRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -161,8 +176,14 @@ func TestEstablish(t *testing.T) {
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	gnmi.Replace(t, ate, ateConfPath.Config(), ateConf)
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	wantState := dutConf.Bgp
 	dutState := gnmi.Get(t, dut, statePath.State())
-	confirm.State(t, dutConf.Bgp, dutState)
+	if *deviations.MissingValueForDefaults {
+		wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName = 0
+		wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = nil
+		wantState.GetOrCreateNeighbor(ateAttrs.IPv4).Enabled = nil
+	}
+	confirm.State(t, wantState, dutState)
 	nbr := dutState.GetNeighbor(ateAttrs.IPv4)
 
 	if !nbr.GetEnabled() {
@@ -212,8 +233,8 @@ func TestDisconnect(t *testing.T) {
 	configureNIType(t)
 
 	// Clear any existing config
-	gnmi.Delete(t, dut, dutConfPath.Config())
-	gnmi.Delete(t, ate, ateConfPath.Config())
+	bgpClearConfig(t, dut)
+	bgpClearConfig(t, ate)
 
 	// Apply simple config
 	dutConf := bgpWithNbr(dutAS, dutRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -232,9 +253,18 @@ func TestDisconnect(t *testing.T) {
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	gnmi.Replace(t, ate, ateConfPath.Bgp().Neighbor(dutIP).Enabled().Config(), false)
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ACTIVE)
-	code := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())
-	if code != oc.BgpTypes_BGP_ERROR_CODE_CEASE {
-		t.Errorf("On disconnect: expected error code %v, got %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE, code)
+	code := gnmi.Lookup(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())
+	if code.IsPresent() {
+		value, _ := code.Val()
+		if value != oc.BgpTypes_BGP_ERROR_CODE_CEASE {
+			t.Errorf("On disconnect: expected error code %v, got %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE, value)
+		}
+	} else {
+		if deviations.MissingBgpLastNotificationErrorCode(dut) {
+			t.Log("Last notification error code leaf not present. The validation result is ignored due to the deviation missingBgpLastNotificationErrorCode")
+		} else {
+			t.Error("Last notification error code leaf not present.")
+		}
 	}
 }
 
@@ -410,12 +440,12 @@ func TestParameters(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if *deviations.ConnectRetry && tc.name == "connect-retry" || len(tc.skipMsg) > 0 {
+			if deviations.ConnectRetry(dut) && tc.name == "connect-retry" || len(tc.skipMsg) > 0 {
 				t.Skip(tc.skipMsg)
 			}
 			// Disable BGP
-			gnmi.Delete(t, dut, dutConfPath.Config())
-			gnmi.Delete(t, ate, ateConfPath.Config())
+			bgpClearConfig(t, dut)
+			bgpClearConfig(t, ate)
 			// Renable and wait to establish
 			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
 			gnmi.Replace(t, ate, ateConfPath.Config(), tc.ateConf)
@@ -427,6 +457,11 @@ func TestParameters(t *testing.T) {
 				wantState1 = tc.dutConf.Bgp
 			} else {
 				wantState1 = tc.wantState.Bgp
+			}
+			if *deviations.MissingValueForDefaults {
+				wantState1.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName = 0
+				wantState1.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = nil
+				wantState1.GetOrCreateNeighbor(ateAttrs.IPv4).Enabled = nil
 			}
 			confirm.State(t, wantState1, stateDut)
 		})

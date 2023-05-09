@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "e386a26b-ca43-4510-9c21-9dbd8b36ae50"
+plan_id: "RT-1.2"
+description: "BGP Policy & Route Installation"
+testbed: TESTBED_DUT_ATE_2LINKS

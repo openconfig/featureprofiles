@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/compliance"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -37,6 +38,7 @@ var (
 	skipSrvReorder      = flag.Bool("skip_reordering", true, "skip tests that rely on server side transaction reordering")
 	skipImplicitReplace = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
 	skipNonDefaultNINHG = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
+	skipMPLS            = flag.Bool("skip_mpls", true, "skip tests that add mpls entries")
 
 	nonDefaultNI = flag.String("non_default_ni", "non-default-vrf", "non-default network-instance name")
 
@@ -96,13 +98,31 @@ func shouldSkip(tt *compliance.TestSpec) string {
 		return "This RequiresImplicitReplace test is skipped by --skip_implicit_replace"
 	case *skipNonDefaultNINHG && tt.In.RequiresNonDefaultNINHG:
 		return "This RequiresNonDefaultNINHG test is skipped by --skip_non_default_ni_nhg"
+	case *skipMPLS && tt.In.RequiresMPLS:
+		return "This RequiresMPLS test is skipped by --skip_mpls"
 	}
 	return moreSkipReasons[tt.In.ShortName]
+}
+
+func syncElectionID(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	clientA := &gribi.Client{
+		DUT:         dut,
+		Persistence: true,
+	}
+	t.Log("Establish gRIBI client connection with PERSISTENCE set to True")
+	if err := clientA.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection for clientA could not be established")
+	}
+	electionID := clientA.LearnElectionID(t)
+	compliance.SetElectionID(electionID.Increment().Low)
+	clientA.Close(t)
 }
 
 func TestCompliance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
+	syncElectionID(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
 	configureATE(t, ate)

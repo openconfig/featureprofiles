@@ -35,8 +35,11 @@ following features:
 
 *   Interface hardware-port
 
-    *   Check hardware-port exists and correct.
+    *   Check hardware-port exists
         *   /interfaces/interfaces/interface/state/hardware-port
+    *   Check that [hardware-port leaf]  (https://github.com/openconfig/public/blob/0c9fb6b0ab96fdd96bb9e88365abe11e51a11e62/release/models/platform/openconfig-platform-port.yang#L306) exists as a component in the Device's component tree and has a type as [PORT](https://github.com/openconfig/public/blob/76f77b566449af43f941f6dd3b0e42fddaadacc6/release/models/platform/openconfig-platform-types.yang#L315-L320)
+        * For example,  /components/component[name=<hardware-port-leaf-val>]/state/type == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS_PORT
+    *   Use the parent leaf of the hardware-port component to traverse the component tree to verify an ancestor of type CHASSIS exists.   Components in between the PORT and the CHASSIS  may vary in quantity and type.
 
 *   Interface counters
 
@@ -79,9 +82,15 @@ following features:
         *   (type=CONTROLLER_CARD)
             /components/component[name=<supervisor>]/state/last-reboot-reason
 
-*   Software version
+*   Active Controller Card Software version
 
-    *   Check the following component paths exists for SwitchChip cards.
+    *   Check the following component path and value exists.
+        *   /system/state/software-version
+
+*   Controller Card Software versions
+
+    *   Check the following component path and value exists for component type
+        `OPERATING_SYSTEM` that is present/installed, and whose parent component type is `CONTROLLER_CARD`.
         *   /components/component/state/software-version
 
 *   LACP

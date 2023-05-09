@@ -55,7 +55,7 @@ type creds struct {
 	secure             bool
 }
 
-func (c *creds) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+func (c *creds) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
 	return map[string]string{
 		"username": c.username,
 		"password": c.password,
