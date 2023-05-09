@@ -507,7 +507,7 @@ func TestSoftwareVersion(t *testing.T) {
 				if got == chassisType {
 					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
 				} else {
-					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, chassisType)
 				}
 			} else {
 				if got == supervisorType {
