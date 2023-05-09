@@ -296,7 +296,7 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
-// InterfaceConfigVrfBeforeAddress returns if vrf should be configured before IP address when configuring interface.
+// InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
 func InterfaceConfigVRFBeforeAddress(_ *ondatra.DUTDevice) bool {
 	return *interfaceConfigVRFBeforeAddress
 }
