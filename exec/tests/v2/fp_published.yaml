@@ -379,8 +379,6 @@ tests:
     path: feature/system/ntp/tests/system_ntp_test
     owners:
       - agvarghe
-    args:
-      - '-deviation_ntp_association_type_required="true"'
     mustpass: true
     priority: 45
   - name: OC-1.1 (System Configuration)
