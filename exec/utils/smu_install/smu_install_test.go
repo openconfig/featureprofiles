@@ -64,6 +64,9 @@ func TestSMUInstall(t *testing.T) {
 		if _, err := sendCLI(t, dut, "run rm -rf "+smuDestination); err != nil {
 			t.Fatalf("Error sending command: %v", err)
 		}
+
+		time.Sleep(3 * time.Second)
+
 		if _, err := sendCLI(t, dut, "mkdir "+smuDestination); err != nil {
 			t.Fatalf("Error sending command: %v", err)
 		}
