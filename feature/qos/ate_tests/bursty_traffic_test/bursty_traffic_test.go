@@ -761,7 +761,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
-		if *deviations.ExplicitInterfaceRefDefinition {
+		if deviations.ExplicitInterfaceRefDefinition(dut) {
 			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
 			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		}
@@ -900,7 +900,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
-		if *deviations.ExplicitInterfaceRefDefinition {
+		if deviations.ExplicitInterfaceRefDefinition(dut) {
 			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
 		}
 		output := i.GetOrCreateOutput()
