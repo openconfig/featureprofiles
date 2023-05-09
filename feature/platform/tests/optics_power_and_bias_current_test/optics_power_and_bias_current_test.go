@@ -222,6 +222,9 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 			if _, ok := emptyTvs[intf.GetTransceiver()]; ok {
 				t.Skipf("Skipping check for Interface %q, got empty transceiver", intf.GetName())
 			}
+			if _, ok := populatedTvs[intf.GetTransceiver()]; !ok {
+				t.Skipf("Skipping check for Interface %q, got empty transceiver", intf.GetName())
+			}
 			// Skipping Aggregate, Loopback and Management Interfaces.
 			for _, vi := range virtualIntfs {
 				if strings.HasPrefix(intf.GetName(), vi) {
