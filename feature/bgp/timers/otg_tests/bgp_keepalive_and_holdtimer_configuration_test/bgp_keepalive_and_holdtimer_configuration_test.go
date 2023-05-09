@@ -232,7 +232,7 @@ func ateFlowConfig(t *testing.T, topo gosnappi.Config, srcEth gosnappi.DeviceEth
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ateSrc and ateDst, optionally with
 // a peer group policy.
-func bgpCreateNbr() *oc.NetworkInstance_Protocol {
+func bgpCreateNbr(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -258,9 +258,11 @@ func bgpCreateNbr() *oc.NetworkInstance_Protocol {
 			afisafi.Enabled = ygot.Bool(true)
 			prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 			prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
-			rpl := afisafi.GetOrCreateApplyPolicy()
-			rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
-			rpl.ExportPolicy = []string{bgpGlobalAttrs.rplName}
+			if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+				rpl := afisafi.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
+				rpl.ExportPolicy = []string{bgpGlobalAttrs.rplName}
+			}
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerAs = ygot.Uint32(nbr.peerAs)
@@ -271,9 +273,11 @@ func bgpCreateNbr() *oc.NetworkInstance_Protocol {
 			afisafi6.Enabled = ygot.Bool(true)
 			prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
 			prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
-			rpl := afisafi6.GetOrCreateApplyPolicy()
-			rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
-			rpl.ExportPolicy = []string{bgpGlobalAttrs.rplName}
+			if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+				rpl := afisafi6.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
+				rpl.ExportPolicy = []string{bgpGlobalAttrs.rplName}
+			}
 		}
 	}
 	return niProto
@@ -450,7 +454,7 @@ func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 	configureDUT(t, dut)
 	t.Logf("Start DUT BGP Config")
 	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	dutConf := bgpCreateNbr()
+	dutConf := bgpCreateNbr(dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	// ATE Configuration.

@@ -57,7 +57,7 @@ const (
 	ateRID      = "192.0.2.31"
 )
 
-func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp_Neighbor) *oc.NetworkInstance_Protocol {
+func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp_Neighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
@@ -75,11 +75,13 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(*nbr.PeerAs)
 	pg.PeerGroupName = ygot.String(peerGrpName)
-	af := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	af.Enabled = ygot.Bool(true)
-	rpl := af.GetOrCreateApplyPolicy()
-	rpl.ImportPolicy = []string{policyName}
-	rpl.ExportPolicy = []string{policyName}
+	if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		af := nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		af.Enabled = ygot.Bool(true)
+		rpl := af.GetOrCreateApplyPolicy()
+		rpl.ImportPolicy = []string{policyName}
+		rpl.ExportPolicy = []string{policyName}
+	}
 
 	bgp.AppendNeighbor(nbr)
 	return ni_proto
@@ -128,12 +130,16 @@ func TestEstablish(t *testing.T) {
 	dutPortName := dut.Port(t, "port1").Name()
 	intf1 := dutAttrs.NewOCInterface(dutPortName)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(intf1.GetName()).Config(), intf1)
-	configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	}
 	ate := ondatra.DUT(t, "dut2")
 	atePortName := ate.Port(t, "port1").Name()
 	intf2 := ateAttrs.NewOCInterface(atePortName)
 	gnmi.Replace(t, ate, gnmi.OC().Interface(intf2.GetName()).Config(), intf2)
-	configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	}
 	// Configure Network instance type, it has to be configured explicitly by user.
 	configureNIType(t)
 
@@ -160,12 +166,12 @@ func TestEstablish(t *testing.T) {
 		PeerAs:          ygot.Uint32(dutAS),
 		NeighborAddress: ygot.String(ateAttrs.IPv4),
 		PeerGroup:       ygot.String(peerGrpName),
-	})
+	}, dut)
 	ateConf := bgpWithNbr(dutAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		PeerAs:          ygot.Uint32(dutAS),
 		NeighborAddress: ygot.String(dutAttrs.IPv4),
 		PeerGroup:       ygot.String(peerGrpName),
-	})
+	}, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	gnmi.Replace(t, ate, ateConfPath.Config(), ateConf)
 	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
@@ -211,8 +217,10 @@ func TestEstablish(t *testing.T) {
 func TestDisconnect(t *testing.T) {
 	dut := ondatra.DUT(t, "dut1")
 	ate := ondatra.DUT(t, "dut2")
-	configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	}
 	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	ateConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -232,12 +240,12 @@ func TestDisconnect(t *testing.T) {
 		PeerAs:          ygot.Uint32(dutAS),
 		NeighborAddress: ygot.String(ateIP),
 		PeerGroup:       ygot.String(peerGrpName),
-	})
+	}, dut)
 	ateConf := bgpWithNbr(dutAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		PeerAs:          ygot.Uint32(dutAS),
 		NeighborAddress: ygot.String(dutIP),
 		PeerGroup:       ygot.String(peerGrpName),
-	})
+	}, dut)
 
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	gnmi.Replace(t, ate, ateConfPath.Config(), ateConf)
@@ -264,8 +272,10 @@ func TestParameters(t *testing.T) {
 	dutIP := dutAttrs.IPv4
 	dut := ondatra.DUT(t, "dut1")
 	ate := ondatra.DUT(t, "dut2")
-	configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	}
 	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	ateConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -287,12 +297,12 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(dutAS),
 				NeighborAddress: ygot.String(ateIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 			ateConf: bgpWithNbr(dutAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(dutAS),
 				NeighborAddress: ygot.String(dutIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 		},
 		{
 			name: "basic external",
@@ -300,12 +310,12 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 			ateConf: bgpWithNbr(ateAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(dutAS),
 				NeighborAddress: ygot.String(dutIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 		},
 		{
 			name: "explicit AS",
@@ -314,12 +324,12 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 			ateConf: bgpWithNbr(ateAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(100),
 				NeighborAddress: ygot.String(dutIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 		},
 		{
 			name: "explicit router id",
@@ -327,12 +337,12 @@ func TestParameters(t *testing.T) {
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 			ateConf: bgpWithNbr(ateAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(dutAS),
 				NeighborAddress: ygot.String(dutIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 		},
 		{
 			name: "password",
@@ -341,18 +351,18 @@ func TestParameters(t *testing.T) {
 				NeighborAddress: ygot.String(ateIP),
 				AuthPassword:    ygot.String("password"),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 			ateConf: bgpWithNbr(ateAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(dutAS),
 				NeighborAddress: ygot.String(dutIP),
 				AuthPassword:    ygot.String("password"),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 			wantState: bgpWithNbr(dutAS, dutIP, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 		},
 		{
 			name: "hold-time",
@@ -364,12 +374,12 @@ func TestParameters(t *testing.T) {
 					HoldTime:          ygot.Uint16(holdTime),
 					KeepaliveInterval: ygot.Uint16(keepAlive),
 				},
-			}),
+			}, dut),
 			ateConf: bgpWithNbr(ateAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(dutAS),
 				NeighborAddress: ygot.String(dutIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 			wantState: bgpWithNbr(dutAS, dutIP, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
@@ -377,7 +387,7 @@ func TestParameters(t *testing.T) {
 					HoldTime:          ygot.Uint16(holdTime),
 					KeepaliveInterval: ygot.Uint16(keepAlive),
 				},
-			}),
+			}, dut),
 		},
 		{
 			name: "connect-retry",
@@ -388,12 +398,12 @@ func TestParameters(t *testing.T) {
 				Timers: &oc.NetworkInstance_Protocol_Bgp_Neighbor_Timers{
 					ConnectRetry: ygot.Uint16(100),
 				},
-			}),
+			}, dut),
 			ateConf: bgpWithNbr(ateAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(dutAS),
 				NeighborAddress: ygot.String(dutIP),
 				PeerGroup:       ygot.String(peerGrpName),
-			}),
+			}, dut),
 			skipMsg: "Not currently supported by EOS (see b/186141921)",
 		},
 		{
@@ -406,7 +416,7 @@ func TestParameters(t *testing.T) {
 					HoldTime:          ygot.Uint16(holdTime),
 					KeepaliveInterval: ygot.Uint16(keepAlive),
 				},
-			}),
+			}, dut),
 			ateConf: bgpWithNbr(ateAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(dutAS),
 				PeerGroup:       ygot.String(peerGrpName),
@@ -415,7 +425,7 @@ func TestParameters(t *testing.T) {
 					HoldTime:          ygot.Uint16(135),
 					KeepaliveInterval: ygot.Uint16(45),
 				},
-			}),
+			}, dut),
 			wantState: bgpWithNbr(dutAS, dutIP, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 				PeerAs:          ygot.Uint32(ateAS),
 				NeighborAddress: ygot.String(ateIP),
@@ -424,7 +434,7 @@ func TestParameters(t *testing.T) {
 					NegotiatedHoldTime: ygot.Uint16(holdTime),
 					KeepaliveInterval:  ygot.Uint16(keepAlive),
 				},
-			}),
+			}, dut),
 		},
 	}
 	for _, tc := range cases {

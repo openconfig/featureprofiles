@@ -311,6 +311,11 @@ func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
 	return *noMixOfTaggedAndUntaggedSubinterfaces
 }
 
+// RoutePolicyUnderAFIUnsupported returns if Route-Policy under the AFI/SAFI is not supported
+func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
+	return *routePolicyUnderAFIUnsupported
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -473,4 +478,6 @@ var (
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
 	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
+
+	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 )
