@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -66,12 +67,9 @@ const (
 )
 
 // DUTIPList, ATEIPList are lists of DUT and ATE interface ip addresses.
-// ISISMetricList, ISISSetBitList are ISIS metric and setbit lists.
 var (
-	DUTIPList      = make(map[string]net.IP)
-	ATEIPList      = make(map[string]net.IP)
-	ISISMetricList []uint32
-	ISISSetBitList []bool
+	DUTIPList = make(map[string]net.IP)
+	ATEIPList = make(map[string]net.IP)
 )
 
 // buildPortIPs generates ip addresses for the ports in binding file.
@@ -225,7 +223,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
 
 		// Configure ISIS AfiSafi enable flag at the global level
-		if *deviations.MissingIsisInterfaceAfiSafiEnable {
+		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
 			isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 		} else {
 			isisIntfLevelAfi.Enabled = ygot.Bool(true)
@@ -244,8 +242,6 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	topo := otg.NewConfig(t)
 
 	for i, dp := range ate.Ports() {
-		ISISMetricList = append(ISISMetricList, ISISMetric)
-		ISISSetBitList = append(ISISSetBitList, true)
 		atePortAttr := attrs.Attributes{
 			Name:    "ate" + dp.ID(),
 			IPv4:    ATEIPList[dp.ID()].String(),
@@ -255,7 +251,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 		topo.Ports().Add().SetName(dp.ID())
 		dev := topo.Devices().Add().SetName(dp.ID() + "dev")
 		eth := dev.Ethernets().Add().SetName(dp.ID() + ".Eth")
-		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dp.ID())
+		eth.Connection().SetPortName(dp.ID())
 		mac := fmt.Sprintf("02:00:01:01:01:%02x", byte(i&0xff))
 
 		eth.SetMac(mac)
@@ -353,6 +349,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	otg.PushConfig(t, topo)
 	t.Log("Starting protocols to ATE...")
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, topo, "IPv4")
 }
 
 // VerifyISISTelemetry function to used verify ISIS telemetry on DUT
