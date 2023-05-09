@@ -138,7 +138,7 @@ func TestEstablish(t *testing.T) {
 	intf2 := ateAttrs.NewOCInterface(atePortName)
 	gnmi.Replace(t, ate, gnmi.OC().Interface(intf2.GetName()).Config(), intf2)
 	if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
-		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	// Configure Network instance type, it has to be configured explicitly by user.
 	configureNIType(t)
