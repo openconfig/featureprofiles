@@ -48,7 +48,7 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 	// For vendors that require n/w instance definition and interface in
 	// a n/w instance set before the address configuration, set nwInstance +
 	// interface creation in the nwInstance first.
-	if *deviations.InterfaceConfigVrfBeforeAddress {
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		gnmi.Update(t, dut, gnmi.OC().Config(), d)
 	}
 
