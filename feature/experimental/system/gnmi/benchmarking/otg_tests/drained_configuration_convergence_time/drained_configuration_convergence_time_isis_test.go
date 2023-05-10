@@ -64,7 +64,7 @@ func verifyISISMetric(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 				continue
 			}
 
-			_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis"+ap.Name()).LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
+			got, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis"+ap.Name()).LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
 				metric, present := v.Val()
 				if present {
 					if metric == setup.ISISMetric {
@@ -74,7 +74,7 @@ func verifyISISMetric(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 				return false
 			}).Await(t)
 
-			metricInReceivedLsp := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis"+ap.Name()).LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State())[0]
+			metricInReceivedLsp, _ := got.Val()
 			if !ok {
 				t.Fatalf("Metric not matched. Expected %d got %d ", setup.ISISMetric, metricInReceivedLsp)
 			}
