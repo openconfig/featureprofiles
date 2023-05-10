@@ -39,7 +39,7 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 	if niName != *deviations.DefaultNetworkInstance {
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	}
-	if niName != *deviations.DefaultNetworkInstance || *deviations.ExplicitInterfaceInDefaultVRF {
+	if niName != *deviations.DefaultNetworkInstance || deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		niIntf := ni.GetOrCreateInterface(intf)
 		niIntf.Interface = ygot.String(intf)
 		niIntf.Subinterface = ygot.Uint32(0)
@@ -48,7 +48,7 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 	// For vendors that require n/w instance definition and interface in
 	// a n/w instance set before the address configuration, set nwInstance +
 	// interface creation in the nwInstance first.
-	if *deviations.InterfaceConfigVrfBeforeAddress {
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		gnmi.Update(t, dut, gnmi.OC().Config(), d)
 	}
 
@@ -63,7 +63,7 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 func unassignPort(t *testing.T, dut *ondatra.DUTDevice, intf, niName string) {
 	t.Helper()
 	// perform unassignment only for non-default VRFs unless ExplicitInterfaceInDefaultVRF deviation is enabled
-	if niName == *deviations.DefaultNetworkInstance && !*deviations.ExplicitInterfaceInDefaultVRF {
+	if niName == *deviations.DefaultNetworkInstance && !deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		return
 	}
 
@@ -153,7 +153,7 @@ func TestDefaultAddressFamilies(t *testing.T) {
 	dutP2 := dut.Port(t, "port2")
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			if *deviations.ExplicitPortSpeed {
+			if deviations.ExplicitPortSpeed(dut) {
 				fptest.SetPortSpeed(t, dutP1)
 				fptest.SetPortSpeed(t, dutP2)
 			}

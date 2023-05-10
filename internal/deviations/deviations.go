@@ -296,6 +296,29 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// NetworkInstanceTableDeletionRequired returns if device requires explicit deletion of network-instance table.
+func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
+	return *networkInstanceTableDeletionRequired
+}
+
+// ExplicitPortSpeed returns if device requires port-speed to be set because its default value may not be usable.
+// Fully compliant devices selects the highest speed available based on negotiation.
+func ExplicitPortSpeed(_ *ondatra.DUTDevice) bool {
+	return *explicitPortSpeed
+}
+
+// ExplicitInterfaceInDefaultVRF returns if device requires explicit attachment of an interface or subinterface to the default network instance.
+// OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance.
+// Fully-compliant devices should pass with and without this deviation.
+func ExplicitInterfaceInDefaultVRF(_ *ondatra.DUTDevice) bool {
+	return *explicitInterfaceInDefaultVRF
+}
+
+// InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
+func InterfaceConfigVRFBeforeAddress(_ *ondatra.DUTDevice) bool {
+	return *interfaceConfigVRFBeforeAddress
+}
+
 // ExplicitInterfaceRefDefinition returns if device requires explicit interface ref configuration when applying features to interface.
 func ExplicitInterfaceRefDefinition(_ *ondatra.DUTDevice) bool {
 	return *explicitInterfaceRefDefinition
@@ -386,10 +409,10 @@ var (
 
 	deprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
-	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
+	explicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 
-	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
+	explicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
 	ExplicitP4RTNodeComponent = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
 
@@ -435,7 +458,7 @@ var (
 	missingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
 		"Device does not support interface/physicalchannel leaf. Set this flag to skip checking the leaf.")
 
-	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
+	interfaceConfigVRFBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
@@ -459,6 +482,8 @@ var (
 	P4rtBackupArbitrationResponseCode = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
 
 	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
+
+	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
 	isisMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
