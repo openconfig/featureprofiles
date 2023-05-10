@@ -296,6 +296,11 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// NetworkInstanceTableDeletionRequired returns if device requires explicit deletion of network-instance table.
+func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
+	return *networkInstanceTableDeletionRequired
+}
+
 // ExplicitPortSpeed returns if device requires port-speed to be set because its default value may not be usable.
 // Fully compliant devices selects the highest speed available based on negotiation.
 func ExplicitPortSpeed(_ *ondatra.DUTDevice) bool {
