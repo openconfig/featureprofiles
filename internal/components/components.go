@@ -58,6 +58,27 @@ func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platf
 	return s
 }
 
+// FindSWComponentsByType finds the list of SW components based on a type.
+func FindSWComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT) []string {
+	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
+	var s []string
+	for _, c := range components {
+		if c.GetType() == nil {
+			continue
+		}
+		t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
+		switch v := c.GetType().(type) {
+		case oc.E_PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT:
+			if v == cType {
+				s = append(s, c.GetName())
+			}
+		default:
+			// no-op for non-software components.
+		}
+	}
+	return s
+}
+
 // FindMatchingStrings filters out the components list based on regex pattern.
 func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
 	var s []string

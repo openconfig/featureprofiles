@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,17 +50,31 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator
 	return check.Equal(query, val)
 }
 
+// CheckPresence check for the leaf presense only when MissingValueForDefaults
+// deviation is marked false.
+func CheckPresence(query ygnmi.SingletonQuery[uint32]) check.Validator {
+	if !*deviations.MissingValueForDefaults {
+		return check.Present[uint32](query)
+	}
+	return check.Validate(query, func(vgot *ygnmi.Value[uint32]) error {
+		return nil
+	})
+}
+
 // TestBasic configures IS-IS on the DUT and confirms that the various values and defaults propagate
 // then configures the ATE as well, waits for the adjacency to form, and checks that numerous
 // counters and other values now have sensible values.
 func TestBasic(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
 	// Only push DUT config - no adjacency established yet
-	if err := ts.PushDUT(context.Background()); err != nil {
+	if err := ts.PushDUT(context.Background(), t); err != nil {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
 	isisRoot := session.ISISPath()
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		port1ISIS = isisRoot.Interface(ts.DUTPort1.Name() + ".0")
+	}
 	// There might be lag between when the instance name is set and when the
 	// other parameters are set; we expect the total lag to be under one minute
 	// There are about 14 RPCs executed in quick succession in this block.
@@ -69,14 +84,14 @@ func TestBasic(t *testing.T) {
 	t.Run("read_config", func(t *testing.T) {
 		checks := []check.Validator{
 			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
-			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
+			check.Equal(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_2),
 			check.Equal(port1ISIS.Enabled().State(), true),
 			check.Equal(port1ISIS.CircuitType().State(), oc.Isis_CircuitType_POINT_TO_POINT),
 		}
 
 		// if MissingIsisInterfaceAfiSafiEnable is set, ignore enable flag check for AFI, SAFI at global level
 		// and validate enable at interface level
-		if *deviations.MissingIsisInterfaceAfiSafiEnable {
+		if deviations.MissingIsisInterfaceAfiSafiEnable(ts.DUT) {
 			checks = append(checks,
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 				check.Equal(port1ISIS.Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
@@ -87,7 +102,7 @@ func TestBasic(t *testing.T) {
 		}
 
 		// if ISISInterfaceLevel1DisableRequired is set, validate Level1 enabled false at interface level else validate Level2 enabled at global level
-		if *deviations.ISISInterfaceLevel1DisableRequired {
+		if deviations.ISISInterfaceLevel1DisableRequired(ts.DUT) {
 			checks = append(checks, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
 		} else {
 			checks = append(checks, check.Equal(isisRoot.Level(2).Enabled().State(), true))
@@ -183,7 +198,7 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.Present[uint32](sysCounts.DatabaseOverloads().State()),
+				CheckPresence(sysCounts.DatabaseOverloads().State()),
 				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
@@ -239,6 +254,16 @@ func TestBasic(t *testing.T) {
 			check.Present[bool](adj.RestartSuppress().State()),
 		} {
 			t.Run(vd.RelPath(adj), func(t *testing.T) {
+				if strings.Contains(vd.Path(), "multi-topology") {
+					if *deviations.ISISMultiTopologyUnsupported {
+						t.Skip("Multi-Topology Unsupported")
+					}
+				}
+				if strings.Contains(vd.Path(), "restart-suppress") {
+					if deviations.ISISRestartSuppressUnsupported(ts.DUT) {
+						t.Skip("Restart-Suppress Unsupported")
+					}
+				}
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 					t.Error(err)
 				}
@@ -306,12 +331,12 @@ func TestBasic(t *testing.T) {
 			for _, vd := range []check.Validator{
 				check.NotEqual(cCounts.AdjChanges().State(), uint32(0)),
 				check.NotEqual(cCounts.AdjNumber().State(), uint32(0)),
-				check.Equal(cCounts.AuthFails().State(), uint32(0)),
-				check.Equal(cCounts.AuthTypeFails().State(), uint32(0)),
-				check.Equal(cCounts.IdFieldLenMismatches().State(), uint32(0)),
-				check.Equal(cCounts.LanDisChanges().State(), uint32(0)),
-				check.Equal(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.Equal(cCounts.RejectedAdj().State(), uint32(0)),
+				EqualToDefault(cCounts.AuthFails().State(), uint32(0)),
+				EqualToDefault(cCounts.AuthTypeFails().State(), uint32(0)),
+				EqualToDefault(cCounts.IdFieldLenMismatches().State(), uint32(0)),
+				EqualToDefault(cCounts.LanDisChanges().State(), uint32(0)),
+				EqualToDefault(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
+				EqualToDefault(cCounts.RejectedAdj().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(cCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -325,16 +350,16 @@ func TestBasic(t *testing.T) {
 			// Error counters should still be zero
 			sysCounts := isisRoot.Level(2).SystemLevelCounters()
 			for _, vd := range []check.Validator{
-				check.Equal(sysCounts.AuthFails().State(), uint32(0)),
-				check.Equal(sysCounts.AuthTypeFails().State(), uint32(0)),
-				check.Equal(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.Present[uint32](sysCounts.DatabaseOverloads().State()),
-				check.Equal(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
-				check.Equal(sysCounts.IdLenMismatch().State(), uint32(0)),
-				check.Equal(sysCounts.LspErrors().State(), uint32(0)),
-				check.Equal(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.Equal(sysCounts.OwnLspPurges().State(), uint32(0)),
-				check.Equal(sysCounts.SeqNumSkips().State(), uint32(0)),
+				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
+				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
+				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
+				CheckPresence(sysCounts.DatabaseOverloads().State()),
+				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
+				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
+				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
+				EqualToDefault(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
+				EqualToDefault(sysCounts.OwnLspPurges().State(), uint32(0)),
+				EqualToDefault(sysCounts.SeqNumSkips().State(), uint32(0)),
 				check.Predicate(sysCounts.SpfRuns().State(), fmt.Sprintf("want > %v", spfBefore), func(got uint32) bool {
 					return got > spfBefore
 				}),
@@ -373,10 +398,6 @@ func TestHelloPadding(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Test is skipped due to IsisHelloPaddingAdaptiveModeNotSupported deviation
-			if *deviations.IsisHelloPaddingAdaptiveModeNotSupported && tc.name == "adaptive" {
-				t.Skip(tc.skip)
-			}
 			if tc.skip != "" {
 				t.Skip(tc.skip)
 			}

@@ -1,0 +1,180 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+#
+#router static
+# address-family ipv4 unicast
+#  0.0.0.0/0 5.78.0.1
+#  5.0.0.0/8 5.78.0.1
+#  5.5.14.197/32 5.78.0.1
+#  5.24.27.1/32 5.78.0.1
+#  223.255.253.253/32 5.78.0.1
+#  223.255.254.0/24 5.78.0.1
+#  223.255.254.254/32 5.78.0.1
+# !
+
+#ipv4 virtual address 5.78.18.91/16
+#interface MgmtEth0/RP0/CPU0/0
+# ipv4 address 5.78.18.190 255.255.0.0
+#!         
+#interface MgmtEth0/RP1/CPU0/0
+# ipv4 address 5.78.18.191 255.255.0.0
+#!
+
+# telnet 10.85.84.46 2011
+# telnet 10.85.84.46 2012
+
+##Exec server:
+#ssh ott2lab-as3
+
+## Consoe server:
+# telnet 10.85.84.46
+# Pass1: roZes!23
+# Pass2: roZes!23
+
+# Username: cafyauto
+# Password: cisco123
+
+
+# Ixia:
+# UI: 10.85.84.214 
+# ixia (22-18-18)
+# chasis 10.85.84.214 port2 and port6 to be breakout from 400 to 4*100
+# Pass: Admin!@#123123
+
+# Pxe config:
+# ott22-pxe1
+# /nobackup/moji/8000-x64.iso
+# /etc/dhcp/dhcpd.config
+# User: root
+# Pass: roZes123 
+
+# Proxy config
+# ucs : 10.85.84.159
+# user: root
+# pass: roZes!23
+# config: /etc/rinetd.conf
+# requires killall -9 rinetd & rinetd after edit
+
+options {
+  username: "cafyauto"
+#  username: "cisco"
+  password: "cisco123"
+}
+
+duts {
+  id: "dut"
+  name: "SFD-Moji"  # Change this to the device hostname.
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+    #  gnmi_set_file: "/Users/mbagherz/git/test_ws/src/featureprofiles/topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto"
+  }
+ 
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.84.159:47402"
+  }
+  gnmi {
+    target: "10.85.84.159:47402"
+     #target: "172.26.228.238:64812" 
+  }
+
+  gribi{
+    target: "10.85.84.159:47402"
+  }
+  ssh{
+    target: "10.85.84.159:47403"
+  }
+  p4rt{
+    target: "10.85.84.159:47402"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+  ports {
+    id: "port1"
+    name: "HundredGigE0/0/0/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "HundredGigE0/0/0/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "HundredGigE0/0/0/2" # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "HundredGigE0/0/0/3"  # Change this to the actual port name.
+  }
+  #ports {
+  #  id: "port5"
+  #  name: "HundredGigE0/0/0/4"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port6"
+  #  name: "HundredGigE0/0/0/5"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port7"
+  #  name: "HundredGigE0/0/0/6"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port8"
+  #  name: "HundredGigE0/0/0/7"  # Change this to the actual port name.
+  #}
+}
+
+
+ates {
+  id: "ate"
+  name: "10.85.17.225:40051"  # Change this to the Ixia-C-Controler hostname.
+
+  # This option specific to OTG over Ixia-HW.
+  otg {
+    target: "10.85.17.225:40051" # Change this to the Ixia-c-grpc server endpoint.
+    insecure: true
+    timeout: 30
+  }
+
+  gnmi {
+    target: "10.85.17.225:50051"  # Change this to the Ixia-c-gnmi server endpoint.
+    skip_verify: true
+    timeout: 30
+  }
+
+  options {
+    username: "admin"
+    password: "admin"
+  }
+  
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "10.85.84.214;1;53"  # Change this to the ixia-c-hw port location.
+  }
+  ports {
+    id: "port2"
+    name: "10.85.84.214;1;54"  # Change this to the ixia-c-hw port location.
+  }
+  ports {
+    id: "port3"
+    name: "10.85.84.214;1;55"  # Change this to the ixia-c-hw port location.
+  }
+  ports {
+    id: "port4"
+    name: "10.85.84.214;1;56"  # Change this to the ixia-c-hw port location.
+  }
+}

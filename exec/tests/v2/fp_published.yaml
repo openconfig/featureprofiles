@@ -7,6 +7,28 @@ testbeds:
   - 8201-32FH_FLM254206E7
 
 tests:
+  - name: YCOVPre (Pre test to enable xr yang coverage collection)
+    path: tools/cisco/ycov/pretest/
+    owners:
+      - mbagherz
+    priority: 0
+    skip: true
+    args:
+      - '-yang_coverage="../conf/fp_public_ycov.textproto"'
+      - '-xr_ws=""'
+      - '-mgbl_path="/ws/ncorran-sjc/yang-coverage/"'
+      - '-rawLogs_path="/ws/ncorran-sjc/yang-coverage/rawlogs/"'
+  - name: YCOVPost (Post test to collect the xr yang coverage data)
+    path: tools/cisco/ycov/posttest/
+    owners:
+      - mbagherz
+    priority: 999999
+    skip: true
+    args:
+      - '-yang_coverage="../conf/fp_public_ycov.textproto"'
+      - '-xr_ws=""'
+      - '-mgbl_path="/ws/ncorran-sjc/yang-coverage/"'
+      - '-rawLogs_path="/ws/ncorran-sjc/yang-coverage/rawlogs/"'
   - name: gNOI-3.1 (Complete Chassis Reboot)
     path: feature/gnoi/system/tests/complete_chassis_reboot
     owners:
@@ -285,8 +307,6 @@ tests:
       - '-deviation_ipv4_missing_enabled="true"'
       - '-deviation_subinterface_packet_counters_missing="true"'
       - '-deviation_missing_interface_physical_channel="true"'
-      - '-deviation_missing_interface_hardware_port="true"'
-      - '-deviation_missing_cpu_mfgName="true"'
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
       - '-deviation_sw_version_unsupported="true"'
@@ -358,8 +378,6 @@ tests:
     path: feature/system/ntp/tests/system_ntp_test
     owners:
       - agvarghe
-    args:
-      - '-deviation_ntp_association_type_required="true"'
     mustpass: true
     priority: 45
   - name: OC-1.1 (System Configuration)
