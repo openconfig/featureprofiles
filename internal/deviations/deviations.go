@@ -309,11 +309,6 @@ func ExplicitInterfaceInDefaultVRF(_ *ondatra.DUTDevice) bool {
 	return *explicitInterfaceInDefaultVRF
 }
 
-// NetworkInstanceTableDeletionRequired returns if device requires explicit deletion of network-instance table.
-func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
-	return *networkInstanceTableDeletionRequired
-}
-
 // InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
 func InterfaceConfigVRFBeforeAddress(_ *ondatra.DUTDevice) bool {
 	return *interfaceConfigVRFBeforeAddress
