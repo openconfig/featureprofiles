@@ -215,7 +215,7 @@ func TestBackupNHGAction(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Configure DUT
-	if !*deviations.InterfaceConfigVrfBeforeAddress {
+	if !deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		configureDUT(t, dut)
 	}
 
@@ -224,7 +224,7 @@ func TestBackupNHGAction(t *testing.T) {
 	configureNetworkInstance(t, dut)
 
 	// For interface configuration, Arista prefers config Vrf first then the IP address
-	if *deviations.InterfaceConfigVrfBeforeAddress {
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		configureDUT(t, dut)
 	}
 

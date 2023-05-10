@@ -296,6 +296,11 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
+// InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
+func InterfaceConfigVRFBeforeAddress(_ *ondatra.DUTDevice) bool {
+	return *interfaceConfigVRFBeforeAddress
+}
+
 // ExplicitInterfaceRefDefinition returns if device requires explicit interface ref configuration when applying features to interface.
 func ExplicitInterfaceRefDefinition(_ *ondatra.DUTDevice) bool {
 	return *explicitInterfaceRefDefinition
@@ -435,7 +440,7 @@ var (
 	missingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
 		"Device does not support interface/physicalchannel leaf. Set this flag to skip checking the leaf.")
 
-	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
+	interfaceConfigVRFBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
