@@ -193,15 +193,58 @@ tests:
     owners:
       - mananpat
     mustpass: true 
-
-
-
-
-
-
-
-
-
+  - name: DP-1.8 (Two strict priority queue traffic test)
+    path: feature/qos/otg_tests/two_sp_queue_traffic_test
+    owners:
+      - saarvind
+    mustpass: true
+    timeout: 4200
+  - name: P4RT-5.2 (Traceroute Packetout)
+    path: feature/experimental/p4rt/otg_tests/traceroute_packetout_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: RT-1.2 (BGP Policy and Route Installation)
+    path: feature/bgp/policybase/otg_tests/route_installation_test
+    owners:
+      - sprem
+    args:
+      - "-deviation_rpl_under_peergroup=true"
+      - "-deviation_prepolicy_received_routes=true"
+    mustpass: true
+    skip: false
+    priority: 6
+    timeout: 4200 
+  - name: RT-5.1 (Singleton Interface)
+    path: feature/interface/singleton/otg_tests/singleton_test
+    timeout: 7200
+    owners:
+      - agvarghe
+    mustpass: true
+    priority: 31
+    args:
+      - '-deviation_ip_neighbor_missing="true"'
+  - name: TE-3.6 (ACK in the Presence of Other Routes)
+    path: feature/gribi/otg_tests/ack_in_presence_other_routes
+    skip: false
+    owners:
+      - mananpat
+    priority: 3
+    mustpass: true
+  - name: TE-11.3 (Backup NHG Actions)
+    path: feature/experimental/gribi/otg_tests/backup_nhg_action/
+    owners:
+      - wdolaast
+    mustpass: true
+    priority: 3
+  - name: TE-14.1 (gRIBI Scaling)
+    path: feature/gribi/otg_tests/gribi_scaling
+    timeout: 7200
+    owners:
+      - mananpat
+    mustpass: true
+    priority: 3
 
 
 
@@ -215,7 +258,6 @@ tests:
   #     - arvbaska
   #   priority: 1
   #   mustpass: true
-  
   # - name: TE-2.1 (gRIBI IPv4 Entry)
   #   path: feature/gribi/otg_tests/ipv4_entry_test
   #   args:
@@ -233,8 +275,6 @@ tests:
   #     - mananpat
   #   mustpass: true
   #   priority: 3
-  
-  
   # - name: TE-3.3 (Hierarchical weight resolution)
   #   path: feature/gribi/otg_tests/hierarchical_weight_resolution_test
   #   args:
@@ -244,15 +284,6 @@ tests:
   #   skip: false
   #   mustpass: true
   #   priority: 3
-  
-  
-  # - name: TE-3.6 (ACK in the Presence of Other Routes)
-  #   path: feature/gribi/otg_tests/ack_in_presence_other_routes
-  #   skip: false
-  #   owners:
-  #     - mananpat
-  #   priority: 3
-  #   mustpass: true
   # - name: TE-3.1 (Base Hierarchical Route Installation)
   #   path: feature/gribi/otg_tests/base_hierarchical_route_installation_test
   #   timeout: 4200
@@ -267,20 +298,6 @@ tests:
   #   mustpass: true
   #   priority: 3
   #   internal: false
-  # - name: TE-11.3 (Backup NHG Actions)
-  #   path: feature/experimental/gribi/otg_tests/backup_nhg_action/
-  #   owners:
-  #     - wdolaast
-  #   mustpass: true
-  #   priority: 3
-  
-  # - name: TE-14.1 (gRIBI Scaling)
-  #   path: feature/gribi/otg_tests/gribi_scaling
-  #   timeout: 7200
-  #   owners:
-  #     - mananpat
-  #   mustpass: true
-  #   priority: 3
   # - name: gNOI-4.1 (Software Upgrade)
   #   path: feature/gnoi/os/tests/osinstall
   #   owners:
@@ -298,7 +315,6 @@ tests:
   #     - arvbaska
   #   priority: 8
   #   mustpass: true
-  
   # - name: P4RT-1.2 (P4RT Daemon Failure)
   #   path: feature/experimental/p4rt/otg_tests/p4rt_daemon_failure_test
   #   owners:
@@ -311,7 +327,6 @@ tests:
   #     - sprem
   #   priority: 5
   #   mustpass: true
-  
   # - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
   #   path: feature/experimental/p4rt/otg_tests/google_discovery_protocol_packetin_test
   #   owners:
@@ -324,14 +339,6 @@ tests:
   #     - sprem
   #   priority: 5
   #   mustpass: true
-  
-  # - name: P4RT-5.2 (Traceroute Packetout)
-  #   path: feature/experimental/p4rt/otg_tests/traceroute_packetout_test
-  #   owners:
-  #     - sprem
-  #   priority: 5
-  #   mustpass: true
-  
   # - name: gNMI-1.1 (cli Origin)
   #   path: feature/system/gnmi/cliorigin/otg_tests/cli_origin_test
   #   owners:
@@ -344,30 +351,18 @@ tests:
   #     - agvarghe
   #   mustpass: true
   #   priority: 6
-  
-  
   # - name: RT-5.2 (Aggregate Interfaces)
   #   path: feature/interface/aggregate/otg_tests/aggregate_test
   #   owners:
   #     - agvarghe
   #   mustpass: true
   #   priority: 39
-  
   # - name: RT-3.1 Policy based VRF selection
   #   path: feature/experimental/policy/policy_vrf_selection/otg_tests/base_vrf_selection
   #   owners:
   #     - sprem
   #   mustpass: true
   #   priority: 30
-  # - name: RT-5.1 (Singleton Interface)
-  #   path: feature/interface/singleton/otg_tests/singleton_test
-  #   timeout: 7200
-  #   owners:
-  #     - agvarghe
-  #   mustpass: true
-  #   priority: 31
-  #   args:
-  #     - '-deviation_ip_neighbor_missing="true"'
   # - name: gNMI-1.14 (Telemetry Optics Thresholds)
   #   path: feature/experimental/platform/tests/optics_thresholds_test
   #   owners:
@@ -380,8 +375,6 @@ tests:
   #     - agvarghe
   #   mustpass: true
   #   priority: 33
-  
-  
   # - name: gNMI-1.13 (Telemetry Optics Power and Bias Current)
   #   path: feature/platform/tests/optics_power_and_bias_current_test
   #   owners:
@@ -467,7 +460,6 @@ tests:
   #   mustpass: true
   #   priority: 48
   #   skip: false
-  
   # - name: RT-6.1 (Core LLDP TLV Population)
   #   path: feature/lldp/otg_tests/core_lldp_tlv_population_test
   #   owners:
@@ -515,17 +507,6 @@ tests:
   #     - '-deviation_connect_retry="true"'
   #     - '-deviation_rpl_under_neighbor_afisafi="true"'
   #     - '-deviation_missing_bgp_last_notification_error_code="true"'
-  # - name: RT-1.2 (BGP Policy and Route Installation)
-  #   path: feature/bgp/policybase/otg_tests/route_installation_test
-  #   owners:
-  #     - sprem
-  #   args:
-  #     - "-deviation_rpl_under_peergroup=true"
-  #     - "-deviation_prepolicy_received_routes=true"
-  #   mustpass: true
-  #   skip: false
-  #   priority: 6
-  #   timeout: 4200
   # - name: gNMI-1.4 (Telemetry Inventory)
   #   path: feature/platform/otg_tests/telemetry_inventory_test
   #   owners:
@@ -557,14 +538,12 @@ tests:
   #   timeout: 7200
   #   testbeds_exclude:
   #     - 8201-32FH_FLM254206E7
-  
   # - name: TE-1.1 (Static ARP)
   #   path: feature/interface/staticarp/otg_tests/static_arp_test
   #   owners:
   #     - mbagherz
   #   mustpass: true
   #   priority: 50
-  
   # - name: DP-1.2 (QoS policy feature config)
   #   path: feature/qos/otg_tests/qos_policy_config_test
   #   owners:
@@ -584,14 +563,6 @@ tests:
   #   mustpass: true
   #   args:
   #     - '-deviation_qos_dropped_octets="true"'
-  
-  # - name: DP-1.8 (Two strict priority queue traffic test)
-  #   path: feature/qos/otg_tests/two_sp_queue_traffic_test
-  #   owners:
-  #     - saarvind
-  #   mustpass: true
-  #   timeout: 4200
-  
   # - name: DP-1.11 (QoS Bursty Traffic)
   #   path: feature/qos/otg_tests/bursty_traffic_test
   #   owners:
@@ -616,7 +587,6 @@ tests:
   #   args:
   #     - '-deviation_missing_isis_interface_afi_safi_enable="true"'
   #     - '-deviation_rpl_under_peergroup="true"'
-  
   # - name: RT-5.4 (Aggregate Forwarding Viable)
   #   path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
   #   owners:
