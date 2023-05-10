@@ -206,9 +206,6 @@ func TestInterfaceStatusChange(t *testing.T) {
 
 func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.MissingInterfaceHardwarePort(dut) {
-		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
-	}
 	dp := dut.Port(t, "port1")
 
 	// Verify HardwarePort leaf is present under interface.
@@ -330,7 +327,7 @@ func TestQoSCounters(t *testing.T) {
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
 	}}
-	if !*deviations.QOSDroppedOctets {
+	if !deviations.QOSDroppedOctets(dut) {
 		cases = append(cases,
 			struct {
 				desc     string
@@ -449,6 +446,11 @@ func TestComponentParent(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+
+			if len(compList[tc.desc]) == 0 && dut.Model() == "DCS-7280CR3K-32D4" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
+			}
+
 			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
 			if len(compList[tc.desc]) == 0 {
 				t.Fatalf("Get component list for %q: got 0, want > 0", dut.Model())
@@ -519,14 +521,10 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !deviations.MissingCPUMfgName(dut) {
-			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-				t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
-			} else {
-				t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
-			}
+		if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
+			t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
-			t.Logf("Check MfgName for CPU %s is skipped due to MissingCPUMfgName deviation", cpu)
+			t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
 		}
 		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
@@ -538,6 +536,10 @@ func TestCPU(t *testing.T) {
 
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	if dut.Model() == "DCS-7280CR3K-32D4" {
+		t.Skipf("Test is skipped due to hardware platform compatibility")
+	}
 
 	cards := components.FindComponentsByType(t, dut, supervisorType)
 	t.Logf("Found card list: %v", cards)

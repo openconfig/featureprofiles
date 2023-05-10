@@ -210,9 +210,6 @@ func TestInterfaceStatusChange(t *testing.T) {
 
 func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.MissingInterfaceHardwarePort(dut) {
-		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
-	}
 	dp := dut.Port(t, "port1")
 
 	// Verify HardwarePort leaf is present under interface.
@@ -334,7 +331,7 @@ func TestQoSCounters(t *testing.T) {
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
 	}}
-	if !*deviations.QOSDroppedOctets {
+	if !deviations.QOSDroppedOctets(dut) {
 		cases = append(cases,
 			struct {
 				desc     string
@@ -524,14 +521,10 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !deviations.MissingCPUMfgName(dut) {
-			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-				t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
-			} else {
-				t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
-			}
+		if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
+			t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
-			t.Logf("Check MfgName for CPU %s is skipped due to MissingCPUMfgName deviation", cpu)
+			t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
 		}
 		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
