@@ -383,13 +383,13 @@ func TestPassword(t *testing.T) {
 	// Verify BGP status
 	t.Log("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
-	if !*deviations.SkipBGPTestPasswordMismatch {
+	if !deviations.SkipBGPTestPasswordMismatch(dut) {
 		t.Log("Configure mismatching md5 auth password on DUT")
 		gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), "PASSWORDNEGSCENARIO")
 
 		// If the DUT will not fail a BGP session when the BGP MD5 key configuration changes,
 		// change the key from the ATE side to time out the session.
-		if *deviations.BGPMD5RequiresReset {
+		if deviations.BGPMD5RequiresReset(dut) {
 			bgpPeer.WithMD5Key("PASSWORDNEGSCENARIO-ATE")
 			topo.UpdateBGPPeerStates(t)
 		}
@@ -405,7 +405,7 @@ func TestPassword(t *testing.T) {
 
 		t.Log("Revert md5 auth password on DUT to match with ATE.")
 		gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
-		if *deviations.BGPMD5RequiresReset {
+		if deviations.BGPMD5RequiresReset(dut) {
 			bgpPeer.WithMD5Key(authPassword)
 			topo.UpdateBGPPeerStates(t)
 		}
