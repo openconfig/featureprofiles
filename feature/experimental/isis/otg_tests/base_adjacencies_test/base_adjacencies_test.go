@@ -72,7 +72,7 @@ func TestBasic(t *testing.T) {
 	}
 	isisRoot := session.ISISPath()
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		port1ISIS = isisRoot.Interface(ts.DUTPort1.Name() + ".0")
 	}
 	// There might be lag between when the instance name is set and when the

@@ -197,7 +197,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		a4 := s4.GetOrCreateAddress(DUTIPList[dp.ID()].String())
 		a4.PrefixLength = ygot.Uint8(plenIPv4)
 
-		if *deviations.ExplicitPortSpeed {
+		if deviations.ExplicitPortSpeed(dut) {
 			i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dp)
 		}
 
@@ -216,7 +216,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 		// ISIS configs.
 		intfName := dp.Name()
-		if *deviations.ExplicitInterfaceInDefaultVRF {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			intfName = dp.Name() + ".0"
 		}
 		isisIntf := isis.GetOrCreateInterface(intfName)
@@ -250,7 +250,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	p := gnmi.OC()
 	fptest.LogQuery(t, "DUT", p.Config(), d)
 
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		for _, dp := range dut.Ports() {
 			ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
 			niIntf, _ := ni.NewInterface(dp.Name())
@@ -324,7 +324,7 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).Isis()
 	for _, dp := range dut.Ports() {
 		intfName := dp.Name()
-		if *deviations.ExplicitInterfaceInDefaultVRF {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			intfName = dp.Name() + ".0"
 		}
 		nbrPath := statePath.Interface(intfName)
