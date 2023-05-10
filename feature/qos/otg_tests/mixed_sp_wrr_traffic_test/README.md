@@ -96,15 +96,15 @@ forwards AF3, AF2, AF1, BE1 and BE0 based on weight.
 
 *   Oversubscription traffic test case 2
 
-    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
-    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
-    NC1           | 0.1                     | 0.9                     | 100                   | 100
-    Af4           | 18                      | 20                      | 100                   | 100
-    AF3           | 40                      | 24                      | 50                    | 50
-    AF2           | 8                       | 24                      | 50                    | 50
-    AF1           | 12                      | 4                       | 50                    | 50
-    BE0           | 1                       | 7                       | 50                    | 50
-    BE1           | 1                       | 1                       | 50                    | 50
+    Traffic class | Interface1(line rate %) | Interface2(line rate %) | Aggregate throughput(%)
+    ------------- | ----------------------- | ----------------------- | -----------------------
+    NC1           | 0.1                     | 0.9                     | 100
+    Af4           | 18                      | 20                      | 100
+    AF3           | 40                      | 24                      | 50
+    AF2           | 8                       | 24                      | 50
+    AF1           | 12                      | 4                       | 50
+    BE0           | 1                       | 7                       | 50
+    BE1           | 1                       | 1                       | 50
 
 ## Config parameter coverage
 
