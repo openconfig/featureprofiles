@@ -498,10 +498,20 @@ func TestSoftwareVersion(t *testing.T) {
 		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(os).Parent().State())
 		if v, ok := parent.Val(); ok {
 			got := gnmi.Get(t, dut, gnmi.OC().Component(v).Type().State())
-			if got == supervisorType {
-				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+
+			// Arista_7280 OC component EOS has parent type Chassis
+			if dut.Model() == "DCS-7280CR3K-32D4" {
+				if got == chassisType {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, chassisType)
+				}
 			} else {
-				t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+				if got == supervisorType {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+				}
 			}
 		} else {
 			t.Errorf("Parent for the component %v was not found", os)
