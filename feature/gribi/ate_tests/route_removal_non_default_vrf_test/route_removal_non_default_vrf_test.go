@@ -99,7 +99,7 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// For interface configuration, Arista prefers config Vrf first then the IP address
-	if *deviations.InterfaceConfigVrfBeforeAddress {
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		configureNetworkInstance(t, dut)
 	}
 
@@ -108,7 +108,7 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
 
-	if !*deviations.InterfaceConfigVrfBeforeAddress {
+	if !deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		configureNetworkInstance(t, dut)
 	}
 
@@ -323,7 +323,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
 	}
 }
@@ -358,7 +358,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	niIntf.Interface = ygot.String(p1.Name())
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), nonDefaultNI)
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, nonDefaultVRF)
 	}
 }

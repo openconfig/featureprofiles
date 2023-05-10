@@ -154,7 +154,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port3"))
 	}
 
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
 	}
 }
