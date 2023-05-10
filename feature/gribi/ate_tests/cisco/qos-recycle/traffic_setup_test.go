@@ -164,41 +164,6 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	top.Push(t).StartProtocols(t)
 }
 
-// createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
-func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEndPoint []ondatra.Endpoint, innerdstPfxMin string, innerdstPfxCount uint32) *ondatra.Flow {
-	hdr := ondatra.NewIPv4Header()
-	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
-
-	innerIpv4Header := ondatra.NewIPv4Header()
-	innerIpv4Header.WithSrcAddress(innersrcPfx)
-	if innerdstPfxCount > uint32(*ciscoFlags.GRIBIScale) {
-		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(innerdstPfxCount).WithStep("0.0.0.1")
-	} else {
-		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
-	}
-	flow := a.ate.Traffic().NewFlow(name).
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint...).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr, innerIpv4Header).WithFrameRateFPS(10).WithFrameSize(300)
-
-	return flow
-}
-
-// allFlows designs all the flows needed for the backup testing
-func (a *testArgs) allFlows() []*ondatra.Flow {
-	srcEndPoint := a.top.Interfaces()[atePort1.Name]
-	dstEndPoint := []ondatra.Endpoint{}
-	for intf, intf_data := range a.top.Interfaces() {
-		if intf != "atePort1" {
-			dstEndPoint = append(dstEndPoint, intf_data)
-		}
-	}
-	bgp_flow := a.createFlow("BaseFlow_BGP", srcEndPoint, dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-	isis_flow := a.createFlow("BaseFlow_ISIS", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-	flows := []*ondatra.Flow{}
-	flows = append(flows, bgp_flow, isis_flow)
-	return flows
-}
 func (a *testArgs) allFlowsQos() []*ondatra.Flow {
 	srcEndPoint := a.top.Interfaces()[atePort1.Name]
 	dstEndPoint := []ondatra.Endpoint{}
