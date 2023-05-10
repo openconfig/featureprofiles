@@ -53,19 +53,19 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
-	log "github.com/golang/glog"
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/ondatra/binding"
-	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (
 	knownIssueURL = flag.String("known_issue_url", "", "Report a known issue that explains why the test fails.  This should be a URL to the issue tracker.")
+
+	// Stub out for unit tests.
+	metadataGetFn = metadata.Get
 )
 
 // topology summarizes the topology from the reservation.
@@ -93,10 +93,7 @@ func topology(resv *binding.Reservation) string {
 
 // Properties builds the test properties map representing run data.
 func Properties(ctx context.Context, resv *binding.Reservation) map[string]string {
-	md, err := readFromMetadataProto()
-	if err != nil {
-		log.Errorf("Error reading metadata proto: %v", err)
-	}
+	md := metadataGetFn()
 
 	m := make(map[string]string)
 	local(m)
@@ -121,18 +118,6 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 	}
 
 	return m
-}
-
-func readFromMetadataProto() (*mpb.Metadata, error) {
-	// When "go test" runs, the current working directory is the test
-	// package directory, which is where we will find the metadata file.
-	const metadataFilename = "metadata.textproto"
-	bytes, err := os.ReadFile(metadataFilename)
-	if err != nil {
-		return nil, err
-	}
-	md := new(mpb.Metadata)
-	return md, prototext.Unmarshal(bytes, md)
 }
 
 var timeBegin = time.Now()

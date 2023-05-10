@@ -304,7 +304,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// configure an L3 subinterface without vlan tagging under DUT port#1
 	createSubifDUT(t, d, dut, dp1, 0, 0, dutPort1.IPv4)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 
@@ -373,7 +373,7 @@ func configureInterfaceDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dut
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dutPort)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Config(), i)
@@ -411,7 +411,7 @@ func configureDUTSubIfs(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPor
 		}
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+2)
 		createSubifDUT(t, d, dut, dutPort, index, vlanID, dutIPv4)
-		if *deviations.ExplicitInterfaceInDefaultVRF {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), *deviations.DefaultNetworkInstance, index)
 		}
 	}

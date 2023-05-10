@@ -264,7 +264,7 @@ func TestEstablish(t *testing.T) {
 
 	t.Log("Build Benchmarking BGP and ISIS test configs.")
 	dutBenchmarkConfig := setup.BuildBenchmarkingConfig(t)
-	if !*deviations.ExplicitInterfaceInDefaultVRF {
+	if !deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.LogQuery(t, "Benchmarking configs to configure on DUT", dutConfigPath.Config(), dutBenchmarkConfig)
 	}
 	// Apply benchmarking configs on dut
