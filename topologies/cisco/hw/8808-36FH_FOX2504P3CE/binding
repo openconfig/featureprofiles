@@ -74,7 +74,7 @@ duts {
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
-    id: "port1"
+    id: "port8"
     name: "FourHundredGigE0/0/0/0"  # Change this to the actual port name.
   }
   ports {
@@ -102,7 +102,7 @@ duts {
     name: "HundredGigE0/0/0/24"  # Change this to the actual port name.
   }
   ports {
-    id: "port8"
+    id: "port1"
     name: "HundredGigE0/0/0/25"  # Change this to the actual port name.
   }
   ports {
@@ -131,7 +131,7 @@ ates {
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
-    id: "port1"
+    id: "port8"
     name: "1/1"  # Change this to the actual port name.
   }
   ports {
@@ -159,7 +159,7 @@ ates {
     name: "1/22"  # Change this to the actual port name.
   }
   ports {
-    id: "port8"
+    id: "port1"
     name: "1/23"  # Change this to the actual port name.
   }
   ports {
