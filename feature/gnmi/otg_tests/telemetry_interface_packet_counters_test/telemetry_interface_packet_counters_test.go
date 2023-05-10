@@ -78,7 +78,6 @@ func TestEthernetCounters(t *testing.T) {
 			if tc.desc == "InMaxsizeExceeded" {
 				t.Skipf("Counter in-maxsize-exceeded is not supported yet.")
 			}
-
 			val, present := tc.counter.Val()
 			if !present {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
@@ -113,6 +112,10 @@ func TestInterfaceCounters(t *testing.T) {
 		counter ygnmi.SingletonQuery[uint64]
 		skip    bool
 	}{{
+		desc:    "InUnicastPkts",
+		path:    intfCounterPath + "in-unicast-pkts",
+		counter: intfCounters.InUnicastPkts().State(),
+	}, {
 		desc:    "InUnicastPkts",
 		path:    intfCounterPath + "in-unicast-pkts",
 		counter: intfCounters.InUnicastPkts().State(),
@@ -161,7 +164,6 @@ func TestInterfaceCounters(t *testing.T) {
 			if tc.skip {
 				t.Skipf("Counter %v is not supported.", tc.desc)
 			}
-
 			val, present := gnmi.Lookup(t, dut, tc.counter).Val()
 			if !present {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
@@ -311,16 +313,16 @@ func TestIntfCounterUpdate(t *testing.T) {
 		}
 	}
 	for _, flow := range []string{flowipv4.Name(), flowipv6.Name()} {
-		lossPct := 0
+		var lossPct float32
 		if flow == "IPv4_test_flow" {
-			lostPackets := int(ateOutPkts["IPv4"] - ateInPkts["IPv4"])
-			lossPct = lostPackets * 100 / int(ateOutPkts["IPv4"])
+			lostPackets := float32(ateOutPkts["IPv4"] - ateInPkts["IPv4"])
+			lossPct = lostPackets * 100 / float32(ateOutPkts["IPv4"])
 		} else {
-			lostPackets := int(ateOutPkts["IPv6"] - ateInPkts["IPv6"])
-			lossPct = lostPackets * 100 / int(ateOutPkts["IPv6"])
+			lostPackets := float32(ateOutPkts["IPv6"] - ateInPkts["IPv6"])
+			lossPct = lostPackets * 100 / float32(ateOutPkts["IPv6"])
 		}
 		if lossPct >= 1 {
-			t.Errorf("LossPct per Flow(%v) = %v, want < 1", flow, lossPct)
+			t.Errorf("LossPct per Flow(%v) = %f, want < 1", flow, lossPct)
 		}
 	}
 
@@ -395,6 +397,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 
 		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
 		subint := gnmi.OC().Interface(intf.intfName).Subinterface(0)
+
 		if !*deviations.IPv4MissingEnabled {
 			if !gnmi.Get(t, dut, subint.Ipv4().Enabled().State()) {
 				t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
