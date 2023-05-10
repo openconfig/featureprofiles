@@ -336,6 +336,7 @@ func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
 	return *noMixOfTaggedAndUntaggedSubinterfaces
 }
 
+// SecondaryBackupPathTrafficFailover returns if device does not support secondary backup path traffic failover
 func SecondaryBackupPathTrafficFailover(_ *ondatra.DUTDevice) bool {
 	return *secondaryBackupPathTrafficFailover
 }
