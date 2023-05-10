@@ -206,9 +206,6 @@ func TestInterfaceStatusChange(t *testing.T) {
 
 func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.MissingInterfaceHardwarePort(dut) {
-		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
-	}
 	dp := dut.Port(t, "port1")
 
 	// Verify HardwarePort leaf is present under interface.
@@ -330,7 +327,7 @@ func TestQoSCounters(t *testing.T) {
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
 	}}
-	if !*deviations.QOSDroppedOctets {
+	if !deviations.QOSDroppedOctets(dut) {
 		cases = append(cases,
 			struct {
 				desc     string
