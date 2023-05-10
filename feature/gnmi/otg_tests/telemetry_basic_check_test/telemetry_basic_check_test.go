@@ -451,6 +451,11 @@ func TestComponentParent(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+
+			if len(compList[tc.desc]) == 0 && dut.Model() == "DCS-7280CR3K-32D4" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
+			}
+
 			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
 			if len(compList[tc.desc]) == 0 {
 				t.Fatalf("Get component list for %q: got 0, want > 0", dut.Model())
@@ -498,10 +503,20 @@ func TestSoftwareVersion(t *testing.T) {
 		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(os).Parent().State())
 		if v, ok := parent.Val(); ok {
 			got := gnmi.Get(t, dut, gnmi.OC().Component(v).Type().State())
-			if got == supervisorType {
-				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+
+			// Arista_7280 OC component EOS has parent type Chassis
+			if dut.Model() == "DCS-7280CR3K-32D4" {
+				if got == chassisType {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, chassisType)
+				}
 			} else {
-				t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+				if got == supervisorType {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+				}
 			}
 		} else {
 			t.Errorf("Parent for the component %v was not found", os)
@@ -536,6 +551,11 @@ func TestCPU(t *testing.T) {
 
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	if dut.Model() == "DCS-7280CR3K-32D4" {
+		t.Skipf("Test is skipped due to hardware platform compatibility")
+	}
+
 	cards := components.FindComponentsByType(t, dut, supervisorType)
 	t.Logf("Found card list: %v", cards)
 	if len(cards) == 0 {
