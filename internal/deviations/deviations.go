@@ -81,6 +81,11 @@ func AggregateAtomicUpdate(_ *ondatra.DUTDevice) bool {
 	return *aggregateAtomicUpdate
 }
 
+// DefaultNetworkInstance returns the name used for the default network instance for VRF.
+func DefaultNetworkInstance(_ *ondatra.DUTDevice) string {
+	return *defaultNetworkInstance
+}
+
 // P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
 func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
@@ -383,7 +388,7 @@ var (
 	aggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
+	defaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
 		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Full OpenConfig compliant devices should be able to use any operator-assigned value.")
 
 	subinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,

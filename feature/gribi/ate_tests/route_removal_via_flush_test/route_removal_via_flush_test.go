@@ -158,7 +158,7 @@ func TestRouteRemovelViaFlush(t *testing.T) {
 func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, args *testArgs) {
 	// Inject an entry into the default network instance pointing to ATE port-2.
 	// clientA is primary client
-	injectEntry(ctx, t, args.clientA, *deviations.DefaultNetworkInstance)
+	injectEntry(ctx, t, args.clientA, deviations.DefaultNetworkInstance(args.dut))
 	srcEndPoint := args.ateTop.Interfaces()[atePort1.Name]
 	dstEndPoint := args.ateTop.Interfaces()[atePort2.Name]
 	// Test traffic between ATE port-1 and ATE port-2.
@@ -169,7 +169,7 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, args
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
 	// Flush should delete all entries
-	if _, err := gribi.Flush(args.clientA, args.electionID, *deviations.DefaultNetworkInstance); err != nil {
+	if _, err := gribi.Flush(args.clientA, args.electionID, deviations.DefaultNetworkInstance(args.dut)); err != nil {
 		t.Errorf("Unexpected error from flush, got: %v", err)
 	}
 	// After flush, left entry should be 0, and packets can no longer be forwarded.
@@ -179,19 +179,19 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, args
 	} else {
 		t.Log("Traffic can not be forwarded between ATE port-1 and ATE port-2")
 	}
-	if got, want := checkNIHasNEntries(ctx, args.clientA, *deviations.DefaultNetworkInstance, t), 0; got != want {
+	if got, want := checkNIHasNEntries(ctx, args.clientA, deviations.DefaultNetworkInstance(args.dut), t), 0; got != want {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", got, want)
 	}
 
 	// clientA is primary client
-	injectEntry(ctx, t, args.clientA, *deviations.DefaultNetworkInstance)
+	injectEntry(ctx, t, args.clientA, deviations.DefaultNetworkInstance(args.dut))
 
 	// flush should fail, and preserve 3 entries.
-	if res, err := gribi.Flush(args.clientB, args.electionID.Decrement(), *deviations.DefaultNetworkInstance); err == nil {
+	if res, err := gribi.Flush(args.clientB, args.electionID.Decrement(), deviations.DefaultNetworkInstance(args.dut)); err == nil {
 		t.Errorf("Flush should return an error, got response: %v", res)
 	}
 
-	if got, want := checkNIHasNEntries(ctx, args.clientB, *deviations.DefaultNetworkInstance, t), 3; got != want {
+	if got, want := checkNIHasNEntries(ctx, args.clientB, deviations.DefaultNetworkInstance(args.dut), t), 3; got != want {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", got, want)
 	}
 
@@ -199,10 +199,10 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, args
 	eID := gribi.BecomeLeader(t, args.clientB)
 
 	// Flush should be succeed and 0 entry left.
-	if _, err := gribi.Flush(args.clientB, eID, *deviations.DefaultNetworkInstance); err != nil {
+	if _, err := gribi.Flush(args.clientB, eID, deviations.DefaultNetworkInstance(args.dut)); err != nil {
 		t.Fatalf("Unexpected error from flush, got: %v", err)
 	}
-	if got, want := checkNIHasNEntries(ctx, args.clientB, *deviations.DefaultNetworkInstance, t), 0; got != want {
+	if got, want := checkNIHasNEntries(ctx, args.clientB, deviations.DefaultNetworkInstance(args.dut), t), 0; got != want {
 		t.Errorf("Network instance has %d entry/entries, wanted: %d", got, want)
 	}
 }
@@ -217,11 +217,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)

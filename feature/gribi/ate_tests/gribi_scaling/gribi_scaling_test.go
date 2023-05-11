@@ -165,7 +165,7 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 		ind := uint64(index.nhID + i)
 		if index.vrf == "vrf3" {
 			nh := fluent.NextHopEntry().
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithIndex(ind).
 				WithIPinIP(tunnelSrcIP, ateAddr).
 				WithDecapsulateHeader(fluent.IPinIP).
@@ -175,7 +175,7 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 			args.client.Modify().AddEntry(t, nh)
 		} else {
 			nh := fluent.NextHopEntry().
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithIndex(ind).
 				WithIPAddress(ateAddr).
 				WithElectionID(args.electionID.Low, args.electionID.High)
@@ -183,7 +183,7 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 		}
 
 		nhg := fluent.NextHopGroupEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithID(uint64(localIndex)).
 			AddNextHop(ind, uint64(index.maxNhCount)).
 			WithElectionID(args.electionID.Low, args.electionID.High)
@@ -209,7 +209,7 @@ func installEntries(t *testing.T, ips []string, nexthops []string, index routesP
 				WithPrefix(ips[ip]+"/32").
 				WithNetworkInstance(index.vrf).
 				WithNextHopGroup(uint64(localIndex)).
-				WithNextHopGroupNetworkInstance(*deviations.DefaultNetworkInstance))
+				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(args.dut)))
 		nextCount = nextCount + 1
 		if nextCount == index.maxIPCount {
 			localIndex = localIndex + 1
@@ -250,14 +250,14 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 		index := uint64(i + 1)
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopEntry().
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithIndex(index).
 				WithIPAddress(nextHops[i]).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopGroupEntry().
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithID(uint64(2)).
 				AddNextHop(index, 64).
 				WithElectionID(args.electionID.Low, args.electionID.High))
@@ -269,7 +269,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []strin
 		args.client.Modify().AddEntry(t,
 			fluent.IPv4Entry().
 				WithPrefix(virtualVIPs[ip]+"/32").
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithNextHopGroup(uint64(2)).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
@@ -295,7 +295,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dp2 := dut.Port(t, "port2")
 	d := &oc.Root{}
 
-	vrfs := []string{*deviations.DefaultNetworkInstance, vrf1, vrf2, vrf3}
+	vrfs := []string{deviations.DefaultNetworkInstance(dut), vrf1, vrf2, vrf3}
 	createVrf(t, dut, vrfs)
 
 	// configure Ethernet interfaces first
@@ -305,7 +305,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// configure an L3 subinterface without vlan tagging under DUT port#1
 	createSubifDUT(t, d, dut, dp1, 0, 0, dutPort1.IPv4)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	applyForwardingPolicy(t, dp1.Name())
@@ -317,7 +317,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // createVrf takes in a list of VRF names and creates them on the target devices.
 func createVrf(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 	for _, vrf := range vrfs {
-		if vrf != *deviations.DefaultNetworkInstance {
+		if vrf != deviations.DefaultNetworkInstance(dut) {
 			// configure non-default VRFs
 			d := &oc.Root{}
 			i := d.GetOrCreateNetworkInstance(vrf)
@@ -325,7 +325,7 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 		} else {
 			// configure DEFAULT vrf
-			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 		}
@@ -334,13 +334,13 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 		}
 	}
 	// configure PBF
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), configurePBF())
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), configurePBF(dut))
 }
 
 // configurePBF returns a fully configured network-instance PF struct
-func configurePBF() *oc.NetworkInstance_PolicyForwarding {
+func configurePBF(dut *ondatra.DUTDevice) *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
-	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	pf := ni.GetOrCreatePolicyForwarding()
 	vrfPolicy := pf.GetOrCreatePolicy(policyName)
 	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
@@ -354,8 +354,8 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
-	pfCfg := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
+	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	if deviations.ExplicitInterfaceRefDefinition(dut) {
 		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
@@ -412,7 +412,7 @@ func configureDUTSubIfs(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPor
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+2)
 		createSubifDUT(t, d, dut, dutPort, index, vlanID, dutIPv4)
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), *deviations.DefaultNetworkInstance, index)
+			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), deviations.DefaultNetworkInstance(dut), index)
 		}
 	}
 }

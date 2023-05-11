@@ -195,10 +195,10 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 		{
 			desc: "Delete nh ipv4 entry",
 			applyImpairmentFn: func() {
-				client.DeleteIPv4(t, nhip+"/"+mask, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+				client.DeleteIPv4(t, nhip+"/"+mask, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 			},
 			removeImpairmentFn: func() {
-				client.AddIPv4(t, nhip+"/"+mask, nhg1ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+				client.AddIPv4(t, nhip+"/"+mask, nhg1ID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
 			},
 		},
@@ -206,7 +206,7 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Run("Validate Baseline AFT Telemetry", func(t *testing.T) {
-				tcArgs.validateAftTelemetry(t, *deviations.DefaultNetworkInstance, nhip, atePort2.IPv4, atePort2.IPv4)
+				tcArgs.validateAftTelemetry(t, deviations.DefaultNetworkInstance(dut), nhip, atePort2.IPv4, atePort2.IPv4)
 				tcArgs.validateAftTelemetry(t, vrfA, dstPfx, nhip, atePort2.IPv4)
 				tcArgs.validateAftTelemetry(t, vrfB, dstPfx, atePort3.IPv4, atePort3.IPv4)
 			})
@@ -260,8 +260,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, p3)
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 }
@@ -271,22 +271,22 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // entry.
 func (a *testArgs) configureBackupNextHopGroup(t *testing.T, del bool) {
 	t.Logf("Adding NH %d with atePort2 via gRIBI", nh1ID)
-	a.client.AddNH(t, nh1ID, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNH(t, nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 	t.Logf("Adding NH %d with atePort3 and NHGs %d, %d via gRIBI", nh2ID, nhg1ID, nhg2ID)
-	a.client.AddNH(t, nh2ID, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhg2ID, map[uint64]uint64{nh2ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNH(t, nh2ID, atePort3.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhg2ID, map[uint64]uint64{nh2ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 	t.Logf("Adding an IPv4Entry for %s via gRIBI", nhip)
-	a.client.AddIPv4(t, nhip+"/"+mask, nhg1ID, *deviations.DefaultNetworkInstance, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddIPv4(t, nhip+"/"+mask, nhg1ID, deviations.DefaultNetworkInstance(a.dut), deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 	t.Logf("Adding NH %d in VRF-B via gRIBI", nh100ID)
-	a.client.AddNH(t, nh100ID, "VRFOnly", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfB})
+	a.client.AddNH(t, nh100ID, "VRFOnly", deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfB})
 	t.Logf("Adding NH %d and NHGs %d, %d via gRIBI", nh101ID, nhg100ID, nhg101ID)
-	a.client.AddNH(t, nh101ID, nhip, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhg100ID, map[uint64]uint64{nh100ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhg101ID, map[uint64]uint64{nh101ID: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: nhg100ID})
+	a.client.AddNH(t, nh101ID, nhip, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhg100ID, map[uint64]uint64{nh100ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhg101ID, map[uint64]uint64{nh101ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: nhg100ID})
 	t.Logf("Adding IPv4Entries for %s for VRF-A and VRF-B via gRIBI", dstPfx)
-	a.client.AddIPv4(t, dstPfx+"/"+mask, nhg101ID, vrfA, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddIPv4(t, dstPfx+"/"+mask, nhg2ID, vrfB, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddIPv4(t, dstPfx+"/"+mask, nhg101ID, vrfA, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddIPv4(t, dstPfx+"/"+mask, nhg2ID, vrfB, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 
 }
 
@@ -308,7 +308,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfB).Config(), ni1)
 
 	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfA)
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfB)
 	}
@@ -344,13 +344,13 @@ func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix, ipAddress
 	}
 	nhg, _ := aftPfxNHGVal.Val()
 
-	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhg).State())
+	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(nhg).State())
 	if got := len(aftNHG.NextHop); got != 1 {
 		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", prefix+"/"+mask, got)
 	}
 
 	for k := range aftNHG.NextHop {
-		aftnh := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).State())
+		aftnh := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHop(k).State())
 		// Handle the cases where the device returns the indirect NH or the recursively resolved NH.
 		// For e.g. in case of a->b->c, device should return either b or c.
 		if got := aftnh.GetIpAddress(); got != ipAddress && got != resolvedNhIpAddress {
