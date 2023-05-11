@@ -1,0 +1,158 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+#
+#router static
+# address-family ipv4 unicast
+#  0.0.0.0/0 5.78.0.1
+#  5.0.0.0/8 5.78.0.1
+#  5.5.14.197/32 5.78.0.1
+#  5.24.27.1/32 5.78.0.1
+#  223.255.253.253/32 5.78.0.1
+#  223.255.254.0/24 5.78.0.1
+#  223.255.254.254/32 5.78.0.1
+# !
+
+#interface MgmtEth0/RP0/CPU0/0
+# ipv4 address 5.78.9.11 255.255.0.0
+# no shut
+#!
+
+#interface MgmtEth0/RP1/CPU0/0
+# ipv4 address 5.78.9.12 255.255.0.0
+# no shut
+#!
+
+#telnet: RP0 -  telnet 10.85.84.38 2001
+#telnet: RP1 -  telnet 10.85.84.38 2002
+
+##Exec server:
+#ssh ott2lab-as3
+
+##PDU IP Address 5.18.8.240 outlets 9,10,19
+
+## Consoe server:
+# telnet 10.85.84.53
+# Pass1: lab
+# Pass2: lab
+
+# Username: cisco
+# Password: cisco
+
+## Management interface RP0:
+# ipv4 address 5.78.9.11
+
+## Management interface RP1:
+# ipv4 address 5.78.9.12
+
+## Management Virtual IP:
+# ipv4 address 5.78.9.13
+
+options {
+  username: "cisco"
+  password: "cisco"
+}
+
+duts {
+  id: "dut"
+  name: "8808"  # Change this to the device hostname.
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+  # telnet RP0: 10.85.84.38 2001
+  # telnet RP1: 10.85.84.38 2002
+  # Mgmt RP0: 5.78.9.11
+  # Mgmt RP0: 5.78.9.12
+  # Rack Location : 22-18-8
+  # Exec server: ott2lab-as3
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cisco"
+    password: "cisco"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.84.159:54999"
+  }
+  gnmi {
+    target: "10.85.84.159:54999" 
+  }
+  gribi{
+    target: "10.85.84.159:54999"
+  }
+  ssh{
+    target: "10.85.84.159:4999"
+  }
+  p4rt{
+    target: "10.85.84.159:54999"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+  ports {
+    id: "port1"
+    name: "HundredGigE0/0/0/30"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "HundredGigE0/0/0/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "HundredGigE0/0/0/1"  # Change this to the actual port name.
+  }
+  ports {
+   id: "port4"
+   name: "HundredGigE0/0/0/10"  # Change this to the actual port name.
+  }
+}
+
+ates {
+  id: "ate"
+  name: "10.85.17.225:40056"  # Change this to the Ixia-C-Controler hostname.
+
+  # This option specific to OTG over Ixia-HW.
+  otg {
+    target: "10.85.17.225:40056" # Change this to the Ixia-c-grpc server endpoint.
+    insecure: true
+    timeout: 30
+  }
+
+  gnmi {
+    target: "10.85.17.225:50056"  # Change this to the Ixia-c-gnmi server endpoint.
+    skip_verify: true
+    timeout: 30
+  }
+
+  options {
+    username: "admin"
+    password: "admin"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "10.85.84.214;1;76" # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "10.85.84.214;1;73"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "10.85.84.214;1;74"  # Change this to the actual port name.
+  }
+  ports {
+   id: "port4"
+   name: "10.85.84.214;1;75"  # Change this to the actual port name.
+  }
+}
