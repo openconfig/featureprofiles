@@ -146,11 +146,11 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	fptest.LogQuery(t, p2.String(), di2.Config(), tc.duti2)
 	gnmi.Replace(t, tc.dut, di2.Config(), tc.duti2)
 
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
 		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(tc.dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}

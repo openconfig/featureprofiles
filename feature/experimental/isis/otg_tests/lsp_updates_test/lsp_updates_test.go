@@ -98,7 +98,7 @@ func TestMetric(t *testing.T) {
 	configuredMetric := uint32(100)
 	otg := ts.ATE.OTG()
 	isisIntfName := ts.DUT.Port(t, "port1").Name()
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		isisIntfName = ts.DUT.Port(t, "port1").Name() + ".0"
 	}
 	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
