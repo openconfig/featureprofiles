@@ -107,7 +107,7 @@ var (
 // configInterfaceDUT configures the interface on "me" with static ARP
 // of peer.  Note that peermac is used for static ARP, and not
 // peer.MAC.
-func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attributes, peermac string) *oc.Interface {
+func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attributes, peermac string, dut *ondatra.DUTDevice) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(p.Name())}
 	i.Description = ygot.String(me.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -115,7 +115,7 @@ func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attribute
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		e := i.GetOrCreateEthernet()
 		e.PortSpeed = fptest.GetIfSpeed(t, p)
 	}
@@ -157,14 +157,14 @@ func configureDUT(t *testing.T, peermac string) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(t, p1, &dutSrc, &ateSrc, peermac))
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(t, p1, &dutSrc, &ateSrc, peermac, dut))
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 
 	p2 := dut.Port(t, "port2")
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(t, p2, &dutDst, &ateDst, peermac))
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(t, p2, &dutDst, &ateDst, peermac, dut))
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 }
