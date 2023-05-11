@@ -207,7 +207,7 @@ func MustNew(t testing.TB) *TestSession {
 
 // WithISIS adds ISIS to a test session.
 func (s *TestSession) WithISIS() *TestSession {
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) {
 		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name()+".0", s.DUT)
 	} else {
 		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name(), s.DUT)
@@ -250,11 +250,11 @@ func (s *TestSession) PushDUT(ctx context.Context, t testing.TB) error {
 			return fmt.Errorf("configuring interface %s: %w", name, err)
 		}
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) {
 		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(s.DUT) {
 		fptest.SetPortSpeed(t, s.DUTPort1)
 		fptest.SetPortSpeed(t, s.DUTPort2)
 	}
@@ -285,7 +285,7 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
 // if one doesn't form.
 func (s *TestSession) AwaitAdjacency() (string, error) {
 	intf := ISISPath().Interface(s.DUTPort1.Name())
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) {
 		intf = ISISPath().Interface(s.DUTPort1.Name() + ".0")
 	}
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()

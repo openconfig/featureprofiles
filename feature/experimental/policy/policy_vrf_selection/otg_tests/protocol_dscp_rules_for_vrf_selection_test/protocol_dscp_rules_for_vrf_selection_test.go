@@ -275,11 +275,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), i3)
 	}
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
@@ -540,7 +540,7 @@ func TestPBR(t *testing.T) {
 			pfIntf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
 			pfIntfConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(p1)
 
-			if *deviations.ExplicitInterfaceRefDefinition {
+			if deviations.ExplicitInterfaceRefDefinition(dut) {
 				pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
 				pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 				pfIntf.SetApplyVrfSelectionPolicy(args.policyName)

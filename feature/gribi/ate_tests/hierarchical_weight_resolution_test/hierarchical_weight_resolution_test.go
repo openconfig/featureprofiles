@@ -271,7 +271,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 		i = a.NewOCInterface(p.Name())
 	}
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(d) {
 		i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, p)
 	}
 
@@ -325,7 +325,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 // assignSubifsToDefaultNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled.
 func (a *attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	p := d.Port(t, a.Name)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(d) {
 		if a.numSubIntf == 0 {
 			fptest.AssignToNetworkInstance(t, d, p.Name(), *deviations.DefaultNetworkInstance, 0)
 		} else {
@@ -356,7 +356,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	pfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
 	pfCfg := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
-	if *deviations.ExplicitInterfaceRefDefinition {
+	if deviations.ExplicitInterfaceRefDefinition(dut) {
 		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	}

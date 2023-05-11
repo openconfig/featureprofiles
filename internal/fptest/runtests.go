@@ -35,7 +35,7 @@ import (
 //	}
 func RunTests(m *testing.M) {
 	if err := metadata.Init(); err != nil {
-		log.Exitf("Failed to initialize test metadata: %v", err)
+		log.Errorf("Unable to initialize test metadata: %v", err)
 	}
 	ondatra.RunTests(m, binding.New)
 }

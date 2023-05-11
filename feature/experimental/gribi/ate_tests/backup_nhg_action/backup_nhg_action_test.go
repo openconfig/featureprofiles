@@ -165,10 +165,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		p1 := dut.Port(t, p)
 		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dp.NewOCInterface(p1.Name()))
 
-		if *deviations.ExplicitPortSpeed {
+		if deviations.ExplicitPortSpeed(dut) {
 			fptest.SetPortSpeed(t, p1)
 		}
-		if *deviations.ExplicitInterfaceInDefaultVRF && p != "port1" {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) && p != "port1" {
 			fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
 		}
 	}
@@ -213,7 +213,7 @@ func TestBackupNHGAction(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Configure DUT
-	if !*deviations.InterfaceConfigVrfBeforeAddress {
+	if !deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		configureDUT(t, dut)
 	}
 
@@ -222,7 +222,7 @@ func TestBackupNHGAction(t *testing.T) {
 	configureNetworkInstance(t, dut)
 
 	// For interface configuration, Arista prefers config Vrf first then the IP address
-	if *deviations.InterfaceConfigVrfBeforeAddress {
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		configureDUT(t, dut)
 	}
 
