@@ -117,17 +117,17 @@ duts {
 
 ates {
   id: "ate"
-  name: "10.85.17.225:40056"  # Change this to the Ixia-C-Controler hostname.
+  name: "10.85.17.225:40060"  # Change this to the Ixia-C-Controler hostname.
 
   # This option specific to OTG over Ixia-HW.
   otg {
-    target: "10.85.17.225:40056" # Change this to the Ixia-c-grpc server endpoint.
+    target: "10.85.17.225:40060" # Change this to the Ixia-c-grpc server endpoint.
     insecure: true
     timeout: 30
   }
 
   gnmi {
-    target: "10.85.17.225:50056"  # Change this to the Ixia-c-gnmi server endpoint.
+    target: "10.85.17.225:50060"  # Change this to the Ixia-c-gnmi server endpoint.
     skip_verify: true
     timeout: 30
   }
