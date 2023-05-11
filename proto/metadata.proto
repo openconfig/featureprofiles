@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package openconfig.testing;
 
+import "third_party/openconfig/ondatra/proto/testbed.proto";
+
 // Metadata about a Feature Profiles test.
 message Metadata {
   // UUID of the test.
@@ -36,4 +38,238 @@ message Metadata {
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
+
+  message PlatformExceptions {
+    message Platform {
+      // Vendor of the device.
+      ondatra.Device.Vendor vendor = 1;
+      // Hardware model of the device.
+      string hardware_model = 2;
+    }
+
+    message Deviations {
+      // Device requires the banner to have a delimiter character. Full
+      // OpenConfig compliant devices should work without delimiter.
+      string banner_delimiter = 1;
+      // Device requires interface enabled leaf booleans to be explicitly set to
+      // true.  Full OpenConfig compliant devices should pass both with and
+      // without this deviation.
+      bool interface_enabled = 2;
+      // Device does not support interface/ipv4/enabled, so suppress configuring
+      // this leaf.
+      bool ipv4_missing_enabled = 3;
+      // Device does not support interface/ipv4(6)/neighbor, so suppress the
+      // related check for interface/ipv4(6)/neighbor.
+      bool ip_neighbor_missing = 4;
+      // Device only supports querying counters from the state container, not
+      // from individual counter leaves.
+      bool interface_counters_from_container = 5;
+      // Device requires that aggregate Port-Channel and its members be defined
+      // in a single gNMI Update transaction at /interfaces; otherwise lag-type
+      // will be dropped, and no member can be added to the aggregate.  Full
+      // OpenConfig compliant devices should pass both with and without this
+      // deviation.
+      bool aggregate_atomic_update = 6;
+      // The name used for the default network instance for VRF.  The default
+      // name in OpenConfig is \"DEFAULT\" but some legacy devices still use
+      // \"default\".  Full OpenConfig compliant devices should be able to use
+      // any operator-assigned value.
+      string default_network_instance = 7;
+      // Device is missing subinterface packet counters for IPv4/IPv6, so the
+      // test will skip checking them.  Full OpenConfig compliant devices should
+      // pass both with and without this deviation.
+      bool subinterface_packet_counters_missing = 8;
+      // Device does not support setting the L2 MTU, so omit it.  OpenConfig
+      // allows a device to enforce that L2 MTU, which has a default value of
+      // 1514, must be set to a higher value than L3 MTU, so a full OpenConfig
+      // compliant device may fail with the deviation.
+      bool omit_l2_mtu = 9;
+      // Device only supports RIB ack, so tests that normally expect FIB_ACK
+      // will allow just RIB_ACK.  Full gRIBI compliant devices should pass both
+      // with and without this deviation.
+      bool gribi_riback_only = 10;
+      // Device returns no value for some OpenConfig paths if the operational
+      // value equals the default. A fully compliant device should pass
+      // regardless of this deviation.
+      bool missing_value_for_defaults = 11;
+      // The name used for the static routing protocol.  The default name in
+      // OpenConfig is \"DEFAULT\" but some devices use other names.
+      string static_protocol_name = 12;
+      // Device currently uses component name instead of a full openconfig path,
+      // so suppress creating a full oc compliant path for subcomponent.
+      bool gnoi_subcomponent_path = 13;
+      // The response of gNOI reboot status is a single value (not a list), so
+      // the device requires explict component path to account for a situation
+      // when there is more than one active reboot requests.
+      bool gnoi_status_empty_subcomponent = 14;
+      // Device requires separate reboot to activate OS.
+      bool osactivate_noreboot = 15;
+      // Device requires OS installation on standby RP as well as active RP.
+      bool osinstall_for_standby_rp = 16;
+      // Device requires using the deprecated
+      // openconfig-vlan:vlan/config/vlan-id or
+      // openconfig-vlan:vlan/state/vlan-id leaves.
+      bool deprecated_vlan_id = 17;
+      // Device requires explicit attachment of an interface or subinterface to
+      // the default network instance. OpenConfig expects an unattached
+      // interface or subinterface to be implicitly part of the default network
+      // instance. Fully-compliant devices should pass with and without this
+      // deviation.
+      bool explicit_interface_in_default_vrf = 18;
+      // Device requires port-speed to be set because its default value may not
+      // be usable. Fully compliant devices should select the highest speed
+      // available based on negotiation.
+      bool explicit_port_speed = 19;
+      // Device does not report P4RT node names in the component hierarchy, so
+      // use hard coded P4RT node names by passing them through internal/args
+      // flags. Fully compliant devices should report the PORT hardware
+      // components with the INTEGRATED_CIRCUIT components as their parents, as
+      // the P4RT node names.
+      bool explicit_p4rt_node_component = 20;
+      // Device requires route-policy configuration under bgp peer-group.
+      // Fully-compliant devices should pass with and without this deviation.
+      bool rpl_under_peergroup = 21;
+      // Device does not support
+      // bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
+      // Fully-compliant devices should pass with and without this deviation.
+      bool prepolicy_received_routes = 22;
+      // Device requires route-policy configuration under bgp neighbor afisafi.
+      // Fully-compliant devices should pass with this deviation set to true.
+      bool rpl_under_neighbor_afisafi = 23;
+      // Device only support UDP as l4 protocol for traceroute. Use this flag to
+      // set default l4 protocol as UDP and skip the tests explictly use TCP or
+      // ICMP.
+      bool traceroute_l4_protocol_udp = 24;
+      // Device does not support fragmentation bit for traceroute.
+      bool traceroute_fragmentation = 25;
+      // Connect-retry is not supported
+      // /bgp/neighbors/neighbor/timers/config/connect-retry.
+      bool connect_retry = 26;
+      // Device requires Ipv6 to be enabled on interface for gRIBI NH programmed
+      // with destination mac address.
+      bool ipv6_enable_for_gribi_nh_dmac = 27;
+      // Disable isis level1 under interface mode on the device if value is
+      // true, Default value is false and enables isis level2 under interface
+      // mode.
+      bool isis_interface_level1_disable_required = 28;
+      // Set and validate isis interface address family enable on the device if
+      // value is true, Default value is false and validate isis address family
+      // enable at global mode.
+      bool missing_isis_interface_afi_safi_enable = 29;
+      // Set isis af ipv6 single topology on the device if value is true,
+      // Default value is false and sets multi topology for isis af ipv6.
+      bool isis_single_topology_required = 30;
+      // Unset isis protocol enable flag on the device if value is true, Default
+      // value is false and protocol enable flag is set.
+      bool isis_protocol_enabled_not_required = 31;
+      // Don't set isis instance enable flag on the device if value is true,
+      // Default value is false and instance enable flag is set.
+      bool isis_instance_enabled_not_required = 32;
+      // Device requires explicit interface ref configuration when applying
+      // features to interface.
+      bool explicit_interface_ref_definition = 33;
+      // Use this deviation when the device does not support a mix of tagged and
+      // untagged subinterfaces.
+      bool no_mix_of_tagged_and_untagged_subinterfaces = 34;
+      // Device requires delay in sending ack response.
+      bool gribi_delayed_ack_response = 35;
+      // Set this flag for LLDP interface config to override the global
+      // config,expect neighbours are seen when lldp is disabled globally but
+      // enabled on interface.
+      bool lldp_interface_config_override_global = 36;
+      // Device does not support interface/physicalchannel leaf. Set this flag
+      // to skip checking the leaf.
+      bool missing_interface_physical_channel = 37;
+      // When configuring interface, config Vrf prior config IP address.
+      bool interface_config_vrf_before_address = 38;
+      // Allowed tolerance for BGP traffic flow while comparing for pass or fail
+      // condition.
+      int64 bgp_tolerance_value = 39;
+      // Device requires gribi-protocol to be enabled under network-instance.
+      bool explicit_gribi_under_network_instance = 40;
+      // Device requires a BGP session reset to utilize a new MD5 key.
+      bool bgp_md5_requires_reset = 41;
+      // Set to true to skip checking QOS Dropped octets stats for interface.
+      bool qos_dropped_octets = 42;
+      // Skip BGP TestPassword mismatch subtest if value is true, Default value
+      // is false.
+      bool skip_bgp_test_password_mismatch = 43;
+      // Device does not support delete mode in P4RT write requests.
+      bool p4rt_missing_delete = 44;
+      // Device does not support unset Election ID.
+      bool p4rt_unsetelectionid_unsupported = 45;
+      // Set to true for device requiring explicit deletion of network-instance
+      // table, default is false.
+      bool network_instance_table_deletion_required = 46;
+      // Device skip isis multi-topology check if value is true, Default value
+      // is false.
+      bool isis_multi_topology_unsupported = 47;
+      // Device skip isis restart-suppress check if value is true, Default value
+      // is false.
+      bool isis_restart_suppress_unsupported = 48;
+      // Device does not support /system/mac-address/state.
+      bool mac_address_missing = 49;
+      // Set to true for device not supporting programming a gribi flow with a
+      // next-hop entry of mac-address only, default is false.
+      bool gribi_mac_override_with_static_arp = 50;
+      // Set to true for device that requires gRIBI MAC Override using Static
+      // ARP + Static Route.
+      bool gribi_mac_override_static_arp_static_route = 51;
+      // Set to true for device in which config pushed through origin CLI takes
+      // precedence over config pushed through origin OC, default is false.
+      bool cli_takes_precedence_over_oc = 52;
+      // Set to true to skip check for
+      // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
+      // leaf missing case.
+      bool missing_bgp_last_notification_error_code = 53;
+      // Configure ACLs using vendor native model specifically for RT-1.4.
+      bool use_vendor_native_acl_config = 54;
+      // Device does not support id leaf for SwitchChip components. Set this
+      // flag to skip checking the leaf.
+      bool switch_chip_id_unsupported = 55;
+      // Device does not support backplane-facing-capacity leaves for some of
+      // the components. Set this flag to skip checking the leaves.
+      bool backplane_facing_capacity_unsupported = 56;
+      // Set true for Device that does not support software module components,
+      // default is false.
+      bool components_software_module_unsupported = 57;
+      // Device does not support weight above 100.
+      bool scheduler_input_weight_limit = 58;
+      // Device requires additional config for ECN.
+      bool ecn_profile_required_definition = 59;
+      // Don't set isis global authentication-check on the device if value is
+      // true, Default value is false and ISIS global authentication-check is
+      // set.
+      bool isis_global_authentication_not_required = 60;
+      // Don't set isis level authentication on the device if value is true,
+      // Default value is false and ISIS level authentication is configured.
+      bool isis_level_authentication_not_required = 61;
+      // Set true for device that does not support interface ipv6 discarded
+      // packet statistics, default is false.
+      bool ipv6_discarded_pkts_unsupported = 62;
+      // Device does not support oper-status leaves for some of the fan
+      // components. Set this flag to skip checking the leaf.
+      bool fan_oper_status_unsupported = 63;
+      // Device requires additional time to complete post delete link
+      // qualification cleanup.
+      bool link_qual_wait_after_delete_required = 64;
+      // Device does not support these state paths, Set this flag to skip
+      // checking the leaves.
+      bool state_path_unsupported = 65;
+      // Device does not support drop and weight leaves under queue management
+      // profile, Set this flag to skip checking the leaves.
+      bool drop_weight_leaves_unsupported = 66;
+      // Device does not support reporting software version according to the
+      // requirements in gNMI-1.10.
+      bool sw_version_unsupported = 67;
+      // Set it to expected ucmp traffic tolerance, default is 0.2
+      double hierarchical_weight_resolution_tolerance = 68;
+    }
+
+    Platform platform = 1;
+    Deviations deviations = 2;
+  }
+
+  // All test exceptions that apply to this platform.
+  PlatformExceptions platform_exceptions = 5;
 }
