@@ -242,8 +242,8 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
-		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, deviations.DefaultNetworkInstance(tc.dut), 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
 	}
 
 	for n, port := range tc.dutPorts {

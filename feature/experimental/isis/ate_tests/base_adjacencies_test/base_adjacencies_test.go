@@ -70,7 +70,7 @@ func TestBasic(t *testing.T) {
 	if err := ts.PushDUT(context.Background(), t); err != nil {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
-	isisRoot := session.ISISPath()
+	isisRoot := session.ISISPath(ts.DUT)
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		port1ISIS = isisRoot.Interface(ts.DUTPort1.Name() + ".0")
@@ -413,7 +413,7 @@ func TestHelloPadding(t *testing.T) {
 			if err != nil {
 				t.Fatalf("No IS-IS adjacency formed: %v", err)
 			}
-			telemPth := session.ISISPath().Global()
+			telemPth := session.ISISPath(ts.DUT).Global()
 			var vd check.Validator
 			if tc.mode == oc.Isis_HelloPaddingType_STRICT {
 				vd = EqualToDefault(telemPth.HelloPadding().State(), oc.Isis_HelloPaddingType_STRICT)

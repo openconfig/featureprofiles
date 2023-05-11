@@ -134,8 +134,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -152,7 +152,7 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ateSrc and ateDst, optionally with
 // a peer group policy.
-func bgpCreateNbr(localAs, peerAs uint32, policy string) *oc.NetworkInstance_Protocol {
+func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	nbr1v4 := &bgpNeighbor{as: peerAs, neighborip: ateSrc.IPv4, isV4: true}
 	nbr1v6 := &bgpNeighbor{as: peerAs, neighborip: ateSrc.IPv6, isV4: false}
 	nbr2v4 := &bgpNeighbor{as: peerAs, neighborip: ateDst.IPv4, isV4: true}
@@ -160,7 +160,7 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string) *oc.NetworkInstance_Pro
 	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
 
 	d := &oc.Root{}
-	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := ni_proto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
@@ -248,7 +248,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	ifName := dut.Port(t, "port1").Name()
 	lastFlapTime := gnmi.Get(t, dut, gnmi.OC().Interface(ifName).LastChange().State())
 	t.Logf("Verifying BGP state")
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateSrc.IPv4)
 	nbrPathv6 := statePath.Neighbor(ateSrc.IPv6)
 
@@ -314,7 +314,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // received IPv4 prefixes
 // TODO: Need to refactor and compare using cmp.diff
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled, wantRx, wantSent uint32) {
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateDst.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
@@ -332,7 +332,7 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled
 // verifyPrefixesTelemetryV6 confirms that the dut shows the correct numbers of installed, sent and
 // received IPv6 prefixes
 func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstalledv6, wantRxv6, wantSentv6 uint32) {
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv6 := statePath.Neighbor(ateDst.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 
 	if gotInstalledv6 := gnmi.Get(t, dut, prefixesv6.Installed().State()); gotInstalledv6 != wantInstalledv6 {
@@ -351,7 +351,7 @@ func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 // verifyPolicyTelemetry confirms that the dut policy is set as expected.
 func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) {
 	if !*deviations.RoutePolicyUnderPeerGroup {
-		statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 		policytel := gnmi.Get(t, dut, statePath.PeerGroup(peerGrpName).ApplyPolicy().ImportPolicy().State())
 		for _, val := range policytel {
 			if val != policy {
@@ -499,17 +499,17 @@ func TestEstablish(t *testing.T) {
 
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance type")
-	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	// Configure BGP+Neighbors on the DUT
 	t.Logf("Start DUT BGP Config")
-	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	d := &oc.Root{}
 	rpl := configureBGPPolicy(d)
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
-	dutConf := bgpCreateNbr(dutAS, ateAS, defaultPolicy)
+	dutConf := bgpCreateNbr(dutAS, ateAS, defaultPolicy, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 
@@ -536,7 +536,7 @@ func TestEstablish(t *testing.T) {
 	t.Run("RoutesWithdrawn", func(t *testing.T) {
 		t.Log("Breaking BGP config and confirming that forwarding stops working.")
 		// Break config with a mismatching AS number
-		gnmi.Replace(t, dut, dutConfPath.Config(), bgpCreateNbr(dutAS, badAS, defaultPolicy))
+		gnmi.Replace(t, dut, dutConfPath.Config(), bgpCreateNbr(dutAS, badAS, defaultPolicy, dut))
 
 		// Resend traffic
 		sendTraffic(t, ate, allFlows)
@@ -557,7 +557,7 @@ func TestBGPPolicy(t *testing.T) {
 
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance type ")
-	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	cases := []struct {
@@ -600,16 +600,16 @@ func TestBGPPolicy(t *testing.T) {
 			ate := ondatra.ATE(t, "ate")
 
 			// Configure Routing Policy on the DUT
-			dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+			dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 			fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 			d := &oc.Root{}
 			t.Log("Configure BGP Policy with BGP actions on the neighbor")
 			rpl := configureBGPPolicy(d)
 			gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
-			bgp := bgpCreateNbr(dutAS, ateAS, tc.policy)
+			bgp := bgpCreateNbr(dutAS, ateAS, tc.policy, dut)
 			// Configure ATE to setup traffic.
 			allFlows := configureATE(t, ate)
-			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgp)
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgp)
 			// Send and verify traffic.
 			sendTraffic(t, ate, allFlows)
 			verifyTraffic(t, ate, allFlows, tc.wantLoss)

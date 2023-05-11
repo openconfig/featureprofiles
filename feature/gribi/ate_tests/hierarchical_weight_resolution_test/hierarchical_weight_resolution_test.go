@@ -312,13 +312,13 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
 
 	// configure PBF in DEFAULT vrf
-	defNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
 	gnmi.Replace(t, d, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF())
+	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF(d))
 
 	if deviations.ExplicitGRIBIUnderNetworkInstance(d) {
 		fptest.EnableGRIBIUnderNetworkInstance(t, d, nonDefaultVRF)
-		fptest.EnableGRIBIUnderNetworkInstance(t, d, *deviations.DefaultNetworkInstance)
+		fptest.EnableGRIBIUnderNetworkInstance(t, d, deviations.DefaultNetworkInstance(d))
 	}
 }
 
@@ -327,19 +327,19 @@ func (a *attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondat
 	p := d.Port(t, a.Name)
 	if deviations.ExplicitInterfaceInDefaultVRF(d) {
 		if a.numSubIntf == 0 {
-			fptest.AssignToNetworkInstance(t, d, p.Name(), *deviations.DefaultNetworkInstance, 0)
+			fptest.AssignToNetworkInstance(t, d, p.Name(), deviations.DefaultNetworkInstance(d), 0)
 		} else {
 			for i := uint32(1); i <= a.numSubIntf; i++ {
-				fptest.AssignToNetworkInstance(t, d, p.Name(), *deviations.DefaultNetworkInstance, i)
+				fptest.AssignToNetworkInstance(t, d, p.Name(), deviations.DefaultNetworkInstance(d), i)
 			}
 		}
 	}
 }
 
 // configurePBF returns a fully configured network-instance PF struct.
-func configurePBF() *oc.NetworkInstance_PolicyForwarding {
+func configurePBF(dut *ondatra.DUTDevice) *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
-	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	pf := ni.GetOrCreatePolicyForwarding()
 	vrfPolicy := pf.GetOrCreatePolicy(policyName)
 	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
@@ -353,8 +353,8 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
-	pfCfg := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
+	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	if deviations.ExplicitInterfaceRefDefinition(dut) {
 		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
@@ -473,7 +473,7 @@ func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, network
 // testBasicHierarchicalWeight tests and validates traffic through 4 Vlans.
 func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 	ate *ondatra.ATEDevice, top *ondatra.ATETopology, gRIBI *fluent.GRIBIClient) {
-	defaultVRF := *deviations.DefaultNetworkInstance
+	defaultVRF := deviations.DefaultNetworkInstance(dut)
 
 	// Set up NH#10, NH#11, NHG#2, IPv4Entry(192.0.2.111).
 	nh10 := nextHopEntry(10, defaultVRF, atePort2.ip(1))
@@ -551,7 +551,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 // testHierarchicalWeightBoundaryScenario tests and validates traffic through all 18 Vlans.
 func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 	ate *ondatra.ATEDevice, top *ondatra.ATETopology, gRIBI *fluent.GRIBIClient) {
-	defaultVRF := *deviations.DefaultNetworkInstance
+	defaultVRF := deviations.DefaultNetworkInstance(dut)
 
 	// Set up NH#10, NH#11, NHG#2, IPv4Entry(192.0.2.111).
 	nh10 := nextHopEntry(10, defaultVRF, atePort2.ip(1))

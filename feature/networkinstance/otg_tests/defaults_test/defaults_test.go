@@ -39,10 +39,10 @@ func TestMain(m *testing.M) {
 func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attributes, dut *ondatra.DUTDevice) {
 	t.Helper()
 	ni := d.GetOrCreateNetworkInstance(niName)
-	if niName != *deviations.DefaultNetworkInstance {
+	if niName != deviations.DefaultNetworkInstance(dut) {
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	}
-	if niName != *deviations.DefaultNetworkInstance || deviations.ExplicitInterfaceInDefaultVRF(dut) {
+	if niName != deviations.DefaultNetworkInstance(dut) || deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		niIntf := ni.GetOrCreateInterface(intf)
 		niIntf.Interface = ygot.String(intf)
 		niIntf.Subinterface = ygot.Uint32(0)
@@ -59,7 +59,7 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 func unassignPort(t *testing.T, dut *ondatra.DUTDevice, intf, niName string) {
 	t.Helper()
 	// perform unassignment only for non-default VRFs unless ExplicitInterfaceInDefaultVRF deviation is enabled
-	if niName == *deviations.DefaultNetworkInstance && !deviations.ExplicitInterfaceInDefaultVRF(dut) {
+	if niName == deviations.DefaultNetworkInstance(dut) && !deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		return
 	}
 
@@ -102,6 +102,7 @@ var (
 // configuration within a network instance. It does so by validating that simple IPv4 and IPv6 flows do not experience
 // loss.
 func TestDefaultAddressFamilies(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	top := ate.OTG().NewConfig(t)
 
@@ -138,14 +139,13 @@ func TestDefaultAddressFamilies(t *testing.T) {
 	}{
 		{
 			desc:   "Default network instance",
-			niName: *deviations.DefaultNetworkInstance,
+			niName: deviations.DefaultNetworkInstance(dut),
 		},
 		{
 			desc:   "Non default network instance",
 			niName: "xyz",
 		},
 	}
-	dut := ondatra.DUT(t, "dut")
 	dutP1 := dut.Port(t, "port1")
 	dutP2 := dut.Port(t, "port2")
 	for _, tc := range cases {
