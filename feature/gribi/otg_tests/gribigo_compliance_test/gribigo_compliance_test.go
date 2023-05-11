@@ -135,7 +135,7 @@ func TestCompliance(t *testing.T) {
 				t.Skip(reason)
 			}
 
-			compliance.SetDefaultNetworkInstanceName(*deviations.DefaultNetworkInstance)
+			compliance.SetDefaultNetworkInstanceName(deviations.DefaultNetworkInstance(dut))
 			compliance.SetNonDefaultVRFName(*nonDefaultNI)
 
 			c := fluent.NewClient()
@@ -188,16 +188,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, p3)
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(*nonDefaultNI)
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*nonDefaultNI).Config(), ni)
 	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *nonDefaultNI)
 	}
 

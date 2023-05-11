@@ -132,8 +132,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, p2)
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -210,11 +210,11 @@ type testCaseFunc func(t *testing.T, args *testArgs)
 func testModifyNHG(t *testing.T, args *testArgs) {
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithIndex(nhIndex).
 			WithIPAddress(ateDst.IPv4),
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, nhWeight),
 	)
@@ -241,7 +241,7 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		got, err := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
+		got, err := aftNextHopWeights(t, args.dut, nhgIndex, deviations.DefaultNetworkInstance(args.dut))
 		if err != nil {
 			t.Errorf("Error getting weights for nhg %d : %v", nhIndex, err)
 		} else {
@@ -263,15 +263,15 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 func testModifyIPv4NHG(t *testing.T, args *testArgs) {
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithIndex(nhIndex).
 			WithIPAddress(ateDst.IPv4),
 		fluent.IPv4Entry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithPrefix(ateDstNetCIDR).
 			WithNextHopGroup(nhgIndex),
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, nhWeight),
 	)
@@ -294,15 +294,15 @@ func testModifyIPv4NHG(t *testing.T, args *testArgs) {
 func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 	args.c.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithIndex(nhIndex).
 			WithIPAddress(ateDst.IPv4),
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, nhWeight),
 		fluent.IPv4Entry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithPrefix(ateDstNetCIDR).
 			WithNextHopGroup(nhgIndex),
 	)
@@ -337,7 +337,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		got, err := aftNextHopWeights(t, args.dut, nhgIndex, *deviations.DefaultNetworkInstance)
+		got, err := aftNextHopWeights(t, args.dut, nhgIndex, deviations.DefaultNetworkInstance(args.dut))
 		if err != nil {
 			t.Errorf("Error getting weights for nhg %d : %v", nhIndex, err)
 		} else {
@@ -350,7 +350,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 					t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
 				}
 			}
-			ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+			ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
 			if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
 				t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 			}
@@ -391,7 +391,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 	testModifyNHG(t, args) // Uses operation IDs 1 and 2.
 
 	ent := fluent.IPv4Entry().
-		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 		WithPrefix(ateDstNetCIDR).
 		WithNextHopGroup(nhgIndex)
 
@@ -430,7 +430,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
 		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}

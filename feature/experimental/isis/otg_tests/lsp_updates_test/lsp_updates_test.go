@@ -42,7 +42,7 @@ func TestOverloadBit(t *testing.T) {
 	otg := ts.ATE.OTG()
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
-	isisPath := session.ISISPath()
+	isisPath := session.ISISPath(ts.DUT)
 	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
 	deadline := time.Now().Add(time.Second * 3)
@@ -60,7 +60,7 @@ func TestOverloadBit(t *testing.T) {
 		}
 	}
 	ts.DUTConf.
-		GetNetworkInstance(*deviations.DefaultNetworkInstance).
+		GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
 		GetProtocol(session.PTISIS, session.ISISName).
 		GetIsis().
 		GetGlobal().
@@ -101,18 +101,18 @@ func TestMetric(t *testing.T) {
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		isisIntfName = ts.DUT.Port(t, "port1").Name() + ".0"
 	}
-	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
+	ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
 		GetInterface(isisIntfName).
 		GetOrCreateLevel(2).
 		GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).
 		Metric = ygot.Uint32(configuredMetric)
-	ts.DUTConf.GetNetworkInstance(*deviations.DefaultNetworkInstance).GetProtocol(session.PTISIS, session.ISISName).GetIsis().GetOrCreateLevel(2).
+	ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(session.PTISIS, session.ISISName).GetIsis().GetOrCreateLevel(2).
 		MetricStyle = oc.E_Isis_MetricStyle(2)
 
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
 
-	metric := session.ISISPath().Interface(isisIntfName).Level(2).
+	metric := session.ISISPath(ts.DUT).Interface(isisIntfName).Level(2).
 		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
 	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second*3, ts.DUTClient); err != nil {
 		t.Error(err)

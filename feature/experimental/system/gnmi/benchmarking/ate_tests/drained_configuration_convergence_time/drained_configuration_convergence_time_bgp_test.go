@@ -89,19 +89,19 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	pdef.GetOrCreateStatement("id-1").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
-	netInstance := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	bgp := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	pg := bgp.GetOrCreatePeerGroup(setup.PeerGrpName)
 	rpl := pg.GetOrCreateApplyPolicy()
 	rpl.SetImportPolicy([]string{setALLOWPolicy})
 
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).Config(), pg)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).Config(), pg)
 
 }
 
 func setPolicyPeerGroup(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, policy []string) {
 
-	netInstance := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	bgp := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	pg := bgp.GetOrCreatePeerGroup(setup.PeerGrpEgressName)
 	pg.PeerAs = ygot.Uint32(setup.ATEAs)
@@ -110,7 +110,7 @@ func setPolicyPeerGroup(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, policy
 	afipg.Enabled = ygot.Bool(true)
 	pgpolicy := afipg.GetOrCreateApplyPolicy()
 	pgpolicy.ExportPolicy = policy
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpEgressName).Config(), pg)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpEgressName).Config(), pg)
 
 	pg1 := bgp.GetOrCreatePeerGroup(setup.PeerGrpName)
 	pg1.PeerAs = ygot.Uint32(setup.ATEAs)
@@ -119,14 +119,14 @@ func setPolicyPeerGroup(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, policy
 	afipg1.Enabled = ygot.Bool(true)
 	pgpolicy1 := afipg1.GetOrCreateApplyPolicy()
 	pgpolicy1.ImportPolicy = []string{setALLOWPolicy}
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).Config(), pg1)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).Config(), pg1)
 
 }
 
 func deletePolicyPeerGroup(t *testing.T, dut *ondatra.DUTDevice) {
 
-	dutExportPolicyPathDest := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpEgressName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ExportPolicy()
-	dutImportPolicyPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy()
+	dutExportPolicyPathDest := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpEgressName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ExportPolicy()
+	dutImportPolicyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy()
 	gnmi.Delete(t, dut, dutImportPolicyPath.Config())
 	gnmi.Delete(t, dut, dutExportPolicyPathDest.Config())
 }
@@ -135,7 +135,7 @@ func deletePolicyPeerGroup(t *testing.T, dut *ondatra.DUTDevice) {
 func isConverged(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, ap *ondatra.Port) {
 
 	// Check if all prefixes are learned at ATE.
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 prefixLoop:
 	for repeat := 4; repeat > 0; repeat-- {
@@ -159,7 +159,7 @@ prefixLoop:
 // verifyBGPAsPath is to Validate AS Path attribute using bgp rib telemetry on ATE.
 func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 
-	dutPolicyConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+	dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
 		PeerGroup(setup.PeerGrpName).ApplyPolicy().ExportPolicy()
 
@@ -205,7 +205,7 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 // verifyBGPSetMED is to Validate MED attribute using bgp rib telemetry on ATE.
 func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 
-	dutPolicyConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+	dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
 		PeerGroup(setup.PeerGrpName).ApplyPolicy().ExportPolicy()
 
@@ -259,7 +259,7 @@ func TestEstablish(t *testing.T) {
 	dutConfigPath := gnmi.OC()
 
 	t.Log("Configure Network Instance type to DEFAULT on DUT.")
-	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	t.Log("Build Benchmarking BGP and ISIS test configs.")
@@ -290,7 +290,7 @@ func TestBGPBenchmarking(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	// Cleanup existing policy details.
-	dutPolicyConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).ApplyPolicy()
+	dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).ApplyPolicy()
 	gnmi.Delete(t, dut, dutPolicyConfPath.ExportPolicy().Config())
 	gnmi.Delete(t, dut, dutPolicyConfPath.ImportPolicy().Config())
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
