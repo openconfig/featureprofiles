@@ -44,16 +44,12 @@ func TestNtpServerConfigurability(t *testing.T) {
 				Address: &testCase.address,
 			}
 
-			// Arista restricts the new server to be in the same network-instance as these already exist
-			// in the device
-			if dut.Vendor() == ondatra.ARISTA {
-				stateGot := gnmi.Get(t, dut, state.Server("*").State())
-				if NetworkInstanceGot := stateGot.GetNetworkInstance(); NetworkInstanceGot != "" {
-					t.Logf("The DUT has NTP server in network-instance: %s", NetworkInstanceGot)
-					ntpServer = oc.System_Ntp_Server{
-						Address:         &testCase.address,
-						NetworkInstance: &NetworkInstanceGot,
-					}
+			stateGot := gnmi.Get(t, dut, state.Server("*").State())
+			if NetworkInstanceGot := stateGot.GetNetworkInstance(); NetworkInstanceGot != "" {
+				t.Logf("The DUT has NTP server in network-instance: %s", NetworkInstanceGot)
+				ntpServer = oc.System_Ntp_Server{
+					Address:         &testCase.address,
+					NetworkInstance: &NetworkInstanceGot,
 				}
 			}
 
