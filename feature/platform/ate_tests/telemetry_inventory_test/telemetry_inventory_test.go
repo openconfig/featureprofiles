@@ -537,7 +537,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			}
 
 			if p.partNoValidation {
-				t.Logf("Component %s PartNo: %v", cName, card.GetPartNo())
+				t.Logf("Component %s PartNo: %s", cName, card.GetPartNo())
 				if card.GetPartNo() == "" {
 					switch card.GetType() {
 					case componentType["Fan"]:
@@ -552,7 +552,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 								t.Errorf("Couldn't find component: %s, (ancestor of: %s)", parent, cName)
 								break
 							}
-							t.Logf("Component %s (ancestor of %s) PartNo: %v", parent, cName, cp.GetPartNo())
+							t.Logf("Component %s (ancestor of %s) PartNo: %s", parent, cName, cp.GetPartNo())
 
 							// Found a Part No
 							if cp.GetPartNo() != "" {
@@ -572,7 +572,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			}
 
 			if p.serialNoValidation {
-				t.Logf("Component %s SerialNo: %v", cName, card.GetSerialNo())
+				t.Logf("Component %s SerialNo: %s", cName, card.GetSerialNo())
 				if card.GetSerialNo() == "" {
 					switch card.GetType() {
 					case componentType["Fan"]:
@@ -587,7 +587,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 								t.Errorf("Couldn't find component: %s, (ancestor of: %s)", parent, cName)
 								break
 							}
-							t.Logf("Component %s (ancestor of %s) SerialNo: %v", parent, cName, cp.GetSerialNo())
+							t.Logf("Component %s (ancestor of %s) SerialNo: %s", parent, cName, cp.GetSerialNo())
 
 							// Found a Serial No
 							if cp.GetSerialNo() != "" {
