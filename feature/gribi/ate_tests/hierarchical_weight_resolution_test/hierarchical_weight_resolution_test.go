@@ -271,7 +271,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 		i = a.NewOCInterface(p.Name())
 	}
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(d) {
 		i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, p)
 	}
 
@@ -325,7 +325,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 // assignSubifsToDefaultNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled.
 func (a *attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	p := d.Port(t, a.Name)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(d) {
 		if a.numSubIntf == 0 {
 			fptest.AssignToNetworkInstance(t, d, p.Name(), *deviations.DefaultNetworkInstance, 0)
 		} else {
