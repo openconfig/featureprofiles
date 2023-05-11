@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package openconfig.testing;
 
-import "github.com/openconfig/ondatra/blob/main/proto/testbed.proto";
+import "github.com/openconfig/ondatra";
 
 // Metadata about a Feature Profiles test.
 message Metadata {
