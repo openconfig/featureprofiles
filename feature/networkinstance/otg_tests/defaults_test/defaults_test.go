@@ -36,13 +36,13 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attributes) {
+func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attributes, dut *ondatra.DUTDevice) {
 	t.Helper()
 	ni := d.GetOrCreateNetworkInstance(niName)
-	if niName != *deviations.DefaultNetworkInstance {
+	if niName != deviations.DefaultNetworkInstance(dut) {
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	}
-	if niName != *deviations.DefaultNetworkInstance || *deviations.ExplicitInterfaceInDefaultVRF {
+	if niName != deviations.DefaultNetworkInstance(dut) || deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		niIntf := ni.GetOrCreateInterface(intf)
 		niIntf.Interface = ygot.String(intf)
 		niIntf.Subinterface = ygot.Uint32(0)
@@ -59,7 +59,7 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 func unassignPort(t *testing.T, dut *ondatra.DUTDevice, intf, niName string) {
 	t.Helper()
 	// perform unassignment only for non-default VRFs unless ExplicitInterfaceInDefaultVRF deviation is enabled
-	if niName == *deviations.DefaultNetworkInstance && !*deviations.ExplicitInterfaceInDefaultVRF {
+	if niName == deviations.DefaultNetworkInstance(dut) && !deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		return
 	}
 
@@ -102,6 +102,7 @@ var (
 // configuration within a network instance. It does so by validating that simple IPv4 and IPv6 flows do not experience
 // loss.
 func TestDefaultAddressFamilies(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	top := ate.OTG().NewConfig(t)
 
@@ -138,28 +139,27 @@ func TestDefaultAddressFamilies(t *testing.T) {
 	}{
 		{
 			desc:   "Default network instance",
-			niName: *deviations.DefaultNetworkInstance,
+			niName: deviations.DefaultNetworkInstance(dut),
 		},
 		{
 			desc:   "Non default network instance",
 			niName: "xyz",
 		},
 	}
-	dut := ondatra.DUT(t, "dut")
 	dutP1 := dut.Port(t, "port1")
 	dutP2 := dut.Port(t, "port2")
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			if *deviations.ExplicitPortSpeed {
+			if deviations.ExplicitPortSpeed(dut) {
 				fptest.SetPortSpeed(t, dutP1)
 				fptest.SetPortSpeed(t, dutP2)
 			}
 			d := &oc.Root{}
 			// Assign two ports into the network instance & unnasign them at the end of the test
-			assignPort(t, d, dutP1.Name(), tc.niName, dutPort1)
+			assignPort(t, d, dutP1.Name(), tc.niName, dutPort1, dut)
 			defer unassignPort(t, dut, dutP1.Name(), tc.niName)
 
-			assignPort(t, d, dutP2.Name(), tc.niName, dutPort2)
+			assignPort(t, d, dutP2.Name(), tc.niName, dutPort2, dut)
 			defer unassignPort(t, dut, dutP2.Name(), tc.niName)
 
 			fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)

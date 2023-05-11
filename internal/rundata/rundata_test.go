@@ -16,10 +16,9 @@ package rundata
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"testing"
 
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra/binding"
 )
 
@@ -123,26 +122,8 @@ func TestProperties(t *testing.T) {
 		wantDescription = "TestProperties unit test"
 	)
 
-	metadataText := fmt.Sprintf(`
-uuid: "%s"
-plan_id: "%s"
-description: "%s"
-`, wantUUID, wantPlanID, wantDescription)
-
-	// Change to a temp directory before writing the metadata proto
-	// to avoid modifying the test directory.
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		os.Chdir(wd)
-	}()
-	if err := os.Chdir(t.TempDir()); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile("metadata.textproto", []byte(metadataText), 0644); err != nil {
-		t.Fatal(err)
+	metadataGetFn = func() *mpb.Metadata {
+		return &mpb.Metadata{Uuid: wantUUID, PlanId: wantPlanID, Description: wantDescription}
 	}
 
 	*knownIssueURL = "https://example.com"
