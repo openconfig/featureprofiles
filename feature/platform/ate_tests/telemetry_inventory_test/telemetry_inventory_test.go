@@ -537,9 +537,8 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			}
 
 			if p.partNoValidation {
-				partNo := card.PartNo
-				t.Logf("Component %s PartNo: %v", cName, partNo)
-				if partNo == nil {
+				t.Logf("Component %s PartNo: %v", cName, card.GetPartNo())
+				if card.GetPartNo() == "" {
 					switch card.GetType() {
 					case componentType["Fan"]:
 						fallthrough
@@ -547,10 +546,24 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 						fallthrough
 					case componentType["Cpu"]:
 						parent := card.GetParent()
-						ppn, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).PartNo().State()).Val()
-						t.Logf("Component %s (parent of %s) PartNo: %v", parent, cName, ppn)
-						if !ok {
-							t.Errorf("PartNo for Component %s and its parent: got empty string, want non-empty string", cName)
+						for {
+							cp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).State()).Val()
+							if !ok {
+								t.Errorf("Couldn't find component: %s, (ancestor of: %s)", parent, cName)
+								break
+							}
+							t.Logf("Component %s (ancestor of %s) PartNo: %v", parent, cName, cp.GetPartNo())
+
+							// Found a Part No
+							if cp.GetPartNo() != "" {
+								break
+							}
+							// Found no parent
+							if cp.GetParent() == "" || cp.GetParent() == parent {
+								t.Errorf("Couldn't find parent of %s, (ancestor of %s)", parent, cName)
+								break
+							}
+							parent = cp.GetParent()
 						}
 					default:
 						t.Errorf("PartNo for Component %s: got empty string, want non-empty string", cName)
@@ -559,9 +572,8 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			}
 
 			if p.serialNoValidation {
-				serialNo := card.SerialNo
-				t.Logf("Component %s SerialNo: %v", cName, serialNo)
-				if serialNo == nil {
+				t.Logf("Component %s SerialNo: %v", cName, card.GetSerialNo())
+				if card.GetSerialNo() == "" {
 					switch card.GetType() {
 					case componentType["Fan"]:
 						fallthrough
@@ -569,10 +581,24 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 						fallthrough
 					case componentType["Cpu"]:
 						parent := card.GetParent()
-						psn, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).SerialNo().State()).Val()
-						t.Logf("Component %s (parent of %s) SerialNo: %v", parent, cName, psn)
-						if !ok {
-							t.Errorf("SerialNo for Component %s and its parent: got empty string, want non-empty string", cName)
+						for {
+							cp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).State()).Val()
+							if !ok {
+								t.Errorf("Couldn't find component: %s, (ancestor of: %s)", parent, cName)
+								break
+							}
+							t.Logf("Component %s (ancestor of %s) SerialNo: %v", parent, cName, cp.GetSerialNo())
+
+							// Found a Serial No
+							if cp.GetSerialNo() != "" {
+								break
+							}
+							// Found no parent
+							if cp.GetParent() == "" || cp.GetParent() == parent {
+								t.Errorf("Couldn't find parent of %s, (ancestor of %s)", parent, cName)
+								break
+							}
+							parent = cp.GetParent()
 						}
 					default:
 						t.Errorf("SerialNo for Component %s: got empty string, want non-empty string", cName)
