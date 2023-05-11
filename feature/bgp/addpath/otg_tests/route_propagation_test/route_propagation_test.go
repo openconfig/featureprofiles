@@ -202,17 +202,17 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 		ocName := dut.Port(t, a.Name).Name()
 		gnmi.Replace(t, dut, gnmi.OC().Interface(ocName).Config(), a.NewOCInterface(ocName))
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			fptest.AssignToNetworkInstance(t, dut, ocName, *deviations.DefaultNetworkInstance, 0)
+			fptest.AssignToNetworkInstance(t, dut, ocName, deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
-	dutProto := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+	dutProto := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	key := oc.NetworkInstance_Protocol_Key{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 		Name:       "BGP",
 	}
 	niOC := &oc.NetworkInstance{
-		Name: deviations.DefaultNetworkInstance,
+		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
 		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 		Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
 			key: {
@@ -229,7 +229,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	for neighbor := range d.bgpOC.Neighbor {
-		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
 			Neighbor(neighbor).
@@ -562,7 +562,7 @@ func TestBGP(t *testing.T) {
 
 			dut := ondatra.DUT(t, "dut")
 			t.Log("Configure Network Instance")
-			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 			tc.dut.Configure(t, dut)

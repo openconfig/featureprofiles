@@ -121,15 +121,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 
 	// Configure default NI and forwarding policy
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
-	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), *deviations.DefaultNetworkInstance, 20)
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 20)
 	}
 
-	policyDutConf := configForwardingPolicy()
+	policyDutConf := configForwardingPolicy(dut)
 	gnmi.Replace(t, dut, dutConfPath.PolicyForwarding().Config(), policyDutConf)
 
 }
@@ -187,16 +187,16 @@ func configNetworkInstance(name string, intf *oc.Interface, id uint32) *oc.Netwo
 // configDefaultRoute configures a static route in DEFAULT network-instance.
 func configDefaultRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop, v6Prefix, v6NextHop string) {
 	t.Logf("*** Configuring static route in DEFAULT network-instance ...")
-	ni := oc.NetworkInstance{Name: deviations.DefaultNetworkInstance}
+	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
 	sr := static.GetOrCreateStatic(v4Prefix)
 	nh := sr.GetOrCreateNextHop("0")
 	nh.NextHop = oc.UnionString(v4NextHop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 	sr = static.GetOrCreateStatic(v6Prefix)
 	nh = sr.GetOrCreateNextHop("0")
 	nh.NextHop = oc.UnionString(v6NextHop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
 // configVRFRoute configures a static route in VRF.
@@ -210,9 +210,9 @@ func configVRFRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop st
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance("VRF-10").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
 }
 
-func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
+func configForwardingPolicy(dut *ondatra.DUTDevice) *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
-	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	// Match policy.
 	policyFwding := ni.GetOrCreatePolicyForwarding()
 
@@ -247,17 +247,17 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfpath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
+	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
 	gnmi.Delete(t, dut, pfpath.Config())
 
-	intf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
 	if deviations.ExplicitInterfaceRefDefinition(dut) {
 		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 		intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	}
 	// Configure default NI and forwarding policy.
-	intfConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
+	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
 	gnmi.Replace(t, dut, intfConfPath.Config(), intf)
 
 	// Restart Protocols after policy change.

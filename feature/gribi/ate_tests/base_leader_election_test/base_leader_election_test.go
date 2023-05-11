@@ -118,21 +118,21 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	p3 := dut.Port(t, "port3")
 	i3 := &oc.Interface{Name: ygot.String(p3.Name())}
 	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), configInterfaceDUT(i3, &dutPort3))
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
@@ -215,13 +215,13 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	// ensure that the entry is active through AFT telemetry and traffic.
 	t.Logf("an IPv4Entry for %s pointing to ATE port-3 via gRIBI-B", ateDstNetCIDR)
 	args.clientB.BecomeLeader(t)
-	args.clientB.AddNH(t, nhIndex, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.clientB.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.clientB.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
+	args.clientB.AddNH(t, nhIndex, atePort3.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInRIB)
+	args.clientB.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInRIB)
+	args.clientB.AddIPv4(t, ateDstNetCIDR, nhgIndex, deviations.DefaultNetworkInstance(args.dut), "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
-	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
 	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), time.Minute, ateDstNetCIDR)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
@@ -232,22 +232,22 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-2 via gRIBI-A,
 	// ensure that the entry is ignored by the DUT.
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via gRIBI-A", ateDstNetCIDR)
-	args.clientA.AddNH(t, nhIndex+1, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.ProgrammingFailed)
-	args.clientA.AddNHG(t, nhgIndex+1, map[uint64]uint64{nhIndex + 1: 1}, *deviations.DefaultNetworkInstance, fluent.ProgrammingFailed)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+1, *deviations.DefaultNetworkInstance, "", fluent.ProgrammingFailed)
+	args.clientA.AddNH(t, nhIndex+1, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.ProgrammingFailed)
+	args.clientA.AddNHG(t, nhgIndex+1, map[uint64]uint64{nhIndex + 1: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.ProgrammingFailed)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+1, deviations.DefaultNetworkInstance(args.dut), "", fluent.ProgrammingFailed)
 
 	// Send a ModifyRequest from gRIBI-A updating its election_id to make it leader,
 	// followed by a ModifyRequest updating 198.51.100.0/24 pointing to ATE port-2,
 	// ensure that routing is updated to receive packets for 198.51.100.0/24 at ATE port-2.
 	args.clientA.BecomeLeader(t)
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via client gRIBI-A", ateDstNetCIDR)
-	args.clientA.AddNH(t, nhIndex+2, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex+2, map[uint64]uint64{nhIndex + 2: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+2, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex+2, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex+2, map[uint64]uint64{nhIndex + 2: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+2, deviations.DefaultNetworkInstance(args.dut), "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
-	ipv4Path = gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	ipv4Path = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
 	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), time.Minute, ateDstNetCIDR)
 
 	// Verify with traffic that the entry for 198.51.100.0/24 is installed through the ATE port-2.

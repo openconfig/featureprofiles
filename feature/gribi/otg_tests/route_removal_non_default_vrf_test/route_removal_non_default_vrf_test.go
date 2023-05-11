@@ -181,7 +181,7 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	injectIPEntry(ctx, t, dut, clientB, nonDefaultVRF, ateDstNetEntryNonDefault)
 
 	t.Log("Inject entry for 203.0.113.0/24 in default VRF from gRIBI-B. This function also verifies entry via telemetry.")
-	injectIPEntry(ctx, t, dut, clientB, *deviations.DefaultNetworkInstance, ateDstNetEntryDefault)
+	injectIPEntry(ctx, t, dut, clientB, deviations.DefaultNetworkInstance(dut), ateDstNetEntryDefault)
 
 	t.Run("flushNonZeroReference", func(t *testing.T) {
 		t.Log("After re-injecting entries, flush RPC from gRIBI-B for default VRF expected to return NON_ZERO_REFERENCE_REMAIN result.")
@@ -265,7 +265,7 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	}
 
 	t.Log("Issue Flush RPC from gRIBI-B for default VRF. It expected to return NON_ZERO_REFERENCE_REMAIN result.")
-	flushRes, _ := gribi.Flush(clientB.Fluent(t), clientB.ElectionID(), *deviations.DefaultNetworkInstance)
+	flushRes, _ := gribi.Flush(clientB.Fluent(t), clientB.ElectionID(), deviations.DefaultNetworkInstance(dut))
 
 	wantRes := &gpb.FlushResponse{
 		Result: gpb.FlushResponse_NON_ZERO_REFERENCE_REMAIN,
@@ -292,11 +292,11 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	}
 
 	t.Log("Ensure that 203.0.113.0/24 (ateDstNetEntryDefault) has been removed by validating telemetry.")
-	entry = verifyEntry(t, dut, *deviations.DefaultNetworkInstance, ateDstNetEntryDefault)
+	entry = verifyEntry(t, dut, deviations.DefaultNetworkInstance(dut), ateDstNetEntryDefault)
 	if entry {
 		t.Errorf("ipv4-entry/state/prefix contains entry %s, expected no entry", ateDstNetEntryDefault)
 	} else {
-		t.Logf("IP Entry for %s has been successfully removed from network instance: %s as confirmed from telemetry.", ateDstNetEntryDefault, *deviations.DefaultNetworkInstance)
+		t.Logf("IP Entry for %s has been successfully removed from network instance: %s as confirmed from telemetry.", ateDstNetEntryDefault, deviations.DefaultNetworkInstance(dut))
 	}
 }
 
@@ -316,10 +316,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, p2)
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
 	}
 }
 
@@ -405,15 +405,15 @@ func verifyEntry(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName strin
 // injectEntries adds a fully referenced IP Entry, NH and NHG.
 func injectEntries(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, networkInstanceName string, ateDstNetCIDR string) {
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via gRIBI client", ateDstNetCIDR)
-	client.AddNH(t, nhIndex, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	client.AddNH(t, nhIndex, atePort2.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 }
 
 // injectIPEntry adds only IPv4 entry to the specified network instance referencing to the nhgid, to the VRF.
 func injectIPEntry(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, networkInstanceName string, ateDstNetCIDR string) {
 	t.Logf("Add an IPv4Entry for %s via gRIBI client's %s network instance", ateDstNetCIDR, networkInstanceName)
-	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 
 	// After adding the entry, verify the entry is active through AFT Telemetry.
 	ipv4Path := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)

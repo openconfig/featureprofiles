@@ -97,19 +97,19 @@ var (
 )
 
 // ISISPath is shorthand for ProtocolPath().Isis().
-func ISISPath() *networkinstance.NetworkInstance_Protocol_IsisPath {
-	return ProtocolPath().Isis()
+func ISISPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_Protocol_IsisPath {
+	return ProtocolPath(dut).Isis()
 }
 
 // ProtocolPath returns the path to the IS-IS protocol named ISISName on the
 // default network instance.
-func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
-	return ocpath.Root().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
+func ProtocolPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_ProtocolPath {
+	return ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(PTISIS, ISISName)
 }
 
 // addISISOC configures basic IS-IS on a device.
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.DUTDevice) {
-	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	inst := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
 	if !deviations.ISISprotocolEnabledNotRequired(dut) {
 		prot.Enabled = ygot.Bool(true)
@@ -243,7 +243,7 @@ func (s *TestSession) WithISIS() *TestSession {
 // to the IS-IS block of ts.DUTConfig, and the second will be applied to the
 // IS-IS configuration of ts.ATETop
 func (s *TestSession) ConfigISIS(ocFn func(*oc.NetworkInstance_Protocol_Isis)) {
-	ocFn(s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName).GetOrCreateIsis())
+	ocFn(s.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).GetOrCreateProtocol(PTISIS, ISISName).GetOrCreateIsis())
 }
 
 // PushAndStart calls PushDUT and PushAndStartATE to send config to both
@@ -268,8 +268,8 @@ func (s *TestSession) PushDUT(ctx context.Context, t testing.TB) error {
 		}
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) {
-		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), deviations.DefaultNetworkInstance(s.DUT), 0)
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), deviations.DefaultNetworkInstance(s.DUT), 0)
 	}
 	if deviations.ExplicitPortSpeed(s.DUT) {
 		fptest.SetPortSpeed(t, s.DUTPort1)
@@ -277,11 +277,11 @@ func (s *TestSession) PushDUT(ctx context.Context, t testing.TB) error {
 	}
 
 	// Push the ISIS protocol
-	if _, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().NetworkInstance(*deviations.DefaultNetworkInstance).Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE); err != nil {
+	if _, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE); err != nil {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
-	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
-	_, err := ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
+	dutConf := s.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).GetOrCreateProtocol(PTISIS, ISISName)
+	_, err := ygnmi.Replace(ctx, s.DUTClient, ProtocolPath(s.DUT).Config(), dutConf)
 	if err != nil {
 		return fmt.Errorf("configuring ISIS: %w", err)
 	}
@@ -300,9 +300,9 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
 // link has formed any IS-IS adjacency, returning the adjacency ID or an error
 // if one doesn't form.
 func (s *TestSession) AwaitAdjacency() (string, error) {
-	intf := ISISPath().Interface(s.DUTPort1.Name())
+	intf := ISISPath(s.DUT).Interface(s.DUTPort1.Name())
 	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) {
-		intf = ISISPath().Interface(s.DUTPort1.Name() + ".0")
+		intf = ISISPath(s.DUT).Interface(s.DUTPort1.Name() + ".0")
 	}
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

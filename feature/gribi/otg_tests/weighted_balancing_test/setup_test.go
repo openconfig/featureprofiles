@@ -192,7 +192,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		for _, dp := range dut.Ports() {
-			fptest.AssignToNetworkInstance(t, dut, dp.Name(), *deviations.DefaultNetworkInstance, 0)
+			fptest.AssignToNetworkInstance(t, dut, dp.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
 }
@@ -241,8 +241,8 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // buildNextHops converts the nextHop specification to gRIBI entries
 // and wanted OpResult.  The entries are part of the Modify request,
 // and the Modify response is verified against the wants.
-func buildNextHops(t testing.TB, nexthops []nextHop, scale uint64) (ents []fluent.GRIBIEntry, wants []*client.OpResult) {
-	nhgent := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+func buildNextHops(t testing.TB, dut *ondatra.DUTDevice, nexthops []nextHop, scale uint64) (ents []fluent.GRIBIEntry, wants []*client.OpResult) {
+	nhgent := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithID(nhgIndex)
 	nhgwant := fluent.OperationResult().
 		WithOperationID(uint64(len(nexthops) + 1)).
@@ -257,7 +257,7 @@ func buildNextHops(t testing.TB, nexthops []nextHop, scale uint64) (ents []fluen
 		t.Logf("Installing gRIBI next hop entry %d to %s (%s) of weight %d",
 			index, nhip, nh.Port, nh.Weight*scale)
 
-		ent := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		ent := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(index).WithIPAddress(nhip)
 		ents = append(ents, ent)
 
@@ -272,7 +272,7 @@ func buildNextHops(t testing.TB, nexthops []nextHop, scale uint64) (ents []fluen
 		wants = append(wants, want)
 	}
 
-	ipv4ent := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+	ipv4ent := fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithPrefix(ateDstNetCIDR).WithNextHopGroup(42)
 	ipv4want := fluent.OperationResult().
 		WithOperationID(uint64(len(nexthops) + 2)).
@@ -416,7 +416,7 @@ func portWants(nexthops []nextHop, atePorts []*ondatra.Port) []float64 {
 
 func debugGRIBI(t testing.TB, dut *ondatra.DUTDevice) {
 	// Debugging through OpenConfig.
-	aftsPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts()
+	aftsPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts()
 	if q, present := gnmi.Lookup(t, dut, aftsPath.State()).Val(); present {
 		fptest.LogQuery(t, "Afts", aftsPath.State(), q)
 	} else {
