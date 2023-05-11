@@ -76,10 +76,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i1 := dutAttrs.NewOCInterface(dut.Port(t, "port1").Name())
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), *deviations.DefaultNetworkInstance, 0)
 	}
 }
@@ -106,7 +106,7 @@ func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	resetBatch := &gnmi.SetBatch{}
 	gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
 
-	if *deviations.NetworkInstanceTableDeletionRequired {
+	if deviations.NetworkInstanceTableDeletionRequired(dut) {
 		tablePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).TableAny()
 		for _, table := range gnmi.LookupAll[*oc.NetworkInstance_Table](t, dut, tablePath.Config()) {
 			if val, ok := table.Val(); ok {

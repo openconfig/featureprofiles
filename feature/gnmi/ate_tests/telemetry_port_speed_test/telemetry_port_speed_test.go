@@ -193,7 +193,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		iPath := d.Interface(iName)
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
-		if *deviations.ExplicitPortSpeed {
+		if deviations.ExplicitPortSpeed(tc.dut) {
 			fptest.SetPortSpeed(t, port)
 		}
 	}
@@ -215,7 +215,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
 		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, *deviations.DefaultNetworkInstance, 0)
 	}
 	t.Cleanup(func() {
@@ -227,7 +227,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		}
 		if deviations.AggregateAtomicUpdate(tc.dut) {
 			resetBatch := &gnmi.SetBatch{}
-			if *deviations.ExplicitInterfaceInDefaultVRF {
+			if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
 				gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Interface(tc.aggID+".0").Config())
 			}
 			gnmi.BatchDelete(resetBatch, aggPath.Config())

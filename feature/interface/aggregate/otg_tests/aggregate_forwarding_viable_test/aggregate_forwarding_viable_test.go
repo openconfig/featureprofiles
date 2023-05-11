@@ -286,7 +286,7 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
 		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, *deviations.DefaultNetworkInstance, 0)
 	}
 
@@ -295,12 +295,12 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 	tc.configSrcDUT(srci, &dutSrc)
 	srci.Type = ethernetCsmacd
 	srciPath := d.Interface(srcp.Name())
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(tc.dut) {
 		srci.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, srcp)
 	}
 	fptest.LogQuery(t, srcp.String(), srciPath.Config(), srci)
 	gnmi.Replace(t, tc.dut, srciPath.Config(), srci)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
 		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
 
@@ -314,7 +314,7 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 
 		tc.configDstMemberDUT(i, port)
 		iPath := d.Interface(port.Name())
-		if *deviations.ExplicitPortSpeed {
+		if deviations.ExplicitPortSpeed(tc.dut) {
 			i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, port)
 		}
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
