@@ -18,9 +18,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
-	"sort"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -44,9 +42,18 @@ const (
 	adminStatusDown = oc.Interface_AdminStatus_DOWN
 	operStatusUp    = oc.Interface_OperStatus_UP
 	operStatusDown  = oc.Interface_OperStatus_DOWN
-	// Maximum Port Value: https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L81
-	maxPortVal = 0xFFFFFEFF
+	maxPortVal      = "FFFFFEFF" // Maximum Port Value : https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L63-L81
+)
 
+var (
+	vendorQueueNo = map[ondatra.Vendor]int{
+		ondatra.ARISTA:  16,
+		ondatra.CISCO:   6,
+		ondatra.JUNIPER: 8,
+	}
+)
+
+const (
 	chassisType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
 	supervisorType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	linecardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
@@ -56,14 +63,6 @@ const (
 	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
 	portType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT
 	osType          = oc.PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT_OPERATING_SYSTEM
-)
-
-var (
-	vendorQueueNo = map[ondatra.Vendor]int{
-		ondatra.ARISTA:  16,
-		ondatra.CISCO:   6,
-		ondatra.JUNIPER: 8,
-	}
 )
 
 var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
@@ -422,7 +421,6 @@ func TestComponentParent(t *testing.T) {
 		"SwitchChip":  linecardType,
 	}
 	compList := findComponentsListByType(t, dut)
-
 	cases := []struct {
 		desc          string
 		componentType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT
@@ -686,6 +684,11 @@ func TestP4rtInterfaceID(t *testing.T) {
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
 
+	maxPortValDec, err := strconv.ParseUint(maxPortVal, 16, 32)
+	if err != nil {
+		t.Fatalf("Error while converting portID value: %v", err)
+	}
+
 	cases := []struct {
 		desc   string
 		portID uint32
@@ -694,10 +697,10 @@ func TestP4rtInterfaceID(t *testing.T) {
 		portID: 1,
 	}, {
 		desc:   "AvePortID",
-		portID: uint32(maxPortVal) / 2,
+		portID: uint32(maxPortValDec) / 2,
 	}, {
 		desc:   "MaxPortID",
-		portID: uint32(maxPortVal),
+		portID: uint32(maxPortValDec),
 	}}
 
 	for _, tc := range cases {
@@ -848,23 +851,23 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	otgutils.LogFlowMetrics(t, otg, config)
-	ateInPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State())
-	ateOutPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
+	ateInPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
+	ateOutPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
 
 	if ateOutPkts == 0 {
 		t.Errorf("Get(out packets for flow %q: got %v, want nonzero", flowName, ateOutPkts)
 	}
 	lossPct := (ateOutPkts - ateInPkts) * 100 / ateOutPkts
-	if lossPct >= 1 {
-		t.Errorf("Get(traffic loss for flow %q: got %v, want < 1", flowName, lossPct)
+	if lossPct >= 0.1 {
+		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
 	}
 	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
-	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < ateInPkts {
+	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateInPkts) {
 		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts)
 	}
-	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < ateOutPkts {
+	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < uint64(ateOutPkts) {
 		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateOutPkts)
 	}
 }
@@ -958,38 +961,12 @@ func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string
 	return res
 }
 
-// inferP4RTNodesCisco infers the P4RT node name from the port name and device model
-// for Cisco devices.
-func inferP4RTNodesCisco(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
-	t.Helper()
-	npus := []int{0, 1, 2}
-	pranges := []int{11, 23, 35}
-	res := make(map[string]string)
-	isModular := dut.Model() == "" || strings.HasPrefix(dut.Model(), "CISCO-88")
-	for _, p := range dut.Ports() {
-		if isModular {
-			parts := strings.Split(p.Name(), "/")
-			pnum, err := strconv.Atoi(parts[3])
-			if err != nil {
-				t.Fatalf("Error parsing port name: %v", err)
-			}
-			npu := npus[sort.SearchInts(pranges, pnum)]
-			res[p.ID()] = fmt.Sprintf("0/%s/CPU0-NPU%d", parts[1], npu)
-		} else {
-			res[p.ID()] = "0/RP0/CPU0-NPU0"
-		}
-	}
-	return res
-}
-
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	if *deviations.ExplicitP4RTNodeComponent {
 		switch dut.Vendor() {
-		case ondatra.CISCO:
-			return inferP4RTNodesCisco(t, dut)
 		case ondatra.NOKIA:
 			return inferP4RTNodesNokia(t, dut)
 		default:
@@ -997,11 +974,15 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 		}
 	}
 
-	ports := make(map[string]string) // <hardware-port>:<portID>
+	ports := make(map[string][]string) // <hardware-port>:[<portID>]
 	for _, p := range dut.Ports() {
 		hp := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
 		if v, ok := hp.Val(); ok {
-			ports[v] = p.ID()
+			if _, ok = ports[v]; !ok {
+				ports[v] = []string{p.ID()}
+			} else {
+				ports[v] = append(ports[v], p.ID())
+			}
 		}
 	}
 	nodes := make(map[string]string) // <hardware-port>:<p4rtComponentName>
@@ -1021,7 +1002,9 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 		if ct != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
 			continue
 		}
-		res[ports[k]] = v
+		for _, p := range ports[k] {
+			res[p] = v
+		}
 	}
 	return res
 }
