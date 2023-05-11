@@ -312,18 +312,18 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 }
 
 func TestMoveInterface(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	t.Run("DefaultToNonDefaultVRF", func(t *testing.T) {
-		testMoveInterfaceBetweenVRF(t, *deviations.DefaultNetworkInstance, "BLUE")
+		testMoveInterfaceBetweenVRF(t, dut, deviations.DefaultNetworkInstance(dut), "BLUE")
 	})
 	t.Run("NonDefaultToNonDefaultVRF", func(t *testing.T) {
-		testMoveInterfaceBetweenVRF(t, "RED", "BLUE")
+		testMoveInterfaceBetweenVRF(t, dut, "RED", "BLUE")
 	})
 }
 
-func testMoveInterfaceBetweenVRF(t *testing.T, firstVRF, secondVRF string) {
-	defaultVRF := *deviations.DefaultNetworkInstance
+func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF, secondVRF string) {
+	defaultVRF := deviations.DefaultNetworkInstance(dut)
 
-	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
@@ -403,7 +403,8 @@ func testMoveInterfaceBetweenVRF(t *testing.T, firstVRF, secondVRF string) {
 }
 
 func TestStaticProtocol(t *testing.T) {
-	defaultVRF := *deviations.DefaultNetworkInstance
+	dut := ondatra.DUT(t, "dut")
+	defaultVRF := deviations.DefaultNetworkInstance(dut)
 	staticName := *deviations.StaticProtocolName
 
 	const (
@@ -415,7 +416,6 @@ func TestStaticProtocol(t *testing.T) {
 		nhip2     = "192.0.2.6"
 	)
 
-	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
@@ -644,7 +644,7 @@ func defaultPushScope(dut *ondatra.DUTDevice) *pushScope {
 
 	return &pushScope{
 		interfaces:       interfaces,
-		networkInstances: []string{*deviations.DefaultNetworkInstance},
+		networkInstances: []string{deviations.DefaultNetworkInstance(dut)},
 	}
 }
 
