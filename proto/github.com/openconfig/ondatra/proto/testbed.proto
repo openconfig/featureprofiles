@@ -1,0 +1,161 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package ondatra;
+
+option go_package = "github.com/openconfig/ondatra/proto";
+
+// A testbed.
+message Testbed {
+  repeated Device duts = 1;
+  repeated Device ates = 2;
+  repeated Link links = 3;
+}
+
+// A device.
+//
+// All "regex" fields expect an RE2 regular expression and match a device
+// attribute if it contains any match of the regular expression.
+message Device {
+  // Unique ID for the device. Required.
+  string id = 1;
+
+  // Vendor that manufactures the device.
+  enum Vendor {
+    VENDOR_UNSPECIFIED = 0;
+    ARISTA = 1;
+    CISCO = 2;
+    IXIA = 3;
+    JUNIPER = 4;
+    CIENA = 5;
+    PALOALTO = 6;
+    NOKIA = 7;
+    ZPE = 8;
+    DELL = 9;
+    OPENCONFIG = 10;
+    ARUBA = 11;
+  }
+  Vendor vendor = 2;
+
+  // Hardware model of the device.
+  oneof hardware_model_value {
+    string hardware_model = 4;
+    string hardware_model_regex = 7;
+  }
+
+  // Software version of the device.
+  oneof software_version_value {
+    string software_version = 5;
+    string software_version_regex = 8;
+  }
+
+  // List of ports on the device.
+  repeated Port ports = 3;
+
+  // A key-value map of additional device dimensions.
+  //
+  // In addition to the above fields, the extra dimensions field can be used to
+  // further restrict matching devices. The set of dimension keys that are
+  // supported is specific to the binding implementation. For example, if the
+  // binding supports filtering devices by a dimension named "label," the
+  // testbed could specify an extra dimensions map of
+  // extra_dimensions {
+  //   key: "label",
+  //   value: "foo",
+  // }
+  map<string, string> extra_dimensions = 6;
+}
+
+// A port.
+//
+// All "regex" fields expect an RE2 regular expression and match a port
+// attribute if it contains any match of the regular expression.
+message Port {
+  // Unique ID for the port. Required.
+  string id = 1;
+
+  // Speed of the port.
+  enum Speed {
+    SPEED_UNSPECIFIED = 0;
+    S_1GB = 1;
+    S_5GB = 5;
+    S_10GB = 10;
+    S_100GB = 100;
+    S_400GB = 400;
+  }
+  Speed speed = 2;
+
+  // Model of the card that contains the port.
+  oneof card_model_value {
+    string card_model = 3;
+    string card_model_regex = 8;
+  }
+
+  // Physical medium dependent of the port.
+  // This should be kept in sync with the values specified in OpenConfig:
+  // https://github.com/openconfig/public/blob/master/release/models/optical-transport/openconfig-transport-types.yang
+  enum Pmd {
+    PMD_UNSPECIFIED = 0;
+    PMD_10GBASE_LRM = 1;
+    PMD_10GBASE_LR = 2;
+    PMD_10GBASE_ZR = 3;
+    PMD_10GBASE_ER = 4;
+    PMD_10GBASE_SR = 5;
+    PMD_40GBASE_CR4 = 6;
+    PMD_40GBASE_SR4 = 7;
+    PMD_40GBASE_LR4 = 8;
+    PMD_40GBASE_ER4 = 9;
+    PMD_40GBASE_PSM4 = 10;
+    PMD_4X10GBASE_LR = 11;
+    PMD_4X10GBASE_SR = 12;
+    PMD_100G_AOC = 13;
+    PMD_100G_ACC = 14;
+    PMD_100GBASE_SR10 = 15;
+    PMD_100GBASE_SR4 = 16;
+    PMD_100GBASE_LR4 = 17;
+    PMD_100GBASE_ER4 = 18;
+    PMD_100GBASE_CWDM4 = 19;
+    PMD_100GBASE_CLR4 = 20;
+    PMD_100GBASE_PSM4 = 21;
+    PMD_100GBASE_CR4 = 22;
+    PMD_100GBASE_FR = 23;
+    PMD_400GBASE_ZR = 24;
+    PMD_400GBASE_LR4 = 25;
+    PMD_400GBASE_FR4 = 26;
+    PMD_400GBASE_LR8 = 27;
+    PMD_400GBASE_DR4 = 28;
+    PMD_100GBASE_DR = 29;
+  }
+  oneof pmd_value {
+    Pmd pmd = 4;
+    string pmd_regex = 5;
+  }
+
+  // A hint that the test intends to create a LAG from this port and other ports
+  // in the same group. For some kinds of devices, including OTG on KNE, a group
+  // hint is necessary to create a LAG, because a LAG requires additional
+  // topological constraints that can't otherwise be expressed in the testbed.
+  string group = 6;
+}
+
+// A physical link between ports on DUTs or ATEs.
+// The order does not matter: links are symmetrical.
+// A given port may be specified in at most one link (typically in exactly one
+// link, because un-connected ports are not very interesting for testing).
+message Link {
+  string a = 1;  // First port in the format "<device-id>:<port-id>".
+  string b = 2;  // Second port in the format "<device-id>:<port-id>".
+}
