@@ -130,21 +130,27 @@ func TestLinecardReboot(t *testing.T) {
 	lcs := components.FindComponentsByType(t, dut, linecardType)
 	t.Logf("Found linecard list: %v", lcs)
 
-	if *args.NumLinecards >= 0 && len(lcs) != *args.NumLinecards {
-		t.Errorf("Incorrect number of linecards: got %v, want exactly %v (specified by flag)", len(lcs), *args.NumLinecards)
+	var validCards []string
+	// don't consider the empty linecard slots.
+	if len(lcs) > *args.NumLinecards {
+		for _, lc := range lcs {
+			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+			if !ok || (ok && !empty) {
+				validCards = append(validCards, lc)
+			}
+		}
+	}
+	if *args.NumLinecards >= 0 && len(validCards) != *args.NumLinecards {
+		t.Errorf("Incorrect number of linecards: got %v, want exactly %v (specified by flag)", len(validCards), *args.NumLinecards)
 	}
 
-	if got := len(lcs); got == 0 {
+	if got := len(validCards); got == 0 {
 		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
 	}
 
 	t.Logf("Find a removable line card to reboot.")
 	var removableLinecard string
-	for _, lc := range lcs {
-		if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val(); ok && empty {
-			t.Logf("Line card %v is empty", lc)
-			continue
-		}
+	for _, lc := range validCards {
 		t.Logf("Check if %s is removable", lc)
 		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
 			t.Logf("Detected non-removable line card: %v", lc)
