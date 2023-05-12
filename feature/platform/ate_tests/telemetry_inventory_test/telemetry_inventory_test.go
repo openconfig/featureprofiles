@@ -486,12 +486,6 @@ func TestTempSensor(t *testing.T) {
 func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Component, p properties) {
 	var validCards []*oc.Component
 	switch p.pType {
-	case componentType["Linecard"]:
-		for _, lc := range cards {
-			if !lc.GetEmpty() {
-				validCards = append(validCards, lc)
-			}
-		}
 	case componentType["Transceiver"]:
 		// For transceiver, only check the transceiver with optics installed.
 		for _, card := range cards {
@@ -500,7 +494,11 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			}
 		}
 	default:
-		validCards = cards
+		for _, lc := range cards {
+			if !lc.GetEmpty() {
+				validCards = append(validCards, lc)
+			}
+		}
 	}
 	for _, card := range validCards {
 		if card.Name == nil {
