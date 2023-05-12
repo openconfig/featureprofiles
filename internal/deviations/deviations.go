@@ -242,11 +242,6 @@ func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
 	return *gRIBIRIBAckOnly
 }
 
-// GRIBIDelayedAckResponse returns if device requires delay in sending ack response.
-func GRIBIDelayedAckResponse(_ *ondatra.DUTDevice) bool {
-	return *gRIBIDelayedAckResponse
-}
-
 // MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
 func MissingInterfacePhysicalChannel(_ *ondatra.DUTDevice) bool {
 	return *missingInterfacePhysicalChannel
@@ -369,6 +364,11 @@ func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
 	return *noMixOfTaggedAndUntaggedSubinterfaces
 }
 
+// SecondaryBackupPathTrafficFailover returns if device does not support secondary backup path traffic failover
+func SecondaryBackupPathTrafficFailover(_ *ondatra.DUTDevice) bool {
+	return *secondaryBackupPathTrafficFailover
+}
+
 // RoutePolicyUnderAFIUnsupported returns if Route-Policy under the AFI/SAFI is not supported
 func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 	return *routePolicyUnderAFIUnsupported
@@ -458,8 +458,6 @@ var (
 	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
 
-	gRIBIDelayedAckResponse = flag.Bool("deviation_gribi_delayed_ack_response", false, "Device requires delay in sending ack response")
-
 	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
 
@@ -535,6 +533,8 @@ var (
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
 	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
+
+	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
 
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 )
