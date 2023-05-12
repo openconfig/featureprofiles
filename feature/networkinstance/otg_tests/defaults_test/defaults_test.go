@@ -28,7 +28,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -177,15 +176,8 @@ func TestDefaultAddressFamilies(t *testing.T) {
 			gnmi.Update(t, dut, gnmi.OC().Config(), d)
 
 			ate.OTG().StartProtocols(t)
-
-			// TODO(robjs): check with Octavian why this is required.
-			time.Sleep(10 * time.Second)
-			for _, i := range []string{atePort1.Name, atePort2.Name} {
-				t.Logf("checking for ARP on %s", i)
-				gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(i+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-					return val.IsPresent()
-				}).Await(t)
-			}
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 			ate.OTG().StartTraffic(t)
 			time.Sleep(15 * time.Second)
