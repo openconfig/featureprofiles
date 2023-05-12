@@ -57,13 +57,15 @@ func initMetadata() error {
 		if err != nil {
 			return err
 		}
-		flagVal.Set(testbedPath)
+		if err := flagVal.Set(testbedPath); err != nil {
+			return err
+		}
+		log.Infof("Testbed flag set from metadata to %q", testbedPath)
 	}
 	return nil
 }
 
 func testbedPathFromMetadata() (string, error) {
-	const testbedsDir = "topologies"
 	testbed := metadata.Get().Testbed
 	testbedToFile := map[mpb.Metadata_Testbed]string{
 		mpb.Metadata_TESTBED_DUT:            "dut.testbed",
@@ -80,5 +82,5 @@ func testbedPathFromMetadata() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(rootPath, testbedsDir, testbedFile), nil
+	return filepath.Join(rootPath, "topologies", testbedFile), nil
 }
