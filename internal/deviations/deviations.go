@@ -369,6 +369,11 @@ func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
 	return *noMixOfTaggedAndUntaggedSubinterfaces
 }
 
+// InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
+func InterfaceRefConfigUnsupported(_ *ondatra.DUTDevice) bool {
+	return *interfaceRefConfigUnsupported
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -532,4 +537,6 @@ var (
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
 	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
+
+	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 )
