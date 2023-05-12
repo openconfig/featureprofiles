@@ -69,7 +69,7 @@ for c in candidates:
 
 if image_path:
     image_version = check_output(
-            f"/usr/bin/isoinfo -i {image_path} -x '/MDATA/BUILD_IN.TXT;1' " \
+            f"isoinfo -i {image_path} -x '/MDATA/BUILD_IN.TXT;1' " \
                 f"| tail -n1 | cut -d'=' -f2 | cut -d'-' -f1", 
             shell=True,
             encoding='utf-8'
