@@ -61,34 +61,40 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 	if len(transceivers) == 0 {
 		t.Fatalf("Get transceiver list for %q: got 0, want > 0", dut.Model())
 	}
-
+	var populated []string
 	for _, transceiver := range transceivers {
-		t.Logf("Validate transceiver: %s", transceiver)
-		component := gnmi.OC().Component(transceiver)
+		if gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).MfgName().State()).IsPresent() {
+			populated = append(populated, transceiver)
+		}
+	}
+	if len(populated) == 0 {
+		t.Fatalf("Populated transceiver list for %q: got 0, want > 0", dut.Model())
+	}
 
-		if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-			t.Logf("component.MfgName().Lookup(t).IsPresent() for %q is false. skip it", transceiver)
-			continue
-		}
-		mfgName := gnmi.Get(t, dut, component.MfgName().State())
-		t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
+	for _, transceiver := range populated {
+		t.Run(transceiver, func(t *testing.T) {
+			component := gnmi.OC().Component(transceiver)
 
-		inputPowers := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().InputPower().Instant().State())
-		t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
-		if len(inputPowers) == 0 {
-			t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
-		}
-		outputPowers := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().OutputPower().Instant().State())
-		t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
-		if len(outputPowers) == 0 {
-			t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
-		}
+			mfgName := gnmi.Get(t, dut, component.MfgName().State())
+			t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-		biasCurrents := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State())
-		t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
-		if len(biasCurrents) == 0 {
-			t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
-		}
+			inputPowers := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().InputPower().Instant().State())
+			t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
+			if len(inputPowers) == 0 {
+				t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
+			}
+			outputPowers := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().OutputPower().Instant().State())
+			t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
+			if len(outputPowers) == 0 {
+				t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
+			}
+
+			biasCurrents := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State())
+			t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
+			if len(biasCurrents) == 0 {
+				t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
+			}
+		})
 	}
 }
 
@@ -136,10 +142,7 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedStatus)
 
-			transceiverName, err := findTransceiverName(dut, dp.Name())
-			if err != nil {
-				t.Fatalf("findTransceiver(%s, %s): %v", dut.Name(), dp.Name(), err)
-			}
+			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
 
 			component := gnmi.OC().Component(transceiverName)
 			if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
@@ -179,28 +182,86 @@ func TestOpticsPowerUpdate(t *testing.T) {
 	}
 }
 
-// findTransceiverName provides name of transciever port corresponding to interface name
-func findTransceiverName(dut *ondatra.DUTDevice, interfaceName string) (string, error) {
-	var (
-		transceiverMap = map[ondatra.Vendor]string{
-			ondatra.ARISTA:  " transceiver",
-			ondatra.CISCO:   "",
-			ondatra.JUNIPER: "",
-			ondatra.NOKIA:   "-transceiver",
-		}
-	)
-	transceiverName := interfaceName
-	name, ok := transceiverMap[dut.Vendor()]
-	if !ok {
-		return "", fmt.Errorf("No transceiver interface available for DUT vendor %v", dut.Vendor())
+func TestInterfacesWithTransceivers(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	// Map of populated Transceivers to its corresponding Component state object.
+	populatedTvs := make(map[string]*oc.Component)
+
+	// Map of non populated Transceivers to its corresponding Component state object.
+	emptyTvs := make(map[string]*oc.Component)
+
+	tvs := components.FindComponentsByType(t, dut, transceiverType)
+	for _, tv := range tvs {
+		t.Run(fmt.Sprintf("Transceiver:%s", tv), func(t *testing.T) {
+			cp := gnmi.Get(t, dut, gnmi.OC().Component(tv).State())
+			if cp.GetMfgName() == "" {
+				emptyTvs[tv] = cp
+				t.Skipf("Skipping check for Transceiver: %q, got no MfgName.", tv)
+			}
+			populatedTvs[tv] = cp
+			if cp.GetTransceiver() == nil || cp.GetTransceiver().GetFormFactor() == oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
+				t.Errorf("transceiver/form-factor unset for Transceiver: %q", tv)
+			}
+		})
 	}
-	if name != "" {
-		interfaceSplit := strings.Split(interfaceName, "/")
-		interfaceSplitres := interfaceSplit[:len(interfaceSplit)-1]
-		transceiverName = strings.Join(interfaceSplitres, "/") + name
-		if dut.Vendor() == ondatra.NOKIA {
-			transceiverName = interfaceName + name
+
+	// Map of interface name to its connected Transceiver name.
+	intfTransceivers := make(map[string]string)
+
+	// Virtual interfaces that don't have physical channel.
+	virtualIntfs := []string{"Loopback", "Management", "Port-Channel", "ae", "lo", "Bundle-Ether", "MgmtEth", "Null", "PTP", "vtep", "re", "pip", "pfh", "lsi", "irb", "dsc", "esi", "fti", "mgmt", "lag"}
+
+	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	for _, intf := range intfs {
+		if intf.GetName() == "" {
+			continue
+		}
+		t.Run(fmt.Sprintf("Interface:%s", intf.GetName()), func(t *testing.T) {
+			// Skipping interfaces that are not connected.
+			if _, ok := emptyTvs[intf.GetTransceiver()]; ok {
+				t.Skipf("Skipping check for Interface %q, got empty transceiver", intf.GetName())
+			}
+			if _, ok := populatedTvs[intf.GetTransceiver()]; !ok {
+				t.Skipf("Skipping check for Interface %q, got empty transceiver", intf.GetName())
+			}
+			// Skipping Aggregate, Loopback and Management Interfaces.
+			for _, vi := range virtualIntfs {
+				if strings.HasPrefix(intf.GetName(), vi) {
+					t.Skipf("Skipping check for virtual interface %q", intf.GetName())
+				}
+			}
+
+			intfTransceivers[intf.GetName()] = intf.GetTransceiver()
+			if intf.PhysicalChannel == nil {
+				t.Errorf("physical-channel unset for Interface: %q", intf.GetName())
+			}
+		})
+	}
+	if len(intfTransceivers) == 0 {
+		t.Fatalf("Populated interfaces list for %q: got 0, want > 0", dut.Model())
+	}
+
+	// Get the unique transceivers from the interface to transceiver mapping.
+	intfTvs := map[string]int{}
+	for _, tv := range intfTransceivers {
+		intfTvs[tv] = 0
+	}
+
+	if len(intfTvs) != len(populatedTvs) {
+		t.Errorf("Unexpected numbers of transceivers found, from interface/state/transceiver: %d, from component/state/name: %d", len(intfTvs), len(populatedTvs))
+	}
+	if len(intfTvs) > len(populatedTvs) {
+		for tv := range intfTvs {
+			if _, ok := populatedTvs[tv]; !ok {
+				t.Errorf("Transceiver: %s, not found in components/state", tv)
+			}
+		}
+	} else {
+		for tv := range populatedTvs {
+			if _, ok := intfTvs[tv]; !ok {
+				t.Errorf("Transceiver: %s, not found in interface/state/transceiver", tv)
+			}
 		}
 	}
-	return transceiverName, nil
 }
