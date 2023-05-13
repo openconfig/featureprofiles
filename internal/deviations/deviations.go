@@ -267,7 +267,7 @@ func TraceRouteFragmentation(_ *ondatra.DUTDevice) bool {
 	return *traceRouteFragmentation
 }
 
-// LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config, 
+// LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
 // expect neighbours are seen when lldp is disabled globally but enabled on interface
 func LLDPInterfaceConfigOverrideGlobal(_ *ondatra.DUTDevice) bool {
 	return *lldpInterfaceConfigOverrideGlobal
