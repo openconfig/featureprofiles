@@ -474,7 +474,7 @@ func TestParameters(t *testing.T) {
 			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*100, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 			stateDut := gnmi.Get(t, dut, statePath.State())
 			wantState := tc.dutConf.Bgp
-			if *deviations.MissingValueForDefaults {
+			if deviations.MissingValueForDefaults(dut) {
 				wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName = 0
 				wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = nil
 				wantState.GetOrCreateNeighbor(ateAttrs.IPv4).Enabled = nil

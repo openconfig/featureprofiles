@@ -52,7 +52,7 @@ func TestOverloadBit(t *testing.T) {
 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
 	deadline := time.Now().Add(time.Second * 3)
 	checkSetBit := check.Equal(setBit.State(), false)
-	if *deviations.MissingValueForDefaults {
+	if deviations.MissingValueForDefaults(ts.DUT) {
 		checkSetBit = check.EqualOrNil(setBit.State(), false)
 	}
 
