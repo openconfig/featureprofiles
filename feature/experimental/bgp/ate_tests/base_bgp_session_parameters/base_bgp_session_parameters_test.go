@@ -73,7 +73,7 @@ const (
 // configureDUT is used to configure interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
-	i1 := dutAttrs.NewOCInterface(dut.Port(t, "port1").Name())
+	i1 := dutAttrs.NewOCInterface(dut.Port(t, "port1").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
 	if deviations.ExplicitPortSpeed(dut) {

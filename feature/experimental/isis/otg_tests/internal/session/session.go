@@ -197,8 +197,8 @@ func New(t testing.TB) (*TestSession, error) {
 	s.DUTPort2 = s.DUT.Port(t, "port2")
 	s.DUTConf = &oc.Root{}
 	// configure dut ports
-	DUTISISAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort1.Name()))
-	DUTTrafficAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort2.Name()))
+	DUTISISAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort1.Name()), s.DUT)
+	DUTTrafficAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort2.Name()), s.DUT)
 
 	// If there is no ate, any operation that requires the ATE will call
 	// t.Fatal() instead. This is helpful for debugging the parts of the test

@@ -127,7 +127,7 @@ func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attribute
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(me.IPv4)
