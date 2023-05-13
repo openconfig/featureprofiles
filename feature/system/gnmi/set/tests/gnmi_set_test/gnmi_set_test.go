@@ -405,7 +405,7 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 func TestStaticProtocol(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
-	staticName := *deviations.StaticProtocolName
+	staticName := deviations.StaticProtocolName(dut)
 
 	const (
 		otherVRF  = "BLUE"
