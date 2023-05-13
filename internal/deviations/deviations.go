@@ -81,6 +81,11 @@ func AggregateAtomicUpdate(_ *ondatra.DUTDevice) bool {
 	return *aggregateAtomicUpdate
 }
 
+// DefaultNetworkInstance returns the name used for the default network instance for VRF.
+func DefaultNetworkInstance(_ *ondatra.DUTDevice) string {
+	return *defaultNetworkInstance
+}
+
 // P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
 func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
@@ -237,11 +242,6 @@ func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
 	return *gRIBIRIBAckOnly
 }
 
-// GRIBIDelayedAckResponse returns if device requires delay in sending ack response.
-func GRIBIDelayedAckResponse(_ *ondatra.DUTDevice) bool {
-	return *gRIBIDelayedAckResponse
-}
-
 // MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
 func MissingInterfacePhysicalChannel(_ *ondatra.DUTDevice) bool {
 	return *missingInterfacePhysicalChannel
@@ -306,6 +306,19 @@ func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
 	return *networkInstanceTableDeletionRequired
 }
 
+// ExplicitPortSpeed returns if device requires port-speed to be set because its default value may not be usable.
+// Fully compliant devices selects the highest speed available based on negotiation.
+func ExplicitPortSpeed(_ *ondatra.DUTDevice) bool {
+	return *explicitPortSpeed
+}
+
+// ExplicitInterfaceInDefaultVRF returns if device requires explicit attachment of an interface or subinterface to the default network instance.
+// OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance.
+// Fully-compliant devices should pass with and without this deviation.
+func ExplicitInterfaceInDefaultVRF(_ *ondatra.DUTDevice) bool {
+	return *explicitInterfaceInDefaultVRF
+}
+
 // InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
 func InterfaceConfigVRFBeforeAddress(_ *ondatra.DUTDevice) bool {
 	return *interfaceConfigVRFBeforeAddress
@@ -356,6 +369,11 @@ func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
 	return *noMixOfTaggedAndUntaggedSubinterfaces
 }
 
+// SecondaryBackupPathTrafficFailover returns if device does not support secondary backup path traffic failover
+func SecondaryBackupPathTrafficFailover(_ *ondatra.DUTDevice) bool {
+	return *secondaryBackupPathTrafficFailover
+}
+
 // SkipPlqQualificationRateCheck returns if PLQ QualificationRateBytesPerSecond and ExpectedRateBytesPerSecond comparison should be skipped
 func SkipPlqQualificationRateCheck(_ *ondatra.DUTDevice) bool {
 	return *skipPlqQualificationRateCheck
@@ -380,7 +398,7 @@ var (
 	aggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
+	defaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
 		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Full OpenConfig compliant devices should be able to use any operator-assigned value.")
 
 	subinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
@@ -406,10 +424,10 @@ var (
 
 	deprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
-	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
+	explicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 
-	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
+	explicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
 	ExplicitP4RTNodeComponent = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
 
@@ -446,8 +464,6 @@ var (
 
 	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
-
-	gRIBIDelayedAckResponse = flag.Bool("deviation_gribi_delayed_ack_response", false, "Device requires delay in sending ack response")
 
 	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
@@ -524,6 +540,8 @@ var (
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
 	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
+
+	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
 
 	skipPlqQualificationRateCheck = flag.Bool("deviation_skip_plq_qualification_rate_check", false,
 		"Skip PLQ QualificationRateBytesPerSecond and ExpectedRateBytesPerSecond comparison if value is true, Default value is false.")
