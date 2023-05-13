@@ -129,14 +129,14 @@ func TestEstablish(t *testing.T) {
 	// Configure interfaces
 	dut := ondatra.DUT(t, "dut1")
 	dutPortName := dut.Port(t, "port1").Name()
-	intf1 := dutAttrs.NewOCInterface(dutPortName)
+	intf1 := dutAttrs.NewOCInterface(dutPortName, dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(intf1.GetName()).Config(), intf1)
 	if *deviations.RoutePolicyUnderNeighborAfiSafi {
 		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	ate := ondatra.DUT(t, "dut2")
 	atePortName := ate.Port(t, "port1").Name()
-	intf2 := ateAttrs.NewOCInterface(atePortName)
+	intf2 := ateAttrs.NewOCInterface(atePortName, dut)
 	gnmi.Replace(t, ate, gnmi.OC().Interface(intf2.GetName()).Config(), intf2)
 	if *deviations.RoutePolicyUnderNeighborAfiSafi {
 		configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
