@@ -27,7 +27,7 @@ jobs:
     - name: Lint protobufs
       run: |
         go install github.com/googleapis/api-linter/cmd/api-linter@latest
-        find . -name \*.proto -exec api-linter -I~/go/pkg/mod --disable-rule all --enable-rule core {} \+
+        find . -name \*.proto -exec api-linter -I$(go env GOPATH)/pkg/mod --disable-rule all --enable-rule core {} \+
     - name: Compile topology binding textprotos
       run: |
         fail=0
