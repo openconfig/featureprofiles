@@ -286,7 +286,7 @@ func configureSubinterfaceDUT(d *oc.Root, dutPort *ondatra.Port, index uint32, v
 
 	sipv4 := s.GetOrCreateIpv4()
 
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
 		sipv4.Enabled = ygot.Bool(true)
 	}
 

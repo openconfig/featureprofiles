@@ -155,7 +155,7 @@ func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint
 	}
 	// Add IPv4 stack.
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(me.IPv4)
