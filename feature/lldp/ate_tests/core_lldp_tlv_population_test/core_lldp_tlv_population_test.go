@@ -67,10 +67,10 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 			verifyNodeConfig(t, dut, dutPort, dutConf, test.lldpEnabled)
 			verifyNodeConfig(t, ate, atePort, ateConf, true)
 			if test.lldpEnabled {
-				verifyNodeTelemetry(t, dut, ate, dutPort, atePort, test.lldpEnabled)
-				verifyNodeTelemetry(t, ate, dut, atePort, dutPort, test.lldpEnabled)
+				verifyNodeTelemetry(t, dut, ate, dutPort, atePort, test.lldpEnabled, dut)
+				verifyNodeTelemetry(t, ate, dut, atePort, dutPort, test.lldpEnabled, dut)
 			} else {
-				verifyNodeTelemetry(t, dut, ate, dutPort, atePort, test.lldpEnabled)
+				verifyNodeTelemetry(t, dut, ate, dutPort, atePort, test.lldpEnabled, dut)
 			}
 		})
 	}
@@ -124,11 +124,11 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 }
 
 // verifyNodeTelemetry verifies the telemetry values from the node such as port LLDP neighbor info.
-func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, peerPort *ondatra.Port, lldpEnabled bool) {
+func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, peerPort *ondatra.Port, lldpEnabled bool, dut *ondatra.DUTDevice) {
 	interfacePath := gnmi.OC().Lldp().Interface(nodePort.Name())
 
 	// LLDP Disabled
-	if !*deviations.MissingValueForDefaults {
+	if !deviations.MissingValueForDefaults(dut) {
 		lldpTelemetry := gnmi.Get(t, node, gnmi.OC().Lldp().Enabled().State())
 		if lldpEnabled != lldpTelemetry {
 			t.Errorf("LLDP enabled telemetry got: %t, want: %t.", lldpTelemetry, lldpEnabled)

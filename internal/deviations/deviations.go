@@ -247,6 +247,11 @@ func MissingInterfacePhysicalChannel(_ *ondatra.DUTDevice) bool {
 	return *missingInterfacePhysicalChannel
 }
 
+// MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
+func MissingValueForDefaults(_ *ondatra.DUTDevice) bool {
+	return *missingValueForDefaults
+}
+
 // TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
 func TraceRouteL4ProtocolUDP(_ *ondatra.DUTDevice) bool {
 	return *traceRouteL4ProtocolUDP
@@ -399,7 +404,7 @@ var (
 
 	gRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
-	MissingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
+	missingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
 		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
 
 	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
