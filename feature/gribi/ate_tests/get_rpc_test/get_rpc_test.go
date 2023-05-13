@@ -325,13 +325,13 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// are returned, with no entry returned for 198.51.100.192/64.
 	dc := gnmi.OC()
 	niProto := dc.NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut))
 
 	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut))
 	gnmi.Replace(t, args.dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	ni := &oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(args.dut))}
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut))
 	staticRoute := static.GetOrCreateStatic(staticCIDR)
 	nextHop := staticRoute.GetOrCreateNextHop("0")
 	nextHop.NextHop = oc.UnionString(atePort2.IPv4)
