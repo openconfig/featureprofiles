@@ -160,7 +160,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 			t.Error(err)
 		}
 		if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
-			sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+			sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 			gnmi.Delete(t, dut, sp.Static(atePort2DummyIP.IPv4CIDR()).Config())
 			gnmi.Delete(t, dut, sp.Static(atePort3DummyIP.IPv4CIDR()).Config())
 		}
@@ -442,7 +442,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 			},
 		},
 	}
-	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	gnmi.Replace(t, dut, sp.Static(atePort2DummyIP.IPv4CIDR()).Config(), s2)
 	gnmi.Replace(t, dut, sp.Static(atePort3DummyIP.IPv4CIDR()).Config(), s3)
 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2, atePort2DummyIP.IPv4, pMAC))
