@@ -91,7 +91,7 @@ func TestMain(m *testing.M) {
 func TestEthernetPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp)
 	}
 	want := portSpeed[dp.Speed()]
@@ -121,7 +121,7 @@ func TestEthernetMacAddress(t *testing.T) {
 func TestInterfaceAdminStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp)
 	}
 	adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State())
@@ -134,7 +134,7 @@ func TestInterfaceAdminStatus(t *testing.T) {
 func TestInterfaceOperStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp)
 	}
 	operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
@@ -187,7 +187,7 @@ func TestInterfaceStatusChange(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			i.Type = ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			if *deviations.ExplicitPortSpeed {
+			if deviations.ExplicitPortSpeed(dut) {
 				fptest.SetPortSpeed(t, dp)
 			}
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedOperStatus)
@@ -206,9 +206,6 @@ func TestInterfaceStatusChange(t *testing.T) {
 
 func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.MissingInterfaceHardwarePort(dut) {
-		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
-	}
 	dp := dut.Port(t, "port1")
 
 	// Verify HardwarePort leaf is present under interface.
@@ -330,7 +327,7 @@ func TestQoSCounters(t *testing.T) {
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
 	}}
-	if !*deviations.QOSDroppedOctets {
+	if !deviations.QOSDroppedOctets(dut) {
 		cases = append(cases,
 			struct {
 				desc     string
@@ -449,6 +446,11 @@ func TestComponentParent(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+
+			if len(compList[tc.desc]) == 0 && dut.Model() == "DCS-7280CR3K-32D4" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
+			}
+
 			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
 			if len(compList[tc.desc]) == 0 {
 				t.Fatalf("Get component list for %q: got 0, want > 0", dut.Model())
@@ -496,10 +498,20 @@ func TestSoftwareVersion(t *testing.T) {
 		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(os).Parent().State())
 		if v, ok := parent.Val(); ok {
 			got := gnmi.Get(t, dut, gnmi.OC().Component(v).Type().State())
-			if got == supervisorType {
-				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+
+			// Arista_7280 OC component EOS has parent type Chassis
+			if dut.Model() == "DCS-7280CR3K-32D4" {
+				if got == chassisType {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, chassisType)
+				}
 			} else {
-				t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+				if got == supervisorType {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+				}
 			}
 		} else {
 			t.Errorf("Parent for the component %v was not found", os)
@@ -534,6 +546,10 @@ func TestCPU(t *testing.T) {
 
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	if dut.Model() == "DCS-7280CR3K-32D4" {
+		t.Skipf("Test is skipped due to hardware platform compatibility")
+	}
 
 	cards := components.FindComponentsByType(t, dut, supervisorType)
 	t.Logf("Found card list: %v", cards)
@@ -689,7 +705,7 @@ func TestP4rtInterfaceID(t *testing.T) {
 			i.Id = ygot.Uint32(tc.portID)
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			if *deviations.ExplicitPortSpeed {
+			if deviations.ExplicitPortSpeed(dut) {
 				fptest.SetPortSpeed(t, dp)
 			}
 			// Check path /interfaces/interface/state/id.
@@ -878,13 +894,13 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 

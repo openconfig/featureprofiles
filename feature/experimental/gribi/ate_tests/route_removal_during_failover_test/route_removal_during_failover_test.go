@@ -151,14 +151,14 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 	t.Helper()
 
 	fluentNhgVar := fluent.NextHopGroupEntry()
-	fluentNhgVar.WithNetworkInstance(*deviations.DefaultNetworkInstance).WithID(uint64(nhgID)).
+	fluentNhgVar.WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).WithID(uint64(nhgID)).
 		WithElectionID(args.electionID.Low, args.electionID.High)
 
 	for i := range nextHops {
 		index := uint64(i + 1)
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopEntry().
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithIndex(index).
 				WithIPAddress(nextHops[i]).
 				WithElectionID(args.electionID.Low, args.electionID.High))
@@ -172,7 +172,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 		args.client.Modify().AddEntry(t,
 			fluent.IPv4Entry().
 				WithPrefix(virtualVIPs[ip]+"/32").
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithNextHopGroup(uint64(nhgID)).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
@@ -193,7 +193,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 	}
 
 	gr, err := args.client.Get().
-		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 		WithAFT(fluent.IPv4).
 		Send()
 	if err != nil {
@@ -203,7 +203,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 	for ip := range virtualVIPs {
 		chk.GetResponseHasEntries(t, gr,
 			fluent.IPv4Entry().
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithNextHopGroup(uint64(nhgID)).
 				WithPrefix(virtualVIPs[ip]+"/32"),
 		)
@@ -241,36 +241,36 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 	nextHopCount := 63 // nextHopCount specifies number of nextHop IPs needed.
 	for i := 0; i <= nextHopCount; i++ {
 		vlanID := uint16(i)
-		if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 			vlanID = uint16(i) + 1
 		}
 		name := fmt.Sprintf(`dst%d`, i)
 		Index := uint32(i)
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
-		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4)
+		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4, dut)
 		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
 		nextHops = append(nextHops, ateIPv4)
 	}
 	configureInterfaceDUT(t, dutPort, d, "dst")
 	pushConfig(t, dut, dutPort, d)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		intf := d.GetOrCreateInterface(dutPort.Name())
 		for i := 0; i <= nextHopCount; i++ {
-			fptest.AssignToNetworkInstance(t, dut, intf.GetName(), *deviations.DefaultNetworkInstance, uint32(i))
+			fptest.AssignToNetworkInstance(t, dut, intf.GetName(), deviations.DefaultNetworkInstance(dut), uint32(i))
 		}
 	}
 	return nextHops
 }
 
 // configureSubinterfaceDUT configures a single DUT layer 3 sub-interface.
-func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string) {
+func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
-		if *deviations.DeprecatedVlanID {
+		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
@@ -460,7 +460,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	ap1 := ate.Port(t, "port1")
 	top := ate.Topology().New()
 	// configure DUT port#1 - source port.
-	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4)
+	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4, dut)
 	configureInterfaceDUT(t, dp1, d, "src")
 	configureATE(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4CIDR())
 	pushConfig(t, dut, dp1, d)
@@ -469,15 +469,15 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	// Configure 64 subinterfaces on DUT-ATE- PORT#2.
 	subIntfIPs := generateSubIntfPair(t, dut, dp2, ate, ap2, top, d)
 
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
 	}
 
 	top.Push(t).StartProtocols(t)
@@ -526,7 +526,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	pushDefaultEntries(t, args, subIntfIPs, virtualIPs)
 
 	gr, err := args.client.Get().
-		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithAFT(fluent.IPv4).
 		Send()
 	if err != nil {
@@ -563,13 +563,13 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 
-	entriesBefore := checkNIHasNEntries(ctx, client, *deviations.DefaultNetworkInstance, t)
+	entriesBefore := checkNIHasNEntries(ctx, client, deviations.DefaultNetworkInstance(dut), t)
 
 	// Concurrently run switchover and gribi route flush.
 	var flushRes, wantFlushRes *gpb.FlushResponse
 	t.Log("Execute gRIBi flush and master switchover concurrently.")
 	go func(msg string) {
-		flushRes, err := gribi.Flush(client, eID, *deviations.DefaultNetworkInstance)
+		flushRes, err := gribi.Flush(client, eID, deviations.DefaultNetworkInstance(dut))
 		if err != nil {
 			t.Logf("Unexpected error from flush, got: %v, %v", err, flushRes)
 		}
@@ -632,7 +632,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	t.Log("Compare route entries after switchover based on flush response.")
 
 	gr, err = args.client.Get().
-		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithAFT(fluent.IPv4).
 		Send()
 	if err != nil {
@@ -653,9 +653,6 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	gnoiClient = dut.RawAPIs().GNOI().New(t) // reconnect gnoi connection after switchover
 	coreFilecheck(t, dut, gnoiClient, sysConfigTime)
 
-	if *deviations.GRIBIDelayedAckResponse {
-		time.Sleep(3 * time.Minute)
-	}
 	t.Log("Re-inject routes from ipBlock1 in default VRF with NHGID: #1.")
 	pushDefaultEntries(t, args, subIntfIPs, virtualIPs)
 

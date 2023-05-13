@@ -201,18 +201,18 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 		ocName := dut.Port(t, a.Name).Name()
 		gnmi.Replace(t, dut, gnmi.OC().Interface(ocName).Config(), a.NewOCInterface(ocName))
-		if *deviations.ExplicitInterfaceInDefaultVRF {
-			fptest.AssignToNetworkInstance(t, dut, ocName, *deviations.DefaultNetworkInstance, 0)
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, ocName, deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
-	dutProto := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+	dutProto := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	key := oc.NetworkInstance_Protocol_Key{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 		Name:       "BGP",
 	}
 	niOC := &oc.NetworkInstance{
-		Name: deviations.DefaultNetworkInstance,
+		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
 		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 		Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
 			key: {
@@ -229,7 +229,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	for neighbor := range d.bgpOC.Neighbor {
-		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
 			Neighbor(neighbor).
@@ -275,73 +275,54 @@ type OTGBGPPrefix struct {
 	PrefixLength uint32
 }
 
-// TODO: Use this function below after is fixed in OTG https://github.com/open-traffic-generator/ixia-c-gnmi-server/issues/29
-
-// func verifyOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) {
-// 	lastValue, ok := otg.Telemetry().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().Watch(
-// 		t,
-// 		10*time.Second,
-// 		func(bgpPrefix *otgtelemetry.QualifiedBgpPeer_UnicastIpv4Prefix) bool {
-// 			if !bgpPrefix.IsPresent() {
-// 				t.Log("Any peer not present")
-// 				return false
-// 			}
-// 			val := bgpPrefix.Val(t)
-// 			addr, plen := val.GetAddress(), val.GetPrefixLength()
-// 			t.Logf("Any peer got: %s/%d", addr, plen)
-// 			return addr == expectedOTGBGPPrefix.Address && plen == expectedOTGBGPPrefix.PrefixLength
-// 		}).Await(t)
-
-// 	if !ok {
-// 		t.Logf("Last value was: %v", lastValue)
-// 		actPrefixes := otg.Telemetry().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().Get(t)
-// 		for _, actPrefix := range actPrefixes {
-// 			t.Logf("Peer: %v, Address: %v, Prefix Length: %v", expectedOTGBGPPrefix.PeerName, actPrefix.GetAddress(), actPrefix.GetPrefixLength())
-// 		}
-// 		t.Errorf("Given BGP IPv4 Prefix is not formed %v", expectedOTGBGPPrefix)
-// 	}
-// }
-
 func checkOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) bool {
-	bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().State())
+	t.Helper()
+	_, ok := gnmi.WatchAll(t,
+		otg,
+		gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().State(),
+		time.Minute,
+		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+			_, present := v.Val()
+			return present
+		}).Await(t)
+
 	found := false
-	for _, bgpPrefix := range bgpPrefixes {
-		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
-			bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
-			found = true
-			break
+	if ok {
+		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().State())
+		for _, bgpPrefix := range bgpPrefixes {
+			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
+				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
+				found = true
+				break
+			}
 		}
 	}
 	return found
 }
 
 func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) bool {
-	bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv6PrefixAny().State())
+	t.Helper()
+	_, ok := gnmi.WatchAll(t,
+		otg,
+		gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv6PrefixAny().State(),
+		time.Minute,
+		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+			_, present := v.Val()
+			return present
+		}).Await(t)
+
 	found := false
-	for _, bgpPrefix := range bgpPrefixes {
-		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
-			bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
-			found = true
-			break
+	if ok {
+		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv6PrefixAny().State())
+		for _, bgpPrefix := range bgpPrefixes {
+			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
+				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
+				found = true
+				break
+			}
 		}
 	}
 	return found
-}
-
-func waitFor(fn func() bool, t testing.TB) {
-	start := time.Now()
-	for {
-		done := fn()
-		if done {
-			t.Logf("Expected BGP Prefix received")
-			break
-		}
-		if time.Since(start) > time.Minute {
-			t.Errorf("Timeout while waiting for expected stats...")
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
 }
 
 func TestBGP(t *testing.T) {
@@ -562,7 +543,7 @@ func TestBGP(t *testing.T) {
 
 			dut := ondatra.DUT(t, "dut")
 			t.Log("Configure Network Instance")
-			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 			tc.dut.Configure(t, dut)
@@ -589,15 +570,18 @@ func TestBGP(t *testing.T) {
 					} else {
 						expectedOTGBGPPrefix = OTGBGPPrefix{PeerName: "port2.dev.BGP6.peer", Address: addr, PrefixLength: uint32(prefixLen)}
 					}
-					waitFor(func() bool { return checkOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) }, t)
-					// verifyOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix)
+					if !checkOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) {
+						t.Errorf("Prefix %v is not being learned", expectedOTGBGPPrefix.Address)
+					}
 				}
 				if prefix.v6 != "" {
 					t.Logf("Checking for BGP Prefix %v", prefix.v6)
 					addr := strings.Split(prefix.v6, "/")[0]
 					prefixLen, _ := strconv.Atoi(strings.Split(prefix.v6, "/")[1])
 					expectedOTGBGPPrefix = OTGBGPPrefix{PeerName: "port2.dev.BGP6.peer", Address: addr, PrefixLength: uint32(prefixLen)}
-					waitFor(func() bool { return checkOTGBGP6Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) }, t)
+					if !checkOTGBGP6Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) {
+						t.Errorf("Prefix %v is not being learned", expectedOTGBGPPrefix.Address)
+					}
 				}
 			}
 		})

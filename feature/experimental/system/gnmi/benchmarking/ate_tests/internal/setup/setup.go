@@ -116,7 +116,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	buildPortIPs(dut)
 
 	// Network instance and BGP configs.
-	netInstance := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
 	bgp := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
@@ -148,7 +148,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 	// ISIS configs.
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
-	if !*deviations.ISISprotocolEnabledNotRequired {
+	if !deviations.ISISprotocolEnabledNotRequired(dut) {
 		prot.Enabled = ygot.Bool(true)
 	}
 	isis := prot.GetOrCreateIsis()
@@ -197,7 +197,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		a4 := s4.GetOrCreateAddress(DUTIPList[dp.ID()].String())
 		a4.PrefixLength = ygot.Uint8(plenIPv4)
 
-		if *deviations.ExplicitPortSpeed {
+		if deviations.ExplicitPortSpeed(dut) {
 			i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dp)
 		}
 
@@ -216,7 +216,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 		// ISIS configs.
 		intfName := dp.Name()
-		if *deviations.ExplicitInterfaceInDefaultVRF {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			intfName = dp.Name() + ".0"
 		}
 		isisIntf := isis.GetOrCreateInterface(intfName)
@@ -241,7 +241,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
 
 		// Configure ISIS AfiSafi enable flag at the global level
-		if *deviations.MissingIsisInterfaceAfiSafiEnable {
+		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
 			isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 		} else {
 			isisIntfLevelAfi.Enabled = ygot.Bool(true)
@@ -250,9 +250,9 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	p := gnmi.OC()
 	fptest.LogQuery(t, "DUT", p.Config(), d)
 
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		for _, dp := range dut.Ports() {
-			ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+			ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 			niIntf, _ := ni.NewInterface(dp.Name())
 			niIntf.Interface = ygot.String(dp.Name())
 			niIntf.Subinterface = ygot.Uint32(0)
@@ -321,10 +321,10 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 // VerifyISISTelemetry function to used verify ISIS telemetry on DUT
 // using OC isis telemetry path.
 func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).Isis()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).Isis()
 	for _, dp := range dut.Ports() {
 		intfName := dp.Name()
-		if *deviations.ExplicitInterfaceInDefaultVRF {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			intfName = dp.Name() + ".0"
 		}
 		nbrPath := statePath.Interface(intfName)
@@ -343,7 +343,7 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // VerifyBgpTelemetry function is to verify BGP telemetry on DUT using
 // BGP OC telemetry path.
 func VerifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, peerAddr := range ATEIPList {
 		nbrIP := peerAddr.String()
 		nbrPath := statePath.Neighbor(nbrIP)
