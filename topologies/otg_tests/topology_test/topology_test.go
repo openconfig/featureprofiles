@@ -71,7 +71,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-func configInterface(name, desc, ipv4 string, prefixlen uint8) *oc.Interface {
+func configInterface(name, desc, ipv4 string, prefixlen uint8, dut *ondatra.DUTDevice) *oc.Interface {
 	i := &oc.Interface{}
 	i.Name = ygot.String(name)
 	i.Description = ygot.String(desc)
@@ -108,7 +108,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	sortedDutPorts := sortPorts(dut.Ports())
 	for i, dp := range sortedDutPorts {
 		di := d.Interface(dp.Name())
-		in := configInterface(dp.Name(), dp.String(), dutPortIP(i), plen)
+		in := configInterface(dp.Name(), dp.String(), dutPortIP(i), plen, dut)
 		fptest.LogQuery(t, fmt.Sprintf("%s to Replace()", dp), di.Config(), in)
 		if ok := fptest.NonFatal(t, func(t testing.TB) { gnmi.Replace(t, dut, di.Config(), in) }); !ok {
 			badReplace = append(badReplace, dp.Name())
