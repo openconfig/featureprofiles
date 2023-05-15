@@ -89,8 +89,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 
 			gnmi.Replace(t, dut, ntpPath.Config(), ntp)
 
-			var ntpState *oc.System_Ntp
-			ntpState = gnmi.Get(t, dut, ntpPath.State())
+			ntpState := gnmi.Get(t, dut, ntpPath.State())
 			for _, address := range testCase.addresses {
 				ntpServer := ntpState.GetServer(address)
 				if ntpServer == nil {
