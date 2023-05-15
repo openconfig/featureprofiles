@@ -42,22 +42,6 @@ case $1 in
     ;;
 esac
 
-function metadata_testbed() {
-  patterns=("TESTBED_DUT" "TESTBED_DUT_DUT_4LINKS" "TESTBED_DUT_ATE_2LINKS" "TESTBED_DUT_ATE_4LINKS")
-  declare -A testbed
-  testbed["TESTBED_DUT"]="/tmp/workspace/topologies/dut.testbed"
-  testbed["TESTBED_DUT_DUT_4LINKS"]="/tmp/workspace/topologies/dutdut.testbed"
-  testbed["TESTBED_DUT_ATE_2LINKS"]="/tmp/workspace/topologies/atedut_2.testbed"
-  testbed["TESTBED_DUT_ATE_4LINKS"]="/tmp/workspace/topologies/atedut_4.testbed"
-  for p in "${patterns[@]}"; do
-    if grep -q "testbed.*${p}$" "${2}"/metadata.textproto; then
-      echo "${testbed[${p}]}"
-      return
-    fi
-  done
-  echo "UNKNOWN"
-}
-
 function metadata_topology() {
   patterns=("TESTBED_DUT" "TESTBED_DUT_DUT_4LINKS" "TESTBED_DUT_ATE_2LINKS" "TESTBED_DUT_ATE_4LINKS")
   declare -A topology
@@ -91,7 +75,6 @@ cp -r "$PWD"/topologies/kne /tmp
 for dut_test in $2; do
   test_path=$(echo $dut_test | awk '{split($0,a,",");print a[1]}')
   test_badge=$(echo $dut_test | awk '{split($0,a,",");print a[2]}')
-  testbed=$(metadata_testbed "$1" "$test_path")
   topology=$(metadata_topology "$1" "$test_path")
   sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/kne/"$topology"
   sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/kne/"$topology"
@@ -102,7 +85,7 @@ for dut_test in $2; do
   gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"$test_badge\",\"status\":\"environment setup\"}"
   kne create /tmp/kne/"$topology"
   gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"$test_badge\",\"status\":\"running\"}"
-  go test -v ./"$test_path"/... -timeout 0 -testbed "$testbed" \
+  go test -v ./"$test_path"/... -timeout 0 \
   -kne-topo /tmp/kne/"$topology" \
   -kne-skip-reset \
   -vendor_creds "$vendor_creds" \

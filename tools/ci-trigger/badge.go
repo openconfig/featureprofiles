@@ -49,7 +49,11 @@ var badgeTpl = template.Must(template.New("badgeTpl").Parse(`<svg xmlns='http://
 </g>
 </svg>`))
 
-func svgBadge(label string, message string) (*bytes.Buffer, error) {
+// svgBadge returns an SVG image with the label identifying the purpose of the
+// badge and the message providing any details on the badge status.  The
+// messages "success" and "failure" are given unique color codes, while other
+// messages are displayed in a neutral color.
+func svgBadge(label, message string) (*bytes.Buffer, error) {
 	badge := struct {
 		Color         string
 		Label         string

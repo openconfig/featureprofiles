@@ -75,7 +75,7 @@ func pullSubscription() {
 	ctx := context.Background()
 	client, err := pubsub.NewClient(ctx, gcpProjectID)
 	if err != nil {
-		panic(err)
+		glog.Fatalf("Failed creating pubsub client: %s", err)
 	}
 	defer client.Close()
 
@@ -95,6 +95,6 @@ func pullSubscription() {
 		}
 	})
 	if err != nil {
-		panic(err)
+		glog.Fatalf("Failed receiving pubsub message: %s", err)
 	}
 }

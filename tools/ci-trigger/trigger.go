@@ -98,10 +98,8 @@ func (t *trigger) ProcessIssueComment(ctx context.Context, e *github.IssueCommen
 	if err != nil {
 		return fmt.Errorf("identify modified tests: %w", err)
 	}
-	err = pr.PopulateObjectMetadata(ctx, t.storClient)
-	if err != nil {
-		return fmt.Errorf("fetch object metadata: %w", err)
-	}
+
+	pr.PopulateObjectMetadata(ctx, t.storClient)
 
 	for keyword, deviceTypes := range triggerKeywords {
 		if strings.Contains(strings.ToLower(e.GetComment().GetBody()), keyword) {

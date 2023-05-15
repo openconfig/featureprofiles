@@ -109,9 +109,8 @@ func (p *pullRequest) CreateBuild(ctx context.Context, buildClient *cloudbuild.S
 
 // IdentifyModifiedTests gathers all of the tests that have been modified in the pull request.
 func (p *pullRequest) IdentifyModifiedTests() error {
-	var err error
-
 	if p.repo == nil {
+		var err error
 		p.repo, err = setupGitClone(p.localPath, p.CloneURL, p.HeadSHA)
 		if err != nil {
 			return err
@@ -129,16 +128,11 @@ func (p *pullRequest) IdentifyModifiedTests() error {
 	}
 	modifiedTests := modifiedFunctionalTests(ft, mf)
 
-	err = p.populateTestDetail(modifiedTests)
-	if err != nil {
-		return nil
-	}
-
-	return nil
+	return p.populateTestDetail(modifiedTests)
 }
 
 // PopulateObjectMetadata gathers the metadata from Object Store for any tests that exist.
-func (p *pullRequest) PopulateObjectMetadata(ctx context.Context, storClient *storage.Client) error {
+func (p *pullRequest) PopulateObjectMetadata(ctx context.Context, storClient *storage.Client) {
 	for i, virtualDevice := range p.Virtual {
 		for j, test := range virtualDevice.Tests {
 			objAttrs, err := storClient.Bucket(gcpBucket).Object(test.BadgePath).Attrs(ctx)
@@ -157,8 +151,6 @@ func (p *pullRequest) PopulateObjectMetadata(ctx context.Context, storClient *st
 			}
 		}
 	}
-
-	return nil
 }
 
 // UpdateBadges creates or updates the status of all badges in Google

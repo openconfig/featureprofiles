@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ci-trigger is a Google Cloud Run container that manages FeatureProfiles CI
+// events.  The Cloud Run container uses the GitHub API to inspect pull requests
+// and identify changes.  If a pull request changes Ondatra tests, an authorized
+// user can comment in the pull request to cause CI Trigger to launch a Google
+// Cloud Build task to validate tests on various virtual/hardware platforms.
 package main
 
 import (

@@ -66,7 +66,7 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 	},
 	"/fptest ceos":  {{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}},
-	"/fptest 8000E": {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
+	"/fptest 8000e": {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
 	"/fptest xrd":   {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
 	"/fptest cptx":  {{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}},
 	"/fptest srl":   {{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}},

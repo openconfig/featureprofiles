@@ -39,7 +39,7 @@ In the Featureprofiles repository settings, create a [webhook](https://github.co
 
 #### Robot User Configuration
 
-Create a [fine-grained personal access token](https://github.com/settings/tokens?type=beta) on the GitHub bot account.  Set the Resource owner to "openconfig" and select the "featureprofiles" repository.  The user needs Read and Write access to "Pull Requests".  It also needs Read-Only access to orgainzation "Members".  The access token generated will be used in Cloud Secrets as the API Secret.
+Create a [fine-grained personal access token](https://github.com/settings/tokens?type=beta) on the GitHub bot account.  Set the Resource owner to "openconfig" and select the "featureprofiles" repository.  The user needs Read and Write access to "Pull Requests".  It also needs Read-Only access to organization "Members".  The access token generated will be used in Cloud Secrets as the API Secret.
 
 ### Google Cloud
 
@@ -126,4 +126,4 @@ umask 0022
 go run github.com/openconfig/featureprofiles/tools/ci-trigger
 ```
 
-You may need to customize the config.go files based on your environment.  You will also need to have some form of [Application Default Credentails](https://cloud.google.com/docs/authentication/application-default-credentials) available.
+You may need to customize the config.go files based on your environment.  You will also need to have some form of [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) available.
