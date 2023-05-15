@@ -69,6 +69,11 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// OmitL2MTU returns if Device does not support setting the L2 MTU.
+func OmitL2MTU(_ *ondatra.DUTDevice) bool {
+	return *omitL2MTU
+}
+
 // GRIBIMACOverrideStaticARPStaticRoute returns whether the device needs to configure Static ARP + Static Route to override setting MAC address in Next Hop.
 func GRIBIMACOverrideStaticARPStaticRoute(*ondatra.DUTDevice) bool {
 	return *gribiMACOverrideStaticARPStaticRoute
@@ -272,6 +277,12 @@ func TraceRouteFragmentation(_ *ondatra.DUTDevice) bool {
 	return *traceRouteFragmentation
 }
 
+// LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
+// expect neighbours are seen when lldp is disabled globally but enabled on interface
+func LLDPInterfaceConfigOverrideGlobal(_ *ondatra.DUTDevice) bool {
+	return *lldpInterfaceConfigOverrideGlobal
+}
+
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
 // so the test will skip checking them.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
@@ -409,7 +420,7 @@ var (
 	subinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
 		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	OmitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
+	omitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
 		"Device does not support setting the L2 MTU, so omit it.  OpenConfig allows a device to enforce that L2 MTU, which has a default value of 1514, must be set to a higher value than L3 MTU, so a full OpenConfig compliant device may fail with the deviation.")
 
 	gRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
@@ -470,7 +481,7 @@ var (
 	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
 
-	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
+	lldpInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
 
 	missingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
