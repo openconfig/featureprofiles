@@ -25,8 +25,8 @@ import (
 )
 
 type badgeState struct {
-	Path   string
-	Status string
+	path   string
+	status string
 }
 
 // updateBadgeStatus updates the badgeState.Path in the gcpBucket
@@ -37,32 +37,30 @@ func updateBadgeStatus(ctx context.Context, bs *badgeState) error {
 	if err != nil {
 		return err
 	}
-	objAttrs, err := storClient.Bucket(gcpBucket).Object(bs.Path).Attrs(ctx)
+	objAttrs, err := storClient.Bucket(gcpBucket).Object(bs.path).Attrs(ctx)
 	if err != nil {
 		return err
 	}
 
 	label, ok := objAttrs.Metadata["label"]
 	if !ok {
-		return fmt.Errorf("object %s missing metadata label", bs.Path)
+		return fmt.Errorf("object %s missing metadata label", bs.path)
 	}
 
-	buf, err := svgBadge(label, bs.Status)
+	buf, err := svgBadge(label, bs.status)
 	if err != nil {
 		return err
 	}
 
-	obj := storClient.Bucket(gcpBucket).Object(bs.Path).NewWriter(ctx)
+	obj := storClient.Bucket(gcpBucket).Object(bs.path).NewWriter(ctx)
 	obj.ContentType = objAttrs.ContentType
 	obj.CacheControl = objAttrs.CacheControl
 	obj.Metadata = objAttrs.Metadata
-	obj.Metadata["status"] = bs.Status
-	_, err = buf.WriteTo(obj)
-	if err != nil {
+	obj.Metadata["status"] = bs.status
+	if _, err := buf.WriteTo(obj); err != nil {
 		return err
 	}
-	err = obj.Close()
-	if err != nil {
+	if err := obj.Close(); err != nil {
 		return err
 	}
 
@@ -83,13 +81,11 @@ func pullSubscription() {
 	err = sub.Receive(ctx, func(_ context.Context, msg *pubsub.Message) {
 		msg.Ack()
 		bs := &badgeState{}
-		err := json.Unmarshal(msg.Data, bs)
-		if err != nil {
+		if err := json.Unmarshal(msg.Data, bs); err != nil {
 			glog.Errorf("Failed to decode subscription message %q: %s", msg.Data, err)
 			return
 		}
-		err = updateBadgeStatus(ctx, bs)
-		if err != nil {
+		if err := updateBadgeStatus(ctx, bs); err != nil {
 			glog.Errorf("Failed to update badge state: %s", err)
 			return
 		}

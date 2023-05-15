@@ -49,14 +49,14 @@ func main() {
 	}
 }
 
-func ghWebhook(w http.ResponseWriter, r *http.Request) {
+func ghWebhook(_ http.ResponseWriter, r *http.Request) {
 	t, err := newTrigger(r.Context())
 	if err != nil {
 		glog.Errorf("Setup error: %s", err)
 		return
 	}
 
-	event, err := t.GithubEvent(r)
+	event, err := t.githubEvent(r)
 	if err != nil {
 		glog.Errorf("GithubEvent error: %s", err)
 		return
@@ -65,14 +65,14 @@ func ghWebhook(w http.ResponseWriter, r *http.Request) {
 	switch event := event.(type) {
 	case *github.PullRequestEvent:
 		if event.GetAction() == "opened" || event.GetAction() == "synchronize" {
-			if err := t.ProcessPullRequest(r.Context(), event); err != nil {
+			if err := t.processPullRequest(r.Context(), event); err != nil {
 				glog.Errorf("ProcessPullRequest error: %s", err)
 				return
 			}
 		}
 	case *github.IssueCommentEvent:
 		if event.GetAction() == "created" {
-			if err := t.ProcessIssueComment(r.Context(), event); err != nil {
+			if err := t.processIssueComment(r.Context(), event); err != nil {
 				glog.Errorf("ProcessIssueComment error: %s", err)
 				return
 			}

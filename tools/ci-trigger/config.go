@@ -23,30 +23,32 @@ import (
 	opb "github.com/openconfig/ondatra/proto"
 )
 
-// githubProjectOwner is the path the repository exists under.  This
-// must be a GitHub organization for authorization to work.
-const githubProjectOwner = "openconfig"
+const (
+	// githubProjectOwner is the path the repository exists under.  This
+	// must be a GitHub organization for authorization to work.
+	githubProjectOwner = "openconfig"
 
-// githubProjectRepo is the GitHub repository to work with.
-const githubProjectRepo = "featureprofiles"
+	// githubProjectRepo is the GitHub repository to work with.
+	githubProjectRepo = "featureprofiles"
 
-// githubBotName is the GitHub username for API-generated issue updates.
-const githubBotName = "OpenConfigBot"
+	// githubBotName is the GitHub username for API-generated issue updates.
+	githubBotName = "OpenConfigBot"
 
-// gcpProjectID is the ID for Cloud Build and Cloud Storage buckets
-const gcpProjectID = "disco-idea-817"
+	// gcpProjectID is the ID for Cloud Build and Cloud Storage buckets
+	gcpProjectID = "disco-idea-817"
 
-// gcpCloudBuildBucketName is the storage bucket containing Cloud Build source code.
-const gcpCloudBuildBucketName = gcpProjectID + "_cloudbuild"
+	// gcpCloudBuildBucketName is the storage bucket containing Cloud Build source code.
+	gcpCloudBuildBucketName = gcpProjectID + "_cloudbuild"
 
-// gcpBucket is the object storage bucket name for badges and logs
-const gcpBucket = "featureprofiles-ci"
+	// gcpBucket is the object storage bucket name for badges and logs
+	gcpBucket = "featureprofiles-ci"
 
-// gcpBucketPrefix is the prefix directory name for all objects stored in the gcpBucket.
-const gcpBucketPrefix = "badges"
+	// gcpBucketPrefix is the prefix directory name for all objects stored in the gcpBucket.
+	gcpBucketPrefix = "badges"
 
-// gcpBadgeTopic is the name of the pubsub topic in gcpProjectID for receiving badge status updates.
-const gcpBadgeTopic = "featureprofiles-badge-status"
+	// gcpBadgeTopic is the name of the pubsub topic in gcpProjectID for receiving badge status updates.
+	gcpBadgeTopic = "featureprofiles-badge-status"
+)
 
 // authorizedTeams is the list of GitHub organization teams authorized to launch Cloud Build jobs.
 var authorizedTeams = []string{

@@ -38,11 +38,12 @@ import (
 
 type pullRequest struct {
 	ID       int
-	CloneURL string
 	HeadSHA  string
-	BaseSHA  string
 	Virtual  []device
 	Physical []device
+
+	baseSHA  string
+	cloneURL string
 
 	repo      *git.Repository
 	localFS   fs.FS
@@ -76,8 +77,8 @@ func (d *deviceType) String() string {
 	return d.Vendor.String() + " " + d.HardwareModel
 }
 
-// CreateBuild creates a GCB build for each of the deviceTypes.
-func (p *pullRequest) CreateBuild(ctx context.Context, buildClient *cloudbuild.Service, storClient *storage.Client, devices []deviceType) error {
+// createBuild creates a GCB build for each of the deviceTypes.
+func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.Service, storClient *storage.Client, devices []deviceType) error {
 	for _, d := range devices {
 		for i, virtualDevice := range p.Virtual {
 			if virtualDevice.Type == d {
@@ -91,7 +92,7 @@ func (p *pullRequest) CreateBuild(ctx context.Context, buildClient *cloudbuild.S
 					continue
 				}
 				cb := newCloudBuild(p.localFS, buildClient, storClient, virtualDevice)
-				jobID, logURL, err := cb.SubmitBuild(ctx)
+				jobID, logURL, err := cb.submitBuild(ctx)
 				if err != nil {
 					return fmt.Errorf("error creating CloudBuild job for PR%d: %w", p.ID, err)
 				}
@@ -107,11 +108,11 @@ func (p *pullRequest) CreateBuild(ctx context.Context, buildClient *cloudbuild.S
 	return nil
 }
 
-// IdentifyModifiedTests gathers all of the tests that have been modified in the pull request.
-func (p *pullRequest) IdentifyModifiedTests() error {
+// identifyModifiedTests gathers all of the tests that have been modified in the pull request.
+func (p *pullRequest) identifyModifiedTests() error {
 	if p.repo == nil {
 		var err error
-		p.repo, err = setupGitClone(p.localPath, p.CloneURL, p.HeadSHA)
+		p.repo, err = setupGitClone(p.localPath, p.cloneURL, p.HeadSHA)
 		if err != nil {
 			return err
 		}
@@ -122,7 +123,7 @@ func (p *pullRequest) IdentifyModifiedTests() error {
 		return err
 	}
 
-	mf, err := modifiedFiles(p.repo, p.HeadSHA, p.BaseSHA)
+	mf, err := modifiedFiles(p.repo, p.HeadSHA, p.baseSHA)
 	if err != nil {
 		return err
 	}
@@ -131,8 +132,8 @@ func (p *pullRequest) IdentifyModifiedTests() error {
 	return p.populateTestDetail(modifiedTests)
 }
 
-// PopulateObjectMetadata gathers the metadata from Object Store for any tests that exist.
-func (p *pullRequest) PopulateObjectMetadata(ctx context.Context, storClient *storage.Client) {
+// populateObjectMetadata gathers the metadata from Object Store for any tests that exist.
+func (p *pullRequest) populateObjectMetadata(ctx context.Context, storClient *storage.Client) {
 	for i, virtualDevice := range p.Virtual {
 		for j, test := range virtualDevice.Tests {
 			objAttrs, err := storClient.Bucket(gcpBucket).Object(test.BadgePath).Attrs(ctx)
@@ -153,9 +154,9 @@ func (p *pullRequest) PopulateObjectMetadata(ctx context.Context, storClient *st
 	}
 }
 
-// UpdateBadges creates or updates the status of all badges in Google
+// updateBadges creates or updates the status of all badges in Google
 // Cloud Storage to reflect the current status of the pullRequest.
-func (p *pullRequest) UpdateBadges(ctx context.Context, storClient *storage.Client) error {
+func (p *pullRequest) updateBadges(ctx context.Context, storClient *storage.Client) error {
 	var allDevices []device
 	allDevices = append(allDevices, p.Physical...)
 	allDevices = append(allDevices, p.Virtual...)
@@ -174,12 +175,10 @@ func (p *pullRequest) UpdateBadges(ctx context.Context, storClient *storage.Clie
 				"cloudBuild":       device.CloudBuildID,
 				"cloudBuildLogURL": device.CloudBuildLogURL,
 			}
-			_, err = buf.WriteTo(obj)
-			if err != nil {
+			if _, err := buf.WriteTo(obj); err != nil {
 				return err
 			}
-			err = obj.Close()
-			if err != nil {
+			if err := obj.Close(); err != nil {
 				return err
 			}
 		}
@@ -188,13 +187,12 @@ func (p *pullRequest) UpdateBadges(ctx context.Context, storClient *storage.Clie
 	return nil
 }
 
-// UpdateGitHub adds or updates a comment to the GitHub pull request with the
+// updateGitHub adds or updates a comment to the GitHub pull request with the
 // current status of all tests.
-func (p *pullRequest) UpdateGitHub(ctx context.Context, githubClient *github.Client) error {
+func (p *pullRequest) updateGitHub(ctx context.Context, githubClient *github.Client) error {
 	var buf bytes.Buffer
 
-	err := commentTpl.Execute(&buf, p)
-	if err != nil {
+	if err := commentTpl.Execute(&buf, p); err != nil {
 		return err
 	}
 	comment := &github.IssueComment{
@@ -317,9 +315,9 @@ func modifiedFunctionalTests(functionalTests []string, modifiedFiles []string) [
 func newPullRequest(id int, cloneURL string, headSHA string, baseSHA string, tmpDir string) *pullRequest {
 	return &pullRequest{
 		ID:        id,
-		CloneURL:  cloneURL,
 		HeadSHA:   headSHA,
-		BaseSHA:   baseSHA,
+		baseSHA:   baseSHA,
+		cloneURL:  cloneURL,
 		localPath: tmpDir,
 		localFS:   os.DirFS(tmpDir),
 	}

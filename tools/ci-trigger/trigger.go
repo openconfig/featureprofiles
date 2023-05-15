@@ -36,8 +36,8 @@ type trigger struct {
 	buildClient  *cloudbuild.Service
 }
 
-// GithubEvent returns the validated Github event from an HTTP request.
-func (t *trigger) GithubEvent(r *http.Request) (any, error) {
+// githubEvent returns the validated Github event from an HTTP request.
+func (t *trigger) githubEvent(r *http.Request) (any, error) {
 	payload, err := github.ValidatePayload(r, t.webhookSecret)
 	if err != nil {
 		return nil, err
@@ -51,8 +51,8 @@ func (t *trigger) GithubEvent(r *http.Request) (any, error) {
 	return event, nil
 }
 
-// ProcessIssueComment handles a GitHub issue event.
-func (t *trigger) ProcessIssueComment(ctx context.Context, e *github.IssueCommentEvent) error {
+// processIssueComment handles a GitHub issue event.
+func (t *trigger) processIssueComment(ctx context.Context, e *github.IssueCommentEvent) error {
 	// Skip processing if the issue comment is not related to a pull request.
 	if e.GetIssue().GetPullRequestLinks().GetURL() == "" {
 		return nil
@@ -94,27 +94,23 @@ func (t *trigger) ProcessIssueComment(ctx context.Context, e *github.IssueCommen
 		prData.GetHead().GetSHA(),
 		prData.GetBase().GetSHA(),
 		tmpDir)
-	err = pr.IdentifyModifiedTests()
-	if err != nil {
+	if err := pr.identifyModifiedTests(); err != nil {
 		return fmt.Errorf("identify modified tests: %w", err)
 	}
 
-	pr.PopulateObjectMetadata(ctx, t.storClient)
+	pr.populateObjectMetadata(ctx, t.storClient)
 
 	for keyword, deviceTypes := range triggerKeywords {
 		if strings.Contains(strings.ToLower(e.GetComment().GetBody()), keyword) {
-			err = pr.CreateBuild(ctx, t.buildClient, t.storClient, deviceTypes)
-			if err != nil {
+			if err := pr.createBuild(ctx, t.buildClient, t.storClient, deviceTypes); err != nil {
 				return fmt.Errorf("create build: %w", err)
 			}
 
-			err = pr.UpdateBadges(ctx, t.storClient)
-			if err != nil {
+			if err := pr.updateBadges(ctx, t.storClient); err != nil {
 				return fmt.Errorf("update GCS badges: %w", err)
 			}
 
-			err = pr.UpdateGitHub(ctx, t.githubClient)
-			if err != nil {
+			if err := pr.updateGitHub(ctx, t.githubClient); err != nil {
 				return fmt.Errorf("update GitHub PR: %w", err)
 			}
 
@@ -125,8 +121,8 @@ func (t *trigger) ProcessIssueComment(ctx context.Context, e *github.IssueCommen
 	return nil
 }
 
-// ProcessPullRequest handles a GitHub Pull Request event.
-func (t *trigger) ProcessPullRequest(ctx context.Context, e *github.PullRequestEvent) error {
+// processPullRequest handles a GitHub Pull Request event.
+func (t *trigger) processPullRequest(ctx context.Context, e *github.PullRequestEvent) error {
 	tmpDir, err := os.MkdirTemp("", "fptest")
 	if err != nil {
 		return err
@@ -139,18 +135,15 @@ func (t *trigger) ProcessPullRequest(ctx context.Context, e *github.PullRequestE
 		e.GetPullRequest().GetHead().GetSHA(),
 		e.GetPullRequest().GetBase().GetSHA(),
 		tmpDir)
-	err = pr.IdentifyModifiedTests()
-	if err != nil {
+	if err := pr.identifyModifiedTests(); err != nil {
 		return fmt.Errorf("identify modified tests: %w", err)
 	}
 
-	err = pr.UpdateBadges(ctx, t.storClient)
-	if err != nil {
+	if err := pr.updateBadges(ctx, t.storClient); err != nil {
 		return fmt.Errorf("update GCS badges: %w", err)
 	}
 
-	err = pr.UpdateGitHub(ctx, t.githubClient)
-	if err != nil {
+	if err := pr.updateGitHub(ctx, t.githubClient); err != nil {
 		return fmt.Errorf("update GitHub: %w", err)
 	}
 

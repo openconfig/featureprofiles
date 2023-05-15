@@ -21,7 +21,7 @@ import (
 )
 
 // setupGitClone clones the GitHub repository into tmpDir and fetches refs from remoteURL.
-func setupGitClone(tmpDir string, remoteURL string, head string) (*git.Repository, error) {
+func setupGitClone(tmpDir, remoteURL, head string) (*git.Repository, error) {
 	repo, err := git.PlainClone(tmpDir, false, &git.CloneOptions{
 		URL: "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + ".git",
 	})
@@ -37,8 +37,7 @@ func setupGitClone(tmpDir string, remoteURL string, head string) (*git.Repositor
 		return nil, err
 	}
 
-	err = remote.Fetch(&git.FetchOptions{})
-	if err != nil {
+	if err := remote.Fetch(&git.FetchOptions{}); err != nil {
 		return nil, err
 	}
 
@@ -47,10 +46,7 @@ func setupGitClone(tmpDir string, remoteURL string, head string) (*git.Repositor
 		return nil, err
 	}
 
-	err = wt.Checkout(&git.CheckoutOptions{
-		Hash: plumbing.NewHash(head),
-	})
-	if err != nil {
+	if err := wt.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(head)}); err != nil {
 		return nil, err
 	}
 

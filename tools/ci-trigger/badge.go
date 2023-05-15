@@ -54,7 +54,7 @@ var badgeTpl = template.Must(template.New("badgeTpl").Parse(`<svg xmlns='http://
 // messages "success" and "failure" are given unique color codes, while other
 // messages are displayed in a neutral color.
 func svgBadge(label, message string) (*bytes.Buffer, error) {
-	badge := struct {
+	var badge struct {
 		Color         string
 		Label         string
 		LabelAnchor   int
@@ -63,7 +63,7 @@ func svgBadge(label, message string) (*bytes.Buffer, error) {
 		MessageAnchor int
 		MessageWidth  int
 		Width         int
-	}{}
+	}
 
 	badge.Label = strings.ToLower(label)
 	badge.Message = strings.ToLower(message)

@@ -35,33 +35,33 @@ import (
 )
 
 type cloudBuild struct {
-	Device device
+	device device
 
 	buildClient *cloudbuild.Service
 	storClient  *storage.Client
 	f           fs.FS
 }
 
-// SubmitBuild creates a CB Build and returns the jobID and log URL created.
-func (c *cloudBuild) SubmitBuild(ctx context.Context) (string, string, error) {
+// submitBuild creates a CB Build and returns the jobID and log URL created.
+func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
 	build, err := c.defaultBuild()
 	if err != nil {
 		return "", "", err
 	}
 
-	vendor := strings.ToLower(c.Device.Type.Vendor.String())
+	vendor := strings.ToLower(c.device.Type.Vendor.String())
 	vendor = strings.ReplaceAll(vendor, " ", "")
-	model := strings.ToLower(c.Device.Type.HardwareModel)
+	model := strings.ToLower(c.device.Type.HardwareModel)
 	model = strings.ReplaceAll(model, " ", "")
 	build.Substitutions["_DUT_PLATFORM"] = vendor + "_" + model
-	if machineType, ok := virtualDeviceMachineType[c.Device.Type]; ok {
+	if machineType, ok := virtualDeviceMachineType[c.device.Type]; ok {
 		if strings.Contains(machineType, "n2-standard") {
 			build.Substitutions["_MACHINE_ARGS"] = "--enable-nested-virtualization"
 		}
 		build.Substitutions["_MACHINE_TYPE"] = machineType
 	}
 	testPaths := ""
-	for _, t := range c.Device.Tests {
+	for _, t := range c.device.Tests {
 		testPaths = testPaths + " " + t.Path + "," + t.BadgePath
 	}
 	build.Substitutions["_DUT_TESTS"] = testPaths
@@ -161,12 +161,10 @@ func (c *cloudBuild) prepareBuild(ctx context.Context) (string, error) {
 	objPath := "source/" + strconv.FormatInt(time.Now().UTC().Unix(), 10) + "-" + hex.EncodeToString(u[:]) + ".tgz"
 	obj := c.storClient.Bucket(gcpCloudBuildBucketName).Object(objPath).NewWriter(ctx)
 	obj.ContentType = "application/x-tar"
-	_, err = data.WriteTo(obj)
-	if err != nil {
+	if _, err := data.WriteTo(obj); err != nil {
 		return "", err
 	}
-	err = obj.Close()
-	if err != nil {
+	if err := obj.Close(); err != nil {
 		return "", err
 	}
 
@@ -181,8 +179,7 @@ func (c *cloudBuild) defaultBuild() (*cloudbuild.Build, error) {
 	}
 
 	var build *cloudbuild.Build
-	err = yaml.Unmarshal(buildYAML, &build)
-	if err != nil {
+	if err := yaml.Unmarshal(buildYAML, &build); err != nil {
 		return nil, err
 	}
 
@@ -191,7 +188,7 @@ func (c *cloudBuild) defaultBuild() (*cloudbuild.Build, error) {
 
 func newCloudBuild(f fs.FS, buildClient *cloudbuild.Service, storClient *storage.Client, d device) *cloudBuild {
 	return &cloudBuild{
-		Device:      d,
+		device:      d,
 		buildClient: buildClient,
 		storClient:  storClient,
 		f:           f,
