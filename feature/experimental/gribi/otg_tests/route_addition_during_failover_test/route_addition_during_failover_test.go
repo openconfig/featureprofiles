@@ -213,7 +213,12 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 	}
 
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
-		t.Fatalf("Could not program entries via clientA, got err: %v", err)
+		if switchover {
+			t.Logf("Concurrent switchover/gRIBI route addition, some entries might fail to add.")
+			t.Logf("Could not program entries via client, got err: %v", err)
+		} else {
+			t.Fatalf("Could not program entries via client, got err: %v", err)
+		}
 	}
 
 	if switchover {
@@ -324,7 +329,7 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 
 	sipv4 := s.GetOrCreateIpv4()
 
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
 		sipv4.Enabled = ygot.Bool(true)
 	}
 	a := sipv4.GetOrCreateAddress(dutIPv4)
@@ -682,10 +687,6 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 		if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
 			t.Fatalf("Await got error during session negotiation for client: %v", err)
 		}
-	}
-
-	if deviations.GRIBIDelayedAckResponse(dut) {
-		time.Sleep(4 * time.Minute)
 	}
 
 	t.Log("Validate if partially ACKed entries of IPBlock2 are present as FIB_PROGRAMMED using a get RPC.")

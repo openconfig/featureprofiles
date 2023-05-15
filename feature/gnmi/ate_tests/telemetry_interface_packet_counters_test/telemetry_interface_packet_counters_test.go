@@ -348,7 +348,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		// per: https://github.com/openconfig/featureprofiles/issues/253
 		i.Enabled = ygot.Bool(true)
 		s.Enabled = ygot.Bool(true)
-		if !*deviations.IPv4MissingEnabled {
+		if !deviations.IPv4MissingEnabled(dut) {
 			v4.Enabled = ygot.Bool(true)
 		}
 		v6.Enabled = ygot.Bool(true)
@@ -358,7 +358,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
 		subint := gnmi.OC().Interface(intf.intfName).Subinterface(0)
 
-		if !*deviations.IPv4MissingEnabled {
+		if !deviations.IPv4MissingEnabled(dut) {
 			if !gnmi.Get(t, dut, subint.Ipv4().Enabled().State()) {
 				t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
 			}
