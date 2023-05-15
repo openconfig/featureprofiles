@@ -114,6 +114,7 @@ func testNextHop(
 	scale uint64, // multiplies the weights in nexthops by this.
 	gribic spb.GRIBIClient,
 	ate *ondatra.ATEDevice,
+	dut *ondatra.DUTDevice,
 	top gosnappi.Config,
 ) {
 	// Configure the gRIBI client.
@@ -144,7 +145,7 @@ func testNextHop(
 		t.Errorf("Cannot flush: %v", err)
 	}
 
-	ents, wants := buildNextHops(t, nexthops, scale)
+	ents, wants := buildNextHops(t, dut, nexthops, scale)
 
 	c.Modify().AddEntry(t, ents...)
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
@@ -215,7 +216,7 @@ func TestWeightedBalancing(t *testing.T) {
 					if got, want := len(dutPorts), len(c.NextHops)+1; got < want {
 						t.Skipf("Testbed provides only %d ports, but test case needs %d.", got, want)
 					}
-					testNextHop(ctx, t, c.NextHops, s.Scale, gribic, ate, top)
+					testNextHop(ctx, t, c.NextHops, s.Scale, gribic, ate, dut, top)
 					debugGRIBI(t, dut)
 				})
 			}
