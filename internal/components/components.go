@@ -91,8 +91,8 @@ func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
 }
 
 // GetSubcomponentPath creates a gNMI path based on the componnent name.
-func GetSubcomponentPath(name string) *tpb.Path {
-	if *deviations.GNOISubcomponentPath {
+func GetSubcomponentPath(name string, dut *ondatra.DUTDevice) *tpb.Path {
+	if deviations.GNOISubcomponentPath(dut) {
 		return &tpb.Path{
 			Elem: []*tpb.PathElem{{Name: name}},
 		}

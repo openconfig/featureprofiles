@@ -103,7 +103,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch),
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, dut),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
@@ -114,7 +114,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 
 	want := rpStandbyBeforeSwitch
 	got := ""
-	if *deviations.GNOISubcomponentPath {
+	if deviations.GNOISubcomponentPath(dut) {
 		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
 	} else {
 		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
