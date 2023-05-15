@@ -69,6 +69,11 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// OmitL2MTU returns if Device does not support setting the L2 MTU.
+func OmitL2MTU(_ *ondatra.DUTDevice) bool {
+	return *omitL2MTU
+}
+
 // GRIBIMACOverrideStaticARPStaticRoute returns whether the device needs to configure Static ARP + Static Route to override setting MAC address in Next Hop.
 func GRIBIMACOverrideStaticARPStaticRoute(*ondatra.DUTDevice) bool {
 	return *gribiMACOverrideStaticARPStaticRoute
@@ -79,6 +84,11 @@ func GRIBIMACOverrideStaticARPStaticRoute(*ondatra.DUTDevice) bool {
 // Full OpenConfig compliant devices should pass both with and without this deviation.
 func AggregateAtomicUpdate(_ *ondatra.DUTDevice) bool {
 	return *aggregateAtomicUpdate
+}
+
+// DefaultNetworkInstance returns the name used for the default network instance for VRF.
+func DefaultNetworkInstance(_ *ondatra.DUTDevice) string {
+	return *defaultNetworkInstance
 }
 
 // P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
@@ -119,6 +129,11 @@ func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
 // MacAddressMissing returns whether device does not support /system/mac-address/state
 func MacAddressMissing(_ *ondatra.DUTDevice) bool {
 	return *macAddressMissing
+}
+
+// StaticProtocolName returns the name used for the static routing protocol.
+func StaticProtocolName(_ *ondatra.DUTDevice) string {
+	return *staticProtocolName
 }
 
 // UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
@@ -222,6 +237,11 @@ func InterfaceCountersFromContainer(_ *ondatra.DUTDevice) bool {
 	return *interfaceCountersFromContainer
 }
 
+// IPv4MissingEnabled returns if device does not support interface/ipv4/enabled.
+func IPv4MissingEnabled(_ *ondatra.DUTDevice) bool {
+	return *ipv4MissingEnabled
+}
+
 // IPNeighborMissing returns true if the device does not support interface/ipv4(6)/neighbor,
 // so test can suppress the related check for interface/ipv4(6)/neighbor.
 func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
@@ -237,14 +257,14 @@ func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
 	return *gRIBIRIBAckOnly
 }
 
-// GRIBIDelayedAckResponse returns if device requires delay in sending ack response.
-func GRIBIDelayedAckResponse(_ *ondatra.DUTDevice) bool {
-	return *gRIBIDelayedAckResponse
-}
-
 // MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
 func MissingInterfacePhysicalChannel(_ *ondatra.DUTDevice) bool {
 	return *missingInterfacePhysicalChannel
+}
+
+// MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
+func MissingValueForDefaults(_ *ondatra.DUTDevice) bool {
+	return *missingValueForDefaults
 }
 
 // TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
@@ -364,6 +384,11 @@ func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
 	return *noMixOfTaggedAndUntaggedSubinterfaces
 }
 
+// SecondaryBackupPathTrafficFailover returns if device does not support secondary backup path traffic failover
+func SecondaryBackupPathTrafficFailover(_ *ondatra.DUTDevice) bool {
+	return *secondaryBackupPathTrafficFailover
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -374,7 +399,7 @@ var (
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	IPv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
+	ipv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
 
 	ipNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
 
@@ -383,21 +408,21 @@ var (
 	aggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
+	defaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
 		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Full OpenConfig compliant devices should be able to use any operator-assigned value.")
 
 	subinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
 		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	OmitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
+	omitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
 		"Device does not support setting the L2 MTU, so omit it.  OpenConfig allows a device to enforce that L2 MTU, which has a default value of 1514, must be set to a higher value than L3 MTU, so a full OpenConfig compliant device may fail with the deviation.")
 
 	gRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
-	MissingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
+	missingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
 		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
 
-	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
+	staticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
 
 	GNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
 
@@ -449,8 +474,6 @@ var (
 
 	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
-
-	gRIBIDelayedAckResponse = flag.Bool("deviation_gribi_delayed_ack_response", false, "Device requires delay in sending ack response")
 
 	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
@@ -527,4 +550,6 @@ var (
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
 	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
+
+	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
 )
