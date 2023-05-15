@@ -91,6 +91,16 @@ func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
 	return *p4rtUnsetElectionIDUnsupported
 }
 
+// P4rtUnsetElectionIDPrimaryAllowed returns whether the device does not support unset election ID.
+func P4rtUnsetElectionIDPrimaryAllowed(_ *ondatra.DUTDevice) bool {
+	return *p4rtUnsetElectionIDPrimaryAllowed
+}
+
+// P4rtBackupArbitrationResponseCode returns whether the device does not support unset election ID.
+func P4rtBackupArbitrationResponseCode(_ *ondatra.DUTDevice) bool {
+	return *p4rtBackupArbitrationResponseCode
+}
+
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
 	return *isisRestartSuppressUnsupported
@@ -477,9 +487,9 @@ var (
 
 	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
 
-	P4rtUnsetElectionIDPrimaryAllowed = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary")
+	p4rtUnsetElectionIDPrimaryAllowed = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary")
 
-	P4rtBackupArbitrationResponseCode = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
+	p4rtBackupArbitrationResponseCode = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
 
 	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false, "Set to true for device requiring explicit deletion of network-instance table, default is false")
 
