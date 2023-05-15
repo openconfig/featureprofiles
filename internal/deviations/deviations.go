@@ -277,6 +277,12 @@ func TraceRouteFragmentation(_ *ondatra.DUTDevice) bool {
 	return *traceRouteFragmentation
 }
 
+// LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
+// expect neighbours are seen when lldp is disabled globally but enabled on interface
+func LLDPInterfaceConfigOverrideGlobal(_ *ondatra.DUTDevice) bool {
+	return *lldpInterfaceConfigOverrideGlobal
+}
+
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
 // so the test will skip checking them.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
@@ -475,7 +481,7 @@ var (
 	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
 
-	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
+	lldpInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
 
 	missingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
