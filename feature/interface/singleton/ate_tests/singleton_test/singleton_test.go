@@ -104,10 +104,10 @@ type testCase struct {
 }
 
 // configInterfaceDUT configures an oc Interface with the desired MTU.
-func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDevice) {
-	a.ConfigOCInterface(i, dut)
+func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes) {
+	a.ConfigOCInterface(i, tc.dut)
 
-	if !*deviations.OmitL2MTU {
+	if !deviations.OmitL2MTU(tc.dut) {
 		i.Mtu = ygot.Uint16(tc.mtu + 14)
 	}
 	i.Description = ygot.String(*i.Description)
@@ -152,14 +152,14 @@ func (tc *testCase) configureDUT(t *testing.T) {
 
 	p1 := tc.dut.Port(t, "port1")
 	tc.duti1 = &oc.Interface{Name: ygot.String(p1.Name())}
-	tc.configInterfaceDUT(tc.duti1, p1, &dutSrc, tc.dut)
+	tc.configInterfaceDUT(tc.duti1, p1, &dutSrc)
 	di1 := d.Interface(p1.Name())
 	fptest.LogQuery(t, p1.String(), di1.Config(), tc.duti1)
 	gnmi.Replace(t, tc.dut, di1.Config(), tc.duti1)
 
 	p2 := tc.dut.Port(t, "port2")
 	tc.duti2 = &oc.Interface{Name: ygot.String(p2.Name())}
-	tc.configInterfaceDUT(tc.duti2, p2, &dutDst, tc.dut)
+	tc.configInterfaceDUT(tc.duti2, p2, &dutDst)
 	di2 := d.Interface(p2.Name())
 	fptest.LogQuery(t, p2.String(), di2.Config(), tc.duti2)
 	gnmi.Replace(t, tc.dut, di2.Config(), tc.duti2)

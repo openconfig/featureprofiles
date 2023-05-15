@@ -61,7 +61,7 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface, dut *ondatra.DUTDevice)
 	if *deviations.InterfaceEnabled {
 		intf.Enabled = ygot.Bool(true)
 	}
-	if a.MTU > 0 && !*deviations.OmitL2MTU {
+	if a.MTU > 0 && !deviations.OmitL2MTU(dut) {
 		intf.Mtu = ygot.Uint16(a.MTU + 14)
 	}
 	e := intf.GetOrCreateEthernet()
