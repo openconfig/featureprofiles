@@ -126,6 +126,11 @@ func MacAddressMissing(_ *ondatra.DUTDevice) bool {
 	return *macAddressMissing
 }
 
+// StaticProtocolName returns the name used for the static routing protocol.
+func StaticProtocolName(_ *ondatra.DUTDevice) string {
+	return *staticProtocolName
+}
+
 // UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
 func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
 	return *useVendorNativeACLConfiguration
@@ -227,6 +232,11 @@ func InterfaceCountersFromContainer(_ *ondatra.DUTDevice) bool {
 	return *interfaceCountersFromContainer
 }
 
+// IPv4MissingEnabled returns if device does not support interface/ipv4/enabled.
+func IPv4MissingEnabled(_ *ondatra.DUTDevice) bool {
+	return *ipv4MissingEnabled
+}
+
 // IPNeighborMissing returns true if the device does not support interface/ipv4(6)/neighbor,
 // so test can suppress the related check for interface/ipv4(6)/neighbor.
 func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
@@ -245,6 +255,11 @@ func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
 // MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
 func MissingInterfacePhysicalChannel(_ *ondatra.DUTDevice) bool {
 	return *missingInterfacePhysicalChannel
+}
+
+// MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
+func MissingValueForDefaults(_ *ondatra.DUTDevice) bool {
+	return *missingValueForDefaults
 }
 
 // TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
@@ -384,7 +399,7 @@ var (
 	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	IPv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
+	ipv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
 
 	ipNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
 
@@ -404,10 +419,10 @@ var (
 
 	gRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
-	MissingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
+	missingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
 		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
 
-	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
+	staticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
 
 	GNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
 

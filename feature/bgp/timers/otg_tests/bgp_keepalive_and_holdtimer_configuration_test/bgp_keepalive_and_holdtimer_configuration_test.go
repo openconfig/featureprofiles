@@ -133,10 +133,10 @@ type config struct {
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
-	i1 := dutSrc.NewOCInterface(dut.Port(t, "port1").Name())
+	i1 := dutSrc.NewOCInterface(dut.Port(t, "port1").Name(), dut)
 	i1.Description = ygot.String(dutSrc.Desc)
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
-	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name())
+	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	i2.Description = ygot.String(dutDst.Desc)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 	if deviations.ExplicitPortSpeed(dut) {
