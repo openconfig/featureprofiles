@@ -128,7 +128,7 @@ func TestPortFlap(t *testing.T) {
 		t.Errorf("Cannot flush: %v", err)
 	}
 
-	ents, wants := buildNextHops(t, nexthops, 1)
+	ents, wants := buildNextHops(t, nexthops, 1, dut)
 
 	c.Modify().AddEntry(t, ents...)
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
