@@ -57,7 +57,7 @@ func (a *Attributes) IPv6CIDR() string {
 }
 
 // ConfigOCInterface configures an OpenConfig interface with these attributes.
-func (a *Attributes) ConfigOCInterface(intf *oc.Interface) *oc.Interface {
+func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
 	if a.Desc != "" {
 		intf.Description = ygot.String(a.Desc)
 	}
@@ -76,7 +76,7 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface) *oc.Interface {
 	s := intf.GetOrCreateSubinterface(0)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
 		}
 		if a.MTU > 0 {
@@ -105,8 +105,8 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface) *oc.Interface {
 }
 
 // NewOCInterface returns a new *oc.Interface configured with these attributes.
-func (a *Attributes) NewOCInterface(name string) *oc.Interface {
-	return a.ConfigOCInterface(&oc.Interface{Name: ygot.String(name)})
+func (a *Attributes) NewOCInterface(name string, dut *ondatra.DUTDevice) *oc.Interface {
+	return a.ConfigOCInterface(&oc.Interface{Name: ygot.String(name)}, dut)
 }
 
 // AddToATE adds a new interface to an ATETopology with these attributes.

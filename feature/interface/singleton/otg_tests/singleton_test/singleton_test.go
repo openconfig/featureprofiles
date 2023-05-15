@@ -114,7 +114,7 @@ type otgNeighborVerification func(t *testing.T)
 
 // configInterfaceDUT configures an oc Interface with the desired MTU.
 func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes) {
-	a.ConfigOCInterface(i)
+	a.ConfigOCInterface(i, tc.dut)
 
 	if !*deviations.OmitL2MTU {
 		i.Mtu = ygot.Uint16(tc.mtu + 14)
@@ -147,8 +147,8 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	gnmi.Replace(t, tc.dut, di2.Config(), tc.duti2)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
-		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
 	}
 	if deviations.ExplicitPortSpeed(tc.dut) {
 		fptest.SetPortSpeed(t, p1)
