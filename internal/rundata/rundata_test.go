@@ -16,6 +16,8 @@ package rundata
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/openconfig/ondatra/binding"
@@ -115,9 +117,33 @@ func TestTopology(t *testing.T) {
 }
 
 func TestProperties(t *testing.T) {
-	TestPlanID = "UnitTest-1.1"
-	TestDescription = "This is a Unit Test"
-	TestUUID = "123e4567-e89b-42d3-8456-426614174000"
+	const (
+		wantUUID        = "TestProperties123"
+		wantPlanID      = "TestProperties"
+		wantDescription = "TestProperties unit test"
+	)
+
+	metadataText := fmt.Sprintf(`
+uuid: "%s"
+plan_id: "%s"
+description: "%s"
+`, wantUUID, wantPlanID, wantDescription)
+
+	// Change to a temp directory before writing the metadata proto
+	// to avoid modifying the test directory.
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		os.Chdir(wd)
+	}()
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("metadata.textproto", []byte(metadataText), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	*knownIssueURL = "https://example.com"
 
@@ -125,9 +151,9 @@ func TestProperties(t *testing.T) {
 	t.Log(got)
 
 	for wantk, wantv := range map[string]string{
-		"test.plan_id":     TestPlanID,
-		"test.description": TestDescription,
-		"test.uuid":        TestUUID,
+		"test.uuid":        wantUUID,
+		"test.plan_id":     wantPlanID,
+		"test.description": wantDescription,
 		"known_issue_url":  *knownIssueURL,
 	} {
 		if gotv := got[wantk]; gotv != wantv {

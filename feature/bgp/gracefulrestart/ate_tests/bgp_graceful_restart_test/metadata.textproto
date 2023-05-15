@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "d2e0ad15-fd22-408b-961c-ec016de29925"
+plan_id: "RT-1.4"
+description: "BGP Graceful Restart"
+testbed: TESTBED_DUT_ATE_2LINKS
