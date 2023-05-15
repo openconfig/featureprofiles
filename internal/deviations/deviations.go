@@ -316,11 +316,6 @@ func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
 	return *gNOIStatusWithEmptySubcomponent
 }
 
-// GNOISubcomponentPath returns if device currently uses component name instead of a full openconfig path.
-func GNOISubcomponentPath(_ *ondatra.DUTDevice) bool {
-	return *gNOISubcomponentPath
-}
-
 // NetworkInstanceTableDeletionRequired returns if device requires explicit deletion of network-instance table.
 func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
 	return *networkInstanceTableDeletionRequired
