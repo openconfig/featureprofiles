@@ -73,7 +73,7 @@ const (
 // configureDUT is used to configure interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
-	i1 := dutAttrs.NewOCInterface(dut.Port(t, "port1").Name())
+	i1 := dutAttrs.NewOCInterface(dut.Port(t, "port1").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
 	if deviations.ExplicitPortSpeed(dut) {
@@ -474,7 +474,7 @@ func TestParameters(t *testing.T) {
 			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*100, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 			stateDut := gnmi.Get(t, dut, statePath.State())
 			wantState := tc.dutConf.Bgp
-			if *deviations.MissingValueForDefaults {
+			if deviations.MissingValueForDefaults(dut) {
 				wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName = 0
 				wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = nil
 				wantState.GetOrCreateNeighbor(ateAttrs.IPv4).Enabled = nil
