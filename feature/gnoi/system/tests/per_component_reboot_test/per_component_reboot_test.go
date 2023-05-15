@@ -139,6 +139,8 @@ func TestLinecardReboot(t *testing.T) {
 				validCards = append(validCards, lc)
 			}
 		}
+	} else {
+		validCards = lcs
 	}
 	if *args.NumLinecards >= 0 && len(validCards) != *args.NumLinecards {
 		t.Errorf("Incorrect number of linecards: got %v, want exactly %v (specified by flag)", len(validCards), *args.NumLinecards)
