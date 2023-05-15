@@ -236,7 +236,7 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface, dut
 		ip := a.ip(uint8(i))
 
 		s := intf.GetOrCreateSubinterface(i)
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(dut) {
 			s.Enabled = ygot.Bool(true)
 		}
 		if deviations.DeprecatedVlanID(dut) {
@@ -245,7 +245,7 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface, dut
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
 		}
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
 		}
 		s4a := s4.GetOrCreateAddress(ip)
@@ -264,7 +264,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 	if a.numSubIntf > 0 {
 		i.Description = ygot.String(a.Desc)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(d) {
 			i.Enabled = ygot.Bool(true)
 		}
 	} else {
