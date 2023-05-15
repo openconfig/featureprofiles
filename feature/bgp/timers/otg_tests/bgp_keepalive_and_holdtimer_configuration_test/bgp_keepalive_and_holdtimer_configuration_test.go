@@ -133,19 +133,19 @@ type config struct {
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
-	i1 := dutSrc.NewOCInterface(dut.Port(t, "port1").Name())
+	i1 := dutSrc.NewOCInterface(dut.Port(t, "port1").Name(), dut)
 	i1.Description = ygot.String(dutSrc.Desc)
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
-	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name())
+	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	i2.Description = ygot.String(dutDst.Desc)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
 		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -232,9 +232,9 @@ func ateFlowConfig(t *testing.T, topo gosnappi.Config, srcEth gosnappi.DeviceEth
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ateSrc and ateDst, optionally with
 // a peer group policy.
-func bgpCreateNbr() *oc.NetworkInstance_Protocol {
+func bgpCreateNbr(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
-	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
@@ -284,9 +284,9 @@ func bgpCreateNbr() *oc.NetworkInstance_Protocol {
 }
 
 // bgpTimersConfig sets the right config for BGP timers.
-func (tc *testCase) bgpTimersConfig(t *testing.T) *oc.NetworkInstance_Protocol {
+func (tc *testCase) bgpTimersConfig(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
-	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := niProto.GetOrCreateBgp()
 	for _, nbr := range bgpNbrs {
@@ -299,7 +299,7 @@ func (tc *testCase) bgpTimersConfig(t *testing.T) *oc.NetworkInstance_Protocol {
 
 // waitForBGPSession waits for the BGP session state to become established.
 func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	nbrPathv6 := statePath.Neighbor(ateDst.IPv6)
 	compare := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -371,7 +371,7 @@ func (tc *testCase) verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 // verifyBGPTimers verify BGP timers like keepalive timer and hold timer.
 func (tc *testCase) verifyBGPTimers(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP timers")
-	bgpPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, nbr := range bgpNbrs {
 		timerPath := bgpPath.Neighbor(nbr.neighborip).Timers()
 		gotBgptimers := bgpTimers{
@@ -396,9 +396,9 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 	t.Log(tc.desc)
 	configureBGPRoutes(t, conf, tc.numRoutes)
 	// Configure BGP Timers
-	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	t.Logf("Start DUT BGP Config")
-	dutBgpTimerConf := tc.bgpTimersConfig(t)
+	dutBgpTimerConf := tc.bgpTimersConfig(t, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutBgpTimerConf)
 	fptest.LogQuery(t, "Updated DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	// Verify Port Status
@@ -453,8 +453,8 @@ func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 	t.Log("Start DUT interface Config")
 	configureDUT(t, dut)
 	t.Logf("Start DUT BGP Config")
-	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	dutConf := bgpCreateNbr()
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConf := bgpCreateNbr(dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	// ATE Configuration.

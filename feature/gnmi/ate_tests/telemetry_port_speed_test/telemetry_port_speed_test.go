@@ -94,7 +94,7 @@ type testCase struct {
 	aggID    string
 }
 
-func (*testCase) configDUT(i *oc.Interface, a *attrs.Attributes) {
+func (tc *testCase) configDUT(i *oc.Interface, a *attrs.Attributes) {
 	i.Description = ygot.String(a.Desc)
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
@@ -102,7 +102,7 @@ func (*testCase) configDUT(i *oc.Interface, a *attrs.Attributes) {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(tc.dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4.GetOrCreateAddress(a.IPv4).PrefixLength = ygot.Uint8((plen4))
@@ -193,7 +193,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		iPath := d.Interface(iName)
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
-		if *deviations.ExplicitPortSpeed {
+		if deviations.ExplicitPortSpeed(tc.dut) {
 			fptest.SetPortSpeed(t, port)
 		}
 	}
@@ -215,8 +215,8 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, deviations.DefaultNetworkInstance(tc.dut), 0)
 	}
 	t.Cleanup(func() {
 		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().MinLinks().Config())
@@ -227,8 +227,8 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		}
 		if deviations.AggregateAtomicUpdate(tc.dut) {
 			resetBatch := &gnmi.SetBatch{}
-			if *deviations.ExplicitInterfaceInDefaultVRF {
-				gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Interface(tc.aggID+".0").Config())
+			if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
+				gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Interface(tc.aggID+".0").Config())
 			}
 			gnmi.BatchDelete(resetBatch, aggPath.Config())
 			gnmi.BatchDelete(resetBatch, d.Lacp().Interface(tc.aggID).Config())

@@ -91,7 +91,7 @@ func TestMain(m *testing.M) {
 func TestEthernetPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp)
 	}
 	want := portSpeed[dp.Speed()]
@@ -121,7 +121,7 @@ func TestEthernetMacAddress(t *testing.T) {
 func TestInterfaceAdminStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp)
 	}
 	adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State())
@@ -134,7 +134,7 @@ func TestInterfaceAdminStatus(t *testing.T) {
 func TestInterfaceOperStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp)
 	}
 	operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
@@ -187,7 +187,7 @@ func TestInterfaceStatusChange(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			i.Type = ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			if *deviations.ExplicitPortSpeed {
+			if deviations.ExplicitPortSpeed(dut) {
 				fptest.SetPortSpeed(t, dp)
 			}
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedOperStatus)
@@ -206,9 +206,6 @@ func TestInterfaceStatusChange(t *testing.T) {
 
 func TestHardwarePort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.MissingInterfaceHardwarePort(dut) {
-		t.Skip("Test is skipped due to MissingInterfaceHardwarePort deviation")
-	}
 	dp := dut.Port(t, "port1")
 
 	// Verify HardwarePort leaf is present under interface.
@@ -501,10 +498,20 @@ func TestSoftwareVersion(t *testing.T) {
 		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(os).Parent().State())
 		if v, ok := parent.Val(); ok {
 			got := gnmi.Get(t, dut, gnmi.OC().Component(v).Type().State())
-			if got == supervisorType {
-				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+
+			// Arista_7280 OC component EOS has parent type Chassis
+			if dut.Model() == "DCS-7280CR3K-32D4" {
+				if got == chassisType {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, chassisType)
+				}
 			} else {
-				t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+				if got == supervisorType {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+				}
 			}
 		} else {
 			t.Errorf("Parent for the component %v was not found", os)
@@ -698,7 +705,7 @@ func TestP4rtInterfaceID(t *testing.T) {
 			i.Id = ygot.Uint32(tc.portID)
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			if *deviations.ExplicitPortSpeed {
+			if deviations.ExplicitPortSpeed(dut) {
 				fptest.SetPortSpeed(t, dp)
 			}
 			// Check path /interfaces/interface/state/id.
@@ -880,20 +887,20 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
 			s.Enabled = ygot.Bool(true)
 		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
