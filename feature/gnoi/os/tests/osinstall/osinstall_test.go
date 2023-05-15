@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	closer "github.com/openconfig/gocloser"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -260,6 +261,19 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 			t.Fatalf("OS.Verify ActivationFailMessage: got %q, want %q", got, want)
 		}
 		if got, want := r.GetVersion(), *osVersion; got != want {
+			t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
+			time.Sleep(rebootWait)
+			continue
+		}
+
+		dut := ondatra.DUT(t, "dut")
+		ver, ok := gnmi.Lookup(t, dut, gnmi.OC().System().SoftwareVersion().State()).Val()
+		if !ok {
+			t.Log("Reboot has not finished with the right version: couldn't get system/state/software-version")
+			time.Sleep(rebootWait)
+			continue
+		}
+		if got, want := ver, *osVersion; got != want {
 			t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
 			time.Sleep(rebootWait)
 			continue
