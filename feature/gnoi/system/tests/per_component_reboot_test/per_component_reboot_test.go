@@ -21,6 +21,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
@@ -97,10 +98,11 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
-			components.GetSubcomponentPath(rpStandby),
+			components.GetSubcomponentPath(rpStandby, useNameOnly),
 		},
 	}
 
@@ -168,10 +170,11 @@ func TestLinecardReboot(t *testing.T) {
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
-			components.GetSubcomponentPath(removableLinecard),
+			components.GetSubcomponentPath(removableLinecard, useNameOnly),
 		},
 	}
 
