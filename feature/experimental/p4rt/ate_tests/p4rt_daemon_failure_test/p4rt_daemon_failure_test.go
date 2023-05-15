@@ -85,7 +85,7 @@ var (
 )
 
 // configInterfaceDUT returns the OC Interface config for a given port.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
@@ -94,7 +94,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -120,7 +120,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 
 	n1, ok := nodes[p1.ID()]
 	if !ok {
@@ -130,20 +130,20 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
 	n2, ok := nodes[p2.ID()]
 	if !ok {
 		t.Fatal("P4RT node name for port2 not found.")
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Component(n2).Config(), configP4RTNode(n2, deviceID2))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -221,12 +221,12 @@ func installRoutes(t *testing.T, dut *ondatra.DUTDevice) error {
 	defer c.Close(t)
 
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via clientA", ateDstNetCIDR)
-	c.AddNH(t, nhIndex, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	c.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	c.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
+	c.AddNH(t, nhIndex, atePort2.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	c.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	c.AddIPv4(t, ateDstNetCIDR, nhgIndex, deviations.DefaultNetworkInstance(dut), "", fluent.InstalledInRIB)
 
 	t.Logf("Verify through AFT Telemetry that %s is active", ateDstNetCIDR)
-	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(ateDstNetCIDR)
 	if got, ok := gnmi.Watch(t, dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 		prefix, present := val.Val()
 		return present && prefix == ateDstNetCIDR

@@ -113,7 +113,7 @@ type testCase struct {
 	l3header []ondatra.Header
 }
 
-func (*testCase) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
+func (tc *testCase) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
 	i.Description = ygot.String(a.Desc)
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
@@ -121,7 +121,7 @@ func (*testCase) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(tc.dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a4 := s4.GetOrCreateAddress(a.IPv4)
@@ -226,9 +226,9 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	fptest.LogQuery(t, srcp.String(), srciPath.Config(), srci)
 	gnmi.Replace(t, tc.dut, srciPath.Config(), srci)
 
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, deviations.DefaultNetworkInstance(tc.dut), 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
 	}
 
 	for _, port := range tc.dutPorts[1:] {
@@ -243,7 +243,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(tc.dut) {
 		for _, port := range tc.dutPorts {
 			fptest.SetPortSpeed(t, port)
 		}
