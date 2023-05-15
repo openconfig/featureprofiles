@@ -25,8 +25,8 @@ import (
 )
 
 type badgeState struct {
-	path   string
-	status string
+	Path   string
+	Status string
 }
 
 // updateBadgeStatus updates the badgeState.Path in the gcpBucket
@@ -37,26 +37,26 @@ func updateBadgeStatus(ctx context.Context, bs *badgeState) error {
 	if err != nil {
 		return err
 	}
-	objAttrs, err := storClient.Bucket(gcpBucket).Object(bs.path).Attrs(ctx)
+	objAttrs, err := storClient.Bucket(gcpBucket).Object(bs.Path).Attrs(ctx)
 	if err != nil {
 		return err
 	}
 
 	label, ok := objAttrs.Metadata["label"]
 	if !ok {
-		return fmt.Errorf("object %s missing metadata label", bs.path)
+		return fmt.Errorf("object %s missing metadata label", bs.Path)
 	}
 
-	buf, err := svgBadge(label, bs.status)
+	buf, err := svgBadge(label, bs.Status)
 	if err != nil {
 		return err
 	}
 
-	obj := storClient.Bucket(gcpBucket).Object(bs.path).NewWriter(ctx)
+	obj := storClient.Bucket(gcpBucket).Object(bs.Path).NewWriter(ctx)
 	obj.ContentType = objAttrs.ContentType
 	obj.CacheControl = objAttrs.CacheControl
 	obj.Metadata = objAttrs.Metadata
-	obj.Metadata["status"] = bs.status
+	obj.Metadata["status"] = bs.Status
 	if _, err := buf.WriteTo(obj); err != nil {
 		return err
 	}
