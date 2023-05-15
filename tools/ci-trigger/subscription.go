@@ -60,11 +60,8 @@ func updateBadgeStatus(ctx context.Context, bs *badgeState) error {
 	if _, err := buf.WriteTo(obj); err != nil {
 		return err
 	}
-	if err := obj.Close(); err != nil {
-		return err
-	}
 
-	return nil
+	return obj.Close()
 }
 
 // pullSubscription subscribes to the gcpBadgeTopic on gcpProjectID and
