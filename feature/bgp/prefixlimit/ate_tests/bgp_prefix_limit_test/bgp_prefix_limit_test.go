@@ -110,11 +110,11 @@ var (
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 	p1 := dut.Port(t, "port1").Name()
-	i1 := dutSrc.NewOCInterface(p1)
+	i1 := dutSrc.NewOCInterface(p1, dut)
 	gnmi.Replace(t, dut, dc.Interface(p1).Config(), i1)
 
 	p2 := dut.Port(t, "port2").Name()
-	i2 := dutDst.NewOCInterface(p2)
+	i2 := dutDst.NewOCInterface(p2, dut)
 	gnmi.Replace(t, dut, dc.Interface(p2).Config(), i2)
 
 	// Configure Network instance type on DUT
