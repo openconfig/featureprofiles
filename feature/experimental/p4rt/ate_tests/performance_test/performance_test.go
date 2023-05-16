@@ -40,8 +40,6 @@ import (
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
-const ()
-
 var (
 	p4InfoFile                              = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName                              = "p4rt"
