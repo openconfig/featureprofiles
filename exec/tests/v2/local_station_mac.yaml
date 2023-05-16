@@ -7,9 +7,7 @@ testbeds:
 tests:
 - name: Local-Station-Mac
   path: feature/system/ate_tests/cisco/local_station_mac_test
-  internal: true
   branch: master
   mustpass: true
+  internal: true
   timeout: 1200
-  owners: 
-  - sprem

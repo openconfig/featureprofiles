@@ -50,7 +50,7 @@ var (
 			name: "Program TTL Match Entry and Sent traffic to physical interface and check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:011 Programm match TTL=[1,2], send outter TTL=[0,1,2] packet from tgen to the physcial interface and verify packet(only TTL=1) is sent to primary controller",
 			fn:   testEntryProgrammingPacketInWithPhysicalInterface,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Sent Traffic to bundle subinterface and check PacketIn",
@@ -86,7 +86,7 @@ var (
 			name: "Program TTL Match Entry and other match fields and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:027 Programm match TTL=[1,2] with other field matched in the entry, send TTL=[0,1,2] packets from tgen, and verify the packet sent to the controller",
 			fn:   testEntryProgrammingPacketInWithMoreMatchingField,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program Match Entry and Send traffic to non-configured port in P4RT and Check PacketIn",
@@ -97,13 +97,13 @@ var (
 			name: "Program Match Entry and Send traffic to non-configured port in P4RT and then configure port-id and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:030 Programm match TTL=[1,2], non-configured port-id on the configured npu, TTL=1 to the non-configured port will be punted but dropped, then verify it starts working after adding the port-id",
 			fn:   testEntryProgrammingPacketInWithouthPortIDThenAddPortID,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Downgrade primary controller and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:032 Programm match TTL=[1,2], send packets with TTL=[0,1,2] from tgen, downgrade/fail the primary controller, verify the packets are sent to the backup controller if there is backup controller",
 			fn:   testEntryProgrammingPacketInDowngradePrimaryController,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Downgrade primary controller without backup controller and Check PacketIn",
@@ -119,13 +119,13 @@ var (
 			name: "Program TTL Match Entry and Send traffic with Flowlabel and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:036 Programm match TTL=[1,2], send IPv6 packets with TTL=[0,1,2] with flow-label/SRH from tgen, verify those packets sent to controller",
 			fn:   testEntryProgrammingPacketInWithFlowLabel,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Configure ACL and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:037 Programm match TTL=[1,2], configured IPv4 ACL to match TTL=1 and set action to drop, verify packets dropped and not sent to controller",
 			fn:   testEntryProgrammingPacketInWithAcl,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Send scale TTL traffic",
@@ -183,7 +183,7 @@ var (
 			name: "Program TTL Match Entry and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:016 Egress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
 			fn:   testPacketOutEgress,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 (submit_to_egress)",

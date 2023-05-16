@@ -38,8 +38,27 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/global/state/as"
 }
-
-# Router ID
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/state/total-prefixes"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/afi-safi-name"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/state/afi-safi-name"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/state/enabled"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/ipv4-unicast/config/extended-next-hop-encoding"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/ipv4-unicast/state/extended-next-hop-encoding"
+}
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/global/config/router-id"
 }
@@ -139,6 +158,9 @@ config_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/total-prefixes"
 }
 
 # state log
@@ -435,18 +457,6 @@ config_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/connect-retry"
-}
-config_path {
-    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/afi-safi-name"
-}
-config_path {
-    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled"
-}
-telemetry_path {
-    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/state/afi-safi-name"
-}
-telemetry_path {
-    path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/state/enabled"
 }
 
 # Neighbor state

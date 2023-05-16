@@ -326,3 +326,14 @@ func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
+
+// configVRF
+func configVRF(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
+	for _, vrf_name := range vrfs {
+		vrf := &oc.NetworkInstance{
+			Name: ygot.String(vrf_name),
+			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+		}
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf_name).Config(), vrf)
+	}
+}

@@ -16,6 +16,7 @@ package singleton_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -227,6 +228,9 @@ func (tc *testCase) verifyInterfaceDUT(
 	diMacAddress := gnmi.Get(t, tc.dut, dip.Ethernet().MacAddress().State())
 	di.GetOrCreateEthernet().MacAddress = &diMacAddress
 
+	wantdi.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(wantdi.GetOrCreateEthernet().GetMacAddress()))
+	di.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(di.GetOrCreateEthernet().GetMacAddress()))
+
 	confirm.State(t, wantdi, di)
 
 	// State for the interface.
@@ -239,7 +243,7 @@ func (tc *testCase) verifyInterfaceDUT(
 
 	disp := dip.Subinterface(0)
 
-	if !*deviations.IPNeighborMissing {
+	if !deviations.IPNeighborMissing(tc.dut) {
 		// IPv4 neighbor discovered by ARP.
 		dis4np := disp.Ipv4().Neighbor(atea.IPv4)
 		if got := gnmi.Get(t, tc.dut, dis4np.Origin().State()); got != dynamic {

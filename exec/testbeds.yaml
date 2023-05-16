@@ -29,6 +29,12 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
     pyats_testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/pyats.yaml
+  - id: 8201-32FH_FLM254206E7_transit_wecmp
+    owner: kjahed
+    testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
+    binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
+    baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3-transit-wecmp.proto
+    pyats_testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/pyats.yaml
   - id: 8201-32FH_FLM253900HJ
     owner: arvbaska
     testbed: topologies/cisco/hw/8201-32FH_FLM253900HJ/testbed
@@ -38,6 +44,10 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE/basefp.conf
+  - id: 8201-1DUT-1ATE-vrf-mgmt
+    sim: true
+    topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE/basefp-mgmt-vrf.conf
   - id: 8808-1DUT-1ATE
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
@@ -86,4 +96,63 @@ testbeds:
     owner: saarvind
     testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
-    baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto    
+    baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
+
+#OTG
+
+  - id: 8808-36FH_FOX2506P5XE_OTG
+    owner: mananpat
+    testbed: topologies/cisco/hw/8808-36FH_FOX2506P5XE_OTG/atedut_otg_moji.testbed
+    binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE_OTG/atedut_otg_moji.binding
+    baseconf: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
+  - id: 8808-36FH_FOX2504P3CE_OTG
+    owner: mananpat
+    testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE_OTG/otg.testbed
+    binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE_OTG/otg.binding
+    baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  - id: 8201-32FH_FLM253900HJ_OTG
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8201-32FH_FLM253900HJ_OTG/otg.testbed
+    binding: topologies/cisco/hw/8201-32FH_FLM253900HJ_OTG/otg.binding
+    baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
+  - id: 8201-32FH_FLM254206E7_OTG
+    owner: kjahed
+    testbed: topologies/cisco/hw/8201-32FH_FLM254206E7_OTG/otg.testbed
+    binding: topologies/cisco/hw/8201-32FH_FLM254206E7_OTG/otg.binding
+    baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
+  - id: 8808_FOX2506P2QT_OTG
+    owner: kjahed
+    testbed: topologies/cisco/hw/8808_FOX2506P2QT_OTG/otg.testbed
+    binding: topologies/cisco/hw/8808_FOX2506P2QT_OTG/otg.binding
+    baseconf: topologies/cisco/hw/8808_FOX2506P2QT_OTG/baseconfig.proto
+  - id: 8808_FOX2625PLW8_OTG
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8808_FOX2625PLW8_OTG/otg.testbed
+    binding: topologies/cisco/hw/8808_FOX2625PLW8_OTG/otg.binding
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig.proto
+  - id: 8808_FOX2625PLW8_OTG_v6_gNMI
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8808_FOX2625PLW8_OTG/otg.testbed
+    binding: topologies/cisco/hw/8808_FOX2625PLW8_OTG/otg.binding_gnmi_v6
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto
+  - id: 8808_FOX2643Q39J_OTG
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8808_FOX2643Q39J_OTG/otg.testbed
+    binding: topologies/cisco/hw/8808_FOX2643Q39J_OTG/otg.binding_gnmi_v6
+    baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt.proto
+  - id: 8808-36FH_FOX2613PHWL_OTG
+    owner: wdolaast
+    testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL_OTG/otg.testbed
+    binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL_OTG/otg.binding
+    baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
+  - id: 8808-FOX2508P0JU_OTG
+    owner: vbhan
+    testbed: topologies/cisco/hw/8808-FOX2508P0JU_OTG/otg.testbed
+    binding: topologies/cisco/hw/8808-FOX2508P0JU_OTG/otg.binding-ipv6-tun
+    baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
+  - id: 8812-FOC2326NBZB_OTG
+    owner: saarvind
+    testbed: topologies/cisco/hw/8812-FOC2326NBZB_OTG/otg.testbed
+    binding: topologies/cisco/hw/8812-FOC2326NBZB_OTG/otg.binding
+    baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
+ 
