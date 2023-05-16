@@ -111,6 +111,12 @@ func P4rtBackupArbitrationResponseCode(_ *ondatra.DUTDevice) bool {
 	return *p4rtBackupArbitrationResponseCode
 }
 
+// ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
+// Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.
+func ExplicitP4RTNodeComponent(_ *ondatra.DUTDevice) bool {
+	return *explicitP4RTNodeComponent
+}
+
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
 	return *isisRestartSuppressUnsupported
@@ -240,6 +246,11 @@ func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
 // HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
 func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
 	return *hierarchicalWeightResolutionTolerance
+}
+
+// InterfaceEnabled returns if device requires interface enabled leaf booleans to be explicitly set to true.
+func InterfaceEnabled(_ *ondatra.DUTDevice) bool {
+	return *interfaceEnabled
 }
 
 // InterfaceCountersFromContainer returns if the device only supports querying counters from the state container, not from individual counter leaves.
@@ -417,7 +428,7 @@ var (
 	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
-	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
+	interfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	ipv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
@@ -460,7 +471,7 @@ var (
 
 	explicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
-	ExplicitP4RTNodeComponent = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
+	explicitP4RTNodeComponent = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
 
 	RoutePolicyUnderPeerGroup = flag.Bool("deviation_rpl_under_peergroup", false, "Device requires route-policy configuration under bgp peer-group. Fully-compliant devices should pass with and without this deviation.")
 
