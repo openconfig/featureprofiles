@@ -199,5 +199,6 @@ func getSubCompPath(t *testing.T, dut *ondatra.DUTDevice) *tpb.Path {
 	if len(controllerCards) == 2 {
 		_, activeRP = components.FindStandbyRP(t, dut, controllerCards)
 	}
-	return components.GetSubcomponentPath(activeRP)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	return components.GetSubcomponentPath(activeRP, useNameOnly)
 }
