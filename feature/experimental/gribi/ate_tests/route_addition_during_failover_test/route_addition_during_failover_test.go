@@ -592,8 +592,9 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch),
+		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 
