@@ -947,7 +947,7 @@ func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
-	if *deviations.ExplicitP4RTNodeComponent {
+	if deviations.ExplicitP4RTNodeComponent(dut) {
 		switch dut.Vendor() {
 		case ondatra.NOKIA:
 			return inferP4RTNodesNokia(t, dut)
