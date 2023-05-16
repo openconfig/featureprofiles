@@ -60,11 +60,14 @@ func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
 		}
 		build.Substitutions["_MACHINE_TYPE"] = machineType
 	}
-	testPaths := ""
-	for _, t := range c.device.Tests {
-		testPaths = testPaths + " " + t.Path + "," + t.BadgePath
+	var testPaths strings.Builder
+	for i, t := range c.device.Tests {
+		if i != 0 {
+			testPaths.WriteString(" ")
+		}
+		fmt.Fprintf(&testPaths, "%s,%s", t.Path, t.BadgePath)
 	}
-	build.Substitutions["_DUT_TESTS"] = testPaths
+	build.Substitutions["_DUT_TESTS"] = testPaths.String()
 
 	objPath, err := c.prepareBuild(ctx)
 	if err != nil {
@@ -133,17 +136,10 @@ func (c *cloudBuild) createTGZArchive() (*bytes.Buffer, error) {
 		}
 		defer file.Close()
 
-		if _, err := io.Copy(tarWriter, file); err != nil {
-			return err
-		}
-
-		return nil
+		_, err = io.Copy(tarWriter, file)
+		return err
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &buf, nil
+	return &buf, err
 }
 
 // prepareBuild uploads the compressed repository to Object Store and returns the path to the object.
@@ -164,11 +160,7 @@ func (c *cloudBuild) prepareBuild(ctx context.Context) (string, error) {
 	if _, err := data.WriteTo(obj); err != nil {
 		return "", err
 	}
-	if err := obj.Close(); err != nil {
-		return "", err
-	}
-
-	return objPath, nil
+	return objPath, obj.Close()
 }
 
 // defaultBuild returns the Cloud Build configuration stored in the repository.
@@ -179,18 +171,6 @@ func (c *cloudBuild) defaultBuild() (*cloudbuild.Build, error) {
 	}
 
 	var build *cloudbuild.Build
-	if err := yaml.Unmarshal(buildYAML, &build); err != nil {
-		return nil, err
-	}
-
-	return build, nil
-}
-
-func newCloudBuild(f fs.FS, buildClient *cloudbuild.Service, storClient *storage.Client, d device) *cloudBuild {
-	return &cloudBuild{
-		device:      d,
-		buildClient: buildClient,
-		storClient:  storClient,
-		f:           f,
-	}
+	err = yaml.Unmarshal(buildYAML, &build)
+	return build, err
 }

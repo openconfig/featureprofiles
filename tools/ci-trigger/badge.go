@@ -97,7 +97,9 @@ func svgBadge(label, message string) (*bytes.Buffer, error) {
 // estimateStringWidth determines the length of s. The character size is always
 // 7px; this is not accurate for variable width fonts.
 func estimateStringWidth(s string) int {
-	padding := 10
-	avgCharSize := 7
+	const (
+		padding     = 10
+		avgCharSize = 7
+	)
 	return padding + (avgCharSize * len(s))
 }

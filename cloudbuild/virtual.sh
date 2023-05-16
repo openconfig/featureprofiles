@@ -15,7 +15,10 @@
 
 set -x
 
-case $1 in
+readonly platform="${1}"
+readonly dut_tests="${2}"
+
+case ${platform} in
   arista_ceos)
     vendor_creds=ARISTA/admin/admin
     deviations=
@@ -37,21 +40,22 @@ case $1 in
     deviations=
     ;;
   :)
-    echo "Model $1 not valid"
+    echo "Model ${platform} not valid"
     exit 1
     ;;
 esac
 
-function metadata_topology() {
-  patterns=("TESTBED_DUT" "TESTBED_DUT_DUT_4LINKS" "TESTBED_DUT_ATE_2LINKS" "TESTBED_DUT_ATE_4LINKS")
-  declare -A topology
-  topology["TESTBED_DUT"]="${1}.textproto"
-  topology["TESTBED_DUT_DUT_4LINKS"]="${1}_dutdut.textproto"
-  topology["TESTBED_DUT_ATE_2LINKS"]="${1}_lag.textproto"
-  topology["TESTBED_DUT_ATE_4LINKS"]="${1}_lag.textproto"
-  for p in "${patterns[@]}"; do
-    if grep -q "testbed.*${p}$" "${2}"/metadata.textproto; then
-      echo "${topology[${p}]}"
+function metadata_kne_topology() {
+  local metadata_test_path
+  metadata_test_path="${1}"
+  declare -A kne_topology_file
+  kne_topology_file["TESTBED_DUT"]="${platform}.textproto"
+  kne_topology_file["TESTBED_DUT_DUT_4LINKS"]="${platform}_dutdut.textproto"
+  kne_topology_file["TESTBED_DUT_ATE_2LINKS"]="${platform}_lag.textproto"
+  kne_topology_file["TESTBED_DUT_ATE_4LINKS"]="${platform}_lag.textproto"
+  for p in "${!kne_topology_file[@]}"; do
+    if grep -q "testbed.*${p}$" "${metadata_test_path}"/metadata.textproto; then
+      echo "${kne_topology_file[${p}]}"
       return
     fi
   done
@@ -60,42 +64,41 @@ function metadata_topology() {
 
 export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
-for dut_test in $2; do
-  test_path=$(echo $dut_test | awk '{split($0,a,",");print a[1]}')
-  test_badge=$(echo $dut_test | awk '{split($0,a,",");print a[2]}')
-  gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"$test_badge\",\"status\":\"pending execution\"}"
+for dut_test in ${dut_tests}; do
+  test_badge=$(echo "${dut_test}" | awk '{split($0,a,",");print a[2]}')
+  gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"pending execution\"}"
 done
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
 pushd /tmp/workspace
 
-cp -r "$PWD"/topologies/kne /tmp
+cp -r "${PWD}"/topologies/kne /tmp
 
-for dut_test in $2; do
-  test_path=$(echo $dut_test | awk '{split($0,a,",");print a[1]}')
-  test_badge=$(echo $dut_test | awk '{split($0,a,",");print a[2]}')
-  topology=$(metadata_topology "$1" "$test_path")
-  sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/kne/"$topology"
-  sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/kne/"$topology"
-  sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" /tmp/kne/"$topology"
-  sed -i "s/xrd:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/xrd:ga/g" /tmp/kne/"$topology"
-  sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" /tmp/kne/"$topology"
+for dut_test in ${dut_tests}; do
+  test_path=$(echo "${dut_test}" | awk '{split($0,a,",");print a[1]}')
+  test_badge=$(echo "${dut_test}" | awk '{split($0,a,",");print a[2]}')
+  kne_topology=$(metadata_kne_topology "${test_path}")
+  sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/kne/"${kne_topology}"
+  sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/kne/"${kne_topology}"
+  sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" /tmp/kne/"${kne_topology}"
+  sed -i "s/xrd:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/xrd:ga/g" /tmp/kne/"${kne_topology}"
+  sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" /tmp/kne/"${kne_topology}"
 
-  gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"$test_badge\",\"status\":\"environment setup\"}"
-  kne create /tmp/kne/"$topology"
-  gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"$test_badge\",\"status\":\"running\"}"
-  go test -v ./"$test_path"/... -timeout 0 \
-  -kne-topo /tmp/kne/"$topology" \
+  gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"environment setup\"}"
+  kne create /tmp/kne/"${kne_topology}"
+  gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"running\"}"
+  go test -v ./"${test_path}"/... -timeout 0 \
+  -kne-topo /tmp/kne/"${kne_topology}" \
   -kne-skip-reset \
-  -vendor_creds "$vendor_creds" \
-  "$deviations"
+  -vendor_creds "${vendor_creds}" \
+  "${deviations}"
   if [[ $? -eq 0 ]]; then
-    gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"$test_badge\",\"status\":\"success\"}"
+    gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"success\"}"
   else
-    gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"$test_badge\",\"status\":\"failure\"}"
+    gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"failure\"}"
   fi
-  kne delete /tmp/kne/"$topology"
+  kne delete /tmp/kne/"${kne_topology}"
 done
 
 popd

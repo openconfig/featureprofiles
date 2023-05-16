@@ -41,7 +41,7 @@ func TestModifiedFunctionalTests(t *testing.T) {
 			desc:            "nothing shared",
 			functionalTests: []string{"/a", "/b", "/c"},
 			modifiedFiles:   []string{"/d", "/e"},
-			want:            []string{},
+			want:            nil,
 		},
 		{
 			desc:            "everything shared",
@@ -63,13 +63,13 @@ func TestModifiedFunctionalTests(t *testing.T) {
 		},
 		{
 			desc:            "empty inputs",
-			functionalTests: []string{},
-			modifiedFiles:   []string{},
-			want:            []string{},
+			functionalTests: nil,
+			modifiedFiles:   nil,
+			want:            nil,
 		},
 		{
 			desc: "nil inputs",
-			want: []string{},
+			want: nil,
 		},
 	}
 	for _, tc := range cases {

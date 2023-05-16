@@ -20,7 +20,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -91,7 +90,12 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 				if skip {
 					continue
 				}
-				cb := newCloudBuild(p.localFS, buildClient, storClient, virtualDevice)
+				cb := &cloudBuild{
+					device:      virtualDevice,
+					buildClient: buildClient,
+					storClient:  storClient,
+					f:           p.localFS,
+				}
 				jobID, logURL, err := cb.submitBuild(ctx)
 				if err != nil {
 					return fmt.Errorf("error creating CloudBuild job for PR%d: %w", p.ID, err)
@@ -278,18 +282,14 @@ func (p *pullRequest) firstComment(ctx context.Context, githubClient *github.Cli
 
 // functionalTestPaths returns a list of directories containing functional test metadata.
 func functionalTestPaths(f fs.FS) ([]string, error) {
-	var testdirs []string
+	var testDirs []string
 	err := fs.WalkDir(f, "feature", func(path string, d fs.DirEntry, err error) error {
 		if !d.IsDir() && d.Name() == "metadata.textproto" {
-			testdirs = append(testdirs, filepath.Dir(path))
+			testDirs = append(testDirs, filepath.Dir(path))
 		}
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return testdirs, nil
+	return testDirs, err
 }
 
 // modifiedFunctionalTests checks if any values of modifiedFiles starts with
@@ -304,21 +304,9 @@ func modifiedFunctionalTests(functionalTests []string, modifiedFiles []string) [
 			}
 		}
 	}
-	result := []string{}
+	var result []string
 	for k := range fts {
 		result = append(result, k)
 	}
 	return result
-}
-
-// newPullRequest returns a minimally-populated pull request.
-func newPullRequest(id int, cloneURL string, headSHA string, baseSHA string, tmpDir string) *pullRequest {
-	return &pullRequest{
-		ID:        id,
-		HeadSHA:   headSHA,
-		baseSHA:   baseSHA,
-		cloneURL:  cloneURL,
-		localPath: tmpDir,
-		localFS:   os.DirFS(tmpDir),
-	}
 }

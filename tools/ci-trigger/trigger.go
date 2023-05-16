@@ -43,12 +43,7 @@ func (t *trigger) githubEvent(r *http.Request) (any, error) {
 		return nil, err
 	}
 
-	event, err := github.ParseWebHook(github.WebHookType(r), payload)
-	if err != nil {
-		return nil, err
-	}
-
-	return event, nil
+	return github.ParseWebHook(github.WebHookType(r), payload)
 }
 
 // processIssueComment handles a GitHub issue event.
@@ -88,12 +83,14 @@ func (t *trigger) processIssueComment(ctx context.Context, e *github.IssueCommen
 		return fmt.Errorf("query GitHub API for PR data: %w", err)
 	}
 
-	pr := newPullRequest(
-		e.GetIssue().GetNumber(),
-		prData.GetHead().GetRepo().GetCloneURL(),
-		prData.GetHead().GetSHA(),
-		prData.GetBase().GetSHA(),
-		tmpDir)
+	pr := &pullRequest{
+		ID:        e.GetIssue().GetNumber(),
+		HeadSHA:   prData.GetHead().GetSHA(),
+		baseSHA:   prData.GetBase().GetSHA(),
+		cloneURL:  prData.GetHead().GetRepo().GetCloneURL(),
+		localFS:   os.DirFS(tmpDir),
+		localPath: tmpDir,
+	}
 	if err := pr.identifyModifiedTests(); err != nil {
 		return fmt.Errorf("identify modified tests: %w", err)
 	}
@@ -129,12 +126,14 @@ func (t *trigger) processPullRequest(ctx context.Context, e *github.PullRequestE
 	}
 	defer os.RemoveAll(tmpDir)
 
-	pr := newPullRequest(
-		e.GetPullRequest().GetNumber(),
-		e.GetPullRequest().GetHead().GetRepo().GetCloneURL(),
-		e.GetPullRequest().GetHead().GetSHA(),
-		e.GetPullRequest().GetBase().GetSHA(),
-		tmpDir)
+	pr := &pullRequest{
+		ID:        e.GetPullRequest().GetNumber(),
+		HeadSHA:   e.GetPullRequest().GetHead().GetSHA(),
+		baseSHA:   e.GetPullRequest().GetBase().GetSHA(),
+		cloneURL:  e.GetPullRequest().GetHead().GetRepo().GetCloneURL(),
+		localFS:   os.DirFS(tmpDir),
+		localPath: tmpDir,
+	}
 	if err := pr.identifyModifiedTests(); err != nil {
 		return fmt.Errorf("identify modified tests: %w", err)
 	}
@@ -188,8 +187,5 @@ func newTrigger(ctx context.Context) (*trigger, error) {
 		return nil, err
 	}
 	t.buildClient, err = cloudbuild.NewService(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return t, nil
+	return t, err
 }
