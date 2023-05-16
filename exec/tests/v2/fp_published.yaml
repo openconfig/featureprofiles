@@ -172,6 +172,7 @@ tests:
     timeout: 3600
     mustpass: true
     args:
+      - '-deviation_sw_version_unsupported="true"'
       - '-osfile="/auto/prod_weekly_archive1/bin/7.11.1.162G.DT_IMAGE/8000/8000-x64-7.11.1.162G.iso"'
       - '-osver="7.11.1.162G"'
     skip: true
