@@ -15,7 +15,6 @@
 package te_1_1_static_arp_test
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -211,14 +210,14 @@ func checkDUTEntry(t *testing.T, ipType string, poisoned bool) {
 	switch ipType {
 	case "IPv4":
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv4().Neighbor(ateDst.IPv4).State()).LinkLayerAddress
-		if !strings.EqualFold(*macAddress, expectedMac) {
+		if *macAddress != expectedMac {
 			t.Errorf("ARP entry for %v is %v and expected was %v", ateDst.IPv4, *macAddress, expectedMac)
 		} else {
 			t.Logf("ARP entry for %v is %v", ateDst.IPv4, *macAddress)
 		}
 	case "IPv6":
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).State()).LinkLayerAddress
-		if !strings.EqualFold(*macAddress, expectedMac) {
+		if *macAddress != expectedMac {
 			t.Errorf("Neighbor entry for %v is %v and expected was %v", ateDst.IPv6, *macAddress, expectedMac)
 		} else {
 			t.Logf("Neighbor entry for %v is %v", ateDst.IPv6, *macAddress)
