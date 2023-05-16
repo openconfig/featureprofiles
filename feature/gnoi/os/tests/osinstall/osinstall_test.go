@@ -268,16 +268,18 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 		}
 
 		dut := ondatra.DUT(t, "dut")
-		ver, ok := gnmi.Lookup(t, dut, gnmi.OC().System().SoftwareVersion().State()).Val()
-		if !ok {
-			t.Log("Reboot has not finished with the right version: couldn't get system/state/software-version")
-			time.Sleep(rebootWait)
-			continue
-		}
-		if got, want := ver, *osVersion; !strings.HasPrefix(got, want) {
-			t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
-			time.Sleep(rebootWait)
-			continue
+		if !deviations.SwVersionUnsupported(dut) {
+			ver, ok := gnmi.Lookup(t, dut, gnmi.OC().System().SoftwareVersion().State()).Val()
+			if !ok {
+				t.Log("Reboot has not finished with the right version: couldn't get system/state/software-version")
+				time.Sleep(rebootWait)
+				continue
+			}
+			if got, want := ver, *osVersion; !strings.HasPrefix(got, want) {
+				t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
+				time.Sleep(rebootWait)
+				continue
+			}
 		}
 
 		if tc.dualSup {
