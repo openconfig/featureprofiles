@@ -373,7 +373,7 @@ func configureInterfaceDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dut
 	i := d.GetOrCreateInterface(ifName)
 	i.Description = ygot.String(desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	if deviations.ExplicitPortSpeed(dut) {
@@ -398,7 +398,7 @@ func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *o
 	s4 := s.GetOrCreateIpv4()
 	a := s4.GetOrCreateAddress(ipv4Addr)
 	a.PrefixLength = ygot.Uint8(uint8(ipv4PrefixLen))
-	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Subinterface(index).Config(), s)
