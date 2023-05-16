@@ -905,7 +905,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			s.Enabled = ygot.Bool(true)
 		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
