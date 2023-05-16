@@ -101,6 +101,12 @@ func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
 	return *p4rtUnsetElectionIDUnsupported
 }
 
+// ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
+// Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.
+func ExplicitP4RTNodeComponent(_ *ondatra.DUTDevice) bool {
+	return *explicitP4RTNodeComponent
+}
+
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
 	return *isisRestartSuppressUnsupported
@@ -232,6 +238,11 @@ func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
 	return *hierarchicalWeightResolutionTolerance
 }
 
+// InterfaceEnabled returns if device requires interface enabled leaf booleans to be explicitly set to true.
+func InterfaceEnabled(_ *ondatra.DUTDevice) bool {
+	return *interfaceEnabled
+}
+
 // InterfaceCountersFromContainer returns if the device only supports querying counters from the state container, not from individual counter leaves.
 func InterfaceCountersFromContainer(_ *ondatra.DUTDevice) bool {
 	return *interfaceCountersFromContainer
@@ -275,6 +286,12 @@ func TraceRouteL4ProtocolUDP(_ *ondatra.DUTDevice) bool {
 // TraceRouteFragmentation returns if device does not support fragmentation bit for traceroute.
 func TraceRouteFragmentation(_ *ondatra.DUTDevice) bool {
 	return *traceRouteFragmentation
+}
+
+// LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
+// expect neighbours are seen when lldp is disabled globally but enabled on interface
+func LLDPInterfaceConfigOverrideGlobal(_ *ondatra.DUTDevice) bool {
+	return *lldpInterfaceConfigOverrideGlobal
 }
 
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
@@ -379,6 +396,11 @@ func ISISInstanceEnabledNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisInstanceEnabledNotRequired
 }
 
+// GNOISubcomponentPath returns if device currently uses component name instead of a full openconfig path.
+func GNOISubcomponentPath(_ *ondatra.DUTDevice) bool {
+	return *gNOISubcomponentPath
+}
+
 // NoMixOfTaggedAndUntaggedSubinterfaces returns if device does not support a mix of tagged and untagged subinterfaces
 func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
 	return *noMixOfTaggedAndUntaggedSubinterfaces
@@ -396,7 +418,7 @@ var (
 	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
-	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
+	interfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	ipv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
@@ -424,7 +446,7 @@ var (
 
 	staticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
 
-	GNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
+	gNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
 
 	gNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
@@ -439,7 +461,7 @@ var (
 
 	explicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
-	ExplicitP4RTNodeComponent = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
+	explicitP4RTNodeComponent = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
 
 	RoutePolicyUnderPeerGroup = flag.Bool("deviation_rpl_under_peergroup", false, "Device requires route-policy configuration under bgp peer-group. Fully-compliant devices should pass with and without this deviation.")
 
@@ -475,7 +497,7 @@ var (
 	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
 
-	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
+	lldpInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
 
 	missingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
