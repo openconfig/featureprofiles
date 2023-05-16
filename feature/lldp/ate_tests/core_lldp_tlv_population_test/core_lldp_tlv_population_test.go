@@ -146,12 +146,12 @@ func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, p
 				return true
 			}
 			gotLen = len(intf.Neighbor)
-			if *deviations.LLDPInterfaceConfigOverrideGlobal {
+			if deviations.LLDPInterfaceConfigOverrideGlobal(dut) {
 				return gotLen > 0
 			}
 			return gotLen == 0
 		}).Await(t); !ok {
-			if *deviations.LLDPInterfaceConfigOverrideGlobal {
+			if deviations.LLDPInterfaceConfigOverrideGlobal(dut) {
 				t.Errorf("Number of neighbors got: %d, want: non-zero.", gotLen)
 			} else {
 				t.Errorf("Number of neighbors got: %d, want: 0.", gotLen)
