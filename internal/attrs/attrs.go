@@ -62,7 +62,7 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 		intf.Description = ygot.String(a.Desc)
 	}
 	intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		intf.Enabled = ygot.Bool(true)
 	}
 	if a.MTU > 0 && !deviations.OmitL2MTU(dut) {
@@ -76,7 +76,7 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 	s := intf.GetOrCreateSubinterface(0)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
 		}
 		if a.MTU > 0 {
@@ -93,7 +93,7 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 		if a.MTU > 0 {
 			s6.Mtu = ygot.Uint32(uint32(a.MTU))
 		}
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(dut) {
 			s6.Enabled = ygot.Bool(true)
 		}
 		a6 := s6.GetOrCreateAddress(a.IPv6)
