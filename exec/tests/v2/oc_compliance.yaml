@@ -1,57 +1,66 @@
 name: oc_compliance
 owners:
   - agvarghe
-priority: 4
 testbeds:
   - 8808-OC
 tests:
 - name: ACL-OC
   path: feature/cisco/acl/...
   timeout: 7200
+  branch: master
   owners:
   - agvarghe
 - name: BGP-OC
   path: feature/cisco/bgp/...
   timeout: 7200
+  branch: master
   owners:
   - agvarghe
 - name: Interface-OC
   path: feature/cisco/interface/...
   timeout: 7200
+  branch: master
   owners:
   - agvarghe
 - name: LACP-OC
   path: feature/cisco/lacp/...
   timeout: 7200
+  branch: master
   owners:
   - agvarghe
 - name: ISIS-OC
   path: feature/cisco/isis/...
   timeout: 7200
+  branch: master
   owners:
   - agvarghe
 - name: LLDP-OC
   path: feature/cisco/lldp/...
   timeout: 7200
+  branch: master
   owners:
   - agvarghe
 - name: Platform-OC
   path: feature/cisco/platform/...
   timeout: 7200
+  branch: master
   owners:
   - agvarghe
 - name: Network-instance-OC
   path: feature/cisco/network-instance/...
   timeout: 7200
+  branch: master
   owners:
   - agvarghe
 - name: System-OC
   path: feature/cisco/system/...
   timeout: 7200
+  branch: master
   owners:
   - agvarghe
 - name: P4RT-OC
   path: feature/cisco/p4rt/...
   timeout: 7200
+  branch: master
   owners:
   - agvarghe
