@@ -77,14 +77,14 @@ func configInterface(name, desc, ipv4 string, prefixlen uint8, dut *ondatra.DUTD
 	i.Description = ygot.String(desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 
-	if deviations.InterfaceEnabled(dut) {
+	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 
-	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 
