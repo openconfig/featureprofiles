@@ -111,7 +111,7 @@ func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attribute
 	i := &oc.Interface{Name: ygot.String(p.Name())}
 	i.Description = ygot.String(me.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
@@ -127,7 +127,7 @@ func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attribute
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(me.IPv4)
@@ -139,7 +139,7 @@ func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attribute
 	}
 
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
 	s6.GetOrCreateAddress(me.IPv6).PrefixLength = ygot.Uint8(plen6)

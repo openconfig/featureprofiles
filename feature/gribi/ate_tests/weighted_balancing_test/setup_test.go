@@ -146,7 +146,7 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 		Description: ygot.String(p.String()),
 		Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 	}
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
@@ -157,7 +157,7 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 
