@@ -167,12 +167,12 @@ func TestReuseIP(t *testing.T) {
 
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(bundle1)
-		configMember(config.GetOrCreateInterface(p1.Name()), bundle1)
+		configMember(config.GetOrCreateInterface(p1.Name()), bundle1, dut)
 		configBundle(config.GetOrCreateInterface(bundle1), &ip1, dut)
 
 		config.DeleteInterface(p2.Name())
 		config.DeleteInterface(bundle2)
-		configMember(config.GetOrCreateInterface(p2.Name()), bundle2)
+		configMember(config.GetOrCreateInterface(p2.Name()), bundle2, dut)
 		configBundle(config.GetOrCreateInterface(bundle2), &ip2, dut)
 
 		op.push(t, dut, config, scope)
@@ -555,8 +555,8 @@ func nextBundles(t *testing.T, dut *ondatra.DUTDevice, n int) []string {
 }
 
 // configMember configures an interface as a member of aggID bundle.
-func configMember(i *oc.Interface, aggID string) {
-	if *deviations.InterfaceEnabled {
+func configMember(i *oc.Interface, aggID string, dut *ondatra.DUTDevice) {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
