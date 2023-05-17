@@ -151,13 +151,13 @@ var (
 			// skip: true,
 		},
 		{
-			name: "Program TTL Match Entry and Check PacketOut With TTL1 With For-Us-IP(submit_to_ingress)",
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 With ICMP or Traceroute(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:006 Ingress: Programm match TTL=[1,2], inject ICMP/Traceroute packets with TTL=[0,1,2], verify if the packets go out for 1/2, 0 case not sent out",
 			fn:   testPacketOutTTLOneWithUDP,
 			// skip: true,
 		},
 		{
-			name: "Program TTL Match Entry and Check PacketOut With TTL1 With For-Us-IP submit to ingress",
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 With For-Us-IP(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:007 Ingress: dst IP is for us for the incoming packet, packet goes through lpts",
 			fn:   testPacketOutWithForUsIP,
 			// skip: true,
