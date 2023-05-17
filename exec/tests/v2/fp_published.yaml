@@ -446,8 +446,6 @@ tests:
     mustpass: true
     priority: 53
     skip: false
-    args:
-      - '-deviation_rpl_under_neighbor_afisafi="true"'
   - name: RT-1.4 (BGP Graceful Restart)
     path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
     owners:
@@ -466,7 +464,6 @@ tests:
     skip: true # requires 2 dut
     args:
       - '-deviation_connect_retry="true"'
-      - '-deviation_rpl_under_neighbor_afisafi="true"'
       - '-deviation_missing_bgp_last_notification_error_code="true"'
   - name: RT-1.2 (BGP Policy and Route Installation)
     path: feature/bgp/policybase/ate_tests/route_installation_test
