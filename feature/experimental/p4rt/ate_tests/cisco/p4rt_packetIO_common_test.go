@@ -186,8 +186,8 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 					t.Errorf("Packet is not matching wanted packet.")
 				}
 			}
-			if *&wantPacket.udp {
-				if *&wantPacket.udp {
+			if wantPacket.udp {
+				if wantPacket.udp {
 					packet := gopacket.NewPacket(packet.Pkt.GetPayload(), layers.LayerTypeEthernet, gopacket.Default)
 					if udpLayer := packet.Layer(layers.LayerTypeUDP); udpLayer == nil {
 						t.Errorf("UDP header in Packet is not matching wanted packet.")
@@ -195,7 +195,7 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 
 				}
 			}
-			if (wantPacket.DstIPv4 != nil || wantPacket.DstIPv6 != nil) && !*&wantPacket.udp {
+			if (wantPacket.DstIPv4 != nil || wantPacket.DstIPv6 != nil) && !wantPacket.udp {
 				srcIP, dstIP := decodeIPPacket(t, packet.Pkt.GetPayload())
 				//t.Logf("srcIP, dstIP %s, %s:", srcIP, dstIP)
 				// t.Logf("Decoded SRC IP: %v; Decoded DST IP: %v", srcIP, dstIP)
