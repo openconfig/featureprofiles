@@ -947,7 +947,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			s.Enabled = ygot.Bool(true)
 		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
@@ -1197,7 +1197,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
-		if *deviations.ExplicitInterfaceRefDefinition {
+		if deviations.ExplicitInterfaceRefDefinition(dut) {
 			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
 			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		}
@@ -1336,7 +1336,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
-		if *deviations.ExplicitInterfaceRefDefinition {
+		if deviations.ExplicitInterfaceRefDefinition(dut) {
 			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
 		}
 		output := i.GetOrCreateOutput()
