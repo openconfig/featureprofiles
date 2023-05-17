@@ -1,0 +1,39 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package openconfig.testing;
+
+// Metadata about a Feature Profiles test.
+message Metadata {
+  // UUID of the test.
+  string uuid = 1;
+  // ID of the test in the test plan.
+  string plan_id = 2;
+  // One-line description of the test.
+  string description = 3;
+
+  // Types of testbeds on which the test may run.
+  enum Testbed {
+    TESTBED_UNSPECIFIED = 0;
+    TESTBED_DUT = 1;
+    TESTBED_DUT_DUT_4LINKS = 2;
+    TESTBED_DUT_ATE_2LINKS = 3;
+    TESTBED_DUT_ATE_4LINKS = 4;
+    TESTBED_DUT_ATE_9LINKS = 5;
+  }
+  // Testbed on which the test is intended to run.
+  Testbed testbed = 4;
+}

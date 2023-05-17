@@ -53,15 +53,15 @@ func (a *Attributes) IPv6CIDR() string {
 }
 
 // ConfigInterface configures an OpenConfig interface with these attributes.
-func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
+func (a *Attributes) ConfigInterface(intf *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
 	if a.Desc != "" {
 		intf.Description = ygot.String(a.Desc)
 	}
 	intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		intf.Enabled = ygot.Bool(true)
 	}
-	if a.MTU > 0 && !*deviations.OmitL2MTU {
+	if a.MTU > 0 && !deviations.OmitL2MTU(dut) {
 		intf.Mtu = ygot.Uint16(a.MTU + 14)
 	}
 	e := intf.GetOrCreateEthernet()
@@ -72,7 +72,7 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	s := intf.GetOrCreateSubinterface(0)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
 		}
 		if a.MTU > 0 {
@@ -89,7 +89,7 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 		if a.MTU > 0 {
 			s6.Mtu = ygot.Uint32(uint32(a.MTU))
 		}
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(dut) {
 			s6.Enabled = ygot.Bool(true)
 		}
 		a6 := s6.GetOrCreateAddress(a.IPv6)
@@ -101,8 +101,8 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 }
 
 // NewOCInterface returns a new *oc.Interface configured with these attributes
-func (a *Attributes) NewOCInterface(name string) *oc.Interface {
-	return a.ConfigInterface(&oc.Interface{Name: ygot.String(name)})
+func (a *Attributes) NewOCInterface(name string, dut *ondatra.DUTDevice) *oc.Interface {
+	return a.ConfigInterface(&oc.Interface{Name: ygot.String(name)}, dut)
 }
 
 // AddToATE adds a new interface to an ATETopology with these attributes.
@@ -128,8 +128,8 @@ func (a *Attributes) AddToATE(top *ondatra.ATETopology, ap *ondatra.Port, peer *
 func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attributes) gosnappi.Device {
 	top.Ports().Add().SetName(ap.ID())
 	dev := top.Devices().Add().SetName(a.Name)
-	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth")
-	eth.SetPortName(ap.ID()).SetMac(a.MAC)
+	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth").SetMac(a.MAC)
+	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
 
 	if a.MTU > 0 {
 		eth.SetMtu(int32(a.MTU))

@@ -2,56 +2,64 @@
 
 ## Summary
 
-Ensure that both CLI and OC configuration can be pushed to the device at the
-same time.
+Ensure that both CLI and OC configuration can be pushed to the device within the
+same `SetRequest`, with OC config as a `replace` operation and the CLI as an
+`update` operation. Note that this implies stale CLI config may remain after the
+`SetRequest` operation.
 
 ## Procedure
 
-Note: this test is intended to cover only the case of pushing some configuration
-along with OC paths - since it is unknown what CLI configuration would be
-required in the emergency case that is covered by this requirement.
+1.  Delete the `TEST` queue in OpenConfig in case it is still there, and check
+    that it is no longer present.
+2.  Retrieve currently-running OpenConfig and CLI configs.
+3.  Validate that device can accept root replace of current OC config without
+    any changes (currently skipped).
+4.  Construct and send mixed-origin SetRequest.
+    1.  CLI configuration consists of the below example, where a name is given
+        to a traffic class and a queue.
+    2.  Modify currently-running OpenConfig to create the queue and traffic
+        classes as per named via CLI, and map the queue to the traffic class.
+5.  Verify QoS queue and traffic class configuration has been accepted by the
+    target.
+6.  Repeat above steps, but replacing on the `/qos` path instead of at root
+    level (root-level test currently skipped).
 
-*   Push non-overlapping mixed SetRequest specifying CLI for DUT port-1 and
-    OpenConfig for DUT port-2.
+The configuration used in this test is a QoS configuration wherein the
+OpenConfig configuration depends on the CLI configuration:
 
-    *   `origin: "cli"` containing vendor configuration.
+Arista Example:
 
-        ```
-        interface <DUT port-1>
-          description foo1
-        ```
+```textproto
+SetRequest:
+prefix:  {
+  target:  "device-name"
+}
+replace:  {
+  path:  {
+    origin:  "openconfig"
+  }
+  val:  {
+    json_ietf_val:  "{\n  full config omitted \n}"
+  }
+}
+update:  {
+  path:  {
+    origin:  "cli"
+  }
+  val:  {
+    ascii_val:  "qos traffic-class 0 name target-group-TEST\nqos tx-queue 0 name TEST"
+  }
+}
+```
 
-    *   `origin: ""` (openconfig, default origin) setting the DUT port-2 string
-        value at `/interfaces/interface/config/description` to `"foo2"`.
+TODO: Support other vendor CLIs and place examples here.
 
-*   Validate the DUT port-1 and DUT port-2 descriptions through telemetry.
+## Config Parameter Coverage
 
-*   Push overlapping mixed SetRequest specifying CLI before OpenConfig for DUT
-    port-1.
+*   origin: "cli"
+*   /qos/forwarding-groups/forwarding-group/config/output-queue
+*   /qos/queues/queue/config/name
 
-    *   `origin: "cli"` containing vendor configuration.
+## Telemetry Parameter Coverage
 
-        ```
-        interface <DUT port-1>
-          description from cli
-        ```
-
-    *   `origin: ""` (openconfig, default origin) setting the DUT port-1 string
-        value at `/interfaces/interface/config/description` to `"from oc"`.
-
-*   Validate that DUT port-1 description is `"from oc"`.
-
-*   Push overlapping mixed SetRequest specifying OpenConfig before CLI for
-    DUT port-1.
-
-    *   `origin: ""` (openconfig, default origin) setting the DUT port-1 string
-        value at `/interfaces/interface/config/description` to `"from oc"`.
-
-    *   `origin: "cli"` containing vendor configuration.
-
-        ```
-        interface <DUT port-1>
-          description from cli
-        ```
-
-*   Validate that DUT port-1 description is `"from cli"`.
+*   None

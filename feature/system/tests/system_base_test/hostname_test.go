@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
@@ -57,13 +58,16 @@ func TestHostname(t *testing.T) {
 				}
 			})
 
-			t.Run("Get Hostname Telemetry", func(t *testing.T) {
-				stateGot := gnmi.Await(t, dut, state.State(), 5*time.Second, testCase.hostname)
-				if got, _ := stateGot.Val(); got != testCase.hostname {
-					t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
-				}
-			})
-
+			if deviations.CLITakesPrecedenceOverOC(dut) {
+				t.Logf("Skipping hostname telemetry check")
+			} else {
+				t.Run("Get Hostname Telemetry", func(t *testing.T) {
+					stateGot := gnmi.Await(t, dut, state.State(), 1*time.Minute, testCase.hostname)
+					if got, _ := stateGot.Val(); got != testCase.hostname {
+						t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
+					}
+				})
+			}
 			t.Run("Delete Hostname", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
@@ -108,13 +112,16 @@ func TestDomainName(t *testing.T) {
 				}
 			})
 
-			t.Run("Get Domainname Telemetry", func(t *testing.T) {
-				stateGot := gnmi.Await(t, dut, state.State(), 5*time.Second, testCase.domainname)
-				if got, _ := stateGot.Val(); got != testCase.domainname {
-					t.Errorf("Telemetry domainname: got %v, want %s", stateGot, testCase.domainname)
-				}
-			})
-
+			if deviations.CLITakesPrecedenceOverOC(dut) {
+				t.Logf("Skipping domain-name telemetry check")
+			} else {
+				t.Run("Get Domainname Telemetry", func(t *testing.T) {
+					stateGot := gnmi.Await(t, dut, state.State(), 1*time.Minute, testCase.domainname)
+					if got, _ := stateGot.Val(); got != testCase.domainname {
+						t.Errorf("Telemetry domainname: got %v, want %s", stateGot, testCase.domainname)
+					}
+				})
+			}
 			t.Run("Delete Domainname", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {

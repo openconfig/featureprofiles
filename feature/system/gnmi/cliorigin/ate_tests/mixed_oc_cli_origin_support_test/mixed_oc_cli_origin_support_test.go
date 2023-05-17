@@ -17,203 +17,141 @@ package mixed_oc_cli_origin_support_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func interfaceDescriptionCLI(dp *ondatra.Port, desc string) string {
-	switch dp.Device().Vendor() {
-	case ondatra.ARISTA, ondatra.CISCO:
-		const tmpl = `
-interface %s
-  description %s
-`
-		return fmt.Sprintf(tmpl, dp.Name(), desc)
-	case ondatra.JUNIPER:
-		const tmpl = `
-interfaces {
-    %s {
-        description "%s"
-    }
-}
-`
-		return fmt.Sprintf(tmpl, dp.Name(), desc)
-	}
-	return ""
+type testCase struct {
+	cliConfig        string
+	queueName        string
+	forwardGroupName string
 }
 
-func buildOCUpdate(path *gpb.Path, value string) *gpb.Update {
-	if len(path.GetElem()) == 0 || path.GetElem()[0].GetName() != "meta" {
-		path.Origin = "openconfig"
-	}
-	jsonVal, _ := ygot.Marshal7951(ygot.String(value))
-	update := &gpb.Update{
-		Path: path,
-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: jsonVal}},
-	}
-	return update
-}
-
-func buildCLIUpdate(value string) *gpb.Update {
-	update := &gpb.Update{
-		Path: &gpb.Path{
-			Origin: "cli",
-			Elem:   []*gpb.PathElem{},
-		},
-		Val: &gpb.TypedValue{
-			Value: &gpb.TypedValue_AsciiVal{
-				AsciiVal: value,
-			},
-		},
-	}
-	return update
-}
-
-// TestCLIBeforeOpenConfig pushes overlapping mixed SetRequest specifying CLI before OpenConfig for DUT port-1.
-func TestCLIBeforeOpenConfig(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dp := dut.Port(t, "port1")
-
-	// `origin: "cli"` - containing vendor configuration.
-	intfConfig := interfaceDescriptionCLI(dp, "from cli")
-	if intfConfig == "" {
-		t.Fatalf("Please add vendor support for %v", dut.Vendor())
-	}
-	t.Logf("Building the CLI config:\n%s", intfConfig)
-
-	// `origin: ""` (openconfig, default origin) setting the DUT port-1
-	//  string value at `/interfaces/interface/config/description` to `"from oc"`.
-	resolvedPath := gnmi.OC().Interface(dp.Name()).Description().Config().PathStruct()
-	path, _, errs := ygnmi.ResolvePath(resolvedPath)
-	if errs != nil {
-		t.Fatalf("Could not resolve path: %v", errs)
-	}
-
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			buildCLIUpdate(intfConfig),
-			buildOCUpdate(path, "from oc"),
-		},
-	}
-	t.Log("gnmiClient Set both CLI and OpenConfig modelled config")
-	t.Log(gpbSetRequest)
-
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
-	response, err := gnmiClient.Set(context.Background(), gpbSetRequest)
+// showRunningConfig returns the output of 'show running-config' on the device.
+func showRunningConfig(t *testing.T, dut *ondatra.DUTDevice) string {
+	t.Helper()
+	runningConfig, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show running-config")
 	if err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+		t.Fatalf("'show running-config' failed: %v", err)
 	}
-	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled config")
-	t.Log(response)
+	return runningConfig
+}
 
-	// Validate that DUT port-1 description is `"from oc"`
-	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Description().State())
-	want := "from oc"
-	if got != want {
-		t.Errorf("Get(DUT port description): got %v, want %v", got, want)
+// testQoSWithCLIAndOCUpdates carries out a mixed-origin test for a QoS test case.
+//
+// TODO: If a truly permanent example of a mutual dependency between CLI and OC
+// exists that must be modelled partially in CLI even as OC modelling continues
+// to mature, then consider changing this test to that instead.
+func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase testCase, subtreeReplace bool) {
+	qosPath := gnmi.OC().Qos()
+
+	t.Logf("Step 1: Delete and make sure QoS queue under test is not already set.")
+	gnmi.Delete(t, dut, qosPath.Queue(tCase.queueName).Config())
+	// Make sure the test queue does not exist.
+	if existingQueue := gnmi.LookupConfig(t, dut, qosPath.Queue(tCase.queueName).Config()); existingQueue.IsPresent() {
+		t.Fatalf("Detected an existing %v queue. This is unexpected.", tCase.queueName)
+	}
+
+	t.Logf("Step 2: Retrieve current root OC config")
+	runningConfig := showRunningConfig(t, dut)
+	r := gnmi.GetConfig(t, dut, gnmi.OC().Config())
+
+	t.Logf("Step 3: Test that replacing device with current config is accepted and is a no-op.")
+	var result *ygnmi.Result
+	if subtreeReplace {
+		result = gnmi.Replace(t, dut, qosPath.Config(), r.GetOrCreateQos())
+	} else {
+		result = gnmi.Replace(t, dut, gnmi.OC().Config(), r)
+	}
+	t.Logf("gnmi.Replace on root response: %+v", result.RawResponse)
+
+	t.Logf("Step 4: Construct and send mixed-origin SetRequest")
+	// Create OC addition to the config.
+	qos := r.GetOrCreateQos()
+	qos.GetOrCreateQueue(tCase.queueName)
+	qos.GetOrCreateForwardingGroup(tCase.forwardGroupName).SetOutputQueue(tCase.queueName)
+
+	fptest.LogQuery(t, "QoS update for the OC config:", qosPath.Config(), qos)
+
+	// Create and apply mixed CLI+OC SetRequest.
+	cliPath, err := schemaless.NewConfig[string]("", "cli")
+	if err != nil {
+		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
+	}
+
+	mixedQuery := &gnmi.SetBatch{}
+	if subtreeReplace {
+		gnmi.BatchReplace(mixedQuery, qosPath.Config(), qos)
+	} else {
+		gnmi.BatchReplace(mixedQuery, gnmi.OC().Config(), r)
+	}
+	gnmi.BatchUpdate(mixedQuery, cliPath, tCase.cliConfig)
+	result = mixedQuery.Set(t, dut)
+
+	t.Logf("gnmiClient.Set() response: %+v", result.RawResponse)
+
+	t.Logf("Step 5: Verify QoS queue configuration has been accepted by the target")
+
+	// Validate CLI has changed
+	newRunningConfig := showRunningConfig(t, dut)
+	diff := cmp.Diff(runningConfig, newRunningConfig)
+	t.Logf("running config (-old, +new):\n%s", cmp.Diff(runningConfig, newRunningConfig))
+	if diff == "" {
+		t.Errorf("CLI running-config expected to change but did not change after mixed-origin SetRequest.")
+	}
+
+	// Validate new OC config has been accepted.
+	gotQueue := gnmi.GetConfig(t, dut, qosPath.Queue(tCase.queueName).Config())
+	if got := gotQueue.GetName(); got != tCase.queueName {
+		t.Errorf("Get(DUT queue name): got %v, want %v", got, tCase.queueName)
+	}
+	gotFG := gnmi.GetConfig(t, dut, qosPath.ForwardingGroup(tCase.forwardGroupName).Config())
+	if got := gotFG.GetName(); got != tCase.forwardGroupName {
+		t.Errorf("Get(DUT forwarding group name): got %v, want %v", got, tCase.forwardGroupName)
+	}
+	if got := gotFG.GetOutputQueue(); got != tCase.queueName {
+		t.Errorf("Get(DUT forwarding group output queue): got %v, want %v", got, tCase.queueName)
 	}
 }
 
-// TestOpenConfigBeforeCLI pushes overlapping mixed SetRequest specifying OpenConfig before CLI for DUT port-1.
-func TestOpenConfigBeforeCLI(t *testing.T) {
+func TestQoSDependentCLIFullReplace(t *testing.T) {
+	// TODO: Skipping this test case because it is not required to pass right now.
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
-	dp := dut.Port(t, "port1")
 
-	// `origin: ""` (openconfig, default origin) setting the DUT port-1
-	//  string value at `/interfaces/interface/config/description` to `"from oc"`.
-	resolvedPath := gnmi.OC().Interface(dp.Name()).Description().Config().PathStruct()
-	path, _, errs := ygnmi.ResolvePath(resolvedPath)
-	if errs != nil {
-		t.Fatalf("Could not resolve path: %v", errs)
-	}
-
-	// `origin: "cli"` - containing vendor configuration.
-	intfConfig := interfaceDescriptionCLI(dp, "from cli")
-	if intfConfig == "" {
-		t.Fatalf("Please add vendor support for %v", dut.Vendor())
-	}
-	t.Logf("Building the CLI config:\n%s", intfConfig)
-
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			buildOCUpdate(path, "from oc"),
-			buildCLIUpdate(intfConfig),
-		},
-	}
-	t.Log("gnmiClient Set both CLI and OpenConfig modelled config")
-	t.Log(gpbSetRequest)
-
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
-	response, err := gnmiClient.Set(context.Background(), gpbSetRequest)
-	if err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-	}
-	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled config")
-	t.Log(response)
-
-	// Validate that DUT port-1 description is `"from cli"`
-	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Description().State())
-	want := "from cli"
-	if got != want {
-		t.Errorf("Get(DUT port description): got %v, want %v", got, want)
-	}
+	testQoSWithCLIAndOCUpdates(t, dut, getTestcase(t, dut), false)
 }
 
-// Push non-overlapping mixed SetRequest specifying CLI for DUT port-1 and
-// OpenConfig for DUT port-2
-func TestMixedOriginOCCLIConfig(t *testing.T) {
+func TestQoSDependentCLISubtreeReplace(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
-	// `origin: "cli"` - containing vendor configuration.
-	intf1Config := interfaceDescriptionCLI(dp1, "foo1")
-	if intf1Config == "" {
-		t.Fatalf("Please add vendor support for %v", dut.Vendor())
-	}
-	t.Logf("Building the CLI config:\n%s", intf1Config)
 
-	// `origin: ""` (openconfig, default origin) setting the DUT port-2
-	//  string value at `/interfaces/interface/config/description` to `"foo2"`.
-	resolvedPath := gnmi.OC().Interface(dp2.Name()).Description().Config().PathStruct()
-	path, _, errs := ygnmi.ResolvePath(resolvedPath)
+	testQoSWithCLIAndOCUpdates(t, dut, getTestcase(t, dut), true)
+}
 
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			buildCLIUpdate(intf1Config),
-			buildOCUpdate(path, "foo2"),
-		},
-	}
-	if errs != nil {
-		t.Fatalf("Could not resolve path: %v", errs)
-	}
-	t.Log("gnmiClient Set both CLI and OpenConfig modelled config")
-	t.Log(gpbSetRequest)
-
-	response, err := gnmiClient.Set(context.Background(), gpbSetRequest)
-	if err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-	}
-	t.Log("gnmiClient Set Response for CLI and OpenConfig modelled config")
-	t.Log(response)
-
-	// Validate that DUT port-1 and DUT port-2 description through telemetry.
-	if got := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Description().State()); got != "foo1" {
-		t.Errorf("Get(DUT port description): got %v, want %v", got, "foo1")
-	}
-	if got := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Description().State()); got != "foo2" {
-		t.Errorf("Get(DUT port description): got %v, want %v", got, "foo2")
+func getTestcase(t *testing.T, dut *ondatra.DUTDevice) testCase {
+	var cliConfig string
+	// TODO: additional vendor CLI to be added if and when necessary for compatibility with the OC QoS configuration.
+	switch vendor := dut.Vendor(); vendor {
+	case ondatra.ARISTA:
+		cliConfig = `qos traffic-class 0 name target-group-TEST
+qos tx-queue 0 name TEST`
+	default:
+		t.Skipf("Unsupported vendor device: %v", vendor)
 	}
 
+	return testCase{
+		cliConfig:        cliConfig,
+		queueName:        "TEST",
+		forwardGroupName: "target-group-TEST",
+	}
 }

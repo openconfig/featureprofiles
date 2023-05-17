@@ -147,6 +147,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
@@ -421,5 +423,13 @@ func NotPresent[T any, QT ygnmi.SingletonQuery[T]](query QT) Validator {
 			return fmt.Errorf("got %s, want no value", FormatValue(vgot))
 		}
 		return nil
+	})
+}
+
+// UnorderedEqual function is used to compare slices of type T in unordered way.
+func UnorderedEqual[T any, QT ygnmi.SingletonQuery[[]T]](query QT, want []T, less func(a, b T) bool) Validator {
+	return Predicate(query, fmt.Sprintf("want %#v", want), func(got []T) bool {
+		// Sort slices to compare them in unorderd way.
+		return cmp.Equal(got, want, cmpopts.SortSlices(less))
 	})
 }

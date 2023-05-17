@@ -25,8 +25,18 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-const (
-	process = "bgp"
+var (
+	bgpProcName = map[ondatra.Vendor]string{
+		ondatra.NOKIA:   "sr_bgp_mgr",
+		ondatra.ARISTA:  "bgp",
+		ondatra.JUNIPER: "rpd",
+	}
+	components = map[ondatra.Vendor]string{
+		ondatra.ARISTA:  "Chassis",
+		ondatra.CISCO:   "Chassis",
+		ondatra.JUNIPER: "CHASSIS0",
+		ondatra.NOKIA:   "Chassis",
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -54,22 +64,24 @@ func TestCopyingDebugFiles(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
-
+	if _, ok := bgpProcName[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var bgpProcName", dut.Vendor())
+	}
 	killProcessRequest := &spb.KillProcessRequest{
 		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
-		Name:    process,
+		Name:    bgpProcName[dut.Vendor()],
 		Restart: true,
 	}
 	processKillResponse, err := gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 	if err != nil {
-		t.Fatalf("Failed to restart process %v with unexpected err: %v", process, err)
+		t.Fatalf("Failed to restart process %v with unexpected err: %v", bgpProcName[dut.Vendor()], err)
 	}
 
 	t.Logf("gnoiClient.System().KillProcess() response: %v, err: %v", processKillResponse, err)
 	t.Logf("Wait 60 seconds for process to restart ...")
 	time.Sleep(60 * time.Second)
 
-	componentName := map[string]string{"name": "Chassis"}
+	componentName := map[string]string{"name": components[dut.Vendor()]}
 	req := &hpb.GetRequest{
 		Path: &tpb.Path{
 			Elem: []*tpb.PathElem{
@@ -87,6 +99,6 @@ func TestCopyingDebugFiles(t *testing.T) {
 	t.Logf("Error: %v", err)
 	t.Logf("Response: %v", (validResponse))
 	if err != nil {
-		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", process, err)
+		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", bgpProcName[dut.Vendor()], err)
 	}
 }

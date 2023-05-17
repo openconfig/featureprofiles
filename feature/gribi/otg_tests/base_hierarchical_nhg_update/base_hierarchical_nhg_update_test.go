@@ -16,6 +16,7 @@ package base_hierarchical_nhg_update_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -39,30 +40,32 @@ import (
 const (
 	vrfName = "VRF-1"
 
-	// Destination ATE MAC address for port-2 and port-3
-	pMAC = "00:1A:11:00:00:01"
+	// Destination ATE MAC address for port-2 and port-3.
+	pMAC = "00:1A:11:00:1A:BC"
 
-	// port-2 nexthop ID
-	p2ID = 40
-	// port-3 nexthop ID
-	p3ID = 41
+	// port-2 nexthop ID.
+	p2NHID = 40
+	// port-3 nexthop ID.
+	p3NHID = 41
 
-	// Interface route next-hop-group ID
-	interfaceID = 42
-	// Interface route nexthop IP
-	interfaceNH = "203.0.113.1"
-	// Interface route prefix
-	interfacePfx = "203.0.113.1/32"
+	// VirtualIP route next-hop-group ID.
+	virtualIPNHGID = 42
+	// VirtualIP route nexthop.
+	virtualIP = "203.0.113.1"
+	// VirtualIP route prefix.
+	virtualPfx = "203.0.113.1/32"
 
 	// Destination route next-hop ID
 	dstNHID = 43
 	// Destination route next-hop-group ID
 	dstNHGID = 44
 	// Destination route prefix for DUT to ATE traffic.
-	dstPfx      = "198.51.100.0/24"
-	dstPfxMin   = "198.51.100.0"
-	dstPfxMax   = "198.51.100.255"
-	dstPfxCount = 256
+	dstPfx            = "198.51.100.0/24"
+	dstPfxFlowIP      = "198.51.100.0"
+	ipv4PrefixLen     = 30
+	ipv4FlowCount     = 65000
+	innerSrcIPv4Start = "198.18.0.0"
+	innerDstIPv4Start = "198.19.0.0"
 )
 
 var (
@@ -100,6 +103,27 @@ var (
 		IPv4:    "192.0.2.10",
 		IPv4Len: 30,
 	}
+
+	dutPort2DummyIP = attrs.Attributes{
+		Desc:    "dutPort2",
+		IPv4:    "192.0.2.21",
+		IPv4Len: 30,
+	}
+	dutPort3DummyIP = attrs.Attributes{
+		Desc:    "dutPort3",
+		IPv4:    "192.0.2.41",
+		IPv4Len: 30,
+	}
+	atePort2DummyIP = attrs.Attributes{
+		Desc:    "atePort2",
+		IPv4:    "192.0.2.22",
+		IPv4Len: 32,
+	}
+	atePort3DummyIP = attrs.Attributes{
+		Desc:    "atePort3",
+		IPv4:    "192.0.2.42",
+		IPv4Len: 32,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -117,8 +141,10 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 
 	p2flow := "Port 1 to Port 2"
 	p3flow := "Port 1 to Port 3"
+	lbFlow := "Port 1 to Port 2 and Port 3"
 	createFlow(t, p2flow, top, &atePort2)
 	createFlow(t, p3flow, top, &atePort3)
+	createFlow(t, lbFlow, top, &atePort2, &atePort3)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
@@ -133,28 +159,105 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 		if err = gribi.FlushAll(gribic); err != nil {
 			t.Error(err)
 		}
+		if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+			sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+			gnmi.Delete(t, dut, sp.Static(atePort2DummyIP.IPv4CIDR()).Config())
+			gnmi.Delete(t, dut, sp.Static(atePort3DummyIP.IPv4CIDR()).Config())
+		}
 	}()
 
 	gribi.BecomeLeader(t, gribic)
+	dutP2 := dut.Port(t, "port2").Name()
+	dutP3 := dut.Port(t, "port3").Name()
 
-	addInterfaceRoute(ctx, t, gribic, p2ID, dut.Port(t, "port2").Name(), atePort2.IPv4)
-	addDestinationRoute(ctx, t, gribic)
-
+	t.Logf("Adding gribi routes and validating traffic forwarding via port %v and NH ID %v", dutP2, p2NHID)
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		addVIPRoute(ctx, dut, t, gribic, p2NHID, dutP2, atePort2DummyIP.IPv4)
+	} else {
+		addVIPRoute(ctx, dut, t, gribic, p2NHID, dutP2)
+	}
+	addDestinationRoute(ctx, dut, t, gribic)
 	waitOTGARPEntry(t)
 	validateTrafficFlows(t, p2flow, p3flow)
 
-	addInterfaceRoute(ctx, t, gribic, p3ID, dut.Port(t, "port3").Name(), atePort3.IPv4)
+	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		addNH(ctx, t, dut, gribic, p3NHID, dutP3, pMAC, atePort3DummyIP.IPv4)
+	} else {
+		addNH(ctx, t, dut, gribic, p3NHID, dutP3, pMAC)
+	}
 
+	t.Logf("Performing implicit in-place replace with two next-hops (NH IDs: %v and %v)", p2NHID, p3NHID)
+	addNHG(ctx, dut, t, gribic, virtualIPNHGID, []uint64{p2NHID, p3NHID})
+	validateTrafficFlows(t, lbFlow, "")
+
+	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p3NHID)
+	addNHG(ctx, dut, t, gribic, virtualIPNHGID, []uint64{p3NHID})
 	validateTrafficFlows(t, p3flow, p2flow)
+
+	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p2NHID)
+	addNHG(ctx, dut, t, gribic, virtualIPNHGID, []uint64{p2NHID})
+	validateTrafficFlows(t, p2flow, p3flow)
 }
 
-// addDestinationRoute creates a GRIBI route to dstPfx via interfaceNH.
-func addDestinationRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient) {
-	dnh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithIndex(dstNHID).WithIPAddress(interfaceNH)
-	dnhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+// addNH adds a GRIBI NH with a FIB ACK confirmation via Modify RPC
+func addNH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gribic *fluent.GRIBIClient, id uint64, intf, mac string, nhip ...string) {
+	nh := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithIndex(id).WithInterfaceRef(intf).WithMacAddress(mac)
+	if len(nhip) > 0 {
+		nh = nh.WithIPAddress(nhip[0])
+	}
+
+	gribic.Modify().AddEntry(t, nh)
+	if err := awaitTimeout(ctx, gribic, t, 2*time.Minute); err != nil {
+		t.Fatalf("Await got error for entries: %v", err)
+	}
+	result := fluent.InstalledInFIB
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		result = fluent.InstalledInRIB
+	}
+	wantOperationResults := []*client.OpResult{
+		fluent.OperationResult().
+			WithNextHopOperation(id).
+			WithProgrammingResult(result).
+			WithOperationType(constants.Add).
+			AsResult(),
+	}
+	for _, wantResult := range wantOperationResults {
+		chk.HasResult(t, gribic.Results(t), wantResult, chk.IgnoreOperationID())
+	}
+}
+
+// addNHG adds a GRIBI NHG with a FIB ACK confirmation via Modify RPC
+func addNHG(ctx context.Context, dut *ondatra.DUTDevice, t *testing.T, gribic *fluent.GRIBIClient, id uint64, nhs []uint64) {
+	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithID(id)
+	for _, nh := range nhs {
+		nhg.AddNextHop(nh, 1)
+	}
+	gribic.Modify().AddEntry(t, nhg)
+	if err := awaitTimeout(ctx, gribic, t, time.Minute); err != nil {
+		t.Fatalf("Await got error for entries: %v", err)
+	}
+	wantOperationResults := []*client.OpResult{
+		fluent.OperationResult().
+			WithNextHopGroupOperation(id).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+	}
+	for _, wantResult := range wantOperationResults {
+		chk.HasResult(t, gribic.Results(t), wantResult, chk.IgnoreOperationID())
+	}
+}
+
+// addDestinationRoute adds a GRIBI route to dstPfx via the VirtualIP GRIBI nexthop.
+func addDestinationRoute(ctx context.Context, dut *ondatra.DUTDevice, t *testing.T, gribic *fluent.GRIBIClient) {
+	dnh := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithIndex(dstNHID).WithIPAddress(virtualIP)
+	dnhg := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithID(dstNHGID).AddNextHop(dstNHID, 1)
-	dpfx := fluent.IPv4Entry().WithNetworkInstance(vrfName).WithPrefix(dstPfx).WithNextHopGroup(dstNHGID).WithNextHopGroupNetworkInstance(*deviations.DefaultNetworkInstance)
+	dpfx := fluent.IPv4Entry().WithNetworkInstance(vrfName).WithPrefix(dstPfx).WithNextHopGroup(dstNHGID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
 	gribic.Modify().AddEntry(t, dnh, dnhg, dpfx)
 	if err := awaitTimeout(ctx, gribic, t, time.Minute); err != nil {
@@ -184,15 +287,18 @@ func addDestinationRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBI
 	}
 }
 
-// addInterfaceRoute creates a GRIBI route that points to the egress interface defined by id,
+// addVIPRoute creates a GRIBI route that points to the egress interface defined by id,
 // port, and nhip.
-func addInterfaceRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBIClient, id uint64, port string, nhip string) {
-	inh := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithIndex(id).WithInterfaceRef(port).WithIPAddress(nhip).WithMacAddress(pMAC)
-	inhg := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithID(interfaceID).AddNextHop(id, 1)
-	ipfx := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
-		WithPrefix(interfacePfx).WithNextHopGroup(interfaceID)
+func addVIPRoute(ctx context.Context, dut *ondatra.DUTDevice, t *testing.T, gribic *fluent.GRIBIClient, id uint64, port string, nhip ...string) {
+	inh := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithIndex(id).WithInterfaceRef(port).WithMacAddress(pMAC)
+	inhg := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithID(virtualIPNHGID).AddNextHop(id, 1)
+	ipfx := fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithPrefix(virtualPfx).WithNextHopGroup(virtualIPNHGID)
+	if len(nhip) > 0 {
+		inh = inh.WithIPAddress(nhip[0])
+	}
 
 	gribic.Modify().AddEntry(t, inh, inhg, ipfx)
 	if err := awaitTimeout(ctx, gribic, t, time.Minute); err != nil {
@@ -206,12 +312,12 @@ func addInterfaceRoute(ctx context.Context, t *testing.T, gribic *fluent.GRIBICl
 			WithOperationType(constants.Add).
 			AsResult(),
 		fluent.OperationResult().
-			WithNextHopGroupOperation(interfaceID).
+			WithNextHopGroupOperation(virtualIPNHGID).
 			WithProgrammingResult(fluent.InstalledInFIB).
 			WithOperationType(constants.Add).
 			AsResult(),
 		fluent.OperationResult().
-			WithIPv4Operation(interfacePfx).
+			WithIPv4Operation(virtualPfx).
 			WithProgrammingResult(fluent.InstalledInFIB).
 			WithOperationType(constants.Add).
 			AsResult(),
@@ -258,33 +364,114 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1VRF := vrf.GetOrCreateInterface(p1.Name())
 	p1VRF.Interface = ygot.String(p1.Name())
 	p1VRF.Subinterface = ygot.Uint32(0)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
 
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
+	// For interface configuration, Arista prefers config Vrf first then the IP address
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
+	}
 
-	if *deviations.ExplicitPortSpeed {
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
+
+	if !deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
+	}
+
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
+
+	if deviations.ExplicitIPv6EnableForGRIBI(dut) {
+		gnmi.Update(t, dut, d.Interface(p2.Name()).Subinterface(0).Ipv6().Enabled().Config(), true)
+		gnmi.Update(t, dut, d.Interface(p3.Name()).Subinterface(0).Ipv6().Enabled().Config(), true)
+	}
+
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 		fptest.SetPortSpeed(t, p3)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfName)
+	}
+
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		staticARPWithSecondaryIP(t, dut)
+	}
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		staticARPWithMagicUniversalIP(t, dut)
 	}
 }
 
+func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2, atePort2DummyIP.IPv4, pMAC))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3, atePort3DummyIP.IPv4, pMAC))
+}
+
+func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	s2 := &oc.NetworkInstance_Protocol_Static{
+		Prefix: ygot.String(atePort2DummyIP.IPv4CIDR()),
+		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+			strconv.Itoa(p2NHID): {
+				Index: ygot.String(strconv.Itoa(p2NHID)),
+				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+					Interface: ygot.String(p2.Name()),
+				},
+			},
+		},
+	}
+	s3 := &oc.NetworkInstance_Protocol_Static{
+		Prefix: ygot.String(atePort3DummyIP.IPv4CIDR()),
+		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+			strconv.Itoa(p3NHID): {
+				Index: ygot.String(strconv.Itoa(p3NHID)),
+				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+					Interface: ygot.String(p3.Name()),
+				},
+			},
+		},
+	}
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.Replace(t, dut, sp.Static(atePort2DummyIP.IPv4CIDR()).Config(), s2)
+	gnmi.Replace(t, dut, sp.Static(atePort3DummyIP.IPv4CIDR()).Config(), s3)
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2, atePort2DummyIP.IPv4, pMAC))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3, atePort3DummyIP.IPv4, pMAC))
+}
+
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
-func createFlow(t testing.TB, name string, ateTop gosnappi.Config, dst *attrs.Attributes) {
+func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, dsts ...*attrs.Attributes) {
+	var rxEndpoints []string
+	for _, dst := range dsts {
+		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
+	}
+
 	flowipv4 := ateTop.Flows().Add().SetName(name)
 	flowipv4.Metrics().SetEnable(true)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{dst.Name + ".IPv4"})
-	v4 := flowipv4.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
+	e1.Dst().SetChoice("value").SetValue(pMAC)
+	if len(dsts) > 1 {
+		flowipv4.TxRx().Port().SetTxName(atePort1.Name)
+	} else {
+		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
+	}
+	outerIPHeader := flowipv4.Packet().Add().Ipv4()
+	outerIPHeader.Src().SetValue(atePort1.IPv4)
+	outerIPHeader.Dst().SetValue(dstPfxFlowIP)
+	innerIPHeader := flowipv4.Packet().Add().Ipv4()
+	innerIPHeader.Src().Increment().SetStart(innerSrcIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
+	innerIPHeader.Dst().Increment().SetStart(innerDstIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
 }
 
 func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fluent.GRIBIClient, error) {
@@ -307,8 +494,6 @@ func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fl
 
 // validateTrafficFlows starts traffic and ensures that good flows have 0% loss and bad flows have
 // 100% loss.
-//
-// TODO: Packets should be validated to arrive at ATE with destination MAC pMAC.
 func validateTrafficFlows(t *testing.T, goodFlow, badFlow string) {
 
 	otg := ondatra.ATE(t, "ate").OTG()
@@ -322,10 +507,11 @@ func validateTrafficFlows(t *testing.T, goodFlow, badFlow string) {
 	if got := getLossPct(t, goodFlow); got > 0 {
 		t.Errorf("LossPct for flow %s: got %v, want 0", goodFlow, got)
 	}
-	if got := getLossPct(t, badFlow); got < 100 {
-		t.Errorf("LossPct for flow %s: got %v, want 100", badFlow, got)
+	if badFlow != "" {
+		if got := getLossPct(t, badFlow); got < 100 {
+			t.Errorf("LossPct for flow %s: got %v, want 100", badFlow, got)
+		}
 	}
-
 }
 
 // getLossPct returns the loss percentage for a given flow
@@ -350,4 +536,14 @@ func waitOTGARPEntry(t *testing.T) {
 	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 		return val.IsPresent()
 	}).Await(t)
+}
+
+func configStaticArp(p *ondatra.Port, ipv4addr string, macAddr string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p.Name())}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
 }

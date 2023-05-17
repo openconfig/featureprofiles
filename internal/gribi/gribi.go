@@ -88,7 +88,7 @@ type Client struct {
 }
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
-func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
+func (c *Client) Fluent(_ testing.TB) *fluent.GRIBIClient {
 	return c.fluentC
 }
 
@@ -96,6 +96,13 @@ func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
 type NHGOptions struct {
 	// BackupNHG specifies the backup next-hop-group to be used when all next-hops are unavailable.
 	BackupNHG uint64
+}
+
+// NHOptions are optional parameters to a GRIBI next-hop.
+type NHOptions struct {
+	Src     string
+	Dest    string
+	VrfName string
 }
 
 // Start function start establish a client connection with the gribi server.
@@ -191,13 +198,32 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult) {
+func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHOptions) {
 	t.Helper()
-	c.fluentC.Modify().AddEntry(t,
-		fluent.NextHopEntry().
-			WithNetworkInstance(instance).
-			WithIndex(nhIndex).
-			WithIPAddress(address))
+	nh := fluent.NextHopEntry().
+		WithNetworkInstance(instance).
+		WithIndex(nhIndex)
+	switch address {
+	case "Decap":
+		nh = nh.WithDecapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			nh = nh.WithNextHopNetworkInstance(opt.VrfName)
+		}
+	case "DecapEncap":
+		nh = nh.WithDecapsulateHeader(fluent.IPinIP).
+			WithEncapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			nh = nh.WithIPinIP(opt.Src, opt.Dest).
+				WithNextHopNetworkInstance(opt.VrfName)
+		}
+	case "VRFOnly":
+		for _, opt := range opts {
+			nh = nh.WithNextHopNetworkInstance(opt.VrfName)
+		}
+	default:
+		nh = nh.WithIPAddress(address)
+	}
+	c.fluentC.Modify().AddEntry(t, nh)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NH: %v", err)
 	}

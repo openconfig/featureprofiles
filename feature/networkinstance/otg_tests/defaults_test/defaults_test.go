@@ -28,7 +28,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -36,24 +35,42 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attributes) {
+func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attributes, dut *ondatra.DUTDevice) {
 	t.Helper()
 	ni := d.GetOrCreateNetworkInstance(niName)
-	if niName != *deviations.DefaultNetworkInstance {
+	if niName != deviations.DefaultNetworkInstance(dut) {
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	}
-	if niName != *deviations.DefaultNetworkInstance || *deviations.ExplicitInterfaceInDefaultVRF {
+	if niName != deviations.DefaultNetworkInstance(dut) || deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		niIntf := ni.GetOrCreateInterface(intf)
 		niIntf.Interface = ygot.String(intf)
 		niIntf.Subinterface = ygot.Uint32(0)
 	}
 
-	ocInt := a.ConfigOCInterface(&oc.Interface{})
+	// For vendors that require n/w instance definition and interface in
+	// a n/w instance set before the address configuration, set nwInstance +
+	// interface creation in the nwInstance first.
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		gnmi.Update(t, dut, gnmi.OC().Config(), d)
+	}
+
+	ocInt := a.ConfigOCInterface(&oc.Interface{}, dut)
 	ocInt.Name = ygot.String(intf)
 
 	if err := d.AppendInterface(ocInt); err != nil {
 		t.Fatalf("AddInterface(%v): cannot configure interface %s, %v", ocInt, intf, err)
 	}
+}
+
+func unassignPort(t *testing.T, dut *ondatra.DUTDevice, intf, niName string) {
+	t.Helper()
+	// perform unassignment only for non-default VRFs unless ExplicitInterfaceInDefaultVRF deviation is enabled
+	if niName == deviations.DefaultNetworkInstance(dut) && !deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		return
+	}
+
+	in := gnmi.OC().NetworkInstance(niName).Interface(intf).Config()
+	gnmi.Delete(t, dut, in)
 }
 
 var (
@@ -91,6 +108,7 @@ var (
 // configuration within a network instance. It does so by validating that simple IPv4 and IPv6 flows do not experience
 // loss.
 func TestDefaultAddressFamilies(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	top := ate.OTG().NewConfig(t)
 
@@ -127,36 +145,39 @@ func TestDefaultAddressFamilies(t *testing.T) {
 	}{
 		{
 			desc:   "Default network instance",
-			niName: *deviations.DefaultNetworkInstance,
+			niName: deviations.DefaultNetworkInstance(dut),
 		},
 		{
 			desc:   "Non default network instance",
 			niName: "xyz",
 		},
 	}
-	dut := ondatra.DUT(t, "dut")
+	dutP1 := dut.Port(t, "port1")
+	dutP2 := dut.Port(t, "port2")
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			// Reset DUT config.
-			dut.Config().New().WithText("").Push(t)
+			if deviations.ExplicitPortSpeed(dut) {
+				fptest.SetPortSpeed(t, dutP1)
+				fptest.SetPortSpeed(t, dutP2)
+			}
+			if tc.niName == deviations.DefaultNetworkInstance(dut) {
+				dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+				gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			}
 			d := &oc.Root{}
-			// Assign two ports into the network instance.
-			assignPort(t, d, dut.Port(t, "port1").Name(), tc.niName, dutPort1)
-			assignPort(t, d, dut.Port(t, "port2").Name(), tc.niName, dutPort2)
+			// Assign two ports into the network instance & unnasign them at the end of the test
+			assignPort(t, d, dutP1.Name(), tc.niName, dutPort1, dut)
+			defer unassignPort(t, dut, dutP1.Name(), tc.niName)
+
+			assignPort(t, d, dutP2.Name(), tc.niName, dutPort2, dut)
+			defer unassignPort(t, dut, dutP2.Name(), tc.niName)
 
 			fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)
 			gnmi.Update(t, dut, gnmi.OC().Config(), d)
 
 			ate.OTG().StartProtocols(t)
-
-			// TODO(robjs): check with Octavian why this is required.
-			time.Sleep(10 * time.Second)
-			for _, i := range []string{atePort1.Name, atePort2.Name} {
-				t.Logf("checking for ARP on %s", i)
-				gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(i+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-					return val.IsPresent()
-				}).Await(t)
-			}
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 			ate.OTG().StartTraffic(t)
 			time.Sleep(15 * time.Second)
