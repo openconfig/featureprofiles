@@ -133,25 +133,25 @@ var (
 			fn:   testEntryProgrammingPacketInScaleRate,
 		},
 		{
-			name: "Check PacketOut Without Programming TTL Match Entry submit to ingress",
+			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:001-002 Ingress: Inject EtherType 0x6007 packets and verify traffic sends to related port in case of EtherType 0x6007 entry NOT programmed",
 			fn:   testPacketOutWithoutMatchEntry,
 			// skip: true,
 		},
 		{
-			name: "Program TTL Match Entry and Check PacketOut submit to ingress",
+			name: "Program TTL Match Entry and Check PacketOut(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:004 Ingress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
 			fn:   testPacketOut,
 			// skip: true,
 		},
 		{
-			name: "Program TTL Match Entry and Check PacketOut With TTL1 submit to ingress",
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 (submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:005-024 Ingress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
 			fn:   testPacketOutTTLOneWithoutMatchEntry,
 			// skip: true,
 		},
 		{
-			name: "Program TTL Match Entry and Check PacketOut With TTL1 With ICMP or Traceroute submit to ingress",
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 With For-Us-IP(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:006 Ingress: Programm match TTL=[1,2], inject ICMP/Traceroute packets with TTL=[0,1,2], verify if the packets go out for 1/2, 0 case not sent out",
 			fn:   testPacketOutTTLOneWithUDP,
 			// skip: true,
@@ -163,7 +163,7 @@ var (
 			// skip: true,
 		},
 		{
-			name: "Program TTL Match Entry and Check PacketOut With TTL1 Traffic With For-Us-IP submit to ingress",
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 Traffic With For-Us-IP(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:007 Ingress: dst IP is for us for the incoming packet, packet goes through lpts",
 			fn:   testPacketOutTTLOneWithForUsIP,
 			// skip: true,
@@ -174,7 +174,7 @@ var (
 			fn:   testPacketOutEgressWithoutMatchEntry,
 		},
 		{
-			name: "Check PacketOut Without Programming TTL Match Entry with Static Route submit to egress)",
+			name: "Check PacketOut Without Programming TTL Match Entry with Static Route(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:014-015 Egress: Without any match entries, Injecting IPv4/IPv6 packet with any TTL and configure null0 static router for the packet destination, verify packets sent out on those egress interfaces",
 			fn:   testPacketOutTTLOneWithStaticroute,
 			// skip: true,
@@ -186,7 +186,7 @@ var (
 			// skip: true,
 		},
 		{
-			name: "Program TTL Match Entry and Check PacketOut With TTL1 submit to egress",
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 (submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:017 Egress: Programm match TTL=[1,2], inject packets with TTL=[0,1,2], and verify packet sent back to controller",
 			fn:   testPacketOutEgress,
 		},
@@ -201,7 +201,7 @@ var (
 			fn:   testPacketOutEgressTTLOneWithStaticroute,
 		},
 		{
-			name: "Program TTL Match Entry and Check PacketOut With TTL1 With ICMP or Traceroute submit to egress",
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 With ICMP or Traceroute(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:020 Egress: Programm match TTL=[1,2], inject ICMP/Traceroute packets with TTL=[0,1,2],verify packets sent out on those egress interfaces",
 			fn:   testPacketOutEgressTTLOneWithUDP,
 		},
@@ -222,7 +222,7 @@ var (
 			fn:   testPacketOutIngressWithInterfaceFlap,
 		},
 		{
-			name: "Check PacketOut Scale submit to egress",
+			name: "Check PacketOut Scale(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:025 Verify scale rate of TTL=[1,2] packets",
 			fn:   testPacketOutEgressScale,
 		},
