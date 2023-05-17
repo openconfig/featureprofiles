@@ -887,7 +887,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			s.Enabled = ygot.Bool(true)
 		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
@@ -947,7 +947,7 @@ func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
-	if *deviations.ExplicitP4RTNodeComponent {
+	if deviations.ExplicitP4RTNodeComponent(dut) {
 		switch dut.Vendor() {
 		case ondatra.NOKIA:
 			return inferP4RTNodesNokia(t, dut)

@@ -54,7 +54,7 @@ func assignPort(t *testing.T, d *oc.Root, intf, niName string, a *attrs.Attribut
 		gnmi.Update(t, dut, gnmi.OC().Config(), d)
 	}
 
-	ocInt := a.ConfigOCInterface(&oc.Interface{})
+	ocInt := a.ConfigOCInterface(&oc.Interface{}, dut)
 	ocInt.Name = ygot.String(intf)
 
 	if err := d.AppendInterface(ocInt); err != nil {
