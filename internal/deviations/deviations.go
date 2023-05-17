@@ -96,11 +96,6 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
-// P4RTUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
-func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
-	return *p4rtUnsetElectionIDUnsupported
-}
-
 // ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
 // Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.
 func ExplicitP4RTNodeComponent(_ *ondatra.DUTDevice) bool {
@@ -522,8 +517,6 @@ var (
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
-
-	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
 
 	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
