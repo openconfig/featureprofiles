@@ -2,7 +2,6 @@ steps:
   - id: arista_ceos
     name: gcr.io/$PROJECT_ID/remote-builder
     waitFor: ["-"]
-    allowFailure: true
     env:
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=fp-presubmit-arista-ceos-$BUILD_ID
@@ -13,7 +12,6 @@ steps:
   - id: juniper_cptx
     name: gcr.io/$PROJECT_ID/remote-builder
     waitFor: ["-"]
-    allowFailure: true
     env:
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=fp-presubmit-juniper-cptx-$BUILD_ID
@@ -24,7 +22,6 @@ steps:
   - id: cisco_8000e
     name: gcr.io/$PROJECT_ID/remote-builder
     waitFor: ["-"]
-    allowFailure: true
     env:
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=fp-presubmit-cisco-8000e-$BUILD_ID
@@ -35,7 +32,6 @@ steps:
   - id: cisco_xrd
     name: gcr.io/$PROJECT_ID/remote-builder
     waitFor: ["-"]
-    allowFailure: true
     env:
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=fp-presubmit-cisco-xrd-$BUILD_ID
@@ -46,7 +42,6 @@ steps:
   - id: nokia_srlinux
     name: gcr.io/$PROJECT_ID/remote-builder
     waitFor: ["-"]
-    allowFailure: true
     env:
       - USERNAME=user
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d

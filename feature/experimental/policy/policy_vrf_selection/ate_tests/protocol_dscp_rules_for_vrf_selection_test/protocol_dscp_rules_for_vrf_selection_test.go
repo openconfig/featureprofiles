@@ -135,7 +135,7 @@ func TestMain(m *testing.M) {
 }
 
 // configureATE configures port1, port2 and vlans on port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) *ondatra.ATETopology {
 	top := ate.Topology().New()
 
 	p1 := ate.Port(t, "port1")
@@ -149,7 +149,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 
 	p2 := ate.Port(t, "port2")
 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+	if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 		i2.Ethernet().WithVLANID(1)
 	}
 	i2.IPv4().
@@ -194,7 +194,7 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string,
 	// create empty subinterface
 	si := &oc.Interface_Subinterface{}
 	si.Index = ygot.Uint32(subint)
-	if *deviations.DeprecatedVlanID {
+	if deviations.DeprecatedVlanID(dut) {
 		si.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
 	} else {
 		si.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
@@ -213,27 +213,27 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string,
 }
 
 // getSubInterface returns a subinterface configuration populated with IP addresses and VLAN ID.
-func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc.Interface_Subinterface {
+func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16, dut *ondatra.DUTDevice) *oc.Interface_Subinterface {
 	s := &oc.Interface_Subinterface{}
 	// unshut sub/interface
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s.Enabled = ygot.Bool(true)
 	}
 	s.Index = ygot.Uint32(index)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(dutPort.IPv4)
 	a.PrefixLength = ygot.Uint8(dutPort.IPv4Len)
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
 	a6 := s6.GetOrCreateAddress(dutPort.IPv6)
 	a6.PrefixLength = ygot.Uint8(dutPort.IPv6Len)
 	if index != 0 {
-		if *deviations.DeprecatedVlanID {
+		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
@@ -243,13 +243,13 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
-	if *deviations.InterfaceEnabled {
+func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	i.Description = ygot.String(dutPort.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	i.AppendSubinterface(getSubInterface(dutPort, 0, 0))
+	i.AppendSubinterface(getSubInterface(dutPort, 0, 0, dut))
 	return i
 }
 
@@ -259,25 +259,25 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
-	if *deviations.NoMixOfTaggedAndUntaggedSubinterfaces {
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
+	if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 		i3 := &oc.Interface{Name: ygot.String(p2.Name())}
 		s := i3.GetOrCreateSubinterface(0)
 		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(1)
 		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), i3)
 	}
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	outpath := d.Interface(p2.Name())
@@ -285,13 +285,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configNetworkInstance(t, dut, "VRF10", p2.Name(), uint32(1), 10)
 
 	// configure IP addresses on subinterfaces
-	gnmi.Update(t, dut, outpath.Subinterface(1).Config(), getSubInterface(&dutPort2Vlan10, 1, 10))
+	gnmi.Update(t, dut, outpath.Subinterface(1).Config(), getSubInterface(&dutPort2Vlan10, 1, 10, dut))
 
 	configNetworkInstance(t, dut, "VRF20", p2.Name(), uint32(2), 20)
-	gnmi.Update(t, dut, outpath.Subinterface(2).Config(), getSubInterface(&dutPort2Vlan20, 2, 20))
+	gnmi.Update(t, dut, outpath.Subinterface(2).Config(), getSubInterface(&dutPort2Vlan20, 2, 20, dut))
 
 	configNetworkInstance(t, dut, "VRF30", p2.Name(), uint32(3), 30)
-	gnmi.Update(t, dut, outpath.Subinterface(3).Config(), getSubInterface(&dutPort2Vlan30, 3, 30))
+	gnmi.Update(t, dut, outpath.Subinterface(3).Config(), getSubInterface(&dutPort2Vlan30, 3, 30, dut))
 }
 
 // getIPinIPFlow returns an IPv4inIPv4 *ondatra.Flow with provided DSCP value for a given set of endpoints.
@@ -397,7 +397,7 @@ func TestPBR(t *testing.T) {
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
+	top := configureATE(t, ate, dut)
 	top.Push(t).StartProtocols(t)
 
 	args := &testArgs{
@@ -501,13 +501,13 @@ func TestPBR(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Log(tc.desc)
-			pfpath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding()
+			pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
 
 			//configure pbr policy-forwarding
-			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), tc.policy)
 			})
 			if errMsg != nil {
 				if tc.rejectable {
@@ -521,10 +521,10 @@ func TestPBR(t *testing.T) {
 			// apply pbr policy on ingress interface
 			p1 := port1.Name()
 			d := &oc.Root{}
-			pfIntf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
-			pfIntfConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(p1)
+			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
+			pfIntfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(p1)
 
-			if *deviations.ExplicitInterfaceRefDefinition {
+			if deviations.ExplicitInterfaceRefDefinition(dut) {
 				pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
 				pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 				pfIntf.SetApplyVrfSelectionPolicy(args.policyName)
