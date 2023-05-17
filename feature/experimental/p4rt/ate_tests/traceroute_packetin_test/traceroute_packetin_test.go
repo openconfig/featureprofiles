@@ -39,6 +39,7 @@ import (
 var (
 	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName            = "p4rt"
+	tracerouteSrcMAC      = "00:01:00:02:00:03"
 	deviceID              = uint64(1)
 	portId                = uint32(10)
 	electionId            = uint64(100)
@@ -135,6 +136,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -348,7 +350,7 @@ func (traceroute *TraceroutePacketIO) GetPacketTemplate() *PacketIOPacket {
 }
 
 func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, isIpv4 bool, TTL uint8, frameSize uint32, frameRate uint64) []*ondatra.Flow {
-	ethHeader := ondatra.NewEthernetHeader()
+	ethHeader := ondatra.NewEthernetHeader().WithSrcAddress(tracerouteSrcMAC)
 	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(atePort2.IPv4).WithTTL(uint8(TTL)) //ttl=1 is traceroute traffic
 	ipv6Header := ondatra.NewIPv6Header().WithSrcAddress(atePort1.IPv6).WithDstAddress(atePort2.IPv6).WithHopLimit(uint8(TTL))
 	if isIpv4 {
