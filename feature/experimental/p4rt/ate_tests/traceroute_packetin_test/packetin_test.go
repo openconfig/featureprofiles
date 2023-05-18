@@ -18,6 +18,7 @@ package traceroute_packetin_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -66,6 +67,20 @@ func programmTableEntry(client *p4rt_client.P4RTClient, packetIO PacketIO, delet
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
 	return err
+}
+
+// decodePacket decodes L2 header in the packet and returns source and destination MAC and ethernet type.
+func decodePacket(t *testing.T, packetData []byte) (string, string, layers.EthernetType) {
+	t.Helper()
+	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
+	etherHeader := packet.Layer(layers.LayerTypeEthernet)
+	if etherHeader != nil {
+		header, decoded := etherHeader.(*layers.Ethernet)
+		if decoded {
+			return header.SrcMAC.String(), header.DstMAC.String(), header.EthernetType
+		}
+	}
+	return "", "", layers.EthernetType(0)
 }
 
 // decodePacket decodes L2 header in the packet and returns TTL. packetData[14:0] to remove first 14 bytes of Ethernet header.
@@ -159,16 +174,23 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 				t.Errorf("Unexpected error on fetchPackets: %v", err)
 			}
 
-			if got, want := len(packets), test.wantPkts; got != want {
-				t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
-			}
 			if test.wantPkts == 0 {
 				return
 			}
+
+			gotPkts := 0
 			t.Logf("Start to decode packet and compare with expected packets.")
 			wantPacket := args.packetIO.GetPacketTemplate()
 			for _, packet := range packets {
 				if packet != nil {
+
+					srcMAC, _, etherType := decodePacket(t, packet.Pkt.GetPayload())
+					if etherType != layers.EthernetTypeIPv4 && etherType != layers.EthernetTypeIPv6 {
+						continue
+					}
+					if !strings.EqualFold(srcMAC, tracerouteSrcMAC) {
+						continue
+					}
 					if wantPacket.TTL != nil {
 						//TTL/HopLimit comparison for IPV4 & IPV6
 						if isIPv4 {
@@ -205,7 +227,11 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 					} else {
 						t.Fatalf("Packet missing metadata information.")
 					}
+					gotPkts++
 				}
+			}
+			if got, want := gotPkts, test.wantPkts; got != want {
+				t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
 			}
 		})
 	}

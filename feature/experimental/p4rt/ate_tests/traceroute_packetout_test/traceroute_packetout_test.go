@@ -221,7 +221,7 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 }
 
 func dMAC(t *testing.T, dut *ondatra.DUTDevice) string {
-	if !deviations.GRIBIMACOverrideWithStaticARP(dut) {
+	if !deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		return dstMAC
 	}
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), dstMAC)
