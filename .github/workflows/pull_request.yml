@@ -26,6 +26,7 @@ jobs:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Lint protobufs
       run: |
+        wget https://github.com/openconfig/ondatra/blob/main/proto/testbed.proto
         go install github.com/googleapis/api-linter/cmd/api-linter@latest
         find . -name \*.proto -exec api-linter --disable-rule all --enable-rule core {} \+
     - name: Compile topology binding textprotos
