@@ -35,6 +35,8 @@ jobs:
         find "${PROTOBUF_IMPORT_DIR}" -type l -delete
         find "${PROTOBUF_IMPORT_DIR}" -type d -empty -delete
 
+        go mod download
+
         # Get ondatra modules we use and create required directory structure
         go list -f "${PROTOBUF_IMPORT_DIR}/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 dirname | sort | uniq | xargs mkdir -p
 
