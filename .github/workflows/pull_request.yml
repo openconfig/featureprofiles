@@ -28,7 +28,7 @@ jobs:
       run: |
         mkdir -P github.com/openconfig/ondatra/proto && wget -P github.com/openconfig/ondatra/proto https://github.com/openconfig/ondatra/blob/main/proto/testbed.proto
         go install github.com/googleapis/api-linter/cmd/api-linter@latest
-        find . -name \*.proto -exec api-linter --disable-rule all --enable-rule core {} \+
+        find . -name \*.proto -exec api-linter -I. --disable-rule all --enable-rule core {} \+
     - name: Compile topology binding textprotos
       run: |
         fail=0
