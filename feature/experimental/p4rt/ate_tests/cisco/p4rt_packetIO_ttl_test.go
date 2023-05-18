@@ -442,12 +442,15 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 		packetLayers = append(packetLayers, pktIP)
 
 	} else {
+		t.Logf("SOURCE IP %v ", net.ParseIP(*ttl.PacketOutObj.SrcIPv6).To16().String())
+		t.Logf("DEST IP %v ", net.ParseIP(*ttl.PacketOutObj.DstIPv6).To16().String())
 
 		pktIP := &layers.IPv6{
-			Version:  6,
-			SrcIP:    net.IP(convertIPv6Address(t, *ttl.PacketOutObj.DstIPv6)),
-			DstIP:    net.IP(convertIPv6Address(t, *ttl.PacketOutObj.SrcIPv6)),
-			HopLimit: uint8(*ttl.PacketOutObj.TTL),
+			Version:    6,
+			SrcIP:      net.ParseIP(*ttl.PacketOutObj.DstIPv6).To16(),
+			DstIP:      net.ParseIP(*ttl.PacketOutObj.SrcIPv6).To16(),
+			HopLimit:   uint8(*ttl.PacketOutObj.TTL),
+			NextHeader: layers.IPProtocol(58),
 		}
 		packetLayers = append(packetLayers, pktIP)
 

@@ -180,7 +180,7 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 			// t.Logf("Packet Payload: %v", packet.Pkt.GetPayload())
 			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
 				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
-				//t.Logf("Ethernet dstMac, etherType %s, %s:", dstMac, etherType)
+				// t.Logf("Ethernet dstMac, etherType %s, %s:", dstMac, etherType)
 				// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
 				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
 					t.Errorf("Packet is not matching wanted packet.")
@@ -197,7 +197,7 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 			}
 			if (wantPacket.DstIPv4 != nil || wantPacket.DstIPv6 != nil) && !wantPacket.udp {
 				srcIP, dstIP := decodeIPPacket(t, packet.Pkt.GetPayload())
-				//t.Logf("srcIP, dstIP %s, %s:", srcIP, dstIP)
+				// t.Logf("srcIP, dstIP %s, %s:", srcIP, dstIP)
 				// t.Logf("Decoded SRC IP: %v; Decoded DST IP: %v", srcIP, dstIP)
 				if *wantPacket.SrcIPv4 != srcIP && *wantPacket.SrcIPv6 != srcIP && *wantPacket.DstIPv4 != dstIP && *wantPacket.DstIPv6 != dstIP {
 					// t.Logf("SourceIP: wanted %s, or %s, got %s", *wantPacket.SrcIPv4, *wantPacket.SrcIPv6, srcIP)
@@ -338,6 +338,7 @@ func configureInterfaceIpv6(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 							PrefixLength: ygot.Uint8(126),
 						},
 					},
+					Enabled: ygot.Bool(true),
 				},
 			},
 		},
@@ -1344,11 +1345,11 @@ func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *t
 
 func testEntryProgrammingPacketInWithSubInterface(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
-	configureInterface(ctx, t, args.dut, args.interfaces.in[0], "100.120.1.1", 1)
+	configureInterface(ctx, t, args.dut, args.interfaces.in[0], "100.120.2.1", 1)
 	if *ciscoFlags.TTL1v6 {
-		configureInterfaceIpv6(ctx, t, args.dut, args.interfaces.in[0], "100:120:1::1", 1)
+		configureInterfaceIpv6(ctx, t, args.dut, args.interfaces.in[0], "100:120:2::1", 1)
 	}
+
 	defer gnmi.Delete(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Subinterface(1).Config())
 
 	// Program the entry
