@@ -69,6 +69,12 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// BannerDelimiter returns if device requires the banner to have a delimiter character.
+// Full OpenConfig compliant devices should work without delimiter.
+func BannerDelimiter(_ *ondatra.DUTDevice) string {
+	return *bannerDelimiter
+}
+
 // OmitL2MTU returns if Device does not support setting the L2 MTU.
 func OmitL2MTU(_ *ondatra.DUTDevice) bool {
 	return *omitL2MTU
@@ -420,7 +426,7 @@ func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
 var (
-	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
+	bannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
 	interfaceEnabled = flag.Bool("deviation_interface_enabled", false,
