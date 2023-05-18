@@ -429,8 +429,6 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 	// strings.Split(atePort1.IPv4, ".")
 
 	if ipv4 {
-		t.Logf("SOURCE IP %v ", net.IP(convertIPv4Address(t, *ttl.PacketOutObj.SrcIPv4)).To4().String())
-		t.Logf("DEST IP %v ", net.IP(convertIPv4Address(t, *ttl.PacketOutObj.DstIPv4)).To4().String())
 		// for PacketOut submit_to_ingress/submit_to_egress the flow is DUT to ATE
 		pktIP := &layers.IPv4{
 			Version:  4,
@@ -442,9 +440,7 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 		packetLayers = append(packetLayers, pktIP)
 
 	} else {
-		t.Logf("SOURCE IP %v ", net.ParseIP(*ttl.PacketOutObj.SrcIPv6).To16().String())
-		t.Logf("DEST IP %v ", net.ParseIP(*ttl.PacketOutObj.DstIPv6).To16().String())
-
+		t.Logf("dst ip %v", net.IP(convertIPv6Address(t, *ttl.PacketOutObj.DstIPv6)))
 		pktIP := &layers.IPv6{
 			Version:    6,
 			SrcIP:      net.ParseIP(*ttl.PacketOutObj.DstIPv6).To16(),
