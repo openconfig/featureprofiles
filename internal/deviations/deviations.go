@@ -183,11 +183,6 @@ func ISISGlobalAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisGlobalAuthenticationNotRequired
 }
 
-// ISISLevelAuthenticationNotRequired returns true if ISIS Level authentication not required.
-func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
-	return *isisLevelAuthenticationNotRequired
-}
-
 // ISISSingleTopologyRequired sets isis af ipv6 single topology on the device if value is true.
 func ISISSingleTopologyRequired(_ *ondatra.DUTDevice) bool {
 	return *isisSingleTopologyRequired
@@ -564,9 +559,6 @@ var (
 
 	isisGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
 		"Don't set isis global authentication-check on the device if value is true, Default value is false and ISIS global authentication-check is set")
-
-	isisLevelAuthenticationNotRequired = flag.Bool("deviation_isis_level_authentication_not_required", false,
-		"Don't set isis level authentication on the device if value is true, Default value is false and ISIS level authentication is configured")
 
 	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
 
