@@ -139,14 +139,14 @@ type nextHop struct {
 // dutInterface builds a DUT interface ygot struct for a given port
 // according to portsIPv4.  Returns nil if the port has no IP address
 // mapping.
-func dutInterface(p *ondatra.Port) *oc.Interface {
+func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 	id := fmt.Sprintf("%s:%s", p.Device().ID(), p.ID())
 	i := &oc.Interface{
 		Name:        ygot.String(p.Name()),
 		Description: ygot.String(p.String()),
 		Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 	}
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
@@ -157,7 +157,7 @@ func dutInterface(p *ondatra.Port) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 
@@ -170,7 +170,7 @@ func dutInterface(p *ondatra.Port) *oc.Interface {
 func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 	for _, dp := range dut.Ports() {
-		if i := dutInterface(dp); i != nil {
+		if i := dutInterface(dp, dut); i != nil {
 			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
 			t.Fatalf("No address found for port %v", dp)

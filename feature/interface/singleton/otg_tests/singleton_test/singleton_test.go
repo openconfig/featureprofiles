@@ -114,9 +114,9 @@ type otgNeighborVerification func(t *testing.T)
 
 // configInterfaceDUT configures an oc Interface with the desired MTU.
 func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes) {
-	a.ConfigOCInterface(i)
+	a.ConfigOCInterface(i, tc.dut)
 
-	if !*deviations.OmitL2MTU {
+	if !deviations.OmitL2MTU(tc.dut) {
 		i.Mtu = ygot.Uint16(tc.mtu + 14)
 	}
 	i.Description = ygot.String(*i.Description)

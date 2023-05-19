@@ -211,7 +211,12 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 	}
 
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
-		t.Fatalf("Could not program entries via clientA, got err: %v", err)
+		if switchover {
+			t.Logf("Concurrent switchover/gRIBI route addition, some entries might fail to add.")
+			t.Logf("Could not program entries via client, got err: %v", err)
+		} else {
+			t.Fatalf("Could not program entries via client, got err: %v", err)
+		}
 	}
 
 	if switchover {
@@ -261,13 +266,13 @@ func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *
 }
 
 // configureInterfaceDUT configures a single DUT layer 2 port.
-func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc string) {
+func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, dut *ondatra.DUTDevice, d *oc.Root, desc string) {
 	t.Helper()
 
 	i := d.GetOrCreateInterface(dutPort.Name())
 	i.Description = ygot.String(desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	t.Logf("DUT port %s configured", dutPort)
@@ -290,7 +295,7 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
 		nextHops = append(nextHops, ateIPv4)
 	}
-	configureInterfaceDUT(t, dutPort, d, "dst")
+	configureInterfaceDUT(t, dutPort, dut, d, "dst")
 	pushConfig(t, dut, dutPort, d)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		intf := d.GetOrCreateInterface(dutPort.Name())
@@ -317,7 +322,7 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 
 	sipv4 := s.GetOrCreateIpv4()
 
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		sipv4.Enabled = ygot.Bool(true)
 	}
 	a := sipv4.GetOrCreateAddress(dutIPv4)
@@ -492,7 +497,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	top := ate.Topology().New()
 	// configure DUT port#1 - source port.
 	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4, dut)
-	configureInterfaceDUT(t, dp1, d, "src")
+	configureInterfaceDUT(t, dp1, dut, d, "src")
 	configureATE(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4CIDR())
 	pushConfig(t, dut, dp1, d)
 	dp2 := dut.Port(t, "port2")
@@ -587,8 +592,9 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch),
+		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 
@@ -654,10 +660,6 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 		if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
 			t.Fatalf("Await got error during session negotiation for client: %v", err)
 		}
-	}
-
-	if deviations.GRIBIDelayedAckResponse(dut) {
-		time.Sleep(4 * time.Minute)
 	}
 
 	t.Log("Validate if partially ACKed entries of IPBlock2 are present as FIB_PROGRAMMED using a get RPC.")
