@@ -195,9 +195,9 @@ func TestListDelete(t *testing.T) {
 }
 
 // configInterfaceMTU configures interface MTU.
-func configInterfaceMTU(i *oc.Interface) *oc.Interface {
+func configInterfaceMTU(i *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	i.Mtu = ygot.Uint16(9000)
@@ -219,7 +219,7 @@ func TestLinkQualification(t *testing.T) {
 		d := gnmi.OC()
 		p := dut.Port(t, "port1")
 		i := &oc.Interface{Name: ygot.String(p.Name())}
-		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), configInterfaceMTU(i))
+		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), configInterfaceMTU(i,dut))
 	}
 
 	plqID := dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name()
