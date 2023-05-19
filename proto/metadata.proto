@@ -57,5 +57,5 @@ message Metadata {
     Deviations deviations = 2;
   }
 
-  PlatformExceptions platform_exceptions = 5;
+  repeated PlatformExceptions platform_exceptions = 5;
 }
