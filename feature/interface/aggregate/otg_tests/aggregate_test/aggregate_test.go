@@ -430,22 +430,22 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 	tests := []struct {
 		desc      string
 		downCount int
-		want      oc.E_Interface_OperStatus
+		want      []oc.E_Interface_OperStatus
 	}{
 		{
 			desc:      "MinLink + 1",
 			downCount: 0,
-			want:      opUp,
+			want:      []oc.E_Interface_OperStatus{opUp},
 		},
 		{
 			desc:      "MinLink",
 			downCount: 1,
-			want:      opUp,
+			want:      []oc.E_Interface_OperStatus{opUp},
 		},
 		{
 			desc:      "MinLink - 1",
 			downCount: 2,
-			want:      oc.Interface_OperStatus_LOWER_LAYER_DOWN,
+			want:      []oc.E_Interface_OperStatus{oc.Interface_OperStatus_LOWER_LAYER_DOWN, opDown},
 		},
 	}
 
@@ -480,7 +480,22 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 					tc.setDutInterfaceWithState(t, dp, false)
 				}
 			}
-			gnmi.Await(t, tc.dut, gnmi.OC().Interface(tc.aggID).OperStatus().State(), 1*time.Minute, tf.want)
+			opStatus, statusCheckResult := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).OperStatus().State(), 1*time.Minute, func(y *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+				opStatus, ok := y.Val()
+				if !ok {
+					return false
+				}
+				for _, expectedStatus := range tf.want {
+					if opStatus == expectedStatus {
+						return true
+					}
+				}
+				return false
+			}).Await(t)
+			if !statusCheckResult {
+				val, _ := opStatus.Val()
+				t.Errorf("Check of OperStatus for Interface %s is failed, want: %v, got: %s", tc.aggID, tf.want, val.String())
+			}
 		})
 	}
 }
