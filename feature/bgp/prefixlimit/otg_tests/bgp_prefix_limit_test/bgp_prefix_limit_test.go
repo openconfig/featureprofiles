@@ -75,7 +75,8 @@ const (
 	lossTolerance            = 2
 	rplType                  = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName                  = "ALLOW"
-	peerGrpName              = "BGP-PEER-GROUP"
+	peerGrpNamev4            = "BGP-PEER-GROUP-V4"
+	peerGrpNamev6            = "BGP-PEER-GROUP-V6"
 )
 
 var (
@@ -117,15 +118,15 @@ var (
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 	p1 := dut.Port(t, "port1").Name()
-	i1 := dutSrc.NewOCInterface(p1)
+	i1 := dutSrc.NewOCInterface(p1, dut)
 	gnmi.Replace(t, dut, dc.Interface(p1).Config(), i1)
 
 	p2 := dut.Port(t, "port2").Name()
-	i2 := dutDst.NewOCInterface(p2)
+	i2 := dutDst.NewOCInterface(p2, dut)
 	gnmi.Replace(t, dut, dc.Interface(p2).Config(), i2)
 	// Configure Network instance type on DUT
 	t.Log("Configure/update Network Instance")
-	dutConfNIPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	if deviations.ExplicitPortSpeed(dut) {
@@ -133,13 +134,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p1, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2, deviations.DefaultNetworkInstance(dut), 0)
 	}
 	configureRoutePolicy(t, dut, rplName, rplType)
 
-	dutConfPath := dc.NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime)
+	dutConfPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConf := createBGPNeighbor(dutAS, ateAS, prefixLimit, grRestartTime, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 }
 
@@ -255,7 +256,7 @@ type BGPNeighbor struct {
 	isV4         bool
 }
 
-func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.NetworkInstance_Protocol {
+func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 
 	nbrs := []*BGPNeighbor{
 		{as: peerAs, pfxLimit: pLimit, neighborip: ateSrc.IPv4, isV4: true},
@@ -265,7 +266,7 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 	}
 
 	d := &oc.Root{}
-	ni1 := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := ni_proto.GetOrCreateBgp()
 
@@ -278,28 +279,33 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
-	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
-	pg.PeerAs = ygot.Uint32(peerAs)
-	pg.PeerGroupName = ygot.String(peerGrpName)
+	pgv4 := bgp.GetOrCreatePeerGroup(peerGrpNamev4)
+	pgv4.PeerAs = ygot.Uint32(peerAs)
+	pgv4.PeerGroupName = ygot.String(peerGrpNamev4)
+	pgv6 := bgp.GetOrCreatePeerGroup(peerGrpNamev6)
+	pgv6.PeerAs = ygot.Uint32(peerAs)
+	pgv6.PeerGroupName = ygot.String(peerGrpNamev6)
 
 	for _, nbr := range nbrs {
 		if nbr.isV4 {
 			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
-			nv4.PeerGroup = ygot.String(peerGrpName)
+			nv4.PeerGroup = ygot.String(peerGrpNamev4)
 			nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			afisafi.Enabled = ygot.Bool(true)
 			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 			prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 			prefixLimit.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
-			if *deviations.RoutePolicyUnderNeighborAfiSafi {
-				rpl := afisafi.GetOrCreateApplyPolicy()
+			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+				rpl := pgv4.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{rplName}
 				rpl.ExportPolicy = []string{rplName}
 			} else {
-				rpl := nv4.GetOrCreateApplyPolicy()
+				pgafv4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+				pgafv4.Enabled = ygot.Bool(true)
+				rpl := pgafv4.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{rplName}
 				rpl.ExportPolicy = []string{rplName}
 			}
@@ -307,21 +313,24 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16) *oc.N
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
-			nv6.PeerGroup = ygot.String(peerGrpName)
+			nv6.PeerGroup = ygot.String(peerGrpNamev6)
 			nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(restartTime)
 			afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			afisafi6.Enabled = ygot.Bool(true)
 			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 			prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
 			prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
-			if *deviations.RoutePolicyUnderNeighborAfiSafi {
-				rpl := afisafi6.GetOrCreateApplyPolicy()
+			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+				rpl := pgv6.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{rplName}
 				rpl.ExportPolicy = []string{rplName}
 			} else {
-				rpl := nv6.GetOrCreateApplyPolicy()
+				pgafv6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+				pgafv6.Enabled = ygot.Bool(true)
+				rpl := pgafv6.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{rplName}
 				rpl.ExportPolicy = []string{rplName}
+
 			}
 		}
 	}
@@ -338,7 +347,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 }
 
 func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	nbrPathv6 := statePath.Neighbor(ateDst.IPv6)
 	compare := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -414,7 +423,7 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		return ok && c == installedRoutes
 	}
 	t.Log("Verifying BGP state")
-	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixes := statePath.Neighbor(ateDst.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if got, ok := gnmi.Watch(t, dut, prefixes.Installed().State(), time.Minute, compare).Await(t); !ok {
 		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got, installedRoutes)

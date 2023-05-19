@@ -109,12 +109,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1").Name()
-	i1 := dutPort1.NewOCInterface(p1)
+	i1 := dutPort1.NewOCInterface(p1, dut)
 	i1.Id = ygot.Uint32(portId)
 	gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
 
 	p2 := dut.Port(t, "port2").Name()
-	i2 := dutPort2.NewOCInterface(p2)
+	i2 := dutPort2.NewOCInterface(p2, dut)
 	i2.Id = ygot.Uint32(portId + 1)
 	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
 
@@ -123,8 +123,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, p1, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2, deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -221,7 +221,7 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 }
 
 func dMAC(t *testing.T, dut *ondatra.DUTDevice) string {
-	if !deviations.GRIBIMACOverrideWithStaticARP(dut) {
+	if !deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		return dstMAC
 	}
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), dstMAC)
