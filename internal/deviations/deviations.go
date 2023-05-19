@@ -592,5 +592,5 @@ var (
 
 	dequeueDeleteNotCountedAsDrops = flag.Bool("deviation_dequeue_delete_not_counted_as_drops", false, "devices do not count dequeued and deleted packets as drops, default is false")
 
-  routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
+	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 )
