@@ -237,6 +237,11 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	fptest.LogQuery(t, srcp.String(), srciPath.Config(), srci)
 	gnmi.Replace(t, tc.dut, srciPath.Config(), srci)
 
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, deviations.DefaultNetworkInstance(tc.dut), 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
+	}
+
 	for _, port := range tc.dutPorts[1:] {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
 		i.Type = ethernetCsmacd
@@ -248,6 +253,12 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		iPath := d.Interface(port.Name())
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
+	}
+
+	if deviations.ExplicitPortSpeed(tc.dut) {
+		for _, port := range tc.dutPorts {
+			fptest.SetPortSpeed(t, port)
+		}
 	}
 }
 
