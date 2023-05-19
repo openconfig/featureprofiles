@@ -183,7 +183,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		// Interfaces config.
 		i := d.GetOrCreateInterface(dp.Name())
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(dut) {
 			i.Enabled = ygot.Bool(true)
 		}
 		i.Description = ygot.String("from oc")
@@ -191,7 +191,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 		s := i.GetOrCreateSubinterface(0)
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
 		}
 		a4 := s4.GetOrCreateAddress(DUTIPList[dp.ID()].String())

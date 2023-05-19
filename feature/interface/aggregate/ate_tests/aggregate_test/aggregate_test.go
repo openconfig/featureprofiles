@@ -115,20 +115,20 @@ type testCase struct {
 
 func (tc *testCase) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
 	i.Description = ygot.String(a.Desc)
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(tc.dut) {
+	if deviations.InterfaceEnabled(tc.dut) && !deviations.IPv4MissingEnabled(tc.dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a4 := s4.GetOrCreateAddress(a.IPv4)
 	a4.PrefixLength = ygot.Uint8(plen4)
 
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
 	s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(plen6)
@@ -145,7 +145,7 @@ func (tc *testCase) configDstMemberDUT(i *oc.Interface, p *ondatra.Port) {
 	i.Description = ygot.String(p.String())
 	i.Type = ethernetCsmacd
 
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
@@ -169,7 +169,7 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
 		i.Type = ethernetCsmacd
 
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(tc.dut) {
 			i.Enabled = ygot.Bool(true)
 		}
 	}
@@ -235,7 +235,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
 		i.Type = ethernetCsmacd
 
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(tc.dut) {
 			i.Enabled = ygot.Bool(true)
 		}
 		tc.configDstMemberDUT(i, port)

@@ -194,8 +194,8 @@ func configNetworkInstanceInterface(t *testing.T, dut *ondatra.DUTDevice, vrfnam
 }
 
 // configInterfaceDUT configures the interface
-func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
-	if *deviations.InterfaceEnabled {
+func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	i.Description = ygot.String(dutPort.Desc)
@@ -210,7 +210,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1 := dut.Port(t, "port1")
 	// create VRF "vrfA" and assign incoming port under it
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 	configNetworkInstanceInterface(t, dut, vrf1, p1.Name(), uint32(0))
 	// create VRF "vrfB"
 	configNetworkInstance(t, dut, vrf2)

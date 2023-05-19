@@ -96,13 +96,13 @@ const (
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !deviations.IPv4MissingEnabled(dut) {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
