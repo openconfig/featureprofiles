@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package openconfig.testing;
 
-import "github.com/openconfig/ondatra/proto/testbed.proto";
+import "third_party/openconfig/ondatra/proto/testbed.proto";
 
 // Metadata about a Feature Profiles test.
 message Metadata {
@@ -50,6 +50,12 @@ message Metadata {
     // Device does not support interface/ipv4/enabled,
     // so suppress configuring this leaf.
     bool ipv4_missing_enabled = 1;
+    // Device does not support fragmentation bit for traceroute.
+    bool traceroute_fragmentation = 2;
+    // Device only support UDP as l4 protocol for traceroute.
+    // Use this field to set default l4 protocol as UDP and skip the tests that
+    // explictly use TCP or ICMP.
+    bool traceroute_l4_protocol_udp = 3;
   }
 
   message PlatformExceptions {
