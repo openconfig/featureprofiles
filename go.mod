@@ -3,11 +3,14 @@ module github.com/openconfig/featureprofiles
 go 1.19
 
 require (
+	cloud.google.com/go/pubsub v1.30.0
+	cloud.google.com/go/storage v1.28.1
 	github.com/cisco-open/go-p4 v0.1.1-0.20230301194618-caa766ba7dd4
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/golang/glog v1.1.0
 	github.com/google/go-cmp v0.5.9
+	github.com/google/go-github/v50 v50.1.0
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
@@ -27,13 +30,24 @@ require (
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yuin/goldmark v1.4.13
 	golang.org/x/crypto v0.6.0
+	golang.org/x/text v0.9.0
+	google.golang.org/api v0.114.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
+	golang.org/x/oauth2 v0.6.0
+)
+
+require (
+	cloud.google.com/go v0.110.0 // indirect
+	cloud.google.com/go/compute v1.19.0 // indirect
+	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	cloud.google.com/go/iam v0.13.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.1 // indirect
@@ -52,9 +66,13 @@ require (
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
+	github.com/googleapis/gax-go/v2 v2.7.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.14 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -81,14 +99,14 @@ require (
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.7 // indirect
+	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
 	github.com/scrapli/scrapligo v1.1.7 // indirect
 	github.com/scrapli/scrapligocfg v1.0.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4 // indirect
-	github.com/spf13/afero v1.9.5 // indirect
+	github.com/spf13/afero v1.9.3 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.6.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
@@ -98,20 +116,20 @@ require (
 	github.com/srl-labs/srlinux-scrapli v0.6.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
+	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/exp v0.0.0-20221106115401-f9659909a136 // indirect
 	golang.org/x/net v0.9.0 // indirect
-	golang.org/x/oauth2 v0.6.0 // indirect
+	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.7.0 // indirect
 	golang.org/x/term v0.7.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
+	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.26.3 // indirect
 	k8s.io/apimachinery v0.26.3 // indirect
