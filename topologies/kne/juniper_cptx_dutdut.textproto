@@ -11,9 +11,9 @@ nodes: {
         file: "juniper_cptx.config"
         cert: {
             self_signed: {
-                cert_name: "grpc-server-cert",
-                key_name: "N/A",
-                key_size: 4096,
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
             }
         }
     }
@@ -71,9 +71,9 @@ nodes: {
         file: "juniper_cptx.config"
         cert: {
             self_signed: {
-                cert_name: "grpc-server-cert",
-                key_name: "N/A",
-                key_size: 4096,
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
             }
         }
     }
