@@ -153,14 +153,14 @@ type nextHop struct {
 // dutInterface builds a DUT interface ygot struct for a given port
 // according to portsIPv4.  Returns nil if the port has no IP address
 // mapping.
-func dutInterface(p *ondatra.Port) *oc.Interface {
+func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 	id := fmt.Sprintf("%s:%s", p.Device().ID(), p.ID())
 	i := &oc.Interface{
 		Name:        ygot.String(p.Name()),
 		Description: ygot.String(p.String()),
 		Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 	}
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
@@ -171,7 +171,7 @@ func dutInterface(p *ondatra.Port) *oc.Interface {
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 
@@ -184,15 +184,15 @@ func dutInterface(p *ondatra.Port) *oc.Interface {
 func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 	for _, dp := range dut.Ports() {
-		if i := dutInterface(dp); i != nil {
+		if i := dutInterface(dp, dut); i != nil {
 			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
 			t.Fatalf("No address found for port %v", dp)
 		}
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		for _, dp := range dut.Ports() {
-			fptest.AssignToNetworkInstance(t, dut, dp.Name(), *deviations.DefaultNetworkInstance, 0)
+			fptest.AssignToNetworkInstance(t, dut, dp.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
 }
@@ -241,8 +241,8 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // buildNextHops converts the nextHop specification to gRIBI entries
 // and wanted OpResult.  The entries are part of the Modify request,
 // and the Modify response is verified against the wants.
-func buildNextHops(t testing.TB, nexthops []nextHop, scale uint64) (ents []fluent.GRIBIEntry, wants []*client.OpResult) {
-	nhgent := fluent.NextHopGroupEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+func buildNextHops(t testing.TB, dut *ondatra.DUTDevice, nexthops []nextHop, scale uint64) (ents []fluent.GRIBIEntry, wants []*client.OpResult) {
+	nhgent := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithID(nhgIndex)
 	nhgwant := fluent.OperationResult().
 		WithOperationID(uint64(len(nexthops) + 1)).
@@ -257,7 +257,7 @@ func buildNextHops(t testing.TB, nexthops []nextHop, scale uint64) (ents []fluen
 		t.Logf("Installing gRIBI next hop entry %d to %s (%s) of weight %d",
 			index, nhip, nh.Port, nh.Weight*scale)
 
-		ent := fluent.NextHopEntry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		ent := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(index).WithIPAddress(nhip)
 		ents = append(ents, ent)
 
@@ -272,7 +272,7 @@ func buildNextHops(t testing.TB, nexthops []nextHop, scale uint64) (ents []fluen
 		wants = append(wants, want)
 	}
 
-	ipv4ent := fluent.IPv4Entry().WithNetworkInstance(*deviations.DefaultNetworkInstance).
+	ipv4ent := fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithPrefix(ateDstNetCIDR).WithNextHopGroup(42)
 	ipv4want := fluent.OperationResult().
 		WithOperationID(uint64(len(nexthops) + 2)).
@@ -416,7 +416,7 @@ func portWants(nexthops []nextHop, atePorts []*ondatra.Port) []float64 {
 
 func debugGRIBI(t testing.TB, dut *ondatra.DUTDevice) {
 	// Debugging through OpenConfig.
-	aftsPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts()
+	aftsPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts()
 	if q, present := gnmi.Lookup(t, dut, aftsPath.State()).Val(); present {
 		fptest.LogQuery(t, "Afts", aftsPath.State(), q)
 	} else {

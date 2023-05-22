@@ -96,8 +96,8 @@ func TestGNOITraceroute(t *testing.T) {
 	if len(ipv6Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, lbIntf, *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, lbIntf, deviations.DefaultNetworkInstance(dut), 0)
 	}
 	cases := []struct {
 		desc              string
@@ -244,7 +244,7 @@ func TestGNOITraceroute(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			time.Sleep(1 * time.Second) // some devices do not allow back to back traceroute to prevent flooding
-			if *deviations.TraceRouteL4ProtocolUDP {
+			if deviations.TraceRouteL4ProtocolUDP(dut) {
 				if tc.defaultL4Protocol {
 					tc.traceRequest.L4Protocol = spb.TracerouteRequest_UDP
 				}
@@ -252,7 +252,7 @@ func TestGNOITraceroute(t *testing.T) {
 					t.Skip("Test is skiped due to the TraceRouteL4ProtocolUDP deviation")
 				}
 			}
-			if *deviations.TraceRouteFragmentation {
+			if deviations.TraceRouteFragmentation(dut) {
 				if tc.traceRequest.DoNotFragment {
 					t.Skip("Test is skiped due to the TraceRouteFragmentation deviation")
 				}
