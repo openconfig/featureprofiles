@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/testt"
 )
 
@@ -33,6 +34,8 @@ const (
 	rebootDelay           = 120
 	// Maximum reboot time is 900 seconds (15 minutes).
 	maxRebootTime = 900
+	// Maximum wait time for all components to be in responsive state
+	maxCompWaitTime = 600
 )
 
 func TestMain(m *testing.M) {
@@ -98,21 +101,20 @@ func TestChassisReboot(t *testing.T) {
 			}},
 	}
 
-	expectedVersion := dut.Telemetry().ComponentAny().SoftwareVersion().Get(t)
+	versions := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
+	expectedVersion := FetchUniqueItems(t, versions)
 	sort.Strings(expectedVersion)
 	t.Logf("DUT software version: %v", expectedVersion)
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+
+	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			// TODO: Remove t.Skipf() after reboot with no delay issue is supported.
-			if tc.rebootRequest.GetDelay() == 0 {
-				t.Skipf("delay 0 option is not working due to known bug.")
-			}
-
-			bootTimeBeforeReboot := dut.Telemetry().System().BootTime().Get(t)
+			gnoiClient := dut.RawAPIs().GNOI().New(t)
+			bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 			t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
-			prevTime, err := time.Parse(time.RFC3339, dut.Telemetry().System().CurrentDatetime().Get(t))
+			prevTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
 			if err != nil {
 				t.Fatalf("Failed parsing current-datetime: %s", err)
 			}
@@ -120,6 +122,7 @@ func TestChassisReboot(t *testing.T) {
 
 			t.Logf("Send reboot request: %v", tc.rebootRequest)
 			rebootResponse, err := gnoiClient.System().Reboot(context.Background(), tc.rebootRequest)
+			defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
 			t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
 			if err != nil {
 				t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
@@ -134,7 +137,7 @@ func TestChassisReboot(t *testing.T) {
 						t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), rebootDelay)
 						break
 					}
-					latestTime, err := time.Parse(time.RFC3339, dut.Telemetry().System().CurrentDatetime().Get(t))
+					latestTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
 					if err != nil {
 						t.Fatalf("Failed parsing current-datetime: %s", err)
 					}
@@ -152,7 +155,7 @@ func TestChassisReboot(t *testing.T) {
 				t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
 				time.Sleep(30 * time.Second)
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					currentTime = dut.Telemetry().System().CurrentDatetime().Get(t)
+					currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 				}); errMsg != nil {
 					t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
 				} else {
@@ -166,13 +169,33 @@ func TestChassisReboot(t *testing.T) {
 			}
 			t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
 
-			bootTimeAfterReboot := dut.Telemetry().System().BootTime().Get(t)
+			bootTimeAfterReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 			t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
 			if bootTimeAfterReboot <= bootTimeBeforeReboot {
 				t.Errorf("Get boot time: got %v, want > %v", bootTimeAfterReboot, bootTimeBeforeReboot)
 			}
 
-			swVersion := dut.Telemetry().ComponentAny().SoftwareVersion().Get(t)
+			startComp := time.Now()
+			t.Logf("Wait for all the components on DUT to come up")
+
+			for {
+				postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+
+				if len(preRebootCompStatus) == len(postRebootCompStatus) {
+					t.Logf("All components on the DUT are in responsive state")
+					time.Sleep(10 * time.Second)
+					break
+				}
+
+				if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
+					t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
+					t.Fatalf("All the components are not in responsive state post reboot")
+				}
+				time.Sleep(10 * time.Second)
+			}
+
+			versions = gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
+			swVersion := FetchUniqueItems(t, versions)
 			sort.Strings(swVersion)
 			t.Logf("DUT software version after reboot: %v", swVersion)
 			if diff := cmp.Diff(expectedVersion, swVersion); diff != "" {
@@ -180,4 +203,18 @@ func TestChassisReboot(t *testing.T) {
 			}
 		})
 	}
+}
+
+func FetchUniqueItems(t *testing.T, s []string) []string {
+	itemExisted := make(map[string]bool)
+	var uniqueList []string
+	for _, item := range s {
+		if _, ok := itemExisted[item]; !ok {
+			itemExisted[item] = true
+			uniqueList = append(uniqueList, item)
+		} else {
+			t.Logf("Detected duplicated item: %v", item)
+		}
+	}
+	return uniqueList
 }

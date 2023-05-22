@@ -1,13 +1,13 @@
-name: "ixia-c"
+name: "arista-ixia"
 nodes: {
     name: "otg"
-    type: IXIA_TG
-    version: "0.0.1-3000"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml 
     services: {
-        key: 443
+        key: 8443
         value: {
             name: "https"
-            inside: 443
+            inside: 8443
         }
     }
     services: {
@@ -27,7 +27,9 @@ nodes: {
 }
 nodes: {
     name: "arista"
-    type: ARISTA_CEOS
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
     config: {
         cert: {
             self_signed: {
@@ -39,7 +41,7 @@ nodes: {
         config_path: "/mnt/flash"
         config_file: "startup-config"
         file: "arista_ceos.config"
-        image: "us-central1-docker.pkg.dev/kt-nts-athena-dev/keysight/ceos:4.28.2F-28057378.googleb4rel.1"
+        image: "ceos:latest"
     }
     services:{
         key: 22
@@ -49,17 +51,17 @@ nodes: {
         }
     }
     services:{
-        key: 6030 
+        key: 6030
         value: {
             name: "gnmi"
             inside: 6030
         }
     }
     services:{
-        key: 6040
+        key: 9340
         value: {
             name: "gribi"
-            inside: 6040
+            inside: 9340
         }
     }
 }

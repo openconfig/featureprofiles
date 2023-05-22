@@ -17,12 +17,16 @@ package tls_authentication_over_grpc_test
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
@@ -30,7 +34,6 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	telemetry "github.com/openconfig/ondatra/telemetry"
 )
 
 var (
@@ -76,12 +79,12 @@ func TestAuthentication(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	dut.Config().System().Aaa().Authentication().
-		User("alice").
-		Replace(t, &telemetry.System_Aaa_Authentication_User{
-			Username: ygot.String("alice"),
-			Password: ygot.String("password"),
-		})
+	gnmi.Replace(t, dut, gnmi.OC().System().Aaa().Authentication().
+		User("alice").Config(), &oc.System_Aaa_Authentication_User{
+		Username: ygot.String("alice"),
+		Password: ygot.String("password"),
+		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
+	})
 
 	tests := []struct {
 		desc       string
@@ -138,7 +141,8 @@ func TestAuthentication(t *testing.T) {
 					Elem: []*gpb.PathElem{
 						{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 				},
-				Type: gpb.GetRequest_CONFIG,
+				Type:     gpb.GetRequest_CONFIG,
+				Encoding: gpb.Encoding_JSON_IETF,
 			})
 			if tc.wantErr != (err != nil) {
 				if tc.wantErr {
@@ -148,15 +152,14 @@ func TestAuthentication(t *testing.T) {
 				}
 			}
 			t.Log("Trying credentials with GNMI Set")
+			jsonConfig, _ := json.Marshal(*deviations.BannerDelimiter + "message of the day" + *deviations.BannerDelimiter)
 			_, err = gnmi.Set(ctx, &gpb.SetRequest{
 				Replace: []*gpb.Update{{
 					Path: &gpb.Path{
 						Elem: []*gpb.PathElem{
 							{Name: "system"}, {Name: "config"}, {Name: "motd-banner"}},
 					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_StringVal{StringVal: "message of the day"},
-					},
+					Val: &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: jsonConfig}},
 				}},
 			})
 			if tc.wantErr != (err != nil) {

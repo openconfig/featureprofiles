@@ -17,18 +17,26 @@ id {
   version: 1
 }
 
-# Enabled
-config_path {
-  path: "/network-instances/network-instance/config/enabled"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/state/enabled"
-}
-
 # Type
 config_path {
   path: "/network-instances/network-instance/config/type"
 }
 telemetry_path {
   path: "/network-instances/network-instance/state/type"
+}
+
+# Description
+config_path {
+  path: "/network-instances/network-instance/config/description"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/state/description"
+}
+
+# Interfaces
+config_path {
+  path: "/network-instances/network-instance/interfaces/interface/config/id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/interfaces/interface/state/id"
 }

@@ -1,0 +1,50 @@
+id {
+  name: "qos_ecn"
+  version: 1
+}
+
+# Queue management
+config_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold"
+}
+config_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold"
+}
+config_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/enable-ecn"
+}
+config_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/weight"
+}
+config_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/drop"
+}
+config_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-drop-probability-percent"
+}
+
+# Interface
+config_path {
+  path: "/qos/interfaces/interface/output/queues/queue/config/queue-management-profile"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/queue-management-profile"
+}

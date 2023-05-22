@@ -19,8 +19,12 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -31,21 +35,21 @@ func TestMain(m *testing.M) {
 func TestEthernetCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
-	counters := dut.Telemetry().Interface(dp.Name()).Ethernet().Counters()
+	counters := gnmi.OC().Interface(dp.Name()).Ethernet().Counters()
 	ethCounterPath := "/interfaces/interface/ethernet/state/counters/"
 
 	cases := []struct {
 		desc    string
 		path    string
-		counter *telemetry.QualifiedUint64
+		counter *ygnmi.Value[uint64]
 	}{{
 		desc:    "InMacPauseFrames",
 		path:    ethCounterPath + "out-mac-pause-frames",
-		counter: counters.InMacPauseFrames().Lookup(t),
+		counter: gnmi.Lookup(t, dut, counters.InMacPauseFrames().State()),
 	}, {
 		desc:    "OutMacPauseFrames",
 		path:    ethCounterPath + "in-mac-pause-frames",
-		counter: counters.OutMacPauseFrames().Lookup(t),
+		counter: gnmi.Lookup(t, dut, counters.OutMacPauseFrames().State()),
 	}, {
 		desc: "InMaxsizeExceeded",
 		path: ethCounterPath + "in-maxsize-exceeded",
@@ -54,15 +58,15 @@ func TestEthernetCounters(t *testing.T) {
 	}, {
 		desc:    "InFragmentFrames",
 		path:    ethCounterPath + "in-fragment-frames",
-		counter: counters.InFragmentFrames().Lookup(t),
+		counter: gnmi.Lookup(t, dut, counters.InFragmentFrames().State()),
 	}, {
 		desc:    "InCrcErrors",
 		path:    ethCounterPath + "in-crc-errors",
-		counter: counters.InCrcErrors().Lookup(t),
+		counter: gnmi.Lookup(t, dut, counters.InCrcErrors().State()),
 	}, {
 		desc:    "InJabberFrames",
 		path:    ethCounterPath + "in-jabber-frames",
-		counter: counters.InJabberFrames().Lookup(t),
+		counter: gnmi.Lookup(t, dut, counters.InJabberFrames().State()),
 	}}
 
 	for _, tc := range cases {
@@ -72,10 +76,11 @@ func TestEthernetCounters(t *testing.T) {
 				t.Skipf("Counter in-maxsize-exceeded is not supported yet.")
 			}
 
-			if !tc.counter.IsPresent() {
+			val, present := tc.counter.Val()
+			if !present {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
 			}
-			t.Logf("Got path/value: %s:%d", tc.path, tc.counter.Val(t))
+			t.Logf("Got path/value: %s:%d", tc.path, val)
 		})
 	}
 }
@@ -88,8 +93,8 @@ func TestInterfaceCounters(t *testing.T) {
 	ConfigureDUTIntf(t, dut)
 
 	// TODO: Uncomment the code which is commented out after the issue fixed.
-	intfCounters := dut.Telemetry().Interface(dp.Name()).Counters()
-	subint := dut.Telemetry().Interface(dp.Name()).Subinterface(0)
+	intfCounters := gnmi.OC().Interface(dp.Name()).Counters()
+	subint := gnmi.OC().Interface(dp.Name()).Subinterface(0)
 	ipv4Counters := subint.Ipv4().Counters()
 	ipv6Counters := subint.Ipv6().Counters()
 	intfCounterPath := "/interfaces/interface/state/counters/"
@@ -99,43 +104,43 @@ func TestInterfaceCounters(t *testing.T) {
 	cases := []struct {
 		desc    string
 		path    string
-		counter *telemetry.QualifiedUint64
+		counter *ygnmi.Value[uint64]
 	}{{
 		desc:    "InUnicastPkts",
 		path:    intfCounterPath + "in-unicast-pkts",
-		counter: intfCounters.InUnicastPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, intfCounters.InUnicastPkts().State()),
 	}, {
 		desc:    "InPkts",
 		path:    intfCounterPath + "in-pkts",
-		counter: intfCounters.InPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, intfCounters.InPkts().State()),
 	}, {
 		desc:    "OutPkts",
 		path:    intfCounterPath + "out-pkts",
-		counter: intfCounters.OutPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, intfCounters.OutPkts().State()),
 	}, {
 		// desc: "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
-		counter: ipv4Counters.InPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv4Counters.InPkts().State()),
 	}, {
 		// desc: "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
-		counter: ipv4Counters.OutPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv4Counters.OutPkts().State()),
 	}, {
 		// desc: "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
-		counter: ipv6Counters.InPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv6Counters.InPkts().State()),
 	}, {
 		// desc: "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
-		counter: ipv6Counters.OutPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv6Counters.OutPkts().State()),
 	}, {
 		// desc: "IPv6InDiscardedPkts",
 		path:    ipv6CounterPath + "in-discarded-pkts",
-		counter: ipv6Counters.InDiscardedPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv6Counters.InDiscardedPkts().State()),
 	}, {
 		// desc: "IPv6OutDiscardedPkts",
 		path:    ipv6CounterPath + "out-discarded-pkts",
-		counter: ipv6Counters.OutDiscardedPkts().Lookup(t),
+		counter: gnmi.Lookup(t, dut, ipv6Counters.OutDiscardedPkts().State()),
 	}}
 
 	for _, tc := range cases {
@@ -145,10 +150,11 @@ func TestInterfaceCounters(t *testing.T) {
 				t.Skipf("Counter %v is not supported.", tc.desc)
 			}
 
-			if !tc.counter.IsPresent() {
+			val, present := tc.counter.Val()
+			if !present {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
 			}
-			t.Logf("Got path/value: %s:%d", tc.path, tc.counter.Val(t))
+			t.Logf("Got path/value: %s:%d", tc.path, val)
 		})
 	}
 }
@@ -164,109 +170,146 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	top := ate.Topology().New()
-	intf1 := top.AddInterface("intf1").WithPort(ap1)
-	intf1.IPv4().
-		WithAddress("198.51.100.1/31").
-		WithDefaultGateway("198.51.100.0")
-	intf1.IPv6().
-		WithAddress("2001:DB8::2/126").
-		WithDefaultGateway("2001:DB8::1")
-	intf2 := top.AddInterface("intf2").WithPort(ap2)
-	intf2.IPv4().
-		WithAddress("198.51.100.3/31").
-		WithDefaultGateway("198.51.100.2")
-	intf2.IPv6().
-		WithAddress("2001:DB8::6/126").
-		WithDefaultGateway("2001:DB8::5")
-	top.Push(t).StartProtocols(t)
+	config := otg.NewConfig(t)
+	config.Ports().Add().SetName(ap1.ID())
+	intf1 := config.Devices().Add().SetName(ap1.Name())
+	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").
+		SetPortName(ap1.ID()).SetMac("02:00:01:01:01:01")
+	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
+		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
+		SetPrefix(31)
+	ip6_1 := eth1.Ipv6Addresses().Add().SetName(intf1.Name() + ".IPv6").
+		SetAddress("2001:DB8::2").SetGateway("2001:DB8::1").
+		SetPrefix(126)
+	config.Ports().Add().SetName(ap2.ID())
+	intf2 := config.Devices().Add().SetName(ap2.Name())
+	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").
+		SetPortName(ap2.ID()).SetMac("02:00:01:02:01:01")
+	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
+		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
+		SetPrefix(31)
+	ip6_2 := eth2.Ipv6Addresses().Add().SetName(intf2.Name() + ".IPv6").
+		SetAddress("2001:DB8::6").SetGateway("2001:DB8::5").
+		SetPrefix(126)
 
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Flow := ate.Traffic().NewFlow("ipv4_test_flow").
-		WithSrcEndpoints(intf1).
-		WithDstEndpoints(intf2).
-		WithHeaders(ethHeader, ondatra.NewIPv4Header()).
-		WithFrameRatePct(15)
-	ipv6Flow := ate.Traffic().NewFlow("ipv6_test_flow").
-		WithSrcEndpoints(intf1).
-		WithDstEndpoints(intf2).
-		WithHeaders(ethHeader, ondatra.NewIPv6Header()).
-		WithFrameRatePct(15)
+	flowipv4 := config.Flows().Add().SetName("IPv4_test_flow")
+	flowipv4.Metrics().SetEnable(true)
+	flowipv4.TxRx().Device().
+		SetTxNames([]string{intf1.Name() + ".IPv4"}).
+		SetRxNames([]string{intf2.Name() + ".IPv4"})
+	flowipv4.Size().SetFixed(100)
+	flowipv4.Rate().SetPps(15)
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(eth1.Mac())
+	v4 := flowipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(ip4_1.Address())
+	v4.Dst().SetValue(ip4_2.Address())
+
+	flowipv6 := config.Flows().Add().SetName("IPv6_test_flow")
+	flowipv6.Metrics().SetEnable(true)
+	flowipv6.TxRx().Device().
+		SetTxNames([]string{intf1.Name() + ".IPv6"}).
+		SetRxNames([]string{intf2.Name() + ".IPv6"})
+	flowipv6.Size().SetFixed(100)
+	flowipv6.Rate().SetPps(15)
+	e2 := flowipv6.Packet().Add().Ethernet()
+	e2.Src().SetValue(eth1.Mac())
+	v6 := flowipv6.Packet().Add().Ipv6()
+	v6.Src().SetValue(ip6_1.Address())
+	v6.Dst().SetValue(ip6_2.Address())
+	otg.PushConfig(t, config)
+	otg.StartProtocols(t)
 
 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
-	i1 := dut.Telemetry().Interface(dp1.Name())
+	i1 := gnmi.OC().Interface(dp1.Name())
 	// subintf1 := i1.Subinterface(0)
 	dutInPktsBeforeTraffic := map[string]uint64{
-		"parent": i1.Counters().InUnicastPkts().Get(t),
+		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
 		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
 		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
 	}
-	i2 := dut.Telemetry().Interface(dp2.Name())
+	i2 := gnmi.OC().Interface(dp2.Name())
 	// subintf2 := i2.Subinterface(0)
 	dutOutPktsBeforeTraffic := map[string]uint64{
-		"parent": i2.Counters().OutUnicastPkts().Get(t),
+		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
 	}
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
-	ate.Traffic().Start(t, ipv4Flow, ipv6Flow)
+	waitOTGARPEntry(t)
+
+	otg.StartTraffic(t)
 	time.Sleep(10 * time.Second)
-	ate.Traffic().Stop(t)
+	otg.StopTraffic(t)
 
 	// Check interface status is up.
-	ds1 := dut.Telemetry().Interface(dp1.Name()).OperStatus().Get(t)
-	if want := telemetry.Interface_OperStatus_UP; ds1 != want {
+	ds1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State())
+	if want := oc.Interface_OperStatus_UP; ds1 != want {
 		t.Errorf("Get(DUT port1 status): got %v, want %v", ds1, want)
 	}
-	as1 := ate.Telemetry().Interface(ap1.Name()).OperStatus().Get(t)
-	if want := telemetry.Interface_OperStatus_UP; as1 != want {
-		t.Errorf("Get(ATE port1 status): got %v, want %v", as1, want)
-	}
-	ds2 := dut.Telemetry().Interface(dp2.Name()).OperStatus().Get(t)
-	if want := telemetry.Interface_OperStatus_UP; ds2 != want {
+	ds2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State())
+	if want := oc.Interface_OperStatus_UP; ds2 != want {
 		t.Errorf("Get(DUT port2 status): got %v, want %v", ds2, want)
 	}
-	as2 := ate.Telemetry().Interface(ap2.Name()).OperStatus().Get(t)
-	if want := telemetry.Interface_OperStatus_UP; as2 != want {
-		t.Errorf("Get(ATE port2 status): got %v, want %v", as2, want)
+
+	// Verifying the ate port link state
+	for _, p := range config.Ports().Items() {
+		portMetrics := gnmi.Get(t, otg, gnmi.OTG().Port(p.Name()).State())
+		if portMetrics.GetLink() != otgtelemetry.Port_Link_UP {
+			t.Errorf("Get(ATE %v status): got %v, want %v", p.Name(), portMetrics.GetLink(), otgtelemetry.Port_Link_UP)
+		}
 	}
 
-	ateInPkts := map[string]uint64{
-		"ipv4": ate.Telemetry().Flow(ipv4Flow.Name()).Counters().InPkts().Get(t),
-		"ipv6": ate.Telemetry().Flow(ipv6Flow.Name()).Counters().InPkts().Get(t),
+	// Getting the otg flow metrics
+	otgutils.LogFlowMetrics(t, otg, config)
+	ateInPkts := map[string]uint64{}
+	ateOutPkts := map[string]uint64{}
+	for _, f := range config.Flows().Items() {
+		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
+		if f.Name() == "IPv4_test_flow" {
+			ateInPkts["IPv4"] = recvMetric.GetCounters().GetInPkts()
+			ateOutPkts["IPv4"] = recvMetric.GetCounters().GetOutPkts()
+		}
+		if f.Name() == "IPv6_test_flow" {
+			ateInPkts["IPv6"] = recvMetric.GetCounters().GetInPkts()
+			ateOutPkts["IPv6"] = recvMetric.GetCounters().GetOutPkts()
+		}
 	}
-	ateInPkts["parent"] = ateInPkts["ipv4"] + ateInPkts["ipv6"]
-
-	ateOutPkts := map[string]uint64{
-		"ipv4": ate.Telemetry().Flow(ipv4Flow.Name()).Counters().OutPkts().Get(t),
-		"ipv6": ate.Telemetry().Flow(ipv6Flow.Name()).Counters().OutPkts().Get(t),
-	}
-	ateOutPkts["parent"] = ateOutPkts["ipv4"] + ateOutPkts["ipv6"]
+	ateInPkts["parent"] = ateInPkts["IPv4"] + ateInPkts["IPv6"]
+	ateOutPkts["parent"] = ateOutPkts["IPv4"] + ateOutPkts["IPv6"]
 
 	for k, v := range ateOutPkts {
 		if v == 0 {
-			t.Errorf("ate.Telemetry().Flow(%v).Counters().OutPkts().Get() = %v, want nonzero", k, v)
+			t.Errorf("otg.Telemetry().Flow(%v).GetCounters().GetOutPkts() = %v, want nonzero", k, v)
 		}
 	}
-	for _, flow := range []string{ipv4Flow.Name(), ipv6Flow.Name()} {
-		lossPct := ate.Telemetry().Flow(flow).LossPct().Get(t)
+	for _, flow := range []string{flowipv4.Name(), flowipv6.Name()} {
+		lossPct := 0
+		if flow == "IPv4_test_flow" {
+			lostPackets := int(ateOutPkts["IPv4"] - ateInPkts["IPv4"])
+			lossPct = lostPackets * 100 / int(ateOutPkts["IPv4"])
+		} else {
+			lostPackets := int(ateOutPkts["IPv6"] - ateInPkts["IPv6"])
+			lossPct = lostPackets * 100 / int(ateOutPkts["IPv6"])
+		}
 		if lossPct >= 1 {
-			t.Errorf("ate.Telemetry().Flow(%v).LossPct().Get() = %v, want < 1", flow, lossPct)
+			t.Errorf("LossPct per Flow(%v) = %v, want < 1", flow, lossPct)
 		}
 	}
 
 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
 	dutInPktsAfterTraffic := map[string]uint64{
-		"parent": i1.Counters().InUnicastPkts().Get(t),
+		"parent": gnmi.Get(t, dut, i1.Counters().InUnicastPkts().State()),
 		// "ipv4":   subintf1.Ipv4().Counters().InPkts().Get(t),
 		// "ipv6":   subintf1.Ipv6().Counters().InPkts().Get(t),
 	}
 	dutOutPktsAfterTraffic := map[string]uint64{
-		"parent": i2.Counters().OutUnicastPkts().Get(t),
+		"parent": gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State()),
 		// "ipv4":   subintf2.Ipv4().Counters().OutPkts().Get(t),
 		// "ipv6":   subintf2.Ipv6().Counters().OutPkts().Get(t),
 	}
@@ -313,10 +356,10 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure IPv4 and IPv6 addresses under subinterface.
 	for _, intf := range dutIntfs {
 		t.Logf("Configure DUT interface %s with attributes %v", intf.intfName, intf)
-		i := &telemetry.Interface{
+		i := &oc.Interface{
 			Name:        ygot.String(intf.intfName),
 			Description: ygot.String(intf.desc),
-			Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0)
@@ -334,14 +377,14 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		v4.Enabled = ygot.Bool(true)
 		v6.Enabled = ygot.Bool(true)
 
-		dut.Config().Interface(intf.intfName).Replace(t, i)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 
 		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
-		subint := dut.Telemetry().Interface(intf.intfName).Subinterface(0)
-		if !subint.Ipv4().Enabled().Get(t) {
+		subint := gnmi.OC().Interface(intf.intfName).Subinterface(0)
+		if !gnmi.Get(t, dut, subint.Ipv4().Enabled().State()) {
 			t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
 		}
-		if !subint.Ipv6().Enabled().Get(t) {
+		if !gnmi.Get(t, dut, subint.Ipv6().Enabled().State()) {
 			t.Errorf("Ipv6().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
 		}
 	}
@@ -354,11 +397,11 @@ func TestInterfaceCPU(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
 	path := "/interfaces/interface/state/cpu"
-	cpu := dut.Telemetry().Interface(dp.Name()).Cpu().Lookup(t)
-	if !cpu.IsPresent() {
+	cpu, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Cpu().State()).Val()
+	if !present {
 		t.Errorf("cpu.IsPresent() for path: %q: got false, want true", path)
 	} else {
-		t.Logf("Got path/value: %s:%v", path, cpu.Val(t))
+		t.Logf("Got path/value: %s:%v", path, cpu)
 	}
 }
 
@@ -369,10 +412,24 @@ func TestInterfaceMgmt(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
 	path := "/interfaces/interface/state/management"
-	mgmt := dut.Telemetry().Interface(dp.Name()).Management().Lookup(t)
-	if !mgmt.IsPresent() {
+	mgmt, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Management().State()).Val()
+	if !present {
 		t.Errorf("mgmt.IsPresent() for path: %q: got false, want true", path)
 	} else {
-		t.Logf("Got path/value: %s:%v", path, mgmt.Val(t))
+		t.Logf("Got path/value: %s:%v", path, mgmt)
 	}
+}
+
+// waitOtgArpEntry waits until ARP entries are present on OTG interfaces
+func waitOTGARPEntry(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+
+	gnmi.WatchAll(t, otg, gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	gnmi.WatchAll(t, otg, gnmi.OTG().InterfaceAny().Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+
 }

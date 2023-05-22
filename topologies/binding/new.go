@@ -15,15 +15,20 @@
 package binding
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"plugin"
+	"time"
 
+	"github.com/openconfig/featureprofiles/internal/rundata"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/knebind"
+	opb "github.com/openconfig/ondatra/proto"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -42,20 +47,28 @@ var (
 // The vendor plugin should be a "package main" with a New function
 // that will receive the value of the --plugin-args flag as a string.
 //
-//   package main
+//	package main
 //
-//   import "github.com/openconfig/ondatra/binding"
+//	import "github.com/openconfig/ondatra/binding"
 //
-//   func New(arg string) (binding.Binding, error) {
-//     ...
-//   }
+//	func New(arg string) (binding.Binding, error) {
+//	  ...
+//	}
 //
 // And the plugin should be built with:
 //
-//   go build -buildmode=plugin
+//	go build -buildmode=plugin
 //
 // For more detail about how to write a plugin, see: https://pkg.go.dev/plugin
 func New() (binding.Binding, error) {
+	b, err := newBind()
+	if err != nil {
+		return nil, err
+	}
+	return &rundataBind{Binding: b}, nil
+}
+
+func newBind() (binding.Binding, error) {
 	if *pluginFile != "" {
 		return loadBinding(*pluginFile, *pluginArgs)
 	}
@@ -103,9 +116,50 @@ func staticBinding(bindingFile string) (binding.Binding, error) {
 	if err := prototext.Unmarshal(in, b); err != nil {
 		return nil, fmt.Errorf("unable to parse binding file: %w", err)
 	}
+	for _, ate := range b.Ates {
+		if ate.Otg != nil && ate.Ixnetwork != nil {
+			return nil, fmt.Errorf("otg and ixnetwork are mutually exclusive, please configure one of them in ate %s binding", ate.Name)
+		}
+	}
 	return &staticBind{
 		Binding:    nil,
 		r:          resolver{b},
 		pushConfig: *pushConfig,
 	}, nil
+}
+
+// rundataBind wraps an Ondatra binding to report rundata.
+type rundataBind struct {
+	binding.Binding
+}
+
+func (b *rundataBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration, partial map[string]string) (*binding.Reservation, error) {
+	resv, err := b.Binding.Reserve(ctx, tb, runTime, waitTime, partial)
+	if err != nil {
+		return nil, err
+	}
+	b.addResvProperties(ctx, resv)
+	return resv, nil
+}
+
+func (b *rundataBind) FetchReservation(ctx context.Context, id string) (*binding.Reservation, error) {
+	resv, err := b.Binding.FetchReservation(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	b.addResvProperties(ctx, resv)
+	return resv, nil
+}
+
+func (b *rundataBind) addResvProperties(ctx context.Context, resv *binding.Reservation) {
+	for k, v := range rundata.Properties(ctx, resv) {
+		ondatra.Report().AddSuiteProperty(k, v)
+	}
+}
+
+func (b *rundataBind) Release(ctx context.Context) error {
+	for k, v := range rundata.Timing(ctx) {
+		ondatra.Report().AddSuiteProperty(k, v)
+	}
+	return b.Binding.Release(ctx)
 }

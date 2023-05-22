@@ -1,4 +1,0 @@
-username: admin
-password: admin
-topology: /usr/local/google/home/robjs/go/src/github.com/openconfig/featureprofiles/feature/static/otg_tests/topology.textproto
-cli: /usr/local/google/home/robjs/go/bin/kne_cli

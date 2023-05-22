@@ -15,8 +15,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -77,15 +78,15 @@ func TestMain(m *testing.M) {
 // dutIntf generates the configuration for an interface on the DUT in OpenConfig.
 // It returns the generated configuration, or an error if the config could not be
 // generated.
-func dutIntf(intf *attrs.Attributes) ([]*telemetry.Interface, error) {
+func dutIntf(intf *attrs.Attributes) ([]*oc.Interface, error) {
 	if intf == nil {
 		return nil, fmt.Errorf("invalid nil interface, %v", intf)
 	}
 
-	i := &telemetry.Interface{
+	i := &oc.Interface{
 		Name:        ygot.String(intf.Name),
 		Description: ygot.String(intf.Desc),
-		Type:        telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		Enabled:     ygot.Bool(true),
 	}
 
@@ -93,20 +94,20 @@ func dutIntf(intf *attrs.Attributes) ([]*telemetry.Interface, error) {
 	aggName := fmt.Sprintf("Port-Channel%s", strings.Replace(intf.Name, "Ethernet", "", -1))
 	i.GetOrCreateEthernet().AggregateId = ygot.String(aggName)
 
-	pc := &telemetry.Interface{
+	pc := &oc.Interface{
 		Name:        ygot.String(aggName),
 		Description: ygot.String(fmt.Sprintf("LAG for %s", intf.Name)),
-		Type:        telemetry.IETFInterfaces_InterfaceType_ieee8023adLag,
+		Type:        oc.IETFInterfaces_InterfaceType_ieee8023adLag,
 		Enabled:     ygot.Bool(true),
 	}
-	pc.GetOrCreateAggregation().LagType = telemetry.IfAggregate_AggregationType_STATIC
+	pc.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 
 	v4 := pc.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 	v4.Enabled = ygot.Bool(true)
 	v4Addr := v4.GetOrCreateAddress(intf.IPv4)
 	v4Addr.PrefixLength = ygot.Uint8(intf.IPv4Len)
 
-	return []*telemetry.Interface{pc, i}, nil
+	return []*oc.Interface{pc, i}, nil
 }
 
 // configureATEInterfaces configures all the interfaces of the ATE according to the
@@ -164,7 +165,7 @@ func pushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	mpls static top-label 32768 192.0.2.2 swap-label 32768
 	`).Append(t)
 
-	d := &telemetry.Device{}
+	d := &oc.Device{}
 	// configure ports on the DUT. note that each port maps to two interfaces
 	// because we create a LAG.
 	for _, i := range []*attrs.Attributes{dutSrc, dutDst} {
@@ -213,17 +214,13 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		// received label stack is as we expected.
 
 		// wait for ARP to resolve.
-		otg := ondatra.ATE(t, "ate").OTG()
 		t.Logf("looking on interface %s_ETH for %s", ateSrc.Name, dutSrc.IPv4)
+		var dstMAC string
+		gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			dstMAC = val
+			return val.IsPresent()
+		}).Await(t)
 
-		mac := otg.Telemetry().Interface(fmt.Sprintf("%s_ETH", ateSrc.Name)).Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress()
-		mac.Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				return val.IsPresent()
-			}).Await(t)
-
-		dstMAC := mac.Get(t)
-		t.Logf("MAC was %s", dstMAC)
 		// TODO(robjs): MPLS is currently not supported in OTG.
 		otgCfg.Flows().Clear().Items()
 		mplsFlow := otgCfg.Flows().Add().SetName("MPLS_FLOW")
@@ -291,11 +288,10 @@ func TestMPLSPushToIP(t *testing.T) {
 		// wait for ARP to resolve.
 		otg := ondatra.ATE(t, "ate").OTG()
 		var dstMAC string
-		otg.Telemetry().Interface(fmt.Sprintf("%s_ETH", ateSrc.Name)).Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().Watch(
-			t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-				dstMAC = val.Val(t)
-				return val.IsPresent()
-			}).Await(t)
+		gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			dstMAC = val
+			return val.IsPresent()
+		}).Await(t)
 
 		// Remove any stale flows.
 		otgCfg.Flows().Clear().Items()

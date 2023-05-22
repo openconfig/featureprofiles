@@ -19,16 +19,16 @@ id {
 
 # Network Instance config
 config_path {
-    path: "/network-instances/network-instance/config/enabled"
-}
-config_path {
-    path: "/network-instances/network-instance/config/enabled-address-families"
-}
-config_path {
     path: "/network-instances/network-instance/config/name"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/state/name"
 }
 config_path {
     path: "/network-instances/network-instance/config/type"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/state/type"
 }
 
 # BGP Instance
@@ -429,6 +429,12 @@ config_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/keepalive-interval"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/connect-retry"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/connect-retry"
 }
 config_path {
     path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/afi-safi-name"

@@ -22,6 +22,8 @@ import (
 	"testing"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -29,6 +31,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/util"
+	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -49,7 +52,7 @@ func TestMain(m *testing.M) {
 //     RawAPIs() to set request and get response data.
 //   - Metadata annotation is a proto message with base64 encoded.
 //   - Although RFC 7952 allows metadata annotation on any path and leaves,
-//     this test only configures it at root per WBB requirement.
+//     this test only configures it at root.
 //   - Steps to create SetRequest and get response data.
 //     1) Marshal proto message and encode it with base64.
 //        - Arista does not accept SetRequest paths with "@" in it - b/216674592.
@@ -95,10 +98,17 @@ func TestGNMIMetadataAnnotation(t *testing.T) {
 		t.Log(tc.desc)
 		gnmiClient := dut.RawAPIs().GNMI().Default(t)
 
-		gpbSetRequest, err := buildMetadataAnnotation(tc.protoMsg)
+		t.Log("Build an annotated gNMI SetRequest from proto message")
+		gpbSetRequest, err := buildMetadataAnnotation(t, tc.protoMsg)
 		if err != nil {
 			t.Errorf("Cannot build a gNMI SetRequest from proto message: %v", err)
 		}
+
+		t.Log("Appending an update to the annotated gNMI SetRequest")
+		// accompaniedPath and accompaniedUpdateVal can be any valid oc path and value
+		accompaniedPath := gnmi.OC().System().Hostname().Config().PathStruct()
+		accompaniedUpdateVal := gnmi.Get[string](t, dut, gnmi.OC().System().Hostname().Config())
+		gpbSetRequest.Update = append(gpbSetRequest.Update, buildGNMIUpdate(t, accompaniedPath, &accompaniedUpdateVal))
 
 		t.Log("gnmiClient Set metadata annotation")
 		if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
@@ -110,14 +120,15 @@ func TestGNMIMetadataAnnotation(t *testing.T) {
 			Path: []*gpb.Path{{
 				Elem: []*gpb.PathElem{},
 			}},
-			Type: gpb.GetRequest_CONFIG,
+			Type:     gpb.GetRequest_CONFIG,
+			Encoding: gpb.Encoding_JSON_IETF,
 		})
 		if err != nil {
 			t.Fatalf("Cannot fetch metadata annotation from the DUT: %v", err)
 		}
 
 		receivedProtoMsg := tc.receivedMsg
-		if err := extractMetadataAnnotation(getResponse, receivedProtoMsg); err != nil {
+		if err := extractMetadataAnnotation(t, getResponse, receivedProtoMsg); err != nil {
 			t.Errorf("Extracts metadata protobuf message from getResponse with error: %v", err)
 		}
 		if diff := cmp.Diff(tc.protoMsg, receivedProtoMsg, protocmp.Transform()); diff != "" {
@@ -127,7 +138,8 @@ func TestGNMIMetadataAnnotation(t *testing.T) {
 }
 
 // buildMetadataAnnotation builds a gNMI SetRequest by encoding a protobuf message as metadata.
-func buildMetadataAnnotation(m proto.Message) (*gpb.SetRequest, error) {
+func buildMetadataAnnotation(t *testing.T, m proto.Message) (*gpb.SetRequest, error) {
+	t.Helper()
 	b, err := proto.Marshal(m)
 	if err != nil {
 		return nil, fmt.Errorf("cannot marshal proto msg - error: %v", err)
@@ -139,7 +151,7 @@ func buildMetadataAnnotation(m proto.Message) (*gpb.SetRequest, error) {
 	}
 
 	b64 := base64.StdEncoding.EncodeToString(a)
-	fmt.Printf("Encoded proto msg: %s\n", b64)
+	t.Logf("Encoded proto msg: %s\n", b64)
 
 	j := map[string]interface{}{
 		"@": map[string]interface{}{
@@ -166,7 +178,8 @@ func buildMetadataAnnotation(m proto.Message) (*gpb.SetRequest, error) {
 }
 
 // extractMetadataAnnotation extracts the metadata protobuf message from a gNMI GetResponse.
-func extractMetadataAnnotation(getResponse *gpb.GetResponse, m proto.Message) error {
+func extractMetadataAnnotation(t *testing.T, getResponse *gpb.GetResponse, m proto.Message) error {
+	t.Helper()
 	if got := len(getResponse.GetNotification()); got != 1 {
 		return fmt.Errorf("number of notifications got %d, want 1", got)
 	}
@@ -200,7 +213,7 @@ func extractMetadataAnnotation(getResponse *gpb.GetResponse, m proto.Message) er
 	if encoded, ok = annotation.(string); !ok {
 		return fmt.Errorf("got %T type for annotation, expected string type", annotation)
 	}
-	fmt.Println("Got the encoded annotation", encoded)
+	t.Logf("Got the encoded annotation %s", encoded)
 
 	decoded, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
@@ -215,4 +228,26 @@ func extractMetadataAnnotation(getResponse *gpb.GetResponse, m proto.Message) er
 		return fmt.Errorf("cannot unmarshal received proto msg, err: %v", err)
 	}
 	return nil
+}
+
+// buildGNMIUpdate builds a gnmi update for a given ygot path and value.
+func buildGNMIUpdate(t *testing.T, yPath ygnmi.PathStruct, val interface{}) *gpb.Update {
+	t.Helper()
+	path, _, errs := ygnmi.ResolvePath(yPath)
+	if errs != nil {
+		t.Fatalf("Could not resolve the ygot path; %v", errs)
+	}
+	js, err := ygot.Marshal7951(val, ygot.JSONIndent("  "), &ygot.RFC7951JSONConfig{AppendModuleName: true, PreferShadowPath: true})
+	if err != nil {
+		t.Fatalf("Could not encode value into JSON format: %v", err)
+	}
+	return &gpb.Update{
+		Path: path,
+		Val: &gpb.TypedValue{
+			Value: &gpb.TypedValue_JsonIetfVal{
+				JsonIetfVal: js,
+			},
+		},
+	}
+
 }

@@ -27,8 +27,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
-	otgtelemetry "github.com/openconfig/ondatra/telemetry/otg"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -50,7 +51,6 @@ func TestMain(m *testing.M) {
 
 const (
 	ipv4PrefixLen   = 30
-	instance        = "default"
 	ateDstNetCIDR   = "198.51.100.0/24"
 	ateDstNetStart  = "198.51.100.0"
 	nhIndex         = 1
@@ -106,16 +106,16 @@ var gatewayMap = map[attrs.Attributes]attrs.Attributes{
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -126,19 +126,33 @@ func configInterfaceDUT(i *telemetry.Interface, a *attrs.Attributes) *telemetry.
 
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t, configInterfaceDUT(i1, &dutPort1))
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t, configInterfaceDUT(i2, &dutPort2))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 
 	p3 := dut.Port(t, "port3")
-	i3 := &telemetry.Interface{Name: ygot.String(p3.Name())}
-	d.Interface(p3.Name()).Replace(t, configInterfaceDUT(i3, &dutPort3))
+	i3 := &oc.Interface{Name: ygot.String(p3.Name())}
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), configInterfaceDUT(i3, &dutPort3))
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+		fptest.SetPortSpeed(t, p3)
+	}
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -175,10 +189,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 func waitOTGARPEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	ate.OTG().Telemetry().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().Watch(
-		t, time.Minute, func(val *otgtelemetry.QualifiedString) bool {
-			return val.IsPresent()
-		}).Await(t)
+	got, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Did not receive OTG Neighbor entry, last got: %v", got)
+	}
 }
 
 // testTraffic generates traffic flow from source network to
@@ -188,9 +204,10 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 
 	// srcEndPoint is atePort1
 	otg := ate.OTG()
-	gwIp := gatewayMap[srcEndPoint].IPv4
+	gwIP := gatewayMap[srcEndPoint].IPv4
+	otg.StartProtocols(t)
 	waitOTGARPEntry(t)
-	dstMac := otg.Telemetry().Interface(srcEndPoint.Name + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().Get(t)
+	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(srcEndPoint.Name+".Eth").Ipv4Neighbor(gwIP).LinkLayerAddress().State())
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
@@ -202,6 +219,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	v4.Src().SetValue(srcEndPoint.IPv4)
 	v4.Dst().Increment().SetStart(ateDstNetStart).SetCount(250)
 	otg.PushConfig(t, config)
+	otg.StartProtocols(t)
 
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
@@ -215,7 +233,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	// Check the flow statistics
 	otgutils.LogFlowMetrics(t, otg, config)
 	for _, f := range config.Flows().Items() {
-		recvMetric := otg.Telemetry().Flow(f.Name()).Get(t)
+		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
 		lostPackets := recvMetric.GetCounters().GetOutPkts() - recvMetric.GetCounters().GetInPkts()
 		lossPct := lostPackets * 100 / recvMetric.GetCounters().GetOutPkts()
 		if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
@@ -244,13 +262,14 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-3 via gRIBI-B,
 	// ensure that the entry is active through AFT telemetry and traffic.
 	t.Logf("an IPv4Entry for %s pointing to ATE port-3 via gRIBI-B", ateDstNetCIDR)
-	args.clientB.AddNH(t, nhIndex, atePort3.IPv4, instance, fluent.InstalledInRIB)
-	args.clientB.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, instance, fluent.InstalledInRIB)
-	args.clientB.AddIPv4(t, ateDstNetCIDR, nhgIndex, instance, "", fluent.InstalledInRIB)
+	args.clientB.BecomeLeader(t)
+	args.clientB.AddNH(t, nhIndex, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	args.clientB.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	args.clientB.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
-	ipv4Path := args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 	}
 
@@ -260,22 +279,22 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 	// Add an IPv4Entry for 198.51.100.0/24 pointing to ATE port-2 via gRIBI-A,
 	// ensure that the entry is ignored by the DUT.
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via gRIBI-A", ateDstNetCIDR)
-	args.clientA.AddNH(t, nhIndex+1, atePort2.IPv4, instance, fluent.ProgrammingFailed)
-	args.clientA.AddNHG(t, nhgIndex+1, map[uint64]uint64{nhIndex + 1: 1}, instance, fluent.ProgrammingFailed)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+1, instance, "", fluent.ProgrammingFailed)
+	args.clientA.AddNH(t, nhIndex+1, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.ProgrammingFailed)
+	args.clientA.AddNHG(t, nhgIndex+1, map[uint64]uint64{nhIndex + 1: 1}, *deviations.DefaultNetworkInstance, fluent.ProgrammingFailed)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+1, *deviations.DefaultNetworkInstance, "", fluent.ProgrammingFailed)
 
-	// Send a ModifyRequest from gRIBI-A specifying election_id 12,
+	// Send a ModifyRequest from gRIBI-A updating its election_id to make it leader,
 	// followed by a ModifyRequest updating 198.51.100.0/24 pointing to ATE port-2,
 	// ensure that routing is updated to receive packets for 198.51.100.0/24 at ATE port-2.
-	args.clientA.UpdateElectionID(t, 12, 0)
+	args.clientA.BecomeLeader(t)
 	t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via client gRIBI-A", ateDstNetCIDR)
-	args.clientA.AddNH(t, nhIndex+2, atePort2.IPv4, instance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex+2, map[uint64]uint64{nhIndex + 2: 1}, instance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+2, instance, "", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex+2, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex+2, map[uint64]uint64{nhIndex + 2: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex+2, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
-	ipv4Path = args.dut.Telemetry().NetworkInstance(instance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := ipv4Path.Prefix().Get(t), ateDstNetCIDR; got != want {
+	ipv4Path = gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 	}
 
@@ -296,22 +315,24 @@ func TestElectionIDChange(t *testing.T) {
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{
-		DUT:                  dut,
-		FibACK:               false,
-		Persistence:          true,
-		InitialElectionIDLow: 10,
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
 	}
 	defer clientA.Close(t)
+
+	// Flush all entries after test. The client doesn't matter since we use Election Override.
+	defer clientA.FlushAll(t)
+
 	if err := clientA.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 
 	// Configure the gRIBI client clientB
 	clientB := gribi.Client{
-		DUT:                  dut,
-		FibACK:               false,
-		Persistence:          true,
-		InitialElectionIDLow: 11,
+		DUT:         dut,
+		FIBACK:      false,
+		Persistence: true,
 	}
 	defer clientB.Close(t)
 	if err := clientB.Start(t); err != nil {

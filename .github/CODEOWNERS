@@ -1,0 +1,16 @@
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Each line is a file pattern followed by one or more owners.
+
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# @openconfig/featureprofiles-maintainers will be requested for
+# review when someone opens a pull request.
+*       @openconfig/featureprofiles-maintainers @openconfig/featureprofiles-quattro-tl
+
+# reviewers for tests which are ported from ate-tests to 
+# otg-tests may be reviewed by this team
+**/otg_tests/**    @openconfig/featureprofiles-maintainers-otg
+
+# Order is important; the last matching pattern takes the most
+# precedence.

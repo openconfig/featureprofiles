@@ -22,7 +22,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -68,34 +69,40 @@ func TestOriginCliConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 
-	var intfConfig string = `
-interface %s
-  %s
-`
 	cases := []struct {
 		desc                string
-		intfOper            string
-		expectedAdminStatus telemetry.E_Interface_AdminStatus
-		expectedOperStatus  telemetry.E_Interface_OperStatus
+		intfOper            bool
+		expectedAdminStatus oc.E_Interface_AdminStatus
+		expectedOperStatus  oc.E_Interface_OperStatus
 	}{
 		{
-			desc:                "shutdown interface",
-			intfOper:            "shutdown",
-			expectedAdminStatus: telemetry.Interface_AdminStatus_DOWN,
-			expectedOperStatus:  telemetry.Interface_OperStatus_DOWN,
+			desc:                "Set interface admin status to down",
+			intfOper:            false,
+			expectedAdminStatus: oc.Interface_AdminStatus_DOWN,
+			expectedOperStatus:  oc.Interface_OperStatus_DOWN,
 		},
 		{
-			desc:                "no shutdown interface",
-			intfOper:            "no shutdown",
-			expectedAdminStatus: telemetry.Interface_AdminStatus_UP,
-			expectedOperStatus:  telemetry.Interface_OperStatus_UP,
+			desc:                "Set interface admin status to up",
+			intfOper:            true,
+			expectedAdminStatus: oc.Interface_AdminStatus_UP,
+			expectedOperStatus:  oc.Interface_OperStatus_UP,
 		},
 	}
 
 	gnmiClient := dut.RawAPIs().GNMI().Default(t)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			config := fmt.Sprintf(intfConfig, dp1.Name(), tc.intfOper)
+			var config string
+
+			switch dut.Vendor() {
+			case ondatra.JUNIPER:
+				config = juniperCLI(dp1.Name(), tc.intfOper)
+			case ondatra.CISCO:
+				config = ciscoCLI(dp1.Name(), tc.intfOper)
+			case ondatra.ARISTA:
+				config = aristaCLI(dp1.Name(), tc.intfOper)
+			}
+
 			t.Logf("Push the CLI config:\n%s", config)
 
 			gpbSetRequest, err := buildCliConfigRequest(config)
@@ -108,18 +115,55 @@ interface %s
 				t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 			}
 
-			dut.Telemetry().Interface(dp1.Name()).OperStatus().Await(t, 2*time.Minute, tc.expectedOperStatus)
-			dut.Telemetry().Interface(dp1.Name()).AdminStatus().Await(t, 2*time.Minute, tc.expectedAdminStatus)
-			operStatus := dut.Telemetry().Interface(dp1.Name()).OperStatus().Get(t)
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 2*time.Minute, tc.expectedOperStatus)
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).AdminStatus().State(), 2*time.Minute, tc.expectedAdminStatus)
+			operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State())
 			if want := tc.expectedOperStatus; operStatus != want {
 				t.Errorf("Get(DUT port1 oper status): got %v, want %v", operStatus, want)
 			}
-			adminStatus := dut.Telemetry().Interface(dp1.Name()).AdminStatus().Get(t)
+			adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).AdminStatus().State())
 			if want := tc.expectedAdminStatus; adminStatus != want {
 				t.Errorf("Get(DUT port1 admin status): got %v, want %v", adminStatus, want)
 			}
 		})
 	}
+}
+
+func juniperCLI(intf string, enabled bool) string {
+	op := "disable"
+	if enabled {
+		op = "enable"
+	}
+	return fmt.Sprintf(`
+  interfaces {
+	%s {
+	  %s;
+	}
+  }
+  `, intf, op)
+}
+
+func ciscoCLI(intf string, enabled bool) string {
+	op := "shutdown"
+	if enabled {
+		op = "no shutdown"
+	}
+	return fmt.Sprintf(`
+  interface %s
+    %s
+  `, intf, op)
+}
+
+func aristaCLI(intf string, enabled bool) string {
+	op := "shutdown"
+	if enabled {
+		op = "no shutdown"
+	}
+	return fmt.Sprintf(`
+  interface %s
+    %s
+  `, intf, op)
+
 }
 
 func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {

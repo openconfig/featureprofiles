@@ -22,9 +22,10 @@ package attrs
 import (
 	"fmt"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
-	oc "github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -55,14 +56,17 @@ func (a *Attributes) IPv6CIDR() string {
 	return fmt.Sprintf("%s/%d", a.IPv6, a.IPv6Len)
 }
 
-// ConfigInterface configures an OpenConfig interface with these attributes.
-func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
+// ConfigOCInterface configures an OpenConfig interface with these attributes.
+func (a *Attributes) ConfigOCInterface(intf *oc.Interface) *oc.Interface {
 	if a.Desc != "" {
 		intf.Description = ygot.String(a.Desc)
 	}
 	intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		intf.Enabled = ygot.Bool(true)
+	}
+	if a.MTU > 0 && !*deviations.OmitL2MTU {
+		intf.Mtu = ygot.Uint16(a.MTU + 14)
 	}
 	e := intf.GetOrCreateEthernet()
 	if a.MAC != "" {
@@ -72,7 +76,7 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	s := intf.GetOrCreateSubinterface(0)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled {
+		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 			s4.Enabled = ygot.Bool(true)
 		}
 		if a.MTU > 0 {
@@ -100,9 +104,9 @@ func (a *Attributes) ConfigInterface(intf *oc.Interface) *oc.Interface {
 	return intf
 }
 
-// NewInterface returns a new *oc.Interface configured with these attributes
-func (a *Attributes) NewInterface(name string) *oc.Interface {
-	return a.ConfigInterface(&oc.Interface{Name: ygot.String(name)})
+// NewOCInterface returns a new *oc.Interface configured with these attributes.
+func (a *Attributes) NewOCInterface(name string) *oc.Interface {
+	return a.ConfigOCInterface(&oc.Interface{Name: ygot.String(name)})
 }
 
 // AddToATE adds a new interface to an ATETopology with these attributes.
@@ -122,4 +126,24 @@ func (a *Attributes) AddToATE(top *ondatra.ATETopology, ap *ondatra.Port, peer *
 			WithDefaultGateway(peer.IPv6)
 	}
 	return i
+}
+
+// AddToOTG adds basic elements to a gosnappi configuration
+func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attributes) {
+	top.Ports().Add().SetName(ap.ID())
+	dev := top.Devices().Add().SetName(a.Name)
+	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth")
+	eth.SetPortName(ap.ID()).SetMac(a.MAC)
+
+	if a.MTU > 0 {
+		eth.SetMtu(int32(a.MTU))
+	}
+	if a.IPv4 != "" {
+		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+		ip.SetAddress(a.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(a.IPv4Len))
+	}
+	if a.IPv6 != "" {
+		ip := eth.Ipv6Addresses().Add().SetName(dev.Name() + ".IPv6")
+		ip.SetAddress(a.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(a.IPv6Len))
+	}
 }

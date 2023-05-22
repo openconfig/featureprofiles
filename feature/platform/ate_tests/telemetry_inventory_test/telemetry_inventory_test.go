@@ -22,6 +22,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 var activeStatus string = "ACTIVE"
@@ -306,33 +307,33 @@ func TestSwitchChip(t *testing.T) {
 
 	for _, card := range cards {
 		t.Logf("Validate card %s", card)
-		component := dut.Telemetry().Component(card)
+		component := gnmi.OC().Component(card)
 
 		// For SwitchChip, check OC integrated-circuit paths.
 		bpCapacity := component.IntegratedCircuit().BackplaneFacingCapacity()
 
-		totalCapacity := bpCapacity.TotalOperationalCapacity().Get(t)
+		totalCapacity := gnmi.Get(t, dut, bpCapacity.TotalOperationalCapacity().State())
 		t.Logf("Hardware card %s totalCapacity: %d", card, totalCapacity)
 		if totalCapacity <= 0 {
 			t.Errorf("bpCapacity.TotalOperationalCapacity().Get(t) for %q): got %v, want > 0", card, totalCapacity)
 		}
 
-		total := bpCapacity.Total().Get(t)
+		total := gnmi.Get(t, dut, bpCapacity.Total().State())
 		t.Logf("Hardware card %s total: %d", card, totalCapacity)
 		if total <= 0 {
 			t.Errorf("bpCapacity.Total().Get(t) for %q): got %v, want > 0", card, total)
 		}
 
-		if !bpCapacity.AvailablePct().Lookup(t).IsPresent() {
+		if !gnmi.Lookup(t, dut, bpCapacity.AvailablePct().State()).IsPresent() {
 			t.Errorf("bpCapacity.AvailablePct() for %q): got none, want >= 0", card)
 		}
-		availablePct := bpCapacity.AvailablePct().Get(t)
+		availablePct := gnmi.Get(t, dut, bpCapacity.AvailablePct().State())
 		t.Logf("Hardware card %s availablePct: %d", card, availablePct)
 
-		if !bpCapacity.ConsumedCapacity().Lookup(t).IsPresent() {
+		if !gnmi.Lookup(t, dut, bpCapacity.ConsumedCapacity().State()).IsPresent() {
 			t.Errorf("bpCapacity.ConsumedCapacity() for %q): got none, want >= 0", card)
 		}
-		consumedCapacity := bpCapacity.ConsumedCapacity().Get(t)
+		consumedCapacity := gnmi.Get(t, dut, bpCapacity.ConsumedCapacity().State())
 		t.Logf("Hardware card %s consumedCapacity: %d", card, consumedCapacity)
 	}
 }
@@ -350,60 +351,60 @@ func TestTempSensor(t *testing.T) {
 
 	for _, sensor := range sensors {
 		t.Logf("Validate card %s", sensor)
-		component := dut.Telemetry().Component(sensor)
+		component := gnmi.OC().Component(sensor)
 
-		if !component.Id().Lookup(t).IsPresent() {
+		if !gnmi.Lookup(t, dut, component.Id().State()).IsPresent() {
 			// Just log the result using Logf instead of Errorf.
 			t.Logf("component.Id().Lookup(t) for %q: got false, want true", sensor)
 		} else {
-			t.Logf("TempSensor %s Id: %s", sensor, component.Id().Lookup(t).Val(t))
+			t.Logf("TempSensor %s Id: %s", sensor, gnmi.Get(t, dut, component.Id().State()))
 		}
 
-		if !component.Name().Lookup(t).IsPresent() {
+		if !gnmi.Lookup(t, dut, component.Name().State()).IsPresent() {
 			t.Errorf("component.Name().Lookup(t) for %q: got false, want true", sensor)
 		} else {
-			t.Logf("TempSensor %s Name: %s", sensor, component.Name().Lookup(t).Val(t))
+			t.Logf("TempSensor %s Name: %s", sensor, gnmi.Get(t, dut, component.Name().State()))
 		}
 
-		if !component.Type().Lookup(t).IsPresent() {
+		if !gnmi.Lookup(t, dut, component.Type().State()).IsPresent() {
 			t.Errorf("component.Type().Lookup(t) for %q: got false, want true", sensor)
 			want := componentType["tempsensor"]
-			got := fmt.Sprintf("%v", component.Type().Get(t))
+			got := fmt.Sprintf("%v", gnmi.Get(t, dut, component.Type().State()))
 			if want != got {
 				t.Errorf("component.Type().Val(t) for %q: got %v, want %v", sensor, got, want)
 			}
 		} else {
-			t.Logf("TempSensor %s Type: %s", sensor, component.Type().Lookup(t).Val(t))
+			t.Logf("TempSensor %s Type: %s", sensor, gnmi.Get(t, dut, component.Type().State()))
 		}
 
-		if !component.Temperature().Instant().Lookup(t).IsPresent() {
+		if !gnmi.Lookup(t, dut, component.Temperature().Instant().State()).IsPresent() {
 			t.Errorf("Temperature().Instant().Lookup(t) for %q: got false, want true", sensor)
 		} else {
-			t.Logf("TempSensor %s Temperature instant: %v", sensor, component.Temperature().Instant().Lookup(t).Val(t))
+			t.Logf("TempSensor %s Temperature instant: %v", sensor, gnmi.Get(t, dut, component.Temperature().Instant().State()))
 		}
 
-		if !component.Temperature().AlarmStatus().Lookup(t).IsPresent() {
+		if !gnmi.Lookup(t, dut, component.Temperature().AlarmStatus().State()).IsPresent() {
 			t.Errorf("Temperature().AlarmStatus().Lookup(t) for %q: got false, want true", sensor)
 		} else {
-			t.Logf("TempSensor %s Temperature AlarmStatus: %v", sensor, component.Temperature().AlarmStatus().Lookup(t).Val(t))
+			t.Logf("TempSensor %s Temperature AlarmStatus: %v", sensor, gnmi.Get(t, dut, component.Temperature().AlarmStatus().State()))
 		}
 
-		if !component.Temperature().Max().Lookup(t).IsPresent() {
+		if !gnmi.Lookup(t, dut, component.Temperature().Max().State()).IsPresent() {
 			t.Errorf("Temperature().Max().Lookup(t) for %q: got false, want true", sensor)
 		} else {
-			t.Logf("TempSensor %s Temperature Max: %v", sensor, component.Temperature().Max().Lookup(t).Val(t))
+			t.Logf("TempSensor %s Temperature Max: %v", sensor, gnmi.Get(t, dut, component.Temperature().Max().State()))
 		}
 
-		if !component.Temperature().MaxTime().Lookup(t).IsPresent() {
+		if !gnmi.Lookup(t, dut, component.Temperature().MaxTime().State()).IsPresent() {
 			t.Errorf("Temperature().MaxTime().Lookup(t) for %q: got false, want true", sensor)
 		} else {
-			t.Logf("TempSensor %s Temperature MaxTime: %v", sensor, component.Temperature().MaxTime().Lookup(t).Val(t))
+			t.Logf("TempSensor %s Temperature MaxTime: %v", sensor, gnmi.Get(t, dut, component.Temperature().MaxTime().State()))
 		}
 	}
 }
 
 func findMatchedComponents(t *testing.T, dut *ondatra.DUTDevice, r *regexp.Regexp) []string {
-	components := dut.Telemetry().ComponentAny().Name().Get(t)
+	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().Name().State())
 	var s []string
 	for _, c := range components {
 		if len(r.FindString(c)) > 0 {
@@ -419,11 +420,11 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 	swVersionFound := false
 	for _, card := range cards {
 		t.Logf("Validate card %s", card)
-		component := dut.Telemetry().Component(card)
+		component := gnmi.OC().Component(card)
 
 		// For transceiver, only check the transceiver with optics installed.
 		if strings.Contains(card, "transceiver") {
-			if component.MfgName().Lookup(t).IsPresent() {
+			if gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
 				p.parent = strings.Fields(card)[0]
 				t.Logf("Optics is detected in %s with expected parent: %s", card, p.parent)
 			} else {
@@ -433,7 +434,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.descriptionValidation {
-			description := component.Description().Get(t)
+			description := gnmi.Get(t, dut, component.Description().State())
 			t.Logf("Hardware card %s Description: %s", card, description)
 			if description == "" {
 				t.Errorf("component.Description().Get(t) for %q): got empty string, want non-empty string", card)
@@ -441,7 +442,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.idValidation {
-			id := component.Id().Get(t)
+			id := gnmi.Get(t, dut, component.Id().State())
 			t.Logf("Hardware card %s Id: %s", card, id)
 			if id == "" {
 				t.Errorf("component.Id().Get(t) for %q): got empty string, want non-empty string", card)
@@ -449,7 +450,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.nameValidation {
-			name := component.Name().Get(t)
+			name := gnmi.Get(t, dut, component.Name().State())
 			t.Logf("Hardware card %s Name: %s", card, name)
 			if name == "" {
 				t.Errorf("component.Name().Get(t) for %q): got empty string, want non-empty string", card)
@@ -457,7 +458,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.partNoValidation {
-			partNo := component.PartNo().Get(t)
+			partNo := gnmi.Get(t, dut, component.PartNo().State())
 			t.Logf("Hardware card %s PartNo: %s", card, partNo)
 			if partNo == "" {
 				t.Errorf("component.PartNo().Get(t) for %q): got empty string, want non-empty string", card)
@@ -465,7 +466,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.serialNoValidation {
-			serialNo := component.SerialNo().Get(t)
+			serialNo := gnmi.Get(t, dut, component.SerialNo().State())
 			t.Logf("Hardware card %s serialNo: %s", card, serialNo)
 			if serialNo == "" {
 				t.Errorf("component.SerialNo().Get(t) for %q): got empty string, want non-empty string", card)
@@ -473,7 +474,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.mfgNameValidation {
-			mfgName := component.MfgName().Get(t)
+			mfgName := gnmi.Get(t, dut, component.MfgName().State())
 			t.Logf("Hardware card %s mfgName: %s", card, mfgName)
 			if mfgName == "" {
 				t.Errorf("Get mfgName for %q): got empty string, want non-empty string", card)
@@ -481,7 +482,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.mfgDateValidation {
-			mfgDate := component.MfgDate().Get(t)
+			mfgDate := gnmi.Get(t, dut, component.MfgDate().State())
 			t.Logf("Hardware card %s mfgDate: %s", card, mfgDate)
 			if mfgDate == "" {
 				t.Errorf("component.MfgName().Get(t) for %q): got empty string, want non-empty string", card)
@@ -491,10 +492,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		if p.swVerValidation {
 			softwareVersion := ""
 			// Only a subset of cards are expected to report Software Version.
-			sw := component.SoftwareVersion().Lookup(t)
-			if sw != nil {
-				softwareVersion = sw.Val(t)
-				t.Logf("Hardware card %s SoftwareVersion: %s", card, softwareVersion)
+			sw, present := gnmi.Lookup(t, dut, component.SoftwareVersion().State()).Val()
+			if present {
+				t.Logf("Hardware card %s SoftwareVersion: %s", card, sw)
 				swVersionFound = true
 				if softwareVersion == "" {
 					t.Errorf("component.SoftwareVersion().Get(t) for %q): got empty string, want non-empty string", card)
@@ -505,7 +505,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.hwVerValidation {
-			hardwareVersion := component.HardwareVersion().Get(t)
+			hardwareVersion := gnmi.Get(t, dut, component.HardwareVersion().State())
 			t.Logf("Hardware card %s hardwareVersion: %s", card, hardwareVersion)
 			if hardwareVersion == "" {
 				t.Errorf("component.HardwareVersion().Get(t) for %q): got empty string, want non-empty string", card)
@@ -513,7 +513,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.fwVerValidation {
-			firmwareVersion := component.FirmwareVersion().Get(t)
+			firmwareVersion := gnmi.Get(t, dut, component.FirmwareVersion().State())
 			t.Logf("Hardware card %s FirmwareVersion: %s", card, firmwareVersion)
 			if firmwareVersion == "" {
 				t.Errorf("component.FirmwareVersion().Get(t) for %q): got empty string, want non-empty string", card)
@@ -521,7 +521,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.operStatus != "" {
-			operStatus := component.OperStatus().Get(t).String()
+			operStatus := gnmi.Get(t, dut, component.OperStatus().State()).String()
 			t.Logf("Hardware card %s OperStatus: %s", card, operStatus)
 			if operStatus != activeStatus {
 				t.Errorf("component.OperStatus().Get(t) for %q): got %v, want %v", card, operStatus, p.operStatus)
@@ -529,7 +529,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.parent != "" {
-			parent := component.Parent().Get(t)
+			parent := gnmi.Get(t, dut, component.Parent().State())
 			t.Logf("Hardware card %s parent: %s", card, parent)
 			if parent != p.parent {
 				t.Errorf("component.Parent().Get(t) for %q): got %v, want %v", card, parent, p.parent)
@@ -537,7 +537,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string
 		}
 
 		if p.pType != "" {
-			ptype := component.Type().Get(t)
+			ptype := gnmi.Get(t, dut, component.Type().State())
 			t.Logf("Hardware card %s type: %v", card, ptype)
 
 			if fmt.Sprintf("%v", ptype) != p.pType {
@@ -555,16 +555,17 @@ func TestSoftwareModule(t *testing.T) {
 	t.Skipf("Telemetry path /components/component/software-module is not supported.")
 
 	dut := ondatra.DUT(t, "dut")
-	moduleTypes := dut.Telemetry().ComponentAny().SoftwareModule().ModuleType().Lookup(t)
+	moduleTypes := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().SoftwareModule().ModuleType().State())
 	if len(moduleTypes) == 0 {
 		t.Errorf("Get moduleType list for %q: got 0, want > 0", dut.Model())
 	}
 
 	for i, moduleType := range moduleTypes {
-		if !moduleType.IsPresent() {
+		modVal, present := moduleType.Val()
+		if !present {
 			t.Fatalf("moduleType.IsPresent() item %d: got false, want true", i)
 		}
-		t.Logf("Telemetry moduleType path/value %d: %v=>%v.", i, moduleType.GetPath().String(), moduleType.Val(t))
+		t.Logf("Telemetry moduleType path/value %d: %v=>%v.", i, moduleType.Path.String(), modVal)
 	}
 }
 
@@ -573,16 +574,17 @@ func TestStorage(t *testing.T) {
 	t.Skipf("Telemetry path /components/component/storage is not supported.")
 
 	dut := ondatra.DUT(t, "dut")
-	storages := dut.Telemetry().ComponentAny().Storage().Lookup(t)
+	storages := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Storage().State())
 	if len(storages) == 0 {
 		t.Errorf("Get Storage list for %q: got 0, want > 0", dut.Model())
 	}
 
 	for i, storage := range storages {
-		if !storage.IsPresent() {
+		storVal, present := storage.Val()
+		if !present {
 			t.Fatalf("storage.IsPresent() item %d: got false, want true", i)
 		}
-		t.Logf("Telemetry storage path/value %d: %v=>%v.", i, storage.GetPath().String(), storage.Val(t))
+		t.Logf("Telemetry storage path/value %d: %v=>%v.", i, storage.Path.String(), storVal)
 	}
 }
 

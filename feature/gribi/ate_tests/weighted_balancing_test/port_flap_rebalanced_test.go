@@ -21,10 +21,12 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // nextHopsEvenly generates []nexthop that distributes weights evenly
@@ -111,12 +113,19 @@ func TestPortFlap(t *testing.T) {
 	c.Connection().
 		WithStub(gribic).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).
-		WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
+		WithInitialElectionID(1 /* low */, 0 /* hi */). // ID must be > 0.
+		WithPersistence()
 	c.Start(ctx, t)
 	defer c.Stop(t)
 	c.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation: %v", err)
+	}
+	gribi.BecomeLeader(t, c)
+
+	// Flush all entries before test.
+	if err := gribi.FlushAll(c); err != nil {
+		t.Errorf("Cannot flush: %v", err)
 	}
 
 	ents, wants := buildNextHops(t, nexthops, 1)
@@ -134,7 +143,7 @@ func TestPortFlap(t *testing.T) {
 	}
 
 	// Turn down ports one by one.
-	dt := dut.Telemetry()
+	dt := gnmi.OC()
 
 	for i := len(atePorts); i >= 2; i-- {
 		numUps := i - 1
@@ -155,7 +164,7 @@ func TestPortFlap(t *testing.T) {
 				dp := dut.Port(t, atePorts[i].ID())
 				dip := dt.Interface(dp.Name())
 				t.Logf("Awaiting DUT port down: %v", dp)
-				dip.OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
+				gnmi.Await(t, dut, dip.OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 				t.Log("Port is down.")
 			}
 			testNextHopRemaining(t, numUps, dut, ate, top)

@@ -15,17 +15,20 @@
 package te_1_1_static_arp_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra/telemetry"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -41,8 +44,8 @@ func TestMain(m *testing.M) {
 // dut:port2 -> ate:port2.  The first pair is called the "source"
 // pair, and the second the "destination" pair.
 //
-//   * Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
-//   * Destination: dut:port2 -> ate:port2 subnet 192.0.2.4/30 2001:db8::4/126
+//   - Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
+//   - Destination: dut:port2 -> ate:port2 subnet 192.0.2.4/30 2001:db8::4/126
 //
 // Note that the first (.0, .4) and last (.3, .7) IPv4 addresses are
 // reserved from the subnet for broadcast, so a /30 leaves exactly 2
@@ -70,6 +73,7 @@ const (
 var (
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: plen4,
@@ -95,7 +99,8 @@ var (
 	}
 
 	ateDst = attrs.Attributes{
-		Name:    "dst",
+		Name:    "ateDst",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: plen4,
@@ -106,9 +111,9 @@ var (
 // configInterfaceDUT configures the interface on "me" with static ARP
 // of peer.  Note that peermac is used for static ARP, and not
 // peer.MAC.
-func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peermac string) *telemetry.Interface {
+func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, peermac string) *oc.Interface {
 	i.Description = ygot.String(me.Desc)
-	i.Type = telemetry.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -120,7 +125,7 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peer
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(me.IPv4)
@@ -147,53 +152,102 @@ func configInterfaceDUT(i *telemetry.Interface, me, peer *attrs.Attributes, peer
 
 func configureDUT(t *testing.T, peermac string) {
 	dut := ondatra.DUT(t, "dut")
-	d := dut.Config()
+	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &telemetry.Interface{Name: ygot.String(p1.Name())}
-	d.Interface(p1.Name()).Replace(t,
-		configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
-
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	if peermac == "" {
+		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
+		if *deviations.ExplicitPortSpeed {
+			fptest.SetPortSpeed(t, p1)
+		}
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		}
+	}
 	p2 := dut.Port(t, "port2")
-	i2 := &telemetry.Interface{Name: ygot.String(p2.Name())}
-	d.Interface(p2.Name()).Replace(t,
-		configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p2)
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
 }
 
-func configureATE(t *testing.T) (*ondatra.ATEDevice, *ondatra.ATETopology) {
+func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 	ate := ondatra.ATE(t, "ate")
-	top := ate.Topology().New()
+	otg := ate.OTG()
+	config := otg.NewConfig(t)
+	ap1 := ate.Port(t, "port1")
+	ap2 := ate.Port(t, "port2")
 
-	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(ateSrc.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(ateSrc.IPv4CIDR()).
-		WithDefaultGateway(dutSrc.IPv4)
-	i1.IPv6().
-		WithAddress(ateSrc.IPv6CIDR()).
-		WithDefaultGateway(dutSrc.IPv6)
+	srcPort := config.Ports().Add().SetName(ap1.ID())
+	dstPort := config.Ports().Add().SetName(ap2.ID())
 
-	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(ateDst.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(ateDst.IPv4CIDR()).
-		WithDefaultGateway(dutDst.IPv4)
-	i2.IPv6().
-		WithAddress(ateDst.IPv6CIDR()).
-		WithDefaultGateway(dutDst.IPv6)
+	srcDev := config.Devices().Add().SetName(ateSrc.Name)
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".eth").SetPortName(srcPort.Name()).SetMac(ateSrc.MAC)
+	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
-	return ate, top
+	dstDev := config.Devices().Add().SetName(ateDst.Name)
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".eth").SetPortName(dstPort.Name()).SetMac(ateDst.MAC)
+	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
+
+	return ate, config
+}
+
+func checkDUTEntry(t *testing.T, ipType string, poisoned bool) {
+	dut := ondatra.DUT(t, "dut")
+	var expectedMac string
+	if poisoned {
+		expectedMac = poisonedMAC
+	} else {
+		expectedMac = ateDst.MAC
+	}
+	switch ipType {
+	case "IPv4":
+		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv4().Neighbor(ateDst.IPv4).State()).LinkLayerAddress
+		if *macAddress != expectedMac {
+			t.Errorf("ARP entry for %v is %v and expected was %v", ateDst.IPv4, *macAddress, expectedMac)
+		} else {
+			t.Logf("ARP entry for %v is %v", ateDst.IPv4, *macAddress)
+		}
+	case "IPv6":
+		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).State()).LinkLayerAddress
+		if *macAddress != expectedMac {
+			t.Errorf("Neighbor entry for %v is %v and expected was %v", ateDst.IPv6, *macAddress, expectedMac)
+		} else {
+			t.Logf("Neighbor entry for %v is %v", ateDst.IPv6, *macAddress)
+		}
+	}
+}
+
+func waitOTGARPEntry(t *testing.T, ipType string) {
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+
+	switch ipType {
+	case "IPv4":
+		gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+".eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t)
+	case "IPv6":
+		gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+".eth").Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t)
+	}
 }
 
 func testFlow(
 	t *testing.T,
-	want string,
 	ate *ondatra.ATEDevice,
-	top *ondatra.ATETopology,
-	headers ...ondatra.Header,
+	config gosnappi.Config,
+	ipType string,
+	poisoned bool,
 ) {
-	i1 := top.Interfaces()[ateSrc.Name]
-	i2 := top.Interfaces()[ateDst.Name]
 
 	// Egress tracking inspects packets from DUT and key the flow
 	// counters by custom bit offset and width.  Width is limited to
@@ -204,77 +258,99 @@ func testFlow(
 	//   - Source MAC (6 octets)
 	//   - Optional 802.1q VLAN tag (4 octets)
 	//   - Frame size (2 octets)
-	flow := ate.Traffic().NewFlow("Flow").
-		WithSrcEndpoints(i1).
-		WithDstEndpoints(i2).
-		WithHeaders(headers...).
-		WithEgressTrackingEnabled(33 /* bit offset */, 15 /* width */)
+	// Configure the flow
+	otg := ate.OTG()
+	i1 := ateSrc.Name
+	i2 := ateDst.Name
+	config.Flows().Clear().Items()
+	switch ipType {
+	case "IPv4":
+		flowipv4 := config.Flows().Add().SetName("FlowIPv4")
+		flowipv4.Metrics().SetEnable(true)
+		flowipv4.TxRx().Device().
+			SetTxNames([]string{i1 + ".IPv4"}).
+			SetRxNames([]string{i2 + ".IPv4"})
+		flowipv4.Duration().SetChoice("fixed_packets")
+		flowipv4.Duration().FixedPackets().SetPackets(1000)
+		flowipv4.Size().SetFixed(100)
+		e1 := flowipv4.Packet().Add().Ethernet()
+		e1.Src().SetValue(ateSrc.MAC)
+		v4 := flowipv4.Packet().Add().Ipv4()
+		v4.Src().SetValue(ateSrc.IPv4)
+		v4.Dst().SetValue(ateDst.IPv4)
+		otg.PushConfig(t, config)
+		otg.StartProtocols(t)
+		waitOTGARPEntry(t, "IPv4")
+	case "IPv6":
+		flowipv6 := config.Flows().Add().SetName("FlowIPv6")
+		flowipv6.Metrics().SetEnable(true)
+		flowipv6.TxRx().Device().
+			SetTxNames([]string{i1 + ".IPv6"}).
+			SetRxNames([]string{i2 + ".IPv6"})
+		flowipv6.Duration().SetChoice("fixed_packets")
+		flowipv6.Duration().FixedPackets().SetPackets(1000)
+		flowipv6.Size().SetFixed(100)
+		e1 := flowipv6.Packet().Add().Ethernet()
+		e1.Src().SetValue(ateSrc.MAC)
+		v4 := flowipv6.Packet().Add().Ipv6()
+		v4.Src().SetValue(ateSrc.IPv6)
+		v4.Dst().SetValue(ateDst.IPv6)
+		otg.PushConfig(t, config)
+		otg.StartProtocols(t)
+		waitOTGARPEntry(t, "IPv6")
+	}
 
-	ate.Traffic().Start(t, flow)
+	// Starting the traffic
+	otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	ate.Traffic().Stop(t)
+	t.Logf("Stop traffic")
+	otg.StopTraffic(t)
 
-	flowPath := ate.Telemetry().Flow(flow.Name())
-
-	if got := flowPath.LossPct().Get(t); got > 0 {
-		t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
+	// Get the flow statistics
+	otgutils.LogFlowMetrics(t, otg, config)
+	for _, f := range config.Flows().Items() {
+		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
+		if recvMetric.GetCounters().GetInPkts() != recvMetric.GetCounters().GetOutPkts() || recvMetric.GetCounters().GetInPkts() != 1000 {
+			t.Errorf("LossPct for flow %s detected, expected 0", f.Name())
+		}
 	}
 
-	etPath := flowPath.EgressTrackingAny()
-	ets := etPath.Get(t)
-	for i, et := range ets {
-		fptest.LogYgot(t, fmt.Sprintf("ATE flow EgressTracking[%d]", i), etPath, et)
-	}
-
-	if got := len(ets); got != 1 {
-		t.Errorf("EgressTracking got %d items, want 1", got)
-		return
-	}
-
-	if got := ets[0].GetFilter(); got != want {
-		t.Errorf("EgressTracking filter got %q, want %q", got, want)
-	}
-
-	if got := ets[0].GetCounters().GetInPkts(); got < 1000 {
-		t.Errorf("EgressTracking counter in-pkts got %d, want >= 1000", got)
-	}
 }
 
 func TestStaticARP(t *testing.T) {
 	// First configure the DUT with dynamic ARP.
-	configureDUT(t, noStaticMAC)
-	ate, top := configureATE(t)
-	top.Push(t).StartProtocols(t)
 
-	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv6Header := ondatra.NewIPv6Header()
+	configureDUT(t, noStaticMAC)
+	// var ate *ondatra.ATEDevice
+	ate, config := configureOTG(t)
 
 	// Default MAC addresses on Ixia are assigned incrementally as:
-	//   - 00:11:01:00:00:01
-	//   - 00:12:01:00:00:01
+	//   - 02:11:01:00:00:01
+	//   - 02:12:01:00:00:01
 	// etc.
 	//
-	// The last 15-bits therefore resolve to "1".
 	t.Run("NotPoisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, top, ethHeader, ipv4Header)
+			testFlow(t, ate, config, "IPv4", false)
+			checkDUTEntry(t, "IPv4", false)
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "1" /* want */, ate, top, ethHeader, ipv6Header)
+			testFlow(t, ate, config, "IPv6", false)
+			checkDUTEntry(t, "IPv6", false)
 		})
 	})
 
 	// Reconfigure the DUT with static MAC.
 	configureDUT(t, poisonedMAC)
 
-	// Poisoned MAC address ends with 7a:69, so 0x7a69 = 31337.
 	t.Run("Poisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, top, ethHeader, ipv4Header)
+			testFlow(t, ate, config, "IPv4", true)
+			checkDUTEntry(t, "IPv4", true)
 		})
 		t.Run("IPv6", func(t *testing.T) {
-			testFlow(t, "31337" /* want */, ate, top, ethHeader, ipv6Header)
+			testFlow(t, ate, config, "IPv6", true)
+			checkDUTEntry(t, "IPv6", true)
 		})
 	})
 }

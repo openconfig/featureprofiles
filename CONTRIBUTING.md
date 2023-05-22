@@ -34,9 +34,10 @@ not to ascribe any specific rights to a single OpenConfig contributor.
 ## Code Style
 
 All code should follow
-[Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-and [Effective Go](https://go.dev/doc/effective_go) for writing readable Go code
-with a consistent look and feel.
+[Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments),
+[Effective Go](https://go.dev/doc/effective_go), and
+[Google Go Style Guide](https://google.github.io/styleguide/go/) for writing
+readable Go code with a consistent look and feel.
 
 All code and documentation should follow
 [Google developer documentation style guide](https://developers.google.com/style/word-list)
@@ -332,10 +333,12 @@ a1v4.Protocol, _ = a1v4.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
 ## IP Addresses Assignment
 
 Netblocks used in the test topology should follow IPv4 Address Blocks Reserved
-for Documentation ([RFC 5737]) and IPv6 Address Prefix Reserved for
-Documentation ([RFC 3849]). In particular:
+for Documentation ([RFC 5737]), IPv4 reserved for Benchmarking Methodology
+([RFC 2544]), and IPv6 Address Prefix Reserved for Documentation ([RFC 3849]).
+In particular:
 
 [RFC 5737]: https://datatracker.ietf.org/doc/html/rfc5737
+[RFC 2544]: https://datatracker.ietf.org/doc/html/rfc2544
 [RFC 3849]: https://datatracker.ietf.org/doc/html/rfc3849
 
 ### IPv4
@@ -346,6 +349,7 @@ Documentation ([RFC 3849]). In particular:
     for traffic testing; split as needed.
 *   `TEST-NET-3`: (203.0.113.0/24): data plane destination network addresses
     used for traffic testing; split as needed.
+*   `BMWG`: (198.18.0.0/15): additional data plane networks.
 
 ### IPv6
 
@@ -370,6 +374,16 @@ Number Reservation for Documentation Use ([RFC 5398]). In particular:
 
 Both ranges have 16 total numbers each. The hexadecimal notation makes it more
 obvious where the range starts and stops.
+
+## Default Network Instance
+
+In OpenConfig [PR #599](https://github.com/openconfig/public/pull/599), it has
+been clarified that the name for the default network instance should be
+uppercase `"DEFAULT"`. Some legacy devices are still using lowercase
+`"default"`, so device tests should use the deviation
+`*deviations.DefaultNetworkInstance` which allows them to work on those legacy
+devices while they are being updated. Non-device unit tests may hard-code
+`"DEFAULT"`.
 
 ## Pull Requests
 

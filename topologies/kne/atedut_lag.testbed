@@ -1,0 +1,116 @@
+duts {
+  id: "dut"
+  vendor: ARISTA
+  ports {
+    id: "port1"    
+  }
+  ports {
+    id: "port2"    
+  }
+  ports {
+    id: "port3"    
+  }
+  ports {
+    id: "port4"    
+  }
+  ports {
+    id: "port5"    
+  }
+   ports {
+    id: "port6"    
+  }
+   ports {
+    id: "port7"    
+  }
+   ports {
+    id: "port8"    
+  }
+   ports {
+    id: "port9"    
+  }
+}
+
+ates {
+  id: "ate"
+  vendor: IXIA
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+    group: "lag"
+  }
+  ports {
+    id: "port3"
+    group: "lag"
+  }
+  ports {
+    id: "port4"
+    group: "lag"
+  }
+  ports {
+    id: "port5"
+    group: "lag"
+  }
+  ports {
+    id: "port6"
+    group: "lag"
+  }
+  ports {
+    id: "port7"
+    group: "lag"
+  }
+  ports {
+    id: "port8"
+    group: "lag"
+  }
+  ports {
+    id: "port9"
+    group: "lag"
+  }
+}
+
+links {
+  a: "dut:port1"
+  b: "ate:port1"
+}
+
+links {
+  a: "dut:port2"
+  b: "ate:port2"
+}
+
+links {
+  a: "dut:port3"
+  b: "ate:port3"
+}
+
+links {
+  a: "dut:port4"
+  b: "ate:port4"
+}
+
+links {
+  a: "dut:port5"
+  b: "ate:port5"
+}
+
+links {
+  a: "dut:port6"
+  b: "ate:port6"
+}
+
+links {
+  a: "dut:port7"
+  b: "ate:port7"
+}
+
+links {
+  a: "dut:port8"
+  b: "ate:port8"
+}
+
+links {
+  a: "dut:port9"
+  b: "ate:port9"
+}

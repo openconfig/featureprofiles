@@ -8,11 +8,11 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.18'
+        go-version: '1.19'
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ~/go/pkg/mod
@@ -23,6 +23,7 @@ jobs:
       uses: arduino/setup-protoc@v1
       with:
         version: '3.x'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Lint protobufs
       run: |
         go install github.com/googleapis/api-linter/cmd/api-linter@latest
@@ -47,6 +48,7 @@ jobs:
           fi
         done
         if [ "$fail" == "1" ]; then exit 1; fi
+
   validate_oc_paths:
     name: Validate OpenConfig Paths
     runs-on: ubuntu-latest
@@ -54,9 +56,9 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.18'
+        go-version: '1.19'
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Cache
       uses: actions/cache@v2
       with:
@@ -69,6 +71,7 @@ jobs:
       run: make openconfig_public
     - name: Validate Paths
       run: make validate_paths
+
   check_style:
     name: Check style against CONTRIBUTING.md
     runs-on: ubuntu-latest
@@ -79,7 +82,7 @@ jobs:
         install: |
           Net::IP
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: IP Addresses Assignment
       run: |
         find . -path ./yang/fpoc -prune -o -name \*.go \
@@ -105,6 +108,16 @@ jobs:
         fi
 
         exit "${fail}"
+    - name: Default NetworkInstance
+      run: |
+        if find . -path ./yang/fpoc -prune -o \
+          -name \*.go -exec egrep -n '"default"' \{} +
+        then
+          echo "Default network instance name should be uppercase." >&2
+          echo "See CONTRIBUTING.md#default-network-instance" >&2
+          exit 1
+        fi
+
   static_analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
@@ -112,9 +125,9 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.18'
+        go-version: '1.19'
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Cache
       uses: actions/cache@v2
       with:
@@ -125,9 +138,28 @@ jobs:
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
         restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Go vet
-      run: go vet ./...
+      run: GOGC=30 go vet ./...
     - name: Gofmt
-      run: diff -u <(echo -n) <(gofmt -d -s .)
+      run: |
+        # gofmt always returns true, so we use grep '^' which returns
+        # true on non-empty output, but will otherwise passthrough all
+        # output lines.
+        if gofmt -d -s . | grep '^'; then
+          exit 1
+        fi
+    - name: Get goimports
+      run: go install golang.org/x/tools/cmd/goimports@latest
+    - name: Goimports
+      run: |
+        # goimports always returns true, so we use grep '^' which returns
+        # true on non-empty output, but will otherwise passthrough all
+        # output lines.
+        #
+        # goimports does not support "gofmt -s" so both goimports and gofmt are
+        # required.
+        if goimports -d . | grep '^'; then
+          exit 1
+        fi
     - name: Get revive
       run: go install github.com/mgechev/revive@latest
     - name: Run revive
@@ -136,3 +168,7 @@ jobs:
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
       run: GOGC=30 staticcheck ./...
+    - name: Get Ondatra linter
+      run: go install github.com/openconfig/ondatra/gnmi/migrator@latest
+    - name: Run Ondatra linter
+      run: migrator -json ./feature/... | go run ./tools/lint2annotation

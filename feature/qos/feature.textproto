@@ -7,8 +7,14 @@ id {
 config_path {
   path: "/qos/classifiers/classifier/config/name"
 }
+telemetry_path {
+  path: "/qos/classifiers/classifier/state/name"
+}
 config_path {
   path: "/qos/classifiers/classifier/config/type"
+}
+telemetry_path {
+  path: "/qos/classifiers/classifier/state/type"
 }
 config_path {
   path: "/qos/classifiers/classifier/terms/term/actions/config/target-group"
@@ -23,73 +29,274 @@ telemetry_path {
   path: "/qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp"
 }
 config_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set"
+}
+telemetry_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv4/state/dscp-set"
+}
+config_path {
   path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp"
 }
 telemetry_path {
   path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/state/dscp"
 }
 config_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set"
+}
+telemetry_path {
+  path: "/qos/classifiers/classifier/terms/term/conditions/ipv6/state/dscp-set"
+}
+config_path {
   path: "/qos/classifiers/classifier/terms/term/config/id"
+}
+telemetry_path {
+  path: "/qos/classifiers/classifier/terms/term/state/id"
 }
 
 # Forwarding Groups
 config_path {
   path: "/qos/forwarding-groups/forwarding-group/config/fabric-priority"
 }
+telemetry_path {
+  path: "/qos/forwarding-groups/forwarding-group/state/fabric-priority"
+}
 config_path {
   path: "/qos/forwarding-groups/forwarding-group/config/name"
+}
+telemetry_path {
+  path: "/qos/forwarding-groups/forwarding-group/state/name"
 }
 config_path {
   path: "/qos/forwarding-groups/forwarding-group/config/output-queue"
 }
+telemetry_path {
+  path: "/qos/forwarding-groups/forwarding-group/state/output-queue"
+}
 
 # Interfaces
+config_path {
+  path: "/qos/interfaces/interface/config/interface-id"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/state/interface-id"
+}
+config_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/config/name"
+}
 telemetry_path {
   path: "/qos/interfaces/interface/input/classifiers/classifier/state/name"
 }
 config_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/config/type"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/state/type"
+}
+config_path {
   path: "/qos/interfaces/interface/output/queues/queue/config/name"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/name"
+}
+config_path {
+  path: "/qos/interfaces/interface/output/queues/queue/config/name"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/name"
+}
+config_path {
+  path: "/qos/interfaces/interface/output/queues/queue/config/queue-management-profile"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/queue-management-profile"
 }
 config_path {
   path: "/qos/interfaces/interface/output/scheduler-policy/config/name"
 }
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/state/name"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/avg-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/dropped-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/max-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/transmit-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/queues/queue/state/transmit-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/avg-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/max-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/transmit-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/transmit-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/classifiers/classifier/terms/term/state/matched-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/classifiers/classifier/terms/term/state/matched-packets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/avg-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/dropped-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/max-queue-len"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/transmit-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/queues/queue/state/transmit-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/conforming-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/conforming-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/exceeding-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/exceeding-pkts"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/violating-octets"
+}
+telemetry_path {
+  path: "/qos/interfaces/interface/output/scheduler-policy/schedulers/scheduler/state/violating-pkts"
+}
 
 # Queues
+config_path {
+  path: "/qos/queues/queue/config/name"
+}
 telemetry_path {
   path: "/qos/queues/queue/state/name"
+}
+config_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/config/name"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/state/name"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/red/uniform/state/enable-ecn"
+}
+telemetry_path {
+  path: "/qos/queue-management-profiles/queue-management-profile/red/uniform/state/min-threshold"
 }
 
 # Scheduler policy
 config_path {
   path: "/qos/scheduler-policies/scheduler-policy/config/name"
 }
+telemetry_path {
+  path: "/qos/scheduler-policies/scheduler-policy/state/name"
+}
 config_path {
   path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority"
+}
+telemetry_path {
+  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/state/priority"
 }
 config_path {
   path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence"
 }
+telemetry_path {
+  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/state/sequence"
+}
 config_path {
   path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type"
+}
+telemetry_path {
+  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/state/type"
 }
 config_path {
   path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id"
 }
+telemetry_path {
+  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/id"
+}
 config_path {
   path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type"
 }
-config_path {
-  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue"
+telemetry_path {
+  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/input-type"
 }
 config_path {
-  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight"
+  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue"
 }
 telemetry_path {
   path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/queue"
 }
 config_path {
+  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight"
+}
+telemetry_path {
+  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/weight"
+}
+config_path {
   path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir"
+}
+telemetry_path {
+  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/state/cir"
 }
 config_path {
   path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir"
+}
+telemetry_path {
+  path: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/state/pir"
 }

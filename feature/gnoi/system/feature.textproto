@@ -46,3 +46,7 @@ gnoi_service {
   service_name: "gnoi.system.System"
   method_name: "CancelReboot"
 }
+gnoi_service {
+  service_name: "gnoi.system.System"
+  method_name: "KillProcess"
+}

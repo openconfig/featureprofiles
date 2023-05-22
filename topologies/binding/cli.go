@@ -29,6 +29,8 @@ import (
 // shell to service stdin, stdout, and stderr; each SendCommand will
 // run in its own session but without shell or pty.
 type cli struct {
+	*binding.AbstractStreamClient
+
 	ssh    *ssh.Client
 	sess   *ssh.Session
 	stdin  io.WriteCloser

@@ -15,7 +15,8 @@
 
 set -xe
 
-GOLANG_URL="https://dl.google.com/go/go1.17.6.linux-amd64.tar.gz"
+GOLANG_URL="https://dl.google.com/go/go1.19.linux-amd64.tar.gz"
+KNE_TAG="v0.1.6"
 
 # Install Go
 curl -o go.tar.gz ${GOLANG_URL}
@@ -41,7 +42,7 @@ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stabl
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
 # Install KNE
-git clone https://github.com/openconfig/kne.git
+git clone -b "${KNE_TAG}" https://github.com/openconfig/kne.git
 pushd kne/kne_cli
 go install -v
 popd

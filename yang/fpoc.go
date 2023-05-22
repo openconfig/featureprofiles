@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package fpoc contains the Ygot generated Go structs for OpenConfig that are used by the
+// feature profiles config generation library.
 package fpoc
 
 //go:generate ./generate.sh
