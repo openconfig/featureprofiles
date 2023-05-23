@@ -72,8 +72,8 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// resolveDutDeviations returns the deviations for the specified dut. If no duts match `nil` is returned.
-func resolveDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
+// lookupDutDeviations returns the deviations for the specified dut. If no duts match `nil` is returned.
+func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
 		if platformExceptions.GetPlatform().Vendor.String() == dut.Device.Vendor().String() && platformExceptions.GetPlatform().HardwareModel == dut.Device.Model() {
 			return platformExceptions.GetDeviations()
@@ -301,13 +301,13 @@ func MissingValueForDefaults(_ *ondatra.DUTDevice) bool {
 // TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
 // Default value is false.
 func TraceRouteL4ProtocolUDP(dut *ondatra.DUTDevice) bool {
-	return resolveDUTDeviations(dut).GetTracerouteL4ProtocolUdp()
+	return lookupDUTDeviations(dut).GetTracerouteL4ProtocolUdp()
 }
 
 // TraceRouteFragmentation returns if device does not support fragmentation bit for traceroute.
 // Default value is false.
 func TraceRouteFragmentation(dut *ondatra.DUTDevice) bool {
-	return resolveDUTDeviations(dut).GetTracerouteFragmentation()
+	return lookupDUTDeviations(dut).GetTracerouteFragmentation()
 }
 
 // LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,

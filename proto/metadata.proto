@@ -53,8 +53,6 @@ message Metadata {
     // Device does not support fragmentation bit for traceroute.
     bool traceroute_fragmentation = 2;
     // Device only support UDP as l4 protocol for traceroute.
-    // Use this field to set default l4 protocol as UDP and skip the tests that
-    // explictly use TCP or ICMP.
     bool traceroute_l4_protocol_udp = 3;
   }
 
