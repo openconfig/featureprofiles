@@ -53,7 +53,7 @@ var (
 	metadataIngressPort                     = *ygot.Uint32(1)
 	metadataEgressPort                      = *ygot.Uint32(2)
 
-	Duration        = uint32(20)
+	duration        = uint32(20)
 	gdpBitRate      = uint64(200000)
 	lldpBitRate     = uint64(100000)
 	trPacketRate    = uint64(324)
@@ -61,8 +61,8 @@ var (
 	srcMac          = flag.String("srcMac", "00:01:00:02:00:03", "source MAC address for PacketIn")
 	lldpDstmac      = flag.String("lldpDstmac", "01:80:c2:00:00:0e", "source MAC address for PacketIn")
 	gdpDstmac       = flag.String("gdpDstmac", "00:0a:da:f0:f0:f0", "source MAC address for PacketIn")
-	TTL1            = uint8(1)
-	HopLimit1       = uint8(1)
+	ttl1            = uint8(1)
+	hopLimit1       = uint8(1)
 	packetoutWait   = uint32(77) // Wait for the ATE traffic start, so both packetin and packetout hits DUT simultaneously.
 	ipv4PrefixLen   = uint8(30)
 	ipv6PrefixLen   = uint8(126)
@@ -143,10 +143,9 @@ type TraceroutePacketIO struct {
 	EgressPort  string
 }
 
-// programmTableEntry programs or deletes p4rt table entry based on delete flag.
-func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, delete bool) error {
-	t.Helper()
-	err := client.Write(&p4_v1.WriteRequest{
+// programTableEntry programs or deletes p4rt table entry based on delete flag.
+func programTableEntry(client *p4rt_client.P4RTClient, delete bool) error {
+	return client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
@@ -154,10 +153,6 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // Send ATE traffic, stop and collect total packet tx from ATE source port.
@@ -235,11 +230,11 @@ func testPktinPktout(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
 
 	// Insert wbb acl entry on the DUT
-	if err := programmTableEntry(ctx, t, leader, false); err != nil {
+	if err := programTableEntry(leader, false); err != nil {
 		t.Fatalf("There is error when programming entry")
 	}
 	// Delete wbb acl entry on the device
-	defer programmTableEntry(ctx, t, leader, true)
+	defer programTableEntry(leader, true)
 
 	perfTests := []struct {
 		desc       string
@@ -600,7 +595,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 }
 
 // getGDPParameter returns GDP related parameters for testPacketOut testcase.
-func getGDPParameter(t *testing.T) PacketIO {
+func getGDPParameter() PacketIO {
 	return &GDPPacketIO{
 		PacketIOPacket: PacketIOPacket{
 			SrcMAC:       srcMac,
@@ -612,11 +607,11 @@ func getGDPParameter(t *testing.T) PacketIO {
 }
 
 // getTracerouteParameter returns Traceroute related parameters for testPacketIn testcase.
-func getTracerouteParameter(t *testing.T) PacketIO {
+func getTracerouteParameter() PacketIO {
 	return &TraceroutePacketIO{
 		PacketIOPacket: PacketIOPacket{
-			TTL:      &TTL1,
-			HopLimit: &HopLimit1,
+			TTL:      &ttl1,
+			HopLimit: &hopLimit1,
 		},
 		IngressPort: fmt.Sprint(portID),
 		EgressPort:  fmt.Sprint(portID + 1),
@@ -624,7 +619,7 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 }
 
 // getLLDPParameter returns LLDP related parameters for testPacketIn testcase.
-func getLLDPParameter(t *testing.T) PacketIO {
+func getLLDPParameter() PacketIO {
 	return &LLDPPacketIO{
 		PacketIOPacket: PacketIOPacket{
 			SrcMAC:       srcMac,
@@ -665,9 +660,9 @@ func TestP4rtPerformance(t *testing.T) {
 	if err := setupP4RTClient(ctx, args); err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
-	args.gdppacketIO = getGDPParameter(t)
-	args.lldppacketIO = getLLDPParameter(t)
-	args.trpacketIO = getTracerouteParameter(t)
+	args.gdppacketIO = getGDPParameter()
+	args.lldppacketIO = getLLDPParameter()
+	args.trpacketIO = getTracerouteParameter()
 	testPktinPktout(ctx, t, args)
 }
 
@@ -883,7 +878,7 @@ func getTrafficFlow(args *testArgs, ate *ondatra.ATEDevice) []*ondatra.Flow {
 
 	// flow1 for LLDP traffic.
 	flow1 := ate.Traffic().NewFlow("LLDP").WithFrameSize(packetinPktsize).WithFrameRateBPS(lldpBitRate).WithHeaders(ethHeader1)
-	flow1.Transmission().WithPatternFixedDuration(Duration)
+	flow1.Transmission().WithPatternFixedDuration(duration)
 
 	ethHeader2 := ondatra.NewEthernetHeader()
 	ethHeader2.WithSrcAddress(*srcMac)
@@ -892,14 +887,14 @@ func getTrafficFlow(args *testArgs, ate *ondatra.ATEDevice) []*ondatra.Flow {
 
 	// flow2 for GDP traffic.
 	flow2 := ate.Traffic().NewFlow("GDP").WithFrameSize(packetinPktsize).WithFrameRateBPS(gdpBitRate).WithHeaders(ethHeader2)
-	flow2.Transmission().WithPatternFixedDuration(Duration)
+	flow2.Transmission().WithPatternFixedDuration(duration)
 
 	ethHeader := ondatra.NewEthernetHeader()
-	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(atePort2.IPv4).WithTTL(TTL1) //ttl=1 is traceroute traffic
+	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(atePort2.IPv4).WithTTL(ttl1) //ttl=1 is traceroute traffic
 
 	// flow3 for Traceroute traffic.
 	flow3 := ate.Traffic().NewFlow("IPv4").WithFrameSize(packetinPktsize).WithFrameRateFPS(trPacketRate).WithHeaders(ethHeader, ipv4Header)
-	flow3.Transmission().WithPatternFixedDuration(Duration)
+	flow3.Transmission().WithPatternFixedDuration(duration)
 
 	var flows []*ondatra.Flow
 	flows = append(flows, flow1)
