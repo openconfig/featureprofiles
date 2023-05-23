@@ -247,8 +247,6 @@ type Metadata_Deviations struct {
 	// Device does not support fragmentation bit for traceroute.
 	TracerouteFragmentation bool `protobuf:"varint,2,opt,name=traceroute_fragmentation,json=tracerouteFragmentation,proto3" json:"traceroute_fragmentation,omitempty"`
 	// Device only support UDP as l4 protocol for traceroute.
-	// Use this field to set default l4 protocol as UDP and skip the tests that
-	// explictly use TCP or ICMP.
 	TracerouteL4ProtocolUdp bool `protobuf:"varint,3,opt,name=traceroute_l4_protocol_udp,json=tracerouteL4ProtocolUdp,proto3" json:"traceroute_l4_protocol_udp,omitempty"`
 }
 
