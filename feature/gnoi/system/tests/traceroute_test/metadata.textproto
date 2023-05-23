@@ -25,3 +25,14 @@ platform_exceptions: {
     traceroute_l4_protocol_udp: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: '8201'
+  }
+  deviations: {
+    traceroute_fragmentation: true
+    traceroute_l4_protocol_udp: true
+  }
+}
+
