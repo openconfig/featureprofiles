@@ -10,6 +10,7 @@ import (
 	p4rt_client "github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -307,6 +308,8 @@ func TestP4RTPacketIO(t *testing.T) {
 	}
 	if *ciscoFlags.TTLTests {
 		ttlTestcases := map[string]func(){}
+		//configure local station mac as its needed for PacketOut submit_to_ingress tests
+		config.TextWithGNMI(context.Background(), t, dut, "hw-module local-station-mac 001a.1100.0001\n")
 		if *ciscoFlags.TTL1v4 {
 			ttlTestcases["IPv4 TTL1 Only"] = func() { args.packetIO = getTTLParameter(t, true, false, false) }
 		}
