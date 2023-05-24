@@ -36,6 +36,9 @@ const (
 	maxRebootTime = 900
 	// Maximum wait time for all components to be in responsive state
 	maxCompWaitTime = 600
+	// Maximum grace time is 300 seconds (5 minutes) for device to perform
+	// pre-reboot tasks while using rebootRequest.Force as false
+	maxPreRebootGraceTime = 300
 )
 
 func TestMain(m *testing.M) {
@@ -89,7 +92,7 @@ func TestChassisReboot(t *testing.T) {
 				Method:  spb.RebootMethod_COLD,
 				Delay:   rebootDelay * oneSecondInNanoSecond,
 				Message: "Reboot chassis with delay",
-				Force:   true,
+				Force:   false,
 			}},
 		{
 			desc: "without delay",
@@ -97,7 +100,7 @@ func TestChassisReboot(t *testing.T) {
 				Method:  spb.RebootMethod_COLD,
 				Delay:   0,
 				Message: "Reboot chassis without delay",
-				Force:   true,
+				Force:   false,
 			}},
 	}
 
@@ -150,6 +153,7 @@ func TestChassisReboot(t *testing.T) {
 
 			startReboot := time.Now()
 			t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+			deviceRebooting := false
 			for {
 				var currentTime string
 				t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
@@ -158,6 +162,13 @@ func TestChassisReboot(t *testing.T) {
 					currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 				}); errMsg != nil {
 					t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+					deviceRebooting = true
+				} else if !deviceRebooting && !tc.rebootRequest.Force {
+					if uint64(time.Since(startReboot).Seconds()) < maxPreRebootGraceTime {
+						t.Logf("Wait for device to gracefully complete pre-reload tasks")
+						continue
+					}
+					deviceRebooting = true
 				} else {
 					t.Logf("Device rebooted successfully with received time: %v", currentTime)
 					break
