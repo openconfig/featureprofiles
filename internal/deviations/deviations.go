@@ -422,6 +422,11 @@ func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 	return *routePolicyUnderAFIUnsupported
 }
 
+// StorageComponentUnsupported returns if telemetry path /components/component/storage is not supported.
+func StorageComponentUnsupported(_ *ondatra.DUTDevice) bool {
+	return *storageComponentUnsupported
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -585,4 +590,6 @@ var (
 	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
 
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
+
+	storageComponentUnsupported = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
 )
