@@ -278,7 +278,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 	a.configSubinterfaceDUT(t, i, d)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
-	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
+	fptest.LogQuery(t, "DUT", intfPath.State(), gnmi.Get(t, d, intfPath.State()))
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -309,7 +309,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	}
 	dni := gnmi.OC().NetworkInstance(nonDefaultVRF)
 	gnmi.Replace(t, d, dni.Config(), ni)
-	fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
+	fptest.LogQuery(t, "NI", dni.State(), gnmi.Get(t, d, dni.State()))
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
