@@ -3,7 +3,7 @@ owners:
   - sprem
 priority: 4
 testbeds: 
-  - 8808-1DUT-1ATE
+  - 8201-32FH_FLM253900HJ
 tests:
 - name: PacketIO-GDP
   path: feature/experimental/p4rt/ate_tests/cisco
