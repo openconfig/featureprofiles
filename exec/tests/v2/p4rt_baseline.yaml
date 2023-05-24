@@ -3,7 +3,7 @@ owners:
   - sprem
 priority: 4
 testbeds: 
-  - 8201-32FH_FLM253900HJ
+  - 8808-1DUT-1ATE
 tests:
 - name: PacketIO-GDP
   path: feature/experimental/p4rt/ate_tests/cisco
@@ -32,7 +32,7 @@ tests:
     - '-run_ttl_tests="true"'
     - '-run_ttl_1_v4_tests=true'
     - '-run_with_bundle_baseconfig=true'
-  timeout: 7200
+  timeout: 0
   owners: 
   - sprem
   internal: true

@@ -1313,15 +1313,21 @@ func testEntryProgrammingPacketInWithFlowLabel(ctx context.Context, t *testing.T
 
 func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
+	var existingConfig *oc.Interface
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	existingConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface(portName).Config())
+	got, configPresent := gnmi.Lookup(t, args.dut, gnmi.OC().Interface(portName).State()).Val()
+	t.Logf("GOT %v ", got)
+
+	if configPresent {
+		existingConfig = gnmi.GetConfig(t, args.dut, gnmi.OC().Interface(portName).Config())
+		t.Logf("EXISTING CONFGIG %v", existingConfig.GetAggregation())
+	}
 
 	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("no interface %v \n", portName))
 	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("interface %v \n ipv4 address 100.120.1.1 255.255.255.0 \n", portName))
 	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("interface %v\n ipv6 address 100:120:1::1/126 \n", portName))
 
-	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Config(), existingConfig)
+	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(portName).Config(), existingConfig)
 	defer config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("no interface %v\n", portName))
 
 	// Program the entry
