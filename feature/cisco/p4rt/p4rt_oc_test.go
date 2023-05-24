@@ -338,7 +338,7 @@ func testP4RTTelemetry(t *testing.T, args *testArgs) {
 
 func testP4RTUprev(t *testing.T, args *testArgs) {
 	p1 := args.dut.Port(t, "port1")
-	for _, portID := range []uint32{4294967039, 1} {
+	for _, portID := range []uint32{4294967039, 4294967038, 1} {
 
 		config := gnmi.OC().Interface(p1.Name()).Id()
 		defer observer.RecordYgot(t, "REPLACE", config)
@@ -347,7 +347,7 @@ func testP4RTUprev(t *testing.T, args *testArgs) {
 		// Once defect is fixed move this to Get on Config.
 		defer observer.RecordYgot(t, "GET", config)
 		if got := gnmi.GetConfig(t, args.dut, config.Config()); got != portID {
-			t.Fatalf("Interface port-id: want 1, got %v", got)
+			t.Fatalf("Interface port-id: want %v, got %v", portID, got)
 		}
 
 	}
