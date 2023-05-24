@@ -344,7 +344,6 @@ func testP4RTUprev(t *testing.T, args *testArgs) {
 		defer observer.RecordYgot(t, "REPLACE", config)
 		gnmi.Replace(t, args.dut, config.Config(), portID)
 
-		// Once defect is fixed move this to Get on Config.
 		defer observer.RecordYgot(t, "GET", config)
 		if got := gnmi.GetConfig(t, args.dut, config.Config()); got != portID {
 			t.Fatalf("Interface port-id: want %v, got %v", portID, got)
