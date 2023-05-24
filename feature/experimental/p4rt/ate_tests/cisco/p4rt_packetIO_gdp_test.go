@@ -108,7 +108,7 @@ var (
 			fn:   testPacketOutWithoutMatchEntry,
 		},
 		{
-			name: "Program GDP Match Entry and Check PacketOut(submit_to_egress)",
+			name: "Program GDP Match Entry and Check PacketOut submit to egress",
 			desc: "Packet I/O-GDP-PacketOut:003 Egress: Inject EtherType 0x6007 packets and verify traffic behavior in case of EtherType 0x6007 entry programmed",
 			fn:   testPacketOutEgress,
 		},

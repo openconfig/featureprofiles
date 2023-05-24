@@ -384,9 +384,13 @@ func testEntryProgrammingPacketIn(ctx context.Context, t *testing.T, args *testA
 	}
 
 	validatePackets(t, args, packets)
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGigE0/0/0/10")
 }
 
 func testEntryProgrammingPacketInAndNoReply(ctx context.Context, t *testing.T, args *testArgs) {
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGigE0/0/0/10")
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	count_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Counters().OutPkts().State())
 	testEntryProgrammingPacketIn(ctx, t, args)
@@ -489,7 +493,8 @@ func testEntryProgrammingPacketInWithNewIP(ctx context.Context, t *testing.T, ar
 	packets := getPackets(t, client, 40)
 
 	t.Logf("Captured packets: %v", len(packets))
-
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGigE0/0/0/10")
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received")
 	}
@@ -531,7 +536,8 @@ func testPacketInWithoutEntryProgramming(ctx context.Context, t *testing.T, args
 
 	// Check PacketIn on P4Client
 	packets := getPackets(t, client, 40)
-
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGigE0/0/0/10")
 	// t.Logf("Captured packets: %v", len(packets))
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received")
@@ -1137,6 +1143,8 @@ func testEntryProgrammingPacketInWithInnerTTL(ctx context.Context, t *testing.T,
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received.")
 	}
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface Bundle-Ether120")
+	config.CMDViaGNMI(context.Background(), t, args.dut, "sh run interface FourHundredGigE0/0/0/10")
 }
 
 func testEntryProgrammingPacketInWithMalformedPacket(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1859,8 +1867,18 @@ func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
 
-	if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
-		t.Errorf("Not all the packets are received.")
+	// if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+	// 	t.Errorf("Not all the packets are received.")
+	// }
+
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+			t.Errorf("Unexpected packets are received.")
+		}
 	}
 }
 
