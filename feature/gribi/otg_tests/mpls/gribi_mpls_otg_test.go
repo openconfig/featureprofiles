@@ -3,6 +3,7 @@
 package gribi_mpls_dataplane_test
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 	"testing"
@@ -26,6 +27,12 @@ const (
 	baseLabel         = 42
 	destinationLabel  = 100
 	maximumStackDepth = 20
+)
+
+var (
+	// sleepTime allows a user to specify that the test should sleep after setting
+	// up all elements (configuration, gRIBI forwarding entries, traffic flows etc.).
+	sleepTime = flag.Duration("sleep", 10*time.Second, "duration for which the test should sleep after setup")
 )
 
 var (
@@ -154,7 +161,7 @@ func pushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 		t.Fatalf("cannot configure ATE interfaces via OTG, %v", err)
 	}
 
-	dut.Config().New().WithAristaText(`
+	/*dut.Config().New().WithAristaText(`
 	mpls routing
 	mpls ip
 	router traffic-engineering
@@ -164,8 +171,9 @@ func pushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	!
 	mpls static top-label 32768 192.0.2.2 swap-label 32768
 	`).Append(t)
+	*/
 
-	d := &oc.Device{}
+	d := &oc.Root{}
 	// configure ports on the DUT. note that each port maps to two interfaces
 	// because we create a LAG.
 	for _, i := range []*attrs.Attributes{dutSrc, dutDst} {
@@ -182,8 +190,8 @@ func pushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			d.AppendInterface(intf)
 		}
 	}
-	fptest.LogYgot(t, "", dut.Config(), d)
-	dut.Config().Update(t, d)
+	fptest.LogQuery(t, "", gnmi.OC().Config(), d)
+	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 
 	// TODO(robjs): make start protocols in fake more robust to allow for retry.
 	time.Sleep(1 * time.Second)
@@ -202,6 +210,8 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
+	otg := ondatra.ATE(t, "ate").OTG()
+
 	testMPLSFlow := func(t *testing.T, _ []uint32) {
 		// We configure a traffic flow from ateSrc -> ateDst (passes through
 		// ateSrc -> [ dutSrc -- dutDst ] --> ateDst.
@@ -216,10 +226,11 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		// wait for ARP to resolve.
 		t.Logf("looking on interface %s_ETH for %s", ateSrc.Name, dutSrc.IPv4)
 		var dstMAC string
-		gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-			dstMAC = val
+		gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+"_ETH").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			dstMAC, _ = val.Val()
 			return val.IsPresent()
 		}).Await(t)
+		t.Logf("MAC discovered was %s", dstMAC)
 
 		// TODO(robjs): MPLS is currently not supported in OTG.
 		otgCfg.Flows().Clear().Items()
@@ -243,7 +254,8 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 
 		t.Logf("Starting MPLS traffic...")
 		otg.StartTraffic(t)
-		time.Sleep(10 * time.Second)
+		t.Logf("Sleeping for %s...", *sleepTime)
+		time.Sleep(*sleepTime)
 		t.Logf("Stopping MPLS traffic...")
 		otg.StopTraffic(t)
 
@@ -255,6 +267,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	baseLabel := 42
 	for i := 1; i <= maximumStackDepth; i++ {
 		t.Run(fmt.Sprintf("push %d labels", i), func(t *testing.T) {
+			t.Logf("running MPLS compliance test with %d labels.", i)
 			mplscompliance.EgressLabelStack(t, c, defNIName, baseLabel, i, testMPLSFlow)
 		})
 	}
@@ -288,8 +301,8 @@ func TestMPLSPushToIP(t *testing.T) {
 		// wait for ARP to resolve.
 		otg := ondatra.ATE(t, "ate").OTG()
 		var dstMAC string
-		gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-			dstMAC = val
+		gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+"_ETH").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			dstMAC, _ = val.Val()
 			return val.IsPresent()
 		}).Await(t)
 
