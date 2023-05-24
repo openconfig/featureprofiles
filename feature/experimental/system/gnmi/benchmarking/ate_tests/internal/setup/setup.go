@@ -173,9 +173,11 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 	isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
 	isisLevel2Auth.Enabled = ygot.Bool(true)
-	isisLevel2Auth.DisableCsnp = ygot.Bool(false)
-	isisLevel2Auth.DisableLsp = ygot.Bool(false)
-	isisLevel2Auth.DisablePsnp = ygot.Bool(false)
+	if deviations.ISISExplicitLevelAuthenticationConfig(dut) {
+		isisLevel2Auth.DisableCsnp = ygot.Bool(false)
+		isisLevel2Auth.DisableLsp = ygot.Bool(false)
+		isisLevel2Auth.DisablePsnp = ygot.Bool(false)
+	}
 	isisLevel2Auth.AuthPassword = ygot.String(authPassword)
 	isisLevel2Auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
 	isisLevel2Auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
