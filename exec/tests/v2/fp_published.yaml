@@ -615,3 +615,9 @@ tests:
     owners:
       - mbagherz
     mustpass: false
+  - name: gNOI-2.1 (Packet-based Link Qualification)
+    path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
+    owners:
+      - wdolaast
+    mustpass: false
+    skip: true # requires 2 dut

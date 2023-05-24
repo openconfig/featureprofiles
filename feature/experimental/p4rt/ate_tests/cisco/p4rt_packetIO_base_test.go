@@ -307,6 +307,9 @@ func TestP4RTPacketIO(t *testing.T) {
 	}
 	if *ciscoFlags.TTLTests {
 		ttlTestcases := map[string]func(){}
+		//configure local station mac as its needed for PacketOut submit_to_ingress tests
+		const localStationMac = "00:1a:11:00:00:01"
+		gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), localStationMac)
 		if *ciscoFlags.TTL1v4 {
 			ttlTestcases["IPv4 TTL1 Only"] = func() { args.packetIO = getTTLParameter(t, true, false, false) }
 		}
