@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package openconfig.testing;
 
+import "github.com/openconfig/ondatra/proto/testbed.proto";
+
 // Metadata about a Feature Profiles test.
 message Metadata {
   // UUID of the test.
@@ -36,4 +38,24 @@ message Metadata {
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
+
+  message Platform {
+    // Vendor of the device.
+    ondatra.Device.Vendor vendor = 1;
+    // Hardware model of the device.
+    string hardware_model = 2;
+  }
+
+  message Deviations {
+    // Device does not support interface/ipv4/enabled,
+    // so suppress configuring this leaf.
+    bool ipv4_missing_enabled = 1;
+  }
+
+  message PlatformExceptions {
+    Platform platform = 1;
+    Deviations deviations = 2;
+  }
+
+  repeated PlatformExceptions platform_exceptions = 5;
 }
