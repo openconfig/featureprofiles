@@ -1,0 +1,7 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "7e1f1570-a141-4758-8aa5-228c932e3bee"
+plan_id: "FP-1.1"
+description: "Power admin DOWN/UP Test"
+testbed: TESTBED_DUT_ATE_2LINKS
