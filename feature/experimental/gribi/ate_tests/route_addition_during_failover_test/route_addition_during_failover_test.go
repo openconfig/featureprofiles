@@ -95,11 +95,13 @@ var (
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
 		ondatra.NOKIA:   "/var/core/",
+		ondatra.ARISTA:  "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]*regexp.Regexp{
 		ondatra.JUNIPER: regexp.MustCompile("rpd.*core*"),
 		ondatra.CISCO:   regexp.MustCompile("emsd.*core.*"),
-		ondatra.NOKIA:   regexp.MustCompile("coredump-.*"),
+		ondatra.NOKIA:   regexp.MustCompile("coredump-sr_gribi_server-.*"),
+		ondatra.ARISTA:  regexp.MustCompile("core.*"),
 	}
 	fibProgrammedEntries []string
 )
@@ -119,8 +121,9 @@ var ipBlock1FlowArgs = &flowArgs{
 }
 
 // coreFileCheck function is used to check if cores are found on the DUT.
-func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64) {
+func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64, retry bool) {
 	t.Helper()
+	t.Log("Checking for core files on DUT")
 
 	// vendorCoreFilePath and vendorCoreProcName should be provided to fetch core file on dut.
 	if _, ok := vendorCoreFilePath[dut.Vendor()]; !ok {
@@ -134,6 +137,12 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 		Path: vendorCoreFilePath[dut.Vendor()],
 	}
 	validResponse, err := gnoiClient.File().Stat(context.Background(), in)
+	if err != nil {
+		if retry {
+			t.Logf("Retry GNOI request to check %v for core files on DUT", vendorCoreFilePath[dut.Vendor()])
+			validResponse, err = gnoiClient.File().Stat(context.Background(), in)
+		}
+	}
 	if err != nil {
 		t.Fatalf("Unable to stat path %v for core files on DUT, %v", vendorCoreFilePath[dut.Vendor()], err)
 	}
@@ -175,14 +184,14 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 
 	if configNhg {
 		fluentNhgVar := fluent.NextHopGroupEntry()
-		fluentNhgVar.WithNetworkInstance(*deviations.DefaultNetworkInstance).WithID(uint64(nhgID)).
+		fluentNhgVar.WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).WithID(uint64(nhgID)).
 			WithElectionID(args.electionID.Low, args.electionID.High)
 
 		for i := range nextHops {
 			index := uint64(i + 1)
 			args.client.Modify().AddEntry(t,
 				fluent.NextHopEntry().
-					WithNetworkInstance(*deviations.DefaultNetworkInstance).
+					WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 					WithIndex(index).
 					WithIPAddress(nextHops[i]).
 					WithElectionID(args.electionID.Low, args.electionID.High))
@@ -196,13 +205,18 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 		args.client.Modify().AddEntry(t,
 			fluent.IPv4Entry().
 				WithPrefix(virtualVIPs[ip]+"/32").
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithNextHopGroup(uint64(nhgID)).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
-		t.Fatalf("Could not program entries via clientA, got err: %v", err)
+		if switchover {
+			t.Logf("Concurrent switchover/gRIBI route addition, some entries might fail to add.")
+			t.Logf("Could not program entries via client, got err: %v", err)
+		} else {
+			t.Fatalf("Could not program entries via client, got err: %v", err)
+		}
 	}
 
 	if switchover {
@@ -224,7 +238,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 		}
 
 		gr, err := args.client.Get().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithAFT(fluent.IPv4).
 			Send()
 		if err != nil {
@@ -234,7 +248,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 		for ip := range virtualVIPs {
 			chk.GetResponseHasEntries(t, gr,
 				fluent.IPv4Entry().
-					WithNetworkInstance(*deviations.DefaultNetworkInstance).
+					WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 					WithNextHopGroup(uint64(nhgID)).
 					WithPrefix(virtualVIPs[ip]+"/32"),
 			)
@@ -252,13 +266,13 @@ func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *
 }
 
 // configureInterfaceDUT configures a single DUT layer 2 port.
-func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc string) {
+func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, dut *ondatra.DUTDevice, d *oc.Root, desc string) {
 	t.Helper()
 
 	i := d.GetOrCreateInterface(dutPort.Name())
 	i.Description = ygot.String(desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	t.Logf("DUT port %s configured", dutPort)
@@ -277,23 +291,29 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 		Index := uint32(i) + 1
 		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 1))
 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, ((4 * i) + 2))
-		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4)
+		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4, dut)
 		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
 		nextHops = append(nextHops, ateIPv4)
 	}
-	configureInterfaceDUT(t, dutPort, d, "dst")
+	configureInterfaceDUT(t, dutPort, dut, d, "dst")
 	pushConfig(t, dut, dutPort, d)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		intf := d.GetOrCreateInterface(dutPort.Name())
+		for i := 1; i <= nextHopCount+1; i++ {
+			fptest.AssignToNetworkInstance(t, dut, intf.GetName(), deviations.DefaultNetworkInstance(dut), uint32(i))
+		}
+	}
 	return nextHops
 }
 
 // configureSubinterfaceDUT configures a single DUT layer 3 sub-interface.
-func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string) {
+func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, index uint32, vlanID uint16, dutIPv4 string, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
 	if vlanID != 0 {
-		if *deviations.DeprecatedVlanID {
+		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
@@ -302,7 +322,7 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 
 	sipv4 := s.GetOrCreateIpv4()
 
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		sipv4.Enabled = ygot.Bool(true)
 	}
 	a := sipv4.GetOrCreateAddress(dutIPv4)
@@ -476,14 +496,26 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	ap1 := ate.Port(t, "port1")
 	top := ate.Topology().New()
 	// configure DUT port#1 - source port.
-	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4)
-	configureInterfaceDUT(t, dp1, d, "src")
+	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4, dut)
+	configureInterfaceDUT(t, dp1, dut, d, "src")
 	configureATE(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4CIDR())
 	pushConfig(t, dut, dp1, d)
 	dp2 := dut.Port(t, "port2")
 	ap2 := ate.Port(t, "port2")
 	// Configure 64 subinterfaces on DUT-ATE- PORT#2.
 	subIntfIPs := generateSubIntfPair(t, dut, dp2, ate, ap2, top, d)
+
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
+	}
+
 	top.Push(t).StartProtocols(t)
 
 	sysConfigTime := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).LastChange().State())
@@ -529,7 +561,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	pushDefaultEntries(t, args, subIntfIPs, virtualIPs, configNhg, !switchover)
 
 	gr, err := args.client.Get().
-		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithAFT(fluent.IPv4).
 		Send()
 	if err != nil {
@@ -560,8 +592,9 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch),
+		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 
@@ -569,7 +602,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	virtualIPsBlock2 := createIPv4Entries(t, ipBlock2FlowArgs.ipBlock)
 
 	// Check for coredumps in the DUT and validate that none are present on DUT before switchover.
-	coreFileCheck(t, dut, gnoiClient, sysConfigTime)
+	coreFileCheck(t, dut, gnoiClient, sysConfigTime, false)
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
@@ -629,14 +662,10 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 		}
 	}
 
-	if *deviations.GRIBIDelayedAckResponse {
-		time.Sleep(4 * time.Minute)
-	}
-
 	t.Log("Validate if partially ACKed entries of IPBlock2 are present as FIB_PROGRAMMED using a get RPC.")
 
 	gr, err = args.client.Get().
-		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithAFT(fluent.IPv4).
 		Send()
 	if err != nil {
@@ -656,7 +685,8 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	}
 
 	// Check for coredumps in the DUT and validate that none are present post failover.
-	coreFileCheck(t, dut, gnoiClient, sysConfigTime)
+	// Set retry to true since gnoi connection may be broken after switchover.
+	coreFileCheck(t, dut, gnoiClient, sysConfigTime, true)
 
 	t.Log("Re-inject routes from ipBlock2 in default VRF with NHGID: #1.")
 	pushDefaultEntries(t, args, subIntfIPs, virtualIPsBlock2, !configNhg, !switchover)

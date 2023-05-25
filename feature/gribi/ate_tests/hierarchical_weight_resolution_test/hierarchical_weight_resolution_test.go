@@ -39,10 +39,9 @@ import (
 
 type attributes struct {
 	attrs.Attributes
-	numSubIntf      uint32
-	networkInstance string
-	ip              func(vlan uint8) string
-	gateway         func(vlan uint8) string
+	numSubIntf uint32
+	ip         func(vlan uint8) string
+	gateway    func(vlan uint8) string
 }
 
 type nhInfo struct {
@@ -51,17 +50,17 @@ type nhInfo struct {
 }
 
 const (
-	ipv4PrefixLen   = 30
-	ipv4EntryPrefix = "198.18.192.0/21"
-	ipv4FlowIPStart = "198.18.192.0"
-	ipv4FlowIPEnd   = "198.18.199.255"
-	ipv4FlowCount   = 2048
-	nhEntryIP1      = "192.0.2.111"
-	nhEntryIP2      = "192.0.2.222"
-	nonDefaultVRF   = "VRF-1"
-	// 'deviation' is the maximum difference that is allowed between the observed
-	// traffic distribution and the required traffic distribution.
-	deviation = 1
+	ipv4EntryPrefix   = "203.0.113.0/32"
+	ipv4FlowIP        = "203.0.113.0"
+	innerSrcIPv4Start = "198.18.0.0"
+	innerDstIPv4Start = "198.19.0.0"
+	ipv4PrefixLen     = 30
+	ipv4FlowCount     = 65000
+	nhEntryIP1        = "192.0.2.111"
+	nhEntryIP2        = "192.0.2.222"
+	nonDefaultVRF     = "VRF-1"
+	policyName        = "redirect-to-VRF1"
+	ipipProtocol      = 4
 )
 
 var (
@@ -72,9 +71,8 @@ var (
 			IPv4:    dutPort1IPv4(0),
 			IPv4Len: ipv4PrefixLen,
 		},
-		numSubIntf:      0,
-		networkInstance: nonDefaultVRF,
-		ip:              dutPort1IPv4,
+		numSubIntf: 0,
+		ip:         dutPort1IPv4,
 	}
 
 	atePort1 = attributes{
@@ -116,6 +114,9 @@ var (
 		2: cidr(nhEntryIP1, 32),
 		3: cidr(nhEntryIP2, 32),
 	}
+	// 'tolerance' is the maximum difference that is allowed between the observed
+	// traffic distribution and the required traffic distribution.
+	tolerance = 0.2
 )
 
 func TestMain(m *testing.M) {
@@ -227,24 +228,24 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // configSubinterfaceDUT configures the Sub Interfaces of an Interfaces,
 // starting from Sub Interface 1. Each Subinterface is configured with a
 // unique VlanID starting from 1 and an IP address. The starting IP Address
-// for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4
-func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
+// for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4.
+func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	for i := uint32(1); i <= a.numSubIntf; i++ {
 		ip := a.ip(uint8(i))
 
 		s := intf.GetOrCreateSubinterface(i)
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(dut) {
 			s.Enabled = ygot.Bool(true)
 		}
-		if *deviations.DeprecatedVlanID {
+		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(i)
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(i))
 		}
 		s4 := s.GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
 		}
 		s4a := s4.GetOrCreateAddress(ip)
@@ -255,76 +256,121 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface) {
 
 // configInterfaceDUT configures the DUT interface with the provided IP Address.
 // Sub Interfaces are also configured if numSubIntf > 0.
-func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
+func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 	t.Helper()
-
+	p := d.Port(t, a.Name)
 	i := &oc.Interface{Name: ygot.String(p.Name())}
 
 	if a.numSubIntf > 0 {
 		i.Description = ygot.String(a.Desc)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(d) {
 			i.Enabled = ygot.Bool(true)
 		}
 	} else {
-		i = a.NewOCInterface(p.Name())
+		i = a.NewOCInterface(p.Name(), d)
 	}
 
-	a.configSubinterfaceDUT(t, i)
-	intfPath := gnmi.OC().Interface(p.Name())
-	gnmi.Update(t, d, intfPath.Config(), i)
-	if *deviations.ExplicitPortSpeed {
-		fptest.SetPortSpeed(t, p)
+	if deviations.ExplicitPortSpeed(d) {
+		i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, p)
 	}
+
+	a.configSubinterfaceDUT(t, i, d)
+	intfPath := gnmi.OC().Interface(p.Name())
+	gnmi.Replace(t, d, intfPath.Config(), i)
 	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
 }
 
-// configureNetworkInstance creates new Network Instance and configures it, if provided,
-// else configures the Default Network Instance.
-func (a *attributes) configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice, p *ondatra.Port) {
-	t.Helper()
-	// Use default NI if not provided
-	if a.networkInstance != "" {
-		ni := &oc.NetworkInstance{
-			Name: ygot.String(a.networkInstance),
-			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
-		}
-		i := ni.GetOrCreateInterface(p.Name())
-		i.Interface = ygot.String(p.Name())
-		i.Subinterface = ygot.Uint32(0)
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	// configure NI.
+	configureNetworkInstance(t, dut)
 
-		dni := gnmi.OC().NetworkInstance(a.networkInstance)
-		gnmi.Replace(t, d, dni.Config(), ni)
-		fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
-	} else {
-		if *deviations.ExplicitInterfaceInDefaultVRF {
-			dni := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-			gnmi.Replace(t, d, dni.Interface(p.Name()).Config(), &oc.NetworkInstance_Interface{
-				Id:           ygot.String(p.Name()),
-				Interface:    ygot.String(p.Name()),
-				Subinterface: ygot.Uint32(0),
-			})
+	// Configure DUT ports.
+	dutPort1.configInterfaceDUT(t, dut)
+	dutPort2.configInterfaceDUT(t, dut)
+
+	// assign subinterfaces to DEFAULT network instance if needed (deviation-based).
+	dutPort1.assignSubifsToDefaultNetworkInstance(t, dut)
+	dutPort2.assignSubifsToDefaultNetworkInstance(t, dut)
+
+	// apply PBF to src interface.
+	dp1 := dut.Port(t, dutPort1.Name)
+	applyForwardingPolicy(t, dp1.Name())
+}
+
+// configureNetworkInstance creates and configures non-default and default NIs.
+func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
+	t.Helper()
+
+	// configure non-default VRF
+	ni := &oc.NetworkInstance{
+		Name: ygot.String(nonDefaultVRF),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+	}
+	dni := gnmi.OC().NetworkInstance(nonDefaultVRF)
+	gnmi.Replace(t, d, dni.Config(), ni)
+	fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
+
+	// configure PBF in DEFAULT vrf
+	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
+	gnmi.Replace(t, d, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF(d))
+
+	if deviations.ExplicitGRIBIUnderNetworkInstance(d) {
+		fptest.EnableGRIBIUnderNetworkInstance(t, d, nonDefaultVRF)
+		fptest.EnableGRIBIUnderNetworkInstance(t, d, deviations.DefaultNetworkInstance(d))
+	}
+}
+
+// assignSubifsToDefaultNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled.
+func (a *attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
+	p := d.Port(t, a.Name)
+	if deviations.ExplicitInterfaceInDefaultVRF(d) {
+		if a.numSubIntf == 0 {
+			fptest.AssignToNetworkInstance(t, d, p.Name(), deviations.DefaultNetworkInstance(d), 0)
+		} else {
+			for i := uint32(1); i <= a.numSubIntf; i++ {
+				fptest.AssignToNetworkInstance(t, d, p.Name(), deviations.DefaultNetworkInstance(d), i)
+			}
 		}
 	}
 }
 
-// configureDUT configures a DUT port by configuring the NetworkInstance and the
-// Interface + Sub Interfaces.
-func (a *attributes) configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	p := dut.Port(t, a.Name)
-	a.configureNetworkInstance(t, dut, p)
-	a.configInterfaceDUT(t, dut, p)
+// configurePBF returns a fully configured network-instance PF struct.
+func configurePBF(dut *ondatra.DUTDevice) *oc.NetworkInstance_PolicyForwarding {
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	pf := ni.GetOrCreatePolicyForwarding()
+	vrfPolicy := pf.GetOrCreatePolicy(policyName)
+	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(nonDefaultVRF)
+	return pf
+}
+
+// applyForwardingPolicy applies the forwarding policy on the interface.
+func applyForwardingPolicy(t *testing.T, ingressPort string) {
+	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
+	d := &oc.Root{}
+	dut := ondatra.DUT(t, "dut")
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
+	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	if deviations.ExplicitInterfaceRefDefinition(dut) {
+		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	}
+	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
 
 // ConfigureATE configures Ethernet + IPv4 on the ATE. If the number of
 // Subinterfaces(numSubIntf) > 0, we then create additional sub-interfaces
 // each with a unique VlanID starting from 1. The IPv4 addresses start with
-// ATE:Port.IPv4 and then nextIP(ATE:Port.IPv4, 4) for each sub interface
+// ATE:Port.IPv4 and then nextIP(ATE:Port.IPv4, 4) for each sub interface.
 func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *ondatra.ATEDevice) {
 	t.Helper()
 	p := ate.Port(t, a.Name)
-	// Configure source port on ATE : Port1
+	// Configure source port on ATE : Port1.
 	if a.numSubIntf == 0 {
 		ip := a.ip(0)
 		gateway := a.gateway(0)
@@ -333,7 +379,7 @@ func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *o
 		intf.IPv4().WithDefaultGateway(gateway)
 		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
 	}
-	// Configure destination port on ATE : Port2
+	// Configure destination port on ATE : Port2.
 	for i := uint32(1); i <= a.numSubIntf; i++ {
 		ip := a.ip(uint8(i))
 		gateway := a.gateway(uint8(i))
@@ -347,7 +393,7 @@ func (a *attributes) ConfigureATE(t *testing.T, top *ondatra.ATETopology, ate *o
 
 // testTraffic creates a traffic flow with ATE source & destination endpoints
 // and configures a VlanID filter for output frames. The IPv4 header for the
-// flow contains the DUT:Port1 address as source and the configured gRIBI-
+// flow contains the ATE:Port1 address as source and the configured gRIBI-
 // IndirectEntry as the destination. The function also takes as input a map of
 // <VlanID::TrafficDistribution> that is wanted and compares it to the actual
 // traffic test result.
@@ -367,11 +413,11 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	// Configure Ethernet+IPv4 headers.
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.WithSrcAddress(dutPort1.IPv4)
-	ipv4Header.DstAddressRange().
-		WithMin(ipv4FlowIPStart).
-		WithMax(ipv4FlowIPEnd).
-		WithCount(ipv4FlowCount)
+	ipv4Header.WithSrcAddress(atePort1.IPv4)
+	ipv4Header.WithDstAddress(ipv4FlowIP)
+	innerIpv4Header := ondatra.NewIPv4Header()
+	innerIpv4Header.SrcAddressRange().WithMin(innerSrcIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
+	innerIpv4Header.DstAddressRange().WithMin(innerDstIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
 
 	// Ethernet header:
 	//   - Destination MAC (6 octets)
@@ -381,7 +427,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	flow := ate.Traffic().NewFlow("flow").
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoints...).
-		WithHeaders(ethHeader, ipv4Header)
+		WithHeaders(ethHeader, ipv4Header, innerIpv4Header)
 
 	// VlanID is the last 12 bits in the 802.1q VLAN tag.
 	// Offset for VlanID: ((6+6+4) * 8)-12 = 116.
@@ -427,7 +473,7 @@ func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, network
 // testBasicHierarchicalWeight tests and validates traffic through 4 Vlans.
 func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 	ate *ondatra.ATEDevice, top *ondatra.ATETopology, gRIBI *fluent.GRIBIClient) {
-	defaultVRF := *deviations.DefaultNetworkInstance
+	defaultVRF := deviations.DefaultNetworkInstance(dut)
 
 	// Set up NH#10, NH#11, NHG#2, IPv4Entry(192.0.2.111).
 	nh10 := nextHopEntry(10, defaultVRF, atePort2.ip(1))
@@ -478,7 +524,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
-		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, deviation)); diff != "" {
+		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
 	})
@@ -505,7 +551,7 @@ func testBasicHierarchicalWeight(ctx context.Context, t *testing.T, dut *ondatra
 // testHierarchicalWeightBoundaryScenario tests and validates traffic through all 18 Vlans.
 func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 	ate *ondatra.ATEDevice, top *ondatra.ATETopology, gRIBI *fluent.GRIBIClient) {
-	defaultVRF := *deviations.DefaultNetworkInstance
+	defaultVRF := deviations.DefaultNetworkInstance(dut)
 
 	// Set up NH#10, NH#11, NHG#2, IPv4Entry(192.0.2.111).
 	nh10 := nextHopEntry(10, defaultVRF, atePort2.ip(1))
@@ -522,7 +568,11 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	for i := 0; i < 16; i++ {
 		nh := nextHopEntry(nhIdx, defaultVRF, atePort2.ip(uint8(3+i)))
 		gribiEntries = append(gribiEntries, nh)
-		nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 1})
+		if i == 0 {
+			nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 1})
+		} else {
+			nextHopWeights = append(nextHopWeights, nhInfo{index: nhIdx, weight: 16})
+		}
 		nhIdx++
 	}
 	nhg3 := nextHopGroupEntry(3, defaultVRF, nextHopWeights)
@@ -558,14 +608,19 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	wantWeights := map[string]float64{
 		"1": 1.171,
 		"2": 1.953,
+		"3": 0.402,
 	}
-	// 6.05 weight for vlans 3 to 18.
-	for i := 3; i <= 18; i++ {
-		wantWeights[strconv.Itoa(i)] = 6.05
+	// 6.432 weight for vlans 4 to 18.
+	for i := 4; i <= 18; i++ {
+		wantWeights[strconv.Itoa(i)] = 6.432
 	}
 	t.Run("testTraffic", func(t *testing.T) {
 		got := testTraffic(t, ate, top)
-		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, deviation)); diff != "" {
+
+		if deviations.HierarchicalWeightResolutionTolerance(dut) != tolerance {
+			tolerance = deviations.HierarchicalWeightResolutionTolerance(dut)
+		}
+		if diff := cmp.Diff(wantWeights, got, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 			t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 		}
 	})
@@ -573,7 +628,7 @@ func testHierarchicalWeightBoundaryScenario(ctx context.Context, t *testing.T, d
 	t.Run("validateAFTWeights", func(t *testing.T) {
 		for nhg, weights := range map[uint64][]uint64{
 			2: {3, 5},
-			3: {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+			3: {1, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16},
 		} {
 			got := aftNextHopWeights(t, dut, nhg, defaultVRF)
 			ok := cmp.Equal(weights, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
@@ -594,9 +649,8 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ctx := context.Background()
 
-	// Configure DUT ports.
-	dutPort1.configureDUT(t, dut)
-	dutPort2.configureDUT(t, dut)
+	// configure DUT.
+	configureDUT(t, dut)
 
 	// Configure ATE ports and start Ethernet+IPv4.
 	top := ate.Topology().New()

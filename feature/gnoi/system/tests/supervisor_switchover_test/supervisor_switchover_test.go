@@ -15,11 +15,12 @@ package supervisor_switchover_test
 
 import (
 	"context"
-	"sort"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -84,7 +85,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
 	}
 
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := findStandbyRP(t, dut, controllerCards)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
 	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
@@ -94,15 +95,16 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
 
-	intfsOperStatusUPBeforeSwitch := fetchOperStatusUPIntfs(t, dut)
+	intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
 	t.Logf("intfsOperStatusUP interfaces before switchover: %v", intfsOperStatusUPBeforeSwitch)
 	if got, want := len(intfsOperStatusUPBeforeSwitch), 0; got == want {
 		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.Name(), got, want)
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch),
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
@@ -113,7 +115,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 
 	want := rpStandbyBeforeSwitch
 	got := ""
-	if *deviations.GNOISubcomponentPath {
+	if deviations.GNOISubcomponentPath(dut) {
 		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
 	} else {
 		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
@@ -148,7 +150,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := findStandbyRP(t, dut, controllerCards)
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, controllerCards)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
 
 	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
@@ -158,25 +160,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
 	}
 
-	batch := gnmi.OCBatch()
-	for _, port := range intfsOperStatusUPBeforeSwitch {
-		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
-	}
-	watch := gnmi.Watch(t, dut, batch.State(), 5*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
-		root, present := val.Val()
-		if !present {
-			return false
-		}
-		for _, port := range intfsOperStatusUPBeforeSwitch {
-			if root.GetInterface(port).GetOperStatus() != oc.Interface_OperStatus_UP {
-				return false
-			}
-		}
-		return true
-	})
-	if val, ok := watch.Await(t); !ok {
-		t.Fatalf("DUT did not reach target state withing %v: got %v", 5*time.Minute, val)
-	}
+	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeSwitch, 5*time.Minute)
 
 	t.Log("Validate OC Switchover time/reason.")
 	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
@@ -197,44 +181,4 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
-}
-
-func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
-	var activeRP, standbyRP string
-	for _, supervisor := range supervisors {
-		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
-			return val.IsPresent()
-		})
-		if val, ok := watch.Await(t); !ok {
-			t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
-		}
-		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
-		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
-		if role == standbyController {
-			standbyRP = supervisor
-		} else if role == activeController {
-			activeRP = supervisor
-		} else {
-			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
-		}
-	}
-	if standbyRP == "" || activeRP == "" {
-		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
-	}
-	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
-
-	return standbyRP, activeRP
-}
-
-func fetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice) []string {
-	intfsOperStatusUP := []string{}
-	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
-	for _, intf := range intfs {
-		operStatus, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(intf).OperStatus().State()).Val()
-		if present && operStatus == oc.Interface_OperStatus_UP {
-			intfsOperStatusUP = append(intfsOperStatusUP, intf)
-		}
-	}
-	sort.Strings(intfsOperStatusUP)
-	return intfsOperStatusUP
 }

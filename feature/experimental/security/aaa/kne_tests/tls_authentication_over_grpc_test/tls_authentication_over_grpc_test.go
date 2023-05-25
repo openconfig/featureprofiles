@@ -178,7 +178,7 @@ func TestAuthentication(t *testing.T) {
 				}
 			}
 			t.Log("Trying credentials with GNMI Set")
-			jsonConfig, _ := json.Marshal(*deviations.BannerDelimiter + "message of the day" + *deviations.BannerDelimiter)
+			jsonConfig, _ := json.Marshal(deviations.BannerDelimiter(dut) + "message of the day" + deviations.BannerDelimiter(dut))
 			_, err = gnmi.Set(ctx, &gpb.SetRequest{
 				Replace: []*gpb.Update{{
 					Path: &gpb.Path{

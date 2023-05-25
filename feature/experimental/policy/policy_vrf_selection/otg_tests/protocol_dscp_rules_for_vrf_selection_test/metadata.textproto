@@ -4,3 +4,4 @@
 uuid: "d54b1029-6f8e-4dc7-a50d-99d6e4f59474"
 plan_id: "RT-3.2"
 description: "Multiple <Protocol, DSCP> Rules for VRF Selection"
+testbed: TESTBED_DUT_ATE_2LINKS

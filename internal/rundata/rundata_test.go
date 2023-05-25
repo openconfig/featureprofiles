@@ -16,10 +16,9 @@ package rundata
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"testing"
 
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra/binding"
 )
 
@@ -122,30 +121,9 @@ func TestProperties(t *testing.T) {
 		wantPlanID      = "TestProperties"
 		wantDescription = "TestProperties unit test"
 	)
-	TestUUID = ""
-	TestPlanID = ""
-	TestDescription = ""
 
-	metadataText := fmt.Sprintf(`
-uuid: "%s"
-plan_id: "%s"
-description: "%s"
-`, wantUUID, wantPlanID, wantDescription)
-
-	// Change to a temp directory before writing the metadata proto
-	// to avoid modifying the test directory.
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		os.Chdir(wd)
-	}()
-	if err := os.Chdir(t.TempDir()); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile("metadata.textproto", []byte(metadataText), 0644); err != nil {
-		t.Fatal(err)
+	metadataGetFn = func() *mpb.Metadata {
+		return &mpb.Metadata{Uuid: wantUUID, PlanId: wantPlanID, Description: wantDescription}
 	}
 
 	*knownIssueURL = "https://example.com"
@@ -157,37 +135,6 @@ description: "%s"
 		"test.uuid":        wantUUID,
 		"test.plan_id":     wantPlanID,
 		"test.description": wantDescription,
-		"known_issue_url":  *knownIssueURL,
-	} {
-		if gotv := got[wantk]; gotv != wantv {
-			t.Errorf("Property %s got %q, want %q", wantk, gotv, wantv)
-		}
-	}
-
-	for _, wantk := range []string{
-		"test.path",
-		"topology",
-	} {
-		if _, ok := got[wantk]; !ok {
-			t.Errorf("Missing key from Properties: %s", wantk)
-		}
-	}
-}
-
-func TestPropertiesLegacy(t *testing.T) {
-	TestPlanID = "UnitTest-1.1"
-	TestDescription = "This is a Unit Test"
-	TestUUID = "123e4567-e89b-42d3-8456-426614174000"
-
-	*knownIssueURL = "https://example.com"
-
-	got := Properties(context.Background(), &binding.Reservation{})
-	t.Log(got)
-
-	for wantk, wantv := range map[string]string{
-		"test.plan_id":     TestPlanID,
-		"test.description": TestDescription,
-		"test.uuid":        TestUUID,
 		"known_issue_url":  *knownIssueURL,
 	} {
 		if gotv := got[wantk]; gotv != wantv {
