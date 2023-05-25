@@ -398,7 +398,7 @@ func TestLinkQualification(t *testing.T) {
 			expectedRateBytesPerSecond = result.GetExpectedRateBytesPerSecond()
 		}
 
-		if !deviations.SkipPlqQualificationRateCheck(dut1) {
+		if !deviations.SkipPLQQualificationRateCheck(dut1) {
 			if got, want := result.GetQualificationRateBytesPerSecond(), expectedRateBytesPerSecond; got != want {
 				t.Errorf("result.GetQualificationRateBytesPerSecond(): got %v, want %v", got, want)
 			}
