@@ -195,9 +195,9 @@ func TestListDelete(t *testing.T) {
 }
 
 // configInterfaceMTU configures interface MTU.
-func configInterfaceMTU(i *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
+func configInterfaceMTU(i *oc.Interface) *oc.Interface {
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
+	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
 	}
 	i.Mtu = ygot.Uint16(9000)
@@ -219,7 +219,7 @@ func TestLinkQualification(t *testing.T) {
 		d := gnmi.OC()
 		p := dut.Port(t, "port1")
 		i := &oc.Interface{Name: ygot.String(p.Name())}
-		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), configInterfaceMTU(i, dut))
+		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), configInterfaceMTU(i))
 	}
 
 	plqID := dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name()
@@ -278,74 +278,45 @@ func TestLinkQualification(t *testing.T) {
 	}
 	t.Logf("generatorCreateRequest: %v", generatorCreateRequest)
 
-	var reflectorCreateRequest *plqpb.CreateRequest
+	intf := &plqpb.QualificationConfiguration{
+		Id:            plqID,
+		InterfaceName: dp2.Name(),
+
+		Timing: &plqpb.QualificationConfiguration_Rpc{
+			Rpc: &plqpb.RPCSyncedTiming{
+				Duration: &durationpb.Duration{
+					Seconds: int64(plqDuration.testDuration.Seconds()),
+				},
+				PreSyncDuration: &durationpb.Duration{
+					Seconds: int64(plqDuration.preSyncDuration.Seconds()),
+				},
+				SetupDuration: &durationpb.Duration{
+					Seconds: int64(plqDuration.setupDuration.Seconds()),
+				},
+				PostSyncDuration: &durationpb.Duration{
+					Seconds: int64(plqDuration.postSyncDuration.Seconds()),
+				},
+				TeardownDuration: &durationpb.Duration{
+					Seconds: int64(plqDuration.tearDownDuration.Seconds()),
+				},
+			},
+		},
+	}
+
 	switch dut2.Vendor() {
 	case ondatra.JUNIPER:
-		reflectorCreateRequest = &plqpb.CreateRequest{
-			Interfaces: []*plqpb.QualificationConfiguration{
-				{
-					Id:            plqID,
-					InterfaceName: dp2.Name(),
-					EndpointType: &plqpb.QualificationConfiguration_AsicLoopback{
-						AsicLoopback: &plqpb.AsicLoopbackConfiguration{},
-					},
-
-					Timing: &plqpb.QualificationConfiguration_Rpc{
-						Rpc: &plqpb.RPCSyncedTiming{
-							Duration: &durationpb.Duration{
-								Seconds: int64(plqDuration.testDuration.Seconds()),
-							},
-							PreSyncDuration: &durationpb.Duration{
-								Seconds: int64(plqDuration.preSyncDuration.Seconds()),
-							},
-							SetupDuration: &durationpb.Duration{
-								Seconds: int64(plqDuration.setupDuration.Seconds()),
-							},
-							PostSyncDuration: &durationpb.Duration{
-								Seconds: int64(plqDuration.postSyncDuration.Seconds()),
-							},
-							TeardownDuration: &durationpb.Duration{
-								Seconds: int64(plqDuration.tearDownDuration.Seconds()),
-							},
-						},
-					},
-				},
-			},
+		intf.EndpointType = &plqpb.QualificationConfiguration_AsicLoopback{
+			AsicLoopback: &plqpb.AsicLoopbackConfiguration{},
 		}
 	default:
-		reflectorCreateRequest = &plqpb.CreateRequest{
-			Interfaces: []*plqpb.QualificationConfiguration{
-				{
-					Id:            plqID,
-					InterfaceName: dp2.Name(),
-					EndpointType: &plqpb.QualificationConfiguration_PmdLoopback{
-						PmdLoopback: &plqpb.PmdLoopbackConfiguration{},
-					},
-
-					Timing: &plqpb.QualificationConfiguration_Rpc{
-						Rpc: &plqpb.RPCSyncedTiming{
-							Duration: &durationpb.Duration{
-								Seconds: int64(plqDuration.testDuration.Seconds()),
-							},
-							PreSyncDuration: &durationpb.Duration{
-								Seconds: int64(plqDuration.preSyncDuration.Seconds()),
-							},
-							SetupDuration: &durationpb.Duration{
-								Seconds: int64(plqDuration.setupDuration.Seconds()),
-							},
-							PostSyncDuration: &durationpb.Duration{
-								Seconds: int64(plqDuration.postSyncDuration.Seconds()),
-							},
-							TeardownDuration: &durationpb.Duration{
-								Seconds: int64(plqDuration.tearDownDuration.Seconds()),
-							},
-						},
-					},
-				},
-			},
+		intf.EndpointType = &plqpb.QualificationConfiguration_PmdLoopback{
+			PmdLoopback: &plqpb.PmdLoopbackConfiguration{},
 		}
 	}
 
+	reflectorCreateRequest := &plqpb.CreateRequest{
+		Interfaces: []*plqpb.QualificationConfiguration{intf},
+	}
 	t.Logf("ReflectorCreateRequest: %v", reflectorCreateRequest)
 
 	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
@@ -404,6 +375,8 @@ func TestLinkQualification(t *testing.T) {
 		Ids: []string{plqID},
 	}
 
+	var expectedRateBytesPerSecond uint64
+
 	for i, client := range []raw.GNOI{gnoiClient1, gnoiClient2} {
 		t.Logf("Check client: %d", i+1)
 		getResp, err := client.LinkQualification().Get(context.Background(), getRequest)
@@ -419,8 +392,14 @@ func TestLinkQualification(t *testing.T) {
 		if got, want := result.GetState(), plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED; got != want {
 			t.Errorf("result.GetState(): got %v, want %v", got, want)
 		}
+
+		// Get ExpectedRateBytesPerSecond only from the PLQ generator.
+		if client == gnoiClient1 {
+			expectedRateBytesPerSecond = result.GetExpectedRateBytesPerSecond()
+		}
+
 		if !deviations.SkipPlqQualificationRateCheck(dut1) {
-			if got, want := result.GetQualificationRateBytesPerSecond(), result.GetExpectedRateBytesPerSecond(); got != want {
+			if got, want := result.GetQualificationRateBytesPerSecond(), expectedRateBytesPerSecond; got != want {
 				t.Errorf("result.GetQualificationRateBytesPerSecond(): got %v, want %v", got, want)
 			}
 		}

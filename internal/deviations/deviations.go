@@ -423,8 +423,8 @@ func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 }
 
 // SkipPlqQualificationRateCheck returns if PLQ QualificationRateBytesPerSecond and ExpectedRateBytesPerSecond comparison should be skipped
-func SkipPlqQualificationRateCheck(_ *ondatra.DUTDevice) bool {
-	return *skipPlqQualificationRateCheck
+func SkipPLQQualificationRateCheck(_ *ondatra.DUTDevice) bool {
+	return *skipPLQQualificationRateCheck
 }
 
 // Vendor deviation flags.
@@ -591,6 +591,6 @@ var (
 
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 
-	skipPlqQualificationRateCheck = flag.Bool("deviation_skip_plq_qualification_rate_check", false,
+	skipPLQQualificationRateCheck = flag.Bool("deviation_skip_plq_qualification_rate_check", false,
 		"Skip PLQ QualificationRateBytesPerSecond and ExpectedRateBytesPerSecond comparison if value is true, Default value is false.")
 )
