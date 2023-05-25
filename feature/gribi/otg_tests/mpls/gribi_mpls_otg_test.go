@@ -26,6 +26,7 @@ const (
 	defNIName         = "default"
 	baseLabel         = 42
 	destinationLabel  = 100
+	innerLabel        = 5000
 	maximumStackDepth = 20
 )
 
@@ -248,7 +249,11 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		// Set up MPLS layer with destination label 100.
 		mpls := mplsFlow.Packet().Add().Mpls()
 		mpls.Label().SetChoice("value").SetValue(destinationLabel)
-		mpls.BottomOfStack().SetChoice("value").SetValue(1)
+		mpls.BottomOfStack().SetChoice("value").SetValue(0)
+
+		mplsInner := mplsFlow.Packet().Add().Mpls()
+		mplsInner.Label().SetChoice("value").SetValue(innerLabel)
+		mplsInner.BottomOfStack().SetChoice("value").SetValue(1)
 
 		otg.PushConfig(t, otgCfg)
 
