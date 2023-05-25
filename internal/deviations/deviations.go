@@ -431,6 +431,7 @@ func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 // SkipPlqQualificationRateCheck returns if PLQ QualificationRateBytesPerSecond and ExpectedRateBytesPerSecond comparison should be skipped
 func SkipPLQQualificationRateCheck(_ *ondatra.DUTDevice) bool {
 	return *skipPLQQualificationRateCheck
+}	
 
 // InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
 func InterfaceRefConfigUnsupported(_ *ondatra.DUTDevice) bool {
