@@ -329,7 +329,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 
     chain |= GoTidy.s(repo=test_repo_dir)
 
-    if release_ixia_ports or ('/ate_tests/' in test_path or '/otg_tests/' in test_path):
+    if release_ixia_ports:
         chain |= ReleaseIxiaPorts.s()
 
     if fp_pre_tests:
