@@ -417,9 +417,20 @@ func SecondaryBackupPathTrafficFailover(_ *ondatra.DUTDevice) bool {
 	return *secondaryBackupPathTrafficFailover
 }
 
+// DequeueDeleteNotCountedAsDrops returns if device dequeues and deletes the pkts after a while and those are not counted
+// as drops
+func DequeueDeleteNotCountedAsDrops(_ *ondatra.DUTDevice) bool {
+	return *dequeueDeleteNotCountedAsDrops
+}
+
 // RoutePolicyUnderAFIUnsupported returns if Route-Policy under the AFI/SAFI is not supported
 func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 	return *routePolicyUnderAFIUnsupported
+}
+
+// InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
+func InterfaceRefConfigUnsupported(_ *ondatra.DUTDevice) bool {
+	return *interfaceRefConfigUnsupported
 }
 
 // Vendor deviation flags.
@@ -584,5 +595,9 @@ var (
 
 	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
 
+	dequeueDeleteNotCountedAsDrops = flag.Bool("deviation_dequeue_delete_not_counted_as_drops", false, "devices do not count dequeued and deleted packets as drops, default is false")
+
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
+
+	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 )
