@@ -608,5 +608,4 @@ var (
 		"Skip PLQ QualificationRateBytesPerSecond and ExpectedRateBytesPerSecond comparison if value is true, Default value is false.")
 
 	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
-
 )
