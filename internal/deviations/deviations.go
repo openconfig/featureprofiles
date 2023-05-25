@@ -606,5 +606,5 @@ var (
 
 	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
-  storageComponentUnsupported = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
+	storageComponentUnsupported = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
 )
