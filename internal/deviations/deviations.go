@@ -417,6 +417,12 @@ func SecondaryBackupPathTrafficFailover(_ *ondatra.DUTDevice) bool {
 	return *secondaryBackupPathTrafficFailover
 }
 
+// DequeueDeleteNotCountedAsDrops returns if device dequeues and deletes the pkts after a while and those are not counted
+// as drops
+func DequeueDeleteNotCountedAsDrops(_ *ondatra.DUTDevice) bool {
+	return *dequeueDeleteNotCountedAsDrops
+}
+
 // RoutePolicyUnderAFIUnsupported returns if Route-Policy under the AFI/SAFI is not supported
 func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 	return *routePolicyUnderAFIUnsupported
@@ -588,6 +594,8 @@ var (
 	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
 
 	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
+
+	dequeueDeleteNotCountedAsDrops = flag.Bool("deviation_dequeue_delete_not_counted_as_drops", false, "devices do not count dequeued and deleted packets as drops, default is false")
 
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 
