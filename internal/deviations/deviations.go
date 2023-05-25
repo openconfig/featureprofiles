@@ -83,8 +83,7 @@ func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 	return nil
 }
 
-// logErrorForFlag logs an error if specified flag is set.
-func logErrorForFlag(name string) {
+func logErrorIfFlagSet(name string) {
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == name {
 			log.Errorf("Value for %v is set using metadata.textproto. Flag value will be ignored!", name)
@@ -310,14 +309,14 @@ func MissingValueForDefaults(_ *ondatra.DUTDevice) bool {
 // TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
 // Default value is false.
 func TraceRouteL4ProtocolUDP(dut *ondatra.DUTDevice) bool {
-	logErrorForFlag("deviation_traceroute_l4_protocol_udp")
+	logErrorIfFlagSet("deviation_traceroute_l4_protocol_udp")
 	return lookupDUTDeviations(dut).GetTracerouteL4ProtocolUdp()
 }
 
 // TraceRouteFragmentation returns if device does not support fragmentation bit for traceroute.
 // Default value is false.
 func TraceRouteFragmentation(dut *ondatra.DUTDevice) bool {
-	logErrorForFlag("deviation_traceroute_fragmentation")
+	logErrorIfFlagSet("deviation_traceroute_fragmentation")
 	return lookupDUTDeviations(dut).GetTracerouteFragmentation()
 }
 

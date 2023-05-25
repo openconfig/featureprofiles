@@ -45,4 +45,3 @@ platform_exceptions: {
     traceroute_l4_protocol_udp: true
   }
 }
-
