@@ -83,6 +83,17 @@ func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 	return nil
 }
 
+// isFlagSetByUser returns if the specified flag value is set.
+func isFlagSetByUser(name string) bool {
+	found := false
+	flag.VisitAll(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
 // BannerDelimiter returns if device requires the banner to have a delimiter character.
 // Full OpenConfig compliant devices should work without delimiter.
 func BannerDelimiter(_ *ondatra.DUTDevice) string {
@@ -301,12 +312,20 @@ func MissingValueForDefaults(_ *ondatra.DUTDevice) bool {
 // TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
 // Default value is false.
 func TraceRouteL4ProtocolUDP(dut *ondatra.DUTDevice) bool {
+	deviationFlag := "deviation_traceroute_l4_protocol_udp"
+	if isFlagSetByUser(deviationFlag) {
+		log.Errorf("Value for %v is set using metadata.textproto. Flag value will be ignored!!!", deviationFlag)
+	}
 	return lookupDUTDeviations(dut).GetTracerouteL4ProtocolUdp()
 }
 
 // TraceRouteFragmentation returns if device does not support fragmentation bit for traceroute.
 // Default value is false.
 func TraceRouteFragmentation(dut *ondatra.DUTDevice) bool {
+	deviationFlag := "deviation_traceroute_fragmentation"
+	if isFlagSetByUser(deviationFlag) {
+		log.Errorf("Value for %v is set using metadata.textproto. Flag value will be ignored!!!", deviationFlag)
+	}
 	return lookupDUTDeviations(dut).GetTracerouteFragmentation()
 }
 
@@ -493,6 +512,10 @@ var (
 	RoutePolicyUnderPeerGroup = flag.Bool("deviation_rpl_under_peergroup", false, "Device requires route-policy configuration under bgp peer-group. Fully-compliant devices should pass with and without this deviation.")
 
 	missingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
+
+	_ = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
+
+	_ = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
 
 	connectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 
