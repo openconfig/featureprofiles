@@ -90,7 +90,6 @@ var (
 			name: "(LLDP_Disable)Program LLDP Match Entry and Check PacketOut",
 			desc: "Packet I/O-LLDP-PacketOut:001 LLDP disabled: Ingress: Inject EtherType 0x88cc packets and verify traffic behavior in case of EtherType 0x88cc entry programmed",
 			fn:   testPacketOut,
-			// skip: true,
 		},
 		{
 			name: "(LLDP_Disable)Check PacketOut Without Programming LLDP Match Entry",
@@ -119,7 +118,6 @@ var (
 			name: "(LLDP_Disable)Flap Interface and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:011 LLDP disabled: Egress: Verify behavior when port flap",
 			fn:   testPacketOutEgressWithInterfaceFlap,
-			// skip: true,
 		},
 	}
 	LLDPEndabledTestcases = []Testcase{
@@ -152,19 +150,16 @@ var (
 			name: "(LLDP_Enable)Program LLDP Match Entry and Downgrade primary controller and Check PacketIn",
 			desc: "Packet I/O-LLDP-PacketIn:020 LLDP enabled:Programm match EtherType 0x88cc entry, send traffic with 0x88cc packets from tgen, downgrade/fail primary controller in case of there is standby controller, verify LLDP packets sends to the new primary controller",
 			fn:   testEntryProgrammingPacketInDowngradePrimaryController,
-			// skip: true,
 		},
 		{
 			name: "(LLDP_Enable)Program LLDP Match Entry and Downgrade primary controller without backup controller and Check PacketIn",
 			desc: "Packet I/O-LLDP-PacketIn:021 LLDP enabled:Programm match EtherType 0x88cc entry, send traffic with 0x88cc packets from tgen, downgrade/fail primary controller in case of there is NO standby controller, verify LLDP packets are not sent out and no impact on the device",
 			fn:   testEntryProgrammingPacketInDowngradePrimaryControllerWithoutStandby,
-			// skip: true,
 		},
 		{
 			name: "(LLDP_Enable)Program LLDP Match Entry and Recover previous primary controller and Check PacketIn",
 			desc: "Packet I/O-GDP-PacketIn:022 LLDP enabled:Programm match EtherType 0x88cc entry, send traffic with 0x88cc packets from tgen, downgrade/fail primary controller then recover the controller, verify LLDP packets sends to the same controller",
 			fn:   testEntryProgrammingPacketInRecoverPrimaryController,
-			// skip: true,
 		},
 		{
 			name: "(LLDP_Enable)Program LLDP Match Entry and other match fields and Check PacketIn",
@@ -175,7 +170,6 @@ var (
 			name: "(LLDP_Enable)Program LLDP Match Entry and Send traffic to port not in P4RT and Check PacketIn",
 			desc: "Packet I/O-LLDP-PacketIn:025 LLDP enabled:Programm match EtherType 0x88cc, send traffic with EtherType 0x88cc on port which is not part of P4RT, verify the packets are not sent to the controller, packets should be dropped on the ingress port",
 			fn:   testEntryProgrammingPacketInWithouthPortID,
-			// skip: true,
 		},
 		{
 			name: "(LLDP_Enable)Program LLDP Match Entry and Send scale LLDP traffic",
@@ -214,7 +208,6 @@ var (
 			name: "(LLDP_Enable)Flap Interface and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:011 LLDP enabled: Egress: Verify behavior when port flap",
 			fn:   testPacketOutEgressWithInterfaceFlap,
-			// skip: true,
 		},
 	}
 )
