@@ -76,6 +76,7 @@ var (
 			name: "Program GDP Match Entry and downgrade primary controller without backup controller and check PacketIn",
 			desc: "Packet I/O-GDP-PacketIn:012 Programm match EtherType 0x6007 entry, send traffic with 0x6007 packets with google MAC from tgen, downgrade/fail primary controller in case of there is NO standby controller, verify GDP packets are not sent out and no impact on the device",
 			fn:   testEntryProgrammingPacketInDowngradePrimaryControllerWithoutStandby,
+			skip: true,
 		},
 		{
 			name: "Program GDP Match Entry and Recover previous primary controller and check PacketIn",

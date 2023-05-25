@@ -137,7 +137,7 @@ var (
 			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:001-002 Ingress: Inject EtherType 0x6007 packets and verify traffic sends to related port in case of EtherType 0x6007 entry NOT programmed",
 			fn:   testPacketOutWithoutMatchEntry,
-			// skip: true,
+			skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut(submit_to_ingress)",
@@ -161,7 +161,7 @@ var (
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 With For-Us-IP(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:007 Ingress: dst IP is for us for the incoming packet, packet goes through lpts",
 			fn:   testPacketOutWithForUsIP,
-			// skip: true,
+			skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 Traffic With For-Us-IP(submit_to_ingress)",

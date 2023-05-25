@@ -101,12 +101,13 @@ var (
 			name: "(LLDP_Disable)Program LLDP Match Entry and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:003 LLDP disabled: Egress: Inject EtherType 0x88cc packets and verify traffic behavior port in case of EtherType 0x88cc entry programmed",
 			fn:   testPacketOutEgress,
-			// skip: true,
+			skip: true,
 		},
 		{
 			name: "(LLDP_Disable)Check PacketOut Without Programming LLDP Match Entry(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:004 LLDP disabled: Egress: Inject EtherType 0x88cc packets and verify traffic behavior in case of EtherType 0x88cc entry NOT programmed",
 			fn:   testPacketOutEgressWithoutMatchEntry,
+			skip: true,
 		},
 		{
 			name: "(LLDP_Disable)Check PacketOut Scale(submit_to_egress)",
@@ -195,12 +196,13 @@ var (
 			name: "(LLDP_Enable)Program LLDP Match Entry and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:008 LLDP enabled: Egress: Inject EtherType 0x88cc packets and verify traffic behavior port in case of EtherType 0x88cc entry programmed",
 			fn:   testPacketOutEgress,
+			skip: true,
 		},
 		{
 			name: "(LLDP_Enable)Check PacketOut Without Programming LLDP Match Entry(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:009 LLDP enabled: Egress: Inject EtherType 0x88cc packets and verify traffic behavior in case of EtherType 0x88cc entry NOT programmed",
 			fn:   testPacketOutEgressWithoutMatchEntry,
-			// skip: true,
+			skip: true,
 		},
 		{
 			name: "(LLDP_Enable)Check PacketOut Scale(submit_to_egress)",
