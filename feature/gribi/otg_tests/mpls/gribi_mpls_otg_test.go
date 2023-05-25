@@ -162,18 +162,6 @@ func pushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 		t.Fatalf("cannot configure ATE interfaces via OTG, %v", err)
 	}
 
-	/*dut.Config().New().WithAristaText(`
-	mpls routing
-	mpls ip
-	router traffic-engineering
-	   segment-routing
-	!
-	platform tfa personality python
-	!
-	mpls static top-label 32768 192.0.2.2 swap-label 32768
-	`).Append(t)
-	*/
-
 	d := &oc.Root{}
 	// configure ports on the DUT. note that each port maps to two interfaces
 	// because we create a LAG.
