@@ -257,7 +257,7 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 
 	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
-	if deviations.ExplicitInterfaceRefDefinition(dut) {
+	if !deviations.InterfaceRefConfigUnsupported(dut) {
 		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 		intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	}
