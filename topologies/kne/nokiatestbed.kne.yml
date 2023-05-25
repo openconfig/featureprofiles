@@ -1,4 +1,0 @@
-username: admin
-password: NokiaSrl1!
-topology: /usr/local/google/home/robjs/go/src/github.com/openconfig/featureprofiles/topologies/kne/nokia_ixia.textproto
-cli: /usr/local/google/home/robjs/go/bin/kne_cli
