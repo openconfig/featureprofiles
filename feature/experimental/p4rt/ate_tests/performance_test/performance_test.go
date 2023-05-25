@@ -404,7 +404,6 @@ func testPktInPktOut(ctx context.Context, t *testing.T, args *testArgs) {
 								} else {
 									t.Fatalf("Metadata ingress port mismatch: want %d, got %d", metadataIngressPort, got)
 								}
-								
 								if got := metaData[1].GetMetadataId(); got == metadataEgressPort {
 									if gotPortID := string(metaData[1].GetValue()); gotPortID != args.trPacketIO.GetEgressPort() {
 										t.Fatalf("Egress Port Id mismatch: want %s, got %s", args.trPacketIO.GetEgressPort(), gotPortID)
