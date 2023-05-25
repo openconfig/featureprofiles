@@ -158,7 +158,7 @@ var (
 			// skip: true,
 		},
 		{
-			name: "Program TTL Match Entry and Check PacketOut With TTL1 With For-Us-IP submit to ingress",
+			name: "Program TTL Match Entry and Check PacketOut With TTL1 With For-Us-IP(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:007 Ingress: dst IP is for us for the incoming packet, packet goes through lpts",
 			fn:   testPacketOutWithForUsIP,
 			// skip: true,
