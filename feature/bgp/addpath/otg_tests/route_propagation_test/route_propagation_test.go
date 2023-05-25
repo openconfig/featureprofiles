@@ -118,8 +118,8 @@ func (ad *ateData) ConfigureOTG(t *testing.T, otg *otg.OTG, ateList []string) go
 		dev := config.Devices().Add().SetName(devName)
 		ateIndex++
 
-		eth := dev.Ethernets().Add().SetName(devName + ".Eth")
-		eth.SetPortName(port.Name()).SetMac(v.iface.mac)
+		eth := dev.Ethernets().Add().SetName(devName + ".Eth").SetMac(v.iface.mac)
+		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port.Name())
 		bgp := dev.Bgp().SetRouterId(v.iface.routerId)
 		if v.ip.v4 != "" {
 			address := strings.Split(v.ip.v4, "/")[0]
@@ -201,6 +201,9 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 		ocName := dut.Port(t, a.Name).Name()
 		gnmi.Replace(t, dut, gnmi.OC().Interface(ocName).Config(), a.NewOCInterface(ocName))
+		if *deviations.ExplicitInterfaceInDefaultVRF {
+			fptest.AssignToNetworkInstance(t, dut, ocName, *deviations.DefaultNetworkInstance, 0)
+		}
 	}
 	dutProto := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")

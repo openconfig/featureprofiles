@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "562b09f5-05f6-4523-9bb2-c0b4a32310fe"
+plan_id: "gNOI-4.1"
+description: "Software Upgrade"

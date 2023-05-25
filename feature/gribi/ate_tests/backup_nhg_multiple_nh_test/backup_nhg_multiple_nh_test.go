@@ -282,23 +282,22 @@ func testIPv4BackUpSwitch(ctx context.Context, t *testing.T, args *testArgs) {
 	BaseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
 
 	// validate programming using AFT
-	aftCheck(t, args.dut, dstPfx, []string{"192.0.2.6", "192.0.2.10"})
+	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
+	aftCheck(t, args.dut, dstPfx)
 	// Validate traffic over primary path port2, port3
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port2", "port3"})
 
 	//shutdown port2
 	flapinterface(t, args.ate, "port2", false)
 	defer flapinterface(t, args.ate, "port2", true)
-	// validate programming using AFT
-	aftCheck(t, args.dut, dstPfx, []string{"192.0.2.10"})
+	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	// Validate traffic over primary path port3
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port3"})
 
 	//shutdown port3
 	flapinterface(t, args.ate, "port3", false)
 	defer flapinterface(t, args.ate, "port3", true)
-	// validate programming using AFT
-	aftCheck(t, args.dut, dstPfx, []string{"192.0.2.14"})
+	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 	// validate traffic over backup
 	validateTrafficFlows(t, args.ate, BaseFlow, false, []string{"port4"})
 }
@@ -348,7 +347,8 @@ func flapinterface(t *testing.T, ate *ondatra.ATEDevice, port string, action boo
 }
 
 // aftCheck does ipv4, NHG and NH aft check
-func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []string) {
+// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
+func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string) {
 	// check prefix and get NHG ID
 	aftPfxNHG := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(prefix).NextHopGroup()
 	aftPfxNHGVal, found := gnmi.Watch(t, dut, aftPfxNHG.State(), 10*time.Second, func(val *ygnmi.Value[uint64]) bool {
@@ -361,22 +361,7 @@ func aftCheck(t testing.TB, dut *ondatra.DUTDevice, prefix string, expectedNH []
 
 	// using NHG ID validate NH
 	aftNHG := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhg).State())
-	if got := len(aftNHG.NextHop); got < 1 && aftNHG.BackupNextHopGroup == nil {
-		t.Fatalf("Prefix %s reachability didn't switch to backup path", prefix)
-	}
-	if len(aftNHG.NextHop) != 0 {
-		for k := range aftNHG.NextHop {
-			aftnh := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(k).State())
-			totalIPs := len(expectedNH)
-			for _, ip := range expectedNH {
-				if ip == aftnh.GetIpAddress() {
-					break
-				}
-				totalIPs--
-			}
-			if totalIPs == 0 {
-				t.Fatalf("No matching NH found")
-			}
-		}
+	if len(aftNHG.NextHop) == 0 && aftNHG.BackupNextHopGroup == nil {
+		t.Fatalf("Prefix %s references a NHG that has neither NH or backup NHG", prefix)
 	}
 }

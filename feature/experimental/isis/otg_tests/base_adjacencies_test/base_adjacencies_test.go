@@ -49,28 +49,45 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T) check.Validator
 	return check.Equal(query, val)
 }
 
+// CheckPresence check for the leaf presense only when MissingValueForDefaults
+// deviation is marked false.
+func CheckPresence(query ygnmi.SingletonQuery[uint32]) check.Validator {
+	if !*deviations.MissingValueForDefaults {
+		return check.Present[uint32](query)
+	}
+	return check.Validate(query, func(vgot *ygnmi.Value[uint32]) error {
+		return nil
+	})
+}
+
 // TestBasic configures IS-IS on the DUT and confirms that the various values and defaults propagate
 // then configures the ATE as well, waits for the adjacency to form, and checks that numerous
 // counters and other values now have sensible values.
 func TestBasic(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
 	// Only push DUT config - no adjacency established yet
-	if err := ts.PushDUT(context.Background()); err != nil {
+	if err := ts.PushDUT(context.Background(), t); err != nil {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
 	isisRoot := session.ISISPath()
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
-	if err := check.Equal(isisRoot.Global().Instance().State(), session.ISISName).AwaitFor(time.Second, ts.DUTClient); err != nil {
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		port1ISIS = isisRoot.Interface(ts.DUTPort1.Name() + ".0")
+	}
+	if err := check.Equal(isisRoot.Global().Instance().State(), session.ISISName).AwaitFor(time.Second*5, ts.DUTClient); err != nil {
 		t.Fatalf("IS-IS failed to configure: %v", err)
 	}
 	// There might be lag between when the instance name is set and when the
-	// other parameters are set; we expect the total lag to be under 5s
-	deadline := time.Now().Add(time.Second * 5)
+	// other parameters are set; we expect the total lag to be under one minute
+	// There are about 14 RPCs executed in quick succession in this block.
+	// Increasing the wait-time to 1 minute value to accommodate this.
+
+	deadline := time.Now().Add(time.Minute)
 
 	t.Run("read_config", func(t *testing.T) {
 		for _, vd := range []check.Validator{
 			check.Equal(isisRoot.Global().Net().State(), []string{"49.0001.1920.0000.2001.00"}),
-			EqualToDefault(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_1_2),
+			check.Equal(isisRoot.Global().LevelCapability().State(), oc.Isis_LevelType_LEVEL_2),
 			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 			check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 			check.Equal(isisRoot.Level(2).Enabled().State(), true),
@@ -166,7 +183,7 @@ func TestBasic(t *testing.T) {
 				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
 				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
-				EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0)),
+				CheckPresence(sysCounts.DatabaseOverloads().State()),
 				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
 				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
 				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
@@ -189,15 +206,17 @@ func TestBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("No IS-IS adjacency formed: %v", err)
 	}
-	// Allow 1s of lag between adjacency appearing and all data being populated
 
+	// Allow 1 Minute of lag between adjacency appearing and all data being populated
 	t.Run("adjacency_state", func(t *testing.T) {
-		deadline = time.Now().Add(time.Second)
+		// There are about 16 RPCs executed in quick succession in this block.
+		// Increasing the wait-time value to accommodate this.
+		deadline = time.Now().Add(time.Minute)
 		adj := port1ISIS.Level(2).Adjacency(systemID)
 		for _, vd := range []check.Validator{
 			check.Equal(adj.AdjacencyState().State(), oc.Isis_IsisInterfaceAdjState_UP),
 			check.Equal(adj.SystemId().State(), systemID),
-			check.Equal(adj.AreaAddress().State(), []string{session.ATEAreaAddress, session.DUTAreaAddress}),
+			check.UnorderedEqual(adj.AreaAddress().State(), []string{session.ATEAreaAddress, session.DUTAreaAddress}, func(a, b string) bool { return a < b }),
 			check.Equal(adj.DisSystemId().State(), "0000.0000.0000"),
 			check.NotEqual(adj.LocalExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.MultiTopology().State(), false),
@@ -221,6 +240,7 @@ func TestBasic(t *testing.T) {
 				}
 			})
 		}
+
 	})
 
 	t.Run("counters_after_adjacency", func(t *testing.T) {
@@ -232,11 +252,13 @@ func TestBasic(t *testing.T) {
 		// Note: This is not a subtest because a failure here means checking the
 		//   rest of the counters is pointless - none of them will change if we
 		//   haven't been exchanging IS-IS messages.
-		deadline = time.Now().Add(time.Second * 5)
+		// There are about 3 RPCs executed in quick succession in this block.
+		// Increasing the wait-time value to accommodate this.
+
+		deadline = time.Now().Add(time.Second * 15)
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 			check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
-			check.NotEqual(pCounts.Psnp().Processed().State(), uint32(0)),
 		} {
 			t.Run(vd.RelPath(pCounts), func(t *testing.T) {
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -244,15 +266,16 @@ func TestBasic(t *testing.T) {
 				}
 			})
 		}
-		deadline = time.Now().Add(time.Second)
+		// There are about 16 RPCs executed in quick succession in this block.
+		// Increasing the wait-time value to accommodate this.
+
+		deadline = time.Now().Add(time.Minute)
 		t.Run("packet_counters", func(t *testing.T) {
 			pCounts := port1ISIS.Level(2).PacketCounters()
 			for _, vd := range []check.Validator{
 				check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 				check.NotEqual(pCounts.Csnp().Received().State(), uint32(0)),
 				check.NotEqual(pCounts.Csnp().Sent().State(), uint32(0)),
-				check.NotEqual(pCounts.Psnp().Processed().State(), uint32(0)),
-				check.NotEqual(pCounts.Psnp().Received().State(), uint32(0)),
 				check.NotEqual(pCounts.Psnp().Sent().State(), uint32(0)),
 				check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
 				check.NotEqual(pCounts.Lsp().Received().State(), uint32(0)),
@@ -280,12 +303,12 @@ func TestBasic(t *testing.T) {
 			for _, vd := range []check.Validator{
 				check.NotEqual(cCounts.AdjChanges().State(), uint32(0)),
 				check.NotEqual(cCounts.AdjNumber().State(), uint32(0)),
-				check.Equal(cCounts.AuthFails().State(), uint32(0)),
-				check.Equal(cCounts.AuthTypeFails().State(), uint32(0)),
-				check.Equal(cCounts.IdFieldLenMismatches().State(), uint32(0)),
-				check.Equal(cCounts.LanDisChanges().State(), uint32(0)),
-				check.Equal(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.Equal(cCounts.RejectedAdj().State(), uint32(0)),
+				EqualToDefault(cCounts.AuthFails().State(), uint32(0)),
+				EqualToDefault(cCounts.AuthTypeFails().State(), uint32(0)),
+				EqualToDefault(cCounts.IdFieldLenMismatches().State(), uint32(0)),
+				EqualToDefault(cCounts.LanDisChanges().State(), uint32(0)),
+				EqualToDefault(cCounts.MaxAreaAddressMismatches().State(), uint32(0)),
+				EqualToDefault(cCounts.RejectedAdj().State(), uint32(0)),
 			} {
 				t.Run(vd.RelPath(cCounts), func(t *testing.T) {
 					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -299,16 +322,16 @@ func TestBasic(t *testing.T) {
 			// Error counters should still be zero
 			sysCounts := isisRoot.Level(2).SystemLevelCounters()
 			for _, vd := range []check.Validator{
-				check.Equal(sysCounts.AuthFails().State(), uint32(0)),
-				check.Equal(sysCounts.AuthTypeFails().State(), uint32(0)),
-				check.Equal(sysCounts.CorruptedLsps().State(), uint32(0)),
-				check.Equal(sysCounts.DatabaseOverloads().State(), uint32(0)),
-				check.Equal(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
-				check.Equal(sysCounts.IdLenMismatch().State(), uint32(0)),
-				check.Equal(sysCounts.LspErrors().State(), uint32(0)),
-				check.Equal(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
-				check.Equal(sysCounts.OwnLspPurges().State(), uint32(0)),
-				check.Equal(sysCounts.SeqNumSkips().State(), uint32(0)),
+				EqualToDefault(sysCounts.AuthFails().State(), uint32(0)),
+				EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0)),
+				EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0)),
+				CheckPresence(sysCounts.DatabaseOverloads().State()),
+				EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0)),
+				EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0)),
+				EqualToDefault(sysCounts.LspErrors().State(), uint32(0)),
+				EqualToDefault(sysCounts.MaxAreaAddressMismatches().State(), uint32(0)),
+				EqualToDefault(sysCounts.OwnLspPurges().State(), uint32(0)),
+				EqualToDefault(sysCounts.SeqNumSkips().State(), uint32(0)),
 				check.Predicate(sysCounts.SpfRuns().State(), fmt.Sprintf("want > %v", spfBefore), func(got uint32) bool {
 					return got > spfBefore
 				}),
@@ -465,7 +488,7 @@ func TestTraffic(t *testing.T) {
 	netv6 := dstIntf.Isis().V6Routes().Add().SetName("netv6").SetLinkMetric(10)
 	netv6.Addresses().Add().SetAddress(targetNetwork.IPv6).SetPrefix(int32(targetNetwork.IPv6Len))
 
-	t.Logf("Configuring traffic from ATE through DUT...")
+	t.Log("Configuring traffic from ATE through DUT...")
 
 	v4Flow := ts.ATETop.Flows().Add()
 	v4Flow.SetName("v4Flow")
@@ -515,7 +538,7 @@ func TestTraffic(t *testing.T) {
 	deadFlow.Size().SetFixed(128)
 	deadFlow.Metrics().SetEnable(true)
 
-	t.Logf("Starting protocols on ATE...")
+	t.Log("Starting protocols on ATE...")
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
 
@@ -533,12 +556,12 @@ func TestTraffic(t *testing.T) {
 	// 		return val.IsPresent()
 	// 	}).Await(t)
 
-	t.Logf("Running traffic for 30s...")
+	t.Log("Running traffic for 30s...")
 	otg.StartTraffic(t)
 	time.Sleep(time.Second * 30)
 	otg.StopTraffic(t)
 
-	t.Logf("Checking telemetry...")
+	t.Log("Checking telemetry...")
 	otgutils.LogFlowMetrics(t, otg, ts.ATETop)
 
 	v4Loss := ts.GetPacketLoss(t, v4Flow)

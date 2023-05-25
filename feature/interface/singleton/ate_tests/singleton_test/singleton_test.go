@@ -16,6 +16,7 @@ package singleton_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -109,6 +110,7 @@ func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *att
 	if !*deviations.OmitL2MTU {
 		i.Mtu = ygot.Uint16(tc.mtu + 14)
 	}
+	i.Description = ygot.String(*i.Description)
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
@@ -161,6 +163,15 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	di2 := d.Interface(p2.Name())
 	fptest.LogQuery(t, p2.String(), di2.Config(), tc.duti2)
 	gnmi.Replace(t, tc.dut, di2.Config(), tc.duti2)
+
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
 }
 
 func (tc *testCase) configInterfaceATE(ap *ondatra.Port, atea, duta *attrs.Attributes) {
@@ -206,6 +217,13 @@ func (tc *testCase) verifyInterfaceDUT(
 	// According to IEEE Std 802.3-2012 section 22.2.4.1.4, if PHY does not support
 	// auto-negotiation, then trying to enable it should be ignored.
 	di.GetOrCreateEthernet().AutoNegotiate = wantdi.GetOrCreateEthernet().AutoNegotiate
+
+	// Mac address value is still not populated in di. Hence getting using gnmi get method
+	diMacAddress := gnmi.Get(t, tc.dut, dip.Ethernet().MacAddress().State())
+	di.GetOrCreateEthernet().MacAddress = &diMacAddress
+
+	wantdi.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(wantdi.GetOrCreateEthernet().GetMacAddress()))
+	di.GetOrCreateEthernet().SetMacAddress(strings.ToUpper(di.GetOrCreateEthernet().GetMacAddress()))
 
 	confirm.State(t, wantdi, di)
 

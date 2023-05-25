@@ -141,6 +141,10 @@ func TestLinecardReboot(t *testing.T) {
 	t.Logf("Find a removable line card to reboot.")
 	var removableLinecard string
 	for _, lc := range lcs {
+		if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val(); ok && empty {
+			t.Logf("Line card %v is empty", lc)
+			continue
+		}
 		t.Logf("Check if %s is removable", lc)
 		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
 			t.Logf("Detected non-removable line card: %v", lc)
@@ -174,7 +178,7 @@ func TestLinecardReboot(t *testing.T) {
 
 	rebootDeadline := time.Now().Add(linecardBoottime)
 	for retry := true; retry; {
-		t.Log("Wating for 10 seconds before checking.")
+		t.Log("Waiting for 10 seconds before checking.")
 		time.Sleep(10 * time.Second)
 		if time.Now().After(rebootDeadline) {
 			retry = false
@@ -196,22 +200,33 @@ func TestLinecardReboot(t *testing.T) {
 
 	t.Logf("Validate interface OperStatus.")
 	batch := gnmi.OCBatch()
+	upInterfaces := make(map[string]bool)
 	for _, port := range intfsOperStatusUPBeforeReboot {
 		batch.AddPaths(gnmi.OC().Interface(port).OperStatus())
+		upInterfaces[port] = true
 	}
-	watch := gnmi.Watch(t, dut, batch.State(), 5*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
+	watch := gnmi.Watch(t, dut, batch.State(), 10*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
 		root, present := val.Val()
 		if !present {
 			return false
 		}
 		for _, port := range intfsOperStatusUPBeforeReboot {
 			if root.GetInterface(port).GetOperStatus() != oc.Interface_OperStatus_UP {
+				upInterfaces[port] = false
 				return false
+			} else {
+				upInterfaces[port] = true
 			}
 		}
 		return true
 	})
 	if val, ok := watch.Await(t); !ok {
+		for intf, up := range upInterfaces {
+			if !up {
+				gnmi.Get(t, dut, gnmi.OC().Interface(intf).State())
+				t.Logf("Interface %s is not up after reloading line card %s", intf, removableLinecard)
+			}
+		}
 		t.Fatalf("DUT did not reach target state: got %v", val)
 	}
 

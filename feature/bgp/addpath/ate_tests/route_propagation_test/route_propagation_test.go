@@ -59,6 +59,10 @@ var (
 	ateAS2 = uint32(65538)
 )
 
+const (
+	rplPermitAll = "PERMIT-ALL"
+)
+
 type ip struct {
 	v4, v6 string
 }
@@ -119,7 +123,7 @@ type dutData struct {
 
 func configureRoutingPolicy(d *oc.Root) *oc.RoutingPolicy {
 	rp := d.GetOrCreateRoutingPolicy()
-	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
+	pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
 	pdef.GetOrCreateStatement("20").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	return rp
 }
@@ -152,6 +156,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
 		Name:       "BGP",
 	}
+
 	niOC := &oc.NetworkInstance{
 		Name: deviations.DefaultNetworkInstance,
 		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
@@ -174,9 +179,30 @@ func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
 			Neighbor(neighbor).
-			SessionState().State(), time.Second*15, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
 	t.Log("BGP sessions established")
+}
+
+func getPeerGroup(pgn string, aftype oc.E_BgpTypes_AFI_SAFI_TYPE) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
+	bgp := &oc.NetworkInstance_Protocol_Bgp{}
+	pg := bgp.GetOrCreatePeerGroup(pgn)
+
+	if *deviations.RoutePolicyUnderPeerGroup {
+		//policy under peer group address family
+		afisafi := pg.GetOrCreateAfiSafi(aftype)
+		afisafi.Enabled = ygot.Bool(true)
+		rpl := afisafi.GetOrCreateApplyPolicy()
+		rpl.SetExportPolicy([]string{rplPermitAll})
+		rpl.SetImportPolicy([]string{rplPermitAll})
+		return pg
+	}
+
+	//policy under peer group
+	rpl := pg.GetOrCreateApplyPolicy()
+	rpl.SetExportPolicy([]string{rplPermitAll})
+	rpl.SetImportPolicy([]string{rplPermitAll})
+	return pg
 }
 
 func TestBGP(t *testing.T) {
@@ -191,20 +217,8 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				"BGP-PEER-GROUP1": {
-					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
-					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{"PERMIT-ALL"},
-						ImportPolicy: []string{"PERMIT-ALL"},
-					},
-				},
-				"BGP-PEER-GROUP2": {
-					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
-					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{"PERMIT-ALL"},
-						ImportPolicy: []string{"PERMIT-ALL"},
-					},
-				},
+				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
+				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
 			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
@@ -221,11 +235,23 @@ func TestBGP(t *testing.T) {
 					PeerAs:          ygot.Uint32(ateAS1),
 					NeighborAddress: ygot.String("192.0.2.2"),
 					PeerGroup:       ygot.String("BGP-PEER-GROUP1"),
+					AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+						oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+							Enabled:     ygot.Bool(true),
+						},
+					},
 				},
 				"192.0.2.6": {
 					PeerAs:          ygot.Uint32(ateAS2),
 					NeighborAddress: ygot.String("192.0.2.6"),
 					PeerGroup:       ygot.String("BGP-PEER-GROUP2"),
+					AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+						oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: {
+							AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+							Enabled:     ygot.Bool(true),
+						},
+					},
 				},
 			},
 		}},
@@ -248,20 +274,8 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				"BGP-PEER-GROUP1": {
-					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
-					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{"PERMIT-ALL"},
-						ImportPolicy: []string{"PERMIT-ALL"},
-					},
-				},
-				"BGP-PEER-GROUP2": {
-					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
-					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{"PERMIT-ALL"},
-						ImportPolicy: []string{"PERMIT-ALL"},
-					},
-				},
+				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST),
+				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST),
 			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
@@ -318,20 +332,8 @@ func TestBGP(t *testing.T) {
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				"BGP-PEER-GROUP1": {
-					PeerGroupName: ygot.String("BGP-PEER-GROUP1"),
-					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{"PERMIT-ALL"},
-						ImportPolicy: []string{"PERMIT-ALL"},
-					},
-				},
-				"BGP-PEER-GROUP2": {
-					PeerGroupName: ygot.String("BGP-PEER-GROUP2"),
-					ApplyPolicy: &oc.NetworkInstance_Protocol_Bgp_PeerGroup_ApplyPolicy{
-						ExportPolicy: []string{"PERMIT-ALL"},
-						ImportPolicy: []string{"PERMIT-ALL"},
-					},
-				},
+				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST),
+				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
 			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),

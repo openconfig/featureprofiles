@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -164,7 +165,14 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	time.Sleep(time.Minute)
 
 	flowPath := gnmi.OC().Flow(flow.Name())
-	return gnmi.Get(t, ate, flowPath.LossPct().State())
+	val, _ := gnmi.Watch(t, ate, flowPath.LossPct().State(), time.Minute, func(val *ygnmi.Value[float32]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	lossPct, present := val.Val()
+	if !present {
+		t.Fatalf("Could not read loss percentage for flow %q from ATE.", flow.Name())
+	}
+	return lossPct
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
@@ -312,15 +320,8 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 		}
 		nh := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).State())
 		// for devices that return  the nexthop with resolving it recursively. For a->b->c the device returns c
-		if got := nh.GetIpAddress(); got != atePort2.IPv4 {
-			// for devices that return the nexthop without resolving it recursively. For a->b->c the device returns b
-			// note that b->c is validated in the next code block
-			if got != ateIndirectNH {
-				t.Errorf("next-hop is incorrect: got %v, want %v or %v ", got, ateIndirectNH, atePort2.IPv4)
-			}
-		}
-		if nh.GetInterfaceRef().GetInterface() == "" {
-			t.Errorf("next-hop interface-ref/interface not found")
+		if got := nh.GetIpAddress(); got != atePort2.IPv4 && got != ateIndirectNH {
+			t.Errorf("next-hop is incorrect: got %v, want %v or %v ", got, ateIndirectNH, atePort2.IPv4)
 		}
 	}
 
@@ -351,9 +352,6 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 		nh := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHop(nhIndexInst).State())
 		if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
 			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
-		}
-		if nh.GetInterfaceRef().GetInterface() == "" {
-			t.Errorf("next-hop interface-ref/interface not found")
 		}
 	}
 

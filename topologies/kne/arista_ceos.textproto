@@ -5,6 +5,7 @@ nodes: {
   model: "ceos"
   os: "eos"
   config: {
+    image: "ceos:latest"
     config_path: "/mnt/flash"
     config_file: "startup-config"
     file: "arista_ceos.config"
@@ -29,7 +30,6 @@ nodes: {
     value: {
       name: "gnmi"
       inside: 6030
-      outside: 6030
     }
   }
   services: {
@@ -37,7 +37,6 @@ nodes: {
     value: {
       name: "gribi"
       inside: 6040
-      outside: 6040
     }
   }
 }

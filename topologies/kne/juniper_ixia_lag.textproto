@@ -1,11 +1,10 @@
 name: "juniper-ixia-lag"
 nodes: {
-    name: "cptx"
+    name: "dut"
     vendor: JUNIPER
     model: "cptx"
     os: "evo"
     config: {
-      image: "cptx:latest"
       config_path: "/home/evo/configdisk"
       config_file: "juniper.conf"
       file: "juniper.config"
@@ -42,31 +41,31 @@ nodes: {
         }
     }
     interfaces: {
-        key: "eth44"
+        key: "eth40"
         value: {
           name: "et-0/0/6:0"
         }
     }
     interfaces: {
-        key: "eth52"
+        key: "eth44"
         value: {
           name: "et-0/0/8:0"
         }
     }
     interfaces: {
-        key: "eth60"
+        key: "eth52"
         value: {
           name: "et-0/0/9:0"
         }
     }
     interfaces: {
-        key: "eth68"
+        key: "eth60"
         value: {
           name: "et-0/0/10:0"
         }
     }
     interfaces: {
-        key: "eth72"
+        key: "eth68"
         value: {
           name: "et-0/0/11:0"
         }
@@ -82,7 +81,6 @@ nodes: {
         key: 9337
         value: {
             name: "gnoi"
-            outside: 9337
             inside: 32767
         }
     }
@@ -90,7 +88,6 @@ nodes: {
         key: 9339
         value: {
             name: "gnmi"
-            outside: 9339
             inside: 32767
         }
     }
@@ -98,7 +95,6 @@ nodes: {
         key: 9340
         value: {
             name: "gribi"
-            outside: 9340
             inside: 32767
         }
     }
@@ -106,7 +102,6 @@ nodes: {
         key: 9559
         value: {
             name: "p4rt"
-            outside: 9559
             inside: 32767
         }
     }
@@ -135,6 +130,9 @@ nodes: {
             name: "gnmi"
             inside: 50051
         }
+    }
+    interfaces: {
+        key: "eth1"
     }
     interfaces: {
         key: "eth2"
@@ -186,56 +184,56 @@ nodes: {
     }
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth12"
     z_node: "otg"
     z_int: "eth1"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth20"
     z_node: "otg"
     z_int: "eth2"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth28"
     z_node: "otg"
     z_int: "eth3"
 }
 links: {
-    a_node: "cptx"
+    a_node: "dut"
     a_int: "eth36"
     z_node: "otg"
     z_int: "eth4"
 }
 links: {
-    a_node: "cptx"
-    a_int: "eth44"
+    a_node: "dut"
+    a_int: "eth40"
     z_node: "otg"
     z_int: "eth5"
 }
 links: {
-    a_node: "cptx"
-    a_int: "eth52"
+    a_node: "dut"
+    a_int: "eth44"
     z_node: "otg"
     z_int: "eth6"
 }
 links: {
-    a_node: "cptx"
-    a_int: "eth60"
+    a_node: "dut"
+    a_int: "eth52"
     z_node: "otg"
     z_int: "eth7"
 }
 links: {
-    a_node: "cptx"
-    a_int: "eth68"
+    a_node: "dut"
+    a_int: "eth60"
     z_node: "otg"
     z_int: "eth8"
 }
 links: {
-    a_node: "cptx"
-    a_int: "eth72"
+    a_node: "dut"
+    a_int: "eth68"
     z_node: "otg"
     z_int: "eth9"
 }

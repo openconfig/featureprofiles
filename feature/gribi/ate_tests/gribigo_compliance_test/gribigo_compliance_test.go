@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/compliance"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -37,6 +38,7 @@ var (
 	skipImplicitReplace  = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
 	skipIdempotentDelete = flag.Bool("skip_idempotent_delete", true, "Skip tests for idempotent DELETE operations")
 	skipNonDefaultNINHG  = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
+	skipMPLS             = flag.Bool("skip_mpls", true, "skip tests that add mpls entries")
 
 	nonDefaultNI = flag.String("non_default_ni", "non-default-vrf", "non-default network-instance name")
 
@@ -95,13 +97,31 @@ func shouldSkip(tt *compliance.TestSpec) string {
 		return "This RequiresNonDefaultNINHG test is skipped by --skip_non_default_ni_nhg"
 	case *skipIdempotentDelete && tt.In.RequiresIdempotentDelete:
 		return "This RequiresIdempotentDelete test is skipped by --skip_idempotent_delete"
+	case *skipMPLS && tt.In.RequiresMPLS:
+		return "This RequiresMPLS test is skipped by --skip_mpls"
 	}
 	return moreSkipReasons[tt.In.ShortName]
+}
+
+func syncElectionID(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	clientA := &gribi.Client{
+		DUT:         dut,
+		Persistence: true,
+	}
+	t.Log("Establish gRIBI client connection with PERSISTENCE set to True")
+	if err := clientA.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection for clientA could not be established")
+	}
+	electionID := clientA.LearnElectionID(t)
+	compliance.SetElectionID(electionID.Increment().Low)
+	clientA.Close(t)
 }
 
 func TestCompliance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
+	syncElectionID(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
 	configureATE(t, ate)
@@ -113,7 +133,6 @@ func TestCompliance(t *testing.T) {
 			if reason := shouldSkip(tt); reason != "" {
 				t.Skip(reason)
 			}
-
 			compliance.SetDefaultNetworkInstanceName(*deviations.DefaultNetworkInstance)
 			compliance.SetNonDefaultVRFName(*nonDefaultNI)
 
@@ -171,12 +190,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
-
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(*nonDefaultNI)
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*nonDefaultNI).Config(), ni)
-
+	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *nonDefaultNI)
+	}
 	nip := gnmi.OC().NetworkInstance(*nonDefaultNI)
 	fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
 }

@@ -273,13 +273,13 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	for k, v := range ateOutPkts {
 		if v == 0 {
-			t.Errorf("ate.Telemetry().Flow(%v).Counters().OutPkts().Get() = %v, want nonzero", k, v)
+			t.Errorf("gnmi.Get(t, ate, gnmi.OC().Flow(%v).Counters().OutPkts().State()) = %v, want nonzero", k, v)
 		}
 	}
 	for _, flow := range []string{ipv4Flow.Name(), ipv6Flow.Name()} {
 		lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow).LossPct().State())
 		if lossPct >= 1 {
-			t.Errorf("ate.Telemetry().Flow(%v).LossPct().Get() = %v, want < 1", flow, lossPct)
+			t.Errorf("gnmi.Get(t, ate, gnmi.OC().Flow(%v).LossPct().State()) = %v, want < 1", flow, lossPct)
 		}
 	}
 
@@ -385,6 +385,14 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		if !gnmi.Get(t, dut, subint.Ipv6().Enabled().State()) {
 			t.Errorf("Ipv6().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
 		}
+	}
+	if *deviations.ExplicitInterfaceInDefaultVRF {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), *deviations.DefaultNetworkInstance, 0)
+	}
+	if *deviations.ExplicitPortSpeed {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
 	}
 }
 

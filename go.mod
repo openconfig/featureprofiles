@@ -3,11 +3,10 @@ module github.com/openconfig/featureprofiles
 go 1.19
 
 require (
-	github.com/cisco-open/go-p4 v0.0.0-20230117234941-7359c630de78
+	github.com/cisco-open/go-p4 v0.1.1-0.20230301194618-caa766ba7dd4
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/go-ping/ping v1.1.0
-	github.com/golang/glog v1.0.0
+	github.com/golang/glog v1.1.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.3.0
@@ -18,27 +17,27 @@ require (
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.2.0
 	github.com/openconfig/gribi v1.0.0
-	github.com/openconfig/gribigo v0.0.0-20221005212504-61bfce3da52b
-	github.com/openconfig/lemming v0.0.0-20220404232244-1dbc2b4c6179
+	github.com/openconfig/gribigo v0.0.0-20230207233343-ef59db57c4fc
+	github.com/openconfig/kne v0.1.12
 	github.com/openconfig/ondatra v0.1.14
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygnmi v0.7.6
+	github.com/openconfig/ygnmi v0.7.7
 	github.com/openconfig/ygot v0.27.0
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
-	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
 	github.com/yuin/goldmark v1.4.13
 	go.uber.org/atomic v1.10.0
 	golang.org/x/crypto v0.6.0
-	golang.org/x/sys v0.7.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
-	k8s.io/klog/v2 v2.90.1
 )
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
+)
+
+require (
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.1 // indirect
@@ -83,18 +82,17 @@ require (
 	github.com/networkop/meshnet-cni v0.3.1-0.20230314134453-9398a8fa95ff // indirect
 	github.com/open-traffic-generator/ixia-c-operator v0.3.0 // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 // indirect
-	github.com/openconfig/kne v0.1.12 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
+	github.com/pelletier/go-toml/v2 v2.0.7 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
 	github.com/scrapli/scrapligo v1.1.7 // indirect
 	github.com/scrapli/scrapligocfg v1.0.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4 // indirect
-	github.com/spf13/afero v1.9.3 // indirect
+	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.6.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
@@ -103,12 +101,11 @@ require (
 	github.com/srl-labs/srl-controller v0.6.0 // indirect
 	github.com/srl-labs/srlinux-scrapli v0.6.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
-	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	golang.org/x/exp v0.0.0-20221106115401-f9659909a136 // indirect
 	golang.org/x/net v0.9.0 // indirect
 	golang.org/x/oauth2 v0.6.0 // indirect
-	golang.org/x/sync v0.1.0 // indirect
+	golang.org/x/sys v0.7.0 // indirect
 	golang.org/x/term v0.7.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
@@ -122,6 +119,7 @@ require (
 	k8s.io/api v0.26.3 // indirect
 	k8s.io/apimachinery v0.26.3 // indirect
 	k8s.io/client-go v0.26.3 // indirect
+	k8s.io/klog/v2 v2.90.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230308215209-15aac26d736a // indirect
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect

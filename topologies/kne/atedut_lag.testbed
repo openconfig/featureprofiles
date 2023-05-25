@@ -1,6 +1,5 @@
 duts {
   id: "dut"
-  vendor: ARISTA
   ports {
     id: "port1"    
   }

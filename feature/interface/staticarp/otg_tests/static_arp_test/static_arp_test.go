@@ -111,11 +111,17 @@ var (
 // configInterfaceDUT configures the interface on "me" with static ARP
 // of peer.  Note that peermac is used for static ARP, and not
 // peer.MAC.
-func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, peermac string) *oc.Interface {
+func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attributes, peermac string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p.Name())}
 	i.Description = ygot.String(me.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if *deviations.InterfaceEnabled {
 		i.Enabled = ygot.Bool(true)
+	}
+
+	if *deviations.ExplicitPortSpeed {
+		e := i.GetOrCreateEthernet()
+		e.PortSpeed = fptest.GetIfSpeed(t, p)
 	}
 
 	if me.MAC != "" {
@@ -155,22 +161,14 @@ func configureDUT(t *testing.T, peermac string) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	if peermac == "" {
-		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, peermac))
-		if *deviations.ExplicitPortSpeed {
-			fptest.SetPortSpeed(t, p1)
-		}
+		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(t, p1, &dutSrc, &ateSrc, peermac))
 		if *deviations.ExplicitInterfaceInDefaultVRF {
 			fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
 		}
 	}
 	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
-	if *deviations.ExplicitPortSpeed {
-		fptest.SetPortSpeed(t, p2)
-	}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(t, p2, &dutDst, &ateDst, peermac))
 	if *deviations.ExplicitInterfaceInDefaultVRF {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
 	}
@@ -187,12 +185,14 @@ func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 	dstPort := config.Ports().Add().SetName(ap2.ID())
 
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
-	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".eth").SetPortName(srcPort.Name()).SetMac(ateSrc.MAC)
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".eth").SetMac(ateSrc.MAC)
+	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
 	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
 	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
 
 	dstDev := config.Devices().Add().SetName(ateDst.Name)
-	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".eth").SetPortName(dstPort.Name()).SetMac(ateDst.MAC)
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".eth").SetMac(ateDst.MAC)
+	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dstPort.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
 	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
 
