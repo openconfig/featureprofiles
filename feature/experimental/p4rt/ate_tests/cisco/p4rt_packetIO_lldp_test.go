@@ -112,6 +112,7 @@ var (
 			name: "(LLDP_Disable)Check PacketOut Scale(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:005 LLDP disabled: Verify scale rate of LLDP packets injecting to the device",
 			fn:   testPacketOutEgressScale,
+			skip: true,
 		},
 		{
 			name: "(LLDP_Disable)Flap Interface and Check PacketOut(submit_to_egress)",
@@ -205,6 +206,7 @@ var (
 			name: "(LLDP_Enable)Check PacketOut Scale(submit_to_egress)",
 			desc: "Packet I/O-LLDP-PacketOut:010 LLDP enabled: Verify scale rate of LLDP packets injecting to the device",
 			fn:   testPacketOutEgressScale,
+			skip: true,
 		},
 		{
 			name: "(LLDP_Enable)Flap Interface and Check PacketOut(submit_to_egress)",

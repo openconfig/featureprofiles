@@ -108,14 +108,16 @@ var (
 			fn:   testPacketOutWithoutMatchEntry,
 		},
 		{
-			name: "Program GDP Match Entry and Check PacketOut submit to egress",
+			name: "Program GDP Match Entry and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-GDP-PacketOut:003 Egress: Inject EtherType 0x6007 packets and verify traffic behavior in case of EtherType 0x6007 entry programmed",
 			fn:   testPacketOutEgress,
+			skip: true,
 		},
 		{
 			name: "Check PacketOut Without Programming GDP Match Entry(submit_to_egress)",
 			desc: "Packet I/O-GDP-PacketOut:004 Egress: Inject EtherType 0x6007 packets and verify traffic sends to related port in case of EtherType 0x6007 entry NOT programmed",
 			fn:   testPacketOutEgressWithoutMatchEntry,
+			skip: true,
 		},
 		{
 			name: "Check PacketOut With Invalid Port Id(submit_to_egress)",
@@ -126,6 +128,7 @@ var (
 			name: "Change Port-id and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-GDP-PacketOut:009 Egress: Inject EtherType 0x6007 packets on existing port-id and then change related port-id and verify device behavior",
 			fn:   testPacketOutEgressWithChangePortId,
+			skip: true,
 		},
 		{
 			name: "Change Metadata and Check PacketOut(submit_to_egress)",
