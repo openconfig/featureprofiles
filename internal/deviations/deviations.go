@@ -69,6 +69,12 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// BannerDelimiter returns if device requires the banner to have a delimiter character.
+// Full OpenConfig compliant devices should work without delimiter.
+func BannerDelimiter(_ *ondatra.DUTDevice) string {
+	return *bannerDelimiter
+}
+
 // OmitL2MTU returns if Device does not support setting the L2 MTU.
 func OmitL2MTU(_ *ondatra.DUTDevice) bool {
 	return *omitL2MTU
@@ -177,9 +183,9 @@ func ISISGlobalAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisGlobalAuthenticationNotRequired
 }
 
-// ISISLevelAuthenticationNotRequired returns true if ISIS Level authentication not required.
-func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
-	return *isisLevelAuthenticationNotRequired
+// ISISExplicitLevelAuthenticationConfig returns true if ISIS Explicit Level Authentication configuration is required
+func ISISExplicitLevelAuthenticationConfig(_ *ondatra.DUTDevice) bool {
+	return *isisExplicitLevelAuthenticationConfig
 }
 
 // ISISSingleTopologyRequired sets isis af ipv6 single topology on the device if value is true.
@@ -411,11 +417,27 @@ func SecondaryBackupPathTrafficFailover(_ *ondatra.DUTDevice) bool {
 	return *secondaryBackupPathTrafficFailover
 }
 
+// DequeueDeleteNotCountedAsDrops returns if device dequeues and deletes the pkts after a while and those are not counted
+// as drops
+func DequeueDeleteNotCountedAsDrops(_ *ondatra.DUTDevice) bool {
+	return *dequeueDeleteNotCountedAsDrops
+}
+
+// RoutePolicyUnderAFIUnsupported returns if Route-Policy under the AFI/SAFI is not supported
+func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
+	return *routePolicyUnderAFIUnsupported
+}
+
+// InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
+func InterfaceRefConfigUnsupported(_ *ondatra.DUTDevice) bool {
+	return *interfaceRefConfigUnsupported
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
 var (
-	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
+	bannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
 	interfaceEnabled = flag.Bool("deviation_interface_enabled", false,
@@ -466,8 +488,6 @@ var (
 	RoutePolicyUnderPeerGroup = flag.Bool("deviation_rpl_under_peergroup", false, "Device requires route-policy configuration under bgp peer-group. Fully-compliant devices should pass with and without this deviation.")
 
 	missingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
-
-	RoutePolicyUnderNeighborAfiSafi = flag.Bool("deviation_rpl_under_neighbor_afisafi", false, "Device requires route-policy configuration under bgp neighbor afisafi. Fully-compliant devices should pass with this deviation set to true.")
 
 	traceRouteL4ProtocolUDP = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
 
@@ -556,8 +576,8 @@ var (
 	isisGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
 		"Don't set isis global authentication-check on the device if value is true, Default value is false and ISIS global authentication-check is set")
 
-	isisLevelAuthenticationNotRequired = flag.Bool("deviation_isis_level_authentication_not_required", false,
-		"Don't set isis level authentication on the device if value is true, Default value is false and ISIS level authentication is configured")
+	isisExplicitLevelAuthenticationConfig = flag.Bool("deviation_isis_explicit_level_authentication_config", false,
+		"Configure CSNP, LSP and PSNP under level authentication explicitly if value is true, Default value is false to use default value for these.")
 
 	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
 
@@ -574,4 +594,10 @@ var (
 	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
 
 	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
+
+	dequeueDeleteNotCountedAsDrops = flag.Bool("deviation_dequeue_delete_not_counted_as_drops", false, "devices do not count dequeued and deleted packets as drops, default is false")
+
+	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
+
+	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 )
