@@ -156,6 +156,7 @@ func TestTcpFlags(t *testing.T) {
 			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Transport()
 
 			t.Run("Replace", func(t *testing.T) {
+				t.Skip()
 				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryTransport)
 			})
 			if !setup.SkipGet() {

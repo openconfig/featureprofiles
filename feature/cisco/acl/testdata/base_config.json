@@ -61,7 +61,7 @@
                 "state": {
                   "destination-port": "61524..606",
                   "source-port": "22603..65533",
-                  "tcp-flags": [
+                  "explicit-tcp-flags": [
                     "openconfig-packet-match-types:TCP_SYN"
                   ]
                 }
