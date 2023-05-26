@@ -350,7 +350,7 @@ func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
 
 // MissingPrePolicyReceivedRoutes returns if device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
 // Fully-compliant devices should pass with and without this deviation.
-func MissingPrePolicyReceivedRoutes(_ *ondatra.DUTDevice) bool {
+func MissingPrePolicyReceivedRoutes(dut *ondatra.DUTDevice) bool {
 	logErrorIfFlagSet("deviation_prepolicy_received_routes")
 	return lookupDUTDeviations(dut).GetPrepolicyReceivedRoutes()
 }
