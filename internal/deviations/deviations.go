@@ -134,6 +134,16 @@ func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
 	return *p4rtUnsetElectionIDUnsupported
 }
 
+// P4rtUnsetElectionIDPrimaryAllowed returns whether the device does not support unset election ID.
+func P4rtUnsetElectionIDPrimaryAllowed(_ *ondatra.DUTDevice) bool {
+	return *p4rtUnsetElectionIDPrimaryAllowed
+}
+
+// P4rtBackupArbitrationResponseCode returns whether the device does not support unset election ID.
+func P4rtBackupArbitrationResponseCode(_ *ondatra.DUTDevice) bool {
+	return *p4rtBackupArbitrationResponseCode
+}
+
 // ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
 // Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.
 func ExplicitP4RTNodeComponent(_ *ondatra.DUTDevice) bool {
@@ -573,8 +583,11 @@ var (
 
 	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
 
-	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
-		"Set to true for device requiring explicit deletion of network-instance table, default is false")
+	p4rtUnsetElectionIDPrimaryAllowed = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary")
+
+	p4rtBackupArbitrationResponseCode = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
+
+	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false, "Set to true for device requiring explicit deletion of network-instance table, default is false")
 
 	isisMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
