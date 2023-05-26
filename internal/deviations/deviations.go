@@ -469,7 +469,7 @@ func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 	return *routePolicyUnderAFIUnsupported
 }
 
-// SkipPlqQualificationRateCheck returns if PLQ QualificationRateBytesPerSecond and ExpectedRateBytesPerSecond comparison should be skipped
+// SkipPLQQualificationRateCheck returns if PLQ QualificationRateBytesPerSecond and ExpectedRateBytesPerSecond comparison should be skipped
 func SkipPLQQualificationRateCheck(_ *ondatra.DUTDevice) bool {
 	return *skipPLQQualificationRateCheck
 }

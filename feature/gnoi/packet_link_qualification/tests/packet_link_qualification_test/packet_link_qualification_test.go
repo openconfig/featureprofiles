@@ -194,7 +194,6 @@ func TestListDelete(t *testing.T) {
 	}
 }
 
-// configInterfaceMTU configures interface MTU.
 func configInterfaceMTU(i *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if deviations.InterfaceEnabled(dut) {
@@ -214,8 +213,7 @@ func TestLinkQualification(t *testing.T) {
 	t.Logf("dut1: %v, dut2: %v", dut1.Name(), dut2.Name())
 	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", dp1.Name(), dp2.Name())
 
-	dut_list := []*ondatra.DUTDevice{dut1, dut2}
-	for _, dut := range dut_list {
+	for _, dut := range []*ondatra.DUTDevice{dut1, dut2} {
 		d := gnmi.OC()
 		p := dut.Port(t, "port1")
 		i := &oc.Interface{Name: ygot.String(p.Name())}
@@ -256,21 +254,11 @@ func TestLinkQualification(t *testing.T) {
 				},
 				Timing: &plqpb.QualificationConfiguration_Rpc{
 					Rpc: &plqpb.RPCSyncedTiming{
-						Duration: &durationpb.Duration{
-							Seconds: int64(plqDuration.testDuration.Seconds()),
-						},
-						PreSyncDuration: &durationpb.Duration{
-							Seconds: int64(plqDuration.preSyncDuration.Seconds()),
-						},
-						SetupDuration: &durationpb.Duration{
-							Seconds: int64(plqDuration.setupDuration.Seconds()),
-						},
-						PostSyncDuration: &durationpb.Duration{
-							Seconds: int64(plqDuration.postSyncDuration.Seconds()),
-						},
-						TeardownDuration: &durationpb.Duration{
-							Seconds: int64(plqDuration.tearDownDuration.Seconds()),
-						},
+						Duration:         durationpb.New(plqDuration.testDuration),
+						PreSyncDuration:  durationpb.New(plqDuration.preSyncDuration),
+						SetupDuration:    durationpb.New(plqDuration.setupDuration),
+						PostSyncDuration: durationpb.New(plqDuration.postSyncDuration),
+						TeardownDuration: durationpb.New(plqDuration.tearDownDuration),
 					},
 				},
 			},
@@ -284,21 +272,11 @@ func TestLinkQualification(t *testing.T) {
 
 		Timing: &plqpb.QualificationConfiguration_Rpc{
 			Rpc: &plqpb.RPCSyncedTiming{
-				Duration: &durationpb.Duration{
-					Seconds: int64(plqDuration.testDuration.Seconds()),
-				},
-				PreSyncDuration: &durationpb.Duration{
-					Seconds: int64(plqDuration.preSyncDuration.Seconds()),
-				},
-				SetupDuration: &durationpb.Duration{
-					Seconds: int64(plqDuration.setupDuration.Seconds()),
-				},
-				PostSyncDuration: &durationpb.Duration{
-					Seconds: int64(plqDuration.postSyncDuration.Seconds()),
-				},
-				TeardownDuration: &durationpb.Duration{
-					Seconds: int64(plqDuration.tearDownDuration.Seconds()),
-				},
+				Duration:         durationpb.New(plqDuration.testDuration),
+				PreSyncDuration:  durationpb.New(plqDuration.preSyncDuration),
+				SetupDuration:    durationpb.New(plqDuration.setupDuration),
+				PostSyncDuration: durationpb.New(plqDuration.postSyncDuration),
+				TeardownDuration: durationpb.New(plqDuration.tearDownDuration),
 			},
 		},
 	}
