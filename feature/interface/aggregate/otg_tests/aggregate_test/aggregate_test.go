@@ -495,7 +495,6 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 	}
 }
 
-
 func TestNegotiation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
