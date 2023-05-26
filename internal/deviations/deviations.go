@@ -66,8 +66,35 @@ package deviations
 import (
 	"flag"
 
+	log "github.com/golang/glog"
+	"github.com/openconfig/featureprofiles/internal/metadata"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra"
 )
+
+// lookupDutDeviations returns the deviations for the specified dut. If no duts match `nil` is returned.
+func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
+	for _, platformExceptions := range metadata.Get().PlatformExceptions {
+		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
+			continue
+		}
+		for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
+			if dut.Device.Model() == hardwareModel {
+				return platformExceptions.GetDeviations()
+			}
+		}
+	}
+	log.Warningf("No platform exceptions for dut platform %v or model %v configured in platform exceptions metadata %v", dut.Device.Vendor().String(), dut.Device.Model(), metadata.Get().PlatformExceptions)
+	return nil
+}
+
+func logErrorIfFlagSet(name string) {
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			log.Errorf("Value for %v is set using metadata.textproto. Flag value will be ignored!", name)
+		}
+	})
+}
 
 // BannerDelimiter returns if device requires the banner to have a delimiter character.
 // Full OpenConfig compliant devices should work without delimiter.
@@ -105,6 +132,16 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 // P4RTUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
 func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
 	return *p4rtUnsetElectionIDUnsupported
+}
+
+// P4rtUnsetElectionIDPrimaryAllowed returns whether the device does not support unset election ID.
+func P4rtUnsetElectionIDPrimaryAllowed(_ *ondatra.DUTDevice) bool {
+	return *p4rtUnsetElectionIDPrimaryAllowed
+}
+
+// P4rtBackupArbitrationResponseCode returns whether the device does not support unset election ID.
+func P4rtBackupArbitrationResponseCode(_ *ondatra.DUTDevice) bool {
+	return *p4rtBackupArbitrationResponseCode
 }
 
 // ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
@@ -285,13 +322,17 @@ func MissingValueForDefaults(_ *ondatra.DUTDevice) bool {
 }
 
 // TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
-func TraceRouteL4ProtocolUDP(_ *ondatra.DUTDevice) bool {
-	return *traceRouteL4ProtocolUDP
+// Default value is false.
+func TraceRouteL4ProtocolUDP(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_traceroute_l4_protocol_udp")
+	return lookupDUTDeviations(dut).GetTracerouteL4ProtocolUdp()
 }
 
 // TraceRouteFragmentation returns if device does not support fragmentation bit for traceroute.
-func TraceRouteFragmentation(_ *ondatra.DUTDevice) bool {
-	return *traceRouteFragmentation
+// Default value is false.
+func TraceRouteFragmentation(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_traceroute_fragmentation")
+	return lookupDUTDeviations(dut).GetTracerouteFragmentation()
 }
 
 // LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
@@ -494,9 +535,9 @@ var (
 
 	missingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
 
-	traceRouteL4ProtocolUDP = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
+	_ = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
 
-	traceRouteFragmentation = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
+	_ = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
 
 	connectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 
@@ -547,8 +588,11 @@ var (
 
 	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
 
-	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
-		"Set to true for device requiring explicit deletion of network-instance table, default is false")
+	p4rtUnsetElectionIDPrimaryAllowed = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary")
+
+	p4rtBackupArbitrationResponseCode = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
+
+	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false, "Set to true for device requiring explicit deletion of network-instance table, default is false")
 
 	isisMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
