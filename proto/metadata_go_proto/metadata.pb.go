@@ -186,7 +186,7 @@ type Metadata_Platform struct {
 
 	// Vendor of the device.
 	Vendor proto.Device_Vendor `protobuf:"varint,1,opt,name=vendor,proto3,enum=ondatra.Device_Vendor" json:"vendor,omitempty"`
-	// Hardware model of the device.
+	// Hardware models of the device.
 	HardwareModel []string `protobuf:"bytes,2,rep,name=hardware_model,json=hardwareModel,proto3" json:"hardware_model,omitempty"`
 }
 
