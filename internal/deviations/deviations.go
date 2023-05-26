@@ -278,7 +278,7 @@ func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
 
 // HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
 // Default minimum value is 0.2. Anything less than 0.2 will be set to 0.2.
-func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
+func HierarchicalWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
 	logErrorIfFlagSet("deviation_hierarchical_weight_resolution_tolerance")
 	if lookupDUTDeviations(dut).HierarchicalWeightResolutionTolerance > 0.2 {
 		return lookupDUTDeviations(dut).GetHierarchicalWeightResolutionTolerance()
