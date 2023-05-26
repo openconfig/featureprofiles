@@ -191,8 +191,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         collect_tb_info=False,
                         install_image=False,
                         force_install=False,
-                        ignore_install_errors=False,
-                        force_reboot=False):
+                        force_reboot=False,
+                        smus=None):
 
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
@@ -242,8 +242,11 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
 
     c |= GenerateOndatraTestbedFiles.s()
     if install_image and not using_sim:
-        c |= SoftwareUpgrade.s(force_install=force_install, ignore_install_errors=ignore_install_errors)
-    elif force_reboot:
+        c |= SoftwareUpgrade.s(force_install=force_install)
+        force_reboot = False
+    if smus:
+        c |= InstallSMUs.s(smus=smus)
+    if force_reboot:
         c |= ForceReboot.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
@@ -326,7 +329,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 
     chain |= GoTidy.s(repo=test_repo_dir)
 
-    if release_ixia_ports and ('/ate_tests/' in test_path or '/otg_tests/' in test_path):
+    if release_ixia_ports:
         chain |= ReleaseIxiaPorts.s()
 
     if fp_pre_tests:
@@ -551,7 +554,7 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
 @app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
-                    images, force_install=False, ignore_install_errors=False):
+                    images, force_install=False):
     logger.print("Performing Software Upgrade...")
     su_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/software_upgrade ' \
@@ -566,22 +569,16 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
     if force_install:
         su_command += f'-force'
 
-    try:
-        env = dict(os.environ)
-        env.update(_get_go_env())
-        output = check_output(su_command, env=env, cwd=internal_fp_repo_dir)
-        #TODO: find a better way?
-        if not 'Image already installed' in output:
-            self.enqueue_child(ForceReboot.s(
-                internal_fp_repo_dir=internal_fp_repo_dir, 
-                ondatra_binding_path=ondatra_binding_path, 
-                ondatra_testbed_path=ondatra_testbed_path
-            ))
-    except:
-        if not ignore_install_errors:
-            _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
-            raise
-        else: logger.warning(f'Software upgrade failed. Ignoring...')
+    env = dict(os.environ)
+    env.update(_get_go_env())
+    output = check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+    #TODO: find a better way?
+    if not 'Image already installed' in output:
+        self.enqueue_child(ForceReboot.s(
+            internal_fp_repo_dir=internal_fp_repo_dir, 
+            ondatra_binding_path=ondatra_binding_path, 
+            ondatra_testbed_path=ondatra_testbed_path
+        ))
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
@@ -597,6 +594,22 @@ def ForceReboot(self, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbe
     env = dict(os.environ)
     env.update(_get_go_env())
     check_output(reboot_command, env=env, cwd=internal_fp_repo_dir)
+
+# noinspection PyPep8Naming
+@app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
+def InstallSMUs(self, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, smus):
+    logger.print("Installing SMUs...")
+    smu_install_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/smu_install ' \
+            f'-timeout 30m ' \
+            f'-args ' \
+            f'-testbed {ondatra_testbed_path} ' \
+            f'-binding {ondatra_binding_path} ' \
+            f'-smus {smus} '
+
+    env = dict(os.environ)
+    env.update(_get_go_env())
+    check_output(smu_install_cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)

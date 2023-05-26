@@ -730,12 +730,12 @@ func testProgrammingPacketInWithInterfaceMACAsGDPMac(ctx context.Context, t *tes
 		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
-
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	// Change mac address for the related bundle interface MAC
 	newMAC := gdpMAC
-	currentMAC := gnmi.Get(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Ethernet().MacAddress().State())
-	gnmi.Replace(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Config(), newMAC)
-	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Config(), currentMAC)
+	currentMAC := gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Ethernet().MacAddress().State())
+	gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Ethernet().MacAddress().Config(), newMAC)
+	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Ethernet().MacAddress().Config(), currentMAC)
 
 	// Send Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -744,7 +744,7 @@ func testProgrammingPacketInWithInterfaceMACAsGDPMac(ctx context.Context, t *tes
 	// Check PacketIn on P4Client
 	packets := getPackets(t, client, 40)
 
-	// t.Logf("Captured packets: %v", len(packets))
+	t.Logf("Captured packets: %v", len(packets))
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received.")
 	}
@@ -982,9 +982,9 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 	// Check PacketIn on P4Client
 	packets := getPackets(t, client, 40)
 
-	// t.Logf("Captured packets: %v", len(packets))
-	if len(packets) == 0 {
-		t.Errorf("No packets are received.")
+	t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 15 {
+		t.Errorf("Unexpected packets are received.")
 	}
 }
 
@@ -1309,12 +1309,12 @@ func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *t
 	portName := sortPorts(args.dut.Ports())[0].Name()
 	existingConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface(portName).Config())
 
-	config.TextWithGNMI(context.Background(), t, args.dut, "no interface FourHundredGigE0/0/0/10\n")
-	config.TextWithGNMI(context.Background(), t, args.dut, "interface FourHundredGigE0/0/0/10\n ipv4 address 100.120.1.1 255.255.255.0 \n")
-	config.TextWithGNMI(context.Background(), t, args.dut, "interface FourHundredGigE0/0/0/10\n ipv6 address 100:120:1::1/126 \n")
+	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("no interface %v \n", portName))
+	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("interface %v \n ipv4 address 100.120.1.1 255.255.255.0 \n", portName))
+	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("interface %v\n ipv6 address 100:120:1::1/126 \n", portName))
 
 	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Config(), existingConfig)
-	defer config.TextWithGNMI(context.Background(), t, args.dut, "no interface FourHundredGigE0/0/0/10\n")
+	defer config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("no interface %v\n", portName))
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
@@ -1518,6 +1518,10 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	if args.packetIO.GetPacketOutExpectation(t, true) {
 		if ate_counter1-ate_counter0 < uint64(float64(packet_count)*0.95) {
 			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if ate_counter1-ate_counter0 > uint64(float64(packet_count)*0.20) {
+			t.Errorf("Unexpected packets are received.")
 		}
 	}
 }
