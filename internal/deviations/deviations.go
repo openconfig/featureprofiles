@@ -75,9 +75,11 @@ import (
 // lookupDutDeviations returns the deviations for the specified dut. If no duts match `nil` is returned.
 func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
-		vendor := platformExceptions.GetPlatform().Vendor.String()
+		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
+			continue
+		}
 		for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
-			if vendor == dut.Device.Vendor().String() && hardwareModel == dut.Device.Model() {
+			if dut.Device.Model() == hardwareModel {
 				return platformExceptions.GetDeviations()
 			}
 		}
@@ -87,9 +89,6 @@ func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 }
 
 func logErrorIfFlagSet(name string) {
-	if !flag.Parsed() {
-		flag.Parse()
-	}
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == name {
 			log.Errorf("Value for %v is set using metadata.textproto. Flag value will be ignored!", name)
