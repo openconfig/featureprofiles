@@ -1351,7 +1351,7 @@ func testEntryProgrammingPacketInWithSubInterface(ctx context.Context, t *testin
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the match entry")
 	}
-	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+	// defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
 
@@ -1549,6 +1549,10 @@ func testPacketOutWithoutMatchEntry(ctx context.Context, t *testing.T, args *tes
 		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
 			t.Errorf("Not all the packets are received.")
 		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.20) {
+			t.Errorf("Unexpected packets are received.")
+		}
 	}
 }
 
@@ -1589,6 +1593,10 @@ func testPacketOutTTLOneWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 	if args.packetIO.GetPacketOutExpectation(t, true) {
 		if ate_counter1-ate_counter0 < uint64(float64(packet_count)*0.95) {
 			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.20) {
+			t.Errorf("Unexpected packets are received.")
 		}
 	}
 }
@@ -1636,9 +1644,14 @@ func testPacketOutTTLOneWithUDP(ctx context.Context, t *testing.T, args *testArg
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
 	t.Logf("Received %v packets on ATE interface %s", ate_counter1-ate_counter0, atePort)
-
-	if counter_1-counter_0 > uint64(float64(packet_count)*0.20) {
-		t.Errorf("Not all the packets are received.")
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if ate_counter1-ate_counter0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if ate_counter1-ate_counter0 > uint64(float64(packet_count)*0.20) {
+			t.Errorf("Unexpected packets are received.")
+		}
 	}
 
 }
