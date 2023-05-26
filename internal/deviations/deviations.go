@@ -584,8 +584,6 @@ var (
 
 	p4rtBackupArbitrationResponseCode = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
 
-	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false, "Set to true for device requiring explicit deletion of network-instance table, default is false")
-
 	isisMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
 
