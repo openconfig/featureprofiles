@@ -171,13 +171,16 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
-	if !deviations.ISISLevelAuthenticationNotRequired(dut) {
-		isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
-		isisLevel2Auth.Enabled = ygot.Bool(true)
-		isisLevel2Auth.AuthPassword = ygot.String(authPassword)
-		isisLevel2Auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-		isisLevel2Auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+	isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
+	isisLevel2Auth.Enabled = ygot.Bool(true)
+	if deviations.ISISExplicitLevelAuthenticationConfig(dut) {
+		isisLevel2Auth.DisableCsnp = ygot.Bool(false)
+		isisLevel2Auth.DisableLsp = ygot.Bool(false)
+		isisLevel2Auth.DisablePsnp = ygot.Bool(false)
 	}
+	isisLevel2Auth.AuthPassword = ygot.String(authPassword)
+	isisLevel2Auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	isisLevel2Auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 
 	for _, dp := range dut.Ports() {
 		// Interfaces config.
