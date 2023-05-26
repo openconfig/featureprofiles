@@ -42,8 +42,8 @@ message Metadata {
   message Platform {
     // Vendor of the device.
     ondatra.Device.Vendor vendor = 1;
-    // Hardware model of the device.
-    string hardware_model = 2;
+    // Hardware models of the device.
+    repeated string hardware_model = 2;
   }
 
   message Deviations {
