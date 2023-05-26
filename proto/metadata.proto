@@ -50,6 +50,10 @@ message Metadata {
     // Device does not support interface/ipv4/enabled,
     // so suppress configuring this leaf.
     bool ipv4_missing_enabled = 1;
+    // Device does not support fragmentation bit for traceroute.
+    bool traceroute_fragmentation = 2;
+    // Device only support UDP as l4 protocol for traceroute.
+    bool traceroute_l4_protocol_udp = 3;
   }
 
   message PlatformExceptions {
