@@ -277,8 +277,13 @@ func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
 }
 
 // HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
+// Default minimum value is 0.2. Anything less than 0.2 will be set to 0.2.
 func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
-	return *hierarchicalWeightResolutionTolerance
+	logErrorIfFlagSet("deviation_hierarchical_weight_resolution_tolerance")
+	if lookupDUTDeviations(dut).HierarchicalWeightResolutionTolerance > 0.2 {
+		return lookupDUTDeviations(dut).GetHierarchicalWeightResolutionTolerance()
+	}
+	return 0.2
 }
 
 // InterfaceEnabled returns if device requires interface enabled leaf booleans to be explicitly set to true.
@@ -636,7 +641,7 @@ var (
 
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
-	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
+	_ = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
 
 	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
 
