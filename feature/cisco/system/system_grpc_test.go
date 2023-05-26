@@ -192,10 +192,10 @@ func TestGrpcListenAddress(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	var listenAdd string
 	virIP := config.CMDViaGNMI(context.Background(), t, dut, "sh run ipv4 virtual address")
+	val := re.FindString(virIP)
 	if strings.Contains(b.Duts[0].Ssh.Target, "::") {
 		listenAdd = gnmi.GetAll(t, dut, gnmi.OC().Interface("Bundle-Ether120").Subinterface(0).Ipv6().AddressAny().State())[0].GetIp()
-	} else if virIP != "" {
-		val := re.FindString(virIP)
+	} else if val != "" {
 		listenAdd = strings.TrimSuffix(val, "/16")
 	} else {
 		mgmtIP := config.CMDViaGNMI(context.Background(), t, dut, "sh ip int brief mgmtEth 0/RP0/CPU0/0")
