@@ -62,8 +62,6 @@ tests:
   - agvarghe
 - name: System-OC
   path: feature/cisco/system/...
-  args:
-    - '-deviation_sw_version_unsupported="true"'
   timeout: 7200
   branch: master
   internal: true
