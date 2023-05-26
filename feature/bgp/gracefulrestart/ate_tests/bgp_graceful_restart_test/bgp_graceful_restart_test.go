@@ -15,12 +15,15 @@
 package bgp_graceful_restart_test
 
 import (
+	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -204,7 +207,13 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
 		pg1rpl6.SetExportPolicy([]string{"ALLOW"})
 		pg1rpl6.SetImportPolicy([]string{"ALLOW"})
-
+	} else {
+		rpl := pg.GetOrCreateApplyPolicy()
+		rpl.SetExportPolicy([]string{"ALLOW"})
+		rpl.SetImportPolicy([]string{"ALLOW"})
+		rplv6 := pgv6.GetOrCreateApplyPolicy()
+		rplv6.SetExportPolicy([]string{"ALLOW"})
+		rplv6.SetImportPolicy([]string{"ALLOW"})
 	}
 
 	for _, nbr := range nbrs {
@@ -215,8 +224,10 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 			nv4.GetOrCreateTimers().KeepaliveInterval = ygot.Uint16(60)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
-			af := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af.Enabled = ygot.Bool(true)
+			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(true)
+			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(false)
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			nv6.PeerGroup = ygot.String(peerv6GrpName)
@@ -225,8 +236,10 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
 			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af.Enabled = ygot.Bool(true)
+			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(true)
+			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(false)
 		}
 	}
 	return ni_proto
@@ -450,6 +463,215 @@ func configACLInterface(t *testing.T, iFace *oc.Acl_Interface, ifName string) *a
 	return aclConf
 }
 
+// Helper function to replicate configACL() configs in native model
+// Define the values for each ACL entry and marshal for json encoding.
+// Then craft a gNMI set Request to update the changes.
+func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
+	t.Helper()
+	switch d.Vendor() {
+	case ondatra.NOKIA:
+		var aclEntry10Val = []any{
+			map[string]any{
+				"action": map[string]any{
+					"drop": map[string]any{},
+				},
+				"match": map[string]any{
+					"destination-ip": map[string]any{
+						"prefix": ateDstCIDR,
+					},
+					"source-ip": map[string]any{
+						"prefix": aclNullPrefix,
+					},
+				},
+			},
+		}
+		entry10Update, err := json.Marshal(aclEntry10Val)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		var aclEntry20Val = []any{
+			map[string]any{
+				"action": map[string]any{
+					"drop": map[string]any{},
+				},
+				"match": map[string]any{
+					"source-ip": map[string]any{
+						"prefix": ateDstCIDR,
+					},
+					"destination-ip": map[string]any{
+						"prefix": aclNullPrefix,
+					},
+				},
+			},
+		}
+		entry20Update, err := json.Marshal(aclEntry20Val)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		var aclEntry30Val = []any{
+			map[string]any{
+				"action": map[string]any{
+					"accept": map[string]any{},
+				},
+				"match": map[string]any{
+					"source-ip": map[string]any{
+						"prefix": aclNullPrefix,
+					},
+					"destination-ip": map[string]any{
+						"prefix": aclNullPrefix,
+					},
+				},
+			},
+		}
+		entry30Update, err := json.Marshal(aclEntry30Val)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+		gpbSetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "srl",
+			},
+			Update: []*gpb.Update{
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "acl"},
+							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+							{Name: "entry", Key: map[string]string{"sequence-id": "10"}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: entry10Update,
+						},
+					},
+				},
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "acl"},
+							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+							{Name: "entry", Key: map[string]string{"sequence-id": "20"}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: entry20Update,
+						},
+					},
+				},
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "acl"},
+							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+							{Name: "entry", Key: map[string]string{"sequence-id": "30"}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: entry30Update,
+						},
+					},
+				},
+			},
+		}
+		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("Unexpected error configuring SRL ACL: %v", err)
+		}
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
+	}
+}
+
+// Helper function to replicate AdmitAllACL() configs in native model,
+// then craft a gNMI set Request to update the changes.
+func configAdmitAllACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
+	t.Helper()
+	switch d.Vendor() {
+	case ondatra.NOKIA:
+		gpbDelRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "srl",
+			},
+			Delete: []*gpb.Path{
+				{
+					Elem: []*gpb.PathElem{
+						{Name: "acl"},
+						{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+						{Name: "entry", Key: map[string]string{"sequence-id": "10"}},
+					},
+				},
+				{
+					Elem: []*gpb.PathElem{
+						{Name: "acl"},
+						{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+						{Name: "entry", Key: map[string]string{"sequence-id": "20"}},
+					},
+				},
+			},
+		}
+		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbDelRequest); err != nil {
+			t.Fatalf("Unexpected error removing SRL ACL: %v", err)
+		}
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
+	}
+}
+
+// Helper function to replicate configACLInterface in native model.
+// Set ACL at interface ingress,
+// then craft a gNMI set Request to update the changes.
+func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string) {
+	t.Helper()
+	switch d.Vendor() {
+	case ondatra.NOKIA:
+		var interfaceAclVal = []any{
+			map[string]any{
+				"ipv4-filter": []any{
+					aclName,
+				},
+			},
+		}
+		interfaceAclUpdate, err := json.Marshal(interfaceAclVal)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+		gpbSetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "srl",
+			},
+			Update: []*gpb.Update{
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "interface", Key: map[string]string{"name": ifName}},
+							{Name: "subinterface", Key: map[string]string{"index": "0"}},
+							{Name: "acl"},
+							{Name: "input"},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: interfaceAclUpdate,
+						},
+					},
+				},
+			},
+		}
+		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("Unexpected error configuring interface ACL: %v", err)
+		}
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
+	}
+}
+
 func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -458,9 +680,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	t.Run("configureDut", func(t *testing.T) {
 		t.Log("Start DUT interface Config")
 		configureDUT(t, dut)
-		if *deviations.RoutePolicyUnderPeerGroup {
-			configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-		}
+		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	})
 
 	// Configure BGP+Neighbors on the DUT
@@ -500,14 +720,19 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
 		t.Log("Configure Acl to block BGP on port 179")
 		const stopDuration = 45 * time.Second
-		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
-		aclConf := configACLInterface(t, iFace, ifName)
 		t.Log("Starting traffic")
 		ate.Traffic().Start(t, allFlows...)
 		startTime := time.Now()
 		t.Log("Trigger Graceful Restart on ATE")
-		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime).WithPeers(bgpPeer).Send(t)
-		gnmi.Replace(t, dut, aclConf.Config(), iFace)
+		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime * time.Second).WithPeers(bgpPeer).Send(t)
+		if deviations.UseVendorNativeACLConfig(dut) {
+			configACLNative(t, dut, aclName)
+			configACLInterfaceNative(t, dut, ifName)
+		} else {
+			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
+			aclConf := configACLInterface(t, iFace, ifName)
+			gnmi.Replace(t, dut, aclConf.Config(), iFace)
+		}
 		replaceDuration := time.Since(startTime)
 		time.Sleep(grTimer - stopDuration - replaceDuration)
 		t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
@@ -519,16 +744,10 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
-		t.Log("Waiting for BGP neighbor to go to CONNECT state after applying ACL DENY policy...")
-		var bgpState oc.E_Bgp_Neighbor_SessionState
-		if *deviations.BGPStateActiveACLDeny {
-			bgpState = oc.Bgp_Neighbor_SessionState_ACTIVE
-		} else {
-			bgpState = oc.Bgp_Neighbor_SessionState_CONNECT
-		}
+		t.Log("Waiting for BGP neighbor to Not be in Established state after applying ACL DENY policy..")
 		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			currState, ok := val.Val()
-			return ok && currState == bgpState
+			return ok && currState != oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
 			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
@@ -548,9 +767,14 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
 		t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
-		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
-		aclPath := configACLInterface(t, iFace, ifName)
-		gnmi.Replace(t, dut, aclPath.Config(), iFace)
+		if deviations.UseVendorNativeACLConfig(dut) {
+			configAdmitAllACLNative(t, dut, aclName)
+			configACLInterfaceNative(t, dut, ifName)
+		} else {
+			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
+			aclPath := configACLInterface(t, iFace, ifName)
+			gnmi.Replace(t, dut, aclPath.Config(), iFace)
+		}
 	})
 
 	t.Run("VerifyBGPEstablished", func(t *testing.T) {

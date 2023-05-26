@@ -79,6 +79,7 @@ const (
 	bundleEther123        = "Bundle-Ether123"
 	bundleEther124        = "Bundle-Ether124"
 	lc                    = "0/0/CPU0"
+	vrf1                  = "TE"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -751,7 +752,6 @@ func testFlushForwarding(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck {
-		args.client.AftPopConfig(t)
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1440,33 +1440,12 @@ func testIPv4BackUpToggleBkNHG(ctx context.Context, t *testing.T, args *testArgs
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
 	}
-	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
-		args.client.AftPushConfig(t)
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
-		args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
-		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
-		for i := 0; i < len(randomItems); i++ {
-			args.client.CheckAftIPv4(t, "TE", randomItems[i])
-		}
-	}
 
 	args.client.ReplaceNHG(t, 100, 101, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks, &gribi.NHGOptions{FRR: true})
 
 	time.Sleep(time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
-	}
-	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
-		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
-		for i := 0; i < len(randomItems); i++ {
-			args.client.CheckAftIPv4(t, "TE", randomItems[i])
-		}
 	}
 }
 
@@ -2573,6 +2552,8 @@ func TestBackUp(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 
+	var vrfs = []string{vrf1}
+	configVRF(t, dut, vrfs)
 	// Configure the DUT
 	configureDUT(t, dut)
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})

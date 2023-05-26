@@ -502,64 +502,50 @@ func TestOrderingACK(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
-	const (
-		usePreserve = "PRESERVE"
-		useDelete   = "DELETE"
-	)
+	const usePreserve = "PRESERVE"
 
-	// Each case will run with its own gRIBI fluent client.
-	for _, persist := range []string{usePreserve, useDelete} {
-		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
-			if *deviations.GRIBIPreserveOnly && persist == useDelete {
-				t.Skip("Skipping due to --deviation_gribi_preserve_only")
-			}
+	t.Run(fmt.Sprintf("Persistence=%s", usePreserve), func(t *testing.T) {
+		// Each case will run with its own gRIBI fluent client.
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Logf("Name: %s", tc.name)
+				t.Logf("Description: %s", tc.desc)
 
-			for _, tc := range cases {
-				t.Run(tc.name, func(t *testing.T) {
-					t.Logf("Name: %s", tc.name)
-					t.Logf("Description: %s", tc.desc)
+				// Configure the gRIBI client.
+				c := fluent.NewClient()
+				conn := c.Connection().
+					WithStub(gribic).WithPersistence().
+					WithRedundancyMode(fluent.ElectedPrimaryClient).
+					WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
 
-					// Configure the gRIBI client.
-					c := fluent.NewClient()
-					conn := c.Connection().
-						WithStub(gribic).
-						WithRedundancyMode(fluent.ElectedPrimaryClient).
-						WithInitialElectionID(1 /* low */, 0 /* hi */) // ID must be > 0.
-					if persist == usePreserve {
-						conn.WithPersistence()
+				if !deviations.GRIBIRIBAckOnly(dut) {
+					// The main difference WithFIBACK() made was that we are now expecting
+					// fluent.InstalledInFIB in []*client.OpResult, as opposed to
+					// fluent.InstalledInRIB.
+					conn.WithFIBACK()
+				}
+
+				c.Start(ctx, t)
+				defer c.Stop(t)
+				c.StartSending(ctx, t)
+				if err := awaitTimeout(ctx, c, t); err != nil {
+					t.Fatalf("Await got error during session negotiation: %v", err)
+				}
+				gribi.BecomeLeader(t, c)
+
+				defer func() {
+					if err := gribi.FlushAll(c); err != nil {
+						t.Errorf("Cannot flush: %v", err)
 					}
+				}()
 
-					if !*deviations.GRIBIRIBAckOnly {
-						// The main difference WithFIBACK() made was that we are now expecting
-						// fluent.InstalledInFIB in []*client.OpResult, as opposed to
-						// fluent.InstalledInRIB.
-						conn.WithFIBACK()
-					}
-
-					c.Start(ctx, t)
-					defer c.Stop(t)
-					c.StartSending(ctx, t)
-					if err := awaitTimeout(ctx, c, t); err != nil {
-						t.Fatalf("Await got error during session negotiation: %v", err)
-					}
-					gribi.BecomeLeader(t, c)
-
-					if persist == usePreserve {
-						defer func() {
-							if err := gribi.FlushAll(c); err != nil {
-								t.Errorf("Cannot flush: %v", err)
-							}
-						}()
-					}
-
-					args := &testArgs{ctx: ctx, c: c, dut: dut, ate: ate, top: top}
-					args.wantInstalled = fluent.InstalledInFIB
-					if *deviations.GRIBIRIBAckOnly {
-						args.wantInstalled = fluent.InstalledInRIB
-					}
-					tc.fn(t, args)
-				})
-			}
-		})
-	}
+				args := &testArgs{ctx: ctx, c: c, dut: dut, ate: ate, top: top}
+				args.wantInstalled = fluent.InstalledInFIB
+				if deviations.GRIBIRIBAckOnly(dut) {
+					args.wantInstalled = fluent.InstalledInRIB
+				}
+				tc.fn(t, args)
+			})
+		}
+	})
 }

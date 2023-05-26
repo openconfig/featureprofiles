@@ -34,7 +34,7 @@ var (
 	METADATA_EGRESS_PORT  = uint32(2)
 	SUBMIT_TO_INGRESS     = uint32(1)
 	SUBMIT_TO_EGRESS      = uint32(0)
-	forusIP               = "10.10.10.10"
+	forusIP               = "100.120.1.1"
 	maxPortID             = uint32(0xFFFFFEFF)
 	//intMACAddress         = "00:01:00:02:00:03"
 )
@@ -307,6 +307,9 @@ func TestP4RTPacketIO(t *testing.T) {
 	}
 	if *ciscoFlags.TTLTests {
 		ttlTestcases := map[string]func(){}
+		//configure local station mac as its needed for PacketOut submit_to_ingress tests
+		const localStationMac = "00:1a:11:00:00:01"
+		gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), localStationMac)
 		if *ciscoFlags.TTL1v4 {
 			ttlTestcases["IPv4 TTL1 Only"] = func() { args.packetIO = getTTLParameter(t, true, false, false) }
 		}

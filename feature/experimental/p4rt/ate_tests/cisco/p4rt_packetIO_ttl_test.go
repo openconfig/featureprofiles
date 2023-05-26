@@ -50,7 +50,7 @@ var (
 			name: "Program TTL Match Entry and Sent traffic to physical interface and check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:011 Programm match TTL=[1,2], send outter TTL=[0,1,2] packet from tgen to the physcial interface and verify packet(only TTL=1) is sent to primary controller",
 			fn:   testEntryProgrammingPacketInWithPhysicalInterface,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Sent Traffic to bundle subinterface and check PacketIn",
@@ -86,7 +86,7 @@ var (
 			name: "Program TTL Match Entry and other match fields and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:027 Programm match TTL=[1,2] with other field matched in the entry, send TTL=[0,1,2] packets from tgen, and verify the packet sent to the controller",
 			fn:   testEntryProgrammingPacketInWithMoreMatchingField,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program Match Entry and Send traffic to non-configured port in P4RT and Check PacketIn",
@@ -97,13 +97,13 @@ var (
 			name: "Program Match Entry and Send traffic to non-configured port in P4RT and then configure port-id and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:030 Programm match TTL=[1,2], non-configured port-id on the configured npu, TTL=1 to the non-configured port will be punted but dropped, then verify it starts working after adding the port-id",
 			fn:   testEntryProgrammingPacketInWithouthPortIDThenAddPortID,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Downgrade primary controller and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:032 Programm match TTL=[1,2], send packets with TTL=[0,1,2] from tgen, downgrade/fail the primary controller, verify the packets are sent to the backup controller if there is backup controller",
 			fn:   testEntryProgrammingPacketInDowngradePrimaryController,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Downgrade primary controller without backup controller and Check PacketIn",
@@ -119,13 +119,13 @@ var (
 			name: "Program TTL Match Entry and Send traffic with Flowlabel and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:036 Programm match TTL=[1,2], send IPv6 packets with TTL=[0,1,2] with flow-label/SRH from tgen, verify those packets sent to controller",
 			fn:   testEntryProgrammingPacketInWithFlowLabel,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Configure ACL and Check PacketIn",
 			desc: "Packet I/O-Traceroute-PacketIn:037 Programm match TTL=[1,2], configured IPv4 ACL to match TTL=1 and set action to drop, verify packets dropped and not sent to controller",
 			fn:   testEntryProgrammingPacketInWithAcl,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Send scale TTL traffic",
@@ -136,37 +136,37 @@ var (
 			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:001-002 Ingress: Inject EtherType 0x6007 packets and verify traffic sends to related port in case of EtherType 0x6007 entry NOT programmed",
 			fn:   testPacketOutWithoutMatchEntry,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:004 Ingress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
 			fn:   testPacketOut,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 (submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:005-024 Ingress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
 			fn:   testPacketOutTTLOneWithoutMatchEntry,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 With ICMP or Traceroute(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:006 Ingress: Programm match TTL=[1,2], inject ICMP/Traceroute packets with TTL=[0,1,2], verify if the packets go out for 1/2, 0 case not sent out",
 			fn:   testPacketOutTTLOneWithUDP,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 With For-Us-IP(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:007 Ingress: dst IP is for us for the incoming packet, packet goes through lpts",
 			fn:   testPacketOutWithForUsIP,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 Traffic With For-Us-IP(submit_to_ingress)",
 			desc: "Packet I/O-Traceroute-PacketOut:007 Ingress: dst IP is for us for the incoming packet, packet goes through lpts",
 			fn:   testPacketOutTTLOneWithForUsIP,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Check PacketOut Without Programming TTL Match Entry(submit_to_egress)",
@@ -177,13 +177,13 @@ var (
 			name: "Check PacketOut Without Programming TTL Match Entry with Static Route(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:014-015 Egress: Without any match entries, Injecting IPv4/IPv6 packet with any TTL and configure null0 static router for the packet destination, verify packets sent out on those egress interfaces",
 			fn:   testPacketOutTTLOneWithStaticroute,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:016 Egress: Programm match TTL=[1,2], inject packets with TTL>3, and verify packet fwding based fwding chain on the router side",
 			fn:   testPacketOutEgress,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Program TTL Match Entry and Check PacketOut With TTL1 (submit_to_egress)",
@@ -214,7 +214,7 @@ var (
 			name: "Flap Interface and Check PacketOut(submit_to_egress)",
 			desc: "Packet I/O-Traceroute-PacketOut:023 Flap egress ports and verify the packets sent/dropped as port up/down",
 			fn:   testPacketOutEgressWithInterfaceFlap,
-			skip: true,
+			// skip: true,
 		},
 		{
 			name: "Flap Interface and Check PacketOut(submit_to_ingress)",
@@ -413,29 +413,44 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 			pktEth.EthernetType = 0x86dd
 		}
 		packetLayers = append(packetLayers, pktEth)
+	} else {
+		pktEth := &layers.Ethernet{
+			SrcMAC: net.HardwareAddr{0x00, 0x01, 0x00, 0x02, 0x00, 0x03},
+			DstMAC: net.HardwareAddr{0x00, 0x1A, 0x11, 0x00, 0x00, 0x01},
+		}
+		if ipv4 {
+			pktEth.EthernetType = 0x0800
+		} else {
+			pktEth.EthernetType = 0x86dd
+		}
+		packetLayers = append(packetLayers, pktEth)
 	}
 
 	// strings.Split(atePort1.IPv4, ".")
 
 	if ipv4 {
+		// for PacketOut submit_to_ingress/submit_to_egress the flow is DUT to ATE
 		pktIP := &layers.IPv4{
 			Version:  4,
-			SrcIP:    net.IP(convertIPv4Address(t, *ttl.PacketOutObj.SrcIPv4)),
-			DstIP:    net.IP(convertIPv4Address(t, *ttl.PacketOutObj.DstIPv4)),
+			SrcIP:    net.IP(convertIPv4Address(t, *ttl.PacketOutObj.DstIPv4)),
+			DstIP:    net.IP(convertIPv4Address(t, *ttl.PacketOutObj.SrcIPv4)),
 			TTL:      uint8(*ttl.PacketOutObj.TTL),
 			Protocol: layers.IPProtocol(61),
 		}
 		packetLayers = append(packetLayers, pktIP)
+
 	} else {
+		t.Logf("dst ip %v", net.IP(convertIPv6Address(t, *ttl.PacketOutObj.DstIPv6)))
 		pktIP := &layers.IPv6{
-			Version:  6,
-			SrcIP:    net.IP(convertIPv6Address(t, *ttl.PacketOutObj.SrcIPv6)),
-			DstIP:    net.IP(convertIPv6Address(t, *ttl.PacketOutObj.DstIPv6)),
-			HopLimit: uint8(*ttl.PacketOutObj.TTL),
+			Version:    6,
+			SrcIP:      net.ParseIP(*ttl.PacketOutObj.DstIPv6).To16(),
+			DstIP:      net.ParseIP(*ttl.PacketOutObj.SrcIPv6).To16(),
+			HopLimit:   uint8(*ttl.PacketOutObj.TTL),
+			NextHeader: layers.IPProtocol(58),
 		}
 		packetLayers = append(packetLayers, pktIP)
-	}
 
+	}
 	// add UDP layer if udp is true
 	if ttl.PacketOutObj.udp {
 		udp := &layers.UDP{
@@ -444,7 +459,6 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 		}
 		packetLayers = append(packetLayers, udp)
 	}
-
 	payload := []byte{}
 	payLoadLen := 64
 	for i := 0; i < payLoadLen; i++ {

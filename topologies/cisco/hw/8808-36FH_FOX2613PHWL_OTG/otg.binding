@@ -1,0 +1,132 @@
+duts {
+  id: "dut"
+  name: "DUT"  # Change this to the device hostname.
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+  
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  # telnet: -  telnet 10.85.84.47 2001, 2002
+  # Mgmt : 5.18.17.20
+  # Location : 22-18-17
+
+  # Exec server:
+  # ssh ott2lab-as3
+
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.70.112:60699"
+  }
+  gnmi {
+    target: "10.85.70.112:60699"
+  }
+  gribi{
+    target: "10.85.70.112:60699"
+  }
+  ssh{
+    target: "10.85.70.112:58005" 
+  }
+  p4rt{
+    target: "10.85.70.112:60699"
+  }
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "TenGigE0/0/0/0/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "TenGigE0/0/0/0/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "TenGigE0/0/0/0/2"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "TenGigE0/0/0/0/3"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "TenGigE0/0/0/2/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "TenGigE0/0/0/2/2"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port8"
+    name: "TenGigE0/0/0/2/3"  # Change this to the actual port name.
+  }
+}
+
+ates {
+  id: "ate"
+  name: "10.85.17.225:40057"  # Change this to the Ixia-C-Controler hostname.
+
+  # This option specific to OTG over Ixia-HW.
+  otg {
+    target: "10.85.17.225:40057" # Change this to the Ixia-c-grpc server endpoint.
+    insecure: true
+    timeout: 30
+  }
+
+  gnmi {
+    target: "10.85.17.225:50057"  # Change this to the Ixia-c-gnmi server endpoint.
+    skip_verify: true
+    timeout: 30
+  }
+
+  options {
+    username: "admin"
+    password: "admin"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "10.85.84.155;10;26"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "10.85.84.155;10;28"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "10.85.84.155;10;25"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "10.85.84.155;10;27"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "10.85.84.155;10;29"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "10.85.84.155;10;31"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "10.85.84.155;10;32"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port8"
+    name: "10.85.84.155;10;30"  # Change this to the actual port name.
+  }
+}

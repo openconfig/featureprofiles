@@ -2,11 +2,11 @@ devices:
   dut:
     connections:
       a:
-        ip: 10.85.84.55
+        ip: 10.85.84.54
         port: 2005
         protocol: telnet
       b:
-        ip: 10.85.84.55
+        ip: 10.85.84.54
         port: 2006
         protocol: telnet
     credentials:
