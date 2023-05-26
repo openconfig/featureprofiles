@@ -350,8 +350,9 @@ func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
 
 // MissingPrePolicyReceivedRoutes returns if device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
 // Fully-compliant devices should pass with and without this deviation.
-func MissingPrePolicyReceivedRoutes(_ *ondatra.DUTDevice) bool {
-	return *missingPrePolicyReceivedRoutes
+func MissingPrePolicyReceivedRoutes(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_prepolicy_received_routes")
+	return lookupDUTDeviations(dut).GetPrepolicyReceivedRoutes()
 }
 
 // DeprecatedVlanID returns if device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.
@@ -528,7 +529,7 @@ var (
 
 	RoutePolicyUnderPeerGroup = flag.Bool("deviation_rpl_under_peergroup", false, "Device requires route-policy configuration under bgp peer-group. Fully-compliant devices should pass with and without this deviation.")
 
-	missingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
+	_ = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
 
 	_ = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
 
