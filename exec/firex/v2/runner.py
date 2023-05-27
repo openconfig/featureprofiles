@@ -51,10 +51,10 @@ def _get_go_root_path():
     return os.path.join('/nobackup', getuser())
 
 def _get_go_path():
-    os.path.join(_get_go_root_path(), 'go')
+    return os.path.join(_get_go_root_path(), 'go')
 
 def _get_go_bin_path():
-    os.path.join(_get_go_path(), 'bin')
+    return os.path.join(_get_go_path(), 'bin')
 
 def _get_go_env():
     gorootpath = _get_go_root_path()
