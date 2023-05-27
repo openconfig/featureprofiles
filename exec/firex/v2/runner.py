@@ -382,7 +382,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         test_skip=False, test_fail_skipped=False):
 
     logger.print('Running Go test...')
-    json_results_file = Path(test_log_directory_path) / f'go_logs.json'
+    # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
 
@@ -440,8 +440,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                             cwd=test_repo_dir)
         stop_time = self.get_current_time()
     finally:
-        if self.console_output_file and Path(self.console_output_file).is_file():
-            shutil.copyfile(self.console_output_file, json_results_file)
+        # if self.console_output_file and Path(self.console_output_file).is_file():
+        #     shutil.copyfile(self.console_output_file, json_results_file)
         
         suite = _get_testsuite_from_xml(xml_results_file)
         if suite: 
@@ -463,10 +463,10 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         else: 
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
 
-        log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
+        # log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
         # write_output_from_results_json(json_results_file, log_filepath)
-        log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
-        return None, xunit_results_filepath, log_file, start_time, stop_time
+        # log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
+        return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
 @app.task(bind=True, max_retries=5, autoretry_for=[git.GitCommandError])
 def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=None):
