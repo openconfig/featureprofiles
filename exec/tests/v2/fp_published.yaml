@@ -589,7 +589,6 @@ tests:
     path: feature/qos/ate_tests/bursty_traffic_test
     owners:
       - saarvind
-    internal: true
     mustpass: true
     args:
       - '-deviation_qos_dropped_octets="true"'
