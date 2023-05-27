@@ -57,12 +57,17 @@ def _get_go_bin_path():
     return os.path.join(_get_go_path(), 'bin')
 
 def _get_go_env():
+    PATH = "{}:{}".format(
+        os.path.dirname(GO_BIN), os.environ["PATH"]
+    )
+
     gorootpath = _get_go_root_path()
     return {
         'GOPATH': _get_go_path(),
         'GOCACHE': os.path.join(gorootpath, '.gocache'),
         'GOTMPDIR': os.path.join(gorootpath, '.gocache'),
-        'GOROOT': '/auto/firex/sw/go'
+        'GOROOT': '/auto/firex/sw/go',
+        'PATH': PATH
     }
 
 def _resolve_path_if_needed(dir, path):
@@ -358,8 +363,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if test_html_report:
-        chain |= GoReporting.s()
+    # if test_html_report:
+    #     chain |= GoReporting.s()
 
     if cflow and testbed:
         chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
@@ -414,18 +419,14 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
     go_args = f'{go_args} ' \
                 f'{go_args_prefix}v ' \
-                f'{go_args_prefix}json ' \
-                f'{go_args_prefix}p 1 ' \
+                f'{go_args_prefix}parallel 1 ' \
                 f'{go_args_prefix}timeout {test_timeout}s'
 
-    go_test_bin = GO_BIN
     if test_debug:
-        go_test_bin = os.path.join(_get_go_bin_path(), 'dlv')
-
-    cmd = f'{go_test_bin} test ./{test_path} '
-    if test_debug:
-        cmd += f'-- '
-    cmd += f'{go_args} -args {test_args}'
+        dlv_bin = os.path.join(_get_go_bin_path(), 'dlv')
+        cmd = f'{dlv_bin} test ./{test_path} -- {go_args} {test_args}'
+    else:
+        cmd = f'{GO_BIN} test ./{test_path} {go_args} -args {test_args}'
 
     start_time = self.get_current_time()
     start_timestamp = int(time.time())
@@ -463,7 +464,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
 
         log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
-        write_output_from_results_json(json_results_file, log_filepath)
+        # write_output_from_results_json(json_results_file, log_filepath)
         log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
         return None, xunit_results_filepath, log_file, start_time, stop_time
 
