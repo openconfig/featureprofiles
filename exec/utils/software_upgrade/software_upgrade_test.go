@@ -26,9 +26,8 @@ const (
 	imageDestination = "/harddisk:/8000-x64.iso"
 	installCmd       = "install replace reimage " + imageDestination + " noprompt commit"
 	installStatusCmd = "sh install request"
-	imgCopyTimeout   = 900 * time.Second
+	imgCopyTimeout   = 1800 * time.Second
 	installTimeout   = 1800 * time.Second
-	compWaitTimeout  = 600 * time.Second
 	sshCmdTimeout    = 30 * time.Second
 	statusCheckDelay = 60 * time.Second
 )
