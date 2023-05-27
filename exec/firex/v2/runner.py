@@ -47,13 +47,27 @@ whitelist_arguments([
     'test_fail_skipped',
 ])
 
+def _get_go_root_path():
+    return os.path.join('/nobackup', getuser())
+
+def _get_go_path():
+    return os.path.join(_get_go_root_path(), 'go')
+
+def _get_go_bin_path():
+    return os.path.join(_get_go_path(), 'bin')
+
 def _get_go_env():
-    gorootpath = os.path.join('/nobackup', getuser())
+    PATH = "{}:{}".format(
+        os.path.dirname(GO_BIN), os.environ["PATH"]
+    )
+
+    gorootpath = _get_go_root_path()
     return {
-        'GOPATH': os.path.join(gorootpath, 'go'),
+        'GOPATH': _get_go_path(),
         'GOCACHE': os.path.join(gorootpath, '.gocache'),
         'GOTMPDIR': os.path.join(gorootpath, '.gocache'),
-        'GOROOT': '/auto/firex/sw/go'
+        'GOROOT': '/auto/firex/sw/go',
+        'PATH': PATH
     }
 
 def _resolve_path_if_needed(dir, path):
@@ -291,10 +305,11 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         fp_pre_tests=[],
                         fp_post_tests=[],
                         internal_test=False,
-                        test_debug=True,
+                        test_debug=False,
                         test_verbose=True,
                         test_html_report=False,
                         release_ixia_ports=True,
+                        collect_debug_files=True,
                         testbed=None,
                         **kwargs):
 
@@ -319,6 +334,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     test_timeout=test_timeout,
                     test_debug=test_debug,
                     test_verbose=test_verbose,
+                    collect_debug_files=collect_debug_files,
                     **kwargs)
 
     chain |= CloneRepo.s(repo_url=test_repo_url,
@@ -328,6 +344,9 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     target_dir=test_repo_dir)
 
     chain |= GoTidy.s(repo=test_repo_dir)
+
+    if test_debug:
+        chain |= InstallGoDelve.s()
 
     if release_ixia_ports:
         chain |= ReleaseIxiaPorts.s()
@@ -344,8 +363,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if test_html_report:
-        chain |= GoReporting.s()
+    # if test_html_report:
+    #     chain |= GoReporting.s()
 
     if cflow and testbed:
         chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
@@ -358,12 +377,12 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
-        test_name, test_path, test_args=None, test_timeout=0, test_debug=False, 
-        test_verbose=False, testbed_info_path=None, test_ignore_aborted=False,
+        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
+        test_debug=False, test_verbose=False, testbed_info_path=None, test_ignore_aborted=False,
         test_skip=False, test_fail_skipped=False):
 
     logger.print('Running Go test...')
-    json_results_file = Path(test_log_directory_path) / f'go_logs.json'
+    # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
 
@@ -385,7 +404,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
 
-    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path} '
+    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path} -xml "{xml_results_file}" '
     if test_verbose:
         test_args += f'-v 5 ' \
             f'-alsologtostderr'
@@ -394,13 +413,20 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     if test_timeout == 0: test_timeout = inactivity_timeout
     if test_timeout > 0: inactivity_timeout = 2*test_timeout
 
-    go_args = f'{go_args} ' \
-                f'-json ' \
-                f'-p 1 ' \
-                f'-timeout {test_timeout}s'
+    go_args_prefix = '-'
+    if test_debug:
+        go_args_prefix = '-test.'
 
-    cmd = f'{GO_BIN} test -v ./{test_path} {go_args} -args {test_args} ' \
-            f'-xml "{xml_results_file}"'
+    go_args = f'{go_args} ' \
+                f'{go_args_prefix}v ' \
+                f'{go_args_prefix}parallel 1 ' \
+                f'{go_args_prefix}timeout {test_timeout}s'
+
+    if test_debug:
+        dlv_bin = os.path.join(_get_go_bin_path(), 'dlv')
+        cmd = f'{dlv_bin} test ./{test_path} -- {go_args} {test_args}'
+    else:
+        cmd = f'{GO_BIN} test ./{test_path} {go_args} -args {test_args}'
 
     start_time = self.get_current_time()
     start_timestamp = int(time.time())
@@ -414,13 +440,13 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                             cwd=test_repo_dir)
         stop_time = self.get_current_time()
     finally:
-        if self.console_output_file and Path(self.console_output_file).is_file():
-            shutil.copyfile(self.console_output_file, json_results_file)
+        # if self.console_output_file and Path(self.console_output_file).is_file():
+        #     shutil.copyfile(self.console_output_file, json_results_file)
         
         suite = _get_testsuite_from_xml(xml_results_file)
         if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
-            if test_debug and suite.attrib['failures'] != '0':
+            if collect_debug_files and suite.attrib['failures'] != '0':
                 self.enqueue_child(CollectDebugFiles.s(
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     ondatra_binding_path=ondatra_binding_path, 
@@ -437,10 +463,10 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         else: 
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
 
-        log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
-        write_output_from_results_json(json_results_file, log_filepath)
-        log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
-        return None, xunit_results_filepath, log_file, start_time, stop_time
+        # log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
+        # write_output_from_results_json(json_results_file, log_filepath)
+        # log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
+        return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
 @app.task(bind=True, max_retries=5, autoretry_for=[git.GitCommandError])
 def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=None):
@@ -682,6 +708,15 @@ def GoTidy(self, repo):
     env.update(_get_go_env())
     logger.print(
         check_output(f'{GO_BIN} mod tidy', env=env, cwd=repo)
+    )
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def InstallGoDelve(self, repo):
+    env = dict(os.environ)
+    env.update(_get_go_env())
+    logger.print(
+        check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=repo)
     )
 
 # noinspection PyPep8Naming
