@@ -275,12 +275,16 @@ tests:
     path: feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test
     owners:
       - sprem
+    args:
+      - '-deviation_interface_ref_config_unsupported="true"'
     mustpass: true
     priority: 30
-  - name: RT-3.1 Policy based VRF selection
+  - name: RT-3.1 (Policy based VRF selection)
     path: feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection
     owners:
       - sprem
+    args:
+      - '-deviation_interface_ref_config_unsupported="true"'
     mustpass: true
     priority: 30
   - name: RT-5.1 (Singleton Interface)
