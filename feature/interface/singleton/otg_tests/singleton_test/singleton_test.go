@@ -114,9 +114,9 @@ type otgNeighborVerification func(t *testing.T)
 
 // configInterfaceDUT configures an oc Interface with the desired MTU.
 func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *attrs.Attributes) {
-	a.ConfigOCInterface(i)
+	a.ConfigOCInterface(i, tc.dut)
 
-	if !*deviations.OmitL2MTU {
+	if !deviations.OmitL2MTU(tc.dut) {
 		i.Mtu = ygot.Uint16(tc.mtu + 14)
 	}
 	i.Description = ygot.String(*i.Description)
@@ -146,11 +146,11 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	fptest.LogQuery(t, p2.String(), di2.Config(), tc.duti2)
 	gnmi.Replace(t, tc.dut, di2.Config(), tc.duti2)
 
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
+		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(tc.dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
@@ -243,7 +243,7 @@ func (tc *testCase) verifyInterfaceDUT(
 
 	disp := dip.Subinterface(0)
 
-	if !*deviations.IPNeighborMissing {
+	if !deviations.IPNeighborMissing(tc.dut) {
 		// IPv4 neighbor discovered by ARP.
 		dis4np := disp.Ipv4().Neighbor(atea.IPv4)
 		if got := gnmi.Get(t, tc.dut, dis4np.Origin().State()); got != dynamic {

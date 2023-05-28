@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -27,46 +26,13 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-var (
-	intf1 = attrs.Attributes{
-		Name:    "ate1",
-		MAC:     "02:00:01:01:01:01",
-		IPv4:    "198.51.100.1",
-		IPv4Len: 31,
-	}
-
-	intf2 = attrs.Attributes{
-		Name:    "ate2",
-		MAC:     "02:00:01:02:01:01",
-		IPv4:    "198.51.100.3",
-		IPv4Len: 31,
-	}
-
-	intf3 = attrs.Attributes{
-		Name:    "ate3",
-		MAC:     "02:00:01:03:01:01",
-		IPv4:    "198.51.100.5",
-		IPv4Len: 31,
-	}
-
-	dutPort1 = attrs.Attributes{
-		IPv4: "198.51.100.0",
-	}
-	dutPort2 = attrs.Attributes{
-		IPv4: "198.51.100.2",
-	}
-	dutPort3 = attrs.Attributes{
-		IPv4: "198.51.100.4",
-	}
-)
-
 type trafficData struct {
 	trafficRate           float64
 	expectedThroughputPct float32
 	frameSize             uint32
 	dscp                  uint8
 	queue                 string
-	inputIntf             attrs.Attributes
+	inputIntf             *ondatra.Interface
 }
 
 func TestMain(m *testing.M) {
@@ -114,12 +80,20 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 	ap3 := ate.Port(t, "port3")
-	top := ate.OTG().NewConfig(t)
-
-	intf1.AddToOTG(top, ap1, &dutPort1)
-	intf2.AddToOTG(top, ap2, &dutPort2)
-	intf3.AddToOTG(top, ap3, &dutPort3)
-	ate.OTG().PushConfig(t, top)
+	top := ate.Topology().New()
+	intf1 := top.AddInterface("intf1").WithPort(ap1)
+	intf1.IPv4().
+		WithAddress("198.51.100.1/31").
+		WithDefaultGateway("198.51.100.0")
+	intf2 := top.AddInterface("intf2").WithPort(ap2)
+	intf2.IPv4().
+		WithAddress("198.51.100.3/31").
+		WithDefaultGateway("198.51.100.2")
+	intf3 := top.AddInterface("intf3").WithPort(ap3)
+	intf3.IPv4().
+		WithAddress("198.51.100.5/31").
+		WithDefaultGateway("198.51.100.4")
+	top.Push(t).StartProtocols(t)
 
 	queueMap := map[ondatra.Vendor]map[string]string{
 		ondatra.JUNIPER: {
@@ -408,31 +382,22 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			trafficFlows := tc.trafficFlows
-			top.Flows().Clear()
 
+			var flows []*ondatra.Flow
 			for trafficID, data := range trafficFlows {
 				t.Logf("Configuring flow %s", trafficID)
-				flow := top.Flows().Add().SetName(trafficID)
-				flow.Metrics().SetEnable(true)
-				flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".IPv4"}).SetRxNames([]string{intf3.Name + ".IPv4"})
-				ethHeader := flow.Packet().Add().Ethernet()
-				ethHeader.Src().SetValue(data.inputIntf.MAC)
-
-				ipHeader := flow.Packet().Add().Ipv4()
-				ipHeader.Src().SetValue(data.inputIntf.IPv4)
-				ipHeader.Dst().SetValue(intf3.IPv4)
-				ipHeader.Priority().Dscp().Phb().SetValue(int32(data.dscp))
-
-				flow.Size().SetFixed(int32(data.frameSize))
-				flow.Rate().SetPercentage(float32(data.trafficRate))
-
+				flow := ate.Traffic().NewFlow(trafficID).
+					WithSrcEndpoints(data.inputIntf).
+					WithDstEndpoints(intf3).
+					WithHeaders(ondatra.NewEthernetHeader(), ondatra.NewIPv4Header().WithDSCP(data.dscp)).
+					WithFrameRatePct(data.trafficRate).
+					WithFrameSize(data.frameSize)
+				flows = append(flows, flow)
 			}
-			ate.OTG().PushConfig(t, top)
-			ate.OTG().StartProtocols(t)
 
 			counters := make(map[string]map[string]uint64)
 			var counterNames []string
-			if !*deviations.QOSDroppedOctets {
+			if !deviations.QOSDroppedOctets(dut) {
 				counterNames = []string{
 
 					"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
@@ -463,7 +428,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				counters["dutQosPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				counters["dutQosOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
 				counters["dutQosDroppedPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-				if !*deviations.QOSDroppedOctets {
+				if !deviations.QOSDroppedOctets(dut) {
 					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
 				}
 			}
@@ -471,29 +436,24 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", dp2.Name(), dp3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
-			ate.OTG().StartTraffic(t)
+			ate.Traffic().Start(t, flows...)
 			time.Sleep(30 * time.Second)
-			ate.OTG().StopTraffic(t)
+			ate.Traffic().Stop(t)
 			time.Sleep(30 * time.Second)
 
 			for trafficID, data := range trafficFlows {
-				ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
-				ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
-				counters["ateOutPkts"][data.queue] += ateTxPkts
-				counters["ateInPkts"][data.queue] += ateRxPkts
+				counters["ateOutPkts"][data.queue] += gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().OutPkts().State())
+				counters["ateInPkts"][data.queue] += gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).Counters().InPkts().State())
 
 				counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
 				counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-				if !*deviations.QOSDroppedOctets {
+				if !deviations.QOSDroppedOctets(dut) {
 					counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
 				}
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 
-				if ateTxPkts == 0 {
-					t.Fatalf("TxPkts == 0, want >0.")
-				}
-				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
+				lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(trafficID).LossPct().State())
 				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
 				if got, want := 100.0-lossPct, data.expectedThroughputPct; got != want {
 					t.Errorf("Get(throughput for queue %q): got %.2f%%, want %.2f%%", data.queue, got, want)
@@ -525,7 +485,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				if dutOctetCounterDiff < ateOctetCounterDiff {
 					t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
 				}
-				if !*deviations.QOSDroppedOctets {
+				if !deviations.QOSDroppedOctets(dut) {
 					dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
 					t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
 					if dutDropOctetCounterDiff != 0 {
@@ -551,17 +511,17 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	}{{
 		desc:      "Input interface port1",
 		intfName:  dp1.Name(),
-		ipAddr:    dutPort1.IPv4,
+		ipAddr:    "198.51.100.0",
 		prefixLen: 31,
 	}, {
 		desc:      "Input interface port2",
 		intfName:  dp2.Name(),
-		ipAddr:    dutPort2.IPv4,
+		ipAddr:    "198.51.100.2",
 		prefixLen: 31,
 	}, {
 		desc:      "Output interface port3",
 		intfName:  dp3.Name(),
-		ipAddr:    dutPort3.IPv4,
+		ipAddr:    "198.51.100.4",
 		prefixLen: 31,
 	}}
 
@@ -576,7 +536,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			s.Enabled = ygot.Bool(true)
 		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
@@ -1534,7 +1494,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
-		if *deviations.ExplicitInterfaceRefDefinition {
+		if deviations.ExplicitInterfaceRefDefinition(dut) {
 			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
 			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		}
@@ -1670,7 +1630,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
-		if *deviations.ExplicitInterfaceRefDefinition {
+		if deviations.ExplicitInterfaceRefDefinition(dut) {
 			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
 		}
 		output := i.GetOrCreateOutput()

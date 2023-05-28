@@ -4,3 +4,4 @@
 uuid: "35e47706-04ec-44b2-a184-d1f274fb3182"
 plan_id: "P4RT-3.2"
 description: "Google Discovery Protocol: PacketOut"
+testbed: TESTBED_DUT_ATE_2LINKS

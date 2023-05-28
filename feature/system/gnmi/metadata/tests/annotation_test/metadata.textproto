@@ -4,3 +4,4 @@
 uuid: "6f6d4a13-29e1-43c0-b75e-7bbcdb91d7dd"
 plan_id: "gNMI-1.8"
 description: "Configuration Metadata-only Retrieve and Replace"
+testbed: TESTBED_DUT_ATE_2LINKS
