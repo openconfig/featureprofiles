@@ -19,6 +19,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -123,18 +124,18 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	return nil
 }
 
-// decodePacket decodes L2 header in the packet and returns destination MAC and ethernet type.
-func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType) {
+// decodePacket decodes L2 header in the packet and returns source and destination MAC and ethernet type.
+func decodePacket(t *testing.T, packetData []byte) (string, string, layers.EthernetType) {
 	t.Helper()
 	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
 	etherHeader := packet.Layer(layers.LayerTypeEthernet)
 	if etherHeader != nil {
 		header, decoded := etherHeader.(*layers.Ethernet)
 		if decoded {
-			return header.DstMAC.String(), header.EthernetType
+			return header.SrcMAC.String(), header.DstMAC.String(), header.EthernetType
 		}
 	}
-	return "", layers.EthernetType(0)
+	return "", "", layers.EthernetType(0)
 }
 
 // testTraffic sends traffic flow for duration seconds and returns the
@@ -184,17 +185,18 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Errorf("Unexpected error on fetchPackets: %v", err)
 	}
 
-	if got, want := len(packets), pktOut; got != want {
-		t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
-	}
+	gotPkts := 0
 	t.Logf("Start to decode packet and compare with expected packets.")
 	wantPacket := args.packetIO.GetPacketTemplate()
 	for _, packet := range packets {
 		if packet != nil {
 			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
-				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				srcMAC, dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
 				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
-					t.Fatalf("Packet in PacketIn message is not matching wanted packet.")
+					continue
+				}
+				if !strings.EqualFold(srcMAC, *lldpSrcMAC) {
+					continue
 				}
 			}
 
@@ -217,7 +219,11 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 					}
 				}
 			}
+			gotPkts++
 		}
+	}
+	if got, want := gotPkts, pktOut; got != want {
+		t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
 	}
 }
 
@@ -265,6 +271,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -384,9 +391,6 @@ func TestPacketIn(t *testing.T) {
 
 	// Configure P4RT device-id and port-id
 	configureDeviceID(ctx, t, dut)
-
-	t.Logf("Disable LLDP config")
-	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
