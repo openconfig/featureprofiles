@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -90,9 +89,10 @@ func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
 	return s
 }
 
-// GetSubcomponentPath creates a gNMI path based on the componnent name.
-func GetSubcomponentPath(name string) *tpb.Path {
-	if *deviations.GNOISubcomponentPath {
+// GetSubcomponentPath creates a gNMI path based on the component name.
+// If useNameOnly is true, returns a path to the specified name instead of a full subcomponent path.
+func GetSubcomponentPath(name string, useNameOnly bool) *tpb.Path {
+	if useNameOnly {
 		return &tpb.Path{
 			Elem: []*tpb.PathElem{{Name: name}},
 		}

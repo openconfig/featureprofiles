@@ -92,26 +92,26 @@ var (
 )
 
 // ISISPath is shorthand for ProtocolPath().Isis().
-func ISISPath() *networkinstance.NetworkInstance_Protocol_IsisPath {
-	return ProtocolPath().Isis()
+func ISISPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_Protocol_IsisPath {
+	return ProtocolPath(dut).Isis()
 }
 
 // ProtocolPath returns the path to the IS-IS protocol named ISISName on the
 // default network instance.
-func ProtocolPath() *networkinstance.NetworkInstance_ProtocolPath {
-	return ocpath.Root().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
+func ProtocolPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_ProtocolPath {
+	return ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(PTISIS, ISISName)
 }
 
 // addISISOC configures basic IS-IS on a device.
-func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
-	inst := dev.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.DUTDevice) {
+	inst := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	if !*deviations.ISISprotocolEnabledNotRequired {
+	if !deviations.ISISprotocolEnabledNotRequired(dut) {
 		prot.Enabled = ygot.Bool(true)
 	}
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
-	if !*deviations.ISISInstanceEnabledNotRequired {
+	if !deviations.ISISInstanceEnabledNotRequired(dut) {
 		glob.Instance = ygot.String(ISISName)
 	}
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
@@ -123,14 +123,14 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string) {
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
 	// Configure ISIS level at global mode if true else at interface mode
-	if *deviations.ISISInterfaceLevel1DisableRequired {
+	if deviations.ISISInterfaceLevel1DisableRequired(dut) {
 		intf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
 	} else {
 		intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
 	}
 	glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	// Configure ISIS enable flag at interface level
-	if *deviations.MissingIsisInterfaceAfiSafiEnable {
+	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
 		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	}
@@ -178,8 +178,8 @@ func New(t testing.TB) (*TestSession, error) {
 	s.DUTPort2 = s.DUT.Port(t, "port2")
 	s.DUTConf = &oc.Root{}
 	// configure dut ports
-	DUTISISAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort1.Name()))
-	DUTTrafficAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort2.Name()))
+	DUTISISAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort1.Name()), s.DUT)
+	DUTTrafficAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort2.Name()), s.DUT)
 
 	// If there is no ate, any operation that requires the ATE will call
 	// t.Fatal() instead. This is helpful for debugging the parts of the test
@@ -207,10 +207,10 @@ func MustNew(t testing.TB) *TestSession {
 
 // WithISIS adds ISIS to a test session.
 func (s *TestSession) WithISIS() *TestSession {
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name()+".0")
+	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) {
+		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name()+".0", s.DUT)
 	} else {
-		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name())
+		addISISOC(s.DUTConf, DUTAreaAddress, DUTSysID, s.DUTPort1.Name(), s.DUT)
 	}
 	if s.ATE != nil {
 		addISISTopo(s.ATEIntf1, ATEAreaAddress, "*")
@@ -223,7 +223,7 @@ func (s *TestSession) WithISIS() *TestSession {
 // to the IS-IS block of ts.DUTConfig, and the second will be applied to the
 // IS-IS configuration of ts.ATETop
 func (s *TestSession) ConfigISIS(ocFn func(*oc.NetworkInstance_Protocol_Isis), ateFn func(*ixnet.ISIS)) {
-	ocFn(s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName).GetOrCreateIsis())
+	ocFn(s.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).GetOrCreateProtocol(PTISIS, ISISName).GetOrCreateIsis())
 	if s.ATE != nil {
 		ateFn(s.ATEIntf1.ISIS())
 	}
@@ -250,21 +250,21 @@ func (s *TestSession) PushDUT(ctx context.Context, t testing.TB) error {
 			return fmt.Errorf("configuring interface %s: %w", name, err)
 		}
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) {
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), deviations.DefaultNetworkInstance(s.DUT), 0)
+		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), deviations.DefaultNetworkInstance(s.DUT), 0)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(s.DUT) {
 		fptest.SetPortSpeed(t, s.DUTPort1)
 		fptest.SetPortSpeed(t, s.DUTPort2)
 	}
 
 	// Push the ISIS protocol
-	if _, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().NetworkInstance(*deviations.DefaultNetworkInstance).Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE); err != nil {
+	if _, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE); err != nil {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
-	dutConf := s.DUTConf.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
-	_, err := ygnmi.Replace(ctx, s.DUTClient, ProtocolPath().Config(), dutConf)
+	dutConf := s.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).GetOrCreateProtocol(PTISIS, ISISName)
+	_, err := ygnmi.Replace(ctx, s.DUTClient, ProtocolPath(s.DUT).Config(), dutConf)
 	if err != nil {
 		return fmt.Errorf("configuring ISIS: %w", err)
 	}
@@ -284,9 +284,9 @@ func (s *TestSession) PushAndStartATE(t testing.TB) {
 // link has formed any IS-IS adjacency, returning the adjacency ID or an error
 // if one doesn't form.
 func (s *TestSession) AwaitAdjacency() (string, error) {
-	intf := ISISPath().Interface(s.DUTPort1.Name())
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		intf = ISISPath().Interface(s.DUTPort1.Name() + ".0")
+	intf := ISISPath(s.DUT).Interface(s.DUTPort1.Name())
+	if deviations.ExplicitInterfaceInDefaultVRF(s.DUT) {
+		intf = ISISPath(s.DUT).Interface(s.DUTPort1.Name() + ".0")
 	}
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
