@@ -4,3 +4,4 @@
 uuid: "279bd41d-dbe7-4b6c-8ec1-08fb12b7f7b0"
 plan_id: "DP-1.4"
 description: "QoS Interface Output Queue Counters"
+testbed: TESTBED_DUT_ATE_2LINKS

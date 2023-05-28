@@ -4,3 +4,4 @@
 uuid: "cacbb7a0-5e13-4665-9ec0-e529980e9335"
 plan_id: "TE-4.1"
 description: "Base Leader Election"
+testbed: TESTBED_DUT_ATE_4LINKS

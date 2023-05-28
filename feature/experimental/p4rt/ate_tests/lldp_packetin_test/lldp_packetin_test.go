@@ -19,6 +19,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -120,18 +121,18 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	return nil
 }
 
-// decodePacket decodes L2 header in the packet and returns destination MAC and ethernet type.
-func decodePacket(t *testing.T, packetData []byte) (string, layers.EthernetType) {
+// decodePacket decodes L2 header in the packet and returns source and destination MAC and ethernet type.
+func decodePacket(t *testing.T, packetData []byte) (string, string, layers.EthernetType) {
 	t.Helper()
 	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
 	etherHeader := packet.Layer(layers.LayerTypeEthernet)
 	if etherHeader != nil {
 		header, decoded := etherHeader.(*layers.Ethernet)
 		if decoded {
-			return header.DstMAC.String(), header.EthernetType
+			return header.SrcMAC.String(), header.DstMAC.String(), header.EthernetType
 		}
 	}
-	return "", layers.EthernetType(0)
+	return "", "", layers.EthernetType(0)
 }
 
 // testTraffic sends traffic flow for duration seconds and returns the
@@ -175,17 +176,18 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Errorf("Unexpected error on StreamChannelGetPackets: %v", err)
 	}
 
-	if got, want := len(packets), pktOut; got != want {
-		t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
-	}
+	gotPkts := 0
 	t.Logf("Start to decode packet and compare with expected packets.")
 	wantPacket := args.packetIO.GetPacketTemplate()
 	for _, packet := range packets {
 		if packet != nil {
 			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
-				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+				srcMAC, dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
 				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
-					t.Fatalf("Packet in PacketIn message is not matching wanted packet.")
+					continue
+				}
+				if !strings.EqualFold(srcMAC, *lldpSrcMAC) {
+					continue
 				}
 			}
 
@@ -208,7 +210,11 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 					}
 				}
 			}
+			gotPkts++
 		}
+	}
+	if got, want := gotPkts, pktOut; got != want {
+		t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
 	}
 }
 
@@ -217,16 +223,16 @@ func TestMain(m *testing.M) {
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -241,21 +247,22 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portID)}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portID + 1)}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
 
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -379,9 +386,6 @@ func TestPacketIn(t *testing.T) {
 
 	// Configure P4RT device-id
 	configureDeviceID(ctx, t, dut)
-
-	t.Logf("Disable LLDP config")
-	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {

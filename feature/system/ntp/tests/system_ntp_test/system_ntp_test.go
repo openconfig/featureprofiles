@@ -20,23 +20,94 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// TestNtpEnable validates the NTP enable path does not return an error.
-func TestNtpEnable(t *testing.T) {
-	t.Skip("Need working implementation to validate against")
+// TestNtpServerConfigurability validates that NTP servers can be configured on the DUT.
+func TestNtpServerConfigurability(t *testing.T) {
+	testCases := []struct {
+		description string
+		addresses   []string
+		vrf         string
+	}{
+		{
+			description: "4x IPv4 NTP in default VRF",
+			addresses:   []string{"192.0.2.1", "192.0.2.2", "192.0.2.3", "192.0.2.4"},
+		},
+		{
+			description: "4x IPv6 NTP (RFC5952) in default VRF",
+			addresses:   []string{"2001:db8::1", "2001:db8::2", "2001:db8::3", "2001:db8::4"},
+		},
+		{
+			description: "4x IPv4 & 4x IPv6 (RFC5952) in default VRF",
+			addresses:   []string{"192.0.2.5", "192.0.2.6", "192.0.2.7", "192.0.2.8", "2001:db8::5", "2001:db8::6", "2001:db8::7", "2001:db8::8"},
+		},
+		{
+			description: "4x IPv4 NTP in non-default VRF",
+			addresses:   []string{"192.0.2.9", "192.0.2.10", "192.0.2.11", "192.0.2.12"},
+			vrf:         "VRF-1",
+		},
+		{
+			description: "4x IPv6 NTP (RFC5952) in non-default VRF",
+			addresses:   []string{"2001:db8::9", "2001:db8::a", "2001:db8::b", "2001:db8::c"},
+			vrf:         "VRF-1",
+		},
+		{
+			description: "4x IPv4 & 4x IPv6 (RFC5952) in non-default VRF",
+			addresses:   []string{"192.0.2.13", "192.0.2.14", "192.0.2.15", "192.0.2.16", "2001:db8::d", "2001:db8::e", "2001:db8::f", "2001:db8::10"},
+			vrf:         "VRF-1",
+		},
+	}
 
 	dut := ondatra.DUT(t, "dut")
-	config := gnmi.OC().System().Ntp()
-	state := gnmi.OC().System().Ntp()
 
-	gnmi.Replace(t, dut, config.Enabled().Config(), true)
-	if gnmi.Get(t, dut, state.Enabled().State()) != true {
-		t.Error("NTP Enable Telemetry failed: want true, got false")
+	for _, testCase := range testCases {
+		if testCase.vrf != "" {
+			createVRF(t, dut, testCase.vrf)
+		}
 	}
-	gnmi.Delete(t, dut, config.Enabled().Config())
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			ntpPath := gnmi.OC().System().Ntp()
+
+			d := &oc.Root{}
+
+			ntp := d.GetOrCreateSystem().GetOrCreateNtp()
+			ntp.SetEnabled(true)
+			for _, address := range testCase.addresses {
+				server := ntp.GetOrCreateServer(address)
+
+				if testCase.vrf != "" {
+					server.SetNetworkInstance(testCase.vrf)
+				}
+			}
+
+			gnmi.Replace(t, dut, ntpPath.Config(), ntp)
+
+			ntpState := gnmi.Get(t, dut, ntpPath.State())
+			for _, address := range testCase.addresses {
+				ntpServer := ntpState.GetServer(address)
+				if ntpServer == nil {
+					t.Errorf("Missing NTP server from NTP state: %s", address)
+				}
+				if got, want := testCase.vrf, ntpServer.GetNetworkInstance(); want != "" && got != want {
+					t.Errorf("Incorrect NTP Server network instance for address %s: got %s, want %s", address, got, want)
+				}
+			}
+		})
+	}
+}
+
+// createVRF creates an empty VRF with vrfName on dut.
+func createVRF(t *testing.T, dut *ondatra.DUTDevice, vrfName string) {
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(vrfName)
+	ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
+
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), ni)
 }

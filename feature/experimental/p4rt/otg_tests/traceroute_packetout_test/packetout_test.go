@@ -16,6 +16,7 @@ package traceroute_packetout_test
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ import (
 )
 
 type PacketIO interface {
-	GetPacketOut(portID uint32, isIPv4 bool, ttl uint8) []*p4v1.PacketOut
+	GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error)
 }
 
 type testArgs struct {
@@ -36,24 +37,22 @@ type testArgs struct {
 	dut      *ondatra.DUTDevice
 	ate      *ondatra.ATEDevice
 	top      gosnappi.Config
+	srcMAC   net.HardwareAddr
+	dstMAC   net.HardwareAddr
 	packetIO PacketIO
 }
 
 // sendPackets sends out packets via PacketOut message in StreamChannel.
-func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.PacketOut, packetCount int) {
-	count := packetCount / len(packets)
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.PacketOut) {
 	for _, packet := range packets {
-		for i := 0; i < count; i++ {
-			if err := client.StreamChannelSendMsg(
-				&streamName, &p4v1.StreamMessageRequest{
-					Update: &p4v1.StreamMessageRequest_Packet{
-						Packet: packet,
-					},
+		if err := client.StreamChannelSendMsg(
+			&streamName, &p4v1.StreamMessageRequest{
+				Update: &p4v1.StreamMessageRequest_Packet{
+					Packet: packet,
 				},
-			); err != nil {
-				t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
-
-			}
+			},
+		); err != nil {
+			t.Errorf("There is error seen in Packet Out. %v", err)
 		}
 	}
 }
@@ -63,7 +62,7 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.P
 func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.leader
 	desc := "PacketOut from Primary Controller"
-	ttl := 1
+	ttl := 2
 	//for ipv4
 	t.Run(desc+" ipv4 ", func(t *testing.T) {
 		// Check initial packet counters
@@ -72,11 +71,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 		t.Logf("Initial number of packets: %d", counter0)
 
-		packets := args.packetIO.GetPacketOut(portId, true, uint8(ttl))
 		packetCounter := 100
+		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, true, uint8(ttl), packetCounter)
+		if err != nil {
+			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
+		}
 		t.Logf("Sending packets now")
 
-		sendPackets(t, leader, packets, packetCounter)
+		sendPackets(t, leader, packets)
 
 		// Wait for ate stats to be populated
 		time.Sleep(60 * time.Second)
@@ -102,11 +104,14 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 		t.Logf("Initial number of packets: %d", counter0)
 
-		packets := args.packetIO.GetPacketOut(portId, false, uint8(ttl))
 		packetCounter := 100
+		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, true, uint8(ttl), packetCounter)
+		if err != nil {
+			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
+		}
 		t.Logf("Sending packets now")
 
-		sendPackets(t, leader, packets, packetCounter)
+		sendPackets(t, leader, packets)
 
 		// Wait for ate stats to be populated
 		time.Sleep(60 * time.Second)

@@ -78,7 +78,6 @@ func TestEthernetCounters(t *testing.T) {
 			if tc.desc == "InMaxsizeExceeded" {
 				t.Skipf("Counter in-maxsize-exceeded is not supported yet.")
 			}
-
 			val, present := tc.counter.Val()
 			if !present {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
@@ -104,7 +103,8 @@ func TestInterfaceCounters(t *testing.T) {
 	ipv4CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/"
 	ipv6CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/"
 
-	skipIpv6DiscardedPkts := *deviations.SubinterfacePacketCountersMissing || deviations.Ipv6DiscardedPktsUnsupported(dut)
+	skipSubinterfacePacketCountersMissing := deviations.SubinterfacePacketCountersMissing(dut)
+	skipIpv6DiscardedPkts := skipSubinterfacePacketCountersMissing || deviations.Ipv6DiscardedPktsUnsupported(dut)
 
 	cases := []struct {
 		desc    string
@@ -112,6 +112,10 @@ func TestInterfaceCounters(t *testing.T) {
 		counter ygnmi.SingletonQuery[uint64]
 		skip    bool
 	}{{
+		desc:    "InUnicastPkts",
+		path:    intfCounterPath + "in-unicast-pkts",
+		counter: intfCounters.InUnicastPkts().State(),
+	}, {
 		desc:    "InUnicastPkts",
 		path:    intfCounterPath + "in-unicast-pkts",
 		counter: intfCounters.InUnicastPkts().State(),
@@ -127,22 +131,22 @@ func TestInterfaceCounters(t *testing.T) {
 		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
 		counter: ipv4Counters.InPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
 		counter: ipv4Counters.OutPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
 		counter: ipv6Counters.InPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
 		counter: ipv6Counters.OutPkts().State(),
-		skip:    *deviations.SubinterfacePacketCountersMissing,
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6InDiscardedPkts",
 		path:    ipv6CounterPath + "in-discarded-pkts",
@@ -160,7 +164,6 @@ func TestInterfaceCounters(t *testing.T) {
 			if tc.skip {
 				t.Skipf("Counter %v is not supported.", tc.desc)
 			}
-
 			val, present := gnmi.Lookup(t, dut, tc.counter).Val()
 			if !present {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
@@ -310,16 +313,16 @@ func TestIntfCounterUpdate(t *testing.T) {
 		}
 	}
 	for _, flow := range []string{flowipv4.Name(), flowipv6.Name()} {
-		lossPct := 0
+		var lossPct float32
 		if flow == "IPv4_test_flow" {
-			lostPackets := int(ateOutPkts["IPv4"] - ateInPkts["IPv4"])
-			lossPct = lostPackets * 100 / int(ateOutPkts["IPv4"])
+			lostPackets := float32(ateOutPkts["IPv4"] - ateInPkts["IPv4"])
+			lossPct = lostPackets * 100 / float32(ateOutPkts["IPv4"])
 		} else {
-			lostPackets := int(ateOutPkts["IPv6"] - ateInPkts["IPv6"])
-			lossPct = lostPackets * 100 / int(ateOutPkts["IPv6"])
+			lostPackets := float32(ateOutPkts["IPv6"] - ateInPkts["IPv6"])
+			lossPct = lostPackets * 100 / float32(ateOutPkts["IPv6"])
 		}
 		if lossPct >= 1 {
-			t.Errorf("LossPct per Flow(%v) = %v, want < 1", flow, lossPct)
+			t.Errorf("LossPct per Flow(%v) = %f, want < 1", flow, lossPct)
 		}
 	}
 
@@ -385,7 +388,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		// per: https://github.com/openconfig/featureprofiles/issues/253
 		i.Enabled = ygot.Bool(true)
 		s.Enabled = ygot.Bool(true)
-		if !*deviations.IPv4MissingEnabled {
+		if !deviations.IPv4MissingEnabled(dut) {
 			v4.Enabled = ygot.Bool(true)
 		}
 		v6.Enabled = ygot.Bool(true)
@@ -394,7 +397,8 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 
 		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
 		subint := gnmi.OC().Interface(intf.intfName).Subinterface(0)
-		if !*deviations.IPv4MissingEnabled {
+
+		if !deviations.IPv4MissingEnabled(dut) {
 			if !gnmi.Get(t, dut, subint.Ipv4().Enabled().State()) {
 				t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
 			}
@@ -403,11 +407,11 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Errorf("Ipv6().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
 		}
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}

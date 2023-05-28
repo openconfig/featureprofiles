@@ -18,18 +18,28 @@ set -xe
 case $1 in
   arista_ceos)
     topology=arista_ceos.textproto
+    vendor_creds=ARISTA/admin/admin
+    deviations=
     ;;
   juniper_cptx)
     topology=juniper_cptx.textproto
+    vendor_creds=JUNIPER/root/Google123
+    deviations="-deviation_cli_takes_precedence_over_oc=true"
     ;;
   cisco_8000e)
     topology=cisco_8000e.textproto
+    vendor_creds=CISCO/cisco/cisco123
+    deviations=
     ;;
   cisco_xrd)
     topology=cisco_xrd.textproto
+    vendor_creds=CISCO/cisco/cisco123
+    deviations=
     ;;
   nokia_srlinux)
     topology=nokia_srlinux.textproto
+    vendor_creds=NOKIA/admin/NokiaSrl1!
+    deviations=
     ;;
   :)
     echo "Model $1 not valid"
@@ -53,12 +63,11 @@ sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia
 kne create /tmp/kne/"$topology"
 
 go test -v ./feature/system/tests/... \
+  -timeout 0 \
   -testbed "$PWD"/topologies/dut.testbed \
   -kne-topo /tmp/kne/"$topology" \
   -kne-skip-reset \
-  -vendor_creds ARISTA/admin/admin \
-  -vendor_creds JUNIPER/root/Google123 \
-  -vendor_creds CISCO/cisco/cisco123 \
-  -vendor_creds NOKIA/admin/NokiaSrl1!
+  -vendor_creds "$vendor_creds" \
+  "$deviations"
 
 popd
