@@ -489,7 +489,6 @@ func testEntryProgrammingPacketInWithNewIP(ctx context.Context, t *testing.T, ar
 	packets := getPackets(t, client, 40)
 
 	t.Logf("Captured packets: %v", len(packets))
-
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received")
 	}
@@ -531,7 +530,6 @@ func testPacketInWithoutEntryProgramming(ctx context.Context, t *testing.T, args
 
 	// Check PacketIn on P4Client
 	packets := getPackets(t, client, 40)
-
 	// t.Logf("Captured packets: %v", len(packets))
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received")
@@ -579,7 +577,6 @@ func testEntryProgrammingPacketInThenRemoveEntry(ctx context.Context, t *testing
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the match entry")
 	}
-
 	// Send GDP Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
@@ -1305,15 +1302,13 @@ func testEntryProgrammingPacketInWithFlowLabel(ctx context.Context, t *testing.T
 
 func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	existingConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface(portName).Config())
 
 	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("no interface %v \n", portName))
-	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("interface %v \n ipv4 address 100.120.1.1 255.255.255.0 \n", portName))
-	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("interface %v\n ipv6 address 100:120:1::1/126 \n", portName))
+	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("interface %v \n ipv4 address 100.120.1.10 255.255.255.0 \n", portName))
+	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("interface %v\n ipv6 address 100:120:1::10/126 \n", portName))
 
-	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Config(), existingConfig)
+	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Config(), generateBundleMemberInterfaceConfig(t, portName, "Bundle-Ether120"))
 	defer config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("no interface %v\n", portName))
 
 	// Program the entry
@@ -1356,7 +1351,7 @@ func testEntryProgrammingPacketInWithSubInterface(ctx context.Context, t *testin
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the match entry")
 	}
-	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+	// defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
 
@@ -1554,6 +1549,10 @@ func testPacketOutWithoutMatchEntry(ctx context.Context, t *testing.T, args *tes
 		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
 			t.Errorf("Not all the packets are received.")
 		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.20) {
+			t.Errorf("Unexpected packets are received.")
+		}
 	}
 }
 
@@ -1594,6 +1593,10 @@ func testPacketOutTTLOneWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 	if args.packetIO.GetPacketOutExpectation(t, true) {
 		if ate_counter1-ate_counter0 < uint64(float64(packet_count)*0.95) {
 			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.20) {
+			t.Errorf("Unexpected packets are received.")
 		}
 	}
 }
@@ -1641,9 +1644,14 @@ func testPacketOutTTLOneWithUDP(ctx context.Context, t *testing.T, args *testArg
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
 	t.Logf("Received %v packets on ATE interface %s", ate_counter1-ate_counter0, atePort)
-
-	if counter_1-counter_0 > uint64(float64(packet_count)*0.20) {
-		t.Errorf("Not all the packets are received.")
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if ate_counter1-ate_counter0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if ate_counter1-ate_counter0 > uint64(float64(packet_count)*0.20) {
+			t.Errorf("Unexpected packets are received.")
+		}
 	}
 
 }
@@ -1859,8 +1867,18 @@ func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
 
-	if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
-		t.Errorf("Not all the packets are received.")
+	// if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+	// 	t.Errorf("Not all the packets are received.")
+	// }
+
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+			t.Errorf("Unexpected packets are received.")
+		}
 	}
 }
 
