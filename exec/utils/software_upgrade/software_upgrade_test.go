@@ -24,7 +24,6 @@ import (
 
 const (
 	imageDestination = "/harddisk:/8000-x64.iso"
-	installCmd       = "install replace reimage " + imageDestination + " noprompt commit"
 	installStatusCmd = "sh install request"
 	imgCopyTimeout   = 1800 * time.Second
 	installTimeout   = 1800 * time.Second
@@ -62,9 +61,7 @@ func TestSoftwareUpgrade(t *testing.T) {
 	force := *forceFlag
 	gnoi := *gnoiFlag
 	imagePath := *imagePathFlag
-	if _, err := os.Stat(imagePath); err != nil {
-		t.Fatalf("Image {%s} does not exist: %v", imagePath, err)
-	}
+	http := strings.HasPrefix(imagePath, "http")
 
 	for _, d := range parseBindingFile(t) {
 		dut := ondatra.DUT(t, d.dut)
@@ -75,13 +72,21 @@ func TestSoftwareUpgrade(t *testing.T) {
 			}
 		}
 
-		if !gnoi {
-			time.Sleep(5 * time.Second)
-			copyImageSCP(t, &d, imagePath)
-		} else {
-			copyImageGNOI(t, dut, imagePath)
+		if !http {
+			if !gnoi {
+				time.Sleep(5 * time.Second)
+				copyImageSCP(t, &d, imagePath)
+			} else {
+				copyImageGNOI(t, dut, imagePath)
+			}
 		}
 
+		imageLocation := imageDestination
+		if http {
+			imageLocation = imagePath
+		}
+
+		installCmd := "install replace reimage " + imageLocation + " noprompt commit"
 		if result, err := sendCLI(t, dut, installCmd); err == nil {
 			if !strings.Contains(result, "has started") {
 				t.Fatalf("Unexpected response:\n%s\n", result)
