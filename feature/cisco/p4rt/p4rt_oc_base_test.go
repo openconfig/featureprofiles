@@ -15,6 +15,7 @@
 package p4rt_oc_test
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -287,9 +288,10 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 func getNPUs(t *testing.T, dut *ondatra.DUTDevice) []string {
 	var npus []string
 	l := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	pattern, _ := regexp.Compile(`.*-NPU\d+$`)
 	for _, each := range l {
 		if each.Type == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
-			if name := each.GetName(); !strings.Contains(name, "FC") {
+			if name := each.GetName(); pattern.MatchString(name) && !strings.Contains(name, "FC") {
 				npus = append(npus, name)
 			}
 		}

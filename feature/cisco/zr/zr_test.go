@@ -8,6 +8,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -268,6 +269,9 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			i.Type = ethernetCsmacd
 			util.FlapInterface(t, dut, dp.Name(), 10)
+			if *deviations.ExplicitPortSpeed {
+				i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dp)
+			}
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedStatus)
 

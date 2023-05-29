@@ -7,7 +7,7 @@
 duts {
   id: "dut"
   vendor: CISCO
-  hardware_model: "CISCO-8201"
+  hardware_model: "8201"
   ports {
     id: "port1"
     speed: S_10GB   

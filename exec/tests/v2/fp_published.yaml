@@ -98,6 +98,7 @@ tests:
     priority: 3
   - name: TE-3.3 (Hierarchical weight resolution)
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
+    pr: 1654
     args:
       - '-deviation_hierarchical_weight_resolution_tolerance="1.5"'
     owners:
@@ -256,6 +257,8 @@ tests:
       - arvbaska
     mustpass: true
     priority: 37
+    branch: main-yve-changes
+    internal: true
   - name: RT-5.3 (Aggregate Balancing)
     path: feature/interface/aggregate/ate_tests/balancing_test
     owners:
@@ -272,12 +275,16 @@ tests:
     path: feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test
     owners:
       - sprem
+    args:
+      - '-deviation_interface_ref_config_unsupported="true"'
     mustpass: true
     priority: 30
-  - name: RT-3.1 Policy based VRF selection
+  - name: RT-3.1 (Policy based VRF selection)
     path: feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection
     owners:
       - sprem
+    args:
+      - '-deviation_interface_ref_config_unsupported="true"'
     mustpass: true
     priority: 30
   - name: RT-5.1 (Singleton Interface)
@@ -535,12 +542,16 @@ tests:
       - saarvind
     mustpass: true
     priority: 802
+    branch: main-yve-changes
+    internal: true
   - name: DP-1.3 (QoS ECN feature config)
     path: feature/qos/ate_tests/qos_ecn_config_test
     owners:
       - saarvind
     mustpass: true
     priority: 802
+    branch: main-yve-changes
+    internal: true
   - name: DP-1.10 (QoS policy feature config)
     path: feature/qos/ate_tests/mixed_sp_wrr_traffic_test
     owners:
@@ -548,32 +559,41 @@ tests:
     mustpass: true
     args:
       - '-deviation_qos_dropped_octets="true"'
+    branch: main-yve-changes
+    internal: true
   - name: DP-1.7 (One strict priority queue traffic test)
     path: feature/qos/ate_tests/one_sp_queue_traffic_test
     owners:
       - saarvind
     mustpass: true
     timeout: 2700
+    branch: main-yve-changes
+    internal: true
   - name: DP-1.8 (Two strict priority queue traffic test)
     path: feature/qos/ate_tests/two_sp_queue_traffic_test
     owners:
       - saarvind
     mustpass: true
     timeout: 4200
+    branch: main-yve-changes
+    internal: true
   - name: DP-1.9 (WRR traffic-test)
     path: feature/qos/ate_tests/wrr_traffic_test
     owners:
       - saarvind
     mustpass: true
     timeout: 4200
+    branch: main-yve-changes
+    internal: true
   - name: DP-1.11 (QoS Bursty Traffic)
     path: feature/qos/ate_tests/bursty_traffic_test
     owners:
       - saarvind
-    internal: true
     mustpass: true
     args:
       - '-deviation_qos_dropped_octets="true"'
+    branch: main-yve-changes
+    internal: true
   - name: gNMI-1.2 (Benchmarking Full Configuration Replace)
     path: feature/experimental/system/gnmi/benchmarking/ate_tests/full_configuration_replace_test
     owners:
@@ -594,10 +614,11 @@ tests:
     path: feature/qos/ate_tests/qos_basic_test/
     owners:
       - saarvind
-    internal: false
     mustpass: true
     args:
       - '-deviation_qos_dropped_octets="true"'
+    branch: main-yve-changes
+    internal: true
   - name: RT-5.4 (Aggregate Forwarding Viable)
     path: feature/interface/aggregate/ate_tests/aggregate_forwarding_viable_test
     owners:
@@ -605,8 +626,8 @@ tests:
     mustpass: true
   - name: TE-1.2 (My Station MAC)
     path: feature/experimental/interface/my_station_mac/ate_tests/my_station_mac_test
-    args:
-      - '-deviation_mac_address_missing="true"'
+    branch: kjahed/te-1.2
+    internal: true
     owners:
       - agvarghe
     mustpass: true
@@ -615,3 +636,9 @@ tests:
     owners:
       - mbagherz
     mustpass: false
+  - name: gNOI-2.1 (Packet-based Link Qualification)
+    path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
+    owners:
+      - wdolaast
+    mustpass: false
+    skip: true # requires 2 dut

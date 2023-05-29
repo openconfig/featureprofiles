@@ -244,7 +244,11 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-
+  - name: RT-5.4 (Aggregate Forwarding Viable)
+    path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
+    owners:
+      - agvarghe
+    mustpass: true
 
 
 
@@ -586,11 +590,6 @@ tests:
   #   args:
   #     - '-deviation_missing_isis_interface_afi_safi_enable="true"'
   #     - '-deviation_rpl_under_peergroup="true"'
-  # - name: RT-5.4 (Aggregate Forwarding Viable)
-  #   path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
-  #   owners:
-  #     - agvarghe
-  #   mustpass: true
   # - name: TE-1.2 (My Station MAC)
   #   path: feature/experimental/interface/my_station_mac/otg_tests/my_station_mac_test
   #   args:
