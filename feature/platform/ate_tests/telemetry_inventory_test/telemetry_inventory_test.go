@@ -28,19 +28,22 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
-var activeStatus string = "ACTIVE"
-
-var componentType = map[string]string{
-	"chassis":     "CHASSIS",
-	"fabric":      "FABRIC",
-	"linecard":    "LINECARD",
-	"fan":         "FAN",
-	"powersupply": "POWER_SUPPLY",
-	"supervisor":  "CONTROLLER_CARD",
-	"switchchip":  "INTEGRATED_CIRCUIT",
-	"transceiver": "TRANSCEIVER",
-	"tempsensor":  "SENSOR",
+var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
+	"Chassis":     oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS,
+	"Fabric":      oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC,
+	"Linecard":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
+	"Fan":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN,
+	"PowerSupply": oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY,
+	"Supervisor":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD,
+	"SwitchChip":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT,
+	"Transceiver": oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER,
+	"TempSensor":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR,
+	"Cpu":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU,
+	"Storage":     oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_STORAGE,
 }
+
+// use this map to cache related components used in subtests to run the test faster.
+var componentsByType map[string][]*oc.Component
 
 // Define a superset of the checklist for each component
 type properties struct {
@@ -55,7 +58,7 @@ type properties struct {
 	hwVerValidation       bool
 	fwVerValidation       bool
 	rrValidation          bool
-	operStatus            string
+	operStatus            oc.E_PlatformTypes_COMPONENT_OPER_STATUS
 	parentValidation      bool
 	pType                 oc.Component_Type_Union
 }
@@ -110,23 +113,8 @@ func TestMain(m *testing.M) {
 //   - gnmic tool info:
 //
 //   - https://github.com/karimra/gnmic/blob/main/README.md
-const (
-	chassisType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
-	supervisorType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	linecardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
-	powerSupplyType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY
-	fabricType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
-	switchChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
-	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
-	fanType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN
-	transceiverType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
-	sensorType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR
-)
 
-// use this map to cache related components used in subtests to run the test faster.
-var componentsByType map[string][]string
-
-func TestHardwarecards(t *testing.T) {
+func TestHardwareCards(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	cases := []struct {
@@ -147,9 +135,9 @@ func TestHardwarecards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
-				operStatus:            activeStatus,
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      false,
-				pType:                 chassisType,
+				pType:                 componentType["Chassis"],
 			},
 		}, {
 			desc: "Fabric",
@@ -164,9 +152,9 @@ func TestHardwarecards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
-				operStatus:            activeStatus,
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
-				pType:                 fabricType,
+				pType:                 componentType["Fabric"],
 			},
 		}, {
 			desc: "Fan",
@@ -181,9 +169,9 @@ func TestHardwarecards(t *testing.T) {
 				hwVerValidation:       false,
 				fwVerValidation:       false,
 				rrValidation:          false,
-				operStatus:            activeStatus,
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      false,
-				pType:                 fanType,
+				pType:                 componentType["Fan"],
 			},
 		}, {
 			desc: "Linecard",
@@ -198,9 +186,9 @@ func TestHardwarecards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
-				operStatus:            activeStatus,
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
-				pType:                 linecardType,
+				pType:                 componentType["Linecard"],
 			},
 		}, {
 			desc: "PowerSupply",
@@ -215,9 +203,9 @@ func TestHardwarecards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
-				operStatus:            activeStatus,
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
-				pType:                 powerSupplyType,
+				pType:                 componentType["PowerSupply"],
 			},
 		}, {
 			desc: "Supervisor",
@@ -233,9 +221,9 @@ func TestHardwarecards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          true,
-				operStatus:            activeStatus,
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
-				pType:                 supervisorType,
+				pType:                 componentType["Supervisor"],
 			},
 		}, {
 			desc: "Transceiver",
@@ -251,9 +239,45 @@ func TestHardwarecards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
-				operStatus:            "",
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 				parentValidation:      false,
-				pType:                 transceiverType,
+				pType:                 componentType["Transceiver"],
+			},
+		}, {
+			desc: "Cpu",
+			cardFields: properties{
+				descriptionValidation: false,
+				idValidation:          false,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     true,
+				mfgDateValidation:     false,
+				swVerValidation:       false,
+				hwVerValidation:       false,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
+				parentValidation:      false,
+				pType:                 componentType["Cpu"],
+			},
+		}, {
+			desc: "Storage",
+			cardFields: properties{
+				descriptionValidation: false,
+				idValidation:          false,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     false,
+				mfgDateValidation:     false,
+				swVerValidation:       false,
+				hwVerValidation:       false,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
+				parentValidation:      false,
+				pType:                 componentType["Storage"],
 			},
 		}}
 
@@ -261,33 +285,22 @@ func TestHardwarecards(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			cards := components[tc.desc]
-			t.Logf("Found card list for %v: %v", tc.desc, cards)
-
+			t.Logf("%s components count: %d", tc.desc, len(cards))
 			if len(cards) == 0 {
-				t.Fatalf("Get card list for %q) on %v: got 0, want > 0", tc.desc, dut.Model())
+				t.Fatalf("Components list for %s on %v: got 0, want > 0", tc.desc, dut.Model())
 			}
 			ValidateComponentState(t, dut, cards, tc.cardFields)
 		})
 	}
 }
 
-func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][]string {
+func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][]*oc.Component {
 	t.Helper()
-	componentType := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
-		"Chassis":     chassisType,
-		"Fabric":      fabricType,
-		"Linecard":    linecardType,
-		"PowerSupply": powerSupplyType,
-		"Supervisor":  supervisorType,
-		"SwitchChip":  switchChipType,
-		"Transceiver": transceiverType,
-		"Fan":         fanType,
-		"TempSensor":  sensorType,
-	}
+
 	if len(componentsByType) != 0 {
 		return componentsByType
 	}
-	componentsByType = make(map[string][]string)
+	componentsByType = make(map[string][]*oc.Component)
 	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
 	for compName := range componentType {
 		for _, c := range components {
@@ -312,7 +325,7 @@ func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][
 				}
 
 			}
-			componentsByType[compName] = append(componentsByType[compName], c.GetName())
+			componentsByType[compName] = append(componentsByType[compName], c)
 		}
 	}
 	return componentsByType
@@ -341,55 +354,75 @@ func TestSwitchChip(t *testing.T) {
 		swVerValidation:       false,
 		hwVerValidation:       false,
 		fwVerValidation:       false,
-		operStatus:            "",
+		operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 		parentValidation:      false,
-		pType:                 switchChipType,
+		pType:                 componentType["SwitchChip"],
 	}
 
 	components := findComponentsListByType(t, dut)
 	cards := components["SwitchChip"]
 	if len(cards) == 0 {
-		t.Fatalf("Get SwitchChip card list for %q): got 0, want > 0", dut.Model())
+		t.Fatalf("Get SwitchChip card list for %q: got 0, want > 0", dut.Model())
+	} else {
+		t.Logf("SwitchChip components count: %d", len(cards))
 	}
-	t.Logf("Found SwitchChip list: %v", cards)
 
 	ValidateComponentState(t, dut, cards, cardFields)
 
 	for _, card := range cards {
-		t.Logf("Validate card %s", card)
-		component := gnmi.OC().Component(card)
 
-		if deviations.BackplaneFacingCapacityUnsupported(dut) && regexp.MustCompile("NPU[0-9]$").Match([]byte(card)) {
-			// Vendor does not support backplane-facing-capacity for nodes named 'NPU'.
+		if card.Name == nil {
+			t.Errorf("Encountered SwitchChip component with no Name")
 			continue
-		} else {
-			// For SwitchChip, check OC integrated-circuit paths.
-			bpCapacity := component.IntegratedCircuit().BackplaneFacingCapacity()
-
-			totalCapacity := gnmi.Get(t, dut, bpCapacity.TotalOperationalCapacity().State())
-			t.Logf("Hardware card %s totalCapacity: %d", card, totalCapacity)
-			if totalCapacity <= 0 {
-				t.Errorf("bpCapacity.TotalOperationalCapacity().Get(t) for %q): got %v, want > 0", card, totalCapacity)
-			}
-
-			total := gnmi.Get(t, dut, bpCapacity.Total().State())
-			t.Logf("Hardware card %s total: %d", card, totalCapacity)
-			if total <= 0 {
-				t.Errorf("bpCapacity.Total().Get(t) for %q): got %v, want > 0", card, total)
-			}
-
-			if !gnmi.Lookup(t, dut, bpCapacity.AvailablePct().State()).IsPresent() {
-				t.Errorf("bpCapacity.AvailablePct() for %q): got none, want >= 0", card)
-			}
-			availablePct := gnmi.Get(t, dut, bpCapacity.AvailablePct().State())
-			t.Logf("Hardware card %s availablePct: %d", card, availablePct)
-
-			if !gnmi.Lookup(t, dut, bpCapacity.ConsumedCapacity().State()).IsPresent() {
-				t.Errorf("bpCapacity.ConsumedCapacity() for %q): got none, want >= 0", card)
-			}
-			consumedCapacity := gnmi.Get(t, dut, bpCapacity.ConsumedCapacity().State())
-			t.Logf("Hardware card %s consumedCapacity: %d", card, consumedCapacity)
 		}
+
+		cName := card.GetName()
+		t.Run(fmt.Sprintf("Backplane:%s", cName), func(t *testing.T) {
+			if deviations.BackplaneFacingCapacityUnsupported(dut) && regexp.MustCompile("NPU[0-9]$").Match([]byte(card.GetName())) {
+				// Vendor does not support backplane-facing-capacity for nodes named 'NPU'.
+				t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")
+			}
+			// For SwitchChip, check OC integrated-circuit paths.
+			if card.GetIntegratedCircuit() == nil {
+				t.Fatalf("SwitchChip %s integratedCircuit: got none, want > 0", cName)
+			}
+			if card.GetIntegratedCircuit().GetBackplaneFacingCapacity() == nil {
+				t.Fatalf("SwitchChip %s integratedCircuit.backplaneFacingCapacity: got none, want > 0", cName)
+			}
+			// TotalOperationalCapacity
+			if card.GetIntegratedCircuit().GetBackplaneFacingCapacity().TotalOperationalCapacity == nil {
+				t.Errorf("SwitchChip %s totalOperationalCapacity: got none, want > 0", cName)
+			}
+			totalOperCapacity := card.GetIntegratedCircuit().GetBackplaneFacingCapacity().GetTotalOperationalCapacity()
+			t.Logf("SwitchChip %s totalOperationalCapacity: %d", cName, totalOperCapacity)
+			if totalOperCapacity <= 0 {
+				t.Errorf("SwitchChip %s totalOperationalCapacity: got %v, want > 0", cName, totalOperCapacity)
+			}
+
+			// Total
+			if card.GetIntegratedCircuit().GetBackplaneFacingCapacity().Total == nil {
+				t.Errorf("SwitchChip %s totalCapacity: got none, want > 0", cName)
+			}
+			totalCapacity := card.GetIntegratedCircuit().GetBackplaneFacingCapacity().GetTotal()
+			t.Logf("SwitchChip %s totalCapacity: %d", cName, totalCapacity)
+			if totalCapacity == 0 {
+				t.Errorf("SwitchChip %s totalCapacity: got %v, want > 0", cName, totalCapacity)
+			}
+
+			// AvailablePct
+			if card.GetIntegratedCircuit().GetBackplaneFacingCapacity().AvailablePct == nil {
+				t.Errorf("SwitchChip %s availablePct: got none, want >= 0", cName)
+			}
+			availablePct := card.GetIntegratedCircuit().GetBackplaneFacingCapacity().GetAvailablePct()
+			t.Logf("SwitchChip %s availablePct: %d", cName, availablePct)
+
+			// ConsumedCapacity
+			if card.GetIntegratedCircuit().GetBackplaneFacingCapacity().ConsumedCapacity == nil {
+				t.Errorf("SwitchChip %s consumedCapacity: got none, want >= 0", cName)
+			}
+			consumedCapacity := card.GetIntegratedCircuit().GetBackplaneFacingCapacity().GetConsumedCapacity()
+			t.Logf("SwitchChip %s consumedCapacity: %d", cName, consumedCapacity)
+		})
 	}
 }
 
@@ -398,236 +431,270 @@ func TestTempSensor(t *testing.T) {
 	sensors := findComponentsListByType(t, dut)["TempSensor"]
 	if len(sensors) == 0 {
 		t.Fatalf("Get TempSensor list for %q: got 0, want > 0", dut.Model())
+	} else {
+		t.Logf("TempSensor components count: %d", len(sensors))
 	}
-	t.Logf("Found TempSensor list: %v", sensors)
 
 	for _, sensor := range sensors {
-		t.Logf("Validate card %s", sensor)
-		component := gnmi.OC().Component(sensor)
 
-		if !gnmi.Lookup(t, dut, component.Id().State()).IsPresent() {
-			// Just log the result using Logf instead of Errorf.
-			t.Logf("component.Id().Lookup(t) for %q: got false, want true", sensor)
-		} else {
-			t.Logf("TempSensor %s Id: %s", sensor, gnmi.Get(t, dut, component.Id().State()))
+		if sensor.Name == nil {
+			t.Errorf("Encountered a sensor with no Name")
+			continue
 		}
 
-		if !gnmi.Lookup(t, dut, component.Name().State()).IsPresent() {
-			t.Errorf("component.Name().Lookup(t) for %q: got false, want true", sensor)
-		} else {
-			t.Logf("TempSensor %s Name: %s", sensor, gnmi.Get(t, dut, component.Name().State()))
-		}
+		sName := sensor.GetName()
+		t.Run(sName, func(t *testing.T) {
 
-		if !gnmi.Lookup(t, dut, component.Type().State()).IsPresent() {
-			t.Errorf("component.Type().Lookup(t) for %q: got false, want true", sensor)
-			want := componentType["tempsensor"]
-			got := fmt.Sprintf("%v", gnmi.Get(t, dut, component.Type().State()))
-			if want != got {
-				t.Errorf("component.Type().Val(t) for %q: got %v, want %v", sensor, got, want)
+			t.Logf("TempSensor %s Id: %s", sName, sensor.GetId())
+
+			if sensor.Type == nil {
+				t.Fatalf("TempSensor %s: Type is empty", sName)
 			}
-		} else {
-			t.Logf("TempSensor %s Type: %s", sensor, gnmi.Get(t, dut, component.Type().State()))
-		}
 
-		if !gnmi.Lookup(t, dut, component.Temperature().Instant().State()).IsPresent() {
-			t.Errorf("Temperature().Instant().Lookup(t) for %q: got false, want true", sensor)
-		} else {
-			t.Logf("TempSensor %s Temperature instant: %v", sensor, gnmi.Get(t, dut, component.Temperature().Instant().State()))
-		}
+			t.Logf("TempSensor %s Type: %s", sName, sensor.GetType())
+			if got, want := sensor.GetType(), componentType["TempSensor"]; got != want {
+				t.Errorf("Type for TempSensor %s: got %v, want %v", sName, got, want)
+			}
 
-		if !gnmi.Lookup(t, dut, component.Temperature().AlarmStatus().State()).IsPresent() {
-			t.Errorf("Temperature().AlarmStatus().Lookup(t) for %q: got false, want true", sensor)
-		} else {
-			t.Logf("TempSensor %s Temperature AlarmStatus: %v", sensor, gnmi.Get(t, dut, component.Temperature().AlarmStatus().State()))
-		}
+			if sensor.GetTemperature() == nil {
+				t.Fatalf("TempSensor %s: Temperature is nil", sName)
+			}
 
-		if !gnmi.Lookup(t, dut, component.Temperature().Max().State()).IsPresent() {
-			t.Errorf("Temperature().Max().Lookup(t) for %q: got false, want true", sensor)
-		} else {
-			t.Logf("TempSensor %s Temperature Max: %v", sensor, gnmi.Get(t, dut, component.Temperature().Max().State()))
-		}
+			t.Logf("TempSensor %s Temperature instant: %v", sName, sensor.GetTemperature().GetInstant())
+			if sensor.Temperature.Instant == nil {
+				t.Errorf("TempSensor %s: Temperature instant is nil", sName)
+			}
 
-		if !gnmi.Lookup(t, dut, component.Temperature().MaxTime().State()).IsPresent() {
-			t.Errorf("Temperature().MaxTime().Lookup(t) for %q: got false, want true", sensor)
-		} else {
-			t.Logf("TempSensor %s Temperature MaxTime: %v", sensor, gnmi.Get(t, dut, component.Temperature().MaxTime().State()))
-		}
+			t.Logf("TempSensor %s Temperature AlarmStatus: %v", sName, sensor.GetTemperature().GetAlarmStatus())
+			if sensor.Temperature.AlarmStatus == nil {
+				t.Errorf("TempSensor %s: Temperature AlarmStatus is nil", sName)
+			}
+
+			t.Logf("TempSensor %s Temperature Max: %v", sName, sensor.GetTemperature().GetMax())
+			if sensor.Temperature.Max == nil {
+				t.Errorf("TempSensor %s: Temperature Max is nil", sName)
+			}
+
+			t.Logf("TempSensor %s Temperature MaxTime: %v", sName, sensor.GetTemperature().GetMaxTime())
+			if sensor.Temperature.MaxTime == nil {
+				t.Errorf("TempSensor %s: Temperature MaxTime is nil", sName)
+			}
+		})
 	}
 }
 
-func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []string, p properties) {
-	t.Helper()
-
-	for _, card := range cards {
-		t.Logf("Validate card %s", card)
-		component := gnmi.OC().Component(card)
-
+func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Component, p properties) {
+	var validCards []*oc.Component
+	switch p.pType {
+	case componentType["Transceiver"]:
 		// For transceiver, only check the transceiver with optics installed.
-		if strings.Contains(card, "transceiver") {
-			if gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-				t.Logf("Optics is detected in %s with expected parent: %s", card, gnmi.Lookup(t, dut, component.Parent().State()))
-			} else {
-				t.Logf("Optics is not installed in %s, skip testing this transceiver", card)
-				continue
+		for _, card := range cards {
+			if card.GetMfgName() != "" {
+				validCards = append(validCards, card)
 			}
 		}
-
-		if p.descriptionValidation {
-			description := gnmi.Get(t, dut, component.Description().State())
-			t.Logf("Hardware card %s Description: %s", card, description)
-			if description == "" {
-				t.Errorf("component.Description().Get(t) for %q): got empty string, want non-empty string", card)
+	default:
+		for _, lc := range cards {
+			if !lc.GetEmpty() {
+				validCards = append(validCards, lc)
 			}
 		}
-
-		if p.idValidation {
-			if deviations.SwitchChipIDUnsupported(dut) {
-				t.Logf("Skipping check for switch chip id unsupport")
-			} else {
-				id := gnmi.Get(t, dut, component.Id().State())
-				t.Logf("Hardware card %s Id: %s", card, id)
-				if id == "" {
-					t.Errorf("component.Id().Get(t) for %q): got empty string, want non-empty string", card)
+	}
+	for _, card := range validCards {
+		if card.Name == nil {
+			t.Errorf("Encountered a component with no Name")
+			continue
+		}
+		cName := card.GetName()
+		t.Run(cName, func(t *testing.T) {
+			if p.descriptionValidation {
+				t.Logf("Component %s Description: %s", cName, card.GetDescription())
+				if card.GetDescription() == "" {
+					t.Errorf("Component %s Description: got empty string, want non-empty string", cName)
 				}
 			}
-		}
 
-		if p.nameValidation {
-			name := gnmi.Get(t, dut, component.Name().State())
-			t.Logf("Hardware card %s Name: %s", card, name)
-			if name == "" {
-				t.Errorf("component.Name().Get(t) for %q): got empty string, want non-empty string", card)
-			}
-		}
-
-		if p.partNoValidation {
-			partNo := gnmi.Lookup(t, dut, component.PartNo().State())
-			t.Logf("Hardware card %s PartNo: %v", card, partNo)
-			if !partNo.IsPresent() {
-				if gnmi.Get(t, dut, component.Type().State()) == fanType {
-					fanTray := gnmi.Get(t, dut, component.Parent().State())
-					fanTrayPartNo := gnmi.Lookup(t, dut, gnmi.OC().Component(fanTray).PartNo().State())
-					t.Logf("Hardware card %s (parent of %s) PartNo: %v", fanTray, card, fanTrayPartNo)
-					if !fanTrayPartNo.IsPresent() {
-						t.Errorf("component.PartNo().Get(t) for %q and its parent): got empty string, want non-empty string", card)
-					}
+			if p.idValidation {
+				if deviations.SwitchChipIDUnsupported(dut) {
+					t.Logf("Skipping check for Id due to deviation SwitChipIDUnsupported")
 				} else {
-					t.Errorf("component.PartNo().Get(t) for %q): got empty string, want non-empty string", card)
-				}
-			}
-		}
-
-		if p.serialNoValidation {
-			serialNo := gnmi.Lookup(t, dut, component.SerialNo().State())
-			t.Logf("Hardware card %s serialNo: %s", card, serialNo)
-			if !serialNo.IsPresent() {
-				if gnmi.Get(t, dut, component.Type().State()) == fanType {
-					fanTray := gnmi.Get(t, dut, component.Parent().State())
-					fanTraySErialNo := gnmi.Lookup(t, dut, gnmi.OC().Component(fanTray).SerialNo().State())
-					t.Logf("Hardware card %s (parent of %s) PartNo: %v", fanTray, card, fanTraySErialNo)
-					if !fanTraySErialNo.IsPresent() {
-						t.Errorf("component.SerialNo().Get(t) for %q and its parent): got empty string, want non-empty string", card)
+					id := card.GetId()
+					t.Logf("Component %s Id: %s", cName, id)
+					if id == "" {
+						t.Errorf("Component %s Id: got empty string, want non-empty string", cName)
 					}
+				}
+			}
+
+			if p.nameValidation {
+				name := card.GetName()
+				t.Logf("Component %s Name: %s", cName, name)
+				if name == "" {
+					t.Errorf("Encountered empty Name for component %s", cName)
+				}
+			}
+
+			if p.partNoValidation {
+				t.Logf("Component %s PartNo: %s", cName, card.GetPartNo())
+				if card.GetPartNo() == "" {
+					switch card.GetType() {
+					case componentType["Fan"]:
+						fallthrough
+					case componentType["Storage"]:
+						fallthrough
+					case componentType["Cpu"]:
+						parent := card.GetParent()
+						for {
+							cp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).State()).Val()
+							if !ok {
+								t.Errorf("Couldn't find component: %s, (ancestor of: %s)", parent, cName)
+								break
+							}
+							t.Logf("Component %s (ancestor of %s) PartNo: %s", parent, cName, cp.GetPartNo())
+
+							// Found a Part No
+							if cp.GetPartNo() != "" {
+								break
+							}
+							// Found no parent
+							if cp.GetParent() == "" || cp.GetParent() == parent {
+								t.Errorf("Couldn't find parent of %s, (ancestor of %s)", parent, cName)
+								break
+							}
+							parent = cp.GetParent()
+						}
+					default:
+						t.Errorf("PartNo for Component %s: got empty string, want non-empty string", cName)
+					}
+				}
+			}
+
+			if p.serialNoValidation {
+				t.Logf("Component %s SerialNo: %s", cName, card.GetSerialNo())
+				if card.GetSerialNo() == "" {
+					switch card.GetType() {
+					case componentType["Fan"]:
+						fallthrough
+					case componentType["Storage"]:
+						fallthrough
+					case componentType["Cpu"]:
+						parent := card.GetParent()
+						for {
+							cp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).State()).Val()
+							if !ok {
+								t.Errorf("Couldn't find component: %s, (ancestor of: %s)", parent, cName)
+								break
+							}
+							t.Logf("Component %s (ancestor of %s) SerialNo: %s", parent, cName, cp.GetSerialNo())
+
+							// Found a Serial No
+							if cp.GetSerialNo() != "" {
+								break
+							}
+							// Found no parent
+							if cp.GetParent() == "" || cp.GetParent() == parent {
+								t.Errorf("Couldn't find parent of %s, (ancestor of %s)", parent, cName)
+								break
+							}
+							parent = cp.GetParent()
+						}
+					default:
+						t.Errorf("SerialNo for Component %s: got empty string, want non-empty string", cName)
+					}
+				}
+			}
+
+			if p.mfgNameValidation {
+				mfgName := card.GetMfgName()
+				t.Logf("Component %s MfgName: %s", cName, mfgName)
+				if mfgName == "" {
+					t.Errorf("Component %s MfgName: got empty string, want non-empty string", cName)
+				}
+			}
+
+			if p.mfgDateValidation {
+				mfgDate := card.GetMfgDate()
+				t.Logf("Component %s MfgDate: %s", cName, mfgDate)
+				if mfgDate == "" {
+					t.Errorf("Component %s MfgDate: got empty string, want non-empty string", cName)
+				}
+			}
+
+			if p.swVerValidation {
+				// Only a subset of cards are expected to report Software Version.
+				swVer := card.GetSoftwareVersion()
+				t.Logf("Component %s SoftwareVersion: %s", cName, swVer)
+				if swVer == "" {
+					t.Errorf("Component %s SoftwareVersion: got empty string, want non-empty string", cName)
+				}
+			}
+
+			if p.hwVerValidation {
+				hwVer := card.GetHardwareVersion()
+				t.Logf("Component %s HardwareVersion: %s", cName, hwVer)
+				if hwVer == "" {
+					t.Errorf("Component %s HardwareVersion: got empty string, want non-empty string", cName)
+				}
+			}
+
+			if p.fwVerValidation {
+				fwVer := card.GetFirmwareVersion()
+				t.Logf("Component %s FirmwareVersion: %s", cName, fwVer)
+				if fwVer == "" {
+					t.Errorf("Component %s FirmwareVersion: got empty string, want non-empty string", cName)
+				}
+			}
+
+			if p.rrValidation {
+				redundantRole := card.GetRedundantRole().String()
+				t.Logf("Hardware card %s RedundantRole: %s", cName, redundantRole)
+				if redundantRole != "PRIMARY" && redundantRole != "SECONDARY" {
+					t.Errorf("Component %s RedundantRole: got %s, want %v", cName, redundantRole, p.operStatus)
+				}
+			}
+
+			if p.operStatus != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+				if deviations.FanOperStatusUnsupported(dut) && strings.Contains(cName, "Fan") {
+					t.Logf("Skipping check for fan oper-status due to deviation FanOperStatusUnsupported")
 				} else {
-					t.Errorf("component.SerialNo().Get(t) for %q): got empty string, want non-empty string", card)
+					operStatus := card.GetOperStatus()
+					t.Logf("Component %s OperStatus: %s", cName, operStatus.String())
+					if operStatus != p.operStatus {
+						t.Errorf("Component %s OperStatus: got %s, want %s", cName, operStatus, p.operStatus)
+					}
 				}
 			}
-		}
 
-		if p.mfgNameValidation {
-			mfgName := gnmi.Get(t, dut, component.MfgName().State())
-			t.Logf("Hardware card %s mfgName: %s", card, mfgName)
-			if mfgName == "" {
-				t.Errorf("Get mfgName for %q): got empty string, want non-empty string", card)
-			}
-		}
-
-		if p.mfgDateValidation {
-			mfgDate := gnmi.Get(t, dut, component.MfgDate().State())
-			t.Logf("Hardware card %s mfgDate: %s", card, mfgDate)
-			if mfgDate == "" {
-				t.Errorf("component.MfgName().Get(t) for %q): got empty string, want non-empty string", card)
-			}
-		}
-
-		if p.swVerValidation {
-			// Only a subset of cards are expected to report Software Version.
-			sw, present := gnmi.Lookup(t, dut, component.SoftwareVersion().State()).Val()
-			if present {
-				t.Logf("Hardware card %s SoftwareVersion: %s", card, sw)
-				if sw == "" {
-					t.Errorf("component.SoftwareVersion().Get(t) for %q): got empty string, want non-empty string", card)
-				}
-			} else {
-				t.Errorf("component.SoftwareVersion().Lookup(t) for %q): got no value.", card)
-			}
-		}
-
-		if p.hwVerValidation {
-			hardwareVersion := gnmi.Get(t, dut, component.HardwareVersion().State())
-			t.Logf("Hardware card %s hardwareVersion: %s", card, hardwareVersion)
-			if hardwareVersion == "" {
-				t.Errorf("component.HardwareVersion().Get(t) for %q): got empty string, want non-empty string", card)
-			}
-		}
-
-		if p.fwVerValidation {
-			firmwareVersion := gnmi.Get(t, dut, component.FirmwareVersion().State())
-			t.Logf("Hardware card %s FirmwareVersion: %s", card, firmwareVersion)
-			if firmwareVersion == "" {
-				t.Errorf("component.FirmwareVersion().Get(t) for %q): got empty string, want non-empty string", card)
-			}
-		}
-
-		if p.rrValidation {
-			redundantRole := gnmi.Get(t, dut, component.RedundantRole().State()).String()
-			t.Logf("Hardware card %s RedundantRole: %s", card, redundantRole)
-			if redundantRole != "PRIMARY" && redundantRole != "SECONDARY" {
-				t.Errorf("component.RedundantRole().Get(t) for %q): got %v, want %v", card, redundantRole, p.operStatus)
-			}
-		}
-
-		if p.operStatus != "" {
-			if deviations.FanOperStatusUnsupported(dut) && strings.Contains(card, "Fan") {
-				t.Logf("Skipping check for fan oper-status due to deviation FanOperStatusUnsupported")
-			} else {
-				operStatus := gnmi.Get(t, dut, component.OperStatus().State()).String()
-				t.Logf("Hardware card %s OperStatus: %s", card, operStatus)
-				if operStatus != activeStatus {
-					t.Errorf("component.OperStatus().Get(t) for %q): got %v, want %v", card, operStatus, p.operStatus)
+			if p.parentValidation {
+				cur := cName
+				for {
+					val := gnmi.Lookup(t, dut, gnmi.OC().Component(cur).Parent().State())
+					parent, ok := val.Val()
+					if !ok {
+						t.Errorf("Component %s Parent: Chassis component NOT found in the hierarchy tree of component", cName)
+						break
+					}
+					parentType := gnmi.Get(t, dut, gnmi.OC().Component(parent).Type().State())
+					if parentType == componentType["Chassis"] {
+						t.Logf("Component %s Parent: Found chassis component in the hierarchy tree of component", cName)
+						break
+					}
+					if parent == cur {
+						t.Errorf("Component %s Parent: Chassis component NOT found in the hierarchy tree of component", cName)
+						break
+					}
+					cur = parent
 				}
 			}
-		}
 
-		if p.parentValidation {
-			cur := card
-			for {
-				val := gnmi.Lookup(t, dut, gnmi.OC().Component(cur).Parent().State())
-				parent, present := val.Val()
-				if !present {
-					t.Errorf("Hardware card %s Parent: Chassis component NOT found in the hierarchy tree of component", card)
-					break
+			if p.pType != nil {
+				ptype := card.GetType()
+				t.Logf("Component %s Type: %v", cName, ptype)
+				if ptype != p.pType {
+					t.Errorf("Component %s Type: got %v, want %v", cName, ptype, p.pType)
 				}
-				parentType := gnmi.Get(t, dut, gnmi.OC().Component(parent).Type().State())
-				if parentType == chassisType {
-					t.Logf("Hardware card %s Parent: Found chassis component in the hierarchy tree of component", card)
-					break
-				}
-				if parent == cur {
-					t.Errorf("Hardware card %s Parent: Chassis component NOT found in the hierarchy tree of component", card)
-					break
-				}
-				cur = parent
 			}
-		}
-
-		if p.pType != nil {
-			ptype := gnmi.Get(t, dut, component.Type().State())
-			t.Logf("Hardware card %s type: %v", card, ptype)
-			if ptype != p.pType {
-				t.Errorf("component.Type().Get(t) for %q): got %v, want %v", card, ptype, p.pType)
-			}
-		}
+		})
 	}
 }
 

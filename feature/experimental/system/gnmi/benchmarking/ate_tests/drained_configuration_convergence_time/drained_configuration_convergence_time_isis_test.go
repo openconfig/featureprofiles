@@ -32,7 +32,7 @@ import (
 func setISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// ISIS Configs to set Overload Bit to true.
-	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
+	dutISISPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 	lspBit := dutISISPath.Global().LspBit().OverloadBit()
 	gnmi.Replace(t, dut, lspBit.SetBit().Config(), true)
 }
@@ -40,11 +40,11 @@ func setISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice) {
 // setISISMetric is used to configure metric on isis interfaces.
 func setISISMetric(t *testing.T, dut *ondatra.DUTDevice) {
 
-	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
+	dutISISPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 	t.Logf("Configure ISIS metric to %v", setup.ISISMetric)
 	for _, dp := range dut.Ports() {
 		intfName := dp.Name()
-		if *deviations.ExplicitInterfaceInDefaultVRF {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			intfName = dp.Name() + ".0"
 		}
 		dutISISPathIntfAF := dutISISPath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)

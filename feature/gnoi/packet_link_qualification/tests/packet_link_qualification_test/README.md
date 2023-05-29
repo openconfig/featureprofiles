@@ -17,7 +17,7 @@ between 2 DUTs.
         *   Time exists.
         *   Generator:
             *   MinMtu >= 64,
-            *   MaxMtu >= 9000,
+            *   MaxMtu >= 8184,
             *   MaxBps >= 4e11,
             *   MaxPps >= 5e8,
             *   MinSetupDuration > 0
@@ -47,7 +47,7 @@ between 2 DUTs.
             PacketGeneratorConfiguration.
     *   Set the following parameters for link qualification service usage:
         *   PacketRate: Packet per second rate to use for this test.
-        *   PacketSize: Size of packets to inject. The value is 9000 bytes.
+        *   PacketSize: Size of packets to inject. The value is 8184 bytes.
     *   RPCSyncedTiming:
         *   SetupDuration: The requested setup time for the endpoint.
         *   PreSyncDuration: Minimum_wait_before_preparation_seconds. Within

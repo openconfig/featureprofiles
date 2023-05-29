@@ -1,6 +1,0 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
-# proto-message: Metadata
-
-uuid: "123e4567-e89b-42d3-8456-426614174000"
-plan_id: "UnitTest-1.1"
-description: "Metadata Unit Test"
