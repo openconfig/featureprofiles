@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 func TestFabricPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	if deviations.SkipPlatformPowerDownUp(dut) {
-		t.Skip("Fabric power down up not Unsupported")
+		t.Skip("Fabric power down up unsupported")
 	}
 	fs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
 
@@ -64,7 +64,7 @@ func TestLinecardPowerAdmin(t *testing.T) {
 func TestControllerCardPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	if deviations.SkipPlatformPowerDownUp(dut) {
-		t.Skip("Controller card power down up not Unsupported")
+		t.Skip("Controller card power down up unsupported")
 	}
 	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 
