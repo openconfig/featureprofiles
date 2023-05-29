@@ -25,8 +25,7 @@ import (
 const (
 	imageDestination = "/harddisk:/8000-x64.iso"
 	installStatusCmd = "sh install request"
-	imgCopyTimeout   = 1800 * time.Second
-	installTimeout   = 1800 * time.Second
+	imgCopyTimeout   = 900 * time.Second
 	sshCmdTimeout    = 30 * time.Second
 	statusCheckDelay = 60 * time.Second
 )
@@ -37,6 +36,8 @@ var (
 	efrFlag       = flag.String("efr", "", "efr")
 	forceFlag     = flag.Bool("force", false, "Force install even if image already installed")
 	gnoiFlag      = flag.Bool("gnoi", false, "Use gNOI to copy image instead of SCP")
+
+	installTimeout = 1800 * time.Second
 )
 
 func TestMain(m *testing.M) {
@@ -85,6 +86,7 @@ func TestSoftwareUpgrade(t *testing.T) {
 		imageLocation := imageDestination
 		if http {
 			imageLocation = imagePath
+			installTimeout += imgCopyTimeout
 		}
 
 		installCmd := "install replace reimage " + imageLocation + " noprompt commit"
