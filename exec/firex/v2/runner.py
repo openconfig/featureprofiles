@@ -580,15 +580,18 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
 @app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
-                    images, force_install=False):
+                    images, image_url=None, force_install=False):
     logger.print("Performing Software Upgrade...")
+    
+    if image_url: img = image_url
+    else: img = images[0]
     su_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/software_upgrade ' \
             f'-timeout 60m ' \
             f'-args ' \
             f'-testbed {ondatra_testbed_path} ' \
             f'-binding {ondatra_binding_path} ' \
-            f'-imagePath "{images[0]}" ' \
+            f'-imagePath "{img}" ' \
             f'-lineup {lineup} ' \
             f'-efr {efr} '
 
