@@ -441,8 +441,6 @@ tests:
     path: feature/bgp/addpath/ate_tests/route_propagation_test
     owners:
       - sprem
-    args:
-      - "-deviation_rpl_under_peergroup=true"
     mustpass: true
     priority: 52
     skip: false
@@ -460,8 +458,6 @@ tests:
     mustpass: true
     priority: 54
     skip: false
-    args:
-      - '-deviation_rpl_under_peergroup="true"'
   - name: RT-1.7 (Local BGP Test)
     path: feature/bgp/tests/local_bgp_test
     owners:
@@ -477,7 +473,6 @@ tests:
     owners:
       - sprem
     args:
-      - "-deviation_rpl_under_peergroup=true"
       - "-deviation_prepolicy_received_routes=true"
     mustpass: true
     skip: false
@@ -609,7 +604,6 @@ tests:
     mustpass: true
     args:
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-      - '-deviation_rpl_under_peergroup="true"'
   - name: DP-1.14 (QoS base config)
     path: feature/qos/ate_tests/qos_basic_test/
     owners:
