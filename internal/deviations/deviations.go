@@ -475,6 +475,16 @@ func InterfaceRefConfigUnsupported(_ *ondatra.DUTDevice) bool {
 	return *interfaceRefConfigUnsupported
 }
 
+// PlatformPowerEnableWaitRequired returns timer value to wait while platform is powered on
+func PlatformPowerEnableWaitRequired(_ *ondatra.DUTDevice) int {
+	return *platformPowerEnableWaitRequired
+}
+
+// SkipPlatformPowerDownUp returns whether the device should skip the Platform Power Down Up case
+func SkipPlatformPowerDownUp(_ *ondatra.DUTDevice) bool {
+	return *skipPlatformPowerDownUp
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -645,4 +655,8 @@ var (
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 
 	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
+
+	platformPowerEnableWaitRequired = flag.Int("deviation_platform_power_enable_wait_required", 0, "Set timer in minutes to wait for shut platform to power up")
+
+	skipPlatformPowerDownUp = flag.Bool("deviation_skip_platform_power_down_up", false, "Set flag to skip as Device does not support power-admin-state leaf")
 )
