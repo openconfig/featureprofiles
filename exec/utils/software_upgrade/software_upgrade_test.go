@@ -72,9 +72,10 @@ func TestSoftwareUpgrade(t *testing.T) {
 			}
 		}
 
+		time.Sleep(5 * time.Second)
+
 		if !http {
 			if !gnoi {
-				time.Sleep(5 * time.Second)
 				copyImageSCP(t, &d, imagePath)
 			} else {
 				copyImageGNOI(t, dut, imagePath)
