@@ -321,12 +321,11 @@ func main() {
 	// Targeted mode: remove untargeted tests
 	if len(testNames) > 0 {
 		targetedTests := []string{}
-		res := []*regexp.Regexp{}
+		res := map[string]*regexp.Regexp{}
 		for _, t := range testNames {
+			targetedTests = append(targetedTests, strings.Split(t, " ")[0])
 			if strings.HasPrefix(t, "r/") {
-				res = append(res, regexp.MustCompile(t[2:]))
-			} else {
-				targetedTests = append(targetedTests, strings.Split(t, " ")[0])
+				res[t] = regexp.MustCompile(t[2:])
 			}
 		}
 
@@ -338,22 +337,13 @@ func main() {
 					keptTests[suite[i].Name] = []GoTest{}
 				}
 				for j := range suite[i].Tests {
-					if t == strings.Split(suite[i].Tests[j].Name, " ")[0] {
-						suite[i].Tests[j].Priority = testCount
-						testCount = testCount + 1
-						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
-					}
-				}
-			}
-		}
-
-		for i := range suite {
-			for j := range suite[i].Tests {
-				for _, re := range res {
-					if re.MatchString(suite[i].Tests[j].Name) {
-						if _, ok := keptTests[suite[i].Name]; !ok {
-							keptTests[suite[i].Name] = []GoTest{}
+					if strings.HasPrefix(t, "r/") {
+						if res[t].MatchString(suite[i].Tests[j].Name) {
+							suite[i].Tests[j].Priority = testCount
+							testCount = testCount + 1
+							keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
 						}
+					} else if t == strings.Split(suite[i].Tests[j].Name, " ")[0] {
 						suite[i].Tests[j].Priority = testCount
 						testCount = testCount + 1
 						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
