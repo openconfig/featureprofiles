@@ -24,10 +24,8 @@ import (
 
 const (
 	imageDestination = "/harddisk:/8000-x64.iso"
-	installCmd       = "install replace reimage " + imageDestination + " noprompt commit"
 	installStatusCmd = "sh install request"
-	imgCopyTimeout   = 1800 * time.Second
-	installTimeout   = 1800 * time.Second
+	imgCopyTimeout   = 900 * time.Second
 	sshCmdTimeout    = 30 * time.Second
 	statusCheckDelay = 60 * time.Second
 )
@@ -38,6 +36,8 @@ var (
 	efrFlag       = flag.String("efr", "", "efr")
 	forceFlag     = flag.Bool("force", false, "Force install even if image already installed")
 	gnoiFlag      = flag.Bool("gnoi", false, "Use gNOI to copy image instead of SCP")
+
+	installTimeout = 1800 * time.Second
 )
 
 func TestMain(m *testing.M) {
@@ -62,9 +62,7 @@ func TestSoftwareUpgrade(t *testing.T) {
 	force := *forceFlag
 	gnoi := *gnoiFlag
 	imagePath := *imagePathFlag
-	if _, err := os.Stat(imagePath); err != nil {
-		t.Fatalf("Image {%s} does not exist: %v", imagePath, err)
-	}
+	http := strings.HasPrefix(imagePath, "http")
 
 	for _, d := range parseBindingFile(t) {
 		dut := ondatra.DUT(t, d.dut)
@@ -75,13 +73,23 @@ func TestSoftwareUpgrade(t *testing.T) {
 			}
 		}
 
-		if !gnoi {
-			time.Sleep(5 * time.Second)
-			copyImageSCP(t, &d, imagePath)
-		} else {
-			copyImageGNOI(t, dut, imagePath)
+		time.Sleep(5 * time.Second)
+
+		if !http {
+			if !gnoi {
+				copyImageSCP(t, &d, imagePath)
+			} else {
+				copyImageGNOI(t, dut, imagePath)
+			}
 		}
 
+		imageLocation := imageDestination
+		if http {
+			imageLocation = imagePath
+			installTimeout += imgCopyTimeout
+		}
+
+		installCmd := "install replace reimage " + imageLocation + " noprompt commit"
 		if result, err := sendCLI(t, dut, installCmd); err == nil {
 			if !strings.Contains(result, "has started") {
 				t.Fatalf("Unexpected response:\n%s\n", result)
