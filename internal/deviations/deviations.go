@@ -475,6 +475,11 @@ func InterfaceRefConfigUnsupported(_ *ondatra.DUTDevice) bool {
 	return *interfaceRefConfigUnsupported
 }
 
+// SkipNtpNonDefaultVrf returns if we skip the ntp nondefault vrf case
+func SkipNtpNonDefaultVrf(_ *ondatra.DUTDevice) bool {
+	return *skipNtpNonDefaultVrf
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -645,4 +650,6 @@ var (
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 
 	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
+
+	skipNtpNonDefaultVrf = flag.Bool("deviation_skip_ntp_non_default_vrf", false, "Set true to skip the non default vrf ntp case")
 )
