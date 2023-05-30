@@ -8,7 +8,7 @@ The local\_bgp\_test brings up two OpenConfig controlled devices and tests that 
 * Disconnected between them.
 * Verify BGP neighbor parameters
 
-Enable an Accept-route all import-policy/export-policy for eBGP session under the neighbor AFI/SAFI.
+Enable an Accept-route all import-policy/export-policy for eBGP session under the BGP peer-group AFI/SAFI.
 
 
 This test is suitable for running in a KNE environment.
