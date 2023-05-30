@@ -66,8 +66,8 @@ var (
 	gdpEtherType  = uint32(0x6007)
 	p4InfoFile    = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	srcMac        = flag.String("srcMac", "00:01:00:02:00:03", "source MAC address for PacketIn")
-	lldpDstmac    = flag.String("lldpDstmac", "01:80:c2:00:00:0e", "source MAC address for PacketIn")
-	gdpDstmac     = flag.String("gdpDstmac", "00:0a:da:f0:f0:f0", "source MAC address for PacketIn")
+	lldpDstMac    = flag.String("lldpDstMac", "01:80:c2:00:00:0e", "Destination MAC address for LLDP PDUs")
+	gdpDstMac     = flag.String("gdpDstMac", "00:0a:da:f0:f0:f0", "Destination MAC address for GDP")
 
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -151,20 +151,20 @@ func programTableEntry(client *p4rt_client.P4RTClient, delete bool) error {
 		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
-			getTableEntry(updateType),
+			newTableEntry(updateType),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
 }
 
 // testTraffic sends ATE traffic, stop and collect total packet tx from ATE source port.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration int) int {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration time.Duration) int {
 	t.Helper()
 	for _, flow := range flows {
 		flow.WithSrcEndpoints(srcEndPoint).WithDstEndpoints(srcEndPoint)
 	}
 	ate.Traffic().Start(t, flows...)
-	time.Sleep(time.Duration(duration) * time.Second)
+	time.Sleep(duration * time.Second)
 	ate.Traffic().Stop(t)
 
 	outPkts := gnmi.GetAll(t, ate, gnmi.OC().FlowAny().Counters().OutPkts().State())
@@ -198,9 +198,8 @@ func decodeIPPacketTTL(packetData []byte) uint8 {
 		header := etherHeader.(*layers.Ethernet)
 		if header.EthernetType == layers.EthernetType(0x0800) {
 			packet1 := gopacket.NewPacket(packetData[14:], layers.LayerTypeIPv4, gopacket.Default)
-			IPv4 := packet1.Layer(layers.LayerTypeIPv4)
-			if IPv4 != nil {
-				return IPv4.(*layers.IPv4).TTL
+			if ipv4 := packet1.Layer(layers.LayerTypeIPv4); ipv4 != nil {
+				return ipv4.(*layers.IPv4).TTL
 			}
 		}
 	}
@@ -250,7 +249,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 			port := sortPorts(args.ate.Ports())[0].Name()
 			counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 
-			packets := getPacketOut(portID, false)
+			packets := newPacketOut(portID, false)
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
 			streamChan := leader.StreamChannelGet(&streamName)
 
@@ -269,7 +268,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 					streamName, qSize, qSizeRead)
 			}
 			// Create the flows for Packetin.
-			flows := getTrafficFlow(args, args.ate)
+			flows := newTrafficFlow(args, args.ate)
 			pktIn := 0
 			// Run Packetin and packetout traffic in parallel.
 			var wg sync.WaitGroup
@@ -352,18 +351,13 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 											t.Fatalf("Ingress Port Id is not matching expectation for GDP.")
 										}
 									case metadataEgressPort:
-										found := false
 										portData := args.gdpPacketIO.GetEgressPort()
-										if string(data.GetValue()) == portData {
-											found = true
-											gdpIncount += 1
-										}
-										if !found {
+										if string(data.GetValue()) != portData {
 											t.Fatalf("Egress Port Id is not matching expectation for GDP.")
 										}
+										gdpIncount += 1
 									}
 								}
-
 							}
 						}
 					}
@@ -377,15 +371,11 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 											t.Fatalf("Ingress Port Id is not matching expectation for LLDP.")
 										}
 									case metadataEgressPort:
-										found := false
 										portData := args.lldpPacketIO.GetEgressPort()
-										if string(data.GetValue()) == portData {
-											found = true
-											lldpIncount += 1
-										}
-										if !found {
+										if string(data.GetValue()) != portData {
 											t.Fatalf("Egress Port Id is not matching expectation for LLDP.")
 										}
+										lldpIncount += 1
 									}
 								}
 							}
@@ -588,20 +578,20 @@ func setupP4RTClient(args *testArgs) error {
 	return nil
 }
 
-// getGDPParameter returns GDP related parameters for testPacketOut testcase.
-func getGDPParameter() PacketIO {
+// gdpParameter returns GDP related parameters for testPacketOut testcase.
+func gdpParameter() PacketIO {
 	return &GDPPacketIO{
 		PacketIOPacket: PacketIOPacket{
 			SrcMAC:       srcMac,
-			DstMAC:       gdpDstmac,
+			DstMAC:       gdpDstMac,
 			EthernetType: &gdpEtherType,
 		},
 		IngressPort: fmt.Sprint(portID),
 	}
 }
 
-// getTracerouteParameter returns Traceroute related parameters for testPacketIn testcase.
-func getTracerouteParameter() PacketIO {
+// tracerouteParameter returns Traceroute related parameters for testPacketIn testcase.
+func tracerouteParameter() PacketIO {
 	return &TraceroutePacketIO{
 		PacketIOPacket: PacketIOPacket{
 			TTL:      &ttl1,
@@ -612,12 +602,12 @@ func getTracerouteParameter() PacketIO {
 	}
 }
 
-// getLLDPParameter returns LLDP related parameters for testPacketIn testcase.
-func getLLDPParameter() PacketIO {
+// lldpParameter returns LLDP related parameters for testPacketIn testcase.
+func lldpParameter() PacketIO {
 	return &LLDPPacketIO{
 		PacketIOPacket: PacketIOPacket{
 			SrcMAC:       srcMac,
-			DstMAC:       lldpDstmac,
+			DstMAC:       lldpDstMac,
 			EthernetType: &lldpEthertype,
 		},
 		IngressPort: fmt.Sprint(portID),
@@ -651,9 +641,9 @@ func TestP4rtPerformance(t *testing.T) {
 	if err := setupP4RTClient(args); err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
-	args.gdpPacketIO = getGDPParameter()
-	args.lldpPacketIO = getLLDPParameter()
-	args.trPacketIO = getTracerouteParameter()
+	args.gdpPacketIO = gdpParameter()
+	args.lldpPacketIO = lldpParameter()
+	args.trPacketIO = tracerouteParameter()
 	testPktInPktOut(t, args)
 }
 
@@ -775,8 +765,8 @@ func packetLLDPRequestGet() []byte {
 	return buf.Bytes()
 }
 
-// GetTableEntry creates wbb acl entry related to GDP,LLDP and traceroute.
-func getTableEntry(actionType p4_v1.Update_Type) []*p4rtutils.ACLWbbIngressTableEntryInfo {
+// newTableEntry creates wbb acl entry related to GDP,LLDP and traceroute.
+func newTableEntry(actionType p4_v1.Update_Type) []*p4rtutils.ACLWbbIngressTableEntryInfo {
 	return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
 		EtherType:     0x6007,
@@ -806,8 +796,8 @@ func getTableEntry(actionType p4_v1.Update_Type) []*p4rtutils.ACLWbbIngressTable
 	}
 }
 
-// GetPacketOut generates 3 PacketOut messages with payload as GDP,LLDP and traceroute.
-func getPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
+// newPacketOut generates 3 PacketOut messages with payload as GDP,LLDP and traceroute.
+func newPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
 	var packets []*p4_v1.PacketOut
 	packet1 := &p4_v1.PacketOut{
 		Payload: packetGDPRequestGet(),
@@ -856,11 +846,11 @@ func getPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
 	return packets
 }
 
-// GetTrafficFlow generates ATE traffic flows for LLDP.
-func getTrafficFlow(args *testArgs, ate *ondatra.ATEDevice) []*ondatra.Flow {
+// newTrafficFlow generates ATE traffic flows for LLDP.
+func newTrafficFlow(args *testArgs, ate *ondatra.ATEDevice) []*ondatra.Flow {
 	ethHeader1 := ondatra.NewEthernetHeader()
 	ethHeader1.WithSrcAddress(*srcMac)
-	ethHeader1.WithDstAddress(*lldpDstmac)
+	ethHeader1.WithDstAddress(*lldpDstMac)
 	ethHeader1.WithEtherType(lldpEthertype)
 
 	// flow1 for LLDP traffic.
@@ -869,7 +859,7 @@ func getTrafficFlow(args *testArgs, ate *ondatra.ATEDevice) []*ondatra.Flow {
 
 	ethHeader2 := ondatra.NewEthernetHeader()
 	ethHeader2.WithSrcAddress(*srcMac)
-	ethHeader2.WithDstAddress(*gdpDstmac)
+	ethHeader2.WithDstAddress(*gdpDstMac)
 	ethHeader2.WithEtherType(uint32(gdpInLayers))
 
 	// flow2 for GDP traffic.
