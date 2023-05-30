@@ -257,8 +257,7 @@ tests:
       - arvbaska
     mustpass: true
     priority: 37
-    branch: main-yve-changes
-    internal: true
+    pr: 1671
   - name: RT-5.3 (Aggregate Balancing)
     path: feature/interface/aggregate/ate_tests/balancing_test
     owners:
@@ -387,6 +386,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+    pr: 1680
     priority: 45
   - name: OC-1.1 (System Configuration)
     path: feature/system/tests/system_base_test
@@ -441,9 +441,8 @@ tests:
     path: feature/bgp/addpath/ate_tests/route_propagation_test
     owners:
       - sprem
-    args:
-      - "-deviation_rpl_under_peergroup=true"
     mustpass: true
+    pr: 1679    
     priority: 52
     skip: false
   - name: RT-1.5 (BGP Prefix Limit)
@@ -458,10 +457,9 @@ tests:
     owners:
       - sprem
     mustpass: true
+    pr: 1679    
     priority: 54
     skip: false
-    args:
-      - '-deviation_rpl_under_peergroup="true"'
   - name: RT-1.7 (Local BGP Test)
     path: feature/bgp/tests/local_bgp_test
     owners:
@@ -476,8 +474,8 @@ tests:
     path: feature/bgp/policybase/ate_tests/route_installation_test
     owners:
       - sprem
+    pr: 1679      
     args:
-      - "-deviation_rpl_under_peergroup=true"
       - "-deviation_prepolicy_received_routes=true"
     mustpass: true
     skip: false
@@ -542,8 +540,7 @@ tests:
       - saarvind
     mustpass: true
     priority: 802
-    branch: main-yve-changes
-    internal: true
+    pr: 1670
   - name: DP-1.3 (QoS ECN feature config)
     path: feature/qos/ate_tests/qos_ecn_config_test
     owners:
@@ -559,32 +556,28 @@ tests:
     mustpass: true
     args:
       - '-deviation_qos_dropped_octets="true"'
-    branch: main-yve-changes
-    internal: true
+    pr: 1676
   - name: DP-1.7 (One strict priority queue traffic test)
     path: feature/qos/ate_tests/one_sp_queue_traffic_test
     owners:
       - saarvind
     mustpass: true
     timeout: 2700
-    branch: main-yve-changes
-    internal: true
+    pr: 1673
   - name: DP-1.8 (Two strict priority queue traffic test)
     path: feature/qos/ate_tests/two_sp_queue_traffic_test
     owners:
       - saarvind
     mustpass: true
     timeout: 4200
-    branch: main-yve-changes
-    internal: true
+    pr: 1674
   - name: DP-1.9 (WRR traffic-test)
     path: feature/qos/ate_tests/wrr_traffic_test
     owners:
       - saarvind
     mustpass: true
     timeout: 4200
-    branch: main-yve-changes
-    internal: true
+    pr: 1675
   - name: DP-1.11 (QoS Bursty Traffic)
     path: feature/qos/ate_tests/bursty_traffic_test
     owners:
@@ -592,8 +585,7 @@ tests:
     mustpass: true
     args:
       - '-deviation_qos_dropped_octets="true"'
-    branch: main-yve-changes
-    internal: true
+    pr: 1677
   - name: gNMI-1.2 (Benchmarking Full Configuration Replace)
     path: feature/experimental/system/gnmi/benchmarking/ate_tests/full_configuration_replace_test
     owners:
@@ -607,9 +599,9 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+    pr: 1679
     args:
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-      - '-deviation_rpl_under_peergroup="true"'
   - name: DP-1.14 (QoS base config)
     path: feature/qos/ate_tests/qos_basic_test/
     owners:
@@ -617,8 +609,7 @@ tests:
     mustpass: true
     args:
       - '-deviation_qos_dropped_octets="true"'
-    branch: main-yve-changes
-    internal: true
+    pr: 1672
   - name: RT-5.4 (Aggregate Forwarding Viable)
     path: feature/interface/aggregate/ate_tests/aggregate_forwarding_viable_test
     owners:
@@ -642,3 +633,9 @@ tests:
       - wdolaast
     mustpass: false
     skip: true # requires 2 dut
+  - name: FP-1.1 (Power admin DOWN/UP Test)
+    path: feature/platform/tests/power_admin_down_up_test
+    owners:
+      - mananpat
+    mustpass: true
+    pr: 1678 
