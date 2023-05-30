@@ -249,7 +249,11 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-
+  - name: RT-1.10 (BGP Keepalive and HoldTimer Configuration Test)
+    path: feature/bgp/timers/otg_tests/bgp_keepalive_and_holdtimer_configuration_test
+    owners:
+      - arvbaska
+    mustpass: true
 
 
 
