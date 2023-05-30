@@ -186,7 +186,7 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packet *p4_v1.Pac
 			}); err != nil {
 			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
 		}
-		time.Sleep(time.Duration(delay)*time.Millisecond)
+		time.Sleep(time.Duration(delay) * time.Millisecond)
 	}
 }
 
