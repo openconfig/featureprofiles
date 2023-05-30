@@ -535,14 +535,14 @@ tests:
     mustpass: true
     priority: 801
   - name: DP-1.2 (QoS policy feature config)
-    path: feature/qos/tests/qos_policy_config_test
+    path: feature/qos/ate_tests/qos_policy_config_test
     owners:
       - saarvind
     mustpass: true
     priority: 802
     pr: 1670
   - name: DP-1.3 (QoS ECN feature config)
-    path: feature/qos/tests/qos_ecn_config_test
+    path: feature/qos/ate_tests/qos_ecn_config_test
     owners:
       - saarvind
     mustpass: true
