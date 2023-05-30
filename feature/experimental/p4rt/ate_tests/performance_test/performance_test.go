@@ -15,7 +15,6 @@
 package performance_test
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -40,36 +39,36 @@ import (
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
-var (
-	p4InfoFile                              = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	streamName                              = "p4rt"
+const (
 	gdpInLayers         layers.EthernetType = 0x6007
 	lldpInLayers        layers.EthernetType = 0x88cc
-	lldpEthertype                           = uint32(0x88cc)
-	gdpEtherType                            = uint32(0x6007)
-	deviceID                                = *ygot.Uint64(1)
-	portID                                  = *ygot.Uint32(10)
-	electionID                              = *ygot.Uint64(100)
-	metadataIngressPort                     = *ygot.Uint32(1)
-	metadataEgressPort                      = *ygot.Uint32(2)
-
-	duration        = uint32(20)
-	gdpBitRate      = uint64(200000)
-	lldpBitRate     = uint64(100000)
-	trPacketRate    = uint64(324)
-	packetInPktsize = uint32(300)
-	srcMac          = flag.String("srcMac", "00:01:00:02:00:03", "source MAC address for PacketIn")
-	lldpDstmac      = flag.String("lldpDstmac", "01:80:c2:00:00:0e", "source MAC address for PacketIn")
-	gdpDstmac       = flag.String("gdpDstmac", "00:0a:da:f0:f0:f0", "source MAC address for PacketIn")
-	ttl1            = uint8(1)
-	hopLimit1       = uint8(1)
-	packetOutWait   = uint32(77) // Wait for the ATE traffic start, so both packetin and packetout hits DUT simultaneously.
-	ipv4PrefixLen   = uint8(30)
-	ipv6PrefixLen   = uint8(126)
-	packetCount     = 2000
+	deviceID                                = uint64(1)
+	portID                                  = uint32(10)
+	electionID                              = uint64(100)
+	metadataIngressPort                     = uint32(1)
+	metadataEgressPort                      = uint32(2)
+	duration                                = uint32(20) // Sleep duration after starting ATE traffic.
+	gdpBitRate                              = uint64(200000)
+	lldpBitRate                             = uint64(100000)
+	trPacketRate                            = uint64(324)
+	packetInPktsize                         = uint32(300)
+	ipv4PrefixLen                           = uint8(30)
+	ipv6PrefixLen                           = uint8(126)
+	packetOutWait                           = time.Duration(77 * time.Second) // Wait for the ATE traffic start, so both packetin and packetout hits DUT simultaneously.
+	packetCount                             = 2000
 )
 
 var (
+	streamName    = "p4rt"
+	ttl1          = uint8(1)
+	hopLimit1     = uint8(1)
+	lldpEthertype = uint32(0x88cc)
+	gdpEtherType  = uint32(0x6007)
+	p4InfoFile    = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	srcMac        = flag.String("srcMac", "00:01:00:02:00:03", "source MAC address for PacketIn")
+	lldpDstmac    = flag.String("lldpDstmac", "01:80:c2:00:00:0e", "source MAC address for PacketIn")
+	gdpDstmac     = flag.String("gdpDstmac", "00:0a:da:f0:f0:f0", "source MAC address for PacketIn")
+
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
@@ -144,11 +143,15 @@ type TraceroutePacketIO struct {
 
 // programTableEntry programs or deletes p4rt table entry based on delete flag.
 func programTableEntry(client *p4rt_client.P4RTClient, delete bool) error {
+	updateType := p4_v1.Update_INSERT
+	if delete {
+		updateType = p4_v1.Update_DELETE
+	}
 	return client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceID,
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
-			getTableEntry(delete),
+			getTableEntry(updateType),
 		),
 		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
 	})
@@ -173,8 +176,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, sr
 }
 
 // sendPackets GDP/LLDP/Traceroute sends out packets via PacketOut message in StreamChannel.
-func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packet *p4_v1.PacketOut, packetCount int, timer float64) {
-
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packet *p4_v1.PacketOut, packetCount int, delay float64) {
 	for i := 0; i < packetCount; i++ {
 		if err := client.StreamChannelSendMsg(
 			&streamName, &p4_v1.StreamMessageRequest{
@@ -184,13 +186,12 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packet *p4_v1.Pac
 			}); err != nil {
 			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
 		}
-		time.Sleep(time.Duration(timer) * time.Millisecond)
+		time.Sleep(time.Duration(delay)*time.Millisecond)
 	}
 }
 
 // decodeIPPacketTTL decodes L2 header in the packet and returns TTL, packetData[14:0] to remove first 14 bytes of Ethernet header.
-func decodeIPPacketTTL(t *testing.T, packetData []byte) uint8 {
-	t.Helper()
+func decodeIPPacketTTL(packetData []byte) uint8 {
 	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
 	etherHeader := packet.Layer(layers.LayerTypeEthernet)
 	if etherHeader != nil {
@@ -199,9 +200,7 @@ func decodeIPPacketTTL(t *testing.T, packetData []byte) uint8 {
 			packet1 := gopacket.NewPacket(packetData[14:], layers.LayerTypeIPv4, gopacket.Default)
 			IPv4 := packet1.Layer(layers.LayerTypeIPv4)
 			if IPv4 != nil {
-				ipv4 := IPv4.(*layers.IPv4)
-				IPv4 := ipv4.TTL
-				return IPv4
+				return IPv4.(*layers.IPv4).TTL
 			}
 		}
 	}
@@ -209,8 +208,7 @@ func decodeIPPacketTTL(t *testing.T, packetData []byte) uint8 {
 }
 
 // decodeL2Packet decodes L2 header in the packet and returns destination MAC and ethernet type.
-func decodeL2Packet(t *testing.T, packetData []byte) (string, layers.EthernetType) {
-	t.Helper()
+func decodeL2Packet(packetData []byte) (string, layers.EthernetType) {
 	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
 	etherHeader := packet.Layer(layers.LayerTypeEthernet)
 	if etherHeader != nil {
@@ -225,7 +223,7 @@ func decodeL2Packet(t *testing.T, packetData []byte) (string, layers.EthernetTyp
 }
 
 // testPktinPktout sends out packetout and packetin traffic together simultaneously.
-func testPktInPktOut(ctx context.Context, t *testing.T, args *testArgs) {
+func testPktInPktOut(t *testing.T, args *testArgs) {
 	leader := args.leader
 
 	// Insert wbb acl entry on the DUT
@@ -285,19 +283,19 @@ func testPktInPktOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 			go func() {
 				defer wg.Done()
-				time.Sleep(time.Duration(packetOutWait) * time.Second)
+				time.Sleep(packetOutWait)
 				sendPackets(t, test.client, packets[0], packetCount, 2.6) // GDP packetout with 2.6ms timer.
 			}()
 
 			go func() {
 				defer wg.Done()
-				time.Sleep(time.Duration(packetOutWait) * time.Second)
+				time.Sleep(packetOutWait)
 				sendPackets(t, test.client, packets[1], packetCount, 3.1) // Traceroute packetout with 3.1ms timer.
 			}()
 
 			go func() {
 				defer wg.Done()
-				time.Sleep(time.Duration(packetOutWait) * time.Second)
+				time.Sleep((packetOutWait))
 				sendPackets(t, test.client, packets[2], packetCount, 5.1) // LLDP packetout with 5.1ms timer.
 			}()
 
@@ -311,12 +309,12 @@ func testPktInPktOut(ctx context.Context, t *testing.T, args *testArgs) {
 			t.Logf("Received %v packetout on ATE port %s", counter1-counter0, port)
 
 			if test.expectPass {
-				if float32(counter1-counter0) < (float32(3*packetCount) * 0.85) {
-					t.Errorf("Number of Packetout packets, got: %d, want: %d", counter1-counter0, (3 * packetCount))
+				if (counter1 - counter0) < uint64(float32(3*packetCount)*0.95) {
+					t.Fatalf("Number of Packetout packets, got: %d, want: %d", counter1-counter0, (3 * packetCount))
 				}
 			} else {
-				if float32(counter1-counter0) > (float32(3*packetCount) * 0.10) {
-					t.Errorf("Unexpected packets are received.")
+				if (counter1 - counter0) > uint64(float32(3*packetCount)*0.10) {
+					t.Fatalf("Unexpected packets are received.")
 				}
 			}
 			_, packetin_pkts, err := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 30*time.Second)
@@ -341,8 +339,8 @@ func testPktInPktOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 			for _, packet := range packetin_pkts {
 				if packet != nil {
-					dstMac, etherType := decodeL2Packet(t, packet.Pkt.GetPayload())
-					ttl := decodeIPPacketTTL(t, packet.Pkt.GetPayload())
+					dstMac, etherType := decodeL2Packet(packet.Pkt.GetPayload())
+					ttl := decodeIPPacketTTL(packet.Pkt.GetPayload())
 					metaData := packet.Pkt.GetMetadata()
 					if wantgdpPacket.EthernetType != nil {
 						if etherType == layers.EthernetType(*wantgdpPacket.EthernetType) {
@@ -515,7 +513,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 }
 
 // configureDeviceIDs configures p4rt device-id on the DUT.
-func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+func configureDeviceID(t *testing.T, dut *ondatra.DUTDevice) {
 	nodes := p4rtutils.P4RTNodesByPort(t, dut)
 	p4rtNode, ok := nodes["port1"]
 	if !ok {
@@ -531,7 +529,7 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 
 // setupP4RTClient sends client arbitration message for the leader client,
 // then sends setforwordingpipelineconfig config.
-func setupP4RTClient(ctx context.Context, args *testArgs) error {
+func setupP4RTClient(args *testArgs) error {
 	// Setup p4rt-client stream parameters.
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
@@ -628,8 +626,6 @@ func getLLDPParameter() PacketIO {
 
 func TestP4rtPerformance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-
 	configureDUT(t, dut)
 
 	// Configure the ATE
@@ -638,7 +634,7 @@ func TestP4rtPerformance(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	// Configure P4RT device-id
-	configureDeviceID(ctx, t, dut)
+	configureDeviceID(t, dut)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
@@ -652,13 +648,13 @@ func TestP4rtPerformance(t *testing.T) {
 		top:    top,
 	}
 
-	if err := setupP4RTClient(ctx, args); err != nil {
+	if err := setupP4RTClient(args); err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 	args.gdpPacketIO = getGDPParameter()
 	args.lldpPacketIO = getLLDPParameter()
 	args.trPacketIO = getTracerouteParameter()
-	testPktInPktOut(ctx, t, args)
+	testPktInPktOut(t, args)
 }
 
 // packetGDPRequestGet generates PacketOut payload for GDP packets.
@@ -674,7 +670,7 @@ func packetGDPRequestGet() []byte {
 		DstMAC:       net.HardwareAddr{0x00, 0x0A, 0xDA, 0xF0, 0xF0, 0xF0},
 		EthernetType: gdpInLayers,
 	}
-	payload := []byte{}
+	var payload []byte
 	payLoadLen := 64
 	for i := 0; i < payLoadLen; i++ {
 		payload = append(payload, byte(i))
@@ -692,7 +688,7 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
-	payload := []byte{}
+	var payload []byte
 	payLoadLen := 32
 
 	ethType := layers.EthernetTypeIPv4
@@ -780,11 +776,7 @@ func packetLLDPRequestGet() []byte {
 }
 
 // GetTableEntry creates wbb acl entry related to GDP,LLDP and traceroute.
-func getTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
-	actionType := p4_v1.Update_INSERT
-	if delete {
-		actionType = p4_v1.Update_DELETE
-	}
+func getTableEntry(actionType p4_v1.Update_Type) []*p4rtutils.ACLWbbIngressTableEntryInfo {
 	return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
 		EtherType:     0x6007,
@@ -816,7 +808,7 @@ func getTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
 
 // GetPacketOut generates 3 PacketOut messages with payload as GDP,LLDP and traceroute.
 func getPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
-	packets := []*p4_v1.PacketOut{}
+	var packets []*p4_v1.PacketOut
 	packet1 := &p4_v1.PacketOut{
 		Payload: packetGDPRequestGet(),
 		Metadata: []*p4_v1.PacketMetadata{
@@ -891,12 +883,7 @@ func getTrafficFlow(args *testArgs, ate *ondatra.ATEDevice) []*ondatra.Flow {
 	flow3 := ate.Traffic().NewFlow("IPv4").WithFrameSize(packetInPktsize).WithFrameRateFPS(trPacketRate).WithHeaders(ethHeader, ipv4Header)
 	flow3.Transmission().WithPatternFixedDuration(duration)
 
-	var flows []*ondatra.Flow
-	flows = append(flows, flow1)
-	flows = append(flows, flow2)
-	flows = append(flows, flow3)
-
-	return flows
+	return []*ondatra.Flow{flow1, flow2, flow3}
 }
 
 // GetEgressPort returns expected egress port info in PacketIn.
