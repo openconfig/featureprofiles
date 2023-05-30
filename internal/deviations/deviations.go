@@ -72,7 +72,7 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// lookupDutDeviations returns the deviations for the specified dut. If no duts match `nil` is returned.
+// lookupDutDeviations returns the deviations for the specified dut.
 func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
 		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
@@ -85,7 +85,7 @@ func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 		}
 	}
 	log.Warningf("No platform exceptions for dut platform %v or model %v configured in platform exceptions metadata %v", dut.Device.Vendor().String(), dut.Device.Model(), metadata.Get().PlatformExceptions)
-	return nil
+	return &mpb.Metadata_Deviations{}
 }
 
 func logErrorIfFlagSet(name string) {
