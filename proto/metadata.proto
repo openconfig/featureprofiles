@@ -54,6 +54,8 @@ message Metadata {
     bool traceroute_fragmentation = 2;
     // Device only support UDP as l4 protocol for traceroute.
     bool traceroute_l4_protocol_udp = 3;
+    // Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
+    bool prepolicy_received_routes = 4;
   }
 
   message PlatformExceptions {
