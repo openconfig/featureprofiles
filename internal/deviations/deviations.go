@@ -280,10 +280,11 @@ func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
 // Default minimum value is 0.2. Anything less than 0.2 will be set to 0.2.
 func HierarchicalWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
 	logErrorIfFlagSet("deviation_hierarchical_weight_resolution_tolerance")
-	if lookupDUTDeviations(dut).HierarchicalWeightResolutionTolerance > 0.2 {
-		return lookupDUTDeviations(dut).GetHierarchicalWeightResolutionTolerance()
+	hwrt := lookupDUTDeviations(dut).GetHierarchicalWeightResolutionTolerance()
+	if minHWRT := 0.2; hwrt < minHWRT {
+		return minHWRT
 	}
-	return 0.2
+	return hwrt
 }
 
 // InterfaceEnabled returns if device requires interface enabled leaf booleans to be explicitly set to true.
