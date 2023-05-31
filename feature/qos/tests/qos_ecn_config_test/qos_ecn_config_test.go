@@ -256,11 +256,13 @@ func testCiscoECNConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-	queueName := []string{"a_NC1", "b_AF4", "c_AF3", "d_AF2", "e_AF1", "f_BE0", "g_BE1"}
+	queueName := []string{"NC1", "AF4", "AF3", "AF2", "AF1", "BE0", "BE1"}
 
-	for _, queue := range queueName {
+	for i, queue := range queueName {
 		q1 := q.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := 7 - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
@@ -278,64 +280,64 @@ func testCiscoECNConfig(t *testing.T) {
 		desc:         "scheduler-policy-BE1",
 		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "g_BE1",
+		inputID:      "BE1",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(1),
-		queueName:    "g_BE1",
+		queueName:    "BE1",
 		targetGrpoup: "target-group-BE1",
 	}, {
 		desc:         "scheduler-policy-BE0",
 		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "f_BE0",
+		inputID:      "BE0",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(4),
-		queueName:    "f_BE0",
+		queueName:    "BE0",
 		targetGrpoup: "target-group-BE0",
 	}, {
 		desc:         "scheduler-policy-AF1",
 		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "e_AF1",
+		inputID:      "AF1",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(8),
-		queueName:    "e_AF1",
+		queueName:    "AF1",
 		targetGrpoup: "target-group-AF1",
 	}, {
 		desc:         "scheduler-policy-AF2",
 		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "d_AF2",
+		inputID:      "AF2",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(16),
-		queueName:    "d_AF2",
+		queueName:    "AF2",
 		targetGrpoup: "target-group-AF2",
 	}, {
 		desc:         "scheduler-policy-AF3",
 		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "c_AF3",
+		inputID:      "AF3",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(32),
-		queueName:    "c_AF3",
+		queueName:    "AF3",
 		targetGrpoup: "target-group-AF3",
 	}, {
 		desc:         "scheduler-policy-AF4",
 		sequence:     uint32(0),
 		priority:     oc.Scheduler_Priority_STRICT,
-		inputID:      "b_AF4",
+		inputID:      "AF4",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(6),
-		queueName:    "b_AF4",
+		queueName:    "AF4",
 		targetGrpoup: "target-group-AF4",
 	}, {
 		desc:         "scheduler-policy-NC1",
 		sequence:     uint32(0),
 		priority:     oc.Scheduler_Priority_STRICT,
-		inputID:      "a_NC1",
+		inputID:      "NC1",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(7),
-		queueName:    "a_NC1",
+		queueName:    "NC1",
 		targetGrpoup: "target-group-NC1",
 	}}
 
@@ -349,7 +351,7 @@ func testCiscoECNConfig(t *testing.T) {
 			s.SetPriority(tc.priority)
 			input := s.GetOrCreateInput(tc.inputID)
 			input.SetId(tc.inputID)
-			//input.SetInputType(tc.inputType)
+			input.SetInputType(tc.inputType)
 			input.SetQueue(tc.queueName)
 			input.SetWeight(tc.weight)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
@@ -365,9 +367,9 @@ func testCiscoECNConfig(t *testing.T) {
 	}{
 		ecnEnabled:                true,
 		dropEnabled:               false,
-		minThreshold:              uint64(80000),
-		maxThreshold:              uint64(1000000),
-		maxDropProbabilityPercent: uint8(1),
+		minThreshold:              uint64(8005632),
+		maxThreshold:              uint64(8011776),
+		maxDropProbabilityPercent: uint8(100),
 		weight:                    uint32(0),
 	}
 	queueMgmtProfile := q.GetOrCreateQueueManagementProfile("DropProfile")
@@ -377,6 +379,7 @@ func testCiscoECNConfig(t *testing.T) {
 	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
+	uniform.SetDrop(ecnConfig.dropEnabled)
 	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
@@ -389,44 +392,45 @@ func testCiscoECNConfig(t *testing.T) {
 		ecnProfile string
 		scheduler  string
 	}{{
-		desc:       "output-interface-BE1",
-		queueName:  "g_BE1",
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-	}, {
-		desc:       "output-interface-BE0",
-		queueName:  "f_BE0",
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-	}, {
-		desc:       "output-interface-AF1",
-		queueName:  "e_AF1",
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-	}, {
-		desc:       "output-interface-AF2",
-		queueName:  "d_AF2",
-		ecnProfile: "DropProfile",
-		scheduler:  "scheduler",
-	}, {
-		desc:       "output-interface-AF3",
-		queueName:  "c_AF3",
+		desc:       "output-interface-NC1",
+		queueName:  "NC1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-AF4",
-		queueName:  "b_AF4",
+		queueName:  "AF4",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
-		desc:       "output-interface-NC1",
-		queueName:  "a_NC1",
+		desc:       "output-interface-AF3",
+		queueName:  "AF3",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
+	}, {
+		desc:       "output-interface-AF2",
+		queueName:  "AF2",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
+	}, {
+		desc:       "output-interface-AF1",
+		queueName:  "AF1",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
+	}, {
+		desc:       "output-interface-BE0",
+		queueName:  "BE0",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
+	}, {
+		desc:       "output-interface-BE1",
+		queueName:  "BE1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}}
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
 	t.Logf("qos output interface config cases: %v", cases)
+
 	for _, tc := range intcases {
 		t.Run(tc.desc, func(t *testing.T) {
 			output := i.GetOrCreateOutput()
@@ -435,11 +439,10 @@ func testCiscoECNConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.queueName)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.queueName)
-			//gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	for _, tc := range cases {
 		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
