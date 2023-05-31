@@ -84,5 +84,5 @@
 * Example PR - https://github.com/openconfig/featureprofiles/pull/1649
 
 ## Notes
-* If you run into issues with the `make proto/metadata_go_proto/metadata.pb.go` you may need to check if `protoc` module is installed in your environment. Also depending on your Go version you may also need to update your PATH and GOPATH.
+* If you run into issues with the `make proto/metadata_go_proto/metadata.pb.go` you may need to check if the `protoc` module is installed in your environment. Also depending on your Go version you may need to update your PATH and GOPATH.
 * After running the `make proto/metadata_go_proto/metadata.pb.go` script, a `protobuf-import/` folder will be added in your current directory. Keep an eye out for this in case you use `git add .` to add modified files since this folder should not be part of your PR.
