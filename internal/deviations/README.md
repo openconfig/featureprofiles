@@ -1,6 +1,6 @@
 ## Guidelines to add deviations to FNT tests
 
-* Add the deviation to the `Deviation` message in the [proto/metadata.proto](https://github.com/openconfig/featureprofiles/blob/main/proto/metadata.proto) file.
+* Add the deviation to the `Deviations` message in the [proto/metadata.proto](https://github.com/openconfig/featureprofiles/blob/main/proto/metadata.proto) file.
 
   ```
   message Deviations {
