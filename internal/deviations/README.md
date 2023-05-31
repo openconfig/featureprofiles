@@ -43,17 +43,17 @@
 
 	* If the default value of deviation is not the same as the default value of the proto field, the accessor method can add a check and return the required default value. For example, the accessor method for the float `hierarchical_weight_resolution_tolerance` deviation, which has a default value of `0`, will call the `GetHierarchicalWeightResolutionTolerance()` to check the value set in `metadata.textproto` and return the default value `0.2` if applicable.
 
-    ```
-    // HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
-    // Default minimum value is 0.2. Anything less than 0.2 will be set to 0.2.
-  	func HierarchicalWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
-     hwrt := lookupDUTDeviations(dut).GetHierarchicalWeightResolutionTolerance()
+	  ```
+	  // HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
+	  // Default minimum value is 0.2. Anything less than 0.2 will be set to 0.2.
+	  func HierarchicalWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
+      hwrt := lookupDUTDeviations(dut).GetHierarchicalWeightResolutionTolerance()
       if minHWRT := 0.2; hwrt < minHWRT {
-       return minHWRT
-     }
-     return hwrt
-  	}
-  	```
+        return minHWRT
+      }
+      return hwrt
+	  }
+	  ```
 
 * Set the deviation value in the `metadata.textproto` file in the same folder as the test. For example, the deviations used in the test `feature/gnoi/system/tests/traceroute_test/traceroute_test.go` will be set in the file `feature/gnoi/system/tests/traceroute_test/metadata.textproto`. List all the vendor and hardware models that this deviation is applicable for.
 
