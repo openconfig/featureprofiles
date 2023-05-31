@@ -49,7 +49,7 @@
 	  func HierarchicalWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
 	    hwrt := lookupDUTDeviations(dut).GetHierarchicalWeightResolutionTolerance()
 	    if minHWRT := 0.2; hwrt < minHWRT {
-        return minHWRT
+          return minHWRT
 	    }
 	    return hwrt
 	  }
