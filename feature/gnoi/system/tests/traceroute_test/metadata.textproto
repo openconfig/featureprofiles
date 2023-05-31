@@ -5,3 +5,16 @@ uuid: "5384dcdb-c427-4b35-94d3-d5f571960634"
 plan_id: "gNOI-5.2"
 description: "Traceroute Test"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    traceroute_fragmentation: true
+    traceroute_l4_protocol_udp: true
+  }
+}
