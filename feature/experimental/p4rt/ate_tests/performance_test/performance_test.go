@@ -164,7 +164,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, sr
 		flow.WithSrcEndpoints(srcEndPoint).WithDstEndpoints(srcEndPoint)
 	}
 	ate.Traffic().Start(t, flows...)
-	time.Sleep(duration * time.Second)
+	time.Sleep(duration)
 	ate.Traffic().Stop(t)
 
 	outPkts := gnmi.GetAll(t, ate, gnmi.OC().FlowAny().Counters().OutPkts().State())
@@ -176,7 +176,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, sr
 }
 
 // sendPackets GDP/LLDP/Traceroute sends out packets via PacketOut message in StreamChannel.
-func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packet *p4_v1.PacketOut, packetCount int, delay float64) {
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packet *p4_v1.PacketOut, packetCount int, delay time.Duration) {
 	for i := 0; i < packetCount; i++ {
 		if err := client.StreamChannelSendMsg(
 			&streamName, &p4_v1.StreamMessageRequest{
@@ -186,7 +186,7 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packet *p4_v1.Pac
 			}); err != nil {
 			t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
 		}
-		time.Sleep(time.Duration(delay) * time.Millisecond)
+		time.Sleep(delay)
 	}
 }
 
@@ -276,26 +276,29 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 
 			go func() {
 				defer wg.Done()
-				pktIn = testTraffic(t, args.ate, flows, srcEndPoint, 20)
+				pktIn = testTraffic(t, args.ate, flows, srcEndPoint, 20*time.Second)
 				t.Logf("Total Packetin packets sent from ATE %v", pktIn)
 			}()
 
 			go func() {
 				defer wg.Done()
 				time.Sleep(packetOutWait)
-				sendPackets(t, test.client, packets[0], packetCount, 2.6) // GDP packetout with 2.6ms timer.
+				// GDP packetout with 2.6ms timer.
+				sendPackets(t, test.client, packets[0], packetCount, 2600*time.Microsecond)
 			}()
 
 			go func() {
 				defer wg.Done()
 				time.Sleep(packetOutWait)
-				sendPackets(t, test.client, packets[1], packetCount, 3.1) // Traceroute packetout with 3.1ms timer.
+				// Traceroute packetout with 3.1ms timer.
+				sendPackets(t, test.client, packets[1], packetCount, 3100*time.Microsecond)
 			}()
 
 			go func() {
 				defer wg.Done()
-				time.Sleep((packetOutWait))
-				sendPackets(t, test.client, packets[2], packetCount, 5.1) // LLDP packetout with 5.1ms timer.
+				time.Sleep(packetOutWait)
+				// LLDP packetout with 5.1ms timer.
+				sendPackets(t, test.client, packets[2], packetCount, 5100*time.Microsecond)
 			}()
 
 			wg.Wait() // Wait for all four goroutines to finish before exiting.
@@ -316,12 +319,12 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 					t.Fatalf("Unexpected packets are received.")
 				}
 			}
-			_, packetin_pkts, err := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 30*time.Second)
+			_, packetinPackets, err := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 30*time.Second)
 			if err != nil {
 				t.Errorf("Unexpected error on StreamChannelGetPackets: %v", err)
 			}
 
-			if got, want := len(packetin_pkts), test.wantPkts; got != want {
+			if got, want := len(packetinPackets), test.wantPkts; got != want {
 				t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
 			}
 			if test.wantPkts == 0 {
@@ -336,7 +339,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 			lldpIncount := 0
 			trIncount := 0
 
-			for _, packet := range packetin_pkts {
+			for _, packet := range packetinPackets {
 				if packet != nil {
 					dstMac, etherType := decodeL2Packet(packet.Pkt.GetPayload())
 					ttl := decodeIPPacketTTL(packet.Pkt.GetPayload())
@@ -407,7 +410,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 					}
 				}
 			}
-			if total_pktout := (gdpIncount + lldpIncount + trIncount); float32(total_pktout) < (0.95 * float32(test.wantPkts)) {
+			if totalPacketout := (gdpIncount + lldpIncount + trIncount); float32(totalPacketout) < (0.95 * float32(test.wantPkts)) {
 				t.Fatalf("Not all Packetin Packets are received by P4RT client")
 			}
 		})
@@ -796,9 +799,8 @@ func newTableEntry(actionType p4_v1.Update_Type) []*p4rtutils.ACLWbbIngressTable
 	}
 }
 
-// newPacketOut generates 3 PacketOut messages with payload as GDP,LLDP and traceroute.
+// newPacketOut generates 3 PacketOut messages with payload as GDP, LLDP and, traceroute.
 func newPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
-	var packets []*p4_v1.PacketOut
 	packet1 := &p4_v1.PacketOut{
 		Payload: packetGDPRequestGet(),
 		Metadata: []*p4_v1.PacketMetadata{
@@ -808,7 +810,6 @@ func newPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
 			},
 		},
 	}
-	packets = append(packets, packet1)
 
 	srcMAC := net.HardwareAddr{0x00, 0x12, 0x8a, 0x00, 0x00, 0x01}
 	dstMAC := net.HardwareAddr{0x02, 0xF6, 0x65, 0x64, 0x00, 0x08}
@@ -832,7 +833,6 @@ func newPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
 			},
 		},
 	}
-	packets = append(packets, packet2)
 	packet3 := &p4_v1.PacketOut{
 		Payload: packetLLDPRequestGet(),
 		Metadata: []*p4_v1.PacketMetadata{
@@ -842,8 +842,7 @@ func newPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
 			},
 		},
 	}
-	packets = append(packets, packet3)
-	return packets
+	return []*p4_v1.PacketOut{packet1, packet2, packet3}
 }
 
 // newTrafficFlow generates ATE traffic flows for LLDP.
