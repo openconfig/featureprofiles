@@ -81,7 +81,8 @@
   }
   ```
 
-* Example PR - https://github.com/openconfig/featureprofiles/pull/1649
+* Example PRs - https://github.com/openconfig/featureprofiles/pull/1649 and
+  https://github.com/openconfig/featureprofiles/pull/1668
 
 ## Notes
 * If you run into issues with the `make proto/metadata_go_proto/metadata.pb.go` you may need to check if the `protoc` module is installed in your environment. Also depending on your Go version you may need to update your PATH and GOPATH.
