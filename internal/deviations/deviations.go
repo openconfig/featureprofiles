@@ -134,6 +134,16 @@ func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
 	return *p4rtUnsetElectionIDUnsupported
 }
 
+// P4rtUnsetElectionIDPrimaryAllowed returns whether the device does not support unset election ID.
+func P4rtUnsetElectionIDPrimaryAllowed(_ *ondatra.DUTDevice) bool {
+	return *p4rtUnsetElectionIDPrimaryAllowed
+}
+
+// P4rtBackupArbitrationResponseCode returns whether the device does not support unset election ID.
+func P4rtBackupArbitrationResponseCode(_ *ondatra.DUTDevice) bool {
+	return *p4rtBackupArbitrationResponseCode
+}
+
 // ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
 // Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.
 func ExplicitP4RTNodeComponent(_ *ondatra.DUTDevice) bool {
@@ -340,8 +350,9 @@ func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
 
 // MissingPrePolicyReceivedRoutes returns if device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
 // Fully-compliant devices should pass with and without this deviation.
-func MissingPrePolicyReceivedRoutes(_ *ondatra.DUTDevice) bool {
-	return *missingPrePolicyReceivedRoutes
+func MissingPrePolicyReceivedRoutes(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_prepolicy_received_routes")
+	return lookupDUTDeviations(dut).GetPrepolicyReceivedRoutes()
 }
 
 // DeprecatedVlanID returns if device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.
@@ -518,7 +529,7 @@ var (
 
 	RoutePolicyUnderPeerGroup = flag.Bool("deviation_rpl_under_peergroup", false, "Device requires route-policy configuration under bgp peer-group. Fully-compliant devices should pass with and without this deviation.")
 
-	missingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
+	_ = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
 
 	_ = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
 
@@ -573,8 +584,11 @@ var (
 
 	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
 
-	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
-		"Set to true for device requiring explicit deletion of network-instance table, default is false")
+	p4rtUnsetElectionIDPrimaryAllowed = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary")
+
+	p4rtBackupArbitrationResponseCode = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
+
+	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false, "Set to true for device requiring explicit deletion of network-instance table, default is false")
 
 	isisMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
