@@ -2,14 +2,14 @@
 
 * Add the deviation to the `Deviation` message in the [proto/metadata.proto](https://github.com/openconfig/featureprofiles/blob/main/proto/metadata.proto) file.
 
-```
-message Deviations {
-...
-// Device does not support fragmentation bit for traceroute.
-bool traceroute_fragmentation = 2;
-...
-}
-```
+  ```
+  message Deviations {
+    ...
+    // Device does not support fragmentation bit for traceroute.
+    bool traceroute_fragmentation = 2;
+    ...
+  }
+  ```
 
 * Run `make proto/metadata_go_proto/metadata.pb.go` from your featureprofiles root directory to generate the Go code for the added proto fields.
 
@@ -31,7 +31,7 @@ goimports -w proto/metadata_go_proto/metadata.pb.go
 ```
 
 * Add the accessor function for this deviation to the [internal/deviations/deviations.go](https://github.com/openconfig/featureprofiles/blob/main/internal/deviations/deviations.go) file. This function will need to accept a parameter `dut` of type `*ondatra.DUTDevice` to lookup the deviation value for a specific dut. This accessor function must call `lookupDUTDeviations` and return the deviation value. Test code will use this function to access deviations.
-	* If default value of deviation is same as default value for proto field, accessor method can directly call the `Get*()` method for deviation field. For e.g. for `bool` fields, the default is `false`, and the accessor method will have one line `return lookupDUTDeviations(dut).GetTracerouteFragmentation()`.
+	* If the default value of the deviation is the same as the default value for the proto field, the accessor method can directly call the `Get*()` function for the deviation field. E.g. for `bool` fields, the default is `false`, and the accessor method will have one line `return lookupDUTDeviations(dut).GetTracerouteFragmentation()`.
 
 	```
 	// TraceRouteFragmentation returns if the device does not support fragmentation bit for traceroute.
@@ -55,7 +55,7 @@ goimports -w proto/metadata_go_proto/metadata.pb.go
 	}
 	```
 
-* Set the deviation value in the `metadata.textproto` file in the same folder as the test. For e.g., the deviations for test `feature/gnoi/system/tests/traceroute_test/traceroute_test.go` will be set in the file `feature/gnoi/system/tests/traceroute_test/metadata.textproto`. List all the vendor and hardware models that this deviation is applicable for.
+* Set the deviation value in the `metadata.textproto` file in the same folder as the test. E.g. the deviations for test `feature/gnoi/system/tests/traceroute_test/traceroute_test.go` will be set in the file `feature/gnoi/system/tests/traceroute_test/metadata.textproto`. List all the vendor and hardware models that this deviation is applicable for.
 
 ```
 ...
