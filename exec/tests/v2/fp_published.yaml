@@ -617,8 +617,7 @@ tests:
     mustpass: true
   - name: TE-1.2 (My Station MAC)
     path: feature/experimental/interface/my_station_mac/ate_tests/my_station_mac_test
-    branch: kjahed/te-1.2
-    internal: true
+    pr: 1687
     owners:
       - agvarghe
     mustpass: true
