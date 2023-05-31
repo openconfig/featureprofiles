@@ -167,13 +167,13 @@ func TestReuseIP(t *testing.T) {
 
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(bundle1)
-		configMember(config.GetOrCreateInterface(p1.Name()), bundle1)
-		configBundle(config.GetOrCreateInterface(bundle1), &ip1)
+		configMember(config.GetOrCreateInterface(p1.Name()), bundle1, dut)
+		configBundle(config.GetOrCreateInterface(bundle1), &ip1, dut)
 
 		config.DeleteInterface(p2.Name())
 		config.DeleteInterface(bundle2)
-		configMember(config.GetOrCreateInterface(p2.Name()), bundle2)
-		configBundle(config.GetOrCreateInterface(bundle2), &ip2)
+		configMember(config.GetOrCreateInterface(p2.Name()), bundle2, dut)
+		configBundle(config.GetOrCreateInterface(bundle2), &ip2, dut)
 
 		op.push(t, dut, config, scope)
 
@@ -190,7 +190,7 @@ func TestReuseIP(t *testing.T) {
 		config.Interface[p1.Name()].Ethernet.AggregateId = nil
 		config.DeleteInterface(bundle1)
 		config.DeleteInterface(bundle2)
-		configBundle(config.GetOrCreateInterface(bundle2), &ip1)
+		configBundle(config.GetOrCreateInterface(bundle2), &ip1, dut)
 
 		op.push(t, dut, config, scope)
 
@@ -219,8 +219,8 @@ func TestSwapIPs(t *testing.T) {
 
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(p2.Name())
-		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()))
-		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()))
+		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
+		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 
 		op.push(t, dut, config, scope)
 
@@ -233,8 +233,8 @@ func TestSwapIPs(t *testing.T) {
 
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(p2.Name())
-		ip2.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()))
-		ip1.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()))
+		ip2.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
+		ip1.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 
 		op.push(t, dut, config, scope)
 
@@ -278,8 +278,8 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(p2.Name())
 
-		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()))
-		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()))
+		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
+		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 
 		config.DeleteNetworkInstance(vrf)
 		ni := config.GetOrCreateNetworkInstance(vrf)
@@ -312,18 +312,18 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 }
 
 func TestMoveInterface(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	t.Run("DefaultToNonDefaultVRF", func(t *testing.T) {
-		testMoveInterfaceBetweenVRF(t, *deviations.DefaultNetworkInstance, "BLUE")
+		testMoveInterfaceBetweenVRF(t, dut, deviations.DefaultNetworkInstance(dut), "BLUE")
 	})
 	t.Run("NonDefaultToNonDefaultVRF", func(t *testing.T) {
-		testMoveInterfaceBetweenVRF(t, "RED", "BLUE")
+		testMoveInterfaceBetweenVRF(t, dut, "RED", "BLUE")
 	})
 }
 
-func testMoveInterfaceBetweenVRF(t *testing.T, firstVRF, secondVRF string) {
-	defaultVRF := *deviations.DefaultNetworkInstance
+func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF, secondVRF string) {
+	defaultVRF := deviations.DefaultNetworkInstance(dut)
 
-	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
@@ -337,8 +337,8 @@ func testMoveInterfaceBetweenVRF(t *testing.T, firstVRF, secondVRF string) {
 
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(p2.Name())
-		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()))
-		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()))
+		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
+		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 
 		if firstVRF != defaultVRF {
 			config.DeleteNetworkInstance(firstVRF)
@@ -403,8 +403,9 @@ func testMoveInterfaceBetweenVRF(t *testing.T, firstVRF, secondVRF string) {
 }
 
 func TestStaticProtocol(t *testing.T) {
-	defaultVRF := *deviations.DefaultNetworkInstance
-	staticName := *deviations.StaticProtocolName
+	dut := ondatra.DUT(t, "dut")
+	defaultVRF := deviations.DefaultNetworkInstance(dut)
+	staticName := deviations.StaticProtocolName(dut)
 
 	const (
 		otherVRF  = "BLUE"
@@ -415,7 +416,6 @@ func TestStaticProtocol(t *testing.T) {
 		nhip2     = "192.0.2.6"
 	)
 
-	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
@@ -434,8 +434,8 @@ func TestStaticProtocol(t *testing.T) {
 
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(p2.Name())
-		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()))
-		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()))
+		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
+		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 
 		config.DeleteNetworkInstance(otherVRF)
 		otherni := config.GetOrCreateNetworkInstance(otherVRF)
@@ -555,8 +555,8 @@ func nextBundles(t *testing.T, dut *ondatra.DUTDevice, n int) []string {
 }
 
 // configMember configures an interface as a member of aggID bundle.
-func configMember(i *oc.Interface, aggID string) {
-	if *deviations.InterfaceEnabled {
+func configMember(i *oc.Interface, aggID string, dut *ondatra.DUTDevice) {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
@@ -566,8 +566,8 @@ func configMember(i *oc.Interface, aggID string) {
 }
 
 // configBundle configures an interface as a STATIC LAG bundle.
-func configBundle(i *oc.Interface, a *attrs.Attributes) {
-	a.ConfigOCInterface(i)
+func configBundle(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) {
+	a.ConfigOCInterface(i, dut)
 
 	// Overrides for LAG specific settings.
 	i.Ethernet = nil
@@ -644,7 +644,7 @@ func defaultPushScope(dut *ondatra.DUTDevice) *pushScope {
 
 	return &pushScope{
 		interfaces:       interfaces,
-		networkInstances: []string{*deviations.DefaultNetworkInstance},
+		networkInstances: []string{deviations.DefaultNetworkInstance(dut)},
 	}
 }
 
