@@ -225,8 +225,12 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 		}
 	case "MACwithInterface":
 		for _, opt := range opts {
-			nh = nh.WithSubinterfaceRef(opt.Interface, opt.SubInterface).
-				WithMacAddress(opt.Mac)
+			if opt.SubInterface != 0 {
+				nh = nh.WithSubinterfaceRef(opt.Interface, opt.SubInterface).
+					WithMacAddress(opt.Mac)
+			} else {
+				nh = nh.WithInterfaceRef(opt.Interface).WithMacAddress(opt.Mac)
+			}
 		}
 	default:
 		nh = nh.WithIPAddress(address)
