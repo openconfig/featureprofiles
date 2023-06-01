@@ -80,6 +80,28 @@ message Metadata {
     bool isis_explicit_level_authentication_config = 13;
     // Device skip isis restart-suppress check if value is true.
     bool isis_restart_suppress_unsupported = 14;
+    // Device does not support interface/ipv4(6)/neighbor.
+    // Cisco: partnerissuetracker.corp.google.com/268243828
+    bool ip_neighbor_missing = 15;
+    // Device requires separate reboot to activate OS.
+    bool osactivate_noreboot = 16;
+    // Device requires OS installation on standby RP as well as active RP.
+    bool osinstall_for_standby_rp = 17;
+    // Set this flag for LLDP interface config to override the global config.
+    bool lldp_interface_config_override_global = 18;
+    // Skip BGP TestPassword mismatch subtest if value is true.
+    // Cisco: partnerissuetracker.corp.google.com/273285907
+    bool skip_bgp_test_password_mismatch = 19;
+    // Device does not support interface/physicalchannel leaf.
+    // Cisco: partnerissuetracker.corp.google.com/273287821
+    bool missing_interface_physical_channel = 20;
+    // Set to true to skip check for
+    // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
+    // leaf missing case.
+    bool missing_bgp_last_notification_error_code = 21;
+    // Device does not support interface-ref configuration when applying
+    // features to interface.
+    bool interface_ref_config_unsupported = 22;
   }
 
   message PlatformExceptions {
