@@ -59,6 +59,27 @@ message Metadata {
     // Expected ucmp traffic tolerance. Minimum value is 0.2, anything less
     // will be coerced to 0.2.
     double hierarchical_weight_resolution_tolerance = 5;
+    // Device skip isis multi-topology check if value is true.
+    bool isis_multi_topology_unsupported = 6;
+    // Disable isis level1 under interface mode on the device if value is true.
+    bool isis_interface_level1_disable_required = 7;
+    // Set isis af ipv6 single topology on the device if value is true.
+    bool isis_single_topology_required = 8;
+    // Unset isis protocol enable flag on the device if value is true.
+    bool isis_protocol_enabled_not_required = 9;
+    // Don't set isis instance enable flag on the device if value is true.
+    bool isis_instance_enabled_not_required = 10;
+    // Set and validate isis interface address family enable on the device if
+    // value is true.
+    bool missing_isis_interface_afi_safi_enable = 11;
+    // Don't set isis global authentication-check on the device if value is
+    // true.
+    bool isis_global_authentication_not_required = 12;
+    // Configure CSNP, LSP and PSNP under level authentication explicitly if
+    // value is true.
+    bool isis_explicit_level_authentication_config = 13;
+    // Device skip isis restart-suppress check if value is true.
+    bool isis_restart_suppress_unsupported = 14;
   }
 
   message PlatformExceptions {
