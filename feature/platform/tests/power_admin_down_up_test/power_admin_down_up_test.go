@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 
 func TestFabricPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.PlatformPowerDownUpSkip(dut) {
+	if deviations.PlatformPowerDownUpFabricSkip(dut) {
 		t.Skip("Fabric power down up unsupported")
 	}
 	fs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
@@ -63,7 +63,7 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 func TestControllerCardPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.PlatformPowerDownUpSkip(dut) {
+	if deviations.PlatformPowerDownUpControllerCardSkip(dut) {
 		t.Skip("Controller card power down up unsupported")
 	}
 	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
@@ -125,9 +125,7 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_ENABLED)
 
 	if !deviations.MissingValueForDefaults(dut) {
-		if deviations.PlatformPowerEnableWait(dut) != 0 {
-			time.Sleep(time.Minute * time.Duration(deviations.PlatformPowerEnableWait(dut)))
-		}
+		time.Sleep(time.Minute * time.Duration(deviations.PlatformPowerEnableWait(dut)))
 		power, ok = gnmi.Await(t, dut, state, timeout, oc.Platform_ComponentPowerType_POWER_ENABLED).Val()
 		if !ok {
 			t.Errorf("Component %s, power-admin-state got: %v, want: %v", name, power, oc.Platform_ComponentPowerType_POWER_ENABLED)

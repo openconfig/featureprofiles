@@ -15,6 +15,7 @@ platform_exceptions: {
   }
   deviations: {
     platform_power_enable_wait: 5
-    platform_power_down_up_skip: true
+    platform_power_down_up_fabric_skip: true
+    platform_power_down_up_controller_card_skip: true
   }
 }
