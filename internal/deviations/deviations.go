@@ -72,7 +72,7 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// lookupDutDeviations returns the deviations for the specified dut. If no duts match `nil` is returned.
+// lookupDutDeviations returns the deviations for the specified dut.
 func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
 		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
@@ -85,7 +85,7 @@ func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 		}
 	}
 	log.Warningf("No platform exceptions for dut platform %v or model %v configured in platform exceptions metadata %v", dut.Device.Vendor().String(), dut.Device.Model(), metadata.Get().PlatformExceptions)
-	return nil
+	return &mpb.Metadata_Deviations{}
 }
 
 func logErrorIfFlagSet(name string) {
@@ -129,11 +129,6 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
 }
 
-// P4RTUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
-func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
-	return *p4rtUnsetElectionIDUnsupported
-}
-
 // P4rtUnsetElectionIDPrimaryAllowed returns whether the device does not support unset election ID.
 func P4rtUnsetElectionIDPrimaryAllowed(_ *ondatra.DUTDevice) bool {
 	return *p4rtUnsetElectionIDPrimaryAllowed
@@ -151,8 +146,9 @@ func ExplicitP4RTNodeComponent(_ *ondatra.DUTDevice) bool {
 }
 
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
-func ISISRestartSuppressUnsupported(_ *ondatra.DUTDevice) bool {
-	return *isisRestartSuppressUnsupported
+func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_isis_restart_suppress_unsupported")
+	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
 }
 
 // MissingBgpLastNotificationErrorCode returns whether the last-notification-error-code leaf is missing in bgp.
@@ -216,34 +212,40 @@ func ECNProfileRequiredDefinition(_ *ondatra.DUTDevice) bool {
 }
 
 // ISISGlobalAuthenticationNotRequired returns true if ISIS Global authentication not required.
-func ISISGlobalAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
-	return *isisGlobalAuthenticationNotRequired
+func ISISGlobalAuthenticationNotRequired(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_isis_global_authentication_not_required")
+	return lookupDUTDeviations(dut).GetIsisGlobalAuthenticationNotRequired()
 }
 
 // ISISExplicitLevelAuthenticationConfig returns true if ISIS Explicit Level Authentication configuration is required
-func ISISExplicitLevelAuthenticationConfig(_ *ondatra.DUTDevice) bool {
-	return *isisExplicitLevelAuthenticationConfig
+func ISISExplicitLevelAuthenticationConfig(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_isis_explicit_level_authentication_config")
+	return lookupDUTDeviations(dut).GetIsisExplicitLevelAuthenticationConfig()
 }
 
 // ISISSingleTopologyRequired sets isis af ipv6 single topology on the device if value is true.
-func ISISSingleTopologyRequired(_ *ondatra.DUTDevice) bool {
-	return *isisSingleTopologyRequired
+func ISISSingleTopologyRequired(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_isis_single_topology_required")
+	return lookupDUTDeviations(dut).GetIsisSingleTopologyRequired()
 }
 
 // ISISMultiTopologyUnsupported returns if device skips isis multi-topology check.
-func ISISMultiTopologyUnsupported(_ *ondatra.DUTDevice) bool {
-	return *isisMultiTopologyUnsupported
+func ISISMultiTopologyUnsupported(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_isis_multi_topology_unsupported")
+	return lookupDUTDeviations(dut).GetIsisMultiTopologyUnsupported()
 }
 
 // ISISInterfaceLevel1DisableRequired returns if device should disable isis level1 under interface mode.
-func ISISInterfaceLevel1DisableRequired(_ *ondatra.DUTDevice) bool {
-	return *isisInterfaceLevel1DisableRequired
+func ISISInterfaceLevel1DisableRequired(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_isis_interface_level1_disable_required")
+	return lookupDUTDeviations(dut).GetIsisInterfaceLevel1DisableRequired()
 }
 
 // MissingIsisInterfaceAfiSafiEnable returns if device should set and validate isis interface address family enable.
 // Default is validate isis address family enable at global mode.
-func MissingIsisInterfaceAfiSafiEnable(_ *ondatra.DUTDevice) bool {
-	return *missingIsisInterfaceAfiSafiEnable
+func MissingIsisInterfaceAfiSafiEnable(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_missing_isis_interface_afi_safi_enable")
+	return lookupDUTDeviations(dut).GetMissingIsisInterfaceAfiSafiEnable()
 }
 
 // Ipv6DiscardedPktsUnsupported returns whether the device supports interface ipv6 discarded packet stats.
@@ -277,8 +279,14 @@ func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
 }
 
 // HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
-func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
-	return *hierarchicalWeightResolutionTolerance
+// Default minimum value is 0.2. Anything less than 0.2 will be set to 0.2.
+func HierarchicalWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
+	logErrorIfFlagSet("deviation_hierarchical_weight_resolution_tolerance")
+	hwrt := lookupDUTDeviations(dut).GetHierarchicalWeightResolutionTolerance()
+	if minHWRT := 0.2; hwrt < minHWRT {
+		return minHWRT
+	}
+	return hwrt
 }
 
 // InterfaceEnabled returns if device requires interface enabled leaf booleans to be explicitly set to true.
@@ -435,13 +443,15 @@ func ExplicitIPv6EnableForGRIBI(_ *ondatra.DUTDevice) bool {
 }
 
 // ISISprotocolEnabledNotRequired returns if isis protocol enable flag should be unset on the device.
-func ISISprotocolEnabledNotRequired(_ *ondatra.DUTDevice) bool {
-	return *isisprotocolEnabledNotRequired
+func ISISprotocolEnabledNotRequired(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_isis_protocol_enabled_not_required")
+	return lookupDUTDeviations(dut).GetIsisProtocolEnabledNotRequired()
 }
 
 // ISISInstanceEnabledNotRequired returns if isis instance enable flag should not be on the device.
-func ISISInstanceEnabledNotRequired(_ *ondatra.DUTDevice) bool {
-	return *isisInstanceEnabledNotRequired
+func ISISInstanceEnabledNotRequired(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_isis_instance_enabled_not_required")
+	return lookupDUTDeviations(dut).GetIsisInstanceEnabledNotRequired()
 }
 
 // GNOISubcomponentPath returns if device currently uses component name instead of a full openconfig path.
@@ -473,6 +483,11 @@ func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 // InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
 func InterfaceRefConfigUnsupported(_ *ondatra.DUTDevice) bool {
 	return *interfaceRefConfigUnsupported
+}
+
+// StorageComponentUnsupported returns if telemetry path /components/component/storage is not supported.
+func StorageComponentUnsupported(_ *ondatra.DUTDevice) bool {
+	return *storageComponentUnsupported
 }
 
 // Vendor deviation flags.
@@ -539,19 +554,19 @@ var (
 
 	explicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
 
-	isisInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
+	_ = flag.Bool("deviation_isis_interface_level1_disable_required", false,
 		"Disable isis level1 under interface mode on the device if value is true, Default value is false and enables isis level2 under interface mode")
 
-	missingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
+	_ = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
 		"Set and validate isis interface address family enable on the device if value is true, Default value is false and validate isis address family enable at global mode")
 
-	isisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
+	_ = flag.Bool("deviation_isis_single_topology_required", false,
 		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
 
-	isisprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
+	_ = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
 		"Unset isis protocol enable flag on the device if value is true, Default value is false and protocol enable flag is set")
 
-	isisInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
+	_ = flag.Bool("deviation_isis_instance_enabled_not_required", false,
 		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
 
 	explicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
@@ -582,18 +597,17 @@ var (
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
 
-	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
+	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
+		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
 	p4rtUnsetElectionIDPrimaryAllowed = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary")
 
 	p4rtBackupArbitrationResponseCode = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
 
-	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false, "Set to true for device requiring explicit deletion of network-instance table, default is false")
-
-	isisMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
+	_ = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
 
-	isisRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
+	_ = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
 
 	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
@@ -618,10 +632,10 @@ var (
 
 	ecnProfileRequiredDefinition = flag.Bool("deviation_ecn_profile_required_definition", false, "device requires additional config for ECN")
 
-	isisGlobalAuthenticationNotRequired = flag.Bool("deviation_isis_global_authentication_not_required", false,
+	_ = flag.Bool("deviation_isis_global_authentication_not_required", false,
 		"Don't set isis global authentication-check on the device if value is true, Default value is false and ISIS global authentication-check is set")
 
-	isisExplicitLevelAuthenticationConfig = flag.Bool("deviation_isis_explicit_level_authentication_config", false,
+	_ = flag.Bool("deviation_isis_explicit_level_authentication_config", false,
 		"Configure CSNP, LSP and PSNP under level authentication explicitly if value is true, Default value is false to use default value for these.")
 
 	ipv6DiscardedPktsUnsupported = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
@@ -636,7 +650,7 @@ var (
 
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
-	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
+	_ = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
 
 	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
 
@@ -645,4 +659,6 @@ var (
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 
 	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
+
+	storageComponentUnsupported = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
 )
