@@ -82,6 +82,9 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/state/enabled"
 }
 config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/config/hello-authentication"
+}
+config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-mode"
 }
 telemetry_path {
