@@ -400,10 +400,16 @@ func main() {
 
 	if len(excludeTestNames) > 0 {
 		excludedTests := map[string]bool{}
-		res := []*regexp.Regexp{}
 		for _, t := range excludeTestNames {
 			if strings.HasPrefix(t, "r/") {
-				res = append(res, regexp.MustCompile(t[2:]))
+				re := regexp.MustCompile(t[2:])
+				for i := range suite {
+					for j := range suite[i].Tests {
+						if re.MatchString(suite[i].Tests[j].Name) {
+							excludedTests[strings.Split(suite[i].Tests[j].Name, " ")[0]] = true
+						}
+					}
+				}
 			} else {
 				excludedTests[strings.Split(t, " ")[0]] = true
 			}
@@ -415,13 +421,6 @@ func main() {
 				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
 				if _, found := excludedTests[prefix]; !found {
 					keptTests = append(keptTests, suite[i].Tests[j])
-				} else {
-					for _, re := range res {
-						if !re.MatchString(suite[i].Tests[j].Name) {
-							keptTests = append(keptTests, suite[i].Tests[j])
-							break
-						}
-					}
 				}
 			}
 			suite[i].Tests = keptTests
