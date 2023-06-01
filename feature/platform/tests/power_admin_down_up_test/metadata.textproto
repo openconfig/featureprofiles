@@ -5,3 +5,16 @@ uuid: "7e1f1570-a141-4758-8aa5-228c932e3bee"
 plan_id: "FP-1.1"
 description: "Power admin DOWN/UP Test"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    platform_power_enable_wait: 5
+    platform_power_down_up_skip: true
+  }
+}
