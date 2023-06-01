@@ -555,8 +555,6 @@ tests:
     owners:
       - saarvind
     mustpass: true
-    args:
-      - '-deviation_qos_dropped_octets="true"'
     pr: 1676
   - name: DP-1.7 (One strict priority queue traffic test)
     path: feature/qos/ate_tests/one_sp_queue_traffic_test
@@ -584,8 +582,6 @@ tests:
     owners:
       - saarvind
     mustpass: true
-    args:
-      - '-deviation_qos_dropped_octets="true"'
     pr: 1677
   - name: gNMI-1.2 (Benchmarking Full Configuration Replace)
     path: feature/experimental/system/gnmi/benchmarking/ate_tests/full_configuration_replace_test
@@ -608,8 +604,6 @@ tests:
     owners:
       - saarvind
     mustpass: true
-    args:
-      - '-deviation_qos_dropped_octets="true"'
     pr: 1672
   - name: RT-5.4 (Aggregate Forwarding Viable)
     path: feature/interface/aggregate/ate_tests/aggregate_forwarding_viable_test
