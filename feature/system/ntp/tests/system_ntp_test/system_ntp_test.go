@@ -67,14 +67,14 @@ func TestNtpServerConfigurability(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	for _, testCase := range testCases {
-		if testCase.vrf != "" && !deviations.SkipNtpNonDefaultVrf(dut) {
+		if testCase.vrf != "" && !deviations.NtpNonDefaultVrf(dut) {
 			createVRF(t, dut, testCase.vrf)
 		}
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			if testCase.vrf != "" && deviations.SkipNtpNonDefaultVrf(dut) {
+			if testCase.vrf != "" && deviations.NtpNonDefaultVrf(dut) {
 				t.Skip("NTP non default vrf unsupported")
 			}
 			ntpPath := gnmi.OC().System().Ntp()
