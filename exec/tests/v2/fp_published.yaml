@@ -246,7 +246,7 @@ tests:
     mustpass: true
     priority: 6
   - name: gNMI-1.12 (Mixed OpenConfig or CLI Origin)
-    path: feature/system/gnmi/cliorigin/ate_tests/mixed_oc_cli_origin_support_test
+    path: feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
     owners:
       - agvarghe
     mustpass: true
@@ -388,6 +388,8 @@ tests:
     mustpass: true
     pr: 1680
     priority: 45
+    args:
+      - '-deviation_skip_ntp_non_default_vrf="true"'
   - name: OC-1.1 (System Configuration)
     path: feature/system/tests/system_base_test
     owners:
@@ -482,7 +484,7 @@ tests:
     priority: 6
     timeout: 4200
   - name: gNMI-1.4 (Telemetry Inventory)
-    path: feature/platform/ate_tests/telemetry_inventory_test
+    path: feature/platform/tests/telemetry_inventory_test
     owners:
       - agvarghe
     mustpass: true
@@ -535,20 +537,19 @@ tests:
     mustpass: true
     priority: 801
   - name: DP-1.2 (QoS policy feature config)
-    path: feature/qos/ate_tests/qos_policy_config_test
+    path: feature/qos/tests/qos_policy_config_test
     owners:
       - saarvind
     mustpass: true
     priority: 802
-    pr: 1670
+    pr: 1686
   - name: DP-1.3 (QoS ECN feature config)
-    path: feature/qos/ate_tests/qos_ecn_config_test
+    path: feature/qos/tests/qos_ecn_config_test
     owners:
       - saarvind
     mustpass: true
     priority: 802
-    branch: main-yve-changes
-    internal: true
+    pr: 1685
   - name: DP-1.10 (QoS policy feature config)
     path: feature/qos/ate_tests/mixed_sp_wrr_traffic_test
     owners:
