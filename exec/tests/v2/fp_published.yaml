@@ -599,6 +599,7 @@ tests:
     pr: 1679
     args:
       - '-deviation_missing_isis_interface_afi_safi_enable="true"'
+      - '-deviation_isis_protocol_enabled_not_required="true"'
   - name: DP-1.14 (QoS base config)
     path: feature/qos/ate_tests/qos_basic_test/
     owners:
