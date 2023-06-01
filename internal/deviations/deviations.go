@@ -72,7 +72,7 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// lookupDutDeviations returns the deviations for the specified dut. If no duts match `nil` is returned.
+// lookupDutDeviations returns the deviations for the specified dut.
 func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
 		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
@@ -85,7 +85,7 @@ func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 		}
 	}
 	log.Warningf("No platform exceptions for dut platform %v or model %v configured in platform exceptions metadata %v", dut.Device.Vendor().String(), dut.Device.Model(), metadata.Get().PlatformExceptions)
-	return nil
+	return &mpb.Metadata_Deviations{}
 }
 
 func logErrorIfFlagSet(name string) {
@@ -277,8 +277,14 @@ func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
 }
 
 // HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
-func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
-	return *hierarchicalWeightResolutionTolerance
+// Default minimum value is 0.2. Anything less than 0.2 will be set to 0.2.
+func HierarchicalWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
+	logErrorIfFlagSet("deviation_hierarchical_weight_resolution_tolerance")
+	hwrt := lookupDUTDeviations(dut).GetHierarchicalWeightResolutionTolerance()
+	if minHWRT := 0.2; hwrt < minHWRT {
+		return minHWRT
+	}
+	return hwrt
 }
 
 // InterfaceEnabled returns if device requires interface enabled leaf booleans to be explicitly set to true.
@@ -636,7 +642,7 @@ var (
 
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
-	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
+	_ = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
 
 	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
 
