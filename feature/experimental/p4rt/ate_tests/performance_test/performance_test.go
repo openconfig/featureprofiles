@@ -785,14 +785,14 @@ func newTableEntry(actionType p4_v1.Update_Type) []*p4rtutils.ACLWbbIngressTable
 		{
 			Type:     actionType,
 			IsIpv4:   0x1,
-			TTL:      0x2,
+			TTL:      0x1,
 			TTLMask:  0xFF,
 			Priority: 1,
 		},
 		{
 			Type:     actionType,
 			IsIpv6:   0x1,
-			TTL:      0x2,
+			TTL:      0x1,
 			TTLMask:  0xFF,
 			Priority: 1,
 		},
