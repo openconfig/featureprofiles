@@ -82,9 +82,9 @@ message Metadata {
     bool isis_restart_suppress_unsupported = 14;
     // Set wait timer for shut platform to power up as event driven telemetry power enabled state call fails.
     int64 platform_power_enable_wait = 15;
-    // Device does not support power-admin-state leaf.
+    // Device does not support fabric power-admin-state leaf.
     bool platform_power_down_up_fabric_skip = 16;
-    // Device does not support power-admin-state leaf.
+    // Device does not support controller card power-admin-state leaf.
     bool platform_power_down_up_controller_card_skip = 17;
   }
 

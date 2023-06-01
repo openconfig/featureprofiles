@@ -276,9 +276,9 @@ type Metadata_Deviations struct {
 	IsisRestartSuppressUnsupported bool `protobuf:"varint,14,opt,name=isis_restart_suppress_unsupported,json=isisRestartSuppressUnsupported,proto3" json:"isis_restart_suppress_unsupported,omitempty"`
 	// Set wait timer for shut platform to power up as event driven telemetry power enabled state call fails.
 	PlatformPowerEnableWait int64 `protobuf:"varint,15,opt,name=platform_power_enable_wait,json=platformPowerEnableWait,proto3" json:"platform_power_enable_wait,omitempty"`
-	// Device does not support power-admin-state leaf.
+	// Device does not support fabric power-admin-state leaf.
 	PlatformPowerDownUpFabricSkip bool `protobuf:"varint,16,opt,name=platform_power_down_up_fabric_skip,json=platformPowerDownUpFabricSkip,proto3" json:"platform_power_down_up_fabric_skip,omitempty"`
-	// Device does not support power-admin-state leaf.
+	// Device does not support controller card power-admin-state leaf.
 	PlatformPowerDownUpControllerCardSkip bool `protobuf:"varint,17,opt,name=platform_power_down_up_controller_card_skip,json=platformPowerDownUpControllerCardSkip,proto3" json:"platform_power_down_up_controller_card_skip,omitempty"`
 }
 
