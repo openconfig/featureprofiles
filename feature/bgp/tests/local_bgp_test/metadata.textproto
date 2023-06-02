@@ -5,3 +5,15 @@ uuid: "78ceceb4-cd33-4d4c-b5aa-b7844d4dd4f1"
 plan_id: "RT-1.7"
 description: "Local BGP Test"
 testbed: TESTBED_DUT_DUT_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    missing_bgp_last_notification_error_code: true
+  }
+}
