@@ -48,6 +48,22 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/disable-lsp"
 }
 
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-fails"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-type-fails"
+}
+
+# Interface auth
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/auth-fails"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/auth-type-fails"
+}
+
+
 # Level authentication keychain
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/keychain"
@@ -83,6 +99,9 @@ telemetry_path {
 }
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/config/hello-authentication"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-type"
 }
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-mode"
