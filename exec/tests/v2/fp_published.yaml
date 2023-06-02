@@ -388,8 +388,6 @@ tests:
     mustpass: true
     pr: 1680
     priority: 45
-    args:
-      - '-deviation_skip_ntp_non_default_vrf="true"'
   - name: OC-1.1 (System Configuration)
     path: feature/system/tests/system_base_test
     owners:
