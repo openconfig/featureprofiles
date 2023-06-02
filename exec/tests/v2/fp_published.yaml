@@ -173,9 +173,8 @@ tests:
     timeout: 3600
     mustpass: true
     args:
-      - '-deviation_sw_version_unsupported="true"'
-      - '-osfile="/auto/prod_weekly_archive1/bin/7.11.1.162G.DT_IMAGE/8000/8000-x64-7.11.1.162G.iso"'
-      - '-osver="7.11.1.162G"'
+      - '-osfile="/auto/ioxdepot6/GISO/giso_build_lindt/giso_custom_create/rmariapp_2023-06-02_06-59-49_UTC/output_gisobuild/giso/8000-golden-x86_64-7.11.1.172G-cd17_prod_2.iso'
+      - '-osver="7.11.1.172G-cd17_prod_2"'
     skip: true
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
