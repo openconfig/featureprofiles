@@ -5,3 +5,14 @@ uuid: "9167593f-9a06-4e8c-8bf7-96b5e30bd996"
 plan_id: "TE-3.7"
 description: "Base Hierarchical NHG Update"
 testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    ipv6_enable_for_gribi_nh_dmac: true
+  }
+}
