@@ -152,8 +152,9 @@ func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // MissingBgpLastNotificationErrorCode returns whether the last-notification-error-code leaf is missing in bgp.
-func MissingBgpLastNotificationErrorCode(_ *ondatra.DUTDevice) bool {
-	return *missingBgpLastNotificationErrorCode
+func MissingBgpLastNotificationErrorCode(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_missing_bgp_last_notification_error_code")
+	return lookupDUTDeviations(dut).GetMissingBgpLastNotificationErrorCode()
 }
 
 // GRIBIMACOverrideWithStaticARP returns whether for a gRIBI IPv4 route the device does not support a mac-address only next-hop-entry.
@@ -306,8 +307,9 @@ func IPv4MissingEnabled(_ *ondatra.DUTDevice) bool {
 
 // IPNeighborMissing returns true if the device does not support interface/ipv4(6)/neighbor,
 // so test can suppress the related check for interface/ipv4(6)/neighbor.
-func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
-	return *ipNeighborMissing
+func IPNeighborMissing(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_ip_neighbor_missing")
+	return lookupDUTDeviations(dut).GetIpNeighborMissing()
 }
 
 // NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
@@ -320,8 +322,9 @@ func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
 }
 
 // MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
-func MissingInterfacePhysicalChannel(_ *ondatra.DUTDevice) bool {
-	return *missingInterfacePhysicalChannel
+func MissingInterfacePhysicalChannel(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_missing_interface_physical_channel")
+	return lookupDUTDeviations(dut).GetMissingInterfacePhysicalChannel()
 }
 
 // MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
@@ -345,8 +348,9 @@ func TraceRouteFragmentation(dut *ondatra.DUTDevice) bool {
 
 // LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
 // expect neighbours are seen when lldp is disabled globally but enabled on interface
-func LLDPInterfaceConfigOverrideGlobal(_ *ondatra.DUTDevice) bool {
-	return *lldpInterfaceConfigOverrideGlobal
+func LLDPInterfaceConfigOverrideGlobal(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_lldp_interface_config_override_global")
+	return lookupDUTDeviations(dut).GetLldpInterfaceConfigOverrideGlobal()
 }
 
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
@@ -369,8 +373,9 @@ func DeprecatedVlanID(_ *ondatra.DUTDevice) bool {
 }
 
 // OSActivateNoReboot returns if device requires separate reboot to activate OS.
-func OSActivateNoReboot(_ *ondatra.DUTDevice) bool {
-	return *osActivateNoReboot
+func OSActivateNoReboot(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_osactivate_noreboot")
+	return lookupDUTDeviations(dut).GetOsactivateNoreboot()
 }
 
 // ConnectRetry returns if /bgp/neighbors/neighbor/timers/config/connect-retry is not supported.
@@ -379,8 +384,9 @@ func ConnectRetry(_ *ondatra.DUTDevice) bool {
 }
 
 // InstallOSForStandbyRP returns if device requires OS installation on standby RP as well as active RP.
-func InstallOSForStandbyRP(_ *ondatra.DUTDevice) bool {
-	return *installOSForStandbyRP
+func InstallOSForStandbyRP(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_osinstall_for_standby_rp")
+	return lookupDUTDeviations(dut).GetOsinstallForStandbyRp()
 }
 
 // GNOIStatusWithEmptySubcomponent returns if the response of gNOI reboot status is a single value (not a list),
@@ -428,8 +434,9 @@ func ExplicitGRIBIUnderNetworkInstance(_ *ondatra.DUTDevice) bool {
 }
 
 // SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
-func SkipBGPTestPasswordMismatch(_ *ondatra.DUTDevice) bool {
-	return *skipBGPTestPasswordMismatch
+func SkipBGPTestPasswordMismatch(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_skip_bgp_test_password_mismatch")
+	return lookupDUTDeviations(dut).GetSkipBgpTestPasswordMismatch()
 }
 
 // BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
@@ -481,8 +488,9 @@ func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 }
 
 // InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
-func InterfaceRefConfigUnsupported(_ *ondatra.DUTDevice) bool {
-	return *interfaceRefConfigUnsupported
+func InterfaceRefConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_interface_ref_config_unsupported")
+	return lookupDUTDeviations(dut).GetInterfaceRefConfigUnsupported()
 }
 
 // StorageComponentUnsupported returns if telemetry path /components/component/storage is not supported.
@@ -502,7 +510,7 @@ var (
 
 	ipv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
 
-	ipNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
+	_ = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
 
 	interfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
@@ -529,9 +537,9 @@ var (
 
 	gNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
-	osActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires separate reboot to activate OS.")
+	_ = flag.Bool("deviation_osactivate_noreboot", false, "Device requires separate reboot to activate OS.")
 
-	installOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
+	_ = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
 
 	deprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
@@ -574,10 +582,10 @@ var (
 	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
 
-	lldpInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
+	_ = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
 
-	missingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
+	_ = flag.Bool("deviation_missing_interface_physical_channel", false,
 		"Device does not support interface/physicalchannel leaf. Set this flag to skip checking the leaf.")
 
 	interfaceConfigVRFBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
@@ -592,7 +600,7 @@ var (
 
 	qosDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
 
-	skipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
+	_ = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
@@ -618,7 +626,7 @@ var (
 
 	cliTakesPrecedenceOverOC = flag.Bool("deviation_cli_takes_precedence_over_oc", false, "Set to true for device in which config pushed through origin CLI takes precedence over config pushed through origin OC, default is false")
 
-	missingBgpLastNotificationErrorCode = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
+	_ = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
 
 	useVendorNativeACLConfiguration = flag.Bool("deviation_use_vendor_native_acl_config", false, "Configure ACLs using vendor native model specifically for RT-1.4")
 
@@ -658,7 +666,7 @@ var (
 
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 
-	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
+	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
 	storageComponentUnsupported = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
 )
