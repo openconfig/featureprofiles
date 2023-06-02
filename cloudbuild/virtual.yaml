@@ -8,8 +8,8 @@ steps:
       - INSTANCE_NAME=fp-presubmit-${BUILD_ID}
       - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type ${_MACHINE_TYPE} ${_MACHINE_ARGS} --boot-disk-size 100GB --preemptible
       - ZONE=us-west1-a
-      - REMOTE_WORKSPACE=/tmp/workspace
-      - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/workspace/cloudbuild/virtual.sh "${_DUT_PLATFORM}" "${_DUT_TESTS}"
+      - REMOTE_WORKSPACE=/tmp/featureprofiles
+      - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/featureprofiles/cloudbuild/virtual.sh "${_DUT_PLATFORM}" "${_DUT_TESTS}"
 timeout: 2700s
 substitutions:
     _DUT_PLATFORM: unknown
