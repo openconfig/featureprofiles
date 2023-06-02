@@ -71,7 +71,7 @@ done
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-pushd /tmp/workspace
+pushd /tmp/featureprofiles
 
 cp -r "${PWD}"/topologies/kne /tmp
 
