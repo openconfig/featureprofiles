@@ -5,3 +5,14 @@ uuid: "0c825514-daf0-4d46-a3d9-2b6e5bff5529"
 plan_id: "gNMI-1.11"
 description: "Telemetry: Interface Packet Counters"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    ipv6_discarded_pkts_unsupported: true
+  }
+}
