@@ -508,6 +508,11 @@ func StorageComponentUnsupported(_ *ondatra.DUTDevice) bool {
 	return *storageComponentUnsupported
 }
 
+// GNOIFabricComponentRebootUnsupported returns if device does not support use using gNOI to reboot the Fabric Component.
+func GNOIFabricComponentRebootUnsupported(_ *ondatra.DUTDevice) bool {
+	return *gnoiFabricComponentRebootUnsupported
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -679,4 +684,7 @@ var (
 	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
 	storageComponentUnsupported = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
+
+	gnoiFabricComponentRebootUnsupported = flag.Bool("deviation_gnoi_fabric_component_reboot_unsupported", false, "Set true if the device does not support using gNOI to reboot the Fabric Component.")
+
 )
