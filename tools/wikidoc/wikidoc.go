@@ -18,13 +18,12 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
-
-	"flag"
 
 	log "github.com/golang/glog"
 	"github.com/yuin/goldmark"

@@ -16,11 +16,10 @@ package ordering_ack_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"testing"
 	"time"
-
-	"flag"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"

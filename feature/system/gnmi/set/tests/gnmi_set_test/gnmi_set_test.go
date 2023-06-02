@@ -15,14 +15,13 @@
 package gnmi_set_test
 
 import (
+	"flag"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
-
-	"flag"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"

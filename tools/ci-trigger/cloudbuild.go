@@ -29,10 +29,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/google/uuid"
 	"google.golang.org/api/cloudbuild/v1"
 	"gopkg.in/yaml.v2"
-
-	"github.com/google/uuid"
 )
 
 type cloudBuild struct {

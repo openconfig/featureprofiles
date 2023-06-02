@@ -17,13 +17,12 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"strings"
-
-	"flag"
 )
 
 type diag struct {
