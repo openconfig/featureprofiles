@@ -249,7 +249,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 			port := sortPorts(args.ate.Ports())[0].Name()
 			counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 
-			packets := newPacketOut(portID, false)
+			packets := newPacketOut(portID)
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
 			streamChan := leader.StreamChannelGet(&streamName)
 
@@ -268,7 +268,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 					streamName, qSize, qSizeRead)
 			}
 			// Create the flows for Packetin.
-			flows := newTrafficFlow(args, args.ate)
+			flows := newTrafficFlow(args.ate)
 			pktIn := 0
 			// Run Packetin and packetout traffic in parallel.
 			var wg sync.WaitGroup
@@ -314,7 +314,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 
 			if test.expectPass {
 				if (counter1 - counter0) < uint64(float32(3*packetCount)*0.95) {
-					t.Fatalf("Number of Packetout packets, got: %d, want: %d", counter1-counter0, (3 * packetCount))
+					t.Fatalf("Number of Packetout packets, got: %d, want: %d", counter1-counter0, 3*packetCount)
 				}
 			} else {
 				if (counter1 - counter0) > uint64(float32(3*packetCount)*0.10) {
@@ -416,7 +416,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 					}
 				}
 			}
-			if totalPacketout := (gdpIncount + lldpIncount + trIncount); float32(totalPacketout) < (0.95 * float32(test.wantPkts)) {
+			if totalPacketout := gdpIncount + lldpIncount + trIncount; float32(totalPacketout) < (0.95 * float32(test.wantPkts)) {
 				t.Fatalf("Not all Packetin Packets are received by P4RT client, got GDP: %v, LLDP: %v, Traceroute: %v, total: %v, want total %v", gdpIncount, lldpIncount, trIncount, totalPacketout, test.wantPkts)
 			}
 		})
@@ -681,7 +681,7 @@ func packetGDPRequestGet() []byte {
 }
 
 // packetTracerouteRequestGet generates PacketOut payload for Traceroute packets.
-func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int) ([]byte, error) {
+func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, ttl uint8, seq int) ([]byte, error) {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
@@ -691,9 +691,6 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 	payLoadLen := 32
 
 	ethType := layers.EthernetTypeIPv4
-	if !isIPv4 {
-		ethType = layers.EthernetTypeIPv6
-	}
 	pktEth := &layers.Ethernet{
 		SrcMAC:       srcMAC,
 		DstMAC:       dstMAC,
@@ -713,31 +710,11 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 		Seq:      uint16(seq),
 	}
 
-	pktIpv6 := &layers.IPv6{
-		Version:    6,
-		HopLimit:   ttl,
-		NextHeader: layers.IPProtocolICMPv6,
-		SrcIP:      net.ParseIP(dutPort1.IPv6).To16(),
-		DstIP:      net.ParseIP(atePort1.IPv6).To16(),
-	}
-	pktICMP6 := &layers.ICMPv6{
-		TypeCode: layers.CreateICMPv6TypeCode(layers.ICMPv6TypeEchoRequest, 0),
-	}
-	pktICMP6.SetNetworkLayerForChecksum(pktIpv6)
-
 	for i := 0; i < payLoadLen; i++ {
 		payload = append(payload, byte(i))
 	}
-	if isIPv4 {
-		if err := gopacket.SerializeLayers(buf, opts,
-			pktEth, pktIpv4, pktICMP4, gopacket.Payload(payload),
-		); err != nil {
-			return nil, err
-		}
-		return buf.Bytes(), nil
-	}
 	if err := gopacket.SerializeLayers(buf, opts,
-		pktEth, pktIpv6, pktICMP6, gopacket.Payload(payload),
+		pktEth, pktIpv4, pktICMP4, gopacket.Payload(payload),
 	); err != nil {
 		return nil, err
 	}
@@ -806,7 +783,7 @@ func newTableEntry(actionType p4_v1.Update_Type) []*p4rtutils.ACLWbbIngressTable
 }
 
 // newPacketOut generates 3 PacketOut messages with payload as GDP, LLDP and, traceroute.
-func newPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
+func newPacketOut(portID uint32) []*p4_v1.PacketOut {
 	packet1 := &p4_v1.PacketOut{
 		Payload: packetGDPRequestGet(),
 		Metadata: []*p4_v1.PacketMetadata{
@@ -819,8 +796,7 @@ func newPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
 
 	srcMAC := net.HardwareAddr{0x00, 0x12, 0x8a, 0x00, 0x00, 0x01}
 	dstMAC := net.HardwareAddr{0x02, 0xF6, 0x65, 0x64, 0x00, 0x08}
-	isIPv4 := true
-	pkt, _ := packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, 2, 1)
+	pkt, _ := packetTracerouteRequestGet(srcMAC, dstMAC, 2, 1)
 
 	packet2 := &p4_v1.PacketOut{
 		Payload: pkt,
@@ -852,7 +828,7 @@ func newPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
 }
 
 // newTrafficFlow generates ATE traffic flows for LLDP.
-func newTrafficFlow(args *testArgs, ate *ondatra.ATEDevice) []*ondatra.Flow {
+func newTrafficFlow(ate *ondatra.ATEDevice) []*ondatra.Flow {
 	ethHeader1 := ondatra.NewEthernetHeader()
 	ethHeader1.WithSrcAddress(*srcMac)
 	ethHeader1.WithDstAddress(*lldpDstMac)
