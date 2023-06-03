@@ -361,7 +361,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 											t.Fatalf("Egress Port Id is not matching expectation for GDP.")
 										}
 									default:
-										t.Fatalf("Missing packet metadata for LLDP PacketIn")
+										t.Fatalf("Missing packet metadata for GDP PacketIn")
 									}
 								}
 								gdpIncount += 1
