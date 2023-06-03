@@ -304,7 +304,9 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 			wg.Wait() // Wait for all four goroutines to finish before exiting.
 
 			test.wantPkts = pktIn
+
 			// Check packet counters after packet out
+			time.Sleep(3 * time.Second)
 			counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 
 			// Verify Packetout stats to check P4RT stream
@@ -358,9 +360,11 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 										if string(data.GetValue()) != portData {
 											t.Fatalf("Egress Port Id is not matching expectation for GDP.")
 										}
-										gdpIncount += 1
+									default:
+										t.Fatalf("Missing packet metadata for LLDP PacketIn")
 									}
 								}
+								gdpIncount += 1
 							}
 						}
 					}
@@ -378,9 +382,11 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 										if string(data.GetValue()) != portData {
 											t.Fatalf("Egress Port Id is not matching expectation for LLDP.")
 										}
-										lldpIncount += 1
+									default:
+										t.Fatalf("Missing packet metadata for LLDP PacketIn")
 									}
 								}
+								lldpIncount += 1
 							}
 						}
 					}
@@ -411,7 +417,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 				}
 			}
 			if totalPacketout := (gdpIncount + lldpIncount + trIncount); float32(totalPacketout) < (0.95 * float32(test.wantPkts)) {
-				t.Fatalf("Not all Packetin Packets are received by P4RT client")
+				t.Fatalf("Not all Packetin Packets are received by P4RT client, got GDP: %v, LLDP: %v, Traceroute: %v, total: %v, want total %v", gdpIncount, lldpIncount, trIncount, totalPacketout, test.wantPkts)
 			}
 		})
 	}
