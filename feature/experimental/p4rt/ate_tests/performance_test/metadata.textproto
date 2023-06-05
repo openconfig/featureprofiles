@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "44fb709e-fc15-4285-94cf-cb6b9dc19d1a"
+plan_id: "P4RT-6.1"
+description: "Required Packet I/O rate: Performance"
+testbed: TESTBED_DUT_ATE_2LINKS

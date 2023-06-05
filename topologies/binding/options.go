@@ -90,6 +90,9 @@ func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.C
 		c := &creds{d.Username, d.Password, !d.Insecure}
 		opts = append(opts, grpc.WithPerRPCCredentials(c))
 	}
+	if d.MaxRecvMsgSize != 0 {
+		opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(d.MaxRecvMsgSize))))
+	}
 	if d.Timeout == 0 {
 		return grpc.DialContext(ctx, d.Target, opts...)
 	}
