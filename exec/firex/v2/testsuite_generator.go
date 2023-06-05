@@ -165,7 +165,6 @@ var (
 	}).Parse(`
 {{ if $.UseShortTestNames}}{{ $.TestNamePrefix }}{{ $.Test.ShortName }}{{ else }}({{ $.Test.ID }}) {{ $.Test.Name }}{{ end }}:
     framework: b4
-    restrict_known_break_to_owners: true
     owners:
     {{- range $k, $ow := $.Test.Owners }}
         - {{ $ow }}
@@ -223,6 +222,7 @@ var (
             {{- if $.InternalRepoRev }}
             internal_fp_repo_rev: {{ $.InternalRepoRev}}
             {{- end }}
+            smart_sanity_exclude: True
     {{- if gt (len $.Test.Posttests) 0 }}
     fp_post_tests:
         {{- range $j, $pt := $.Test.Posttests}}
@@ -233,7 +233,6 @@ var (
             {{- end }}
         {{- end }}
     {{- end }}
-    smart_sanity_exclude: True
 `))
 )
 
@@ -400,10 +399,16 @@ func main() {
 
 	if len(excludeTestNames) > 0 {
 		excludedTests := map[string]bool{}
-		res := []*regexp.Regexp{}
 		for _, t := range excludeTestNames {
 			if strings.HasPrefix(t, "r/") {
-				res = append(res, regexp.MustCompile(t[2:]))
+				re := regexp.MustCompile(t[2:])
+				for i := range suite {
+					for j := range suite[i].Tests {
+						if re.MatchString(suite[i].Tests[j].Name) {
+							excludedTests[strings.Split(suite[i].Tests[j].Name, " ")[0]] = true
+						}
+					}
+				}
 			} else {
 				excludedTests[strings.Split(t, " ")[0]] = true
 			}
@@ -415,13 +420,6 @@ func main() {
 				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
 				if _, found := excludedTests[prefix]; !found {
 					keptTests = append(keptTests, suite[i].Tests[j])
-				} else {
-					for _, re := range res {
-						if !re.MatchString(suite[i].Tests[j].Name) {
-							keptTests = append(keptTests, suite[i].Tests[j])
-							break
-						}
-					}
 				}
 			}
 			suite[i].Tests = keptTests
@@ -537,43 +535,6 @@ func main() {
 					}
 				}
 				suite[i].Tests[j].Args = keptsArgs
-			}
-		}
-	}
-
-	// Collect and remove -deviation flags
-	deviationSet := map[string]bool{}
-	for i := range suite {
-		for j := range suite[i].Tests {
-			keptsArgs := []string{}
-			for k := range suite[i].Tests[j].Args {
-				if strings.HasPrefix(suite[i].Tests[j].Args[k], "-deviation") {
-					if !isPatched(suite[i].Tests[j]) {
-						if _, ok := deviationSet[suite[i].Tests[j].Args[k]]; !ok {
-							deviationSet[suite[i].Tests[j].Args[k]] = true
-						}
-					} else {
-						keptsArgs = append(keptsArgs, suite[i].Tests[j].Args[k])
-					}
-					suite[i].Tests[j].HasDeviations = true
-				} else {
-					keptsArgs = append(keptsArgs, suite[i].Tests[j].Args[k])
-				}
-			}
-			suite[i].Tests[j].Args = keptsArgs
-		}
-	}
-
-	deviations := []string{}
-	for d := range deviationSet {
-		deviations = append(deviations, d)
-	}
-
-	// Add all deviations as args
-	for i := range suite {
-		for j := range suite[i].Tests {
-			if !isPatched(suite[i].Tests[j]) {
-				suite[i].Tests[j].Args = append(suite[i].Tests[j].Args, deviations...)
 			}
 		}
 	}

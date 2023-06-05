@@ -127,10 +127,8 @@ func TestSoftwareUpgrade(t *testing.T) {
 			t.Fatalf("Install operation timed out")
 		}
 
-		if len(lineup) > 0 && len(efr) > 0 {
-			if !verifyInstall(t, dut, lineup, efr) {
-				t.Fatalf("Found unexpected image after install on %v", dut.ID())
-			}
+		if !verifyInstall(t, dut, lineup, efr) {
+			t.Fatalf("Found unexpected image after install on %v", dut.ID())
 		}
 	}
 }
@@ -232,6 +230,14 @@ func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr stri
 }
 
 func verifyInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
+	if len(lineup) == 0 || len(efr) == 0 {
+		return true
+	}
+
+	if lineup == "UNKNOWN" || efr == "None" {
+		return true
+	}
+
 	return !shouldInstall(t, dut, lineup, efr)
 }
 

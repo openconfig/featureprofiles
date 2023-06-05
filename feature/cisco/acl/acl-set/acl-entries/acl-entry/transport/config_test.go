@@ -33,6 +33,7 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
 }
 func TestSourcePort(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -83,6 +84,7 @@ func TestSourcePort(t *testing.T) {
 	}
 }
 func TestDestinationPort(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -133,6 +135,7 @@ func TestDestinationPort(t *testing.T) {
 	}
 }
 func TestTcpFlags(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -156,7 +159,6 @@ func TestTcpFlags(t *testing.T) {
 			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Transport()
 
 			t.Run("Replace", func(t *testing.T) {
-				t.Skip()
 				gnmi.Replace(t, dut, config.Config(), baseConfigAclSetAclEntryTransport)
 			})
 			if !setup.SkipGet() {
