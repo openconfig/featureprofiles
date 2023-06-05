@@ -1248,31 +1248,31 @@ func testJuniperClassifierConfig(t *testing.T) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   "6",
+		queueName:   "0",
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   "0",
+		queueName:   "1",
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   "4",
+		queueName:   "2",
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   "1",
+		queueName:   "3",
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   "5",
+		queueName:   "4",
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   "2",
+		queueName:   "6",
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   "3",
+		queueName:   "7",
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1576,7 +1576,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "BE1",
 		weight:      uint64(1),
-		queueName:   "6",
+		queueName:   "0",
 		targetGroup: "BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -1584,7 +1584,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "BE0",
 		weight:      uint64(2),
-		queueName:   "0",
+		queueName:   "1",
 		targetGroup: "BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -1592,7 +1592,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF1",
 		weight:      uint64(4),
-		queueName:   "4",
+		queueName:   "2",
 		targetGroup: "AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -1600,7 +1600,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF2",
 		weight:      uint64(8),
-		queueName:   "1",
+		queueName:   "3",
 		targetGroup: "AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -1608,7 +1608,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF3",
 		weight:      uint64(16),
-		queueName:   "5",
+		queueName:   "4",
 		targetGroup: "AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -1616,7 +1616,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "AF4",
 		weight:      uint64(99),
-		queueName:   "2",
+		queueName:   "6",
 		targetGroup: "AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -1624,7 +1624,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
 		weight:      uint64(100),
-		queueName:   "3",
+		queueName:   "7",
 		targetGroup: "NC1",
 	}}
 
