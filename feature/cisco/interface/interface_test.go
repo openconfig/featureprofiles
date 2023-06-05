@@ -882,7 +882,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3").Name()
 	member := gnmi.OC().Interface(p3)
 	gnmi.Delete(t, dut, member.Config())
-	i3 := dutPort3.NewOCInterface(p3)
+	i3 := dutPort3.NewOCInterface(p3, dut)
 	gnmi.Replace(t, dut, d.Interface(p3).Config(), i3)
 
 }
