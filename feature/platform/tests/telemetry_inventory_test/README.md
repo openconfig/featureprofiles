@@ -7,8 +7,7 @@ Validate Telemetry for each FRU within chassis.
 ## Procedure
 
 For each of the following component types (linecard, chassis, fan, controller
-card, power supply, disk(TODO), flash(TODO), NPU, transceiver, fabric card),
-validate:
+card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 
 *   Presence of component within gNMI telemetry.
 *   Set of telemetry paths required for network discovery (to be specified for

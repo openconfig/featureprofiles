@@ -89,7 +89,7 @@ func TestMain(m *testing.M) {
 // configInterfaceDUT configures the interface on "me" with static ARP
 // of peer.  Note that peermac is used for static ARP, and not
 // peer.MAC.
-func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, peermac string) *oc.Interface {
+func configInterfaceDUT(dut *ondatra.DUTDevice, i *oc.Interface, me, peer *attrs.Attributes, peermac string) *oc.Interface {
 	i.Description = ygot.String(me.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	i.Enabled = ygot.Bool(true)
@@ -101,7 +101,7 @@ func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, peermac str
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(me.IPv4)
@@ -113,7 +113,7 @@ func configInterfaceDUT(i *oc.Interface, me, peer *attrs.Attributes, peermac str
 	}
 
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
 	s6.GetOrCreateAddress(me.IPv6).PrefixLength = ygot.Uint8(plen6)
@@ -133,12 +133,12 @@ func configureDUT(t *testing.T, peermac string) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, &ateSrc, noStationMAC))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(dut, i1, &dutSrc, &ateSrc, noStationMAC))
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, &ateDst, peermac))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(dut, i2, &dutDst, &ateDst, peermac))
 }
 
 // configureATE configures ATE ports with ipv4/ipv6 addresses

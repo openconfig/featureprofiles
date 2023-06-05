@@ -51,20 +51,20 @@ func atePortCIDR(i int) string {
 	return fmt.Sprintf("192.0.2.%d/30", i*4+2)
 }
 
-func configInterface(name, desc, ipv4 string, prefixlen uint8) *oc.Interface {
+func configInterface(name, desc, ipv4 string, prefixlen uint8, dut *ondatra.DUTDevice) *oc.Interface {
 	i := &oc.Interface{}
 	i.Name = ygot.String(name)
 	i.Description = ygot.String(desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 
@@ -87,7 +87,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port
 
 	for i, dp := range dutPorts {
 		di := d.Interface(dp.Name())
-		in := configInterface(dp.Name(), dp.String(), dutPortIP(i), plen)
+		in := configInterface(dp.Name(), dp.String(), dutPortIP(i), plen, dut)
 		fptest.LogQuery(t, fmt.Sprintf("%s to Replace()", dp), di.Config(), in)
 		if ok := fptest.NonFatal(t, func(t testing.TB) { gnmi.Replace(t, dut, di.Config(), in) }); !ok {
 			badReplace = append(badReplace, dp.Name())

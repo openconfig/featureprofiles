@@ -21,6 +21,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
@@ -97,10 +98,11 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
-			components.GetSubcomponentPath(rpStandby),
+			components.GetSubcomponentPath(rpStandby, useNameOnly),
 		},
 	}
 
@@ -111,6 +113,9 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 		t.Fatalf("Failed to perform component reboot with unexpected err: %v", err)
 	}
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+
+	t.Logf("Wait for a minute to allow the sub component's reboot process to start")
+	time.Sleep(1 * time.Minute)
 
 	watch := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
 		return val.IsPresent()
@@ -130,21 +135,29 @@ func TestLinecardReboot(t *testing.T) {
 	lcs := components.FindComponentsByType(t, dut, linecardType)
 	t.Logf("Found linecard list: %v", lcs)
 
-	if *args.NumLinecards >= 0 && len(lcs) != *args.NumLinecards {
-		t.Errorf("Incorrect number of linecards: got %v, want exactly %v (specified by flag)", len(lcs), *args.NumLinecards)
+	var validCards []string
+	// don't consider the empty linecard slots.
+	if len(lcs) > *args.NumLinecards {
+		for _, lc := range lcs {
+			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+			if !ok || (ok && !empty) {
+				validCards = append(validCards, lc)
+			}
+		}
+	} else {
+		validCards = lcs
+	}
+	if *args.NumLinecards >= 0 && len(validCards) != *args.NumLinecards {
+		t.Errorf("Incorrect number of linecards: got %v, want exactly %v (specified by flag)", len(validCards), *args.NumLinecards)
 	}
 
-	if got := len(lcs); got == 0 {
+	if got := len(validCards); got == 0 {
 		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
 	}
 
 	t.Logf("Find a removable line card to reboot.")
 	var removableLinecard string
-	for _, lc := range lcs {
-		if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val(); ok && empty {
-			t.Logf("Line card %v is empty", lc)
-			continue
-		}
+	for _, lc := range validCards {
 		t.Logf("Check if %s is removable", lc)
 		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
 			t.Logf("Detected non-removable line card: %v", lc)
@@ -160,10 +173,11 @@ func TestLinecardReboot(t *testing.T) {
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
-			components.GetSubcomponentPath(removableLinecard),
+			components.GetSubcomponentPath(removableLinecard, useNameOnly),
 		},
 	}
 

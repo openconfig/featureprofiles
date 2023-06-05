@@ -174,8 +174,8 @@ func configNetworkInstanceInterface(t *testing.T, dut *ondatra.DUTDevice, vrfnam
 }
 
 // configInterfaceDUT configures the interface
-func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
-	if *deviations.InterfaceEnabled {
+func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	i.Description = ygot.String(dutPort.Desc)
@@ -190,35 +190,35 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1 := dut.Port(t, "port1")
 	// create VRF "vrfA" and assign incoming port under it
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 	configNetworkInstanceInterface(t, dut, vrf1, p1.Name(), uint32(0))
 	// create VRF "vrfB"
 	configNetworkInstance(t, dut, vrf2)
 
-	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 
 	p2 := dut.Port(t, "port2")
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 
 	p3 := dut.Port(t, "port3")
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
 
 	p4 := dut.Port(t, "port4")
-	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name()))
+	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 		fptest.SetPortSpeed(t, p3)
 		fptest.SetPortSpeed(t, p4)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p4.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf1)
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf2)
 	}
@@ -309,19 +309,19 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	)
 
 	t.Logf("Program a backup pointing to vrfB via gRIBI")
-	a.client.AddNH(t, nhid3, "VRFOnly", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrf2})
-	a.client.AddNHG(t, backupnhgid, map[uint64]uint64{nhid3: 10}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNH(t, nhid3, "VRFOnly", deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrf2})
+	a.client.AddNHG(t, backupnhgid, map[uint64]uint64{nhid3: 10}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 
 	t.Logf("an IPv4Entry for %s in %s pointing to ATE port-2 and port-3 via gRIBI", dstPfx, vrf1)
-	a.client.AddNH(t, nhid1, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNH(t, nhid2, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhgid1, map[uint64]uint64{nhid1: 80, nhid2: 20}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: backupnhgid})
-	a.client.AddIPv4(t, dstPfx, nhgid1, vrf1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNH(t, nhid1, atePort2.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddNH(t, nhid2, atePort3.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhgid1, map[uint64]uint64{nhid1: 80, nhid2: 20}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: backupnhgid})
+	a.client.AddIPv4(t, dstPfx, nhgid1, vrf1, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 
 	t.Logf("an IPv4Entry for %s in %s pointing to ATE port-4 via gRIBI", dstPfx, vrf2)
-	a.client.AddNH(t, nhid4, atePort4.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhgid2, map[uint64]uint64{nhid4: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddIPv4(t, dstPfx, nhgid2, vrf2, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNH(t, nhid4, atePort4.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhgid2, map[uint64]uint64{nhid4: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddIPv4(t, dstPfx, nhgid2, vrf2, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 
 	// validate programming using AFT
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
@@ -443,7 +443,7 @@ func (a *testArgs) aftCheck(t testing.TB, prefix string, instance string) {
 	nhg, _ := aftPfxNHGVal.Val()
 
 	// using NHG ID validate NH
-	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhg).State())
+	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(nhg).State())
 	if len(aftNHG.NextHop) == 0 && aftNHG.BackupNextHopGroup == nil {
 		t.Fatalf("Prefix %s references a NHG that has neither NH or backup NHG", prefix)
 	}

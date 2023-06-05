@@ -6,7 +6,7 @@ BGP Prefix Limit
 
 ## Procedure
 
-*   Configure BGP session between ATE port-1 and DUT port-1.
+*   Configure eBGP session between ATE port-1 and DUT port-1,with an Accept-route all import-policy/export-policy under the neighbor AFI/SAFI.
 *   With maximum prefix limits of unlimited, and N.
     *   Advertise prefixes of `limit - 1`, `limit`, `limit + 1`. Validate
         session state meets expected value at ATE.
