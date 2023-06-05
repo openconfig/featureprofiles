@@ -5,3 +5,13 @@ uuid: "d2e0ad15-fd22-408b-961c-ec016de29925"
 plan_id: "RT-1.4"
 description: "BGP Graceful Restart"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    use_vendor_native_acl_config: true
+  }
+}
