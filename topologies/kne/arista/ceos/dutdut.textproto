@@ -6,7 +6,7 @@ nodes: {
     os: "eos"
     config: {
         image: "ceos:latest"
-        file: "arista_ceos.config"
+        file: "config.cfg"
         config_path: "/mnt/flash"
         config_file: "startup-config"
         cert: {
@@ -15,27 +15,6 @@ nodes: {
                 key_name: "gnmiCertKey.pem"
                 key_size: 4096
             }
-        }
-    }
-    services: {
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services: {
-        key: 6030
-        value: {
-            name: "gnmi"
-            inside: 6030
-        }
-    }
-    services: {
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 9340
         }
     }
 }
@@ -46,7 +25,7 @@ nodes: {
     os: "eos"
     config: {
         image: "ceos:latest"
-        file: "arista_ceos.config"
+        file: "config.cfg"
         config_path: "/mnt/flash"
         config_file: "startup-config"
         cert: {
@@ -57,31 +36,28 @@ nodes: {
             }
         }
     }
-    services: {
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services: {
-        key: 6030
-        value: {
-            name: "gnmi"
-            inside: 6030
-        }
-    }
-    services: {
-        key: 6040
-        value: {
-            name: "gribi"
-            inside: 6040
-        }
-    }
 }
 links: {
   a_node: "dut1"
   a_int: "eth1"
   z_node: "dut2"
   z_int: "eth1"
+}
+links: {
+  a_node: "dut1"
+  a_int: "eth2"
+  z_node: "dut2"
+  z_int: "eth2"
+}
+links: {
+  a_node: "dut1"
+  a_int: "eth3"
+  z_node: "dut2"
+  z_int: "eth3"
+}
+links: {
+  a_node: "dut1"
+  a_int: "eth4"
+  z_node: "dut2"
+  z_int: "eth4"
 }

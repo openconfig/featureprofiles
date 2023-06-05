@@ -23,39 +23,22 @@ nodes: {
           name: "et-0/0/1:0"
         }
     }
-    services: {
-        key: 22
+    interfaces: {
+        key: "eth20"
         value: {
-            name: "ssh"
-            inside: 22
+          name: "et-0/0/2:0"
         }
     }
-    services: {
-        key: 9337
+    interfaces: {
+        key: "eth28"
         value: {
-            name: "gnoi"
-            inside: 32767
+          name: "et-0/0/3:0"
         }
     }
-    services: {
-        key: 9339
+    interfaces: {
+        key: "eth36"
         value: {
-            name: "gnmi"
-            inside: 32767
-        }
-    }
-    services: {
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 32767
-        }
-    }
-    services: {
-        key: 9559
-        value: {
-            name: "p4rt"
-            inside: 32767
+          name: "et-0/0/4:0"
         }
     }
 }
@@ -83,39 +66,22 @@ nodes: {
           name: "et-0/0/1:0"
         }
     }
-    services: {
-        key: 22
+    interfaces: {
+        key: "eth20"
         value: {
-            name: "ssh"
-            inside: 22
+          name: "et-0/0/2:0"
         }
     }
-    services: {
-        key: 9337
+    interfaces: {
+        key: "eth28"
         value: {
-            name: "gnoi"
-            inside: 32767
+          name: "et-0/0/3:0"
         }
     }
-    services: {
-        key: 9339
+    interfaces: {
+        key: "eth36"
         value: {
-            name: "gnmi"
-            inside: 32767
-        }
-    }
-    services: {
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 32767
-        }
-    }
-    services: {
-        key: 9559
-        value: {
-            name: "p4rt"
-            inside: 32767
+          name: "et-0/0/4:0"
         }
     }
 }
@@ -124,4 +90,22 @@ links: {
     a_int: "eth12"
     z_node: "dut2"
     z_int: "eth12"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth20"
+    z_node: "dut2"
+    z_int: "eth20"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth28"
+    z_node: "dut2"
+    z_int: "eth28"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth36"
+    z_node: "dut2"
+    z_int: "eth36"
 }
