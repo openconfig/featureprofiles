@@ -29,7 +29,7 @@ duts {
 
   # Options specific to gNOI
   gnoi {
-    max_recv_msg_size: 1048576
+    max_recv_msg_size: 40000000
   }
 
   # Before this binding can be used with a topology, add ports mapping

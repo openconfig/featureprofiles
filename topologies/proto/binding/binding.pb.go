@@ -356,7 +356,7 @@ type Options struct {
 	SessionId int32 `protobuf:"varint,6,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// gRPC request timeout (second)
 	Timeout int32 `protobuf:"varint,7,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	// gRPC dial option to set the maximum recv message size.
+	// gRPC dial option to set the maximum recv message size in bytes.
 	MaxRecvMsgSize int32 `protobuf:"varint,8,opt,name=max_recv_msg_size,json=maxRecvMsgSize,proto3" json:"max_recv_msg_size,omitempty"`
 }
 
