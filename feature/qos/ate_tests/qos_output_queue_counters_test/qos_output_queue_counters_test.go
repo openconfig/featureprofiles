@@ -304,13 +304,13 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	if dut.Vendor() == ondatra.JUNIPER {
 		qos = qosVals{
-			be0: "6",
+			be0: "1",
 			be1: "0",
-			af1: "4",
-			af2: "1",
-			af3: "5",
-			af4: "2",
-			nc1: "3",
+			af1: "2",
+			af2: "3",
+			af3: "4",
+			af4: "6",
+			nc1: "7",
 		}
 	}
 
