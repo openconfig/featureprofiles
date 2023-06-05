@@ -524,7 +524,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   "6",
+		queueName:   "0",
 		targetGroup: "BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -533,7 +533,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(2),
-		queueName:   "0",
+		queueName:   "1",
 		targetGroup: "BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -542,7 +542,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
-		queueName:   "4",
+		queueName:   "2",
 		targetGroup: "AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -551,7 +551,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(8),
-		queueName:   "1",
+		queueName:   "3",
 		targetGroup: "AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -560,7 +560,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(16),
-		queueName:   "5",
+		queueName:   "4",
 		targetGroup: "AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -569,7 +569,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(99),
-		queueName:   "2",
+		queueName:   "6",
 		targetGroup: "AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -578,7 +578,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(100),
-		queueName:   "3",
+		queueName:   "7",
 		targetGroup: "NC1",
 	}}
 

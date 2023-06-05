@@ -97,13 +97,13 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 
 	queueMap := map[ondatra.Vendor]map[string]string{
 		ondatra.JUNIPER: {
-			"NC1": "3",
-			"AF4": "2",
-			"AF3": "5",
-			"AF2": "1",
-			"AF1": "4",
+			"NC1": "7",
+			"AF4": "6",
+			"AF3": "4",
+			"AF2": "3",
+			"AF1": "2",
 			"BE1": "0",
-			"BE0": "6",
+			"BE0": "1",
 		},
 		ondatra.ARISTA: {
 			"NC1": "NC1",
@@ -1275,31 +1275,31 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   "6",
+		queueName:   "0",
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   "0",
+		queueName:   "1",
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   "4",
+		queueName:   "2",
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   "1",
+		queueName:   "3",
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   "5",
+		queueName:   "4",
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   "2",
+		queueName:   "6",
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   "3",
+		queueName:   "7",
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1605,25 +1605,25 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		queueName string
 	}{{
 		desc:      "output-interface-BE1",
-		queueName: "6",
-	}, {
-		desc:      "output-interface-BE0",
 		queueName: "0",
 	}, {
-		desc:      "output-interface-AF1",
-		queueName: "4",
-	}, {
-		desc:      "output-interface-AF2",
+		desc:      "output-interface-BE0",
 		queueName: "1",
 	}, {
-		desc:      "output-interface-AF3",
-		queueName: "5",
-	}, {
-		desc:      "output-interface-AF4",
+		desc:      "output-interface-AF1",
 		queueName: "2",
 	}, {
-		desc:      "output-interface-NC1",
+		desc:      "output-interface-AF2",
 		queueName: "3",
+	}, {
+		desc:      "output-interface-AF3",
+		queueName: "4",
+	}, {
+		desc:      "output-interface-AF4",
+		queueName: "6",
+	}, {
+		desc:      "output-interface-NC1",
+		queueName: "7",
 	}}
 
 	t.Logf("qos output interface config: %v", schedulerIntfs)
