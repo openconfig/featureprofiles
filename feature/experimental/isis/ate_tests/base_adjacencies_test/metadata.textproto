@@ -5,3 +5,33 @@ uuid: "a5b892e1-192d-45ff-89b5-a84a2865fdb2"
 plan_id: "RT-2.1"
 description: "Base IS-IS Process and Adjacencies"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    isis_multi_topology_unsupported: true
+    isis_interface_level1_disable_required: true
+    isis_instance_enabled_not_required: true
+    missing_isis_interface_afi_safi_enable: true
+    isis_restart_suppress_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    isis_interface_level1_disable_required: true
+    isis_single_topology_required: true
+    isis_protocol_enabled_not_required: true
+    isis_instance_enabled_not_required: true
+    missing_isis_interface_afi_safi_enable: true
+  }
+}
