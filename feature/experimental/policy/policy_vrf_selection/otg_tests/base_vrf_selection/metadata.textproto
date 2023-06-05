@@ -5,3 +5,15 @@ uuid: "500a9a2e-8a3e-4993-ae1c-ac5bb194048e"
 plan_id: "RT-3.1"
 description: "Policy based VRF selection"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    interface_ref_config_unsupported: true
+  }
+}
