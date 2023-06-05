@@ -138,8 +138,8 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	nbr3v4 := &bgpNeighbor{as: ateAS3, neighborip: ateDst2.IPv4, isV4: true, peerGrp: peerGrpName3}
 	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4, nbr3v4}
 
-	d := &oc.Root{}
-	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	dutOcRoot := &oc.Root{}
+	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := ni_proto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
@@ -180,13 +180,14 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	var nbrIP = []string{ateSrc.IPv4, ateDst1.IPv4, ateDst2.IPv4}
 	t.Logf("Verifying BGP state.")
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 	for _, nbr := range nbrIP {
-		nbrPath := statePath.Neighbor(nbr)
+		nbrPath := bgpPath.Neighbor(nbr)
 		// Get BGP adjacency state.
 		t.Logf("Waiting for BGP neighbor to establish...")
-		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		var status *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]
+		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			state, ok := val.Val()
 			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
@@ -194,10 +195,10 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 			t.Fatal("No BGP neighbor formed")
 		}
-		status := gnmi.Get(t, dut, nbrPath.SessionState().State())
-		t.Logf("BGP adjacency for %s: %s", nbr, status)
-		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
-			t.Errorf("BGP peer %s status got %d, want %d", nbr, status, want)
+		state, _ := status.Val()
+		t.Logf("BGP adjacency for %s: %v", nbr, state)
+		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
+			t.Errorf("BGP peer %s status got %d, want %d", nbr, state, want)
 		}
 	}
 }
@@ -269,17 +270,17 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) []*ondatra.Flow {
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLoss bool) {
 	// Compare traffic loss based on wantLoss.
 	lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flowName).LossPct().State())
-	if !wantLoss {
-		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flowName, lossPct)
-		} else {
-			t.Logf("Traffic Test Passed!")
-		}
-	} else {
+	if wantLoss {
 		if lossPct < 100-tolerancePct {
 			t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", flowName, lossPct)
 		} else {
 			t.Logf("Traffic Loss Test Passed!")
+		}
+	} else {
+		if lossPct > tolerancePct {
+			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flowName, lossPct)
+		} else {
+			t.Logf("Traffic Test Passed!")
 		}
 	}
 }
@@ -391,26 +392,22 @@ type bgpNeighbor struct {
 // TestRemovePrivateAS is to Validate that private AS numbers are stripped
 // before advertisement to the eBGP neighbor.
 func TestAlwaysCompareMED(t *testing.T) {
-	// DUT configurations.
 	t.Logf("Start DUT config load.")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	d := &oc.Root{}
 
-	// Configure interface on the DUT.
 	t.Run("Configure DUT interfaces", func(t *testing.T) {
 		t.Logf("Start DUT interface Config.")
 		configureDUT(t, dut)
 	})
 
-	// Configure Network instance type on DUT.
 	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
 		t.Log("Configure Network Instance type.")
 		dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	})
 
-	// Configure BGP+Neighbors on the DUT.
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	t.Run("Configure BGP Neighbors", func(t *testing.T) {
 		t.Logf("Start DUT BGP Config.")
@@ -420,14 +417,12 @@ func TestAlwaysCompareMED(t *testing.T) {
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	})
 
-	// ATE Configuration.
 	var allFlows []*ondatra.Flow
 	t.Run("Configure ATE", func(t *testing.T) {
 		t.Logf("Start ATE Config.")
 		allFlows = configureATE(t, ate)
 	})
 
-	// Verify Port Status.
 	t.Run("Verify port status on DUT", func(t *testing.T) {
 		t.Log("Verifying port status.")
 		verifyPortsUp(t, dut.Device)
@@ -436,7 +431,6 @@ func TestAlwaysCompareMED(t *testing.T) {
 	t.Run("Verify BGP telemetry", func(t *testing.T) {
 		t.Log("Check BGP parameters.")
 		verifyBgpTelemetry(t, dut)
-		// Verify BGP capabilities
 		t.Log("Check BGP Capabilities")
 		verifyBGPCapabilities(t, dut)
 	})
