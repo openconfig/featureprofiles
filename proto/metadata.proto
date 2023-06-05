@@ -54,8 +54,84 @@ message Metadata {
     bool traceroute_fragmentation = 2;
     // Device only support UDP as l4 protocol for traceroute.
     bool traceroute_l4_protocol_udp = 3;
-    // Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
+    // Device does not support
+    // bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
     bool prepolicy_received_routes = 4;
+    // Expected ucmp traffic tolerance. Minimum value is 0.2, anything less
+    // will be coerced to 0.2.
+    double hierarchical_weight_resolution_tolerance = 5;
+    // Device skip isis multi-topology check if value is true.
+    bool isis_multi_topology_unsupported = 6;
+    // Disable isis level1 under interface mode on the device if value is true.
+    bool isis_interface_level1_disable_required = 7;
+    // Set isis af ipv6 single topology on the device if value is true.
+    bool isis_single_topology_required = 8;
+    // Unset isis protocol enable flag on the device if value is true.
+    bool isis_protocol_enabled_not_required = 9;
+    // Don't set isis instance enable flag on the device if value is true.
+    bool isis_instance_enabled_not_required = 10;
+    // Set and validate isis interface address family enable on the device if
+    // value is true.
+    bool missing_isis_interface_afi_safi_enable = 11;
+    // Don't set isis global authentication-check on the device if value is
+    // true.
+    bool isis_global_authentication_not_required = 12;
+    // Configure CSNP, LSP and PSNP under level authentication explicitly if
+    // value is true.
+    bool isis_explicit_level_authentication_config = 13;
+    // Device skip isis restart-suppress check if value is true.
+    bool isis_restart_suppress_unsupported = 14;
+    // Device does not support interface/ipv4(6)/neighbor.
+    // Cisco: partnerissuetracker.corp.google.com/268243828
+    bool ip_neighbor_missing = 15;
+    // Device requires separate reboot to activate OS.
+    bool osactivate_noreboot = 16;
+    // Device requires OS installation on standby RP as well as active RP.
+    bool osinstall_for_standby_rp = 17;
+    // Set this flag for LLDP interface config to override the global config.
+    bool lldp_interface_config_override_global = 18;
+    // Skip BGP TestPassword mismatch subtest if value is true.
+    // Cisco: partnerissuetracker.corp.google.com/273285907
+    bool skip_bgp_test_password_mismatch = 19;
+    // Device does not support interface/physicalchannel leaf.
+    // Cisco: partnerissuetracker.corp.google.com/273287821
+    bool missing_interface_physical_channel = 20;
+    // Set to true to skip check for
+    // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
+    // leaf missing case.
+    bool missing_bgp_last_notification_error_code = 21;
+    // Device does not support interface-ref configuration when applying
+    // features to interface.
+    bool interface_ref_config_unsupported = 22;
+    // Device does not support these state paths.
+    // Juniper: partnerissuetracker.corp.google.com/279470921
+    bool state_path_unsupported = 23;
+    // Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address.
+    // Juniper: partnerissuetracker.corp.google.com/267642089
+    bool ipv6_enable_for_gribi_nh_dmac = 24;
+    // Device requires additional config for ECN.
+    // Juniper: partnerissuetracker.corp.google.com/277657269
+    bool ecn_profile_required_definition = 25;
+    // Set true for device that does not support interface ipv6 discarded packet statistics.
+    // Juniper: partnerissuetracker.corp.google.com/277762075
+    bool ipv6_discarded_pkts_unsupported = 26;
+    // Device does not support drop and weight leaves under queue management profile.
+    // Juniper: partnerissuetracker.corp.google.com/279471405
+    bool drop_weight_leaves_unsupported = 27;
+    // Device does not support traffic forward with secondary backup path failover.
+    // Juniper: partnerissuetracker.corp.google.com/279727552
+    bool secondary_backup_path_traffic_failover = 28;
+    // Set to true for device in which config pushed through origin CLI takes precedence over config pushed through origin OC.
+    bool cli_takes_precedence_over_oc = 29;
+    // Device does not support weight above 100.
+    // Juniper: partnerissuetracker.corp.google.com/277066804
+    bool scheduler_input_weight_limit = 30;
+    // Device does not support id leaf for SwitchChip components.
+    // Juniper: partnerissuetracker.corp.google.com/277134501
+    bool switch_chip_id_unsupported = 31;
+    // Device does not support backplane-facing-capacity leaves for some of the components.
+    // Juniper: partnerissuetracker.corp.google.com/277134501
+    bool backplane_facing_capacity_unsupported = 32;
   }
 
   message PlatformExceptions {

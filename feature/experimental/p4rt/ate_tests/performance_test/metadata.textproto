@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "b1da9742-66f5-460d-860b-58ab3f5c34f3"
-plan_id: "DP-1.2"
-description: "QoS policy feature config"
+uuid: "44fb709e-fc15-4285-94cf-cb6b9dc19d1a"
+plan_id: "P4RT-6.1"
+description: "Required Packet I/O rate: Performance"
 testbed: TESTBED_DUT_ATE_2LINKS
