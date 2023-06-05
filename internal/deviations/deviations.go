@@ -313,8 +313,9 @@ func InterfaceCountersFromContainer(dut *ondatra.DUTDevice) bool {
 }
 
 // IPv4MissingEnabled returns if device does not support interface/ipv4/enabled.
-func IPv4MissingEnabled(_ *ondatra.DUTDevice) bool {
-	return *ipv4MissingEnabled
+func IPv4MissingEnabled(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_ipv4_missing_enabled")
+	return lookupDUTDeviations(dut).GetIpv4MissingEnabled()
 }
 
 // IPNeighborMissing returns true if the device does not support interface/ipv4(6)/neighbor,
@@ -526,7 +527,7 @@ var (
 	interfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	ipv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
+	_ = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
 
 	_ = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
 

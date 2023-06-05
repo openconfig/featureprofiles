@@ -7,12 +7,14 @@ description: "One strict priority queue traffic test"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
-    vendor: NOKIA
-    hardware_model: "7250-ixr10e"
-    hardware_model: "ixr10"
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
   }
   deviations: {
-    explicit_interface_ref_definition: true
+    ipv4_missing_enabled: true
   }
 }
 platform_exceptions: {
@@ -21,6 +23,16 @@ platform_exceptions: {
     hardware_model: "PTX10008"
     hardware_model: "PTX10001-36MR"
     hardware_model: "cptx"
+  }
+  deviations: {
+    explicit_interface_ref_definition: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
   }
   deviations: {
     explicit_interface_ref_definition: true

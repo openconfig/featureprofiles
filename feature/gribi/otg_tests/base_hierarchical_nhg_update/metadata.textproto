@@ -7,6 +7,18 @@ description: "Base Hierarchical NHG Update"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: JUNIPER
     hardware_model: "PTX10008"
     hardware_model: "PTX10001-36MR"

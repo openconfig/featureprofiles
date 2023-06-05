@@ -5,3 +5,15 @@ uuid: "15d601c4-43af-4d94-b6a8-da39cf42b14f"
 plan_id: "RT-1.5"
 description: "BGP Prefix Limit"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
