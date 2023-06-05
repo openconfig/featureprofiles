@@ -93,11 +93,11 @@ func TestQoSCounters(t *testing.T) {
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "3"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "2"},
-			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 24, queue: "5"},
-			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "1"},
-			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "4"},
+			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "7"},
+			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "6"},
+			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 24, queue: "4"},
+			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "3"},
+			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "2"},
 			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "0"},
 		}
 	case ondatra.ARISTA:
