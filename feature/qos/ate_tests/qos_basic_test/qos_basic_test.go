@@ -396,9 +396,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			}
 
 			counters := make(map[string]map[string]uint64)
-			var counterNames []string
-
-			counterNames = []string{
+			counterNames := []string{
 
 				"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
 				"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
