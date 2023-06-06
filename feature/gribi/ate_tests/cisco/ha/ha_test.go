@@ -163,8 +163,9 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
 	gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch),
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
@@ -175,7 +176,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 
 	want := rpStandbyBeforeSwitch
 	got := ""
-	if *deviations.GNOISubcomponentPath {
+	if deviations.GNOISubcomponentPath(args.dut) {
 		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
 	} else {
 		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
@@ -1527,7 +1528,8 @@ func test_triggers(t *testing.T, args *testArgs) {
 				}
 
 				gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
-				lineCardPath := components.GetSubcomponentPath(lc)
+				useNameOnly := deviations.GNOISubcomponentPath(args.dut)
+				lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
 				rebootSubComponentRequest := &gnps.RebootRequest{
 					Method: gnps.RebootMethod_COLD,
 					Subcomponents: []*tpb.Path{
