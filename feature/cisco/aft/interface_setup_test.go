@@ -139,7 +139,7 @@ var (
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(dut *ondatra.DUTDevice, *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(dut *ondatra.DUTDevice, i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	if deviations.InterfaceEnabled(dut) {
