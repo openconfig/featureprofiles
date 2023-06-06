@@ -6,31 +6,31 @@
 duts {
   id: "dut"
   ports {
-    id: "port1"    
+    id: "port1"
   }
   ports {
-    id: "port2"    
+    id: "port2"
   }
   ports {
-    id: "port3"    
+    id: "port3"
   }
   ports {
-    id: "port4"    
+    id: "port4"
   }
   ports {
-    id: "port5"    
+    id: "port5"
   }
   ports {
-    id: "port6"    
+    id: "port6"
   }
   ports {
-    id: "port7"    
+    id: "port7"
   }
   ports {
-    id: "port8"    
+    id: "port8"
   }
   ports {
-    id: "port9"    
+    id: "port9"
   }
 }
 
