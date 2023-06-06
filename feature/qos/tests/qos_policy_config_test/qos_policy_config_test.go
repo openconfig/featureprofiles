@@ -723,7 +723,7 @@ func testQoSCiscoClassifierConfig(t *testing.T) {
 	for i, queue := range queueName {
 		q1 := q.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		queueid := 7 - i
+		queueid := len(queueName) - i
 		q1.QueueId = ygot.Uint8(uint8(queueid))
 
 	}
@@ -903,9 +903,9 @@ func testQoSCiscoClassifierConfig(t *testing.T) {
 			action := term.GetOrCreateActions()
 			action.SetTargetGroup(tc.targetGroup)
 			condition := term.GetOrCreateConditions()
-			if tc.name == "dscp_based_classifier_ipv4" {
+			if tc.classType == oc.Qos_Classifier_Type_IPV4 {
 				condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
-			} else if tc.name == "dscp_based_classifier_ipv6" {
+			} else if tc.classType == oc.Qos_Classifier_Type_IPV6 {
 				condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
 			}
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
@@ -1000,7 +1000,7 @@ func testCiscoSchedulerPoliciesConfig(t *testing.T) {
 	for i, queue := range queueName {
 		q1 := q.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		queueid := 7 - i
+		queueid := len(queueName) - i
 		q1.QueueId = ygot.Uint8(uint8(queueid))
 
 	}
