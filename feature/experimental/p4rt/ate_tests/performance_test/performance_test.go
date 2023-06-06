@@ -781,13 +781,13 @@ func newTableEntry(actionType p4v1pb.Update_Type) []*p4rtutils.ACLWbbIngressTabl
 	return []*p4rtutils.ACLWbbIngressTableEntryInfo{
 		{
 			Type:          actionType,
-			EtherType:     0x6007,
+			EtherType:     uint16(gdpEthType),
 			EtherTypeMask: 0xFFFF,
 			Priority:      1,
 		},
 		{
 			Type:          actionType,
-			EtherType:     0x88cc,
+			EtherType:     uint16(lldpEthType),
 			EtherTypeMask: 0xFFFF,
 			Priority:      1,
 		},
