@@ -230,19 +230,21 @@ func TestFabricReboot(t *testing.T) {
 	t.Logf("Found fabric components: %v", fabrics)
 
 	t.Logf("Find a removable fabric component to reboot.")
-	var removableFaric string
+	var removableFabric string
 	for _, fabric := range fabrics {
 		t.Logf("Check if %s is removable", fabric)
-		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(fabric).Removable().State()).IsPresent(); !got {
+		if removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(fabric).Removable().State()).Val(); ok {
+			if removable {
+				t.Logf("Found removable fabric component: %v", fabric)
+				removableFabric = fabric
+			}else{
+				t.Logf("Found non-removable fabric component: %v", fabric)
+			}
+		}else{
 			t.Logf("Detected non-removable fabric component: %v", fabric)
-			continue
-		}
-		if got := gnmi.Get(t, dut, gnmi.OC().Component(fabric).Removable().State()); got {
-			t.Logf("Found removable fabric component: %v", fabric)
-			removableFaric = fabric
 		}
 	}
-	if removableFaric == "" {
+	if removableFabric == "" {
 		t.Fatalf("Component(fabric).Removable().Get(t): got none, want non-empty")
 	}
 
@@ -256,7 +258,7 @@ func TestFabricReboot(t *testing.T) {
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
-			components.GetSubcomponentPath(removableFaric, useNameOnly),
+			components.GetSubcomponentPath(removableFabric, useNameOnly),
 		},
 	}
 
@@ -287,8 +289,8 @@ func TestFabricReboot(t *testing.T) {
 	}
 
 	// Wait for the fabric component to come back up.
-	t.Logf("Validate removable fabric component %v status", removableFaric)
-	gnmi.Await(t, dut, gnmi.OC().Component(removableFaric).OperStatus().State(), fabricBootTime, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
+	t.Logf("Validate removable fabric component %v status", removableFabric)
+	gnmi.Await(t, dut, gnmi.OC().Component(removableFabric).OperStatus().State(), fabricBootTime, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	t.Logf("Fabric component is active")
 	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeReboot, 5*time.Minute)
 	// TODO: Check the fabric component uptime has been reset.
