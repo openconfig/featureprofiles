@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -271,11 +270,6 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	topo := otg.NewConfig(t)
 
 	for i, dp := range ate.Ports() {
-		atePortAttr := attrs.Attributes{
-			Name:    "ate" + dp.ID(),
-			IPv4:    ATEIPList[dp.ID()].String(),
-			IPv4Len: plenIPv4,
-		}
 
 		topo.Ports().Add().SetName(dp.ID())
 		dev := topo.Devices().Add().SetName(dp.ID() + "dev")
@@ -286,7 +280,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 		eth.SetMac(mac)
 
 		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-		ip.SetAddress(atePortAttr.IPv4).SetGateway(DUTIPList[dp.ID()].String()).SetPrefix(int32(atePortAttr.IPv4Len))
+		ip.SetAddress(ATEIPList[dp.ID()].String()).SetGateway(DUTIPList[dp.ID()].String()).SetPrefix(int32(plenIPv4))
 
 		// Add BGP routes and ISIS routes , ate port1 is ingress port.
 		if dp.ID() == "port1" {
