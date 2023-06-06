@@ -69,6 +69,34 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// BannerDelimiter returns if device requires the banner to have a delimiter character.
+// Full OpenConfig compliant devices should work without delimiter.
+func BannerDelimiter(_ *ondatra.DUTDevice) string {
+	return *bannerDelimiter
+}
+
+// OmitL2MTU returns if Device does not support setting the L2 MTU.
+func OmitL2MTU(_ *ondatra.DUTDevice) bool {
+	return *omitL2MTU
+}
+
+// GRIBIMACOverrideStaticARPStaticRoute returns whether the device needs to configure Static ARP + Static Route to override setting MAC address in Next Hop.
+func GRIBIMACOverrideStaticARPStaticRoute(*ondatra.DUTDevice) bool {
+	return *gribiMACOverrideStaticARPStaticRoute
+}
+
+// AggregateAtomicUpdate returns if device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces.
+// Otherwise lag-type will be dropped, and no member can be added to the aggregate.
+// Full OpenConfig compliant devices should pass both with and without this deviation.
+func AggregateAtomicUpdate(_ *ondatra.DUTDevice) bool {
+	return *aggregateAtomicUpdate
+}
+
+// DefaultNetworkInstance returns the name used for the default network instance for VRF.
+func DefaultNetworkInstance(_ *ondatra.DUTDevice) string {
+	return *defaultNetworkInstance
+}
+
 // P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
 func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 	return *p4rtMissingDelete
@@ -77,6 +105,12 @@ func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
 // P4RTUnsetElectionIDUnsupported returns whether the device does not support unset election ID.
 func P4RTUnsetElectionIDUnsupported(_ *ondatra.DUTDevice) bool {
 	return *p4rtUnsetElectionIDUnsupported
+}
+
+// ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
+// Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.
+func ExplicitP4RTNodeComponent(_ *ondatra.DUTDevice) bool {
+	return *explicitP4RTNodeComponent
 }
 
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
@@ -107,6 +141,11 @@ func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
 // MacAddressMissing returns whether device does not support /system/mac-address/state
 func MacAddressMissing(_ *ondatra.DUTDevice) bool {
 	return *macAddressMissing
+}
+
+// StaticProtocolName returns the name used for the static routing protocol.
+func StaticProtocolName(_ *ondatra.DUTDevice) string {
+	return *staticProtocolName
 }
 
 // UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
@@ -149,6 +188,27 @@ func ISISLevelAuthenticationNotRequired(_ *ondatra.DUTDevice) bool {
 	return *isisLevelAuthenticationNotRequired
 }
 
+// ISISSingleTopologyRequired sets isis af ipv6 single topology on the device if value is true.
+func ISISSingleTopologyRequired(_ *ondatra.DUTDevice) bool {
+	return *isisSingleTopologyRequired
+}
+
+// ISISMultiTopologyUnsupported returns if device skips isis multi-topology check.
+func ISISMultiTopologyUnsupported(_ *ondatra.DUTDevice) bool {
+	return *isisMultiTopologyUnsupported
+}
+
+// ISISInterfaceLevel1DisableRequired returns if device should disable isis level1 under interface mode.
+func ISISInterfaceLevel1DisableRequired(_ *ondatra.DUTDevice) bool {
+	return *isisInterfaceLevel1DisableRequired
+}
+
+// MissingIsisInterfaceAfiSafiEnable returns if device should set and validate isis interface address family enable.
+// Default is validate isis address family enable at global mode.
+func MissingIsisInterfaceAfiSafiEnable(_ *ondatra.DUTDevice) bool {
+	return *missingIsisInterfaceAfiSafiEnable
+}
+
 // Ipv6DiscardedPktsUnsupported returns whether the device supports interface ipv6 discarded packet stats.
 func Ipv6DiscardedPktsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *ipv6DiscardedPktsUnsupported
@@ -159,12 +219,17 @@ func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
 	return *fanOperStatusUnsupported
 }
 
+// LinkQualWaitAfterDeleteRequired returns whether the device requires additional time to complete post delete link qualification cleanup.
+func LinkQualWaitAfterDeleteRequired(_ *ondatra.DUTDevice) bool {
+	return *linkQualWaitAfterDeleteRequired
+}
+
 // StatePathsUnsupported returns whether the device supports following state paths
 func StatePathsUnsupported(_ *ondatra.DUTDevice) bool {
 	return *statePathsUnsupported
 }
 
-// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile
+// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile.
 func DropWeightLeavesUnsupported(_ *ondatra.DUTDevice) bool {
 	return *dropWeightLeavesUnsupported
 }
@@ -179,9 +244,19 @@ func HierarchicalWeightResolutionTolerance(_ *ondatra.DUTDevice) float64 {
 	return *hierarchicalWeightResolutionTolerance
 }
 
+// InterfaceEnabled returns if device requires interface enabled leaf booleans to be explicitly set to true.
+func InterfaceEnabled(_ *ondatra.DUTDevice) bool {
+	return *interfaceEnabled
+}
+
 // InterfaceCountersFromContainer returns if the device only supports querying counters from the state container, not from individual counter leaves.
 func InterfaceCountersFromContainer(_ *ondatra.DUTDevice) bool {
 	return *interfaceCountersFromContainer
+}
+
+// IPv4MissingEnabled returns if device does not support interface/ipv4/enabled.
+func IPv4MissingEnabled(_ *ondatra.DUTDevice) bool {
+	return *ipv4MissingEnabled
 }
 
 // IPNeighborMissing returns true if the device does not support interface/ipv4(6)/neighbor,
@@ -192,9 +267,6 @@ func IPNeighborMissing(_ *ondatra.DUTDevice) bool {
 
 // NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
 // OpenConfig defaults the association-type to SERVER if not set.
-func NTPAssociationTypeRequired(_ *ondatra.DUTDevice) bool {
-	return *ntpAssociationTypeRequired
-}
 
 // GRIBIRIBAckOnly returns if device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.
 // Full gRIBI compliant devices should pass both with and without this deviation.
@@ -207,14 +279,25 @@ func MissingInterfacePhysicalChannel(_ *ondatra.DUTDevice) bool {
 	return *missingInterfacePhysicalChannel
 }
 
-// MissingInterfaceHardwarePort returns if device does not support interface/hardwareport leaf.
-func MissingInterfaceHardwarePort(_ *ondatra.DUTDevice) bool {
-	return *missingInterfaceHardwarePort
+// MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
+func MissingValueForDefaults(_ *ondatra.DUTDevice) bool {
+	return *missingValueForDefaults
 }
 
-// MissingCPUMfgName returns if device does not support component/MfgName leaf for CPU components.
-func MissingCPUMfgName(_ *ondatra.DUTDevice) bool {
-	return *missingCPUMfgName
+// TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
+func TraceRouteL4ProtocolUDP(_ *ondatra.DUTDevice) bool {
+	return *traceRouteL4ProtocolUDP
+}
+
+// TraceRouteFragmentation returns if device does not support fragmentation bit for traceroute.
+func TraceRouteFragmentation(_ *ondatra.DUTDevice) bool {
+	return *traceRouteFragmentation
+}
+
+// LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
+// expect neighbours are seen when lldp is disabled globally but enabled on interface
+func LLDPInterfaceConfigOverrideGlobal(_ *ondatra.DUTDevice) bool {
+	return *lldpInterfaceConfigOverrideGlobal
 }
 
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
@@ -224,132 +307,239 @@ func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
 	return *subinterfacePacketCountersMissing
 }
 
+// MissingPrePolicyReceivedRoutes returns if device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
+// Fully-compliant devices should pass with and without this deviation.
+func MissingPrePolicyReceivedRoutes(_ *ondatra.DUTDevice) bool {
+	return *missingPrePolicyReceivedRoutes
+}
+
+// DeprecatedVlanID returns if device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.
+func DeprecatedVlanID(_ *ondatra.DUTDevice) bool {
+	return *deprecatedVlanID
+}
+
+// OSActivateNoReboot returns if device requires separate reboot to activate OS.
+func OSActivateNoReboot(_ *ondatra.DUTDevice) bool {
+	return *osActivateNoReboot
+}
+
+// ConnectRetry returns if /bgp/neighbors/neighbor/timers/config/connect-retry is not supported.
+func ConnectRetry(_ *ondatra.DUTDevice) bool {
+	return *connectRetry
+}
+
+// InstallOSForStandbyRP returns if device requires OS installation on standby RP as well as active RP.
+func InstallOSForStandbyRP(_ *ondatra.DUTDevice) bool {
+	return *installOSForStandbyRP
+}
+
+// GNOIStatusWithEmptySubcomponent returns if the response of gNOI reboot status is a single value (not a list),
+// the device requires explict component path to account for a situation when there is more than one active reboot requests.
+func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
+	return *gNOIStatusWithEmptySubcomponent
+}
+
+// NetworkInstanceTableDeletionRequired returns if device requires explicit deletion of network-instance table.
+func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
+	return *networkInstanceTableDeletionRequired
+}
+
+// ExplicitPortSpeed returns if device requires port-speed to be set because its default value may not be usable.
+// Fully compliant devices selects the highest speed available based on negotiation.
+func ExplicitPortSpeed(_ *ondatra.DUTDevice) bool {
+	return *explicitPortSpeed
+}
+
+// ExplicitInterfaceInDefaultVRF returns if device requires explicit attachment of an interface or subinterface to the default network instance.
+// OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance.
+// Fully-compliant devices should pass with and without this deviation.
+func ExplicitInterfaceInDefaultVRF(_ *ondatra.DUTDevice) bool {
+	return *explicitInterfaceInDefaultVRF
+}
+
+// InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
+func InterfaceConfigVRFBeforeAddress(_ *ondatra.DUTDevice) bool {
+	return *interfaceConfigVRFBeforeAddress
+}
+
+// ExplicitInterfaceRefDefinition returns if device requires explicit interface ref configuration when applying features to interface.
+func ExplicitInterfaceRefDefinition(_ *ondatra.DUTDevice) bool {
+	return *explicitInterfaceRefDefinition
+}
+
+// QOSDroppedOctets returns if device should skip checking QOS Dropped octets stats for interface.
+func QOSDroppedOctets(_ *ondatra.DUTDevice) bool {
+	return *qosDroppedOctets
+}
+
+// ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
+func ExplicitGRIBIUnderNetworkInstance(_ *ondatra.DUTDevice) bool {
+	return *explicitGRIBIUnderNetworkInstance
+}
+
+// SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
+func SkipBGPTestPasswordMismatch(_ *ondatra.DUTDevice) bool {
+	return *skipBGPTestPasswordMismatch
+}
+
+// BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
+func BGPMD5RequiresReset(_ *ondatra.DUTDevice) bool {
+	return *bgpMD5RequiresReset
+}
+
+// ExplicitIPv6EnableForGRIBI returns if device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address.
+func ExplicitIPv6EnableForGRIBI(_ *ondatra.DUTDevice) bool {
+	return *explicitIPv6EnableForGRIBI
+}
+
+// ISISprotocolEnabledNotRequired returns if isis protocol enable flag should be unset on the device.
+func ISISprotocolEnabledNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisprotocolEnabledNotRequired
+}
+
+// ISISInstanceEnabledNotRequired returns if isis instance enable flag should not be on the device.
+func ISISInstanceEnabledNotRequired(_ *ondatra.DUTDevice) bool {
+	return *isisInstanceEnabledNotRequired
+}
+
+// GNOISubcomponentPath returns if device currently uses component name instead of a full openconfig path.
+func GNOISubcomponentPath(_ *ondatra.DUTDevice) bool {
+	return *gNOISubcomponentPath
+}
+
+// NoMixOfTaggedAndUntaggedSubinterfaces returns if device does not support a mix of tagged and untagged subinterfaces
+func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
+	return *noMixOfTaggedAndUntaggedSubinterfaces
+}
+
+// SecondaryBackupPathTrafficFailover returns if device does not support secondary backup path traffic failover
+func SecondaryBackupPathTrafficFailover(_ *ondatra.DUTDevice) bool {
+	return *secondaryBackupPathTrafficFailover
+}
+
+// RoutePolicyUnderAFIUnsupported returns if Route-Policy under the AFI/SAFI is not supported
+func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
+	return *routePolicyUnderAFIUnsupported
+}
+
+// InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
+func InterfaceRefConfigUnsupported(_ *ondatra.DUTDevice) bool {
+	return *interfaceRefConfigUnsupported
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
 var (
-	BannerDelimiter = flag.String("deviation_banner_delimiter", "",
+	bannerDelimiter = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
-	ntpAssociationTypeRequired = flag.Bool("deviation_ntp_association_type_required", false,
-		"Device requires NTP association-type to be explicitly set.  OpenConfig defaults the association-type to SERVER if not set.")
-
-	InterfaceEnabled = flag.Bool("deviation_interface_enabled", false,
+	interfaceEnabled = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	IPv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
+	ipv4MissingEnabled = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")
 
 	ipNeighborMissing = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
 
 	interfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
-	AggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
+	aggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	DefaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
+	defaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
 		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Full OpenConfig compliant devices should be able to use any operator-assigned value.")
 
 	subinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
 		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	OmitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
+	omitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
 		"Device does not support setting the L2 MTU, so omit it.  OpenConfig allows a device to enforce that L2 MTU, which has a default value of 1514, must be set to a higher value than L3 MTU, so a full OpenConfig compliant device may fail with the deviation.")
 
 	gRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
-	MissingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
+	missingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
 		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
 
-	StaticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
+	staticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
 
-	GNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
+	gNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
 
-	GNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
+	gNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
-	OSActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires seperate reboot to activate OS.")
+	osActivateNoReboot = flag.Bool("deviation_osactivate_noreboot", false, "Device requires separate reboot to activate OS.")
 
-	InstallOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
+	installOSForStandbyRP = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
 
-	DeprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
+	deprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
-	ExplicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
+	explicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 
-	ExplicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
+	explicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
-	ExplicitP4RTNodeComponent = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
+	explicitP4RTNodeComponent = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
 
 	RoutePolicyUnderPeerGroup = flag.Bool("deviation_rpl_under_peergroup", false, "Device requires route-policy configuration under bgp peer-group. Fully-compliant devices should pass with and without this deviation.")
 
-	MissingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
+	missingPrePolicyReceivedRoutes = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
 
-	RoutePolicyUnderNeighborAfiSafi = flag.Bool("deviation_rpl_under_neighbor_afisafi", false, "Device requires route-policy configuration under bgp neighbor afisafi. Fully-compliant devices should pass with this deviation set to true.")
+	traceRouteL4ProtocolUDP = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
 
-	TraceRouteL4ProtocolUDP = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
+	traceRouteFragmentation = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
 
-	TraceRouteFragmentation = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
+	connectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 
-	ConnectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
+	explicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
 
-	ExplicitIPv6EnableForGRIBI = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
-
-	ISISInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
+	isisInterfaceLevel1DisableRequired = flag.Bool("deviation_isis_interface_level1_disable_required", false,
 		"Disable isis level1 under interface mode on the device if value is true, Default value is false and enables isis level2 under interface mode")
 
-	MissingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
+	missingIsisInterfaceAfiSafiEnable = flag.Bool("deviation_missing_isis_interface_afi_safi_enable", false,
 		"Set and validate isis interface address family enable on the device if value is true, Default value is false and validate isis address family enable at global mode")
 
-	IsisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
+	isisSingleTopologyRequired = flag.Bool("deviation_isis_single_topology_required", false,
 		"Set isis af ipv6 single topology on the device if value is true, Default value is false and sets multi topology for isis af ipv6")
 
-	ISISprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
+	isisprotocolEnabledNotRequired = flag.Bool("deviation_isis_protocol_enabled_not_required", false,
 		"Unset isis protocol enable flag on the device if value is true, Default value is false and protocol enable flag is set")
 
-	ISISInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
+	isisInstanceEnabledNotRequired = flag.Bool("deviation_isis_instance_enabled_not_required", false,
 		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
 
-	ExplicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
+	explicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
 
-	NoMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
+	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
 
-	GRIBIDelayedAckResponse = flag.Bool("deviation_gribi_delayed_ack_response", false, "Device requires delay in sending ack response")
-
-	LLDPInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
+	lldpInterfaceConfigOverrideGlobal = flag.Bool("deviation_lldp_interface_config_override_global", false,
 		"Set this flag for LLDP interface config to override the global config,expect neighbours are seen when lldp is disabled globally but enabled on interface")
 
 	missingInterfacePhysicalChannel = flag.Bool("deviation_missing_interface_physical_channel", false,
 		"Device does not support interface/physicalchannel leaf. Set this flag to skip checking the leaf.")
 
-	missingInterfaceHardwarePort = flag.Bool("deviation_missing_interface_hardware_port", false,
-		"Device does not support interface/hardwareport leaf. Set this flag to skip checking the leaf.")
-
-	missingCPUMfgName = flag.Bool("deviation_missing_cpu_mfgName", false,
-		"Device does not support component/MfgName leaf for CPU components. Set this flag to skip skip checking the leaf.")
-
-	InterfaceConfigVrfBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
+	interfaceConfigVRFBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
 
-	ExplicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
+	explicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
 		"Device requires gribi-protocol to be enabled under network-instance.")
 
-	BGPMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
+	bgpMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
 
-	QOSDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
+	qosDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
 
-	SkipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
+	skipBGPTestPasswordMismatch = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
 	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
 
 	p4rtUnsetElectionIDUnsupported = flag.Bool("deviation_p4rt_unsetelectionid_unsupported", false, "Device does not support unset Election ID")
 
-	NetworkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
+	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
-	ISISMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
+	isisMultiTopologyUnsupported = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
 
 	isisRestartSuppressUnsupported = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
@@ -358,6 +548,8 @@ var (
 	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+
+	gribiMACOverrideStaticARPStaticRoute = flag.Bool("deviation_gribi_mac_override_static_arp_static_route", false, "Set to true for device that requires gRIBI MAC Override using Static ARP + Static Route")
 
 	cliTakesPrecedenceOverOC = flag.Bool("deviation_cli_takes_precedence_over_oc", false, "Set to true for device in which config pushed through origin CLI takes precedence over config pushed through origin OC, default is false")
 
@@ -385,6 +577,8 @@ var (
 
 	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
 
+	linkQualWaitAfterDeleteRequired = flag.Bool("deviation_link_qual_wait_after_delete_required", false, "Device requires additional time to complete post delete link qualification cleanup.")
+
 	statePathsUnsupported = flag.Bool("deviation_state_path_unsupported", false, "Device does not support these state paths, Set this flag to skip checking the leaves")
 
 	dropWeightLeavesUnsupported = flag.Bool("deviation_drop_weight_leaves_unsupported", false, "Device does not support drop and weight leaves under queue management profile, Set this flag to skip checking the leaves")
@@ -392,4 +586,10 @@ var (
 	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
 	hierarchicalWeightResolutionTolerance = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
+
+	secondaryBackupPathTrafficFailover = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
+
+	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
+
+	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 )
