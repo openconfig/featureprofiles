@@ -261,7 +261,7 @@ func testCiscoECNConfig(t *testing.T) {
 	for i, queue := range queueName {
 		q1 := q.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		queueid := 7 - i
+		queueid := len(queueName) - i
 		q1.QueueId = ygot.Uint8(uint8(queueid))
 
 	}
@@ -280,7 +280,6 @@ func testCiscoECNConfig(t *testing.T) {
 		desc:         "scheduler-policy-BE1",
 		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "BE1",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(1),
 		queueName:    "BE1",
@@ -289,7 +288,6 @@ func testCiscoECNConfig(t *testing.T) {
 		desc:         "scheduler-policy-BE0",
 		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "BE0",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(4),
 		queueName:    "BE0",
@@ -298,7 +296,6 @@ func testCiscoECNConfig(t *testing.T) {
 		desc:         "scheduler-policy-AF1",
 		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "AF1",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(8),
 		queueName:    "AF1",
@@ -307,7 +304,6 @@ func testCiscoECNConfig(t *testing.T) {
 		desc:         "scheduler-policy-AF2",
 		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "AF2",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(16),
 		queueName:    "AF2",
@@ -316,7 +312,6 @@ func testCiscoECNConfig(t *testing.T) {
 		desc:         "scheduler-policy-AF3",
 		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "AF3",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(32),
 		queueName:    "AF3",
@@ -325,7 +320,6 @@ func testCiscoECNConfig(t *testing.T) {
 		desc:         "scheduler-policy-AF4",
 		sequence:     uint32(0),
 		priority:     oc.Scheduler_Priority_STRICT,
-		inputID:      "AF4",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(6),
 		queueName:    "AF4",
@@ -334,7 +328,6 @@ func testCiscoECNConfig(t *testing.T) {
 		desc:         "scheduler-policy-NC1",
 		sequence:     uint32(0),
 		priority:     oc.Scheduler_Priority_STRICT,
-		inputID:      "NC1",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(7),
 		queueName:    "NC1",
@@ -350,7 +343,7 @@ func testCiscoECNConfig(t *testing.T) {
 			s.SetSequence(tc.sequence)
 			s.SetPriority(tc.priority)
 			input := s.GetOrCreateInput(tc.inputID)
-			input.SetId(tc.inputID)
+			input.SetId(tc.queueName)
 			input.SetInputType(tc.inputType)
 			input.SetQueue(tc.queueName)
 			input.SetWeight(tc.weight)
