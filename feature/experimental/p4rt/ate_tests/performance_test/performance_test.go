@@ -313,9 +313,6 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 			t.Errorf("Unexpected error on StreamChannelGetPackets: %v", err)
 		}
 
-		// if got, want := len(packetinPackets), test.wantPkts; got != want {
-		// 	t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
-		// }
 		t.Logf("Start to decode packetin and compare with expected packets.")
 		wantgdpPacket := args.gdpPacketIO.GetPacketTemplate()
 		wantlldpPacket := args.lldpPacketIO.GetPacketTemplate()
