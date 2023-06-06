@@ -284,6 +284,9 @@ func TestHardwareCards(t *testing.T) {
 	components := findComponentsListByType(t, dut)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			if tc.desc == "Storage" && deviations.StorageComponentUnsupported(dut) {
+				t.Skipf("Telemetry path /components/component/storage is not supported.")
+			}
 			cards := components[tc.desc]
 			t.Logf("%s components count: %d", tc.desc, len(cards))
 			if len(cards) == 0 {
@@ -723,6 +726,11 @@ func TestStorage(t *testing.T) {
 	t.Skipf("Telemetry path /components/component/storage is not supported.")
 
 	dut := ondatra.DUT(t, "dut")
+
+	if deviations.StorageComponentUnsupported(dut) {
+		t.Skipf("Telemetry path /components/component/storage is not supported.")
+	}
+
 	storages := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Storage().State())
 	if len(storages) == 0 {
 		t.Errorf("Get Storage list for %q: got 0, want > 0", dut.Model())
