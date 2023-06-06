@@ -5,3 +5,24 @@ uuid: "50a59a15-f856-48a9-b270-c194120b1789"
 plan_id: "TE-13.2"
 description: "gRIBI route DELETE during Failover"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+  }
+}
