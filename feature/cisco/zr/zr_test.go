@@ -269,7 +269,7 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			i.Type = ethernetCsmacd
 			util.FlapInterface(t, dut, dp.Name(), 10)
-			if *deviations.ExplicitPortSpeed {
+			if deviations.ExplicitPortSpeed(dut) {
 				i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dp)
 			}
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)

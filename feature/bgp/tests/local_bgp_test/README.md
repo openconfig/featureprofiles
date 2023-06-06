@@ -2,8 +2,14 @@
 
 ## Summary
 
-The local\_bgp\_test brings up two OpenConfig controlled devices and tests that
-a BGP session can be established between them.
+The local\_bgp\_test brings up two OpenConfig controlled devices and tests that for an eBGP session 
+
+* Established between them.
+* Disconnected between them.
+* Verify BGP neighbor parameters
+
+Enable an Accept-route all import-policy/export-policy for eBGP session under the neighbor AFI/SAFI.
+
 
 This test is suitable for running in a KNE environment.
 
@@ -21,3 +27,4 @@ This test is suitable for running in a KNE environment.
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval
+

@@ -184,14 +184,14 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 
 	if configNhg {
 		fluentNhgVar := fluent.NextHopGroupEntry()
-		fluentNhgVar.WithNetworkInstance(*deviations.DefaultNetworkInstance).WithID(uint64(nhgID)).
+		fluentNhgVar.WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).WithID(uint64(nhgID)).
 			WithElectionID(args.electionID.Low, args.electionID.High)
 
 		for i := range nextHops {
 			index := uint64(i + 1)
 			args.client.Modify().AddEntry(t,
 				fluent.NextHopEntry().
-					WithNetworkInstance(*deviations.DefaultNetworkInstance).
+					WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 					WithIndex(index).
 					WithIPAddress(nextHops[i]).
 					WithElectionID(args.electionID.Low, args.electionID.High))
@@ -205,13 +205,18 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 		args.client.Modify().AddEntry(t,
 			fluent.IPv4Entry().
 				WithPrefix(virtualVIPs[ip]+"/32").
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithNextHopGroup(uint64(nhgID)).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
-		t.Fatalf("Could not program entries via clientA, got err: %v", err)
+		if switchover {
+			t.Logf("Concurrent switchover/gRIBI route addition, some entries might fail to add.")
+			t.Logf("Could not program entries via client, got err: %v", err)
+		} else {
+			t.Fatalf("Could not program entries via client, got err: %v", err)
+		}
 	}
 
 	if switchover {
@@ -233,7 +238,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 		}
 
 		gr, err := args.client.Get().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithAFT(fluent.IPv4).
 			Send()
 		if err != nil {
@@ -243,7 +248,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops, virtualVIPs []st
 		for ip := range virtualVIPs {
 			chk.GetResponseHasEntries(t, gr,
 				fluent.IPv4Entry().
-					WithNetworkInstance(*deviations.DefaultNetworkInstance).
+					WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 					WithNextHopGroup(uint64(nhgID)).
 					WithPrefix(virtualVIPs[ip]+"/32"),
 			)
@@ -261,13 +266,13 @@ func pushConfig(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d *
 }
 
 // configureInterfaceDUT configures a single DUT layer 2 port.
-func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, d *oc.Root, desc string) {
+func configureInterfaceDUT(t *testing.T, dutPort *ondatra.Port, dut *ondatra.DUTDevice, d *oc.Root, desc string) {
 	t.Helper()
 
 	i := d.GetOrCreateInterface(dutPort.Name())
 	i.Description = ygot.String(desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	t.Logf("DUT port %s configured", dutPort)
@@ -290,12 +295,12 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
 		nextHops = append(nextHops, ateIPv4)
 	}
-	configureInterfaceDUT(t, dutPort, d, "dst")
+	configureInterfaceDUT(t, dutPort, dut, d, "dst")
 	pushConfig(t, dut, dutPort, d)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		intf := d.GetOrCreateInterface(dutPort.Name())
 		for i := 1; i <= nextHopCount+1; i++ {
-			fptest.AssignToNetworkInstance(t, dut, intf.GetName(), *deviations.DefaultNetworkInstance, uint32(i))
+			fptest.AssignToNetworkInstance(t, dut, intf.GetName(), deviations.DefaultNetworkInstance(dut), uint32(i))
 		}
 	}
 	return nextHops
@@ -317,7 +322,7 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 
 	sipv4 := s.GetOrCreateIpv4()
 
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		sipv4.Enabled = ygot.Bool(true)
 	}
 	a := sipv4.GetOrCreateAddress(dutIPv4)
@@ -492,7 +497,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	top := ate.Topology().New()
 	// configure DUT port#1 - source port.
 	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4, dut)
-	configureInterfaceDUT(t, dp1, d, "src")
+	configureInterfaceDUT(t, dp1, dut, d, "src")
 	configureATE(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4CIDR())
 	pushConfig(t, dut, dp1, d)
 	dp2 := dut.Port(t, "port2")
@@ -500,15 +505,15 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	// Configure 64 subinterfaces on DUT-ATE- PORT#2.
 	subIntfIPs := generateSubIntfPair(t, dut, dp2, ate, ap2, top, d)
 
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
 	}
 
 	top.Push(t).StartProtocols(t)
@@ -556,7 +561,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	pushDefaultEntries(t, args, subIntfIPs, virtualIPs, configNhg, !switchover)
 
 	gr, err := args.client.Get().
-		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithAFT(fluent.IPv4).
 		Send()
 	if err != nil {
@@ -587,8 +592,9 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch),
+		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 
@@ -656,14 +662,10 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 		}
 	}
 
-	if *deviations.GRIBIDelayedAckResponse {
-		time.Sleep(4 * time.Minute)
-	}
-
 	t.Log("Validate if partially ACKed entries of IPBlock2 are present as FIB_PROGRAMMED using a get RPC.")
 
 	gr, err = args.client.Get().
-		WithNetworkInstance(*deviations.DefaultNetworkInstance).
+		WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithAFT(fluent.IPv4).
 		Send()
 	if err != nil {

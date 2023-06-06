@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "b1da9742-66f5-460d-860b-58ab3f5c34f3"
-plan_id: "DP-1.2"
-description: "QoS policy feature config"
+uuid: "7e1f1570-a141-4758-8aa5-228c932e3bee"
+plan_id: "FP-1.1"
+description: "Power admin DOWN/UP Test"
 testbed: TESTBED_DUT_ATE_2LINKS
