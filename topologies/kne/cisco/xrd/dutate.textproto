@@ -6,7 +6,7 @@ nodes: {
     os: "ios-xr"
     config: {
         image: "xrd:latest"
-        file: "cisco.config"
+        file: "config.cfg"
     }
     interfaces: {
         key: "eth1"

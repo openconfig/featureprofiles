@@ -6,6 +6,6 @@ nodes: {
     os: "ios-xr"
     config: {
         image: "xrd:latest"
-        file: "cisco.config"
+        file: "config.cfg"
     }
 }

@@ -6,6 +6,6 @@ nodes: {
     os: "ios-xr"
     config: {
         image: "8000e:latest"
-        file: "cisco.config"
+        file: "config.cfg"
     }
 }

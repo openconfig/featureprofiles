@@ -1,4 +1,4 @@
-name: "juniper-cptx-dutate"
+name: "juniper-cptx-dutate-lag"
 nodes: {
     name: "dut"
     vendor: JUNIPER
