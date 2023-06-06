@@ -5,3 +5,30 @@ uuid: "24249426-4ec4-417e-8885-f147d04eebf2"
 plan_id: "RT-2.2"
 description: "IS-IS LSP Updates"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    isis_interface_level1_disable_required: true
+    isis_instance_enabled_not_required: true
+    missing_isis_interface_afi_safi_enable: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    isis_interface_level1_disable_required: true
+    isis_protocol_enabled_not_required: true
+    isis_instance_enabled_not_required: true
+    missing_isis_interface_afi_safi_enable: true
+  }
+}
