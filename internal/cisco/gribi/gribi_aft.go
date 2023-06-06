@@ -304,9 +304,11 @@ func (c *Client) AftRemoveIPv4(t testing.TB, instance, prefix string) {
 		changed = false
 		for _, aft := range c.getCurrentAftConfig() {
 			for nhIdx, nh := range aft.NextHop {
-				if strings.HasPrefix(prefix, *nh.IpAddress) {
-					aft.DeleteNextHop(nhIdx)
-					changed = true
+				if nh.IpAddress != nil {
+					if strings.HasPrefix(prefix, *nh.IpAddress) {
+						aft.DeleteNextHop(nhIdx)
+						changed = true
+					}
 				}
 			}
 

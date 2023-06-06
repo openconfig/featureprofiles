@@ -318,6 +318,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 			}
 		}
 	}
+	time.Sleep(time.Minute)
 	dutSrcFinTraffic := map[string]uint64{"ipv4": gnmi.Get(t, a.dut, subintf1.Ipv4().Counters().InPkts().State())}
 	dutDstFinTraffic := make(map[string][]uint64)
 	var checked_intf_after []string

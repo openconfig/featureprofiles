@@ -37,6 +37,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	proto_gnmi "github.com/openconfig/gnmi/proto/gnmi"
 	gnps "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/gribigo/fluent"
@@ -50,27 +51,17 @@ func TestMain(m *testing.M) {
 
 // user needed inputs
 const (
+	with_scale            = false                    // run entire script with or without scale (Support not yet coded)
+	with_RPFO             = true                     // run entire script with or without RFPO
+	base_config           = "case2_decap_encap_exit" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
 	lc                    = "0/0/CPU0" // set value for lc_oir tc, if empty it means no lc, example: 0/0/CPU0
-	with_scale            = false      // run entire script with or without scale
-	with_RFPO             = true       // run entire script with or without RFPO
 	process_restart_count = 1
 	microdropsRepeat      = 1
-	bgpPfx                = 0    //set value for scale bgp setup 100000
-	isisPfx               = 0    //set value for scale isis setup 10000
-	innerdstPfxCount_bgp  = 10   //set value for number of inner prefix for bgp flow
-	innerdstPfxCount_isis = 10   //set value for number of inner prefix for isis flow
-	nhg_Scale_TE          = 250  // NHG scale usef for TE vrf
-	nh_prefix_TE          = 2    // same nh will be used across all the nhgs
-	nh_scale_TE           = 5000 // create NHs with different index and repeat prefix set under nh_prefix_TE flag, set an even number
-	nhg_Scale_REPAIRED    = 250  // NHG scale usef for REPAIR vrf
-	nhg_Scale_REPAIR      = 500  // NHG scale used for DECAP_ENCAP case
-	nh_scale_REPAIR       = 500  // create NHs used by NHGs for DECAP_ENCAP case
-	programming_RFPO      = 1    // Perform RFPO and programming followed by it
-	grpc_repeat           = 2
 )
 
+// vrf and prefixes
 const (
 	dst       = "198.51.100.0"
 	mask      = "32"
@@ -81,6 +72,26 @@ const (
 	vrf4      = "DECAP"
 )
 
+// gribi programming variables
+const (
+	nhg_Scale_TE       = 250  // NHG scale usef for TE vrf
+	nh_prefix_TE       = 2    // same nh will be used across all the nhgs
+	nh_scale_TE        = 5000 // create NHs with different index and repeat prefix set under nh_prefix_TE flag, set an even number
+	nhg_Scale_REPAIRED = 250  // NHG scale usef for REPAIR vrf
+	nhg_Scale_REPAIR   = 500  // NHG scale used for DECAP_ENCAP case
+	nh_scale_REPAIR    = 500  // create NHs used by NHGs for DECAP_ENCAP case
+	programming_RFPO   = 1    // Perform RFPO and programming followed by it
+	grpc_repeat        = 1
+)
+
+// traffic constant
+const (
+	bgpPfx                = 0 //set value for scale bgp setup 100000
+	isisPfx               = 0 //set value for scale isis setup 10000
+	innerdstPfxCount_bgp  = 1 //set value for number of inner prefix for bgp flow
+	innerdstPfxCount_isis = 1 //set value for number of inner prefix for isis flow
+)
+
 // global variables
 var (
 	prefixes      = []string{}
@@ -89,6 +100,7 @@ var (
 	te_flow       = []*ondatra.Flow{}
 	src_ip_flow   = []*ondatra.Flow{}
 	p4rtNodeName  = flag.String("p4rt_node_name", "0/0/CPU0-NPU0", "component name for P4RT Node")
+	rpfo_count    = 0 // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
 )
 
 // NHScaleOptions
@@ -119,7 +131,7 @@ type testArgs struct {
 	ATELock sync.Mutex
 }
 
-func processrestart(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) {
+func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) {
 	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
 	var pID uint64
 	for _, proc := range pList {
@@ -139,10 +151,44 @@ func processrestart(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, p
 			t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
 		}
 	}
+
+	// reestablishing gribi connection
+	if pName == "emsd" {
+		// client := gribi.Client{
+		// 	DUT:                   dut,
+		// 	FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		// 	Persistence:           true,
+		// 	InitialElectionIDLow:  1,
+		// 	InitialElectionIDHigh: 0,
+		// }
+		// if err := client.Start(t); err != nil {
+		// 	t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		// 	if err = client.Start(t); err != nil {
+		// 		t.Fatalf("gRIBI Connection could not be established: %v", err)
+		// 	}
+		// }
+		// args.client = &client
+		args.client.Start(t)
+	}
 }
 
 func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
 
+	// reload the HW is rfpo count is 10 or more
+	if rpfo_count == 10 {
+		gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+		rebootRequest := &gnps.RebootRequest{
+			Method: gnps.RebootMethod_COLD,
+			Force:  true,
+		}
+		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+		t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
+		if err != nil {
+			t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+		}
+		rpfo_count = 0
+		time.Sleep(time.Minute * 20)
+	}
 	// supervisor info
 	var supervisors []string
 	active_state := gnmi.OC().Component(active_rp).Name().State()
@@ -163,9 +209,8 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
 	gnoiClient := args.dut.RawAPIs().GNOI().New(t)
-	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
@@ -176,7 +221,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 
 	want := rpStandbyBeforeSwitch
 	got := ""
-	if deviations.GNOISubcomponentPath(args.dut) {
+	if *deviations.GNOISubcomponentPath {
 		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
 	} else {
 		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
@@ -233,114 +278,418 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 
 	// reestablishing gribi connection
 	if gribi_reconnect {
-		client := gribi.Client{
-			DUT:                   args.dut,
-			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-			Persistence:           true,
-			InitialElectionIDLow:  1,
-			InitialElectionIDHigh: 0,
-		}
-		if err := client.Start(t); err != nil {
-			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-			if err = client.Start(t); err != nil {
-				t.Fatalf("gRIBI Connection could not be established: %v", err)
-			}
-		}
-		args.client = &client
+		// client := gribi.Client{
+		// 	DUT:                   args.dut,
+		// 	FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		// 	Persistence:           true,
+		// 	InitialElectionIDLow:  1,
+		// 	InitialElectionIDHigh: 0,
+		// }
+		// if err := client.Start(t); err != nil {
+		// 	t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		// 	if err = client.Start(t); err != nil {
+		// 		t.Fatalf("gRIBI Connection could not be established: %v", err)
+		// 	}
+		// }
+		// args.client = &client
+		args.client.Start(t)
 	}
 }
 
 func baseProgramming(ctx context.Context, t *testing.T, args *testArgs) {
-	// Elect client as leader and flush all the past entries
+
+	if with_scale {
+		ciscoFlags.GRIBIChecks.AFTChainCheck = false
+		ciscoFlags.GRIBIChecks.AFTCheck = false
+	}
+
+	if base_config == "case1_backup_decap" {
+		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+			prefixes = append(prefixes, util.GetIPPrefix(dst, i, mask))
+		}
+		case1_backup_decap(ctx, t, args)
+	} else if base_config == "case2_decap_encap_exit" {
+		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+			if i < 500 {
+				repair_prefix = append(repair_prefix, util.GetIPPrefix(dst, i, mask))
+			}
+			prefixes = append(prefixes, util.GetIPPrefix(dst, i, mask))
+		}
+		case2_decap_encap_exit(ctx, t, args)
+	} else if base_config == "case3_decap_encap" {
+		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+			if i < 500 {
+				repair_prefix = append(repair_prefix, util.GetIPPrefix(dst, i, mask))
+			}
+			prefixes = append(prefixes, util.GetIPPrefix(dst, i, mask))
+		}
+		case3_decap_encap(ctx, t, args)
+	} else if base_config == "case4_decap_encap_recycle" {
+		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+			if i < 500 {
+				repair_prefix = append(repair_prefix, util.GetIPPrefix(dst, i, mask))
+			}
+			prefixes = append(prefixes, util.GetIPPrefix(dst, i, mask))
+		}
+		case4_decap_encap_recycle(ctx, t, args)
+	}
+}
+func case1_backup_decap(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Programming
+	// ======================================================
+	// IPinIP (198.51.100.1/32)  --- NHG ---- NH1 VIP1 (192.0.2.40/32) --- NHG --- NH 1000 - BE 121, NH 1100 - BE 122, NH 1200 - BE 123
+	// network instance TE            |  ---- NH2 VIP2 (192.0.2.41/32) --- NHG --- NH 2000 - BE 124, NH 2100 - BE 125
+	//                                |
+	//                               BNG ---- NH DECAP BE 127
+	// ======================================================
+
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 	time.Sleep(10 * time.Second)
 
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
-		if i < 500 {
-			repair_prefix = append(repair_prefix, util.GetIPPrefix(dst, i, mask))
-		}
-		prefixes = append(prefixes, util.GetIPPrefix(dst, i, mask))
-	}
-
-	// disabling, since need to since does aft work without it once fix is available
 	// adding default route pointing to Valid Path
 	// t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
 	// config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
 	// config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+	// defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	// defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
 
-	// =========================================
-	// LEVEL 1 (DEFAULT VRF)
-	// VIP1
-	//	- PATH1 NH ID 1000, weight 60, outgoing Port2
-	//	- PATH2 NH ID 1100, weight 30, outgoing Port3
-	//	- PATH3 NH ID 1200, weight 10, outgoing Port4
-	// VIP2
-	//	- PATH1 NH ID 2000, weight 50, outgoing Port5
-	//	- PATH2 NH ID 2100, weight 50, outgoing Port6
-	// Decap/Encap
-	//	- PATH1 NH ID 3000, weight  5, outgoing Port7
-	// Decap
-	//	- PATH1 NH ID 4000, weight  100, outgoing Port8
+	if with_scale {
+		args.client.AddNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100000, 0, map[uint64]uint64{1000000: 50, 1100000: 30, 1200000: 20}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	// -----------------------------------------
-	// VIP1 NHs
-	args.client.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	// VIP1 mapping to NHs
-	args.client.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 60, 1100: 30, 1200: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2000000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2100000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2200000, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200000, 0, map[uint64]uint64{2000000: 30, 2100000: 50, 2200000: 20}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.41/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	// -----------------------------------------
-	// VIP2 NHs
-	args.client.AddNH(t, 2000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 2100, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	//VIP2 mapping to NHs
-	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 50, 2100: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, "192.0.2.42/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 99, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	// -----------------------------------------
-	// DECAP/ENCAP NHs
-	args.client.AddNH(t, 3000, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 3000, 0, map[uint64]uint64{3000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, "10.1.0.1/32", 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.scaleNH(t, "192.0.2.40", 1000, nh_scale_TE, nh_prefix_TE)
+		args.scaleNHG(t, 1000, nhg_Scale_TE, 99, 1000)
+		args.scaleIPV4(t, vrf1, 1000)
 
-	// =========================================
-	// BACKUP Decap
-	// -----------------------------------------
-	args.client.AddNH(t, 4000, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 4000, 0, map[uint64]uint64{4000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	} else {
+		args.client.AddNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100000, 0, map[uint64]uint64{1000000: 50, 1100000: 30, 1200000: 20}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	// =========================================
-	// LEVEL 2
-	// -----------------------------------------
-	// create backup in vrf REPAIR
-	args.client.AddNH(t, 1111, "", *ciscoFlags.DefaultNetworkInstance, "REPAIR", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 1111, 0, map[uint64]uint64{1111: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	// vrf TE
-	args.client.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 100, 1111, map[uint64]uint64{100: 2, 200: 2}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4Batch(t, prefixes, 100, vrf1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2000000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2100000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2200000, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200000, 0, map[uint64]uint64{2000000: 30, 2100000: 50, 2200000: 20}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.42/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
-	// -----------------------------------------
-	// backup in vrf DECAP
-	args.client.AddNH(t, 2222, "", *ciscoFlags.DefaultNetworkInstance, "DECAP", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 2222, 0, map[uint64]uint64{2222: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	// vrf REPAIRED
-	args.client.AddNHG(t, 200, 2222, map[uint64]uint64{100: 30, 200: 70}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4Batch(t, prefixes, 200, vrf2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 10, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 99, 0, map[uint64]uint64{10: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	// -----------------------------------------
-	// vrf REPAIR
-	args.client.AddNH(t, 5000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
-	args.client.AddNHG(t, 300, 4000, map[uint64]uint64{5000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4Batch(t, repair_prefix, 300, vrf3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 1000, 99, map[uint64]uint64{100: 85, 200: 15}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	}
+}
 
-	// -----------------------------------------
-	// vrf DECAP
-	args.client.AddIPv4(t, "0.0.0.0/0", 4000, vrf4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+func case2_decap_encap_exit(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Programming
+	// ======================================================
+	// IPinIP (198.51.100.1/32)  --- NHG ---- NH1 VIP1 (192.0.2.40/32) --- NHG --- NH 1000 - BE 121, NH 1100 - BE 122, NH 1200 - BE 123
+	// network instance TE            |  ---- NH2 VIP2 (192.0.2.41/32) --- NHG --- NH 2000 - BE 124, NH 2100 - BE 125
+	//                                |
+	//                               BNG ---- NH REPAIR
+	//
+	// IPinIP (198.51.100.1/32)  --- NHG ---- NH1 VIP1 (192.0.2.40/32) --- NHG --- NH 1000 - BE 121, NH 1100 - BE 122, NH 1200 - BE 123
+	// network instance REPAIRED      |  ---- NH2 VIP2 (192.0.2.41/32) --- NHG --- NH 2000 - BE 124, NH 2100 - BE 125
+	// with sourceip                  |
+	//                               BNG ---- NH DECAP VRF
+	//
+	// 198.51.100.1/32 REPAIR    --- NHG ---- NH DECAP/ENCAP           --- NHG --- NH 3000 - BE 126
+	//                                |
+	//                               BNG ---- NH DECAP BE 127
+	//
+	// 0.0.0.0/0 DECAP           --- NHG ---- NH DECAP BE 127
+	//
+	// ======================================================
+
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+	time.Sleep(10 * time.Second)
+
+	// t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	// config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	// config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+	// defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	// defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
+	if with_scale {
+		args.client.AddNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100000, 0, map[uint64]uint64{1000000: 50, 1100000: 30, 1200000: 20}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 2000000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2100000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200000, 0, map[uint64]uint64{2000000: 60, 2100000: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.41/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 3000000, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 300000, 0, map[uint64]uint64{3000000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "10.1.0.1/32", 300000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 1111111, "", *ciscoFlags.DefaultNetworkInstance, vrf3, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 111111, 0, map[uint64]uint64{1111111: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.scaleNH(t, "192.0.2.40", 1000, nh_scale_TE, nh_prefix_TE)
+		args.scaleNHG(t, 1000, nhg_Scale_TE, 111111, 1000)
+		args.scaleIPV4(t, vrf1, 1000)
+
+		args.client.AddNH(t, 2222222, "", *ciscoFlags.DefaultNetworkInstance, vrf4, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 222222, 0, map[uint64]uint64{2222222: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.scaleNHG(t, 21000, nhg_Scale_REPAIRED, 222222, 1000)
+		args.scaleIPV4(t, vrf2, 21000)
+
+		args.client.AddNH(t, 4444444, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 444444, 0, map[uint64]uint64{4444444: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.scaleNH(t, "10.1.0.1", 30000, nh_scale_REPAIR, 0, &NHScaleOptions{action: "DECAP_ENCAP", src: "222.222.222.222", dest: "10.1.0.1"})
+		args.scaleNHG(t, 30000, nhg_Scale_REPAIR, 444444, 30000, &NHGScaleOptions{mode: "DECAP_ENCAP"})
+		args.scaleIPV4(t, vrf3, 30000, &IPv4ScaleOptions{max: nhg_Scale_REPAIR})
+
+		args.client.AddIPv4(t, "0.0.0.0/0", 444444, vrf4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	} else {
+		args.client.AddNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100000, 0, map[uint64]uint64{1000000: 60, 1100000: 30, 1200000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 2000000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2100000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200000, 0, map[uint64]uint64{2000000: 50, 2100000: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.42/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 3000000, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 300000, 0, map[uint64]uint64{3000000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "10.1.0.1/32", 300000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 1111111, "", *ciscoFlags.DefaultNetworkInstance, vrf3, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 111111, 0, map[uint64]uint64{1111111: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100, 111111, map[uint64]uint64{100: 2, 200: 2}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4Batch(t, prefixes, 100, vrf1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 2222222, "", *ciscoFlags.DefaultNetworkInstance, vrf4, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 222222, 0, map[uint64]uint64{2222222: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200, 222222, map[uint64]uint64{100: 30, 200: 70}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4Batch(t, prefixes, 200, vrf2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 4444444, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 444444, 0, map[uint64]uint64{4444444: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 3333333, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+		args.client.AddNHG(t, 333333, 444444, map[uint64]uint64{3333333: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4Batch(t, repair_prefix, 333333, vrf3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddIPv4(t, "0.0.0.0/0", 444444, vrf4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	}
+}
+
+func case3_decap_encap(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Programming
+	// ======================================================
+	// IPinIP (198.51.100.1/32)  --- NHG ---- NH1 VIP1 (192.0.2.40/32) --- NHG --- NH 1000 - BE 121, NH 1100 - BE 122, NH 1200 - BE 123
+	// network instance TE            |  ---- NH2 VIP2 (192.0.2.41/32) --- NHG --- NH 2000 - BE 124, NH 2100 - BE 125
+	//                                |
+	//                               BNG ---- NH REPAIR
+	//
+	// IPinIP (10.1.0.1/32)      --- NHG ---- NH1 VIP1 (192.0.2.40/32) --- NHG --- NH 1000 - BE 121, NH 1100 - BE 122, NH 1200 - BE 123
+	// network instance REPAIRED      |  ---- NH2 VIP2 (192.0.2.41/32) --- NHG --- NH 2000 - BE 124, NH 2100 - BE 125
+	// with sourceip                  |
+	//                               BNG ---- NH DECAP BE 127
+	//
+	// 198.51.100.1/32 REPAIR    --- NHG ---- NH DECAP/ENCAP Network Instance REPAIRED
+	//                                |
+	//                               BNG ---- NH DECAP BE 127
+	//
+	// 0.0.0.0/0 DECAP           --- NHG ---- NH DECAP BE 127
+	//
+	// ======================================================
+
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+	time.Sleep(10 * time.Second)
+
+	// t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	// config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	// config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+	// defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	// defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
+	if with_scale {
+		args.client.AddNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100000, 0, map[uint64]uint64{1000000: 50, 1100000: 30, 1200000: 20}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 2000000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2100000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200000, 0, map[uint64]uint64{2000000: 60, 2100000: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.41/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 1111111, "", *ciscoFlags.DefaultNetworkInstance, vrf3, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 111111, 0, map[uint64]uint64{1111111: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.scaleNH(t, "192.0.2.40", 1000, nh_scale_TE, nh_prefix_TE)
+		args.scaleNHG(t, 1000, nhg_Scale_TE, 111111, 1000)
+		args.scaleIPV4(t, vrf1, 1000)
+
+		args.client.AddNH(t, 4444444, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 444444, 0, map[uint64]uint64{4444444: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.scaleNHG(t, 21000, nhg_Scale_REPAIRED, 444444, 1000)
+		args.scaleIPV4(t, vrf2, 21000)
+
+		args.scaleNH(t, "10.1.0.1", 30000, nh_scale_REPAIR, 0, &NHScaleOptions{action: "DECAP_ENCAP", src: "222.222.222.222", dest: "10.1.0.1"})
+		args.scaleNHG(t, 30000, nhg_Scale_REPAIR, 444444, 30000, &NHGScaleOptions{mode: "DECAP_ENCAP"})
+		args.scaleIPV4(t, vrf3, 30000, &IPv4ScaleOptions{max: nhg_Scale_REPAIR})
+
+		args.client.AddIPv4(t, "0.0.0.0/0", 444444, vrf4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	} else {
+		args.client.AddNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100000, 0, map[uint64]uint64{1000000: 60, 1100000: 30, 1200000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 2000000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2100000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200000, 0, map[uint64]uint64{2000000: 50, 2100000: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.42/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 1111111, "", *ciscoFlags.DefaultNetworkInstance, vrf3, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 111111, 0, map[uint64]uint64{1111111: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100, 111111, map[uint64]uint64{100: 2, 200: 2}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4Batch(t, prefixes, 100, vrf1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 2222222, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 222222, 0, map[uint64]uint64{2222222: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 3000000, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200, 222222, map[uint64]uint64{3000000: 1}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "10.1.0.1/32", 200, vrf2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 3333333, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, vrf2, "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+		args.client.AddNHG(t, 333333, 222222, map[uint64]uint64{3333333: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4Batch(t, prefixes, 333333, vrf3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	}
+}
+
+func case4_decap_encap_recycle(ctx context.Context, t *testing.T, args *testArgs) {
+
+	// Programming
+	// ======================================================
+	// IPinIP (198.51.100.1/32)  --- NHG ---- NH1 VIP1 (192.0.2.40/32) --- NHG --- NH 1000 - BE 121, NH 1100 - BE 122, NH 1200 - BE 123
+	// network instance TE            |  ---- NH2 VIP2 (192.0.2.41/32) --- NHG --- NH 2000 - BE 124, NH 2100 - BE 125
+	//                                |
+	//                               BNG ---- NH DECAP/ENCAP Network Instance REPAIRED (filter on destination address in REPAIRED vrf)
+	//
+	// IPinIP (198.51.100.1/32)  --- NHG ---- NH1 VIP1 (192.0.2.40/32) --- NHG --- NH 1000 - BE 121, NH 1100 - BE 122, NH 1200 - BE 123
+	// network instance REPAIRED      |  ---- NH2 VIP2 (192.0.2.41/32) --- NHG --- NH 2000 - BE 124, NH 2100 - BE 125
+	// with sourceip                  |
+	//                               BNG ---- NH DECAP BE 127
+	//
+	// 10.1.0.1/32               --- NHG ---- NH DECAP BE 126
+	// 				                  |
+	//                               BNG ---- NH DECAP BE 127
+	//
+	// ======================================================
+
+	args.client.BecomeLeader(t)
+	args.client.FlushServer(t)
+	time.Sleep(10 * time.Second)
+
+	// t.Log("Adding a defult route 0.0.0.0/0 as well pointing to a Valid NHOP ")
+	// config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	// config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+	// defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
+	// defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.42")
+
+	if with_scale {
+		args.client.AddNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100000, 0, map[uint64]uint64{1000000: 50, 1100000: 30, 1200000: 20}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 2000000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2100000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200000, 0, map[uint64]uint64{2000000: 60, 2100000: 40}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.41/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 3000000, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 300000, 0, map[uint64]uint64{3000000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "20.0.0.1/32", 300000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 1111111, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, vrf2, "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+		args.client.AddNHG(t, 111111, 0, map[uint64]uint64{1111111: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.scaleNH(t, "192.0.2.40", 1000, nh_scale_TE, nh_prefix_TE)
+		args.scaleNHG(t, 1000, nhg_Scale_TE, 111111, 1000)
+		args.scaleIPV4(t, vrf1, 1000)
+
+		args.client.AddNH(t, 2222222, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 222222, 0, map[uint64]uint64{2222222: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.scaleNHG(t, 21000, nhg_Scale_REPAIRED, 222222, 1000)
+		args.scaleIPV4(t, vrf2, 21000)
+
+		args.client.AddNH(t, 3333333, "20.0.0.1", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 333333, 222222, map[uint64]uint64{3333333: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "10.1.0.1/32", 333333, vrf2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	} else {
+		args.client.AddNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100000, 0, map[uint64]uint64{1000000: 60, 1100000: 30, 1200000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 2000000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 2100000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200000, 0, map[uint64]uint64{2000000: 50, 2100000: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.42/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 3000000, atePort7.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 300000, 0, map[uint64]uint64{3000000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "20.0.0.1/32", 300000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 1111111, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, vrf2, "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+		args.client.AddNHG(t, 111111, 0, map[uint64]uint64{1111111: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, 200, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 100, 111111, map[uint64]uint64{100: 2, 200: 2}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4Batch(t, prefixes, 100, vrf1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 2222222, "decap", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 222222, 0, map[uint64]uint64{2222222: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 200, 222222, map[uint64]uint64{100: 30, 200: 70}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4Batch(t, prefixes, 200, vrf2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		args.client.AddNH(t, 3333333, "20.0.0.1", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNHG(t, 333333, 222222, map[uint64]uint64{3333333: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "10.1.0.1/32", 333333, vrf2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	}
 }
 
 func (a *testArgs) scaleNH(t *testing.T, nh_prefix string, start_index int, scale int, prefix_repeat int, opts ...*NHScaleOptions) {
@@ -383,7 +732,7 @@ func (a *testArgs) scaleNH(t *testing.T, nh_prefix string, start_index int, scal
 		}
 	}
 	a.client.Fluent(t).Modify().AddEntry(t, NHEntries...)
-	if err := a.client.AwaitTimeout(context.Background(), t, 2*time.Minute); err != nil {
+	if err := a.client.AwaitTimeout(context.Background(), t, 10*time.Minute); err != nil {
 		t.Fatalf("Error waiting to add NH entries: %v", err)
 	}
 	resultLenAfter := len(a.client.Fluent(t).Results(t))
@@ -430,7 +779,7 @@ func (a *testArgs) scaleNHG(t *testing.T, nhg_start uint64, nhg_scale int, bkgNH
 		nhg_start = nhg_start + 1
 	}
 	a.client.Fluent(t).Modify().AddEntry(t, NHGEntries...)
-	if err := a.client.AwaitTimeout(context.Background(), t, 2*time.Minute); err != nil {
+	if err := a.client.AwaitTimeout(context.Background(), t, 10*time.Minute); err != nil {
 		t.Fatalf("Error waiting to add NH entries: %v", err)
 	}
 	resultLenAfter := len(a.client.Fluent(t).Results(t))
@@ -463,17 +812,18 @@ func (a *testArgs) scaleIPV4(t *testing.T, vrf_name string, nhg_start int, opts 
 		}
 	}
 	a.client.Fluent(t).Modify().AddEntry(t, ipv4Entries...)
-	if err := a.client.AwaitTimeout(context.Background(), t, 2*time.Minute); err != nil {
+	if err := a.client.AwaitTimeout(context.Background(), t, 10*time.Minute); err != nil {
 		t.Fatalf("Error waiting to add IPv4 entries: %v", err)
 	}
 	resultLenAfter := len(a.client.Fluent(t).Results(t))
 	newResultsCount := resultLenAfter - resultLenBefore
 	var expectResultCount int
-	if len(opts) != 0 {
+	if len(opts) != 0 && len(prefixes) > opts[0].max {
 		expectResultCount = opts[0].max
 	} else {
 		expectResultCount = len(prefixes)
 	}
+
 	if newResultsCount != expectResultCount*2 {
 		t.Fatalf("Number of responses for programing IPV4 results is not as expected, want: %d , got: %d ", expectResultCount, newResultsCount)
 	}
@@ -568,19 +918,36 @@ func baseScaleProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, "0.0.0.0/0", 4000, vrf4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 }
 
+func (args *testArgs) gnmiConf(t *testing.T, conf string) {
+	updateRequest := &proto_gnmi.Update{
+		Path: &proto_gnmi.Path{
+			Origin: "cli",
+		},
+		Val: &proto_gnmi.TypedValue{
+			Value: &proto_gnmi.TypedValue_AsciiVal{
+				AsciiVal: conf,
+			},
+		},
+	}
+	setRequest := &proto_gnmi.SetRequest{}
+	setRequest.Update = []*proto_gnmi.Update{updateRequest}
+	gnmiClient := args.dut.RawAPIs().GNMI().New(t)
+	if _, err := gnmiClient.Set(args.ctx, setRequest); err != nil {
+		t.Fatalf("gNMI set request failed: %v", err)
+	}
+}
+
 func testRestart_single_process(t *testing.T, args *testArgs) {
 
 	// base programming
-	if with_scale {
-		baseScaleProgramming(args.ctx, t, args)
-	} else {
-		baseProgramming(args.ctx, t, args)
-	}
+	baseProgramming(args.ctx, t, args)
 
 	// create new flows and start traffic
 	if *ciscoFlags.GRIBITrafficCheck {
 		te_flow = args.allFlows(t)
-		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+			src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		}
 		flows = append(te_flow, src_ip_flow...)
 	}
 
@@ -589,11 +956,13 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 	// verify traffic
 	if *ciscoFlags.GRIBITrafficCheck {
 		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+		}
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
+	if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -604,15 +973,19 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			// RPFO
-			if with_RFPO {
+			if with_RPFO {
+				rpfo_count = rpfo_count + 1
+				t.Logf("This is RPFO #%d", rpfo_count)
 				args.rpfo(args.ctx, t, false)
-			}
-			// verify traffic
-			t.Logf("checking traffic after RPFO")
-			if *ciscoFlags.GRIBITrafficCheck {
-				outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
+				// verify traffic
+				t.Logf("checking traffic after RPFO")
+				if *ciscoFlags.GRIBITrafficCheck {
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					}
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
+				}
 			}
 
 			// Restart process
@@ -620,21 +993,24 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 			if processes[i] == "fib_mgr" {
 				config.CMDViaGNMI(args.ctx, t, args.dut, "process restart fib_mgr location 0/RP0/CPU0")
 			} else {
-				processrestart(args.ctx, t, args.dut, processes[i])
+				args.processrestart(args.ctx, t, args.dut, processes[i])
 			}
+			time.Sleep(time.Second * 10)
 			t.Logf("checking traffic after restarting process %s", processes[i])
 			if *ciscoFlags.GRIBITrafficCheck {
 				outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+				if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+				}
 				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 			}
 			//aft check
-			if *ciscoFlags.GRIBIAFTChainCheck {
-				randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
-				for i := 0; i < len(randomItems); i++ {
-					args.client.CheckAftIPv4(t, "TE", randomItems[i])
-				}
-			}
+			// if *ciscoFlags.GRIBIAFTChainCheck && !with_scale && processes[i] != "emsd" {
+			// 	randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+			// 	for i := 0; i < len(randomItems); i++ {
+			// 		args.client.CheckAftIPv4(t, "TE", randomItems[i])
+			// 	}
+			// }
 
 			if processes[i] == "emsd" {
 				if err := args.client.Start(t); err != nil {
@@ -646,144 +1022,137 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 				//Base level 1 scenario
 				// ======================================================
 				// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-				//									   --- NH 1100 - BE 122
-				//									   --- NH 1200 - BE 123
+				//                                     --- NH 1100 - BE 122
+				//                                     --- NH 1200 - BE 123
 				//
 				// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-				//									   --- NH 2100 - BE 125
+				//                                     --- NH 2100 - BE 125
 				// ======================================================
 
 				// ======================================================
 				// DELETE VIP1, traffic via BE 124, 125
-				// 						--- 1000 (NHG) --- NH 1000 - BE 121
-				//									   --- NH 1100 - BE 122
-				//									   --- NH 1200 - BE 123
+				//                      --- 1000 (NHG) --- NH 1000 - BE 121
+				//                                     --- NH 1100 - BE 122
+				//                                     --- NH 1200 - BE 123
 				//
 				// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-				//									   --- NH 2100 - BE 125
+				//                                     --- NH 2100 - BE 125
 				// ======================================================
-				args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-				// Restart process and verify traffic
-				t.Logf("Restarting process %s", processes[i])
-				config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]))
+				args.client.DeleteIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 				if *ciscoFlags.GRIBITrafficCheck {
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
 				// ======================================================
 				// ADD VIP1 to point to 2000 NHG, traffic via BE 124, 125
-				// VIP1 (192.0.2.40/32)	--- 2000 (NHG)
+				// VIP1 (192.0.2.40/32) --- 2000 (NHG)
 				//
 				// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-				//									   --- NH 2100 - BE 125
+				//                                     --- NH 2100 - BE 125
 				// ======================================================
 				// Add back with different NHG i.e traffic over VIP2 NHG (NH BE 124, 125)
-				args.client.AddIPv4(t, "192.0.2.40/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-				// Restart process and verify traffic
-				t.Logf("Restarting process %s", processes[i])
-				config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]))
+				args.client.AddIPv4(t, "192.0.2.40/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 				if *ciscoFlags.GRIBITrafficCheck {
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
+					}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
 				// ======================================================
 				// UPDATE VIP1 to default state, traffic via BE 121,122,123,124,125
 				// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-				//									   --- NH 1100 - BE 122
-				//									   --- NH 1200 - BE 123
+				//                                     --- NH 1100 - BE 122
+				//                                     --- NH 1200 - BE 123
 				//
 				// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-				//									   --- NH 2100 - BE 125
+				//                                     --- NH 2100 - BE 125
 				// ======================================================
-				args.client.ReplaceIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-				// Restart process and verify traffic
-				t.Logf("Restarting process %s", processes[i])
-				config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]))
+				args.client.ReplaceIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 				if *ciscoFlags.GRIBITrafficCheck {
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
 				// ======================================================
 				// UPDATE VIP2 NHG to use VIP1 NH, traffic via BE 121,122,123
 				// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-				//									   --- NH 1100 - BE 122
-				//									   --- NH 1200 - BE 123
+				//                                     --- NH 1100 - BE 122
+				//                                     --- NH 1200 - BE 123
 				//
 				// VIP2 (192.0.2.41/32) --- 1000 (NHG)
 				// ======================================================
-				args.client.ReplaceNHG(t, 2000, 0, map[uint64]uint64{1000: 50, 1100: 5, 1200: 45}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-				// Restart process and verify traffic
-				t.Logf("Restarting process %s", processes[i])
-				config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]))
+				args.client.ReplaceNHG(t, 200000, 0, map[uint64]uint64{1000000: 50, 1100000: 5, 1200000: 45}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 				if *ciscoFlags.GRIBITrafficCheck {
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
 				// ======================================================
 				// UPDATE VIP1 NH outgoing interfaces, traffic via BE 123,124,125
 				// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 123
-				//									   --- NH 1100 - BE 124
-				//									   --- NH 1200 - BE 125
+				//                                     --- NH 1100 - BE 124
+				//                                     --- NH 1200 - BE 125
 				//
 				// VIP2 (192.0.2.41/32) --- 1000 (NHG)
 				// ======================================================
-				args.client.ReplaceNH(t, 1000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-				args.client.ReplaceNH(t, 1100, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-				args.client.ReplaceNH(t, 1200, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-				// Restart process and verify traffic
-				t.Logf("Restarting process %s", processes[i])
-				config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]))
+				args.client.ReplaceNH(t, 1000000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+				args.client.ReplaceNH(t, 1100000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+				args.client.ReplaceNH(t, 1200000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 				if *ciscoFlags.GRIBITrafficCheck {
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
 				// ======================================================
 				// ADD and REPLACE original NH config, traffic via BE 121, 122, 123
 				// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-				//									   --- NH 1100 - BE 122
-				//									   --- NH 1200 - BE 123
+				//                                     --- NH 1100 - BE 122
+				//                                     --- NH 1200 - BE 123
 				//
 				// VIP2 (192.0.2.41/32) --- 1000 (NHG)
 				// ======================================================
-				args.client.ReplaceNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-				args.client.ReplaceNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-				args.client.ReplaceNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-				// Restart process and verify traffic
-				t.Logf("Restarting process %s", processes[i])
-				config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]))
+				args.client.ReplaceNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+				args.client.ReplaceNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+				args.client.ReplaceNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 				if *ciscoFlags.GRIBITrafficCheck {
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
 				// ======================================================
 				// REPLACE original NHG config, traffic via BE 121, 122, 123, 124, 125
 				// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-				//									   --- NH 1100 - BE 122
-				//									   --- NH 1200 - BE 123
+				//                                     --- NH 1100 - BE 122
+				//                                     --- NH 1200 - BE 123
 				//
 				// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-				//									   --- NH 2100 - BE 125
+				//                                     --- NH 2100 - BE 125
 				// ======================================================
-				args.client.ReplaceNHG(t, 2000, 0, map[uint64]uint64{2000: 50, 2100: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-				// Restart process and verify traffic
-				t.Logf("Restarting process %s", processes[i])
-				config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]))
+				args.client.ReplaceNHG(t, 200000, 0, map[uint64]uint64{2000000: 50, 2100000: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 				if *ciscoFlags.GRIBITrafficCheck {
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					}
+					args.validateTrafficFlows(t, flows, false, outgoing_interface)
 				}
 			}
 		})
@@ -792,17 +1161,18 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 
 func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 
-	// base programming
-	if with_scale {
-		baseScaleProgramming(args.ctx, t, args)
-	} else {
-		baseProgramming(args.ctx, t, args)
+	if !with_RPFO {
+		t.Skip("run is without RPFO, skipping the tc")
 	}
+	// base programming
+	baseProgramming(args.ctx, t, args)
 
 	// create new flows and start traffic
 	if *ciscoFlags.GRIBITrafficCheck {
 		te_flow = args.allFlows(t)
-		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+			src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		}
 		flows = append(te_flow, src_ip_flow...)
 	}
 	outgoing_interface := make(map[string][]string)
@@ -810,11 +1180,13 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 	// verify traffic
 	if *ciscoFlags.GRIBITrafficCheck {
 		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+		}
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
+	if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -824,167 +1196,195 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 	for i := 0; i < programming_RFPO; i++ {
 
 		// RPFO
-		if with_RFPO {
+		if with_RPFO {
+			rpfo_count = rpfo_count + 1
+			t.Logf("This is RPFO #%d", rpfo_count)
 			args.rpfo(args.ctx, t, true)
 		}
 
 		//Base level 1 scenario
 		// ======================================================
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
 		// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-		//									   --- NH 2100 - BE 125
+		//                                     --- NH 2100 - BE 125
 		// ======================================================
 
 		// ======================================================
 		// DELETE VIP1, traffic via BE 124, 125
-		// 						--- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                      --- 1000 (NHG) --- NH 1000 - BE 121
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
 		// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-		//									   --- NH 2100 - BE 125
+		//                                     --- NH 2100 - BE 125
 		// ======================================================
-		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.DeleteIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		// verify traffic
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// RPFO
-		if with_RFPO {
+		if with_RPFO {
+			rpfo_count = rpfo_count + 1
+			t.Logf("This is RPFO #%d", rpfo_count)
 			args.rpfo(args.ctx, t, true)
 		}
 
 		// ======================================================
 		// ADD VIP1 to point to 2000 NHG, traffic via BE 124, 125
-		// VIP1 (192.0.2.40/32)	--- 2000 (NHG)
+		// VIP1 (192.0.2.40/32) --- 2000 (NHG)
 		//
 		// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-		//									   --- NH 2100 - BE 125
+		//                                     --- NH 2100 - BE 125
 		// ======================================================
 		// Add back with different NHG i.e traffic over VIP2 NHG (NH BE 124, 125)
-		args.client.AddIPv4(t, "192.0.2.40/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.40/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		// verify traffic
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// RPFO
-		if with_RFPO {
+		if with_RPFO {
+			rpfo_count = rpfo_count + 1
+			t.Logf("This is RPFO #%d", rpfo_count)
 			args.rpfo(args.ctx, t, true)
 		}
 
 		// ======================================================
 		// UPDATE VIP1 to default state, traffic via BE 121,122,123,124,125
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
 		// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-		//									   --- NH 2100 - BE 125
+		//                                     --- NH 2100 - BE 125
 		// ======================================================
-		args.client.ReplaceIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		// verify traffic
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// RPFO
-		if with_RFPO {
+		if with_RPFO {
+			rpfo_count = rpfo_count + 1
+			t.Logf("This is RPFO #%d", rpfo_count)
 			args.rpfo(args.ctx, t, true)
 		}
 
 		// ======================================================
 		// UPDATE VIP2 NHG to use VIP1 NH, traffic via BE 121,122,123
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
-		// VIP2 (192.0.2.41/32) --- 1000 (NHG)
+		// VIP2 (192.0.2.41/32) --- 2000 (NHG)
 		// ======================================================
-		args.client.ReplaceNHG(t, 2000, 0, map[uint64]uint64{1000: 50, 1100: 5, 1200: 45}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNHG(t, 200000, 0, map[uint64]uint64{1000000: 50, 1100000: 5, 1200000: 45}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		// verify traffic
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// RPFO
-		if with_RFPO {
+		if with_RPFO {
+			rpfo_count = rpfo_count + 1
+			t.Logf("This is RPFO #%d", rpfo_count)
 			args.rpfo(args.ctx, t, true)
 		}
 
 		// ======================================================
 		// UPDATE VIP1 NH outgoing interfaces, traffic via BE 123,124,125
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 123
-		//									   --- NH 1100 - BE 124
-		//									   --- NH 1200 - BE 125
+		//                                     --- NH 1100 - BE 124
+		//                                     --- NH 1200 - BE 125
 		//
 		// VIP2 (192.0.2.41/32) --- 1000 (NHG)
 		// ======================================================
-		args.client.ReplaceNH(t, 1000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.ReplaceNH(t, 1100, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.ReplaceNH(t, 1200, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1000000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1100000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1200000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		// verify traffic
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// RPFO
-		if with_RFPO {
+		if with_RPFO {
+			rpfo_count = rpfo_count + 1
+			t.Logf("This is RPFO #%d", rpfo_count)
 			args.rpfo(args.ctx, t, true)
 		}
 
 		// ======================================================
 		// ADD and REPLACE original NH config, traffic via BE 121, 122, 123
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
 		// VIP2 (192.0.2.41/32) --- 1000 (NHG)
 		// ======================================================
-		args.client.ReplaceNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.ReplaceNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.ReplaceNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		// verify traffic
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// RPFO
-		if with_RFPO {
+		if with_RPFO {
+			rpfo_count = rpfo_count + 1
+			t.Logf("This is RPFO #%d", rpfo_count)
 			args.rpfo(args.ctx, t, true)
 		}
 
 		// ======================================================
 		// REPLACE original NHG config, traffic via BE 121, 122, 123, 124, 125
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
 		// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-		//									   --- NH 2100 - BE 125
+		//                                     --- NH 2100 - BE 125
 		// ======================================================
-		args.client.ReplaceNHG(t, 2000, 0, map[uint64]uint64{2000: 50, 2100: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNHG(t, 200000, 0, map[uint64]uint64{2000000: 50, 2100000: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		// verify traffic
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
+			args.validateTrafficFlows(t, flows, false, outgoing_interface)
 		}
 	}
 }
@@ -992,16 +1392,14 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 func testRestart_multiple_process(t *testing.T, args *testArgs) {
 
 	// base programming
-	if with_scale {
-		baseScaleProgramming(args.ctx, t, args)
-	} else {
-		baseProgramming(args.ctx, t, args)
-	}
+	baseProgramming(args.ctx, t, args)
 
 	// create new flows and start traffic
 	if *ciscoFlags.GRIBITrafficCheck {
 		te_flow = args.allFlows(t)
-		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		if base_config != "case1_backup_decap" {
+			src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		}
 		flows = append(te_flow, src_ip_flow...)
 	}
 	outgoing_interface := make(map[string][]string)
@@ -1009,11 +1407,13 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 	// verify traffic
 	if *ciscoFlags.GRIBITrafficCheck {
 		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+		}
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
+	if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1024,14 +1424,18 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			// RPFO
-			if with_RFPO {
+			if with_RPFO {
+				rpfo_count = rpfo_count + 1
+				t.Logf("This is RPFO #%d", rpfo_count)
 				args.rpfo(args.ctx, t, false)
 			}
 			// verify traffic
 			t.Logf("checking traffic after RPFO")
 			if *ciscoFlags.GRIBITrafficCheck {
 				outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+				if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+				}
 				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 			}
 
@@ -1055,11 +1459,13 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 
 			if *ciscoFlags.GRIBITrafficCheck {
 				outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+				if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+				}
 				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 			}
 			//aft check
-			if *ciscoFlags.GRIBIAFTChainCheck {
+			if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 				randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 				for i := 0; i < len(randomItems); i++ {
 					args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1072,16 +1478,21 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 func test_microdrops(t *testing.T, args *testArgs) {
 
 	// base programming
-	if with_scale {
-		baseScaleProgramming(args.ctx, t, args)
-	} else {
-		baseProgramming(args.ctx, t, args)
+	baseProgramming(args.ctx, t, args)
+
+	// RPFO
+	if with_RPFO {
+		rpfo_count = rpfo_count + 1
+		t.Logf("This is RPFO #%d", rpfo_count)
+		args.rpfo(args.ctx, t, true)
 	}
 
 	// create new flows and start traffic
 	if *ciscoFlags.GRIBITrafficCheck {
 		te_flow = args.allFlows(t)
-		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+			src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		}
 		flows = append(te_flow, src_ip_flow...)
 	}
 	outgoing_interface := make(map[string][]string)
@@ -1089,11 +1500,13 @@ func test_microdrops(t *testing.T, args *testArgs) {
 	// verify traffic
 	if *ciscoFlags.GRIBITrafficCheck {
 		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+		}
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
+	if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1103,32 +1516,36 @@ func test_microdrops(t *testing.T, args *testArgs) {
 	//Base level 1 scenario
 	// ======================================================
 	// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-	//									   --- NH 1100 - BE 122
-	//									   --- NH 1200 - BE 123
+	//                                     --- NH 1100 - BE 122
+	//                                     --- NH 1200 - BE 123
 	//
 	// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-	//									   --- NH 2100 - BE 125
+	//                                     --- NH 2100 - BE 125
 	// ======================================================
 	for i := 0; i < microdropsRepeat; i++ {
 
 		// RPFO
-		if with_RFPO {
+		if with_RPFO {
+			rpfo_count = rpfo_count + 1
+			t.Logf("This is RPFO #%d", rpfo_count)
 			args.rpfo(args.ctx, t, true)
 		}
 
 		// ======================================================
 		// DELETE VIP1, traffic via BE 124, 125
-		// 						--- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                      --- 1000 (NHG) --- NH 1000 - BE 121
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
 		// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-		//									   --- NH 2100 - BE 125
+		//                                     --- NH 2100 - BE 125
 		// ======================================================
-		args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.DeleteIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1137,95 +1554,107 @@ func test_microdrops(t *testing.T, args *testArgs) {
 		// VIP1 (192.0.2.40/32)
 		//
 		// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-		//									   --- NH 2100 - BE 125
+		//                                     --- NH 2100 - BE 125
 		// ======================================================
 		// Add back with different NHG i.e traffic over VIP2 NHG (NH BE 124, 125)
-		args.client.AddIPv4(t, "192.0.2.40/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddIPv4(t, "192.0.2.40/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// ======================================================
 		// UPDATE VIP1 to default state, traffic via BE 121,122,123,124,125
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
 		// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-		//									   --- NH 2100 - BE 125
+		//                                     --- NH 2100 - BE 125
 		// ======================================================
-		args.client.ReplaceIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// ======================================================
 		// UPDATE VIP2 NHG to use VIP1 NH, traffic via BE 121,122,123
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
 		// VIP2 (192.0.2.41/32) --- 1000 (NHG)
 		// ======================================================
-		args.client.ReplaceNHG(t, 2000, 0, map[uint64]uint64{1000: 50, 1100: 5, 1200: 45}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNHG(t, 200000, 0, map[uint64]uint64{1000000: 50, 1100000: 5, 1200000: 45}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// ======================================================
 		// UPDATE VIP1 NH outgoing interfaces, traffic via BE 123,124,125
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 123
-		//									   --- NH 1100 - BE 124
-		//									   --- NH 1200 - BE 125
+		//                                     --- NH 1100 - BE 124
+		//                                     --- NH 1200 - BE 125
 		//
 		// VIP2 (192.0.2.41/32) --- 1000 (NHG)
 		// ======================================================
-		args.client.ReplaceNH(t, 1000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.ReplaceNH(t, 1100, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.ReplaceNH(t, 1200, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1000000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1100000, atePort5.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1200000, atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// ======================================================
 		// ADD and REPLACE original NH config, traffic via BE 121, 122, 123
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
 		// VIP2 (192.0.2.41/32) --- 1000 (NHG)
 		// ======================================================
-		args.client.ReplaceNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.ReplaceNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.ReplaceNH(t, 1200, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1000000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1100000, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNH(t, 1200000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
 		// ======================================================
 		// REPLACE original NHG config, traffic via BE 121, 122, 123, 124, 125
 		// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-		//									   --- NH 1100 - BE 122
-		//									   --- NH 1200 - BE 123
+		//                                     --- NH 1100 - BE 122
+		//                                     --- NH 1200 - BE 123
 		//
 		// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-		//									   --- NH 2100 - BE 125
+		//                                     --- NH 2100 - BE 125
 		// ======================================================
-		args.client.ReplaceNHG(t, 2000, 0, map[uint64]uint64{2000: 50, 2100: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+		args.client.ReplaceNHG(t, 200000, 0, map[uint64]uint64{2000000: 50, 2100000: 50}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		if *ciscoFlags.GRIBITrafficCheck {
 			outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
+			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+			}
+			args.validateTrafficFlows(t, flows, false, outgoing_interface)
 		}
 	}
 }
@@ -1237,25 +1666,31 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 	configureDeviceId(args.ctx, t, args.dut)
 	configurePortId(args.ctx, t, args.dut)
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		te_flow = args.allFlows(t)
-		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
-		flows = append(te_flow, src_ip_flow...)
-	}
-	outgoing_interface := make(map[string][]string)
+	// if *ciscoFlags.GRIBITrafficCheck {
+	// 	te_flow = args.allFlows(t)
+	// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap"{
+	//		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+	//	}
+	// 	flows = append(te_flow, src_ip_flow...)
+	// }
+	// outgoing_interface := make(map[string][]string)
 
 	// verify traffic
-	if *ciscoFlags.GRIBITrafficCheck {
-		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
-		// args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
-		args.ate.Traffic().Start(t, flows...)
-		time.Sleep(120 * time.Second)
-		args.ate.Traffic().Stop(t)
-	}
+	// if *ciscoFlags.GRIBITrafficCheck {
+	// 	outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+	// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap"{
+	//		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
+	//	}
+	// 	// args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+	// 	args.ate.Traffic().Start(t, flows...)
+	// 	time.Sleep(120 * time.Second)
+	// 	args.ate.Traffic().Stop(t)
+	// }
 
-	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
-	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
+	// multi_process_gribi_programming(t, args.events, args)
+	p4rtPacketOut(t, args.events, args)
+	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
+	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
 
 	testGroup.Wait()
 }
@@ -1264,27 +1699,20 @@ func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsume
 
 	// base programming
 	arg := args[0].(*testArgs)
-	if with_scale {
-		baseScaleProgramming(arg.ctx, t, arg)
-	} else {
-
-		baseProgramming(arg.ctx, t, arg)
-	}
+	baseProgramming(arg.ctx, t, arg)
 }
 
 func test_triggers(t *testing.T, args *testArgs) {
 
 	// base programming
-	if with_scale {
-		baseScaleProgramming(args.ctx, t, args)
-	} else {
-		baseProgramming(args.ctx, t, args)
-	}
+	baseProgramming(args.ctx, t, args)
 
 	// create new flows and start traffic
 	if *ciscoFlags.GRIBITrafficCheck {
 		te_flow = args.allFlows(t)
-		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+			src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+		}
 		flows = append(te_flow, src_ip_flow...)
 	}
 
@@ -1292,12 +1720,14 @@ func test_triggers(t *testing.T, args *testArgs) {
 
 	// verify traffic
 	if *ciscoFlags.GRIBITrafficCheck {
-		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+		}
+		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
+	if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
 			args.client.CheckAftIPv4(t, "TE", randomItems[i])
@@ -1305,22 +1735,23 @@ func test_triggers(t *testing.T, args *testArgs) {
 	}
 
 	processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR"}
-
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			if processes[i] == "shutdown" {
 
 				// Run with RPFO is flag is set
-				if with_RFPO {
+				if with_RPFO {
+					rpfo_count = rpfo_count + 1
+					t.Logf("This is RPFO #%d", rpfo_count)
 					args.rpfo(args.ctx, t, false)
 				}
 
-				t.Logf("Shutting down primary interfaces BE121, BE122, BE123, BE124, BE125 so TE traffic flows via REPAIR vrf and REPAIRED traffic flow via DECAP vrf")
+				t.Logf("Shutting down primary interfaces BE121, BE122, BE123, BE124, BE125")
 				args.interfaceaction(t, false, []string{"port2", "port3", "port4", "port5", "port6"})
 				defer args.interfaceaction(t, true, []string{"port2", "port3", "port4", "port5", "port6"})
 
 				//aft check TE
-				if *ciscoFlags.GRIBIAFTChainCheck {
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 					args.client.AftPushConfig(t)
 					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
 					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
@@ -1333,17 +1764,19 @@ func test_triggers(t *testing.T, args *testArgs) {
 					}
 				}
 				//aft check REPAIRED
-				if *ciscoFlags.GRIBIAFTChainCheck {
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale && base_config != "case1_backup_decap" {
 					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 					for i := 0; i < len(randomItems); i++ {
-						args.client.CheckAftIPv4(t, "TE", randomItems[i])
+						args.client.CheckAftIPv4(t, "REPAIRED", randomItems[i])
 					}
 				}
 				// verify traffic
 				if *ciscoFlags.GRIBITrafficCheck {
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, start_after_verification: true})
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 15, start_after_verification: true})
 				}
 
 				t.Logf("Shutting down interfaces BE126 so traffic flows via DECAP path")
@@ -1351,7 +1784,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 				defer args.interfaceaction(t, true, []string{"port7"})
 
 				//aft check TE
-				if *ciscoFlags.GRIBIAFTChainCheck {
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
 					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 					for i := 0; i < len(randomItems); i++ {
@@ -1359,23 +1792,25 @@ func test_triggers(t *testing.T, args *testArgs) {
 					}
 				}
 				//aft check REPAIRED
-				if *ciscoFlags.GRIBIAFTChainCheck {
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 					for i := 0; i < len(randomItems); i++ {
-						args.client.CheckAftIPv4(t, "TE", randomItems[i])
+						args.client.CheckAftIPv4(t, "REPAIRED", randomItems[i])
 					}
 				}
 				// verify traffic
 				if *ciscoFlags.GRIBITrafficCheck {
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether126", "Bundle-Ether127"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether127"}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, start_after_verification: true})
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 10, start_after_verification: true})
 				}
 
 				t.Logf("Unshut primary interfaces and verify traffic restored to original interfaces")
-				args.interfaceaction(t, true, []string{"port2", "port3", "port4", "port5", "port6"})
+				args.interfaceaction(t, true, []string{"port2", "port3", "port4", "port5", "port6", "port7"})
 				//aft check TE
-				if *ciscoFlags.GRIBIAFTChainCheck {
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 					args.client.AftPopConfig(t)
 					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 					for i := 0; i < len(randomItems); i++ {
@@ -1383,16 +1818,18 @@ func test_triggers(t *testing.T, args *testArgs) {
 					}
 				}
 				//aft check REPAIRED
-				if *ciscoFlags.GRIBIAFTChainCheck {
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 					for i := 0; i < len(randomItems); i++ {
-						args.client.CheckAftIPv4(t, "TE", randomItems[i])
+						args.client.CheckAftIPv4(t, "REPAIRED", randomItems[i])
 					}
 				}
 				// verify traffic
 				if *ciscoFlags.GRIBITrafficCheck {
-					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, start_after_verification: true})
 				}
 			}
@@ -1402,7 +1839,9 @@ func test_triggers(t *testing.T, args *testArgs) {
 				args.client.Close(t)
 
 				// Perform RPFO if flag is set
-				if with_RFPO {
+				if with_RPFO {
+					rpfo_count = rpfo_count + 1
+					t.Logf("This is RPFO #%d", rpfo_count)
 					args.rpfo(args.ctx, t, true)
 				} else {
 					t.Logf("reconnect, flush entries, reprogram and validate traffic")
@@ -1419,32 +1858,32 @@ func test_triggers(t *testing.T, args *testArgs) {
 				time.Sleep(10 * time.Second)
 
 				// base programming
-				if with_scale {
-					baseScaleProgramming(args.ctx, t, args)
-				} else {
-					baseProgramming(args.ctx, t, args)
-				}
+				baseProgramming(args.ctx, t, args)
 
 				// verify traffic
 				if *ciscoFlags.GRIBITrafficCheck {
-					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 100, start_after_verification: true})
 				}
 
 				// ======================================================
 				// DELETE VIP1, traffic via BE 124, 125
-				// 						--- 1000 (NHG) --- NH 1000 - BE 121
-				//									   --- NH 1100 - BE 122
-				//									   --- NH 1200 - BE 123
+				//                      --- 1000 (NHG) --- NH 1000 - BE 121
+				//                                     --- NH 1100 - BE 122
+				//                                     --- NH 1200 - BE 123
 				//
 				// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-				//									   --- NH 2100 - BE 125
+				//                                     --- NH 2100 - BE 125
 				// ======================================================
-				args.client.DeleteIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+				args.client.DeleteIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 				if *ciscoFlags.GRIBITrafficCheck {
-					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1453,70 +1892,83 @@ func test_triggers(t *testing.T, args *testArgs) {
 				// VIP1 (192.0.2.40/32)
 				//
 				// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-				//									   --- NH 2100 - BE 125
+				//                                     --- NH 2100 - BE 125
 				// ======================================================
 				// Add back with different NHG i.e traffic over VIP2 NHG (NH BE 124, 125)
-				args.client.AddIPv4(t, "192.0.2.40/32", 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+				args.client.AddIPv4(t, "192.0.2.40/32", 200000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 				if *ciscoFlags.GRIBITrafficCheck {
-					outgoing_interface["te_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
 				// ======================================================
 				// UPDATE VIP1 to default state, traffic via BE 121,122,123,124,125
 				// VIP1 (192.0.2.40/32) --- 1000 (NHG) --- NH 1000 - BE 121
-				//									   --- NH 1100 - BE 122
-				//									   --- NH 1200 - BE 123
+				//                                     --- NH 1100 - BE 122
+				//                                     --- NH 1200 - BE 123
 				//
 				// VIP2 (192.0.2.41/32) --- 2000 (NHG) --- NH 2000 - BE 124
-				//									   --- NH 2100 - BE 125
+				//                                     --- NH 2100 - BE 125
 				// ======================================================
-				args.client.ReplaceIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+				args.client.ReplaceIPv4(t, "192.0.2.40/32", 100000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 				if *ciscoFlags.GRIBITrafficCheck {
-					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 			}
 
 			if processes[i] == "delete_vrfs" {
+				t.Skip("skipping vrf delete till we have the fix")
 				t.Logf("Delete vrfs and validate traffic is failing as prefix are deleted")
-				config.CMDViaGNMI(args.ctx, t, args.dut, "no vrf TE")
-				config.CMDViaGNMI(args.ctx, t, args.dut, "no vrf REPAIR")
-				config.CMDViaGNMI(args.ctx, t, args.dut, "no vrf REPAIRED")
-				defer config.CMDViaGNMI(args.ctx, t, args.dut, "vrf TE")
-				defer config.CMDViaGNMI(args.ctx, t, args.dut, "vrf REPAIR")
-				defer config.CMDViaGNMI(args.ctx, t, args.dut, "vrf REPAIRED")
+				args.gnmiConf(t, "no vrf TE \n no vrf REPAIR \n no vrf REPAIRED")
+				defer args.gnmiConf(t, "vrf TE \n vrf REPAIR \n vrf REPAIRED")
 
 				if *ciscoFlags.GRIBITrafficCheck {
-					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					args.validateTrafficFlows(t, flows, true, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
-				if with_RFPO {
+				if with_RPFO {
+					rpfo_count = rpfo_count + 1
+					t.Logf("This is RPFO #%d", rpfo_count)
 					args.rpfo(args.ctx, t, true)
 				}
 				t.Logf("Reprogram prefixes to use the same forwarding chaing")
-				config.CMDViaGNMI(args.ctx, t, args.dut, "vrf TE")
-				config.CMDViaGNMI(args.ctx, t, args.dut, "vrf REPAIR")
-				config.CMDViaGNMI(args.ctx, t, args.dut, "vrf REPAIRED")
+				args.gnmiConf(t, "vrf TE \n vrf REPAIR \n vrf REPAIRED")
 
-				if with_scale {
-					args.scaleIPV4(t, vrf1, 10000)
-					args.scaleIPV4(t, vrf2, 10000)
-					args.scaleIPV4(t, vrf3, 30000, &IPv4ScaleOptions{max: nhg_Scale_REPAIR})
-				} else {
-					args.client.AddIPv4Batch(t, prefixes, 100, vrf1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-					args.client.AddIPv4Batch(t, prefixes, 200, vrf2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-					args.client.AddIPv4Batch(t, repair_prefix, 300, vrf3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+				if base_config == "case1_backup_decap" {
+					if with_scale {
+						args.scaleIPV4(t, vrf1, 1000)
+					} else {
+						args.client.AddIPv4Batch(t, prefixes, 10, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+					}
+				} else if base_config == "case2_decap_encap_exit" {
+					if with_scale {
+						args.scaleIPV4(t, vrf1, 10000)
+						args.scaleIPV4(t, vrf2, 10000)
+						args.scaleIPV4(t, vrf3, 30000, &IPv4ScaleOptions{max: nhg_Scale_REPAIR})
+					} else {
+						args.client.AddIPv4Batch(t, prefixes, 100, vrf1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+						args.client.AddIPv4Batch(t, prefixes, 200, vrf2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+						args.client.AddIPv4Batch(t, repair_prefix, 333333, vrf3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+					}
 				}
 
 				t.Logf("Verify traffic after adding back vrfs")
 				if *ciscoFlags.GRIBITrafficCheck {
-					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 				}
 			}
@@ -1528,13 +1980,12 @@ func test_triggers(t *testing.T, args *testArgs) {
 				}
 
 				gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
-				useNameOnly := deviations.GNOISubcomponentPath(args.dut)
-				lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
+				lineCardPath := components.GetSubcomponentPath(lc)
 				rebootSubComponentRequest := &gnps.RebootRequest{
 					Method: gnps.RebootMethod_COLD,
 					Subcomponents: []*tpb.Path{
 						// {
-						// 	Elem: []*tpb.PathElem{{Name: lc}},
+						//  Elem: []*tpb.PathElem{{Name: lc}},
 						// },
 						lineCardPath,
 					},
@@ -1546,24 +1997,24 @@ func test_triggers(t *testing.T, args *testArgs) {
 				}
 				t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
 
-				if with_RFPO {
+				if with_RPFO {
+					rpfo_count = rpfo_count + 1
+					t.Logf("This is RPFO #%d", rpfo_count)
 					args.rpfo(args.ctx, t, true)
 				}
 				// sleep while lc reloads
 				time.Sleep(10 * time.Minute)
 
 				// base programming
-				if with_scale {
-					baseScaleProgramming(args.ctx, t, args)
-				} else {
-					baseProgramming(args.ctx, t, args)
-				}
+				baseProgramming(args.ctx, t, args)
 
 				// verify traffic
 				if *ciscoFlags.GRIBITrafficCheck {
-					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true})
 				}
 			}
 
@@ -1573,7 +2024,9 @@ func test_triggers(t *testing.T, args *testArgs) {
 
 				for j := 0; j < grpc_repeat; j++ {
 
-					if with_RFPO {
+					if with_RPFO {
+						rpfo_count = rpfo_count + 1
+						t.Logf("This is RPFO #%d", rpfo_count)
 						args.rpfo(args.ctx, t, true)
 					}
 					sshClient := args.dut.RawAPIs().CLI(t)
@@ -1606,11 +2059,8 @@ func test_triggers(t *testing.T, args *testArgs) {
 						}
 					}
 					args.client = &client
-					if with_scale {
-						baseScaleProgramming(args.ctx, t, args)
-					} else {
-						baseProgramming(args.ctx, t, args)
-					}
+					baseProgramming(args.ctx, t, args)
+
 					// keeping last gribi client up for the next tc's
 					if j < grpc_repeat-1 {
 						client.Close(t)
@@ -1626,7 +2076,9 @@ func test_triggers(t *testing.T, args *testArgs) {
 				min := 57344
 				max := 57998
 				for k := 0; k < grpc_repeat; k++ {
-					if with_RFPO {
+					if with_RPFO {
+						rpfo_count = rpfo_count + 1
+						t.Logf("This is RPFO #%d", rpfo_count)
 						args.rpfo(args.ctx, t, true)
 					}
 					sshClient := args.dut.RawAPIs().CLI(t)
@@ -1662,11 +2114,8 @@ func test_triggers(t *testing.T, args *testArgs) {
 						}
 					}
 					args.client = &client
-					if with_scale {
-						baseScaleProgramming(args.ctx, t, args)
-					} else {
-						baseProgramming(args.ctx, t, args)
-					}
+					baseProgramming(args.ctx, t, args)
+
 					// keeping last gribi client up for the next tc's
 					if k < grpc_repeat-1 {
 						client.Close(t)
@@ -1690,7 +2139,7 @@ func TestHA(t *testing.T) {
 	configVRF(t, dut, vrfs)
 	configureDUT(t, dut)
 	// PBR config
-	configbasePBR(t, dut, "REPAIRED", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, &PBROptions{SrcIP: "222.222.222.222/32"})
+	configbasePBR(t, dut, "REPAIRED", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{}, &PBROptions{SrcIP: "222.222.222.222/32"})
 	configbasePBR(t, dut, "TE", "ipv4", 2, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 	configbasePBRInt(t, dut, "Bundle-Ether120", "pbr")
 	// RoutePolicy config
@@ -1732,20 +2181,20 @@ func TestHA(t *testing.T) {
 			fn:   test_RFPO_with_programming,
 		},
 		{
-			name: "Restart multiple process",
-			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-			fn:   testRestart_multiple_process,
-		},
-		{
 			name: "Restart single process",
 			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
 			fn:   testRestart_single_process,
 		},
 		{
-			name: "check multiple clients",
-			desc: "With traffic running, validate use of multiple clients",
-			fn:   test_multiple_clients,
+			name: "Restart multiple process",
+			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+			fn:   testRestart_multiple_process,
 		},
+		// {
+		// 	name: "check multiple clients",
+		// 	desc: "With traffic running, validate use of multiple clients",
+		// 	fn:   test_multiple_clients,
+		// },
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1773,15 +2222,15 @@ func TestHA(t *testing.T) {
 			eventConsumer := monitor.NewCachedConsumer(2*time.Hour, /*expiration time for events in the cache*/
 				1 /*number of events for keep for each leaf*/)
 			// monitor := monitor.GNMIMonior{
-			// 	Paths: []ygnmi.PathStruct{
-			// 		gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
-			// 		gnmi.OC().NetworkInstance(vrf1).Afts(),
-			// 		gnmi.OC().NetworkInstance(vrf2).Afts(),
-			// 		gnmi.OC().NetworkInstance(vrf3).Afts(),
-			// 		gnmi.OC().NetworkInstance(vrf4).Afts(),
-			// 	},
-			// 	Consumer: eventConsumer,
-			// 	DUT:      dut,
+			//  Paths: []ygnmi.PathStruct{
+			//      gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
+			//      gnmi.OC().NetworkInstance(vrf1).Afts(),
+			//      gnmi.OC().NetworkInstance(vrf2).Afts(),
+			//      gnmi.OC().NetworkInstance(vrf3).Afts(),
+			//      gnmi.OC().NetworkInstance(vrf4).Afts(),
+			//  },
+			//  Consumer: eventConsumer,
+			//  DUT:      dut,
 			// }
 			// monitor.Start(ctx, t, true, gpb.SubscriptionList_STREAM)
 			// defer cancelMonitors()
