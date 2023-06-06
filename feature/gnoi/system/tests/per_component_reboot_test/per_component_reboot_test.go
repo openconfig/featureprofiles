@@ -114,6 +114,9 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	}
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
 
+	t.Logf("Wait for a minute to allow the sub component's reboot process to start")
+	time.Sleep(1 * time.Minute)
+
 	watch := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
 		return val.IsPresent()
 	})
