@@ -46,7 +46,7 @@ export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-pushd /tmp/workspace
+pushd /tmp/featureprofiles
 
 cp -r "$PWD"/topologies/kne /tmp
 sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/kne/"$topology"
