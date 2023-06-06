@@ -1,41 +1,11 @@
-name: "arista-ceos"
+name: "openconfig-lemming"
 nodes: {
     name: "dut1"
-    vendor: ARISTA
-    model: "ceos"
-    os: "eos"
-    config: {
-        image: "ceos:latest"
-        file: "config.cfg"
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
-        cert: {
-            self_signed: {
-                cert_name: "gnmiCert.pem"
-                key_name: "gnmiCertKey.pem"
-                key_size: 4096
-            }
-        }
-    }
+    vendor: OPENCONFIG
 }
 nodes: {
     name: "dut2"
-    vendor: ARISTA
-    model: "ceos"
-    os: "eos"
-    config: {
-        image: "ceos:latest"
-        file: "config.cfg"
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
-        cert: {
-            self_signed: {
-                cert_name: "gnmiCert.pem"
-                key_name: "gnmiCertKey.pem"
-                key_size: 4096
-            }
-        }
-    }
+    vendor: OPENCONFIG
 }
 nodes: {
     name: "otg1"

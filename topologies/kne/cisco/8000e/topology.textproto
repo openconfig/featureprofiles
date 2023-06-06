@@ -1,39 +1,129 @@
-name: "arista-ceos"
+name: "cisco-8000e"
 nodes: {
     name: "dut1"
-    vendor: ARISTA
-    model: "ceos"
-    os: "eos"
+    vendor: CISCO
+    model: "8201"
+    os: "ios-xr"
     config: {
-        image: "ceos:latest"
+        image: "8000e:latest"
         file: "config.cfg"
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
-        cert: {
-            self_signed: {
-                cert_name: "gnmiCert.pem"
-                key_name: "gnmiCertKey.pem"
-                key_size: 4096
-            }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "FourHundredGigE0/0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "FourHundredGigE0/0/0/1"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "FourHundredGigE0/0/0/2"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "FourHundredGigE0/0/0/3"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            name: "FourHundredGigE0/0/0/4"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            name: "FourHundredGigE0/0/0/5"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            name: "FourHundredGigE0/0/0/6"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            name: "FourHundredGigE0/0/0/7"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+            name: "FourHundredGigE0/0/0/8"
         }
     }
 }
 nodes: {
     name: "dut2"
-    vendor: ARISTA
-    model: "ceos"
-    os: "eos"
+    vendor: CISCO
+    model: "8201"
+    os: "ios-xr"
     config: {
-        image: "ceos:latest"
+        image: "8000e:latest"
         file: "config.cfg"
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
-        cert: {
-            self_signed: {
-                cert_name: "gnmiCert.pem"
-                key_name: "gnmiCertKey.pem"
-                key_size: 4096
-            }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "FourHundredGigE0/0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "FourHundredGigE0/0/0/1"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "FourHundredGigE0/0/0/2"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "FourHundredGigE0/0/0/3"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            name: "FourHundredGigE0/0/0/4"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            name: "FourHundredGigE0/0/0/5"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            name: "FourHundredGigE0/0/0/6"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            name: "FourHundredGigE0/0/0/7"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+            name: "FourHundredGigE0/0/0/8"
         }
     }
 }

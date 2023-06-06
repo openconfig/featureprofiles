@@ -5,7 +5,7 @@ nodes: {
     model: "ixr10"
     config: {
         image: "ghcr.io/nokia/srlinux:latest"
-        file: "nokia_srlinux.config"
+        file: "config.cfg"
         cert: {
             self_signed: {
                 cert_name: "kne-profile"

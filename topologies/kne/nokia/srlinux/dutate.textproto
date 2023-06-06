@@ -1,0 +1,130 @@
+name: "nokia-srlinux-dutate"
+nodes: {
+    name: "dut"
+    vendor: NOKIA
+    model: "ixr10"
+    config: {
+        image: "ghcr.io/nokia/srlinux:latest"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "kne-profile"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "ethernet-1/2"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "ethernet-1/3"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "ethernet-1/4"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            name: "ethernet-1/5"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            name: "ethernet-1/6"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            name: "ethernet-1/7"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            name: "ethernet-1/8"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+            name: "ethernet-1/9"
+        }
+    }
+}
+nodes: {
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "dut"
+    z_int: "eth1"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth2"
+    z_node: "otg"
+    z_int: "eth2"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth3"
+    z_node: "otg"
+    z_int: "eth3"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth4"
+    z_node: "otg"
+    z_int: "eth4"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth5"
+    z_node: "otg"
+    z_int: "eth5"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth6"
+    z_node: "otg"
+    z_int: "eth6"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth7"
+    z_node: "otg"
+    z_int: "eth7"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth8"
+    z_node: "otg"
+    z_int: "eth8"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth9"
+    z_node: "otg"
+    z_int: "eth9"
+}

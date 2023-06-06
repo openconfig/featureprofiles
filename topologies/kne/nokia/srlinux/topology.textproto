@@ -1,39 +1,141 @@
-name: "arista-ceos"
+name: "nokia-srlinux"
 nodes: {
     name: "dut1"
-    vendor: ARISTA
-    model: "ceos"
-    os: "eos"
+    vendor: NOKIA
+    model: "ixr10"
     config: {
-        image: "ceos:latest"
+        image: "ghcr.io/nokia/srlinux:latest"
         file: "config.cfg"
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
         cert: {
             self_signed: {
-                cert_name: "gnmiCert.pem"
-                key_name: "gnmiCertKey.pem"
+                cert_name: "kne-profile"
+                key_name: "N/A"
                 key_size: 4096
             }
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "ethernet-1/2"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "ethernet-1/3"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "ethernet-1/4"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            name: "ethernet-1/5"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            name: "ethernet-1/6"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            name: "ethernet-1/7"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            name: "ethernet-1/8"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+            name: "ethernet-1/9"
         }
     }
 }
 nodes: {
     name: "dut2"
-    vendor: ARISTA
-    model: "ceos"
-    os: "eos"
+    vendor: NOKIA
+    model: "ixr10"
     config: {
-        image: "ceos:latest"
+        image: "ghcr.io/nokia/srlinux:latest"
         file: "config.cfg"
-        config_path: "/mnt/flash"
-        config_file: "startup-config"
         cert: {
             self_signed: {
-                cert_name: "gnmiCert.pem"
-                key_name: "gnmiCertKey.pem"
+                cert_name: "kne-profile"
+                key_name: "N/A"
                 key_size: 4096
             }
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "ethernet-1/2"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "ethernet-1/3"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "ethernet-1/4"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            name: "ethernet-1/5"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            name: "ethernet-1/6"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            name: "ethernet-1/7"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            name: "ethernet-1/8"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+            name: "ethernet-1/9"
         }
     }
 }
