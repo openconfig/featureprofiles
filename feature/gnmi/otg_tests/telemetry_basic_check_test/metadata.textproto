@@ -15,5 +15,29 @@ platform_exceptions: {
   }
   deviations: {
     missing_interface_physical_channel: true
+    interface_counters_from_container: true
+    sw_version_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    interface_counters_from_container: true
+    explicit_p4rt_node_component: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    sw_version_unsupported: true
   }
 }

@@ -141,8 +141,9 @@ func P4rtBackupArbitrationResponseCode(_ *ondatra.DUTDevice) bool {
 
 // ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
 // Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.
-func ExplicitP4RTNodeComponent(_ *ondatra.DUTDevice) bool {
-	return *explicitP4RTNodeComponent
+func ExplicitP4RTNodeComponent(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_explicit_p4rt_node_component")
+	return lookupDUTDeviations(dut).GetExplicitP4RtNodeComponent()
 }
 
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
@@ -184,8 +185,9 @@ func StaticProtocolName(_ *ondatra.DUTDevice) string {
 }
 
 // UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
-func UseVendorNativeACLConfig(_ *ondatra.DUTDevice) bool {
-	return *useVendorNativeACLConfiguration
+func UseVendorNativeACLConfig(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_use_vendor_native_acl_config")
+	return lookupDUTDeviations(dut).GetUseVendorNativeAclConfig()
 }
 
 // SwitchChipIDUnsupported returns whether the device supports id leaf for SwitchChip components.
@@ -283,8 +285,9 @@ func DropWeightLeavesUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // SwVersionUnsupported returns true if the device does not support reporting software version according to the requirements in gNMI-1.10.
-func SwVersionUnsupported(_ *ondatra.DUTDevice) bool {
-	return *swVersionUnsupported
+func SwVersionUnsupported(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_sw_version_unsupported")
+	return lookupDUTDeviations(dut).GetSwVersionUnsupported()
 }
 
 // HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
@@ -304,8 +307,9 @@ func InterfaceEnabled(_ *ondatra.DUTDevice) bool {
 }
 
 // InterfaceCountersFromContainer returns if the device only supports querying counters from the state container, not from individual counter leaves.
-func InterfaceCountersFromContainer(_ *ondatra.DUTDevice) bool {
-	return *interfaceCountersFromContainer
+func InterfaceCountersFromContainer(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_interface_counters_from_container")
+	return lookupDUTDeviations(dut).GetInterfaceCountersFromContainer()
 }
 
 // IPv4MissingEnabled returns if device does not support interface/ipv4/enabled.
@@ -476,8 +480,9 @@ func GNOISubcomponentPath(_ *ondatra.DUTDevice) bool {
 }
 
 // NoMixOfTaggedAndUntaggedSubinterfaces returns if device does not support a mix of tagged and untagged subinterfaces
-func NoMixOfTaggedAndUntaggedSubinterfaces(_ *ondatra.DUTDevice) bool {
-	return *noMixOfTaggedAndUntaggedSubinterfaces
+func NoMixOfTaggedAndUntaggedSubinterfaces(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_no_mix_of_tagged_and_untagged_subinterfaces")
+	return lookupDUTDeviations(dut).GetNoMixOfTaggedAndUntaggedSubinterfaces()
 }
 
 // SecondaryBackupPathTrafficFailover returns if device does not support secondary backup path traffic failover
@@ -522,7 +527,7 @@ var (
 
 	_ = flag.Bool("deviation_ip_neighbor_missing", false, "Device does not support interface/ipv4(6)/neighbor, so suppress the related check for interface/ipv4(6)/neighbor.")
 
-	interfaceCountersFromContainer = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
+	_ = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
 	aggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
@@ -558,7 +563,7 @@ var (
 
 	explicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
-	explicitP4RTNodeComponent = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
+	_ = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
 
 	RoutePolicyUnderPeerGroup = flag.Bool("deviation_rpl_under_peergroup", false, "Device requires route-policy configuration under bgp peer-group. Fully-compliant devices should pass with and without this deviation.")
 
@@ -589,7 +594,7 @@ var (
 
 	explicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
 
-	noMixOfTaggedAndUntaggedSubinterfaces = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
+	_ = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
 
 	_ = flag.Bool("deviation_lldp_interface_config_override_global", false,
@@ -638,7 +643,7 @@ var (
 
 	_ = flag.Bool("deviation_missing_bgp_last_notification_error_code", false, "Set to true to skip check for bgp/neighbors/neighbor/state/messages/received/last-notification-error-code leaf missing case")
 
-	useVendorNativeACLConfiguration = flag.Bool("deviation_use_vendor_native_acl_config", false, "Configure ACLs using vendor native model specifically for RT-1.4")
+	_ = flag.Bool("deviation_use_vendor_native_acl_config", false, "Configure ACLs using vendor native model specifically for RT-1.4")
 
 	_ = flag.Bool("deviation_switch_chip_id_unsupported", false, "Device does not support id leaf for SwitchChip components. Set this flag to skip checking the leaf.")
 
@@ -666,7 +671,7 @@ var (
 
 	_ = flag.Bool("deviation_drop_weight_leaves_unsupported", false, "Device does not support drop and weight leaves under queue management profile, Set this flag to skip checking the leaves")
 
-	swVersionUnsupported = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
+	_ = flag.Bool("deviation_sw_version_unsupported", false, "Device does not support reporting software version according to the requirements in gNMI-1.10.")
 
 	_ = flag.Float64("deviation_hierarchical_weight_resolution_tolerance", 0.2, "Set it to expected ucmp traffic tolerance, default is 0.2")
 
