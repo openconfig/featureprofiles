@@ -63,7 +63,8 @@ const (
 	ipv6DstTrafficEnd      = "2001:db8::203:0:113:fe"
 	advertisedRoutesv4CIDR = "203.0.113.1/32"
 	advertisedRoutesv6CIDR = "2001:db8::203:0:113:1/128"
-	peerGrpName            = "BGP-PEER-GROUP"
+	peerGrpNamev4          = "BGP-PEER-GROUP-V4"
+	peerGrpNamev6          = "BGP-PEER-GROUP-V6"
 	routeCount             = 254
 	dutAS                  = 64500
 	ateAS                  = 64501
@@ -171,37 +172,49 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
-	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
-	pg.PeerAs = ygot.Uint32(ateAS)
-	pg.PeerGroupName = ygot.String(peerGrpName)
+	pgv4 := bgp.GetOrCreatePeerGroup(peerGrpNamev4)
+	pgv4.PeerAs = ygot.Uint32(peerAs)
+	pgv4.PeerGroupName = ygot.String(peerGrpNamev4)
+	pgv6 := bgp.GetOrCreatePeerGroup(peerGrpNamev6)
+	pgv6.PeerAs = ygot.Uint32(peerAs)
+	pgv6.PeerGroupName = ygot.String(peerGrpNamev6)
 
-	if policy != "" && !*deviations.RoutePolicyUnderPeerGroup {
-		pg.GetOrCreateApplyPolicy().ImportPolicy = []string{policy}
-	}
 	for _, nbr := range nbrs {
 		if nbr.isV4 {
 			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv4.PeerGroup = ygot.String(peerGrpName)
+			nv4.PeerGroup = ygot.String(peerGrpNamev4)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
 			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(true)
 			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(false)
-			if *deviations.RoutePolicyUnderPeerGroup {
-				af4.GetOrCreateApplyPolicy().ImportPolicy = []string{policy}
+			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+				rpl := pgv4.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{policy}
+			} else {
+				pgafv4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+				pgafv4.Enabled = ygot.Bool(true)
+				rpl := pgafv4.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{policy}
 			}
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv6.PeerGroup = ygot.String(peerGrpName)
+			nv6.PeerGroup = ygot.String(peerGrpNamev6)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
 			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(true)
 			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(false)
-			if *deviations.RoutePolicyUnderPeerGroup {
-				af6.GetOrCreateApplyPolicy().ImportPolicy = []string{policy}
+			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+				rpl := pgv6.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{policy}
+			} else {
+				pgafv6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+				pgafv6.Enabled = ygot.Bool(true)
+				rpl := pgafv6.GetOrCreateApplyPolicy()
+				rpl.ImportPolicy = []string{policy}
 			}
 		}
 
@@ -350,12 +363,26 @@ func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 
 // verifyPolicyTelemetry confirms that the dut policy is set as expected.
 func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) {
-	if !*deviations.RoutePolicyUnderPeerGroup {
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		policytel := gnmi.Get(t, dut, statePath.PeerGroup(peerGrpName).ApplyPolicy().ImportPolicy().State())
+		policytel := gnmi.Get(t, dut, statePath.PeerGroup(peerGrpNamev4).ApplyPolicy().ImportPolicy().State())
 		for _, val := range policytel {
 			if val != policy {
 				t.Errorf("Apply policy mismatch: got %v, want %v", policytel, policy)
+			}
+		}
+	} else {
+		statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		policytelv4 := gnmi.Get(t, dut, statePath.PeerGroup(peerGrpNamev4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().State())
+		policytelv6 := gnmi.Get(t, dut, statePath.PeerGroup(peerGrpNamev6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().State())
+		for _, val := range policytelv4 {
+			if val != policy {
+				t.Errorf("Apply policy mismatch: got %v, want %v", policytelv4, policy)
+			}
+		}
+		for _, val := range policytelv6 {
+			if val != policy {
+				t.Errorf("Apply policy mismatch: got %v, want %v", policytelv6, policy)
 			}
 		}
 	}

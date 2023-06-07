@@ -6,12 +6,12 @@ Base BGP policy configuration and route installation.
 
 ## Procedure
 
-*   Establish BGP sessions between:
+*   Establish eBGP sessions between:
     *   ATE port-1 and DUT port-1
 *   For IPv4 and IPv6 routes:
     *   Advertise IPv4 prefixes over IPv4 neighbor from ATE port-1, observe received prefixes at ATE port-2.
     *   Similarly advertise IPv6 prefixes over IPv6 neighbor from ATE port-1, observe received prefixes at ATE port-2.
-    *   Specify table based policy configuration to cover:
+    *   Specify table based policy configuration under peer-group AFI to cover
         *   Default accept for policies.
         *   Default deny for policies.
         *   Explicitly specifying local preference.
