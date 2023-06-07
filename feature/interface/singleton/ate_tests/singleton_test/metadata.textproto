@@ -15,5 +15,6 @@ platform_exceptions: {
   }
   deviations: {
     ip_neighbor_missing: true
+    ipv4_missing_enabled: true
   }
 }
