@@ -40,19 +40,21 @@ images can be obtained by contacting Arista.
 kne create topologies/kne/arista/ceos/topology.textproto
 ```
 
-1. Run a sample test:
+2. Run a sample test:
 
 ```
 go test ./feature/system/tests/... -topology $PWD/topologies/kne/arista/ceos/topology.textproto -vendor_creds ARISTA/admin/admin
 ```
 
-1. Cleanup:
+3. Cleanup:
 
 ```
 kne delete topologies/kne/arista/ceos/topology.textproto
 ```
 
 ## Cisco 8000e
+
+> NOTE: `8000e` images require the host supports nested virtualization.
 
 Cisco `8000e` images can be obtained by contacting Cisco.
 
@@ -62,13 +64,13 @@ Cisco `8000e` images can be obtained by contacting Cisco.
 kne create topologies/kne/cisco/8000e/topology.textproto
 ```
 
-1. Run a sample test:
+2. Run a sample test:
 
 ```
 go test ./feature/system/tests/... -topology $PWD/topologies/kne/cisco/8000e/topology.textproto -vendor_creds CISCO/cisco/cisco123
 ```
 
-1. Cleanup:
+3. Cleanup:
 
 ```
 kne delete topologies/kne/cisco/8000e/topology.textproto
@@ -84,19 +86,21 @@ Cisco `XRD` images can be obtained by contacting Cisco.
 kne create topologies/kne/cisco/xrd/topology.textproto
 ```
 
-1. Run a sample test:
+2. Run a sample test:
 
 ```
 go test ./feature/system/tests/... -topology $PWD/topologies/kne/cisco/xrd/topology.textproto -vendor_creds CISCO/cisco/cisco123
 ```
 
-1. Cleanup:
+3. Cleanup:
 
 ```
 kne delete topologies/kne/cisco/xrd/topology.textproto
 ```
 
 ## Juniper CPTX
+
+> NOTE: `CPTX` images require the host supports nested virtualization.
 
 Juniper `CPTX` images can be obtained by contacting Juniper.
 
@@ -106,13 +110,13 @@ Juniper `CPTX` images can be obtained by contacting Juniper.
 kne create topologies/kne/juniper/cptx/topology.textproto
 ```
 
-1. Run a sample test:
+2. Run a sample test:
 
 ```
 go test ./feature/system/tests/... -topology $PWD/topologies/kne/juniper/cptx/topology.textproto -vendor_creds JUNIPER/root/Google123
 ```
 
-1. Cleanup:
+3. Cleanup:
 
 ```
 kne delete topologies/kne/juniper/cptx/topology.textproto
@@ -121,10 +125,7 @@ kne delete topologies/kne/juniper/cptx/topology.textproto
 ## Nokia SR Linux
 
 SR Linux images can be found
-[here](https://github.com/nokia/srlinux-container-image/pkgs/container/srlinux)
-and will require the
-[SRL Controller](https://github.com/srl-labs/srl-controller) to be installed on
-the KNE Kubernetes cluster.
+[here](https://github.com/nokia/srlinux-container-image/pkgs/container/srlinux).
 
 1. Create the topology:
 
@@ -132,13 +133,13 @@ the KNE Kubernetes cluster.
 kne create topologies/kne/nokia/srlinux/topology.textproto
 ```
 
-1. Run a sample test:
+2. Run a sample test:
 
 ```
 go test ./feature/system/tests/... -topology $PWD/topologies/kne/nokia/srlinux/topology.textproto -vendor_creds NOKIA/admin/NokiaSrl1!
 ```
 
-1. Cleanup:
+3. Cleanup:
 
 ```
 kne delete topologies/kne/nokia/srlinux/topology.textproto
