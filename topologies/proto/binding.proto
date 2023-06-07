@@ -110,6 +110,9 @@ message Options {
 
   // gRPC request timeout (second)
   int32 timeout = 7;
+
+  // gRPC dial option to set the maximum recv message size in bytes.
+  int32 max_recv_msg_size = 8;
 }
 
 // Port binding.
