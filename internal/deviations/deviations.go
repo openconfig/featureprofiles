@@ -431,8 +431,9 @@ func InterfaceConfigVRFBeforeAddress(_ *ondatra.DUTDevice) bool {
 }
 
 // ExplicitInterfaceRefDefinition returns if device requires explicit interface ref configuration when applying features to interface.
-func ExplicitInterfaceRefDefinition(_ *ondatra.DUTDevice) bool {
-	return *explicitInterfaceRefDefinition
+func ExplicitInterfaceRefDefinition(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_explicit_interface_ref_definition")
+	return lookupDUTDeviations(dut).GetExplicitInterfaceRefDefinition()
 }
 
 // QOSDroppedOctets returns if device should skip checking QOS Dropped octets stats for interface.
@@ -441,8 +442,9 @@ func QOSDroppedOctets(_ *ondatra.DUTDevice) bool {
 }
 
 // ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
-func ExplicitGRIBIUnderNetworkInstance(_ *ondatra.DUTDevice) bool {
-	return *explicitGRIBIUnderNetworkInstance
+func ExplicitGRIBIUnderNetworkInstance(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_explicit_gribi_under_network_instance")
+	return lookupDUTDeviations(dut).GetExplicitGribiUnderNetworkInstance()
 }
 
 // SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
@@ -509,8 +511,9 @@ func InterfaceRefConfigUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // StorageComponentUnsupported returns if telemetry path /components/component/storage is not supported.
-func StorageComponentUnsupported(_ *ondatra.DUTDevice) bool {
-	return *storageComponentUnsupported
+func StorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_storage_component_unsupported")
+	return lookupDUTDeviations(dut).GetStorageComponentUnsupported()
 }
 
 // Vendor deviation flags.
@@ -590,7 +593,7 @@ var (
 	_ = flag.Bool("deviation_isis_instance_enabled_not_required", false,
 		"Don't set isis instance enable flag on the device if value is true, Default value is false and instance enable flag is set")
 
-	explicitInterfaceRefDefinition = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
+	_ = flag.Bool("deviation_explicit_interface_ref_definition", false, "Device requires explicit interface ref configuration when applying features to interface")
 
 	_ = flag.Bool("deviation_no_mix_of_tagged_and_untagged_subinterfaces", false,
 		"Use this deviation when the device does not support a mix of tagged and untagged subinterfaces")
@@ -606,7 +609,7 @@ var (
 	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
 
-	explicitGRIBIUnderNetworkInstance = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
+	_ = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
 		"Device requires gribi-protocol to be enabled under network-instance.")
 
 	bgpMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
@@ -681,5 +684,5 @@ var (
 
 	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
-	storageComponentUnsupported = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
+	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
 )
