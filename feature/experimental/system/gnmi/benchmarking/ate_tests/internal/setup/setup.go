@@ -40,8 +40,7 @@ const (
 	ISISInstance = "DEFAULT"
 	// PeerGrpName is BGP peer group name.
 	PeerGrpName = "BGP-PEER-GROUP"
-	// PeerGrpEgressName is Egress port BGP peer group name.
-	PeerGrpEgressName = "BGP-PEER-GROUP-EGRESS"
+
 	// DUTAs is DUT AS.
 	DUTAs = 64500
 	// ATEAs is ATE AS.
@@ -134,16 +133,14 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
 	pdef.GetOrCreateStatement("id-1").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	rpl := pg.GetOrCreateApplyPolicy()
-	rpl.SetExportPolicy([]string{setALLOWPolicy})
-	rpl.SetImportPolicy([]string{setALLOWPolicy})
-
-	if *deviations.RoutePolicyUnderPeerGroup {
-		pg1 := bgp.GetOrCreatePeerGroup(PeerGrpEgressName)
-		pg1.PeerAs = ygot.Uint32(ATEAs)
-		pg1.PeerGroupName = ygot.String(PeerGrpEgressName)
-		afipg1 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-		afipg1.Enabled = ygot.Bool(true)
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		rpl := pg.GetOrCreateApplyPolicy()
+		rpl.SetExportPolicy([]string{setALLOWPolicy})
+		rpl.SetImportPolicy([]string{setALLOWPolicy})
+	} else {
+		rpl := afipg.GetOrCreateApplyPolicy()
+		rpl.SetExportPolicy([]string{setALLOWPolicy})
+		rpl.SetImportPolicy([]string{setALLOWPolicy})
 	}
 
 	// ISIS configs.
@@ -210,9 +207,6 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		if dp.ID() == "port1" {
 			nv4.PeerAs = ygot.Uint32(ATEAs2)
 		} else {
-			if *deviations.RoutePolicyUnderPeerGroup {
-				nv4.PeerGroup = ygot.String(PeerGrpEgressName)
-			}
 			nv4.PeerAs = ygot.Uint32(ATEAs)
 		}
 		nv4.Enabled = ygot.Bool(true)
