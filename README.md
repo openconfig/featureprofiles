@@ -43,7 +43,7 @@ kne create topologies/kne/arista/ceos/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -topology $PWD/topologies/kne/arista/ceos/topology.textproto -vendor_creds ARISTA/admin/admin
+go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/arista/ceos/topology.textproto -vendor_creds ARISTA/admin/admin
 ```
 
 3. Cleanup:
@@ -67,7 +67,7 @@ kne create topologies/kne/cisco/8000e/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -topology $PWD/topologies/kne/cisco/8000e/topology.textproto -vendor_creds CISCO/cisco/cisco123
+go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/cisco/8000e/topology.textproto -vendor_creds CISCO/cisco/cisco123
 ```
 
 3. Cleanup:
@@ -89,7 +89,7 @@ kne create topologies/kne/cisco/xrd/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -topology $PWD/topologies/kne/cisco/xrd/topology.textproto -vendor_creds CISCO/cisco/cisco123
+go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/cisco/xrd/topology.textproto -vendor_creds CISCO/cisco/cisco123
 ```
 
 3. Cleanup:
@@ -113,7 +113,7 @@ kne create topologies/kne/juniper/cptx/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -topology $PWD/topologies/kne/juniper/cptx/topology.textproto -vendor_creds JUNIPER/root/Google123
+go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/juniper/cptx/topology.textproto -vendor_creds JUNIPER/root/Google123
 ```
 
 3. Cleanup:
@@ -136,7 +136,7 @@ kne create topologies/kne/nokia/srlinux/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -topology $PWD/topologies/kne/nokia/srlinux/topology.textproto -vendor_creds NOKIA/admin/NokiaSrl1!
+go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/nokia/srlinux/topology.textproto -vendor_creds NOKIA/admin/NokiaSrl1!
 ```
 
 3. Cleanup:
