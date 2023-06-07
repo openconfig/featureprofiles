@@ -227,7 +227,7 @@ func (p *pullRequest) populateTestDetail(functionalTests []string) error {
 			return err
 		}
 		md := &mpb.Metadata{}
-		if err := prototext.Unmarshal(in, md); err != nil {
+		if err := (prototext.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(in, md); err != nil {
 			return err
 		}
 		for _, d := range virtualDeviceTypes {
