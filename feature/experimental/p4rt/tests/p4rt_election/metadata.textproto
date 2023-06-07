@@ -5,3 +5,13 @@ uuid: "73bf3d88-e5c1-4d30-9fae-f40b8363044f"
 plan_id: "P4RT-2.1"
 description: "P4RT Election"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_p4rt_node_component: true
+  }
+}
