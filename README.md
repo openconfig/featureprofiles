@@ -26,36 +26,99 @@ Tests below are implemented using the
 [ONDATRA](https://github.com/openconfig/ondatra) test framework with the
 [Kubernetes Network Emulation](https://github.com/openconfig/kne) binding.
 
-### Arista cEOS
+Before creating a topology, follow the
+[steps for deploying a cluster](https://github.com/openconfig/kne/blob/main/docs/create_topology.md#deploy-a-cluster).
+
+## Arista cEOS
 
 [Arista cEOS](https://www.arista.com/en/products/software-controlled-container-networking)
 images can be obtained by contacting Arista.
 
-Setup
+1. Create the topology:
 
 ```
-kne create topologies/kne/arista_ceos.textproto
-cat >topologies/kne/testbed.kne.yml << EOF
-username: admin
-password: admin
-topology: $PWD/topologies/kne/arista_ceos.textproto
-cli: $HOME/go/bin/kne
-EOF
+kne create topologies/kne/arista/ceos/topology.textproto
 ```
 
-Testing
+1. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -kne-config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
+go test ./feature/system/tests/... -topology $PWD/topologies/kne/arista/ceos/topology.textproto -vendor_creds ARISTA/admin/admin
 ```
 
-Cleanup
+1. Cleanup:
 
 ```
-kne delete topologies/kne/arista_ceos.textproto
+kne delete topologies/kne/arista/ceos/topology.textproto
 ```
 
-### Nokia SR-Linux
+## Cisco 8000e
+
+Cisco `8000e` images can be obtained by contacting Cisco.
+
+1. Create the topology:
+
+```
+kne create topologies/kne/cisco/8000e/topology.textproto
+```
+
+1. Run a sample test:
+
+```
+go test ./feature/system/tests/... -topology $PWD/topologies/kne/cisco/8000e/topology.textproto -vendor_creds CISCO/cisco/cisco123
+```
+
+1. Cleanup:
+
+```
+kne delete topologies/kne/cisco/8000e/topology.textproto
+```
+
+## Cisco XRD
+
+Cisco `XRD` images can be obtained by contacting Cisco.
+
+1. Create the topology:
+
+```
+kne create topologies/kne/cisco/xrd/topology.textproto
+```
+
+1. Run a sample test:
+
+```
+go test ./feature/system/tests/... -topology $PWD/topologies/kne/cisco/xrd/topology.textproto -vendor_creds CISCO/cisco/cisco123
+```
+
+1. Cleanup:
+
+```
+kne delete topologies/kne/cisco/xrd/topology.textproto
+```
+
+## Juniper CPTX
+
+Juniper `CPTX` images can be obtained by contacting Juniper.
+
+1. Create the topology:
+
+```
+kne create topologies/kne/juniper/cptx/topology.textproto
+```
+
+1. Run a sample test:
+
+```
+go test ./feature/system/tests/... -topology $PWD/topologies/kne/juniper/cptx/topology.textproto -vendor_creds JUNIPER/root/Google123
+```
+
+1. Cleanup:
+
+```
+kne delete topologies/kne/juniper/cptx/topology.textproto
+```
+
+## Nokia SR Linux
 
 SR Linux images can be found
 [here](https://github.com/nokia/srlinux-container-image/pkgs/container/srlinux)
@@ -63,31 +126,25 @@ and will require the
 [SRL Controller](https://github.com/srl-labs/srl-controller) to be installed on
 the KNE Kubernetes cluster.
 
-Setup
+1. Create the topology:
 
 ```
-kne create topologies/kne/nokia_srl.textproto
-cat >topologies/kne/testbed.kne.yml << EOF
-username: admin
-password: admin
-topology: $PWD/topologies/kne/nokia_srl.textproto
-cli: $HOME/go/bin/kne
-EOF
+kne create topologies/kne/nokia/srlinux/topology.textproto
 ```
 
-Testing
+1. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -kne-config $PWD/topologies/kne/testbed.kne.yml -testbed $PWD/topologies/dut.testbed
+go test ./feature/system/tests/... -topology $PWD/topologies/kne/nokia/srlinux/topology.textproto -vendor_creds NOKIA/admin/NokiaSrl1!
 ```
 
-Cleanup
+1. Cleanup:
 
 ```
-kne delete topologies/kne/nokia_srl.textproto
+kne delete topologies/kne/nokia/srlinux/topology.textproto
 ```
 
-### Static Binding (Experimental)
+## Static Binding (Experimental)
 
 The static binding supports ATE based testing with a real hardware device. It
 assumes that there is one ATE hooked up to one DUT in the testbed, and their

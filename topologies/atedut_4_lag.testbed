@@ -21,7 +21,6 @@ duts {
 
 ates {
   id: "ate"
-  vendor: IXIA
   ports {
     id: "port1"
   }
