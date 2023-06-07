@@ -5,3 +5,13 @@ uuid: "65aab5ff-2e76-4437-a77b-7ed10f663c5e"
 plan_id: "P4RT-7.2"
 description: "LLDP: PacketOut"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_p4rt_node_component: true
+  }
+}
