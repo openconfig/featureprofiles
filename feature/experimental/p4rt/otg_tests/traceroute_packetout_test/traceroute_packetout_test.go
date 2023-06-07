@@ -18,11 +18,12 @@ package traceroute_packetout_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"net"
 	"sort"
 	"testing"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -55,7 +56,7 @@ var (
 )
 
 func dMAC(t *testing.T, dut *ondatra.DUTDevice) string {
-	if !deviations.GRIBIMACOverrideWithStaticARP(dut) {
+	if !deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		return dstMAC
 	}
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), dstMAC)

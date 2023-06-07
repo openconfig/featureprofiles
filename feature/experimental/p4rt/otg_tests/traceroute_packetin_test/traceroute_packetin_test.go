@@ -19,9 +19,10 @@ package traceroute_packetin_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"testing"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -138,6 +139,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 }
 
 // configureATE configures port1 and port2 on the ATE.

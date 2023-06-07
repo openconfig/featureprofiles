@@ -5,3 +5,40 @@ uuid: "58c13a5a-d3b3-4a2c-98a7-0404596ee8ea"
 plan_id: "gNMI-1.10"
 description: "Telemetry: Basic Check"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    missing_interface_physical_channel: true
+    interface_counters_from_container: true
+    sw_version_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    interface_counters_from_container: true
+    explicit_p4rt_node_component: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    sw_version_unsupported: true
+  }
+}
