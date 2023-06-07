@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -322,17 +321,6 @@ func getIPinIPFlow(args *testArgs, src attrs.Attributes, dst attrs.Attributes, f
 	return flow
 }
 
-// waitOtgArpEntry waits until ARP entries are present on OTG interfaces
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
-
-	gnmi.WatchAll(t, otg, gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-
-}
-
 // testTrafficFlows verifies traffic for one or more flows.
 func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...gosnappi.Flow) {
 
@@ -342,9 +330,9 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 	}
 	args.ate.OTG().PushConfig(t, args.top)
 	args.ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
 
 	t.Logf("*** Starting traffic ...")
-	waitOTGARPEntry(t)
 	args.ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
 	t.Logf("*** Stop traffic ...")
