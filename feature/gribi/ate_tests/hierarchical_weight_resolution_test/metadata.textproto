@@ -26,5 +26,17 @@ platform_exceptions: {
   }
   deviations: {
     hierarchical_weight_resolution_tolerance: 0.31
+    explicit_interface_ref_definition: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_interface_ref_definition: true
+    explicit_gribi_under_network_instance: true
   }
 }

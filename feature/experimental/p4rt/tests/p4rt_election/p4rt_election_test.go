@@ -2,10 +2,11 @@ package p4rt_election_test
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"testing"
 	"time"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"

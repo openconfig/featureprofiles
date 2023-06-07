@@ -17,11 +17,12 @@ package binding
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"plugin"
 	"time"
+
+	"flag"
 
 	"github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/rundata"

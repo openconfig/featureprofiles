@@ -16,3 +16,13 @@ platform_exceptions: {
     secondary_backup_path_traffic_failover: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_gribi_under_network_instance: true
+  }
+}
