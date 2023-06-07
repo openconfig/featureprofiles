@@ -5,3 +5,26 @@ uuid: "93695155-2898-47d4-9bbb-ac40611d3882"
 plan_id: "TE-3.3"
 description: "Hierarchical weight resolution"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    hierarchical_weight_resolution_tolerance: 1.5
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    hierarchical_weight_resolution_tolerance: 0.31
+  }
+}
