@@ -450,7 +450,7 @@ func testCiscoECNConfig(t *testing.T) {
 				t.Errorf("scheduler.Priority().State(): got %v, want %v", got, want)
 			}
 		}
-		if got, want := gnmi.GetConfig(t, dut, input.Id().Config()), tc.inputID; got != want {
+		if got, want := gnmi.GetConfig(t, dut, input.Id().Config()), tc.queueName; got != want {
 			t.Errorf("input.Id().State(): got %v, want %v", got, want)
 		}
 
