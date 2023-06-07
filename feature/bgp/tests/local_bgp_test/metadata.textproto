@@ -14,6 +14,7 @@ platform_exceptions: {
     hardware_model: "xrd"
   }
   deviations: {
+    ipv4_missing_enabled: true
     missing_bgp_last_notification_error_code: true
   }
 }

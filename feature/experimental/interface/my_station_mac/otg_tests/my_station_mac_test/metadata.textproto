@@ -5,3 +5,15 @@ uuid: "fac966b2-292b-4c30-8160-d9e09e7057e0"
 plan_id: "TE-1.2"
 description: "My Station MAC"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}

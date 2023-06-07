@@ -5,3 +5,15 @@ uuid: "86aabaa0-1c61-4604-898b-eb4d5809b650"
 plan_id: "TE-5.1"
 description: "gRIBI Get RPC"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}

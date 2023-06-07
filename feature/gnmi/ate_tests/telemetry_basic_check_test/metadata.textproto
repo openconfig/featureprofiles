@@ -14,6 +14,7 @@ platform_exceptions: {
     hardware_model: "xrd"
   }
   deviations: {
+    ipv4_missing_enabled: true
     missing_interface_physical_channel: true
     interface_counters_from_container: true
     sw_version_unsupported: true

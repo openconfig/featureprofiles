@@ -5,3 +5,15 @@ uuid: "08d0704d-7a1e-411b-9536-9642b26b198f"
 plan_id: "TE-3.5"
 description: "Ordering: ACK Received"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
