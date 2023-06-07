@@ -5,3 +5,13 @@ uuid: "d90174d4-5764-4fdb-9610-031e7f8d2cfa"
 plan_id: "TE-15.1"
 description: "gRIBI Compliance"
 testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_gribi_under_network_instance: true
+  }
+}
