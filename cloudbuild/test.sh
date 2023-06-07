@@ -59,9 +59,7 @@ kne create /tmp/kne/"$topology"
 
 go test -v ./feature/system/tests/... \
   -timeout 0 \
-  -testbed "$PWD"/topologies/dut.testbed \
   -kne-topo /tmp/kne/"$topology" \
-  -kne-skip-reset \
   -vendor_creds "$vendor_creds"
 
 popd
