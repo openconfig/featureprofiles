@@ -977,11 +977,11 @@ func testQoSCiscoClassifierConfig(t *testing.T) {
 			return out
 		})
 
-		if tc.name == "dscp_based_classifier_ipv4" {
+		if tc.classType == oc.Qos_Classifier_Type_IPV4 {
 			if equal := cmp.Equal(gnmi.GetConfig(t, dut, condition.Ipv4().DscpSet().Config()), tc.dscpSet, trans); !equal {
 				t.Errorf("condition.Ipv4().DscpSet().State(): got %v, want %v", gnmi.GetConfig(t, dut, condition.Ipv4().DscpSet().Config()), tc.dscpSet)
 			}
-		} else if tc.name == "dscp_based_classifier_ipv6" {
+		} else if tc.classType == oc.Qos_Classifier_Type_IPV6 {
 			if equal := cmp.Equal(gnmi.GetConfig(t, dut, condition.Ipv6().DscpSet().Config()), tc.dscpSet, trans); !equal {
 				t.Errorf("condition.Ipv4().DscpSet().State(): got %v, want %v", gnmi.GetConfig(t, dut, condition.Ipv6().DscpSet().Config()), tc.dscpSet)
 			}
