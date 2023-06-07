@@ -253,6 +253,8 @@ type Metadata_Deviations struct {
 	PrepolicyReceivedRoutes bool `protobuf:"varint,4,opt,name=prepolicy_received_routes,json=prepolicyReceivedRoutes,proto3" json:"prepolicy_received_routes,omitempty"`
 	// Expected ucmp traffic tolerance. Minimum value is 0.2, anything less
 	// will be coerced to 0.2.
+	// Juniper: partnerissuetracker.corp.google.com/282234301
+	// Cisco: partnerissuetracker.corp.google.com/279477633
 	HierarchicalWeightResolutionTolerance float64 `protobuf:"fixed64,5,opt,name=hierarchical_weight_resolution_tolerance,json=hierarchicalWeightResolutionTolerance,proto3" json:"hierarchical_weight_resolution_tolerance,omitempty"`
 	// Device skip isis multi-topology check if value is true.
 	IsisMultiTopologyUnsupported bool `protobuf:"varint,6,opt,name=isis_multi_topology_unsupported,json=isisMultiTopologyUnsupported,proto3" json:"isis_multi_topology_unsupported,omitempty"`
@@ -301,20 +303,23 @@ type Metadata_Deviations struct {
 	// Juniper: partnerissuetracker.corp.google.com/279470921
 	StatePathUnsupported bool `protobuf:"varint,23,opt,name=state_path_unsupported,json=statePathUnsupported,proto3" json:"state_path_unsupported,omitempty"`
 	// Device requires Ipv6 to be enabled on interface for gRIBI NH programmed
-	// with destination mac address. Juniper:
-	// partnerissuetracker.corp.google.com/267642089
+	// with destination mac address.
+	// Juniper: partnerissuetracker.corp.google.com/267642089
 	Ipv6EnableForGribiNhDmac bool `protobuf:"varint,24,opt,name=ipv6_enable_for_gribi_nh_dmac,json=ipv6EnableForGribiNhDmac,proto3" json:"ipv6_enable_for_gribi_nh_dmac,omitempty"`
 	// Device requires additional config for ECN.
 	// Juniper: partnerissuetracker.corp.google.com/277657269
 	EcnProfileRequiredDefinition bool `protobuf:"varint,25,opt,name=ecn_profile_required_definition,json=ecnProfileRequiredDefinition,proto3" json:"ecn_profile_required_definition,omitempty"`
 	// Set true for device that does not support interface ipv6 discarded packet
-	// statistics. Juniper: partnerissuetracker.corp.google.com/277762075
+	// statistics.
+	// Juniper: partnerissuetracker.corp.google.com/277762075
 	Ipv6DiscardedPktsUnsupported bool `protobuf:"varint,26,opt,name=ipv6_discarded_pkts_unsupported,json=ipv6DiscardedPktsUnsupported,proto3" json:"ipv6_discarded_pkts_unsupported,omitempty"`
 	// Device does not support drop and weight leaves under queue management
-	// profile. Juniper: partnerissuetracker.corp.google.com/279471405
+	// profile.
+	// Juniper: partnerissuetracker.corp.google.com/279471405
 	DropWeightLeavesUnsupported bool `protobuf:"varint,27,opt,name=drop_weight_leaves_unsupported,json=dropWeightLeavesUnsupported,proto3" json:"drop_weight_leaves_unsupported,omitempty"`
 	// Device does not support traffic forward with secondary backup path
-	// failover. Juniper: partnerissuetracker.corp.google.com/279727552
+	// failover.
+	// Juniper: partnerissuetracker.corp.google.com/279727552
 	SecondaryBackupPathTrafficFailover bool `protobuf:"varint,28,opt,name=secondary_backup_path_traffic_failover,json=secondaryBackupPathTrafficFailover,proto3" json:"secondary_backup_path_traffic_failover,omitempty"`
 	// Set to true for device in which config pushed through origin CLI takes
 	// precedence over config pushed through origin OC.
@@ -326,7 +331,8 @@ type Metadata_Deviations struct {
 	// Juniper: partnerissuetracker.corp.google.com/277134501
 	SwitchChipIdUnsupported bool `protobuf:"varint,31,opt,name=switch_chip_id_unsupported,json=switchChipIdUnsupported,proto3" json:"switch_chip_id_unsupported,omitempty"`
 	// Device does not support backplane-facing-capacity leaves for some of the
-	// components. Juniper: partnerissuetracker.corp.google.com/277134501
+	// components.
+	// Juniper: partnerissuetracker.corp.google.com/277134501
 	BackplaneFacingCapacityUnsupported bool `protobuf:"varint,32,opt,name=backplane_facing_capacity_unsupported,json=backplaneFacingCapacityUnsupported,proto3" json:"backplane_facing_capacity_unsupported,omitempty"`
 	// Device only supports querying counters from the state container, not from
 	// individual counter leaves.
@@ -346,6 +352,7 @@ type Metadata_Deviations struct {
 	ExplicitInterfaceRefDefinition bool `protobuf:"varint,38,opt,name=explicit_interface_ref_definition,json=explicitInterfaceRefDefinition,proto3" json:"explicit_interface_ref_definition,omitempty"`
 	// Set to true for device that does not support telemetry path
 	// /components/component/storage.
+	// Juniper: partnerissuetracker.corp.google.com/284239001
 	StorageComponentUnsupported bool `protobuf:"varint,39,opt,name=storage_component_unsupported,json=storageComponentUnsupported,proto3" json:"storage_component_unsupported,omitempty"`
 	// Device requires gribi-protocol to be enabled under network-instance.
 	ExplicitGribiUnderNetworkInstance bool `protobuf:"varint,40,opt,name=explicit_gribi_under_network_instance,json=explicitGribiUnderNetworkInstance,proto3" json:"explicit_gribi_under_network_instance,omitempty"`
