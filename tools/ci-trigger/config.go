@@ -120,4 +120,5 @@ var commentTpl = template.Must(template.New("commentTpl").Funcs(template.FuncMap
 
 {{ end }}{{ if and (not .Virtual) (not .Physical) }}
 No tests identified for validation.
-{{ end }}`))
+{{ end }}
+[Help](https://gist.github.com/OpenConfigBot/7dadd09b7c3133c9d8bc0d08fcb19b46)`))
