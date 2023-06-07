@@ -40,7 +40,8 @@ const (
 	ISISInstance = "DEFAULT"
 	// PeerGrpName is BGP peer group name.
 	PeerGrpName = "BGP-PEER-GROUP"
-
+	// PeerGrpEgressName is Egress port BGP peer group name.
+	PeerGrpEgressName = "BGP-PEER-GROUP-EGRESS"
 	// DUTAs is DUT AS.
 	DUTAs = 64500
 	// ATEAs is ATE AS.
