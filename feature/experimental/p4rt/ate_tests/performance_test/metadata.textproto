@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "65aab5ff-2e76-4437-a77b-7ed10f663c5e"
-plan_id: "P4RT-7.2"
-description: "LLDP: PacketOut"
+uuid: "44fb709e-fc15-4285-94cf-cb6b9dc19d1a"
+plan_id: "P4RT-6.1"
+description: "Required Packet I/O rate: Performance"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {

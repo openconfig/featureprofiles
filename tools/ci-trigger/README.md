@@ -84,7 +84,7 @@ docker push us-west1-docker.pkg.dev/disco-idea-817/featureprofiles-ci/featurepro
 To deploy the container into the project:
 
 ```
-gcloud run deploy featureprofiles-ci-trigger --region us-west1 --image us-west1-docker.pkg.dev/disco-idea-817/featureprofiles-ci/featureprofiles-ci-trigger:latest
+gcloud run deploy featureprofiles-ci-trigger --memory 1G --region us-west1 --image us-west1-docker.pkg.dev/disco-idea-817/featureprofiles-ci/featureprofiles-ci-trigger:latest
 ```
 
 Allow for background CPU and a minimum instance count for pubsub pull to continue processing.

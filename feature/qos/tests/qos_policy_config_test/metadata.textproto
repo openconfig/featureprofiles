@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "3265f4c7-79eb-408e-ac89-f92f56fea4a9"
-plan_id: "TE-2.1"
-description: "gRIBI IPv4 Entry"
-testbed: TESTBED_DUT_ATE_4LINKS
+uuid: "b1da9742-66f5-460d-860b-58ab3f5c34f3"
+plan_id: "DP-1.2"
+description: "QoS policy feature config"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
@@ -13,6 +13,7 @@ platform_exceptions: {
     hardware_model: "cptx"
   }
   deviations: {
-    ipv6_enable_for_gribi_nh_dmac: true
+    state_path_unsupported: true
+    drop_weight_leaves_unsupported: true
   }
 }
