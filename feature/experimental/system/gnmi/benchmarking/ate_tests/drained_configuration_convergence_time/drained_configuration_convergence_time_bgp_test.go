@@ -52,17 +52,13 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setMEDPolicy)
 	actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
-	// TODO: Below code will be uncommented once configuring MED in DUT as referred in below issue is supported.
-	// Ref: https://github.com/openconfig/featureprofiles/issues/759
-	// setMedBGP := actions5.GetOrCreateBgpActions().GetOrCreateSetMed()
-	// setMedBGP.SetMed = ygot.Uint32(bgpMED)
-	actions5.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(100)
+	setMedBGP := actions5.GetOrCreateBgpActions()
+	setMedBGP.SetMed = oc.UnionUint32(bgpMED)
 
-	if *deviations.RoutePolicyUnderPeerGroup {
-		pd := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
-		st := pd.GetOrCreateStatement("id-1")
-		st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	}
+	// Configure Allow policy
+	pd := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
+	st := pd.GetOrCreateStatement("id-1")
+	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -79,12 +75,7 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	aspend.Asn = ygot.Uint32(setup.DUTAs)
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
 
-	if *deviations.RoutePolicyUnderPeerGroup {
-		pd := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
-		st := pd.GetOrCreateStatement("id-1")
-		st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	}
-
+	// Configure Allow policy
 	pdef := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
 	pdef.GetOrCreateStatement("id-1").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -101,34 +92,25 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 
 func setPolicyPeerGroup(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, policy []string) {
 
+	// Set BGP Import policy
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	bgp := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
-	pg := bgp.GetOrCreatePeerGroup(setup.PeerGrpEgressName)
+	pg := bgp.GetOrCreatePeerGroup(setup.PeerGrpName)
 	pg.PeerAs = ygot.Uint32(setup.ATEAs)
-	pg.PeerGroupName = ygot.String(setup.PeerGrpEgressName)
+	pg.PeerGroupName = ygot.String(setup.PeerGrpName)
 	afipg := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	afipg.Enabled = ygot.Bool(true)
-	pgpolicy := afipg.GetOrCreateApplyPolicy()
-	pgpolicy.ExportPolicy = policy
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpEgressName).Config(), pg)
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		pgpolicy := pg.GetOrCreateApplyPolicy()
+		pgpolicy.ImportPolicy = policy
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).Config(), pg)
 
-	pg1 := bgp.GetOrCreatePeerGroup(setup.PeerGrpName)
-	pg1.PeerAs = ygot.Uint32(setup.ATEAs)
-	pg1.PeerGroupName = ygot.String(setup.PeerGrpName)
-	afipg1 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	afipg1.Enabled = ygot.Bool(true)
-	pgpolicy1 := afipg1.GetOrCreateApplyPolicy()
-	pgpolicy1.ImportPolicy = []string{setALLOWPolicy}
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).Config(), pg1)
+	} else {
+		pgpolicy := afipg.GetOrCreateApplyPolicy()
+		pgpolicy.ImportPolicy = policy
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).Config(), pg)
 
-}
-
-func deletePolicyPeerGroup(t *testing.T, dut *ondatra.DUTDevice) {
-
-	dutExportPolicyPathDest := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpEgressName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ExportPolicy()
-	dutImportPolicyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy()
-	gnmi.Delete(t, dut, dutImportPolicyPath.Config())
-	gnmi.Delete(t, dut, dutExportPolicyPathDest.Config())
+	}
 }
 
 // isConverged function is used to check if ATE has received all the prefixes.
@@ -159,13 +141,20 @@ prefixLoop:
 // verifyBGPAsPath is to Validate AS Path attribute using bgp rib telemetry on ATE.
 func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 
-	dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
-		PeerGroup(setup.PeerGrpName).ApplyPolicy().ExportPolicy()
-
 	// Start the timer.
 	start := time.Now()
-	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setASpathPrependPolicy})
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
+			PeerGroup(setup.PeerGrpName).ApplyPolicy().ExportPolicy()
+
+		gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setASpathPrependPolicy})
+	} else {
+		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
+			PeerGroup(setup.PeerGrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ExportPolicy()
+		gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setASpathPrependPolicy})
+	}
 	t.Run("BGP-AS-PATH Verification", func(t *testing.T) {
 		at := gnmi.OC()
 		for _, ap := range ate.Ports() {
@@ -205,26 +194,28 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 // verifyBGPSetMED is to Validate MED attribute using bgp rib telemetry on ATE.
 func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 
-	dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
-		PeerGroup(setup.PeerGrpName).ApplyPolicy().ExportPolicy()
-
-	// TODO: Below code will be uncommented once configuring MED in DUT as referred in below issue is supported.
-	// Ref: https://github.com/openconfig/featureprofiles/issues/759
 	// Build wantSetMED to compare the diff.
-	// var wantSetMED []uint32
-	// for i := 0; i < setup.RouteCount; i++ {
-	// wantSetMED = append(wantSetMED, bgpMED)
-	// }
+	var wantSetMED []uint32
+	for i := 0; i < setup.RouteCount; i++ {
+		wantSetMED = append(wantSetMED, bgpMED)
+	}
 
 	// Start the timer.
 	start := time.Now()
-	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setMEDPolicy})
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
+			PeerGroup(setup.PeerGrpName).ApplyPolicy().ExportPolicy()
+		gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setMEDPolicy})
+	} else {
+		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
+			PeerGroup(setup.PeerGrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ExportPolicy()
+		gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setMEDPolicy})
+	}
 
 	t.Run("BGP-MED-Verification", func(t *testing.T) {
-		// TODO: Below code will be uncommented once SetMED is supported.
-		// Ref: https://github.com/openconfig/featureprofiles/issues/759
-		// at := gnmi.OC()
+		at := gnmi.OC()
 		for _, ap := range ate.Ports() {
 			if ap.ID() == "port1" {
 				continue
@@ -232,18 +223,14 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 
 			// Validate if all prefixes are received by ATE.
 			isConverged(t, dut, ate, ap)
-
-			// TODO: Below code will be uncommented once configuring MED in DUT as referred in below issue is supported.
-			// Ref: https://github.com/openconfig/featureprofiles/issues/759
-
-			// rib := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "0").Bgp().Rib()
-			// prefixPath := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
-			// NeighborAny().AdjRibInPre().RouteAny().WithPathId(0).Prefix()
-			// pref := gnmi.GetAll(t, ate, prefixPath.State())
-			// gotSetMED := gnmi.GetAll(t, ate, rib.AttrSetAny().Med().State())
-			// if diff := cmp.Diff(wantSetMED, gotSetMED); diff != "" {
-			// t.Errorf("obtained MED on ATE is not as expected, got %v, want %v, Prefixes %v", gotSetMED, wantSetMED, pref)
-			// }
+			rib := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "0").Bgp().Rib()
+			prefixPath := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
+				NeighborAny().AdjRibInPre().RouteAny().WithPathId(0).Prefix()
+			pref := gnmi.GetAll(t, ate, prefixPath.State())
+			gotSetMED := gnmi.GetAll(t, ate, rib.AttrSetAny().Med().State())
+			if diff := cmp.Diff(wantSetMED, gotSetMED); diff != "" {
+				t.Errorf("obtained MED on ATE is not as expected, got %v, want %v, Prefixes %v", gotSetMED, wantSetMED, pref)
+			}
 		}
 	})
 	// End the timer and calculate time taken to apply setMED.
@@ -290,35 +277,43 @@ func TestBGPBenchmarking(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	// Cleanup existing policy details.
-	dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).ApplyPolicy()
-	gnmi.Delete(t, dut, dutPolicyConfPath.ExportPolicy().Config())
-	gnmi.Delete(t, dut, dutPolicyConfPath.ImportPolicy().Config())
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).ApplyPolicy()
+		gnmi.Delete(t, dut, dutPolicyConfPath.ExportPolicy().Config())
+		gnmi.Delete(t, dut, dutPolicyConfPath.ImportPolicy().Config())
+	} else {
+		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+		gnmi.Delete(t, dut, dutPolicyConfPath.ExportPolicy().Config())
+		gnmi.Delete(t, dut, dutPolicyConfPath.ImportPolicy().Config())
+	}
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
 
 	t.Logf("Configure MED routing policy.")
 	setMED(t, dut, d)
 
-	if *deviations.RoutePolicyUnderPeerGroup {
-		setPolicyPeerGroup(t, dut, d, []string{setMEDPolicy})
-	}
+	t.Logf("Configure Allow Import routing policy in BGP.")
+	setPolicyPeerGroup(t, dut, d, []string{setALLOWPolicy})
 
 	t.Logf("Verify time taken to apply MED to all routes in bgp rib.")
 	verifyBGPSetMED(t, dut, ate)
 
-	if *deviations.RoutePolicyUnderPeerGroup {
-		deletePolicyPeerGroup(t, dut)
-	}
-
 	// Cleanup existing policy details.
-	gnmi.Delete(t, dut, dutPolicyConfPath.ExportPolicy().Config())
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).ApplyPolicy()
+		gnmi.Delete(t, dut, dutPolicyConfPath.ExportPolicy().Config())
+		gnmi.Delete(t, dut, dutPolicyConfPath.ImportPolicy().Config())
+	} else {
+		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(setup.PeerGrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+		gnmi.Delete(t, dut, dutPolicyConfPath.ExportPolicy().Config())
+		gnmi.Delete(t, dut, dutPolicyConfPath.ImportPolicy().Config())
+	}
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
 
 	t.Logf("Configure SET-AS-PATH routing policy.")
 	setASPath(t, dut, d)
 
-	if *deviations.RoutePolicyUnderPeerGroup {
-		setPolicyPeerGroup(t, dut, d, []string{setASpathPrependPolicy})
-	}
+	t.Logf("Configure Allow Import routing policy in BGP.")
+	setPolicyPeerGroup(t, dut, d, []string{setALLOWPolicy})
 
 	t.Logf("Verify time taken to apply SET-AS-PATH to all routes in bgp rib.")
 	verifyBGPAsPath(t, dut, ate)
