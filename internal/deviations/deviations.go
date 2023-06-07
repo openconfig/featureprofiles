@@ -493,12 +493,7 @@ func StorageComponentUnsupported(_ *ondatra.DUTDevice) bool {
 // PlatformPowerEnableWait returns timer value to wait while platform is powered on.
 // Default value is 0.
 func PlatformPowerEnableWait(dut *ondatra.DUTDevice) int64 {
-	ppewait := lookupDUTDeviations(dut).GetPlatformPowerEnableWait()
-	var min_ppwewait int64 = 0
-	if ppewait > min_ppwewait {
-		return ppewait
-	}
-	return min_ppwewait
+	return lookupDUTDeviations(dut).GetPlatformPowerEnableWait()
 }
 
 // PlatformPowerDownUpFabricSkip returns whether the device should skip the Platform Power Down Up for Fabric Card.
