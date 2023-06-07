@@ -28,6 +28,7 @@ platform_exceptions: {
     hardware_model: "xrd"
   }
   deviations: {
+    ipv4_missing_enabled: true
     isis_interface_level1_disable_required: true
     isis_single_topology_required: true
     isis_protocol_enabled_not_required: true

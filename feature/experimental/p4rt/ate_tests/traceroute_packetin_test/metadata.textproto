@@ -5,3 +5,13 @@ uuid: "5a5491b5-9900-4a05-b289-43feb1ceb814"
 plan_id: "P4RT-5.1"
 description: "Traceroute: PacketIn"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_p4rt_node_component: true
+  }
+}

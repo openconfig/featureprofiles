@@ -5,3 +5,15 @@ uuid: "df5626eb-4199-4c68-bb62-1735ba682fa2"
 plan_id: "OC-1.2"
 description: "Default Address Families"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
