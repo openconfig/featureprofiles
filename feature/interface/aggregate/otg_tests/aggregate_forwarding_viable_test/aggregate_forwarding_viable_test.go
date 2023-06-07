@@ -352,6 +352,7 @@ func (tc *testArgs) configureATE(t *testing.T) {
 		}
 	} else {
 		agg.Protocol().SetChoice("lacp")
+		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(ateDst.MAC)
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateDst.MAC, i+1)

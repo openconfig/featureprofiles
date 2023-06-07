@@ -5,3 +5,26 @@ uuid: "562b09f5-05f6-4523-9bb2-c0b4a32310fe"
 plan_id: "gNOI-4.1"
 description: "Software Upgrade"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    sw_version_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    sw_version_unsupported: true
+  }
+}
