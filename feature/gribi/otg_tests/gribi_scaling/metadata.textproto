@@ -7,6 +7,18 @@ description: "gRIBI Scaling"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
     hardware_model: "7250-ixr10e"
     hardware_model: "ixr10"

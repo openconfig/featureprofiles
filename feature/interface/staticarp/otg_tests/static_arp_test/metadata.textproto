@@ -5,3 +5,15 @@ uuid: "8b86a8fd-3d9d-47a4-b607-79a3acd496ee"
 plan_id: "TE-1.1"
 description: "Static ARP"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
