@@ -162,6 +162,13 @@ message Metadata {
     bool storage_component_unsupported = 39;
     // Device requires gribi-protocol to be enabled under network-instance.
     bool explicit_gribi_under_network_instance = 40;
+    // Device requires port-speed to be set because its default value may not be
+    // usable.
+    bool explicit_port_speed = 41;
+    // Device requires explicit attachment of an interface or subinterface to
+    // the default network instance.
+    // Nokia: partnerissuetracker.corp.google.com/260928639
+    bool explicit_interface_in_default_vrf = 42;
   }
 
   message PlatformExceptions {

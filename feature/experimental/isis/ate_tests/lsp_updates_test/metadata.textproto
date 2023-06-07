@@ -15,6 +15,8 @@ platform_exceptions: {
     isis_interface_level1_disable_required: true
     isis_instance_enabled_not_required: true
     missing_isis_interface_afi_safi_enable: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
   }
 }
 platform_exceptions: {
