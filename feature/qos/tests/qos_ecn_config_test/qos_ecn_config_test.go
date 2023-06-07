@@ -263,7 +263,6 @@ func testCiscoECNConfig(t *testing.T) {
 		q1.Name = ygot.String(queue)
 		queueid := len(queueName) - i
 		q1.QueueId = ygot.Uint8(uint8(queueid))
-
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
