@@ -5,3 +5,13 @@ uuid: "ac89b122-9979-432f-aa82-363308c56a67"
 plan_id: "TE-11.1"
 description: "Backup NHG: Single NH"
 testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_gribi_under_network_instance: true
+  }
+}

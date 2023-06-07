@@ -5,3 +5,24 @@ uuid: "8e6a4bdd-7e4e-4c2a-90d8-55f3543f9e99"
 plan_id: "DP-1.11"
 description: "Bursty traffic test"
 testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    explicit_interface_ref_definition: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_interface_ref_definition: true
+  }
+}

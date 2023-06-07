@@ -5,3 +5,13 @@ uuid: "ac980b1f-2139-48c1-8146-37a25d3eb980"
 plan_id: "P4RT-1.1"
 description: "Base P4RT Functionality"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_p4rt_node_component: true
+  }
+}
