@@ -486,6 +486,11 @@ func StorageComponentUnsupported(_ *ondatra.DUTDevice) bool {
 	return *storageComponentUnsupported
 }
 
+// ParentInterfaceRouted returns if device needs parent interface to be routed for non-zero sub-interfaces.
+func ParentInterfaceRouted(_ *ondatra.DUTDevice) bool {
+	return *parentInterfaceRouted
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -658,4 +663,6 @@ var (
 	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
 	storageComponentUnsupported = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
+
+	parentInterfaceRouted = flag.Bool("deviation_parent_interface_routed", false, "Set to true for a device that needs parent interface to be routed for non-zero sub-interfaces")
 )
