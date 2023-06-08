@@ -263,6 +263,7 @@ func testCiscoECNConfig(t *testing.T) {
 		q1.Name = ygot.String(queue)
 		queueid := len(queueName) - i
 		q1.QueueId = ygot.Uint8(uint8(queueid))
+
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
@@ -341,7 +342,7 @@ func testCiscoECNConfig(t *testing.T) {
 			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
 			s.SetSequence(tc.sequence)
 			s.SetPriority(tc.priority)
-			input := s.GetOrCreateInput(tc.inputID)
+			input := s.GetOrCreateInput(tc.queueName)
 			input.SetId(tc.queueName)
 			input.SetInputType(tc.inputType)
 			input.SetQueue(tc.queueName)
@@ -439,7 +440,7 @@ func testCiscoECNConfig(t *testing.T) {
 	for _, tc := range cases {
 		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
 		scheduler := gnmi.OC().Qos().SchedulerPolicy("scheduler").Scheduler(tc.sequence)
-		input := scheduler.Input(tc.inputID)
+		input := scheduler.Input(tc.queueName)
 
 		if got, want := gnmi.GetConfig(t, dut, scheduler.Sequence().Config()), tc.sequence; got != want {
 			t.Errorf("scheduler.Sequence().State(): got %v, want %v", got, want)
