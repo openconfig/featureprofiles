@@ -1,0 +1,158 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+
+# These options are inherited throughout the entire binding for both the
+# DUT and the ATE, unless overridden by a specific device or protocol.
+
+#
+#router static
+# address-family ipv4 unicast
+#  5.0.0.0/8 5.78.0.1
+#  223.0.0.0/8 5.78.0.1
+# !
+
+#interface MgmtEth0/RP0/CPU0/0
+# ipv4 address 5.78.24.106 255.255.0.0
+# no shut
+#!
+#interface MgmtEth0/RP1/CPU0/0
+# ipv4 address 5.78.24.107 255.255.0.0
+# no shut
+#!
+
+#ipv4 virtual address 5.78.24.105/16
+
+#telnet: R1 -  
+# RP1 telnet 10.85.84.51 2015
+# RP2 telnet 10.85.84.51 2016
+
+##Exec server:
+#ssh ott2lab-as3
+
+## Consoe server:
+# telnet 10.85.84.51
+# Pass1: lab
+# Pass2: roZes!23
+
+# Username: cafyauto
+# Password: cisco123
+
+
+duts {
+  id: "dut"
+  name: "DUT"  # Change this to the device hostname.
+   config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+   gnoi{
+     target: "10.85.84.159:57900"
+   }
+   gnmi {
+     target: "10.85.84.159:57900"
+   }
+   gribi{
+     target: "10.85.84.159:57900"
+   }
+   p4rt{
+     target: "10.85.84.159:57900"
+   }
+   ssh{
+     target: "10.85.84.159:57902"
+   }
+   # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "TenGigE0/6/0/2/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "TenGigE0/6/0/2/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "TenGigE0/6/0/2/2"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "TenGigE0/5/0/34/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "TenGigE0/5/0/0/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "TenGigE0/0/0/2/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "TenGigE0/5/0/0/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port8"
+    name: "TenGigE0/5/0/34/1"  # Change this to the actual port name.
+  }
+}
+
+ates {
+  id: "ate"
+  name: "10.85.84.155"  # Change this to the Ixia chassis name.
+
+  ixnetwork {
+    target: "10.85.84.119"
+    skip_verify: true
+    username: "admin"
+    password: "admin"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "7/3"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "7/4"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "7/5"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "7/15"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "7/13"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "7/8"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "7/14"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port8"
+    name: "7/16"  # Change this to the actual port name.
+  }
+} 
