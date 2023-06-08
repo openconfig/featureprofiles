@@ -23,6 +23,11 @@ testbeds:
     overrides:
       TRANSIT_WECMP (CD2 TC):
         binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1-transit-wecmp.proto
+  - id: 8808-36FH_FOX2504P3CE_fury
+    owner: mananpat
+    testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/fury.testbed
+    binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/fury.binding
+    baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
   - id: 8201-32FH_FLM254206E7
     owner: kjahed
     testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
@@ -109,6 +114,11 @@ testbeds:
     owner: mananpat
     testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE_OTG/otg.testbed
     binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE_OTG/otg.binding
+    baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+  - id: 8808-36FH_FOX2504P3CE_OTG_fury
+    owner: mananpat
+    testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE_OTG/fury.testbed
+    binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE_OTG/fury.binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
   - id: 8201-32FH_FLM253900HJ_OTG
     owner: arvbaska
