@@ -689,8 +689,8 @@ var (
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 
 	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
-  
+
 	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
-  
+
 	gnoiFabricComponentRebootUnsupported = flag.Bool("deviation_gnoi_fabric_component_reboot_unsupported", false, "Set true if the device does not support using gNOI to reboot the Fabric Component.")
 )
