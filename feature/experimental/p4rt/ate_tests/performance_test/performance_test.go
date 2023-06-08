@@ -719,18 +719,6 @@ func packetTracerouteRequestGet(ttl uint8, seq int) ([]byte, error) {
 		Seq:      uint16(seq),
 	}
 
-	pktIpv6 := &layers.IPv6{
-		Version:    6,
-		HopLimit:   ttl,
-		NextHeader: layers.IPProtocolICMPv6,
-		SrcIP:      net.ParseIP(dutPort1.IPv6).To16(),
-		DstIP:      net.ParseIP(atePort1.IPv6).To16(),
-	}
-	pktICMP6 := &layers.ICMPv6{
-		TypeCode: layers.CreateICMPv6TypeCode(layers.ICMPv6TypeEchoRequest, 0),
-	}
-	pktICMP6.SetNetworkLayerForChecksum(pktIpv6)
-
 	for i := 0; i < payLoadLen; i++ {
 		payload = append(payload, byte(i))
 	}
