@@ -17,29 +17,24 @@ set -xe
 
 case $1 in
   arista_ceos)
-    topology=arista_ceos.textproto
+    topology=arista/ceos/dutate.textproto
     vendor_creds=ARISTA/admin/admin
-    deviations=
     ;;
   juniper_cptx)
-    topology=juniper_cptx.textproto
+    topology=juniper/cptx/dutate.textproto
     vendor_creds=JUNIPER/root/Google123
-    deviations="-deviation_cli_takes_precedence_over_oc=true"
     ;;
   cisco_8000e)
-    topology=cisco_8000e.textproto
+    topology=cisco/8000e/dutate.textproto
     vendor_creds=CISCO/cisco/cisco123
-    deviations=
     ;;
   cisco_xrd)
-    topology=cisco_xrd.textproto
+    topology=cisco/xrd/dutate.textproto
     vendor_creds=CISCO/cisco/cisco123
-    deviations=
     ;;
   nokia_srlinux)
-    topology=nokia_srlinux.textproto
+    topology=nokia/srlinux/dutate.textproto
     vendor_creds=NOKIA/admin/NokiaSrl1!
-    deviations=
     ;;
   :)
     echo "Model $1 not valid"
@@ -51,7 +46,7 @@ export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-pushd /tmp/workspace
+pushd /tmp/featureprofiles
 
 cp -r "$PWD"/topologies/kne /tmp
 sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/kne/"$topology"
@@ -64,10 +59,7 @@ kne create /tmp/kne/"$topology"
 
 go test -v ./feature/system/tests/... \
   -timeout 0 \
-  -testbed "$PWD"/topologies/dut.testbed \
   -kne-topo /tmp/kne/"$topology" \
-  -kne-skip-reset \
-  -vendor_creds "$vendor_creds" \
-  "$deviations"
+  -vendor_creds "$vendor_creds"
 
 popd

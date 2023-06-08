@@ -15,5 +15,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_ref_config_unsupported: true
+    ipv4_missing_enabled: true
   }
 }
