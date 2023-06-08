@@ -620,7 +620,9 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 				dutDropPktCounterDiff := counters["dutQosDroppedPktsAfterTraffic"][data.queue] - counters["dutQosDroppedPktsBeforeTraffic"][data.queue]
 				t.Logf("Queue %q: ateDropPktCounterDiff: %v dutDropPktCounterDiff: %v", data.queue, ateDropPktCounterDiff, dutDropPktCounterDiff)
 				if dutDropPktCounterDiff < ateDropPktCounterDiff {
-					t.Errorf("Get dutDropPktCounterDiff for queue %q: got %v, want >= %v", data.queue, dutDropPktCounterDiff, ateDropPktCounterDiff)
+					if !deviations.DequeueDeleteNotCountedAsDrops(dut) {
+						t.Errorf("Get dutDropPktCounterDiff for queue %q: got %v, want >= %v", data.queue, dutDropPktCounterDiff, ateDropPktCounterDiff)
+					}
 				}
 
 				dutOctetCounterDiff := counters["dutQosOctetsAfterTraffic"][data.queue] - counters["dutQosOctetsBeforeTraffic"][data.queue]
@@ -634,7 +636,9 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 					dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
 					t.Logf("Queue %q: ateDropOctetCounterDiff: %v dutDropOctetCounterDiff: %v", data.queue, ateDropOctetCounterDiff, dutDropOctetCounterDiff)
 					if dutDropOctetCounterDiff < ateDropOctetCounterDiff {
-						t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutDropOctetCounterDiff, ateDropOctetCounterDiff)
+						if !deviations.DequeueDeleteNotCountedAsDrops(dut) {
+							t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutDropOctetCounterDiff, ateDropOctetCounterDiff)
+						}
 					}
 				}
 			}
