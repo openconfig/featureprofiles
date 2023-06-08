@@ -217,8 +217,7 @@ func TestLinecardReboot(t *testing.T) {
 	// TODO: Check the line card uptime has been reset.
 }
 
-
-//Reboot the fabric component on the DUT.
+// Reboot the fabric component on the DUT.
 func TestFabricReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	if deviations.GNOIFabricComponentRebootUnsupported(dut) {
@@ -251,7 +250,7 @@ func TestFabricReboot(t *testing.T) {
 	// Fetch list of interfaces which are up prior to fabric component reboot.
 	intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
 	t.Logf("OperStatusUP interfaces before reboot: %v", intfsOperStatusUPBeforeReboot)
-	
+
 	// Fetch a new gnoi client.
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
