@@ -415,15 +415,17 @@ func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
 
 // ExplicitPortSpeed returns if device requires port-speed to be set because its default value may not be usable.
 // Fully compliant devices selects the highest speed available based on negotiation.
-func ExplicitPortSpeed(_ *ondatra.DUTDevice) bool {
-	return *explicitPortSpeed
+func ExplicitPortSpeed(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_explicit_port_speed")
+	return lookupDUTDeviations(dut).GetExplicitPortSpeed()
 }
 
 // ExplicitInterfaceInDefaultVRF returns if device requires explicit attachment of an interface or subinterface to the default network instance.
 // OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance.
 // Fully-compliant devices should pass with and without this deviation.
-func ExplicitInterfaceInDefaultVRF(_ *ondatra.DUTDevice) bool {
-	return *explicitInterfaceInDefaultVRF
+func ExplicitInterfaceInDefaultVRF(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_explicit_interface_in_default_vrf")
+	return lookupDUTDeviations(dut).GetExplicitInterfaceInDefaultVrf()
 }
 
 // InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
@@ -562,10 +564,10 @@ var (
 
 	deprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
-	explicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
+	_ = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 
-	explicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
+	_ = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
 	_ = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
 
