@@ -21,23 +21,18 @@ readonly dut_tests="${2}"
 case ${platform} in
   arista_ceos)
     vendor_creds=ARISTA/admin/admin
-    deviations=
     ;;
   juniper_cptx)
     vendor_creds=JUNIPER/root/Google123
-    deviations="-deviation_cli_takes_precedence_over_oc=true"
     ;;
   cisco_8000e)
     vendor_creds=CISCO/cisco/cisco123
-    deviations=
     ;;
   cisco_xrd)
     vendor_creds=CISCO/cisco/cisco123
-    deviations=
     ;;
   nokia_srlinux)
     vendor_creds=NOKIA/admin/NokiaSrl1!
-    deviations=
     ;;
   :)
     echo "Model ${platform} not valid"
@@ -48,11 +43,13 @@ esac
 function metadata_kne_topology() {
   local metadata_test_path
   metadata_test_path="${1}"
+  local topo_prefix
+  topo_prefix=$(echo "${platform}" | tr "_" "/")
   declare -A kne_topology_file
-  kne_topology_file["TESTBED_DUT"]="${platform}.textproto"
-  kne_topology_file["TESTBED_DUT_DUT_4LINKS"]="${platform}_dutdut.textproto"
-  kne_topology_file["TESTBED_DUT_ATE_2LINKS"]="${platform}_lag.textproto"
-  kne_topology_file["TESTBED_DUT_ATE_4LINKS"]="${platform}_lag.textproto"
+  kne_topology_file["TESTBED_DUT"]="${topo_prefix}/dut.textproto"
+  kne_topology_file["TESTBED_DUT_DUT_4LINKS"]="${topo_prefix}/dutdut.textproto"
+  kne_topology_file["TESTBED_DUT_ATE_2LINKS"]="${topo_prefix}/dutate.textproto"
+  kne_topology_file["TESTBED_DUT_ATE_4LINKS"]="${topo_prefix}/dutate.textproto"
   for p in "${!kne_topology_file[@]}"; do
     if grep -q "testbed.*${p}$" "${metadata_test_path}"/metadata.textproto; then
       echo "${kne_topology_file[${p}]}"
@@ -91,8 +88,7 @@ for dut_test in ${dut_tests}; do
   go test -v ./"${test_path}"/... -timeout 0 \
   -kne-topo /tmp/kne/"${kne_topology}" \
   -kne-skip-reset \
-  -vendor_creds "${vendor_creds}" \
-  "${deviations}"
+  -vendor_creds "${vendor_creds}"
   if [[ $? -eq 0 ]]; then
     gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"success\"}"
   else

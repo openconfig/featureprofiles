@@ -100,9 +100,12 @@ type NHGOptions struct {
 
 // NHOptions are optional parameters to a GRIBI next-hop.
 type NHOptions struct {
-	Src     string
-	Dest    string
-	VrfName string
+	Src          string
+	Dest         string
+	VrfName      string
+	Mac          string
+	Interface    string
+	SubInterface uint64
 }
 
 // Start function start establish a client connection with the gribi server.
@@ -219,6 +222,15 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 	case "VRFOnly":
 		for _, opt := range opts {
 			nh = nh.WithNextHopNetworkInstance(opt.VrfName)
+		}
+	case "MACwithInterface":
+		for _, opt := range opts {
+			if opt.SubInterface != 0 {
+				nh = nh.WithSubinterfaceRef(opt.Interface, opt.SubInterface).
+					WithMacAddress(opt.Mac)
+			} else {
+				nh = nh.WithInterfaceRef(opt.Interface).WithMacAddress(opt.Mac)
+			}
 		}
 	default:
 		nh = nh.WithIPAddress(address)
