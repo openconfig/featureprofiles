@@ -16,7 +16,7 @@ package base_hierarchical_route_installation_test
 
 import (
 	"context"
-	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,8 +24,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/gribigo/chk"
-	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -48,13 +46,18 @@ func TestMain(m *testing.M) {
 //   - ate:port2 -> dut:port2 subnet 192.0.2.4/30
 const (
 	ipv4PrefixLen     = 30
-	ateDstNetCIDR     = "198.51.100.0/24"
+	ateDstIP          = "198.51.100.1"
+	ateDstNetCIDR     = ateDstIP + "/32"
 	ateIndirectNH     = "203.0.113.1"
 	ateIndirectNHCIDR = ateIndirectNH + "/32"
 	nhIndex           = 1
 	nhgIndex          = 42
 	nhIndex2          = 2
 	nhgIndex2         = 52
+	nonDefaultVRF     = "VRF-1"
+	nhMAC             = "00:1A:11:00:0A:BC"
+	macFilter         = "2748" // Decimal equalent of last 15 bits in nhMAC
+	policyName        = "redirect-to-VRF1"
 )
 
 var (
@@ -81,6 +84,14 @@ var (
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
+	atePorts = map[string]attrs.Attributes{
+		"port1": atePort1,
+		"port2": atePort2,
+	}
+	dutPorts = map[string]attrs.Attributes{
+		"port1": dutPort1,
+		"port2": dutPort2,
+	}
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
@@ -102,68 +113,118 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
+// configureNetworkInstance creates nonDefaultVRF
+func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(nonDefaultVRF)
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), ni)
+
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, nonDefaultVRF)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
+	}
+
+	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	// configure PBF in DEFAULT vrf
+	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Replace(t, dut, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	gnmi.Replace(t, dut, defNIPath.PolicyForwarding().Config(), configurePBF(dut))
+}
+
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
-
-	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
-
-	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
+	for p, dp := range dutPorts {
+		p1 := dut.Port(t, p)
+		i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dp, dut))
+		if deviations.ExplicitPortSpeed(dut) {
+			fptest.SetPortSpeed(t, p1)
+		}
+		if deviations.ExplicitIPv6EnableForGRIBI(dut) {
+			gnmi.Update(t, dut, d.Interface(p1.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
+		}
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		}
 	}
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+
+	configureNetworkInstance(t, dut)
+
+	// apply PBF to src interface.
+	dp1 := dut.Port(t, "port1")
+	applyForwardingPolicy(t, dp1.Name())
+}
+
+// configurePBF returns a fully configured network-instance PF struct.
+func configurePBF(dut *ondatra.DUTDevice) *oc.NetworkInstance_PolicyForwarding {
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	pf := ni.GetOrCreatePolicyForwarding()
+	vrfPolicy := pf.GetOrCreatePolicy(policyName)
+	vrfPolicy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(atePort1.IPv4 + "/32")
+	vrfPolicy.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(nonDefaultVRF)
+	return pf
+}
+
+// applyForwardingPolicy applies the forwarding policy on the interface.
+func applyForwardingPolicy(t *testing.T, ingressPort string) {
+	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
+	d := &oc.Root{}
+	dut := ondatra.DUT(t, "dut")
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
+	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	if deviations.ExplicitInterfaceRefDefinition(dut) {
+		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	}
+	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	top := ate.Topology().New()
-
-	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
-
-	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
-
+	for p, ap := range atePorts {
+		p1 := ate.Port(t, p)
+		i1 := top.AddInterface(ap.Name).WithPort(p1)
+		i1.IPv4().
+			WithAddress(ap.IPv4CIDR()).
+			WithDefaultGateway(dutPorts[p].IPv4)
+	}
 	return top
 }
 
-// testTraffic generates traffic flow from source network to
-// destination network via srcEndPoint to dstEndPoint and checks for
-// packet loss and returns loss percentage as float.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, dstEndPoint *ondatra.Interface) float32 {
+// createFlow returns a flow from atePort1 to the dstPfx.
+func createFlow(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, name string) *ondatra.Flow {
+	srcEndPoint := top.Interfaces()[atePort1.Name]
+	dstEndPoint := top.Interfaces()[atePort2.Name]
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.DstAddressRange().
-		WithMin("198.51.100.0").
-		WithMax("198.51.100.254").
-		WithCount(250)
+	ipv4Header.DstAddressRange().WithMin(ateDstIP).WithCount(1)
 
 	flow := ate.Traffic().NewFlow("Flow").
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint).
 		WithHeaders(ethHeader, ipv4Header)
+	flow.EgressTracking().WithOffset(33).WithWidth(15)
+	return flow
+}
 
+// ValidateTraffic generates traffic flow from source network to
+// destination network via srcEndPoint to dstEndPoint and checks for
+// packet loss and returns loss percentage as float.
+// Also validate the flows are with expected EgressTracking filter for MAC NH case
+func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, flow *ondatra.Flow, flowFilter string) float32 {
 	ate.Traffic().Start(t, flow)
 	time.Sleep(15 * time.Second)
 	ate.Traffic().Stop(t)
 
 	time.Sleep(time.Minute)
-
 	flowPath := gnmi.OC().Flow(flow.Name())
 	val, _ := gnmi.Watch(t, ate, flowPath.LossPct().State(), time.Minute, func(val *ygnmi.Value[float32]) bool {
 		return val.IsPresent()
@@ -172,130 +233,36 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	if !present {
 		t.Fatalf("Could not read loss percentage for flow %q from ATE.", flow.Name())
 	}
+	if int(lossPct) == 0 && flowFilter != "" {
+		inPkts := gnmi.Get(t, ate, flowPath.State()).GetCounters().GetInPkts()
+		etPath := flowPath.EgressTrackingAny()
+		ets := gnmi.GetAll(t, ate, etPath.State())
+		if got := len(ets); got != 1 {
+			t.Errorf("EgressTracking got %d items, want %d", got, 1)
+		}
+		if got := ets[0].GetFilter(); got != flowFilter {
+			t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
+		}
+		if got := ets[0].GetCounters().GetInPkts(); got != inPkts {
+			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, inPkts)
+		}
+	}
 	return lossPct
-}
-
-// awaitTimeout calls a fluent client Await, adding a timeout to the context.
-func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, timeout time.Duration) error {
-	subctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	return c.Await(subctx, t)
 }
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx context.Context
-	c   *fluent.GRIBIClient
-	dut *ondatra.DUTDevice
-	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
+	ctx    context.Context
+	dut    *ondatra.DUTDevice
+	ate    *ondatra.ATEDevice
+	top    *ondatra.ATETopology
+	client *gribi.Client
 }
 
-// setupRecursiveIPv4Entry configures a recursive IPv4 Entry for 198.51.100.0/24
-// to NextHopGroup containing one NextHop 203.0.113.1/32. 203.0.113.1/32 is configured to point
-// to NextHopGroup containing one NextHop specified to address of ATE port-2.
-func setupRecursiveIPv4Entry(t *testing.T, args *testArgs) {
-	t.Helper()
+func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 
-	// Add an IPv4Entry for 198.51.100.0/24 pointing to 203.0.113.1/32.
-	args.c.Modify().AddEntry(t,
-		fluent.NextHopEntry().
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(nhIndex).
-			WithIPAddress(ateIndirectNH))
-
-	args.c.Modify().AddEntry(t,
-		fluent.NextHopGroupEntry().
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithID(nhgIndex).
-			AddNextHop(nhIndex, 1))
-
-	args.c.Modify().AddEntry(t,
-		fluent.IPv4Entry().
-			WithPrefix(ateDstNetCIDR).
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithNextHopGroup(nhgIndex))
-
-	if err := awaitTimeout(args.ctx, args.c, t, time.Minute); err != nil {
-		t.Fatalf("Could not program entries via c, got err: %v", err)
-	}
-
-	// Add an IPv4Entry for 203.0.113.1/32 pointing to 192.0.2.6.
-	args.c.Modify().AddEntry(t,
-		fluent.NextHopEntry().
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(nhIndex2).
-			WithIPAddress(atePort2.IPv4))
-
-	args.c.Modify().AddEntry(t,
-		fluent.NextHopGroupEntry().
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithID(nhgIndex2).
-			AddNextHop(nhIndex2, 1))
-
-	args.c.Modify().AddEntry(t,
-		fluent.IPv4Entry().
-			WithPrefix(ateIndirectNHCIDR).
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithNextHopGroup(nhgIndex2))
-
-	if err := awaitTimeout(args.ctx, args.c, t, time.Minute); err != nil {
-		t.Fatalf("Could not program entries via c, got err: %v", err)
-	}
-
-	chk.HasResult(t, args.c.Results(t),
-		fluent.OperationResult().
-			WithIPv4Operation(ateDstNetCIDR).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-
-	chk.HasResult(t, args.c.Results(t),
-		fluent.OperationResult().
-			WithIPv4Operation(ateIndirectNHCIDR).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-}
-
-// deleteRecursiveIPv4Entry verifies recursive IPv4 Entry for 198.51.100.0/24 -> 203.0.113.1/32 -> 192.0.2.6.
-// The entry for 203.0.113.1/32 is deleted. Verify that the traffic results in loss and removal from AFT.
-func deleteRecursiveIPv4Entry(t *testing.T, args *testArgs) {
-	args.c.Modify().DeleteEntry(t,
-		fluent.IPv4Entry().
-			WithPrefix(ateIndirectNHCIDR).
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithNextHopGroup(nhgIndex2))
-
-	if err := awaitTimeout(args.ctx, args.c, t, time.Minute); err != nil {
-		t.Fatalf("Could not program entries via c, got err: %v", err)
-	}
-
-	chk.HasResult(t, args.c.Results(t),
-		fluent.OperationResult().
-			WithIPv4Operation(ateIndirectNHCIDR).
-			WithOperationType(constants.Delete).
-			WithProgrammingResult(fluent.InstalledInRIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-}
-
-// testRecursiveIPv4Entry verifies recursive IPv4 Entry for 198.51.100.0/24 (a) -> 203.0.113.1/32 (b) -> 192.0.2.6 (c).
-// The IPv4 Entry is verified through AFT Telemetry and Traffic.
-// TODO: the below code checks entries for each level of the hierarchy statically. We need to create a helper function that does the check recursively.
-func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
-	setupRecursiveIPv4Entry(t, args)
-
-	aftsPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts()
-	fptest.LogQuery(t, "AFTs", aftsPath.State(), gnmi.Get(t, args.dut, aftsPath.State()))
-
-	// Verify that the entry for 198.51.100.0/24 (a) is installed through AFT Telemetry. a->c or a->b are the expected results.
-	ipv4Entry := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR).State())
+	// Verify that the entry for 198.51.100.1/32 (a) is installed through AFT Telemetry. a->c or a->b are the expected results.
+	ipv4Entry := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Afts().Ipv4Entry(ateDstNetCIDR).State())
 	if got, want := ipv4Entry.GetPrefix(), ateDstNetCIDR; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix = %v, want %v", got, want)
 	}
@@ -320,12 +287,20 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 		}
 		nh := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHop(nhIndexInst).State())
 		// for devices that return  the nexthop with resolving it recursively. For a->b->c the device returns c
-		if got := nh.GetIpAddress(); got != atePort2.IPv4 && got != ateIndirectNH {
-			t.Errorf("next-hop is incorrect: got %v, want %v or %v ", got, ateIndirectNH, atePort2.IPv4)
+		if got := nh.GetIpAddress(); got != ateIndirectNH {
+			if nhtype == "MAC" {
+				if gotMac := nh.GetMacAddress(); !strings.EqualFold(gotMac, nhMAC) {
+					t.Errorf("next-hop MAC is incorrect:  gotMac %v, wantMac %v", gotMac, nhMAC)
+				}
+			} else {
+				if got := nh.GetIpAddress(); got != atePort2.IPv4 {
+					t.Errorf("next-hop is incorrect: got %v, want %v ", got, atePort2.IPv4)
+				}
+			}
 		}
 	}
 
-	// Verify that the entry for 203.0.113.1/32 (b) is installed through AFT Telemetry. b->c is the expected result.
+	// Verify that the entry for 203.0.113.1/32 (b) is installed through AFT Telemetry.
 	ipv4Entry = gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateIndirectNHCIDR).State())
 	if got, want := ipv4Entry.GetPrefix(), ateIndirectNHCIDR; got != want {
 		t.Errorf("TestRecursiveIPv4Entry = %v: ipv4-entry/state/prefix, want %v", got, want)
@@ -350,51 +325,112 @@ func testRecursiveIPv4Entry(t *testing.T, args *testArgs) {
 			t.Errorf("next-hop index is incorrect: got %v, want %v", got, want)
 		}
 		nh := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHop(nhIndexInst).State())
-		if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
-			t.Errorf("next-hop is incorrect: got %v, want %v", got, want)
+		if nhtype == "MAC" {
+			if got, want := nh.GetMacAddress(), nhMAC; !strings.EqualFold(got, want) {
+				t.Errorf("next-hop MAC is incorrect: got %v, want %v", got, want)
+			}
+
+		} else {
+			if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
+				t.Errorf("next-hop address is incorrect: got %v, want %v", got, want)
+			}
 		}
 	}
+}
 
-	// Verify with traffic that the entry is installed through the ATE port-2.
-	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	dstEndPoint := args.top.Interfaces()[atePort2.Name]
+// testRecursiveIPv4EntrywithIPNexthop verifies recursive IPv4 Entry for 198.51.100.1/32 (a) -> 203.0.113.1/32 (b) -> 192.0.2.6 (c).
+// The IPv4 Entry is verified through AFT Telemetry and Traffic.
+func testRecursiveIPv4EntrywithIPNexthop(t *testing.T, args *testArgs) {
 
-	// Verify that there should be no traffic loss
-	loss := testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
+	t.Logf("Adding IP %v with NHG %d NH %d with IP %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, atePort2.IPv4)
+	args.client.AddNH(t, nhIndex2, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhgIndex2, map[uint64]uint64{nhIndex2: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv4(t, ateIndirectNHCIDR, nhgIndex2, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
-	if loss > 0.5 {
-		t.Errorf("Loss: got %g, want < 0.5", loss)
-	}
+	t.Logf("Adding IP %v with NHG %d NH %d  with indirect IP %v via gRIBI", ateDstNetCIDR, nhgIndex, nhIndex, ateIndirectNHCIDR)
+	args.client.AddNH(t, nhIndex, ateIndirectNH, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv4(t, ateDstNetCIDR, nhgIndex, nonDefaultVRF, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
+	t.Run("ValidateTelemtry", func(t *testing.T) {
+		t.Log("Validate Telemetry to verify IPV4 entry is resolved through IP next-hop")
+		verifyTelemetry(t, args, "IP")
+	})
 
-	time.Sleep(time.Minute)
+	t.Run("ValidateTraffic", func(t *testing.T) {
+		t.Log("Validate Traffic is recieved on atePort2 with  IP Next hop")
+		if got, want := ValidateTraffic(t, args.ate, args.top, baseFlow, ""), 0; int(got) != want {
+			t.Errorf("Loss: got %v, want %v", got, want)
+		}
+	})
 
-	// Delete the next hop entry for 203.0.113.1/32
-	deleteRecursiveIPv4Entry(t, args)
+	t.Logf("Deleting NH entry and verifing there is no traffic")
+	args.client.DeleteIPv4(t, ateIndirectNHCIDR, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	time.Sleep(30 * time.Second)
-
 	// Verify that the entry for 198.51.100.0/24 is not installed through AFT Telemetry.
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateIndirectNHCIDR)
+
+	if gnmi.Lookup(t, args.dut, ipv4Path.State()).IsPresent() {
+		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix: Found route %s that should not exist", ateIndirectNHCIDR)
+	}
+	t.Run("ValidateNoTrafficAfterNHDelete", func(t *testing.T) {
+		t.Log("Validate No Traffic is recieved on atePort2 after NH delete")
+		if got, want := ValidateTraffic(t, args.ate, args.top, baseFlow, ""), 100; int(got) != want {
+			t.Errorf("Loss: got %v, want %v", got, want)
+		}
+	})
+}
+
+// testRecursiveIPv4EntrywithMACNexthop verifies recursive IPv4 Entry for 198.51.100.1/32 (a) -> 203.0.113.1/32 (b) -> Port1 + MAC
+// The IPv4 Entry is verified through AFT Telemetry and Traffic.
+func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
+
+	p := args.dut.Port(t, "port2")
+	t.Logf("Adding IP %v with NHG %d NH %d with interface %v and MAC %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, p.Name(), nhMAC)
+	args.client.AddNH(t, nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), SubInterface: 0, Mac: nhMAC})
+	args.client.AddNHG(t, nhgIndex2, map[uint64]uint64{nhIndex2: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv4(t, ateIndirectNHCIDR, nhgIndex2, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+	t.Logf("Adding IP %v with NHG %d NH %d  with indirect IP %v via gRIBI", ateDstNetCIDR, nhgIndex, nhIndex, ateIndirectNHCIDR)
+	args.client.AddNH(t, nhIndex, ateIndirectNH, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv4(t, ateDstNetCIDR, nhgIndex, nonDefaultVRF, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
+
+	t.Run("ValidateTelemtry", func(t *testing.T) {
+		t.Log("Validate Telemetry to verify IPV4 entry is resolved through MAC next-hop")
+		verifyTelemetry(t, args, "MAC")
+	})
+
+	t.Run("ValidateTraffic", func(t *testing.T) {
+		t.Log("Validate Traffic is recieved on atePort2 with dst MAC as gRIBI NH MAC")
+		if got, want := ValidateTraffic(t, args.ate, args.top, baseFlow, macFilter), 0; int(got) != want {
+			t.Errorf("Loss: got %v, want %v", got, want)
+		}
+	})
+
+	t.Logf("Deleting NH entry and verifing there is no traffic")
+	args.client.DeleteIPv4(t, ateIndirectNHCIDR, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
 	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateIndirectNHCIDR)
 	if gnmi.Lookup(t, args.dut, ipv4Path.State()).IsPresent() {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix: Found route %s that should not exist", ateIndirectNHCIDR)
 	}
-
-	// Verify with the deletion of the next hop, traffic loss should be observed.
-	loss = testTraffic(t, args.ate, args.top, srcEndPoint, dstEndPoint)
-
-	if loss != 100 {
-		t.Errorf("Loss: got %g, want 100", loss)
-	}
+	t.Run("ValidateNoTrafficAfterNHDelete", func(t *testing.T) {
+		t.Log("Validate No Traffic is recieved on atePort2 after NH delete")
+		if got, want := ValidateTraffic(t, args.ate, args.top, baseFlow, macFilter), 100; int(got) != want {
+			t.Errorf("Loss: got %v, want %v", got, want)
+		}
+	})
 }
 
 func TestRecursiveIPv4Entries(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
 
-	// Dial gRIBI
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
 
-	// Configure the DUT
+	// Configure DUT
+	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 
 	// Configure the ATE
@@ -408,86 +444,45 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 		fn   func(t *testing.T, args *testArgs)
 	}{
 		{
-			name: "TestInvalidIPv4Entry",
-			desc: "Program invalid IPv4 prefix in the IPv4Entry and verify that error is being returned.",
-			fn:   nil,
+			name: "TestRecursiveIPv4EntrywithIPNexthop",
+			desc: "Program IPV4 entry recursively to IP next-hop and verify with Telemetry and Traffic.",
+			fn:   testRecursiveIPv4EntrywithIPNexthop,
 		},
 		{
-			name: "TestMissingNextHopGroupEntry",
-			desc: "Verify that missing Next hop group within an IPv4Entry results in error being returned.",
-			fn:   nil,
-		},
-		{
-			name: "TestInvalidIPv4NextHop",
-			desc: "Verify that invalid IPv4 address in Next hop results in error being returned.",
-			fn:   nil,
-		},
-		{
-			name: "TestRecursiveInterfaceEntry",
-			desc: "Program 203.0.113.1/32 to NextHopGroup containing one Next hop specified to be egress interface DUT port-2.",
-			fn:   nil,
-		},
-		{
-			name: "TestRecursiveMACEntry",
-			desc: "Program 203.0.113.1/32 to NextHopGroup containing one Next hop specified to be MAC address of ATE port-2.",
-			fn:   nil,
-		},
-		{
-			name: "TestRecursiveNetworkInstanceEntry",
-			desc: "Verify that invalid IPv4 address in Next hop results in error being returned.",
-			fn:   nil,
-		},
-		{
-			name: "TestRecursiveIPv4Entry",
-			desc: "Program 198.51.100.0/24 recursively to ATE Port2 and verify with Telemetry and Traffic.",
-			fn:   testRecursiveIPv4Entry,
+			name: "TestRecursiveIPv4EntrywithMACNexthop",
+			desc: "Program IPV4 entry recursively to MAC next-hop and verify with Telemetry and Traffic",
+			fn:   testRecursiveIPv4EntrywithMACNexthop,
 		},
 	}
 
-	const usePreserve = "PRESERVE"
+	// Each case will run with its own gRIBI fluent client.
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("Name: %s", tc.name)
+			t.Logf("Description: %s", tc.desc)
 
-	t.Run(fmt.Sprintf("Persistence=%s", usePreserve), func(t *testing.T) {
-		// Each case will run with its own gRIBI fluent client.
-		for _, tc := range tests {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Logf("Name: %s", tc.name)
-				t.Logf("Description: %s", tc.desc)
+			// Configure the gRIBI client
+			client := gribi.Client{
+				DUT:         dut,
+				FIBACK:      true,
+				Persistence: true,
+			}
+			defer client.Close(t)
+			if err := client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection can not be established")
+			}
+			client.BecomeLeader(t)
+			defer client.FlushAll(t)
+			args := &testArgs{
+				ctx:    ctx,
+				dut:    dut,
+				ate:    ate,
+				top:    top,
+				client: &client,
+			}
 
-				if tc.fn == nil {
-					t.Skip("Test case not implemented.")
-				}
+			tc.fn(t, args)
+		})
+	}
 
-				// Configure the gRIBI client c with election ID of 1 and make it leader.
-				c := fluent.NewClient()
-				c.Connection().
-					WithStub(gribic).
-					WithInitialElectionID(1, 0).
-					WithRedundancyMode(fluent.ElectedPrimaryClient).WithPersistence()
-
-				c.Start(context.Background(), t)
-				defer c.Stop(t)
-				c.StartSending(context.Background(), t)
-				if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
-					t.Fatalf("Await got error during session negotiation for c: %v", err)
-				}
-				gribi.BecomeLeader(t, c)
-
-				defer func() {
-					if err := gribi.FlushAll(c); err != nil {
-						t.Errorf("Cannot flush: %v", err)
-					}
-				}()
-
-				args := &testArgs{
-					ctx: ctx,
-					c:   c,
-					dut: dut,
-					ate: ate,
-					top: top,
-				}
-
-				tc.fn(t, args)
-			})
-		}
-	})
 }
