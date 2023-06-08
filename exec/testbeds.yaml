@@ -19,7 +19,7 @@ testbeds:
     owner: vbhan
     testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed_fury
     binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun-Fury
-    baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf_fury.proto
+    baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
   - id: 8808-FOX2508P0JU-Fury-GB
     owner: vbhan
     testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
