@@ -16,9 +16,10 @@
 package gribigo_compliance_test
 
 import (
-	"flag"
 	"strings"
 	"testing"
+
+	"flag"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
