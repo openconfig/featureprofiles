@@ -9,6 +9,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -31,38 +32,11 @@ func TestFabricPowerAdmin(t *testing.T) {
 				t.Skipf("Fabric Component %s is already INACTIVE, hence skipping", f)
 			}
 
-			before := intfOperStatus(t, dut)
+			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
 
 			powerDownUp(t, dut, f, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 3*time.Minute)
 
-			start := time.Now()
-			after := intfOperStatus(t, dut)
-			for time.Since(start) < 3*time.Minute {
-				if len(after) == len(before) {
-					break
-				}
-				time.Sleep(30 * time.Second)
-				after = intfOperStatus(t, dut)
-			}
-			if len(after) != len(before) {
-				t.Errorf("Not all Interfaces came up after Power Down Up, got: %v, want: %v", after, before)
-			}
-
-			intfs := gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().State(), 3*time.Minute, func(v *ygnmi.Value[*oc.Interface]) bool {
-				intf, ok := v.Val()
-				if !ok {
-					return false
-				}
-				op, ok := before[intf.GetName()]
-				if !ok {
-					return false
-				}
-				return intf.GetOperStatus() == op
-			})
-
-			if _, ok := intfs.Await(t); !ok {
-				t.Errorf("Interface Oper-Status didn't retun to original state after PowerAdmin Down Up for %s.", f)
-			}
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
 		})
 	}
 }
@@ -84,38 +58,11 @@ func TestLinecardPowerAdmin(t *testing.T) {
 				t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", l)
 			}
 
-			before := intfOperStatus(t, dut)
+			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
 
 			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 3*time.Minute)
 
-			start := time.Now()
-			after := intfOperStatus(t, dut)
-			for time.Since(start) < 3*time.Minute {
-				if len(after) == len(before) {
-					break
-				}
-				time.Sleep(30 * time.Second)
-				after = intfOperStatus(t, dut)
-			}
-			if len(after) != len(before) {
-				t.Errorf("Not all Interfaces came up after Power Down Up, got: %v, want: %v", after, before)
-			}
-
-			intfs := gnmi.WatchAll(t, dut, gnmi.OC().InterfaceAny().State(), time.Minute, func(v *ygnmi.Value[*oc.Interface]) bool {
-				intf, ok := v.Val()
-				if !ok {
-					return false
-				}
-				op, ok := before[intf.GetName()]
-				if !ok {
-					return false
-				}
-				return intf.GetOperStatus() == op
-			})
-
-			if _, ok := intfs.Await(t); !ok {
-				t.Errorf("Interface Oper-Status didn't retun to original state after PowerAdmin Down Up for %s.", l)
-			}
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
 		})
 	}
 }
@@ -197,13 +144,4 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}
 	t.Logf("Component %s, oper-status after %f minutes: %v", name, time.Since(start).Minutes(), oper)
-}
-
-func intfOperStatus(t *testing.T, dut *ondatra.DUTDevice) map[string]oc.E_Interface_OperStatus {
-	intf := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
-	oper := make(map[string]oc.E_Interface_OperStatus)
-	for _, i := range intf {
-		oper[i.GetName()] = i.GetOperStatus()
-	}
-	return oper
 }
