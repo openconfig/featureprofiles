@@ -5,3 +5,26 @@ uuid: "28b2521b-e5f2-4a33-b7c3-5efd5a81e7a2"
 plan_id: "RT-1.10"
 description: "BGP Keepalive and HoldTimer Configuration Test"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+  }
+}
