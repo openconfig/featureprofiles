@@ -67,6 +67,7 @@ replace: {
 "!\n"
 "cef proactive-arp-nd enable\n"
 "hw-module profile pbr vrf-redirect\n"
+"hw-module profile npu-compatibility Q200\n"
 "ssh server v2\n"
 "ssh server vrf default\n"
 "end\n"
