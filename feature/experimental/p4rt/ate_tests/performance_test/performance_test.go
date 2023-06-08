@@ -350,8 +350,8 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 								default:
 									t.Fatalf("Missing packet metadata for GDP PacketIn")
 								}
-								gdpIncount++
 							}
+							gdpIncount++
 						}
 					}
 				}
