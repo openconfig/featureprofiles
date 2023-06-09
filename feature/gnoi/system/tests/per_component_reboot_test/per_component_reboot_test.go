@@ -236,6 +236,7 @@ func TestFabricReboot(t *testing.T) {
 			if removable {
 				t.Logf("Found removable fabric component: %v", fabric)
 				removableFabric = fabric
+				break
 			} else {
 				t.Logf("Found non-removable fabric component: %v", fabric)
 			}
