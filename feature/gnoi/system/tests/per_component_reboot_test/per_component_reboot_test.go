@@ -240,7 +240,7 @@ func TestFabricReboot(t *testing.T) {
 				t.Logf("Found non-removable fabric component: %v", fabric)
 			}
 		} else {
-			t.Logf("Detected non-removable fabric component: %v", fabric)
+			t.Logf("Found non-removable fabric component: %v", fabric)
 		}
 	}
 	if removableFabric == "" {
@@ -269,21 +269,18 @@ func TestFabricReboot(t *testing.T) {
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
 
 	rebootDeadline := time.Now().Add(fabricBootTime)
-	for retry := true; retry; {
+	for {
 		t.Log("Waiting for 10 seconds before checking.")
 		time.Sleep(10 * time.Second)
 		if time.Now().After(rebootDeadline) {
-			retry = false
 			break
 		}
 		resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
-		switch {
-		case status.Code(err) == codes.Unimplemented:
+		if status.Code(err) == codes.Unimplemented {
 			t.Fatalf("Unimplemented RebootStatus() is not fully compliant with the Reboot spec.")
-		case err == nil:
-			retry = resp.GetActive()
-		default:
-			// any other error just sleep.
+		}
+		if !resp.GetActive() {
+			break
 		}
 	}
 
