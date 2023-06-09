@@ -5,7 +5,7 @@ This directory contains the KNE topology configuration of the following kinds:
 -   The `*.textproto` files describe the topology elements. These may contain
     one or more DUTs with ports connected to other DUTs or OTG ports.
 
--   The `*.config` files contain the DUT configuration, which are used by
+-   The `*.cfg` files contain the DUT configuration, which are used by
     Ondatra reservation to perform a device reset when a test starts.
 
 OTG releases can be found here:
