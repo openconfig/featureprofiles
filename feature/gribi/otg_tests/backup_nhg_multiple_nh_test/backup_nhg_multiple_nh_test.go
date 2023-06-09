@@ -236,7 +236,8 @@ func TestBackup(t *testing.T) {
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t,ate.OTG(),top,"IPv4")
+	otgutils.WaitForARP(t,ate.OTG(),top,"IPv6")
 
 	t.Run("IPv4BackUpSwitch", func(t *testing.T) {
 		t.Logf("Name: IPv4BackUpSwitch")
@@ -354,12 +355,13 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	flow := a.top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(300)
+	flow.Rate().SetPps(fps)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	flow.TxRx().Port().SetTxName("port1")
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
+	v4.Src().Increment().SetStart(atePort1.IPv4).SetCount(250)
 	v4.Dst().SetValue(dstPfxMin)
 	a.ate.OTG().PushConfig(t, a.top)
 	// StartProtocols required for running on hardware
@@ -379,8 +381,10 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	}
 	time.Sleep(30 * time.Second)
 	a.ate.OTG().StopTraffic(t)
+	time.Sleep(10 * time.Second)
 	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
+
 	// Get send traffic
 	incoming_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
 	sentPkts := gnmi.Get(t, a.ate.OTG(), incoming_traffic_state).GetCounters().GetOutFrames()
@@ -447,13 +451,4 @@ func (a *testArgs) aftCheck(t testing.TB, prefix string, instance string) {
 	if len(aftNHG.NextHop) == 0 && aftNHG.BackupNextHopGroup == nil {
 		t.Fatalf("Prefix %s references a NHG that has neither NH or backup NHG", prefix)
 	}
-}
-
-// Waits for at least one ARP entry on the tx OTG interface
-func waitOTGARPEntry(t *testing.T) {
-	t.Helper()
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
 }
