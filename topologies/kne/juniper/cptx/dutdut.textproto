@@ -18,44 +18,27 @@ nodes: {
         }
     }
     interfaces: {
-        key: "eth12"
+        key: "eth4"
         value: {
           name: "et-0/0/1:0"
         }
     }
-    services: {
-        key: 22
+    interfaces: {
+        key: "eth5"
         value: {
-            name: "ssh"
-            inside: 22
+          name: "et-0/0/2:0"
         }
     }
-    services: {
-        key: 9337
+    interfaces: {
+        key: "eth6"
         value: {
-            name: "gnoi"
-            inside: 32767
+          name: "et-0/0/3:0"
         }
     }
-    services: {
-        key: 9339
+    interfaces: {
+        key: "eth7"
         value: {
-            name: "gnmi"
-            inside: 32767
-        }
-    }
-    services: {
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 32767
-        }
-    }
-    services: {
-        key: 9559
-        value: {
-            name: "p4rt"
-            inside: 32767
+          name: "et-0/0/4:0"
         }
     }
 }
@@ -78,50 +61,51 @@ nodes: {
         }
     }
     interfaces: {
-        key: "eth12"
+        key: "eth4"
         value: {
           name: "et-0/0/1:0"
         }
     }
-    services: {
-        key: 22
+    interfaces: {
+        key: "eth5"
         value: {
-            name: "ssh"
-            inside: 22
+          name: "et-0/0/2:0"
         }
     }
-    services: {
-        key: 9337
+    interfaces: {
+        key: "eth6"
         value: {
-            name: "gnoi"
-            inside: 32767
+          name: "et-0/0/3:0"
         }
     }
-    services: {
-        key: 9339
+    interfaces: {
+        key: "eth7"
         value: {
-            name: "gnmi"
-            inside: 32767
-        }
-    }
-    services: {
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 32767
-        }
-    }
-    services: {
-        key: 9559
-        value: {
-            name: "p4rt"
-            inside: 32767
+          name: "et-0/0/4:0"
         }
     }
 }
 links: {
     a_node: "dut1"
-    a_int: "eth12"
+    a_int: "eth4"
     z_node: "dut2"
-    z_int: "eth12"
+    z_int: "eth4"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth5"
+    z_node: "dut2"
+    z_int: "eth5"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth6"
+    z_node: "dut2"
+    z_int: "eth6"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth7"
+    z_node: "dut2"
+    z_int: "eth7"
 }

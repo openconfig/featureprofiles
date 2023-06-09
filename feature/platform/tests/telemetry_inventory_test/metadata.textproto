@@ -15,5 +15,6 @@ platform_exceptions: {
   deviations: {
     switch_chip_id_unsupported: true
     backplane_facing_capacity_unsupported: true
+    storage_component_unsupported: true
   }
 }

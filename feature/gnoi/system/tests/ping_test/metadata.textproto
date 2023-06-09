@@ -5,3 +5,13 @@ uuid: "24dc9bcf-f76c-4ac4-a268-35d417d01a3d"
 plan_id: "gNOI-5.1"
 description: "Ping Test"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+  }
+}
