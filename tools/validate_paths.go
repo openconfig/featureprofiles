@@ -18,7 +18,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -26,6 +25,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"flag"
 
 	log "github.com/golang/glog"
 	fppb "github.com/openconfig/featureprofiles/proto/feature_go_proto"
