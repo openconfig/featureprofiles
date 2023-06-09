@@ -1,4 +1,4 @@
-name: "arista-ceos-lag"
+name: "arista-ceos-dutate-lag"
 nodes: {
     name: "dut"
     vendor: ARISTA
@@ -6,7 +6,7 @@ nodes: {
     os: "eos"
     config: {
         image: "ceos:latest"
-        file: "arista_ceos.config"
+        file: "config.cfg"
         config_path: "/mnt/flash"
         config_file: "startup-config"
         cert: {
@@ -17,53 +17,11 @@ nodes: {
             }
         }
     }
-    services: {
-        key: 22
-        value: {
-            name: "ssh"
-            inside: 22
-        }
-    }
-    services: {
-        key: 6030
-        value: {
-            name: "gnmi"
-            inside: 6030
-        }
-    }
-    services: {
-        key: 9340
-        value: {
-            name: "gribi"
-            inside: 9340
-        }
-    }
 }
 nodes: {
     name: "otg"
     vendor: KEYSIGHT
     version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
-    services: {
-        key: 8443
-        value: {
-            name: "https"
-            inside: 8443
-        }
-    }
-    services: {
-        key: 40051
-        value: {
-            name: "grpc"
-            inside: 40051
-        }
-    }
-    services: {
-        key: 50051
-        value: {
-            name: "gnmi"
-            inside: 50051
-        }
-    }
     interfaces: {
         key: "eth1"
     }
@@ -81,6 +39,36 @@ nodes: {
     }
     interfaces: {
         key: "eth4"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth9"
         value: {
             group: "lag"
         }
@@ -109,4 +97,34 @@ links: {
     a_int: "eth4"
     z_node: "otg"
     z_int: "eth4"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth5"
+    z_node: "otg"
+    z_int: "eth5"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth6"
+    z_node: "otg"
+    z_int: "eth6"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth7"
+    z_node: "otg"
+    z_int: "eth7"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth8"
+    z_node: "otg"
+    z_int: "eth8"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth9"
+    z_node: "otg"
+    z_int: "eth9"
 }

@@ -1,0 +1,340 @@
+name: "juniper-cptx"
+nodes: {
+    name: "dut1"
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
+    config: {
+        image: "cptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+          name: "et-0/0/4:0"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+          name: "et-0/0/5:0"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+          name: "et-0/0/6:0"
+        }
+    }
+    interfaces: {
+        key: "eth10"
+        value: {
+          name: "et-0/0/7:0"
+        }
+    }
+    interfaces: {
+        key: "eth11"
+        value: {
+          name: "et-0/0/8:0"
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+          name: "et-0/0/9:0"
+        }
+    }
+}
+nodes: {
+    name: "dut2"
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
+    config: {
+        image: "cptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+          name: "et-0/0/4:0"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+          name: "et-0/0/5:0"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+          name: "et-0/0/6:0"
+        }
+    }
+    interfaces: {
+        key: "eth10"
+        value: {
+          name: "et-0/0/7:0"
+        }
+    }
+    interfaces: {
+        key: "eth11"
+        value: {
+          name: "et-0/0/8:0"
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+          name: "et-0/0/9:0"
+        }
+    }
+}
+nodes: {
+    name: "otg1"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
+}
+nodes: {
+    name: "otg2"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
+    interfaces: {
+        key: "eth1"
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+            group: "lag"
+        }
+    }
+}
+links: {
+    a_node: "otg1"
+    a_int: "eth1"
+    z_node: "dut1"
+    z_int: "eth4"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth5"
+    z_node: "otg1"
+    z_int: "eth2"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth6"
+    z_node: "otg1"
+    z_int: "eth3"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth7"
+    z_node: "otg1"
+    z_int: "eth4"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth8"
+    z_node: "otg1"
+    z_int: "eth5"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth9"
+    z_node: "otg1"
+    z_int: "eth6"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth10"
+    z_node: "otg1"
+    z_int: "eth7"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth11"
+    z_node: "otg1"
+    z_int: "eth8"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth12"
+    z_node: "otg1"
+    z_int: "eth9"
+}
+links: {
+    a_node: "otg2"
+    a_int: "eth1"
+    z_node: "dut2"
+    z_int: "eth4"
+}
+links: {
+    a_node: "dut2"
+    a_int: "eth5"
+    z_node: "otg2"
+    z_int: "eth2"
+}
+links: {
+    a_node: "dut2"
+    a_int: "eth6"
+    z_node: "otg2"
+    z_int: "eth3"
+}
+links: {
+    a_node: "dut2"
+    a_int: "eth7"
+    z_node: "otg2"
+    z_int: "eth4"
+}
+links: {
+    a_node: "dut2"
+    a_int: "eth8"
+    z_node: "otg2"
+    z_int: "eth5"
+}
+links: {
+    a_node: "dut2"
+    a_int: "eth9"
+    z_node: "otg2"
+    z_int: "eth6"
+}
+links: {
+    a_node: "dut2"
+    a_int: "eth10"
+    z_node: "otg2"
+    z_int: "eth7"
+}
+links: {
+    a_node: "dut2"
+    a_int: "eth11"
+    z_node: "otg2"
+    z_int: "eth8"
+}
+links: {
+    a_node: "dut2"
+    a_int: "eth12"
+    z_node: "otg2"
+    z_int: "eth9"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth13"
+    z_node: "dut2"
+    z_int: "eth13"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth14"
+    z_node: "dut2"
+    z_int: "eth14"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth15"
+    z_node: "dut2"
+    z_int: "eth15"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth16"
+    z_node: "dut2"
+    z_int: "eth16"
+}
