@@ -169,6 +169,8 @@ message Metadata {
     // the default network instance.
     // Nokia: partnerissuetracker.corp.google.com/260928639
     bool explicit_interface_in_default_vrf = 42;
+    // Set to true to skip checking QOS Dropped octets stats for interface.
+    bool qos_dropped_octets = 43;
   }
 
   message PlatformExceptions {
