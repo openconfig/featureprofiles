@@ -24,8 +24,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/golang/glog"
 	"github.com/google/go-github/v50/github"
+
+	"github.com/golang/glog"
 )
 
 func main() {
