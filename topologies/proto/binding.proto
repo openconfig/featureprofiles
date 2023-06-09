@@ -113,6 +113,9 @@ message Options {
 
   // gRPC dial option to set the maximum recv message size in bytes.
   int32 max_recv_msg_size = 8;
+
+  // For Dial SSH use keyboard-interactive as the authentication method instead of password.
+  bool keyboard_interactive_ssh = 9;
 }
 
 // Port binding.

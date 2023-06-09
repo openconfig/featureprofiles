@@ -134,6 +134,9 @@ func (d *dialer) dialSSH() (*ssh.Client, error) {
 		User: d.Username,
 		Auth: []ssh.AuthMethod{ssh.Password(d.Password)},
 	}
+	if d.KeyboardInteractiveSsh {
+		c.Auth = []ssh.AuthMethod{ssh.KeyboardInteractive(d.sshInteractive)}
+	}
 	if d.SkipVerify {
 		c.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 	} else {
@@ -144,6 +147,16 @@ func (d *dialer) dialSSH() (*ssh.Client, error) {
 		c.HostKeyCallback = cb
 	}
 	return ssh.Dial("tcp", d.Target, c)
+}
+
+// For every question asked in an interactive login ssh session, set the answer to user password.
+func (d *dialer) sshInteractive(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+	answers = make([]string, len(questions))
+	for n := range questions {
+		answers[n] = d.Password
+	}
+
+	return answers, nil
 }
 
 // newHTTPClient makes an http.Client using the binding options.
