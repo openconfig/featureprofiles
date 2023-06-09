@@ -17,11 +17,12 @@ package lldp_packetin_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
