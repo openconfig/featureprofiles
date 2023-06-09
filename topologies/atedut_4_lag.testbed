@@ -1,3 +1,8 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This testbed provides a DUT and ATE with 4 aggregate links between them.
+
 duts {
   id: "dut"
   ports {
@@ -16,7 +21,6 @@ duts {
 
 ates {
   id: "ate"
-  vendor: IXIA
   ports {
     id: "port1"
   }
