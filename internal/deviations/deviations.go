@@ -435,8 +435,9 @@ func ExplicitInterfaceRefDefinition(dut *ondatra.DUTDevice) bool {
 }
 
 // QOSDroppedOctets returns if device should skip checking QOS Dropped octets stats for interface.
-func QOSDroppedOctets(_ *ondatra.DUTDevice) bool {
-	return *qosDroppedOctets
+func QOSDroppedOctets(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_qos_dropped_octets")
+	return lookupDUTDeviations(dut).GetQosDroppedOctets()
 }
 
 // ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
@@ -612,7 +613,7 @@ var (
 
 	bgpMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
 
-	qosDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
+	_ = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
 
 	_ = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
