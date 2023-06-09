@@ -132,10 +132,9 @@ func knownHostsCallback() (ssh.HostKeyCallback, error) {
 func (d *dialer) dialSSH() (*ssh.Client, error) {
 	c := &ssh.ClientConfig{
 		User: d.Username,
-		Auth: []ssh.AuthMethod{ssh.Password(d.Password)},
-	}
-	if d.KeyboardInteractiveSsh {
-		c.Auth = []ssh.AuthMethod{ssh.KeyboardInteractive(d.sshInteractive)}
+		Auth: []ssh.AuthMethod{
+			ssh.Password(d.Password),
+			ssh.KeyboardInteractive(d.sshInteractive)},
 	}
 	if d.SkipVerify {
 		c.HostKeyCallback = ssh.InsecureIgnoreHostKey()
