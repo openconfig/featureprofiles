@@ -5,6 +5,16 @@ testbeds:
     binding: topologies/cisco/hw/8808_FOX2506P2QT/binding
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
     pyats_testbed: topologies/cisco/hw/8808_FOX2506P2QT/pyats.yaml
+  - id: 8808_FOX2506P2QT_fury
+    owner: kjahed
+    testbed: topologies/cisco/hw/8808_FOX2506P2QT/testbed
+    binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_fury
+    baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
+  - id: 8808_FOX2506P2QT_fury_gb
+    owner: kjahed
+    testbed: topologies/cisco/hw/8808_FOX2506P2QT/testbed_fury_gb
+    binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_fury_gb
+    baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
   - id: 8808-36FH_FOX2613PHWL
     owner: wdolaast
     testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
@@ -15,6 +25,16 @@ testbeds:
     testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
     binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun
     baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
+  - id: 8808-FOX2508P0JU-Fury
+    owner: vbhan
+    testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed_fury
+    binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun-Fury
+    baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
+  - id: 8808-FOX2508P0JU-Fury-GB
+    owner: vbhan
+    testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
+    binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun-Fury-GB
+    baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto        
   - id: 8808-36FH_FOX2504P3CE
     owner: mananpat
     testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
