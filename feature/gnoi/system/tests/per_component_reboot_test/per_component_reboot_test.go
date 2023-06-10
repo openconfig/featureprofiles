@@ -232,14 +232,10 @@ func TestFabricReboot(t *testing.T) {
 	var removableFabric string
 	for _, fabric := range fabrics {
 		t.Logf("Check if %s is removable", fabric)
-		if removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(fabric).Removable().State()).Val(); ok {
-			if removable {
-				t.Logf("Found removable fabric component: %v", fabric)
-				removableFabric = fabric
-				break
-			} else {
-				t.Logf("Found non-removable fabric component: %v", fabric)
-			}
+		if removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(fabric).Removable().State()).Val(); ok && removable {
+			t.Logf("Found removable fabric component: %v", fabric)
+			removableFabric = fabric
+			break
 		} else {
 			t.Logf("Found non-removable fabric component: %v", fabric)
 		}
