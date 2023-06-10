@@ -26,6 +26,8 @@ platform_exceptions: {
   deviations: {
     no_mix_of_tagged_and_untagged_subinterfaces: true
     explicit_gribi_under_network_instance: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
   }
 }
 platform_exceptions: {

@@ -174,11 +174,6 @@ func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
 	return *bgpTrafficTolerance
 }
 
-// MacAddressMissing returns whether device does not support /system/mac-address/state
-func MacAddressMissing(_ *ondatra.DUTDevice) bool {
-	return *macAddressMissing
-}
-
 // StaticProtocolName returns the name used for the static routing protocol.
 func StaticProtocolName(_ *ondatra.DUTDevice) string {
 	return *staticProtocolName
@@ -415,15 +410,17 @@ func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
 
 // ExplicitPortSpeed returns if device requires port-speed to be set because its default value may not be usable.
 // Fully compliant devices selects the highest speed available based on negotiation.
-func ExplicitPortSpeed(_ *ondatra.DUTDevice) bool {
-	return *explicitPortSpeed
+func ExplicitPortSpeed(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_explicit_port_speed")
+	return lookupDUTDeviations(dut).GetExplicitPortSpeed()
 }
 
 // ExplicitInterfaceInDefaultVRF returns if device requires explicit attachment of an interface or subinterface to the default network instance.
 // OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance.
 // Fully-compliant devices should pass with and without this deviation.
-func ExplicitInterfaceInDefaultVRF(_ *ondatra.DUTDevice) bool {
-	return *explicitInterfaceInDefaultVRF
+func ExplicitInterfaceInDefaultVRF(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_explicit_interface_in_default_vrf")
+	return lookupDUTDeviations(dut).GetExplicitInterfaceInDefaultVrf()
 }
 
 // InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
@@ -438,8 +435,9 @@ func ExplicitInterfaceRefDefinition(dut *ondatra.DUTDevice) bool {
 }
 
 // QOSDroppedOctets returns if device should skip checking QOS Dropped octets stats for interface.
-func QOSDroppedOctets(_ *ondatra.DUTDevice) bool {
-	return *qosDroppedOctets
+func QOSDroppedOctets(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_qos_dropped_octets")
+	return lookupDUTDeviations(dut).GetQosDroppedOctets()
 }
 
 // ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
@@ -567,10 +565,10 @@ var (
 
 	deprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
-	explicitInterfaceInDefaultVRF = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
+	_ = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
 
-	explicitPortSpeed = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
+	_ = flag.Bool("deviation_explicit_port_speed", false, "Device requires port-speed to be set because its default value may not be usable. Fully compliant devices should select the highest speed available based on negotiation.")
 
 	_ = flag.Bool("deviation_explicit_p4rt_node_component", false, "Device does not report P4RT node names in the component hierarchy, so use hard coded P4RT node names by passing them through internal/args flags. Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.")
 
@@ -620,7 +618,7 @@ var (
 
 	bgpMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
 
-	qosDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
+	_ = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
 
 	_ = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
@@ -639,8 +637,6 @@ var (
 
 	_ = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
-
-	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
 
