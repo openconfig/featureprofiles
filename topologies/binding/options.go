@@ -150,7 +150,7 @@ func (d *dialer) dialSSH() (*ssh.Client, error) {
 }
 
 // For every question asked in an interactive login ssh session, set the answer to user password.
-func (d *dialer) sshInteractive(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+func (d *dialer) sshInteractive(_, _ string, questions []string, _ []bool) (answers []string, err error) {
 	answers = make([]string, len(questions))
 	for n := range questions {
 		answers[n] = d.Password
