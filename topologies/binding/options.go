@@ -134,7 +134,8 @@ func (d *dialer) dialSSH() (*ssh.Client, error) {
 		User: d.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(d.Password),
-			ssh.KeyboardInteractive(d.sshInteractive)},
+			ssh.KeyboardInteractive(d.sshInteractive),
+		},
 	}
 	if d.SkipVerify {
 		c.HostKeyCallback = ssh.InsecureIgnoreHostKey()
