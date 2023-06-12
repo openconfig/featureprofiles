@@ -352,7 +352,7 @@ func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 		}
 		nh := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHop(nhIndexInst).State())
 		if nhtype == "MAC" {
-			if !deviations.GRIBIMACOverrideWithStaticARP(args.dut) && !deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
+			if !deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
 				if got, want := nh.GetMacAddress(), nhMAC; !strings.EqualFold(got, want) {
 					t.Errorf("next-hop MAC is incorrect: got %v, want %v", got, want)
 				}
@@ -413,7 +413,7 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 
 	p := args.dut.Port(t, "port2")
 	t.Logf("Adding IP %v with NHG %d NH %d with interface %v and MAC %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, p.Name(), nhMAC)
-	if deviations.GRIBIMACOverrideWithStaticARP(args.dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
+	if deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
 		args.client.AddNH(t, nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), Mac: nhMAC, Dest: atePort2DummyIP.IPv4})
 	} else {
 		args.client.AddNH(t, nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), Mac: nhMAC})
@@ -451,6 +451,23 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 			t.Errorf("Loss: got %v, want %v", got, want)
 		}
 	})
+}
+
+func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p2 := dut.Port(t, "port2")
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2, atePort2DummyIP.IPv4, nhMAC))
+}
+
+func configStaticArp(p *ondatra.Port, ipv4addr string, macAddr string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p.Name())}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
 }
 
 func TestRecursiveIPv4Entries(t *testing.T) {
