@@ -1,4 +1,4 @@
-name: "juniper-cptx-lag"
+name: "juniper-cptx-dutate-lag"
 nodes: {
     name: "dut"
     vendor: JUNIPER
@@ -8,7 +8,7 @@ nodes: {
         image: "cptx:latest"
         config_path: "/home/evo/configdisk"
         config_file: "juniper.conf"
-        file: "juniper_cptx.config"
+        file: "config.cfg"
         cert: {
             self_signed: {
                 cert_name: "grpc-server-cert"
@@ -18,62 +18,57 @@ nodes: {
         }
     }
     interfaces: {
-        key: "eth12"
+        key: "eth4"
         value: {
           name: "et-0/0/1:0"
         }
     }
     interfaces: {
-        key: "eth20"
+        key: "eth5"
         value: {
           name: "et-0/0/2:0"
         }
     }
     interfaces: {
-        key: "eth28"
+        key: "eth6"
         value: {
           name: "et-0/0/3:0"
         }
     }
     interfaces: {
-        key: "eth36"
+        key: "eth7"
         value: {
           name: "et-0/0/4:0"
         }
     }
-    services: {
-        key: 22
+    interfaces: {
+        key: "eth8"
         value: {
-            name: "ssh"
-            inside: 22
+          name: "et-0/0/5:0"
         }
     }
-    services: {
-        key: 9337
+    interfaces: {
+        key: "eth9"
         value: {
-            name: "gnoi"
-            inside: 32767
+          name: "et-0/0/6:0"
         }
     }
-    services: {
-        key: 9339
+    interfaces: {
+        key: "eth10"
         value: {
-            name: "gnmi"
-            inside: 32767
+          name: "et-0/0/7:0"
         }
     }
-    services: {
-        key: 9340
+    interfaces: {
+        key: "eth11"
         value: {
-            name: "gribi"
-            inside: 32767
+          name: "et-0/0/8:0"
         }
     }
-    services: {
-        key: 9559
+    interfaces: {
+        key: "eth12"
         value: {
-            name: "p4rt"
-            inside: 32767
+          name: "et-0/0/9:0"
         }
     }
 }
@@ -81,27 +76,6 @@ nodes: {
     name: "otg"
     vendor: KEYSIGHT
     version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
-    services: {
-        key: 8443
-        value: {
-            name: "https"
-            inside: 8443
-        }
-    }
-    services: {
-        key: 40051
-        value: {
-            name: "grpc"
-            inside: 40051
-        }
-    }
-    services: {
-        key: 50051
-        value: {
-            name: "gnmi"
-            inside: 50051
-        }
-    }
     interfaces: {
         key: "eth1"
     }
@@ -123,28 +97,88 @@ nodes: {
             group: "lag"
         }
     }
+    interfaces: {
+        key: "eth5"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+            group: "lag"
+        }
+    }
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "dut"
+    z_int: "eth4"
 }
 links: {
     a_node: "dut"
-    a_int: "eth12"
-    z_node: "otg"
-    z_int: "eth1"
-}
-links: {
-    a_node: "dut"
-    a_int: "eth20"
+    a_int: "eth5"
     z_node: "otg"
     z_int: "eth2"
 }
 links: {
     a_node: "dut"
-    a_int: "eth28"
+    a_int: "eth6"
     z_node: "otg"
     z_int: "eth3"
 }
 links: {
     a_node: "dut"
-    a_int: "eth36"
+    a_int: "eth7"
     z_node: "otg"
     z_int: "eth4"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth8"
+    z_node: "otg"
+    z_int: "eth5"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth9"
+    z_node: "otg"
+    z_int: "eth6"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth10"
+    z_node: "otg"
+    z_int: "eth7"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth11"
+    z_node: "otg"
+    z_int: "eth8"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth12"
+    z_node: "otg"
+    z_int: "eth9"
 }

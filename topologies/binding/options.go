@@ -17,12 +17,13 @@ package binding
 import (
 	"context"
 	"crypto/tls"
-	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"time"
+
+	"flag"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 
