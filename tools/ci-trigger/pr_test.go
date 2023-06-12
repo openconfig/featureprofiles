@@ -105,9 +105,9 @@ func TestPopulateTestDetail(t *testing.T) {
 		ID:      100,
 		HeadSHA: "1a2b3",
 		localFS: fstest.MapFS{
-			"feature/a/a/metadata.textproto":                                {Data: []byte("uuid: \"uuid-A\"\nplan_id: \"plan_id-A\"\ndescription: \"description-A\"\n")},
-			"feature/bgp/addpath/otg_tests/example_test/metadata.textproto": {Data: []byte("uuid: \"uuid-B\"\nplan_id: \"plan_id-B\"\ndescription: \"description-B\"\n")},
-			"feature/bgp/addpath/ate_tests/example_test/metadata.textproto": {Data: []byte("uuid: \"uuid-C\"\nplan_id: \"plan_id-C\"\ndescription: \"description-C\"\n")},
+			"feature/a/a/metadata.textproto":                                {Data: []byte("uuid: \"uuid-A\"\nplan_id: \"plan_id-A\"\ndescription: \"description-A\"\nunknown_field: true\n")},
+			"feature/bgp/addpath/otg_tests/example_test/metadata.textproto": {Data: []byte("uuid: \"uuid-B\"\nplan_id: \"plan_id-B\"\ndescription: \"description-B\"\nunknown_field: true\n")},
+			"feature/bgp/addpath/ate_tests/example_test/metadata.textproto": {Data: []byte("uuid: \"uuid-C\"\nplan_id: \"plan_id-C\"\ndescription: \"description-C\"\nunknown_field: true\n")},
 		},
 	}
 	modifiedTests := []string{"feature/bgp/addpath/otg_tests/example_test", "feature/bgp/addpath/ate_tests/example_test"}
