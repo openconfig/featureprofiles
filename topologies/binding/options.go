@@ -17,12 +17,13 @@ package binding
 import (
 	"context"
 	"crypto/tls"
-	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"time"
+
+	"flag"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 
@@ -90,6 +91,9 @@ func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.C
 		c := &creds{d.Username, d.Password, !d.Insecure}
 		opts = append(opts, grpc.WithPerRPCCredentials(c))
 	}
+	if d.MaxRecvMsgSize != 0 {
+		opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(d.MaxRecvMsgSize))))
+	}
 	if d.Timeout == 0 {
 		return grpc.DialContext(ctx, d.Target, opts...)
 	}
@@ -128,7 +132,10 @@ func knownHostsCallback() (ssh.HostKeyCallback, error) {
 func (d *dialer) dialSSH() (*ssh.Client, error) {
 	c := &ssh.ClientConfig{
 		User: d.Username,
-		Auth: []ssh.AuthMethod{ssh.Password(d.Password)},
+		Auth: []ssh.AuthMethod{
+			ssh.Password(d.Password),
+			ssh.KeyboardInteractive(d.sshInteractive),
+		},
 	}
 	if d.SkipVerify {
 		c.HostKeyCallback = ssh.InsecureIgnoreHostKey()
@@ -140,6 +147,16 @@ func (d *dialer) dialSSH() (*ssh.Client, error) {
 		c.HostKeyCallback = cb
 	}
 	return ssh.Dial("tcp", d.Target, c)
+}
+
+// For every question asked in an interactive login ssh session, set the answer to user password.
+func (d *dialer) sshInteractive(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+	answers = make([]string, len(questions))
+	for n := range questions {
+		answers[n] = d.Password
+	}
+
+	return answers, nil
 }
 
 // newHTTPClient makes an http.Client using the binding options.

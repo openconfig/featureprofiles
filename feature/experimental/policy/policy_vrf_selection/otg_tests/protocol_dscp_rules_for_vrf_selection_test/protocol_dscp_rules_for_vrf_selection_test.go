@@ -330,6 +330,7 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 	}
 	args.ate.OTG().PushConfig(t, args.top)
 	args.ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
 
 	t.Logf("*** Starting traffic ...")
 	args.ate.OTG().StartTraffic(t)

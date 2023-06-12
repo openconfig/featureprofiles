@@ -5,3 +5,14 @@ uuid: "ec59d852-0828-4607-bea5-fbe2340c5414"
 plan_id: "OC-1.1"
 description: "System Configuration"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    cli_takes_precedence_over_oc: true
+  }
+}

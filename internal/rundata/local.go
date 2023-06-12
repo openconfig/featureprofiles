@@ -16,7 +16,6 @@ package rundata
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,6 +23,8 @@ import (
 	"runtime/debug"
 	"strings"
 	"time"
+
+	"flag"
 
 	gitv5 "github.com/go-git/go-git/v5"
 	"github.com/golang/glog"

@@ -2,10 +2,11 @@ package p4rt_election_test
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"testing"
 	"time"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -366,7 +367,7 @@ func TestUnsetElectionid(t *testing.T) {
 			if resp != test.wantStatus {
 				t.Fatalf("Incorrect status code received: want %d, got %d", test.wantStatus, resp)
 			}
-			if err != nil && !deviations.P4RTUnsetElectionIDUnsupported(dut) {
+			if err != nil {
 				if deviations.P4rtUnsetElectionIDPrimaryAllowed(dut) && test.desc != sDesc {
 					t.Errorf("Errors seen when sending Master Arbitration for unset ElectionID: %v", err)
 				}
