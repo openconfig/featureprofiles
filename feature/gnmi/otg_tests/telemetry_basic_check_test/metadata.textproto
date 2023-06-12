@@ -42,5 +42,6 @@ platform_exceptions: {
   }
   deviations: {
     sw_version_unsupported: true
+    qos_dropped_octets: true
   }
 }
