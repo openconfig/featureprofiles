@@ -14,6 +14,18 @@ platform_exceptions: {
     hardware_model: "xrd"
   }
   deviations: {
+    ipv4_missing_enabled: true
     prepolicy_received_routes: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
   }
 }
