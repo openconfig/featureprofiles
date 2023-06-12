@@ -1442,10 +1442,8 @@ func testJuniperClassifierConfig(t *testing.T) {
 	dp := dut.Port(t, "port1")
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
-	if deviations.ExplicitInterfaceRefDefinition(dut) {
-		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
-		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	}
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
+	i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	ip := &oc.Interface{Name: ygot.String(dp.Name())}
 	ip.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	s := ip.GetOrCreateSubinterface(0)
@@ -1486,10 +1484,8 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 	dp := dut.Port(t, "port2")
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
-	if deviations.ExplicitInterfaceRefDefinition(dut) {
-		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
-		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	}
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
+	i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
 	schedulers := []struct {
 		desc        string
