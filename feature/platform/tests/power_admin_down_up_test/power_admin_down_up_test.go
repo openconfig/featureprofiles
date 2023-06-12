@@ -9,6 +9,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -34,7 +35,11 @@ func TestFabricPowerAdmin(t *testing.T) {
 				t.Skipf("Fabric Component %s is already INACTIVE, hence skipping", f)
 			}
 
+			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
+
 			powerDownUp(t, dut, f, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 3*time.Minute)
+
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
 		})
 	}
 }
@@ -56,7 +61,11 @@ func TestLinecardPowerAdmin(t *testing.T) {
 				t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", l)
 			}
 
+			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
+
 			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 3*time.Minute)
+
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
 		})
 	}
 }
@@ -67,11 +76,12 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 		t.Skip("Controller card power down up unsupported")
 	}
 	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
-
+	primary := ""
 	for _, c := range cs {
 		t.Run(c, func(t *testing.T) {
 			role := gnmi.Get(t, dut, gnmi.OC().Component(c).RedundantRole().State())
 			if got, want := role, oc.Platform_ComponentRedundantRole_PRIMARY; got == want {
+				primary = c
 				t.Skipf("ControllerCard Component %s is PRIMARY, hence skipping", c)
 			}
 
@@ -82,6 +92,9 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 
 			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 3*time.Minute)
 		})
+	}
+	if primary != "" {
+		gnmi.Await(t, dut, gnmi.OC().Component(primary).SwitchoverReady().State(), 30*time.Minute, true)
 	}
 }
 
