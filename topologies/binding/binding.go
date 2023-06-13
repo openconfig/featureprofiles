@@ -322,6 +322,18 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
 	if err != nil {
 		return nil, err
 	}
+  if bd.GetVendor() != "" && bd.GetHardwareModel() != "" {
+		if bd.GetVendor() != td.Vendor || bd.GetHardwareModel() != td.GetHardwareModel() {
+			return nil, fmt.Errorf("values for device vendor %v and device hardwaremodel %v do not match binding vendor %v and binding hardwaremodel %v", td.GetVendor(), td.GetHardwareModel(), bd.GetVendor(), bd.GetHardwareModel())
+		}
+		return &binding.Dims{
+			Name:            bd.Name,
+			Vendor:          bd.GetVendor(),
+			HardwareModel:   bd.GetHardwareModel(),
+			SoftwareVersion: td.GetSoftwareVersion(),
+			Ports:           portmap,
+		}, nil
+	}
 	return &binding.Dims{
 		Name:            bd.Name,
 		Vendor:          td.Vendor,

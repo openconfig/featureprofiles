@@ -84,6 +84,12 @@ message Device {
 
   // Dial options for OTG Ixia-C (HW Only).
   Options otg = 18;
+
+  // Vendor of the device.
+  ondatra.Device.Vendor vendor = 19;
+
+  // Hardware models of the device.
+  repeated string hardware_model = 20;
 }
 
 // Dial options.
