@@ -30,6 +30,7 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -37,6 +38,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	p4v1pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -84,6 +86,7 @@ var (
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::2",
 		IPv4Len: ipv4PrefixLen,
@@ -100,6 +103,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: ipv4PrefixLen,
@@ -111,7 +115,7 @@ type testArgs struct {
 	leader       *p4rt_client.P4RTClient
 	dut          *ondatra.DUTDevice
 	ate          *ondatra.ATEDevice
-	top          *ondatra.ATETopology
+	top          gosnappi.Config
 	gdpPacketIO  PacketIO
 	lldpPacketIO PacketIO
 	trPacketIO   PacketIO
@@ -163,16 +167,22 @@ func programTableEntry(client *p4rt_client.P4RTClient, delete bool) error {
 }
 
 // testTraffic sends ATE traffic, stop and collect total packet tx from ATE source port.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow, srcEndPoint *ondatra.Interface, duration time.Duration) int {
+func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration time.Duration) int {
 	t.Helper()
 	for _, flow := range flows {
-		flow.WithSrcEndpoints(srcEndPoint).WithDstEndpoints(srcEndPoint)
+		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
+		flow.Metrics().SetEnable(true)
+		top.Flows().Append(flow)
 	}
-	ate.Traffic().Start(t, flows...)
-	time.Sleep(duration)
-	ate.Traffic().Stop(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
-	outPkts := gnmi.GetAll(t, ate, gnmi.OC().FlowAny().Counters().OutPkts().State())
+	ate.OTG().StartTraffic(t)
+	time.Sleep(duration)
+
+	ate.OTG().StopTraffic(t)
+
+	outPkts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().FlowAny().Counters().OutPkts().State())
 	total := 0
 	for _, count := range outPkts {
 		total += int(count)
@@ -240,14 +250,21 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 
 	t.Run("PacketOut and Packetin traffic tests", func(t *testing.T) {
 		// Check initial packet counters
-		port := sortPorts(args.ate.Ports())[0].Name()
-		counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+		port := sortPorts(args.ate.Ports())[0].ID()
+		counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 
 		packets, err := newPacketOut(portID, false)
 		if err != nil {
 			t.Fatalf("Unexpected error creating packet out packets: %v", err)
 		}
-		srcEndPoint := args.top.Interfaces()[atePort1.Name]
+		srcEndPoint := ateInterface(t, args.top, "port1")
+		llAddress, found := gnmi.Watch(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t)
+		if !found {
+			t.Fatalf("Could not get the LinkLayerAddress %s", llAddress)
+		}
+		dstMac, _ := llAddress.Val()
 		streamChan := args.leader.StreamChannelGet(&streamName)
 
 		qSize := 12000
@@ -265,7 +282,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 				streamName, qSize, qSizeRead)
 		}
 		// Create the flows for Packetin.
-		flows := newTrafficFlow(args, args.ate)
+		flows := newTrafficFlow(args, args.ate, dstMac)
 		pktIn := 0
 		// Run Packetin and packetout traffic in parallel.
 		var wg sync.WaitGroup
@@ -273,7 +290,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 
 		go func() {
 			defer wg.Done()
-			pktIn = testTraffic(t, args.ate, flows, srcEndPoint, 20*time.Second)
+			pktIn = testTraffic(t, args.top, args.ate, flows, srcEndPoint, 20*time.Second)
 			t.Logf("Total Packetin packets sent from ATE %v", pktIn)
 		}()
 
@@ -301,7 +318,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 		wg.Wait() // Wait for all four goroutines to finish before exiting.
 
 		// Check packet counters after packet out
-		counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
+		counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 
 		// Verify Packetout stats to check P4RT stream
 		t.Logf("Received %v packetout on ATE port %s", counter1-counter0, port)
@@ -473,26 +490,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	otg := ate.OTG()
+	top := otg.NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
-	i1.IPv6().
-		WithAddress(atePort1.IPv6CIDR()).
-		WithDefaultGateway(dutPort1.IPv6)
+	atePort1.AddToOTG(top, p1, &dutPort1)
 
 	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
-	i2.IPv6().
-		WithAddress(atePort2.IPv6CIDR()).
-		WithDefaultGateway(dutPort2.IPv6)
+	atePort2.AddToOTG(top, p2, &dutPort2)
 
 	return top
 }
@@ -618,7 +624,8 @@ func TestP4rtPerformance(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	// Configure P4RT device-id
 	configureDeviceID(t, dut)
@@ -862,33 +869,45 @@ func newPacketOut(portID uint32, submitIngress bool) ([]*p4v1pb.PacketOut, error
 }
 
 // newTrafficFlow generates ATE traffic flows for LLDP.
-func newTrafficFlow(args *testArgs, ate *ondatra.ATEDevice) []*ondatra.Flow {
-	ethHeader1 := ondatra.NewEthernetHeader()
-	ethHeader1.WithSrcAddress(pktInSrcMAC)
-	ethHeader1.WithDstAddress(lldpInDstMAC)
-	ethHeader1.WithEtherType(uint32(lldpEthType))
+func newTrafficFlow(args *testArgs, ate *ondatra.ATEDevice, dstMac string) []gosnappi.Flow {
 
 	// flow1 for LLDP traffic.
-	flow1 := ate.Traffic().NewFlow("LLDP").WithFrameSize(packetInPktsize).WithFrameRateBPS(lldpBitRate).WithHeaders(ethHeader1)
-	flow1.Transmission().WithPatternFixedDuration(duration)
-
-	ethHeader2 := ondatra.NewEthernetHeader()
-	ethHeader2.WithSrcAddress(pktInSrcMAC)
-	ethHeader2.WithDstAddress(gdpInDstMAC)
-	ethHeader2.WithEtherType(uint32(gdpEthType))
+	flow1 := gosnappi.NewFlow()
+	flow1.SetName("LLDP")
+	flow1EthHeader := flow1.Packet().Add().Ethernet()
+	flow1EthHeader.Src().SetValue(pktInSrcMAC)
+	flow1EthHeader.Dst().SetValue(lldpInDstMAC)
+	flow1EthHeader.EtherType().SetValue(int32(lldpEthType))
+	flow1.Size().SetFixed(int32(packetInPktsize))
+	flow1.Rate().SetBps(int64(lldpBitRate))
+	flow1.Duration().FixedSeconds().SetSeconds(float32(duration))
 
 	// flow2 for GDP traffic.
-	flow2 := ate.Traffic().NewFlow("GDP").WithFrameSize(packetInPktsize).WithFrameRateBPS(gdpBitRate).WithHeaders(ethHeader2)
-	flow2.Transmission().WithPatternFixedDuration(duration)
+	flow2 := gosnappi.NewFlow()
+	flow2.SetName("GDP")
+	flow2EthHeader := flow2.Packet().Add().Ethernet()
+	flow2EthHeader.Src().SetValue(pktInSrcMAC)
+	flow2EthHeader.Dst().SetValue(gdpInDstMAC)
+	flow2EthHeader.EtherType().SetValue(int32(gdpEthType))
+	flow2.Size().SetFixed(int32(packetInPktsize))
+	flow2.Rate().SetBps(int64(gdpBitRate))
+	flow2.Duration().FixedSeconds().SetSeconds(float32(duration))
 
-	ethHeader := ondatra.NewEthernetHeader().WithSrcAddress(pktInSrcMAC)
-	ipv4Header := ondatra.NewIPv4Header().WithSrcAddress(atePort1.IPv4).WithDstAddress(atePort2.IPv4).WithTTL(ttl1) //ttl=1 is traceroute traffic
+	//flow3 for Traceroute traffic.
+	flow3 := gosnappi.NewFlow()
+	flow3.SetName("IP4")
+	flow3EthHeader := flow3.Packet().Add().Ethernet()
+	flow3EthHeader.Src().SetValue(pktInSrcMAC)
+	flow3EthHeader.Dst().SetValue(dstMac)
+	flow3IpHeader := flow3.Packet().Add().Ipv4()
+	flow3IpHeader.Src().SetValue(atePort1.IPv4)
+	flow3IpHeader.Dst().SetValue(atePort2.IPv4)
+	flow3IpHeader.TimeToLive().SetValue(int32(ttl1))
+	flow3.Size().SetFixed(int32(packetInPktsize))
+	flow3.Rate().SetPps(int64(trPacketRate))
+	flow3.Duration().FixedSeconds().SetSeconds(float32(duration))
 
-	// flow3 for Traceroute traffic.
-	flow3 := ate.Traffic().NewFlow("IPv4").WithFrameSize(packetInPktsize).WithFrameRateFPS(trPacketRate).WithHeaders(ethHeader, ipv4Header)
-	flow3.Transmission().WithPatternFixedDuration(duration)
-
-	return []*ondatra.Flow{flow1, flow2, flow3}
+	return []gosnappi.Flow{flow1, flow2, flow3}
 }
 
 // GetEgressPort returns expected egress port info in PacketIn.
@@ -934,4 +953,13 @@ func (gdp *GDPPacketIO) GetPacketTemplate() *PacketIOPacket {
 // GetPacketTemplate returns the expected  PacketIOPacket for traceroute type.
 func (traceroute *TraceroutePacketIO) GetPacketTemplate() *PacketIOPacket {
 	return &traceroute.PacketIOPacket
+}
+
+func ateInterface(t *testing.T, topo gosnappi.Config, portID string) gosnappi.Port {
+	for _, p := range topo.Ports().Items() {
+		if p.Name() == portID {
+			return p
+		}
+	}
+	return nil
 }
