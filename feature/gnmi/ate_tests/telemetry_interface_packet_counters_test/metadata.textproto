@@ -15,6 +15,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    interface_counters_from_container: true
   }
 }
 platform_exceptions: {
@@ -38,17 +39,5 @@ platform_exceptions: {
     interface_counters_from_container: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: CISCO
-    hardware_model: "CISCO-8808"
-    hardware_model: "CISCO-8202-32FH-M"
-    hardware_model: "8201"
-    hardware_model: "xrd"
-  }
-  deviations: {
-    interface_counters_from_container: true
   }
 }
