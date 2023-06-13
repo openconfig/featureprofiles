@@ -13,7 +13,6 @@ import (
 	mplscompliance "github.com/openconfig/featureprofiles/feature/gribi/tests/mpls"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -252,8 +251,6 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		t.Logf("Stopping MPLS traffic...")
 		otg.StopTraffic(t)
 
-		otgutils.LogPortMetrics(t, otg, otgCfg)
-
 		// TODO(robjs): validate traffic counters and received headers.
 	}
 
@@ -321,9 +318,6 @@ func TestMPLSPushToIP(t *testing.T) {
 		time.Sleep(120 * time.Second)
 		t.Logf("Stopping IP traffic...")
 		otg.StopTraffic(t)
-
-		otgutils.LogPortMetrics(t, otg, otgCfg)
-		otgutils.LogFlowMetrics(t, otg, otgCfg)
 
 		// TODO(robjs): validate traffic counters and received headers.
 	}
