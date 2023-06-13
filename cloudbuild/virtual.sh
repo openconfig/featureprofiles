@@ -34,6 +34,9 @@ case ${platform} in
   nokia_srlinux)
     vendor_creds=NOKIA/admin/NokiaSrl1!
     ;;
+  openconfig_lemming)
+    vendor_creds=OPENCONFIG/admin/admin
+    ;;
   :)
     echo "Model ${platform} not valid"
     exit 1
