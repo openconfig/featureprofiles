@@ -63,7 +63,7 @@ func modifiedFiles(repo *git.Repository, head string) ([]string, error) {
 		return nil, err
 	}
 
-	base, err := mergeBase(repo, head)
+	base, err := mergeBase(repo, head, "origin/main")
 	if err != nil {
 		return nil, err
 	}
@@ -93,10 +93,9 @@ func modifiedFiles(repo *git.Repository, head string) ([]string, error) {
 
 // mergeBase returns the common ancestor hash from the head commit and
 // origin/main of the repo.
-func mergeBase(repo *git.Repository, head string) (string, error) {
-	commitRevs := []string{"origin/main", head}
+func mergeBase(repo *git.Repository, head, base string) (string, error) {
 	var hashes []*plumbing.Hash
-	for _, rev := range commitRevs {
+	for _, rev := range []string{head, base} {
 		hash, err := repo.ResolveRevision(plumbing.Revision(rev))
 		if err != nil {
 			return "", fmt.Errorf("could not parse revision '%s': %w", rev, err)
