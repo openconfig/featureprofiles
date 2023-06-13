@@ -91,8 +91,7 @@ func modifiedFiles(repo *git.Repository, head string) ([]string, error) {
 	return result, nil
 }
 
-// mergeBase returns the common ancestor hash from the head commit and
-// origin/main of the repo.
+// mergeBase returns the common ancestor hash from the head and base commits.
 func mergeBase(repo *git.Repository, head, base string) (string, error) {
 	var hashes []*plumbing.Hash
 	for _, rev := range []string{head, base} {
