@@ -6,6 +6,12 @@ replace: {
    ascii_val:
 "hostname R4\n"
 "clock timezone EST America/New_York\n"
+"lpts punt police location 0/0/CPU0\n"
+" exception ttl-expiry rate 1500\n"
+"lpts punt police location 0/6/CPU0\n"
+" exception ttl-expiry rate 1500\n"
+"lpts punt police location 0/5/CPU0\n"
+" exception ttl-expiry rate 1500\n"
 "logging buffered 125000000\n"
 "username cafyauto\n"
 " group root-lr\n"

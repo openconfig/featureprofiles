@@ -238,6 +238,12 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+  - name: P4RT-6.1 (Required Packet I/O rate Performance)
+    path: feature/experimental/p4rt/ate_tests/performance_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: false    
   - name: gNMI-1.1 (cli Origin)
     path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
     owners:
