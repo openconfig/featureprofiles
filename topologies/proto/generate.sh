@@ -32,4 +32,5 @@ go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/ond
 
 cd "$( dirname "${BASH_SOURCE[0]}" )"
 
-protoc -I='../../protobuf-import' --proto_path=. --go_out=. --go_opt=module=github.com/openconfig/featureprofiles/topologies/proto *.proto
+protoc -I='../../protobuf-import' --proto_path=. --go_out=. --go_opt=module=github.com/openconfig/featureprofiles/topologies/proto binding.proto
+find . -type f -name "*.proto" ! -name "binding.proto" -exec protoc --go_out=. --go_opt=module=github.com/openconfig/featureprofiles/topologies/proto {} \;
