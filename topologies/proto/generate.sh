@@ -18,6 +18,17 @@
 # binding proto APIs.
 
 set -e
-
+  
 cd "$( dirname "${BASH_SOURCE[0]}" )"
-protoc --go_out=. --go_opt=module=github.com/openconfig/featureprofiles/topologies/proto *.proto
+# Set directory to hold symlink
+mkdir -p protobuf-import
+# Remove any existing symlinks & empty directories
+find protobuf-import -type l -delete
+find protobuf-import -type d -empty -delete
+# Download the required dependencies
+go mod download
+# Get ondatra modules we use and create required directory structure
+go list -f 'protobuf-import/{{ .Path }}' -m github.com/openconfig/ondatra | xargs -L1 dirname | sort | uniq | xargs mkdir -p
+go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
+
+protoc -I='protobuf-import' --proto_path=. --go_out=. --go_opt=module=github.com/openconfig/featureprofiles/topologies/proto *.proto
