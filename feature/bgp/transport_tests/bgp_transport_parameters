@@ -21,6 +21,12 @@ Procedure:
     - Local Pref
     - Metric
     - Communities
+  - Initiate EBGP and IBGP session reset at the DUT end few times and ensure following are collected accurately each time on the DUT.
+    - last-notification-time, last-notification-error-code, last-notification-error-subcode in the sent container
+    - neighbors/neighbor/transport/state/remote-port, neighbors/neighbor/transport/state/remote-address, neighbors/neighbor/state/neighbor-address, neighbors/neighbor/state/neighbor-port
+  - Initiate EBGP and IBGP session reset at both the ATE ends few times and ensure following are collected accurately each time on the DUT.
+    - last-notification-time, last-notification-error-code, last-notification-error-subcode in the received container
+    - neighbors/neighbor/transport/state/remote-port, neighbors/neighbor/transport/state/remote-address, neighbors/neighbor/state/neighbor-address, neighbors/neighbor/state/neighbor-port
 
 Config Parameter coverage:
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-port
@@ -33,3 +39,10 @@ Telemetry Parameter coverage
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-time
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-error-code
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-error-subcode
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-time
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-subcode
+
