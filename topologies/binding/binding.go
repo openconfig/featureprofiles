@@ -322,25 +322,35 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
 	if err != nil {
 		return nil, err
 	}
-	if bd.GetVendor().String() != "" && bd.GetHardwareModel() != "" {
-		if bd.GetVendor().String() != td.Vendor.String() || bd.GetHardwareModel() != td.GetHardwareModel() {
-			return nil, fmt.Errorf("values for device vendor %v and device hardwaremodel %v do not match binding vendor %v and binding hardwaremodel %v", td.GetVendor(), td.GetHardwareModel(), bd.GetVendor(), bd.GetHardwareModel())
-		}
-		return &binding.Dims{
-			Name:            bd.Name,
-			Vendor:          bd.GetVendor(),
-			HardwareModel:   bd.GetHardwareModel(),
-			SoftwareVersion: td.GetSoftwareVersion(),
-			Ports:           portmap,
-		}, nil
-	}
-	return &binding.Dims{
+	dims := &binding.Dims{
 		Name:            bd.Name,
-		Vendor:          td.Vendor,
-		HardwareModel:   td.GetHardwareModel(),
-		SoftwareVersion: td.GetSoftwareVersion(),
+		Vendor:          bd.GetVendor(),
+		HardwareModel:   bd.GetHardwareModel(),
+		SoftwareVersion: bd.GetSoftwareVersion(),
 		Ports:           portmap,
-	}, nil
+	}
+	// Populate empty binding dimensions with testbed dimensions.
+	// TODO(prinikasn): Remove testbed override once all vendors are using binding dimensions exclusively.
+	if tdVendor := td.GetVendor(); tdVendor != opb.VENDOR_UNSPECIFIED {
+		if dims.Vendor != opb.VENDOR_UNSPECIFIED && dims.Vendor != tdVendor {
+			return nil, fmt.Errorf("binding vendor %v and testbed vendor %v do not match", dims.Vendor, tdVendor)
+		}
+		dims.Vendor = tdVendor
+	}
+	if tdHardwareModel := td.GetHardwareModel(); tdHardwareModel != "" {
+		if dims.HardwareModel != "" && dims.HardwareModel != tdHardwareModel {
+			return nil, fmt.Errorf("binding hardware model %v and testbed hardware model %v do not match", dims.HardwareModel, tdHardwareModel)
+		}
+		dims.HardwareModel = tdHardwareModel
+	}
+	if tdSoftwareVersion := td.GetSoftwareVersion(); tdSoftwareVersion != "" {
+		if dims.SoftwareVersion != "" && dims.SoftwareVersion != tdSoftwareVersion {
+			return nil, fmt.Errorf("binding software version %v and testbed software version %v do not match", dims.SoftwareVersion, tdSoftwareVersion)
+		}
+		dims.SoftwareVersion = tdSoftwareVersion
+	}
+
+	return dims
 }
 
 func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port, error) {

@@ -92,6 +92,9 @@ message Device {
 
   // Hardware models of the device.
   string hardware_model = 20;
+
+  // Software version of the device.
+  string software_version = 21;
 }
 
 // Dial options.
