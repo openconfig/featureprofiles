@@ -5,3 +5,39 @@ uuid: "0c825514-daf0-4d46-a3d9-2b6e5bff5529"
 plan_id: "gNMI-1.11"
 description: "Telemetry: Interface Packet Counters"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    interface_counters_from_container: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    ipv6_discarded_pkts_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    interface_counters_from_container: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+  }
+}
