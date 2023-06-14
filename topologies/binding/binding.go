@@ -350,7 +350,7 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
 		dims.SoftwareVersion = tdSoftwareVersion
 	}
 
-	return dims
+	return dims, nil
 }
 
 func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port, error) {
