@@ -719,6 +719,8 @@ github.com/open-traffic-generator/ixia-c-operator v0.3.0 h1:DFINZYbM9MLNnKvi2+Bg
 github.com/open-traffic-generator/ixia-c-operator v0.3.0/go.mod h1:Q+ZXCinXxUKcnrJf5PJC1Q7JxUQc5ZPZA85jwVAqIRQ=
 github.com/open-traffic-generator/snappi/gosnappi v0.11.14 h1:AuD13HqZldjtPWvDKaXVDRZ+32Aol5QJCepEqTiukqM=
 github.com/open-traffic-generator/snappi/gosnappi v0.11.14/go.mod h1:CRT6BypHa7NOrNlrjw3Crcs9f7eLC4S34ERvyyGIusY=
+github.com/openconfig/entity-naming v0.0.0-20230609224707-9cc7aa2a8a3f h1:e0szPbW5dgJAllqlDVlRBJo4eZ9xvYbi0+38N+E10pU=
+github.com/openconfig/entity-naming v0.0.0-20230609224707-9cc7aa2a8a3f/go.mod h1:D5ex8EWeLV8K3FSpJDm2AuQ6lSWR7kRg70tb/vkNwjg=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20200508230933-d19cebf5e7be/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2/go.mod h1:Y9os75GmSkhHw2wX8sMsxfI7qRGAEcDh8NTa5a8vj6E=
@@ -746,8 +748,8 @@ github.com/openconfig/kne v0.1.13 h1:CXcy95vrUDAA7nTPGekwJXunlt2kBwM/oMQUlbDzmFM
 github.com/openconfig/kne v0.1.13/go.mod h1:L3y17JPcmU06vcTFRssYynUdKS7HfcGJUJNVvwkl5S8=
 github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY05KS5X11jxVbw=
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
-github.com/openconfig/ondatra v0.1.18-0.20230606232135-58948d7876c7 h1:3TQf0cUcCz7F+VBxYEw43Xag1e/5f6vFOeploTG4AZg=
-github.com/openconfig/ondatra v0.1.18-0.20230606232135-58948d7876c7/go.mod h1:PvFFfmMbU16ItoDb00HbgpcFbVj7/c+1kD+0MncV3+Y=
+github.com/openconfig/ondatra v0.1.19 h1:4QMYeVngqkdSM/l5E4CWpEi6hNFE/jv14hL9EwvQa7E=
+github.com/openconfig/ondatra v0.1.19/go.mod h1:XR5X6HGtXXs/6PjUEx3huyDlp/P1E+tVKBeqQx2lV4c=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygnmi v0.7.7 h1:VjmBhLFgPcKVftT8Uq6t3lXkCwsVTZUQmIwGIJbSfhU=

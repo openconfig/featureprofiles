@@ -205,6 +205,24 @@ func TestPopulateTestDetail(t *testing.T) {
 					},
 				},
 			},
+			{
+				Type: deviceType{
+					Vendor:        opb.Device_OPENCONFIG,
+					HardwareModel: "Lemming",
+				},
+				Tests: []functionalTest{
+					{
+						Name:        "plan_id-B",
+						Description: "description-B",
+						Path:        "feature/bgp/addpath/otg_tests/example_test",
+						DocURL:      "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test/README.md",
+						TestURL:     "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test",
+						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".OPENCONFIG_Lemming.svg",
+						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".OPENCONFIG_Lemming.svg",
+						Status:      "pending authorization",
+					},
+				},
+			},
 		},
 	}
 
