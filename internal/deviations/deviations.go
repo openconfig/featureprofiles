@@ -510,6 +510,11 @@ func StorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStorageComponentUnsupported()
 }
 
+// SetNativeUser creates a user and assigns role/rbac to that user via native model.
+func SetNativeUser(_ *ondatra.DUTDevice) bool {
+	return *setNativeUser
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -675,4 +680,6 @@ var (
 	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
 	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
+
+	setNativeUser = flag.Bool("deviation_set_native_user", false, "Set to true for devices that require configurations of users/aaa through native models")
 )
