@@ -66,18 +66,21 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
 		{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
+		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 	},
-	"/fptest ceos":  {{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}},
-	"/fptest 8000e": {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
-	"/fptest xrd":   {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
-	"/fptest cptx":  {{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}},
-	"/fptest srl":   {{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}},
+	"/fptest ceos":    {{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}},
+	"/fptest 8000e":   {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
+	"/fptest xrd":     {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
+	"/fptest cptx":    {{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}},
+	"/fptest srl":     {{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}},
+	"/fptest lemming": {{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}},
 	"/fptest all": {
 		{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "8000E"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
 		{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
+		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 	},
 }
 
@@ -88,15 +91,17 @@ var virtualDeviceTypes = []deviceType{
 	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
 	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
 	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
+	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 }
 
 // virtualDeviceMachineType is a map of virtual machines to their expected machine type requirement.
 var virtualDeviceMachineType = map[deviceType]string{
-	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}:    "e2-standard-4",
-	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}:    "n2-standard-8",
-	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}:      "e2-standard-4",
-	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}:   "n2-standard-16",
-	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}: "e2-standard-4",
+	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}:        "e2-standard-4",
+	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}:        "n2-standard-8",
+	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}:          "e2-standard-4",
+	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}:       "n2-standard-16",
+	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}:     "e2-standard-4",
+	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}: "e2-standard-4",
 }
 
 func titleCase(input string) string {

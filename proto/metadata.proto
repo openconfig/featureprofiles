@@ -34,7 +34,7 @@ message Metadata {
     TESTBED_DUT_DUT_4LINKS = 2;
     TESTBED_DUT_ATE_2LINKS = 3;
     TESTBED_DUT_ATE_4LINKS = 4;
-    TESTBED_DUT_ATE_9LINKS = 5;
+    TESTBED_DUT_ATE_9LINKS_LAG = 5;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -59,6 +59,8 @@ message Metadata {
     bool prepolicy_received_routes = 4;
     // Expected ucmp traffic tolerance. Minimum value is 0.2, anything less
     // will be coerced to 0.2.
+    // Juniper: partnerissuetracker.corp.google.com/282234301
+    // Cisco: partnerissuetracker.corp.google.com/279477633
     double hierarchical_weight_resolution_tolerance = 5;
     // Device skip isis multi-topology check if value is true.
     bool isis_multi_topology_unsupported = 6;
@@ -106,22 +108,27 @@ message Metadata {
     // Device does not support these state paths.
     // Juniper: partnerissuetracker.corp.google.com/279470921
     bool state_path_unsupported = 23;
-    // Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address.
+    // Device requires Ipv6 to be enabled on interface for gRIBI NH programmed
+    // with destination mac address.
     // Juniper: partnerissuetracker.corp.google.com/267642089
     bool ipv6_enable_for_gribi_nh_dmac = 24;
     // Device requires additional config for ECN.
     // Juniper: partnerissuetracker.corp.google.com/277657269
     bool ecn_profile_required_definition = 25;
-    // Set true for device that does not support interface ipv6 discarded packet statistics.
+    // Set true for device that does not support interface ipv6 discarded packet
+    // statistics.
     // Juniper: partnerissuetracker.corp.google.com/277762075
     bool ipv6_discarded_pkts_unsupported = 26;
-    // Device does not support drop and weight leaves under queue management profile.
+    // Device does not support drop and weight leaves under queue management
+    // profile.
     // Juniper: partnerissuetracker.corp.google.com/279471405
     bool drop_weight_leaves_unsupported = 27;
-    // Device does not support traffic forward with secondary backup path failover.
+    // Device does not support traffic forward with secondary backup path
+    // failover.
     // Juniper: partnerissuetracker.corp.google.com/279727552
     bool secondary_backup_path_traffic_failover = 28;
-    // Set to true for device in which config pushed through origin CLI takes precedence over config pushed through origin OC.
+    // Set to true for device in which config pushed through origin CLI takes
+    // precedence over config pushed through origin OC.
     bool cli_takes_precedence_over_oc = 29;
     // Device does not support weight above 100.
     // Juniper: partnerissuetracker.corp.google.com/277066804
@@ -129,9 +136,41 @@ message Metadata {
     // Device does not support id leaf for SwitchChip components.
     // Juniper: partnerissuetracker.corp.google.com/277134501
     bool switch_chip_id_unsupported = 31;
-    // Device does not support backplane-facing-capacity leaves for some of the components.
+    // Device does not support backplane-facing-capacity leaves for some of the
+    // components.
     // Juniper: partnerissuetracker.corp.google.com/277134501
     bool backplane_facing_capacity_unsupported = 32;
+    // Device only supports querying counters from the state container, not from
+    // individual counter leaves.
+    bool interface_counters_from_container = 33;
+    // Use this deviation when the device does not support a mix of tagged and
+    // untagged subinterfaces.
+    bool no_mix_of_tagged_and_untagged_subinterfaces = 34;
+    // Device does not report P4RT node names in the component hierarchy.
+    bool explicit_p4rt_node_component = 35;
+    // Configure ACLs using vendor native model specifically for RT-1.4.
+    bool use_vendor_native_acl_config = 36;
+    // Device does not support reporting software version according to the
+    // requirements in gNMI-1.10.
+    bool sw_version_unsupported = 37;
+    // Device requires explicit interface ref configuration when applying
+    // features to interface.
+    bool explicit_interface_ref_definition = 38;
+    // Set to true for device that does not support telemetry path
+    // /components/component/storage.
+    // Juniper: partnerissuetracker.corp.google.com/284239001
+    bool storage_component_unsupported = 39;
+    // Device requires gribi-protocol to be enabled under network-instance.
+    bool explicit_gribi_under_network_instance = 40;
+    // Device requires port-speed to be set because its default value may not be
+    // usable.
+    bool explicit_port_speed = 41;
+    // Device requires explicit attachment of an interface or subinterface to
+    // the default network instance.
+    // Nokia: partnerissuetracker.corp.google.com/260928639
+    bool explicit_interface_in_default_vrf = 42;
+    // Set to true to skip checking QOS Dropped octets stats for interface.
+    bool qos_dropped_octets = 43;
   }
 
   message PlatformExceptions {
