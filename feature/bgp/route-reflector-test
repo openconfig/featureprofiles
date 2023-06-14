@@ -1,0 +1,43 @@
+Summary: 
+ - BGP route reflector capabilities check
+ - Ensure functionality of different OC paths for "supported-capabilities", "BGP peer-type", "BGP Neighbor details" and "BGP transport session parameters"
+
+
+Topology:
+ATE (Port1) <--> (Port1) DUT (Port2) <--> (Port2) ATE
+  - Connect ATE Port1 to DUT port1
+  - Connect ATE Port2 to DUT port2
+
+Procedure:
+  - Establish IS-IS adjacency between ATE Port1 and DUT Port1. 
+  - Establish BGP sessions as follows between ATE and DUT . 
+    - ATE port 1 is emulating RRC peered with the DUT acting as the RR server. DUT's loopback address should be used for the IBGP peering and 
+      "transport/config/local-address" OC path should be used on DUT to configure BGP transport address. ATE address used for the IBGP peering (different from ATE port1 address) and DUT 
+      loopback addresses should be reachable via IS-IS
+    - The DUT has eBGP peering with ATE port 2 and is receiving 20M IPv4 and 5M IPv6 routes. The DUT should automatically determine the BGP transport source address based on the nearest interface.
+      Hence, the OC path "transport/config/local-address" shouldnt be used.
+  - Validate session state on ATE ports and DUT using telemetry.
+    - The check should also include accurately receiving values for the path "transport/state/local-address" for RRC as well as for the EBGP peering
+    - Validate accuracy of the peer-type leaf (neighbor/config/peer-type) for EBGP and IBGP peering.
+  - Validate session state and capabilities received on DUT using telemetry.
+  - Validate the BGP route/path attributes
+    - NH
+    - Local Pref
+    - Metric
+    - Communities
+
+
+Config Parameter coverage:
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-cluster-id
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-client
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-type
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address
+
+
+Telemetry Parameter coverage
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/state/route-reflector-cluster-id
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/state/route-reflector-client
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
