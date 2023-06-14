@@ -123,13 +123,13 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 
 	queueMap := map[ondatra.Vendor]map[string]string{
 		ondatra.JUNIPER: {
-			"NC1": "3",
-			"AF4": "2",
-			"AF3": "5",
-			"AF2": "1",
-			"AF1": "4",
+			"NC1": "7",
+			"AF4": "6",
+			"AF3": "4",
+			"AF2": "3",
+			"AF1": "2",
 			"BE1": "0",
-			"BE0": "6",
+			"BE0": "1",
 		},
 		ondatra.ARISTA: {
 			"NC1": "NC1",
@@ -1315,31 +1315,31 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   "6",
+		queueName:   "0",
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   "0",
+		queueName:   "1",
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   "4",
+		queueName:   "2",
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   "1",
+		queueName:   "3",
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   "5",
+		queueName:   "4",
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   "2",
+		queueName:   "6",
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   "3",
+		queueName:   "7",
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1534,10 +1534,8 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
-			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		}
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
+		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
@@ -1562,7 +1560,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "BE1",
 		weight:      uint64(1),
-		queueName:   "6",
+		queueName:   "0",
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -1571,7 +1569,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "BE0",
 		weight:      uint64(1),
-		queueName:   "0",
+		queueName:   "1",
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -1580,7 +1578,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF1",
 		weight:      uint64(4),
-		queueName:   "4",
+		queueName:   "2",
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -1589,7 +1587,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF2",
 		weight:      uint64(8),
-		queueName:   "1",
+		queueName:   "3",
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -1598,7 +1596,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF3",
 		weight:      uint64(12),
-		queueName:   "5",
+		queueName:   "4",
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -1607,7 +1605,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF4",
 		weight:      uint64(48),
-		queueName:   "2",
+		queueName:   "6",
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -1616,7 +1614,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
-		queueName:   "3",
+		queueName:   "7",
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1670,9 +1668,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
-		}
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName("scheduler")

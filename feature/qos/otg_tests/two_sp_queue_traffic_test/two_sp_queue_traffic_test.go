@@ -180,13 +180,13 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			"BE1": "g_BE1",
 		},
 		ondatra.JUNIPER: {
-			"NC1": "3",
-			"AF4": "2",
-			"AF3": "5",
-			"AF2": "1",
-			"AF1": "4",
+			"NC1": "7",
+			"AF4": "6",
+			"AF3": "4",
+			"AF2": "3",
+			"AF1": "2",
 			"BE1": "0",
-			"BE0": "6",
+			"BE0": "1",
 		},
 		ondatra.NOKIA: {
 			"NC1": "7",
@@ -1254,13 +1254,13 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	if dut.Vendor() == ondatra.JUNIPER {
 		qos = qosVals{
-			be0: "6",
+			be0: "1",
 			be1: "0",
-			af1: "4",
-			af2: "1",
-			af3: "5",
-			af4: "2",
-			nc1: "3",
+			af1: "2",
+			af2: "3",
+			af3: "4",
+			af4: "6",
+			nc1: "7",
 		}
 	}
 
@@ -1471,10 +1471,8 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
-			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		}
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
+		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
@@ -1542,7 +1540,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(100),
+		weight:      uint64(99),
 		queueName:   qos.af4,
 		targetGroup: "target-group-AF4",
 	}, {
@@ -1551,7 +1549,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(200),
+		weight:      uint64(100),
 		queueName:   qos.nc1,
 		targetGroup: "target-group-NC1",
 	}}
@@ -1610,9 +1608,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
-		}
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)

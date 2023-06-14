@@ -111,11 +111,11 @@ func TestQoSCounters(t *testing.T) {
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "3"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "2"},
-			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 24, queue: "5"},
-			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "1"},
-			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "4"},
+			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "7"},
+			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "6"},
+			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 24, queue: "4"},
+			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "3"},
+			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "2"},
 			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "0"},
 		}
 	case ondatra.ARISTA:
@@ -332,13 +332,13 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	if dut.Vendor() == ondatra.JUNIPER {
 		qos = qosVals{
-			be0: "6",
+			be0: "1",
 			be1: "0",
-			af1: "4",
-			af2: "1",
-			af3: "5",
-			af4: "2",
-			nc1: "3",
+			af1: "2",
+			af2: "3",
+			af3: "4",
+			af4: "6",
+			nc1: "7",
 		}
 	}
 
@@ -543,10 +543,8 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp1.Name())
-			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		}
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp1.Name())
+		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
@@ -682,9 +680,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp2.Name())
 		i.SetInterfaceId(dp2.Name())
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp2.Name())
-		}
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp2.Name())
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
