@@ -106,6 +106,21 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/local-port"
 }
 
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-established"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-port"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-address"
+}
 
 # messages
 
@@ -135,6 +150,9 @@ telemetry_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-error-subcode"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/sent/last-notification-time"
 }
 
 # AFI/SAFI - IPv4 unicast, IPv6 unicast
@@ -278,6 +296,13 @@ telemetry_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/warning-threshold-pct"
 }
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/prefix-limit-exceeded"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit/state/prefix-limit-exceeded"
+}
+
 
 #Basic BGP Timers
 ## MRAI
@@ -457,11 +482,6 @@ config_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/connect-retry"
-}
-
-# Neighbor state
-telemetry_path {
-    path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-established"
 }
 
 # Transport
