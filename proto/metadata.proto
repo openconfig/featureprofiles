@@ -171,6 +171,8 @@ message Metadata {
     bool explicit_interface_in_default_vrf = 42;
     // Set to true to skip checking QOS Dropped octets stats for interface.
     bool qos_dropped_octets = 43;
+    // Creates a user and assigns role/rbac to said user via native model.
+    bool set_native_user = 44;
   }
 
   message PlatformExceptions {

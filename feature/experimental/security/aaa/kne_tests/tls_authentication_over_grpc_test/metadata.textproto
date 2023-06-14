@@ -5,3 +5,15 @@ uuid: "6163fd8a-2b42-4e3d-ad98-3c940aa70a4c"
 plan_id: "SEC-3.1"
 description: "Authentication"
 testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    set_native_user: true
+  }
+}
+
