@@ -331,8 +331,8 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
 	}
 	// Populate empty binding dimensions with testbed dimensions.
 	// TODO(prinikasn): Remove testbed override once all vendors are using binding dimensions exclusively.
-	if tdVendor := td.GetVendor(); tdVendor != opb.VENDOR_UNSPECIFIED {
-		if dims.Vendor != opb.VENDOR_UNSPECIFIED && dims.Vendor != tdVendor {
+	if tdVendor := td.GetVendor(); tdVendor != opb.Device_VENDOR_UNSPECIFIED {
+		if dims.Vendor != opb.Device_VENDOR_UNSPECIFIED && dims.Vendor != tdVendor {
 			return nil, fmt.Errorf("binding vendor %v and testbed vendor %v do not match", dims.Vendor, tdVendor)
 		}
 		dims.Vendor = tdVendor
