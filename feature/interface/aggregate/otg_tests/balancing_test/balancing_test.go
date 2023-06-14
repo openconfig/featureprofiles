@@ -570,7 +570,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 func TestBalancing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	aggID := netutil.NextBundleInterface(t, dut)
+	aggID := netutil.NextAggregateInterface(t, dut)
 
 	tests := []testCase{
 		{
