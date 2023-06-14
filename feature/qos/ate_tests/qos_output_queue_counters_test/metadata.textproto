@@ -27,6 +27,7 @@ platform_exceptions: {
   deviations: {
     scheduler_input_weight_limit: true
     explicit_interface_ref_definition: true
+    qos_dropped_octets: true
   }
 }
 platform_exceptions: {

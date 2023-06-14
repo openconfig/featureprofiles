@@ -26,6 +26,7 @@ platform_exceptions: {
   }
   deviations: {
     explicit_interface_ref_definition: true
+    qos_dropped_octets: true
   }
 }
 platform_exceptions: {
