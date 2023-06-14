@@ -510,6 +510,12 @@ func StorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStorageComponentUnsupported()
 }
 
+// CPUMissingAncestor returns True for devices where the CPU components
+// do not map to a FRU parent component in the OC tree.
+func CPUMissingAncestor(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCpuMissingAncestor()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.

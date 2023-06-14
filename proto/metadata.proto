@@ -171,6 +171,9 @@ message Metadata {
     bool explicit_interface_in_default_vrf = 42;
     // Set to true to skip checking QOS Dropped octets stats for interface.
     bool qos_dropped_octets = 43;
+    // Devices where the CPU components do not map to a FRU parent component
+    // in the OC tree.
+    bool cpu_missing_ancestor = 44;
   }
 
   message PlatformExceptions {
