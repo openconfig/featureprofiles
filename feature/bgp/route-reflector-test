@@ -2,7 +2,6 @@ Summary:
  - BGP route reflector capabilities check
  - Ensure functionality of different OC paths for "supported-capabilities", "BGP peer-type", "BGP Neighbor details" and "BGP transport session parameters"
 
-
 Topology:
 ATE (Port1) <--> (Port1) DUT (Port2) <--> (Port2) ATE
   - Connect ATE Port1 to DUT port1
@@ -26,7 +25,6 @@ Procedure:
     - Metric
     - Communities
 
-
 Config Parameter coverage:
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config
@@ -34,7 +32,6 @@ Config Parameter coverage:
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-client
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-type
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address
-
 
 Telemetry Parameter coverage
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/state/route-reflector-cluster-id
