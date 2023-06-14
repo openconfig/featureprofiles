@@ -112,6 +112,9 @@ func TestMergeBase(t *testing.T) {
 	}
 
 	headCommitSHA, err := headCommitSHA(r)
+	if err != nil {
+		t.Fatalf("Failed to fetch head commit head ref: %s", err)
+	}
 
 	res, err := mergeBase(r, "main", headCommitSHA)
 	if res != baseCommitSHA {
