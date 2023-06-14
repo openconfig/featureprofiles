@@ -56,7 +56,7 @@ jobs:
         # Create symlink
         go list -f "{{ .Dir }} \"${PROTOBUF_IMPORT_DIR}\"/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
         for i in `find topologies/ -type f -name "*.binding"`; do
-          if ! output=$(protoc -I="${PROTOBUF_IMPORT_DIR}" --encode=openconfig.testing.Binding topologies/proto/binding.proto < $i 2>&1 >/dev/null); then
+          if ! output=$(protoc -I="${PROTOBUF_IMPORT_DIR}" --proto_path=topologies/proto --encode=openconfig.testing.Binding topologies/proto/binding.proto < $i 2>&1 >/dev/null); then
             fail=1
             echo -e "Compile $i failed:\n$output\n"
           fi
