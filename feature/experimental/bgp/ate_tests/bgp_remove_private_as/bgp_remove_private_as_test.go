@@ -217,15 +217,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, asSeg []uint32, asMode s
 	bgpNeti1.IPv4().WithAddress(advertisedRoutesv4CIDR).WithCount(routeCount)
 	bgpNeti1.BGP().WithNextHopAddress(ateSrc.IPv4)
 
-	switch asMode {
-	case "SEQ":
+	if asMode == "SEQ" {
 		bgpNeti1.BGP().AddASPathSegment(asSeg...).WithTypeSEQ()
-	case "SET":
+	} else {
 		// TODO : SET mode is not working
 		// https://github.com/openconfig/featureprofiles/issues/1659
 		bgpNeti1.BGP().AddASPathSegment(asSeg...).WithTypeSET()
-	default:
-		bgpNeti1.BGP().AddASPathSegment(asSeg...)
 	}
 
 	t.Logf("Pushing config to ATE and starting protocols...")
