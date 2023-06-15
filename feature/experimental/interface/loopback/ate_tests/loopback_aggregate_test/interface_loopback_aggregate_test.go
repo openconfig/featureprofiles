@@ -148,7 +148,7 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	t.Logf("Start DUT config load.")
 	dut := ondatra.DUT(t, "dut")
 	dutOcRoot := &oc.Root{}
-	aggID := netutil.NextBundleInterface(t, dut)
+	aggID := netutil.NextAggregateInterface(t, dut)
 	dutPort1 := dut.Port(t, "port1")
 
 	t.Run("Configure port1 on DUT ", func(t *testing.T) {
