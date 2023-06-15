@@ -52,6 +52,9 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setMEDPolicy)
 	actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
+	conditions := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateConditions()
+	conditions.SetInstallProtocolEq(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	setMedBGP := actions5.GetOrCreateBgpActions()
 	setMedBGP.SetMed = oc.UnionUint32(bgpMED)
 
