@@ -171,7 +171,7 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) gos
 	otg := ate.OTG()
 	flow := top.Flows().Add().SetName("Flow")
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort1.Name + ".IPv4"})
+	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	v4 := flow.Packet().Add().Ipv4()
