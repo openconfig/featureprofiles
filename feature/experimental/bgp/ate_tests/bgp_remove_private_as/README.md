@@ -13,7 +13,7 @@ BGP remove private AS
     *   Inject routes with AS_PATH modified to have private AS number 65501 from eBGP neighbor #1 
         (ATE Port1).
     *   Validate received routes on ATE Port2 should have AS Path "500 100 65501".
-    *   Configure "remove private AS" on DUT.    
+    *   Configure "remove private AS" with type PRIVATE_AS_REMOVE_ALL  on DUT.    
     *   Validate that private AS numbers are stripped before advertisement to the eBGP peer ATE Port2.
     *   AS path for received routes on ATE Port2 should be "500 100".   
     *   TODO: different patterns of private AS should be tested.

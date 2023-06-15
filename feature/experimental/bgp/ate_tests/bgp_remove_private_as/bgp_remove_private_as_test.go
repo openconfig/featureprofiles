@@ -151,8 +151,8 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	return ni_proto
 }
 
-// verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
-func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+// verifyBGPTelemetry checks that the dut has an established BGP session with reasonable settings.
+func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	var nbrIP = []string{ateSrc.IPv4, ateDst.IPv4}
 	t.Logf("Verifying BGP state.")
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -248,24 +248,24 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 		return present
 	}).Await(t)
 
-	var wantAsSeg = []uint32{dutAS, ateAS1}
-	if !removeASPath {
-		wantAsSeg = append(wantAsSeg, asSeg...)
-	} else {
+	var wantASSeg = []uint32{dutAS, ateAS1}
+
+	if removeASPath {
 		for _, as := range asSeg {
 			if as < 64512 {
-				wantAsSeg = append(wantAsSeg, as)
+				wantASSeg = append(wantASSeg, as)
 			}
 		}
+	} else {
+		wantASSeg = append(wantASSeg, asSeg...)
 	}
-	var gotAsSeg []uint32
-	_, ok := gnmi.WatchAll(t, ate, rib.AttrSetAny().AsSegmentAny().State(), 1*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet_AsSegment]) bool {
+
+	gotASSeg, ok := gnmi.WatchAll(t, ate, rib.AttrSetAny().AsSegmentAny().State(), 1*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet_AsSegment]) bool {
 		val, present := v.Val()
-		gotAsSeg = val.Member
-		return present && cmp.Diff(val.Member, wantAsSeg) == ""
+		return present && cmp.Diff(val.Member, wantASSeg) == ""
 	}).Await(t)
 	if !ok {
-		t.Errorf("Obtained AS path on ATE is not as expected, gotAsSeg %v, wantAsSeg %v", gotAsSeg, wantAsSeg)
+		t.Errorf("Obtained AS path on ATE is not as expected, gotASSeg %v, wantASSeg %v", gotASSeg, wantASSeg)
 	}
 }
 
@@ -323,7 +323,7 @@ func TestRemovePrivateAS(t *testing.T) {
 			verifyPortsUp(t, dut.Device)
 
 			t.Log("Check BGP parameters.")
-			verifyBgpTelemetry(t, dut)
+			verifyBGPTelemetry(t, dut)
 
 			t.Log("Verify BGP prefix telemetry.")
 			verifyPrefixesTelemetry(t, dut, ateSrc.IPv4, routeCount, 0)
