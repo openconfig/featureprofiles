@@ -191,7 +191,7 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 
 // configureATE configures the interfaces and BGP protocols on an ATE, including
 // advertising some(faked) networks over BGP.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice, asSeg []uint32, asMode string) *ondatra.ATETopology {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, asSeg []uint32, asSEQMode bool) *ondatra.ATETopology {
 	port1 := ate.Port(t, "port1")
 	topo := ate.Topology().New()
 	iDut1 := topo.AddInterface(ateSrc.Name).WithPort(port1)
@@ -214,7 +214,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, asSeg []uint32, asMode s
 	bgpNeti1.IPv4().WithAddress(advertisedRoutesv4CIDR).WithCount(routeCount)
 	bgpNeti1.BGP().WithNextHopAddress(ateSrc.IPv4)
 
-	if asMode == "SEQ" {
+	if asSEQMode {
 		bgpNeti1.BGP().AddASPathSegment(asSeg...).WithTypeSEQ()
 	} else {
 		// TODO : SET mode is not working
@@ -296,28 +296,28 @@ func TestRemovePrivateAS(t *testing.T) {
 	})
 
 	cases := []struct {
-		desc   string
-		asSeg  []uint32
-		asMode string
+		desc      string
+		asSeg     []uint32
+		asSEQMode bool
 	}{{
-		desc:   "AS Path SEQ - 65501, 65507, 65534",
-		asSeg:  []uint32{65501, 65507, 65534},
-		asMode: "SEQ",
+		desc:      "AS Path SEQ - 65501, 65507, 65534",
+		asSeg:     []uint32{65501, 65507, 65534},
+		asSEQMode: true,
 	}, {
-		desc:   "AS Path SEQ - 65501, 600",
-		asSeg:  []uint32{65501, 600},
-		asMode: "SEQ",
+		desc:      "AS Path SEQ - 65501, 600",
+		asSeg:     []uint32{65501, 600},
+		asSEQMode: true,
 	}, {
-		desc:   "AS Path SEQ - 800, 65501, 600",
-		asSeg:  []uint32{800, 65501, 600},
-		asMode: "SEQ",
+		desc:      "AS Path SEQ - 800, 65501, 600",
+		asSeg:     []uint32{800, 65501, 600},
+		asSEQMode: true,
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Logf("Start ATE Config.")
 			ate := ondatra.ATE(t, "ate")
-			topo := configureATE(t, ate, tc.asSeg, tc.asMode)
+			topo := configureATE(t, ate, tc.asSeg, tc.asSEQMode)
 
 			t.Log("Verifying port status.")
 			verifyPortsUp(t, dut.Device)
@@ -338,7 +338,7 @@ func TestRemovePrivateAS(t *testing.T) {
 			t.Log("Private AS numbers should be stripped off while advertising BGP routes into public AS.")
 			verifyBGPAsPath(t, dut, ate, tc.asSeg, removeASPath)
 
-			topo.StartProtocols(t)
+			topo.StopProtocols(t)
 
 			t.Log("Remove remove-private-AS on DUT.")
 			gnmi.Delete(t, dut, dutConfPath.Bgp().PeerGroup(peerGrpName2).RemovePrivateAs().Config())
