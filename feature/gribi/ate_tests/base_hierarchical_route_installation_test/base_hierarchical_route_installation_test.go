@@ -16,6 +16,7 @@ package base_hierarchical_route_installation_test
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -83,6 +84,11 @@ var (
 		Name:    "atePort2",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
+	}
+	atePort2DummyIP = attrs.Attributes{
+		Desc:    "atePort2",
+		IPv4:    "192.0.2.22",
+		IPv4Len: 32,
 	}
 	atePorts = map[string]attrs.Attributes{
 		"port1": atePort1,
@@ -157,6 +163,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// apply PBF to src interface.
 	dp1 := dut.Port(t, "port1")
 	applyForwardingPolicy(t, dp1.Name())
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		staticARPWithMagicUniversalIP(t, dut)
+	}
 }
 
 // configurePBF returns a fully configured network-instance PF struct.
@@ -179,10 +188,9 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
 	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
-	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		pfCfg.InterfaceRef = nil
+	if deviations.ExplicitInterfaceRefDefinition(dut) {
+		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	}
 	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
@@ -290,8 +298,10 @@ func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 		// for devices that return  the nexthop with resolving it recursively. For a->b->c the device returns c
 		if got := nh.GetIpAddress(); got != ateIndirectNH {
 			if nhtype == "MAC" {
-				if gotMac := nh.GetMacAddress(); !strings.EqualFold(gotMac, nhMAC) {
-					t.Errorf("next-hop MAC is incorrect:  gotMac %v, wantMac %v", gotMac, nhMAC)
+				if !deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
+					if gotMac := nh.GetMacAddress(); !strings.EqualFold(gotMac, nhMAC) {
+						t.Errorf("next-hop MAC is incorrect:  gotMac %v, wantMac %v", gotMac, nhMAC)
+					}
 				}
 			} else {
 				if got := nh.GetIpAddress(); got != atePort2.IPv4 {
@@ -344,12 +354,20 @@ func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 func testRecursiveIPv4EntrywithIPNexthop(t *testing.T, args *testArgs) {
 
 	t.Logf("Adding IP %v with NHG %d NH %d with IP %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, atePort2.IPv4)
-	args.client.AddNH(t, nhIndex2, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	nhAck := fluent.InstalledInFIB
+	if deviations.FibAckUnsupportedForNextHopAdd(args.dut) {
+		nhAck = fluent.InstalledInRIB
+	}
+	opts := &gribi.NHOptions{}
+	if deviations.RibAckTwoMinuteTimeout(args.dut) {
+		opts.Timeout = 2 * time.Minute
+	}
+	args.client.AddNH(t, nhIndex2, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), nhAck, opts)
 	args.client.AddNHG(t, nhgIndex2, map[uint64]uint64{nhIndex2: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddIPv4(t, ateIndirectNHCIDR, nhgIndex2, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	t.Logf("Adding IP %v with NHG %d NH %d  with indirect IP %v via gRIBI", ateDstNetCIDR, nhgIndex, nhIndex, ateIndirectNHCIDR)
-	args.client.AddNH(t, nhIndex, ateIndirectNH, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddNH(t, nhIndex, ateIndirectNH, deviations.DefaultNetworkInstance(args.dut), nhAck, opts)
 	args.client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddIPv4(t, ateDstNetCIDR, nhgIndex, nonDefaultVRF, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
@@ -389,12 +407,24 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 
 	p := args.dut.Port(t, "port2")
 	t.Logf("Adding IP %v with NHG %d NH %d with interface %v and MAC %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, p.Name(), nhMAC)
-	args.client.AddNH(t, nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), SubInterface: 0, Mac: nhMAC})
+	nhAck := fluent.InstalledInFIB
+	if deviations.FibAckUnsupportedForNextHopAdd(args.dut) {
+		nhAck = fluent.InstalledInRIB
+	}
+	opts := &gribi.NHOptions{}
+	if deviations.RibAckTwoMinuteTimeout(args.dut) {
+		opts.Timeout = 2 * time.Minute
+	}
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
+		args.client.AddNH(t, nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), nhAck, &gribi.NHOptions{Interface: p.Name(), Mac: nhMAC, Dest: atePort2DummyIP.IPv4, Timeout: opts.Timeout})
+	} else {
+		args.client.AddNH(t, nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), nhAck, &gribi.NHOptions{Interface: p.Name(), SubInterface: 0, Mac: nhMAC, Timeout: opts.Timeout})
+	}
 	args.client.AddNHG(t, nhgIndex2, map[uint64]uint64{nhIndex2: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddIPv4(t, ateIndirectNHCIDR, nhgIndex2, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	t.Logf("Adding IP %v with NHG %d NH %d  with indirect IP %v via gRIBI", ateDstNetCIDR, nhgIndex, nhIndex, ateIndirectNHCIDR)
-	args.client.AddNH(t, nhIndex, ateIndirectNH, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddNH(t, nhIndex, ateIndirectNH, deviations.DefaultNetworkInstance(args.dut), nhAck, opts)
 	args.client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddIPv4(t, ateDstNetCIDR, nhgIndex, nonDefaultVRF, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
@@ -426,6 +456,47 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 	})
 }
 
+func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p2 := dut.Port(t, "port2")
+	s2 := &oc.NetworkInstance_Protocol_Static{
+		Prefix: ygot.String(atePort2DummyIP.IPv4CIDR()),
+		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+			strconv.Itoa(nhIndex2): {
+				Index: ygot.String(strconv.Itoa(nhIndex2)),
+				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+					Interface: ygot.String(p2.Name()),
+				},
+			},
+		},
+	}
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	static, ok := gnmi.Lookup(t, dut, sp.Config()).Val()
+	if !ok {
+		static = &oc.NetworkInstance_Protocol{
+			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+			Name:       ygot.String(deviations.StaticProtocolName(dut)),
+			Static: map[string]*oc.NetworkInstance_Protocol_Static{
+				atePort2DummyIP.IPv4CIDR(): s2,
+			},
+		}
+		gnmi.Replace(t, dut, sp.Config(), static)
+	} else {
+		gnmi.Replace(t, dut, sp.Static(atePort2DummyIP.IPv4CIDR()).Config(), s2)
+	}
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2, atePort2DummyIP.IPv4, nhMAC))
+}
+
+func configStaticArp(p *ondatra.Port, ipv4addr string, macAddr string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p.Name())}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
+}
+
 func TestRecursiveIPv4Entries(t *testing.T) {
 
 	ctx := context.Background()
@@ -433,6 +504,13 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 	// Configure DUT
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
+
+	defer func() {
+		if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+			sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+			gnmi.Delete(t, dut, sp.Static(atePort2DummyIP.IPv4CIDR()).Config())
+		}
+	}()
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")

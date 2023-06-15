@@ -510,6 +510,17 @@ func StorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStorageComponentUnsupported()
 }
 
+// FibAckUnsupportedForNextHopAdd returns true for devices that do not support FIB_ACK when standalone NextHop is added.
+func FibAckUnsupportedForNextHopAdd(_ *ondatra.DUTDevice) bool {
+	return *fibAckUnsupportedForNextHopAdd
+}
+
+// RibAckTwoMinuteTimeout returns true for devices that return a RIB_ACK only within 2 minutes and not within 1 min
+// which is the default for internal/gribi library.
+func RibAckTwoMinuteTimeout(_ *ondatra.DUTDevice) bool {
+	return *ribAckTwoMinuteTimeout
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -675,4 +686,8 @@ var (
 	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
 	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
+
+	fibAckUnsupportedForNextHopAdd = flag.Bool("deviation_fib_ack_unsupported_for_next_hop_add", false, "Devices do not support FIB_ACK when standalone NextHop is added.")
+
+	ribAckTwoMinuteTimeout = flag.Bool("deviation_rib_ack_two_minute_timeout", false, "Devices return a RIB_ACK only within 2 minutes and not within 1 min which is the default for internal/gribi library.")
 )
