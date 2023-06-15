@@ -34,6 +34,9 @@ case ${platform} in
   nokia_srlinux)
     vendor_creds=NOKIA/admin/NokiaSrl1!
     ;;
+  openconfig_lemming)
+    vendor_creds=OPENCONFIG/admin/admin
+    ;;
   :)
     echo "Model ${platform} not valid"
     exit 1
@@ -50,6 +53,7 @@ function metadata_kne_topology() {
   kne_topology_file["TESTBED_DUT_DUT_4LINKS"]="${topo_prefix}/dutdut.textproto"
   kne_topology_file["TESTBED_DUT_ATE_2LINKS"]="${topo_prefix}/dutate.textproto"
   kne_topology_file["TESTBED_DUT_ATE_4LINKS"]="${topo_prefix}/dutate.textproto"
+  kne_topology_file["TESTBED_DUT_ATE_9LINKS_LAG"]="${topo_prefix}/dutate_lag.textproto"
   for p in "${!kne_topology_file[@]}"; do
     if grep -q "testbed.*${p}$" "${metadata_test_path}"/metadata.textproto; then
       echo "${kne_topology_file[${p}]}"
@@ -88,7 +92,8 @@ for dut_test in ${dut_tests}; do
   go test -v ./"${test_path}"/... -timeout 0 \
   -kne-topo /tmp/kne/"${kne_topology}" \
   -kne-skip-reset \
-  -vendor_creds "${vendor_creds}"
+  -vendor_creds "${vendor_creds}" \
+  -alsologtostderr
   if [[ $? -eq 0 ]]; then
     gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"success\"}"
   else
