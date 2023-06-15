@@ -478,7 +478,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 		},
 	}
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	static, ok := gnmi.Lookup(t, dut, sp.Config()).Val()
+	static, ok := gnmi.LookupConfig(t, dut, sp.Config()).Val()
 	if !ok {
 		static = &oc.NetworkInstance_Protocol{
 			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
