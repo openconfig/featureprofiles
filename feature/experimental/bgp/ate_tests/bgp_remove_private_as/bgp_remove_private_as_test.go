@@ -56,7 +56,6 @@ const (
 	dutAS                  = 500
 	ateAS1                 = 100
 	ateAS2                 = 200
-	asPathSeg1             = 65501
 	plenIPv4               = 30
 	plenIPv6               = 126
 	removeASPath           = true
@@ -140,16 +139,14 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	pg2.PeerGroupName = ygot.String(peerGrpName2)
 
 	for _, nbr := range nbrs {
-		if nbr.isV4 {
-			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv4.PeerGroup = ygot.String(nbr.peerGrp)
-			nv4.PeerAs = ygot.Uint32(nbr.as)
-			nv4.Enabled = ygot.Bool(true)
-			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(true)
-			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(false)
-		}
+		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		nv4.PeerGroup = ygot.String(nbr.peerGrp)
+		nv4.PeerAs = ygot.Uint32(nbr.as)
+		nv4.Enabled = ygot.Bool(true)
+		af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		af4.Enabled = ygot.Bool(true)
+		af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		af6.Enabled = ygot.Bool(false)
 	}
 	return ni_proto
 }
