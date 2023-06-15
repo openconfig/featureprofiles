@@ -87,6 +87,19 @@ var (
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 	}
+
+	dutPort2DummyIP = attrs.Attributes{
+		Desc:    "dutPort2",
+		IPv4:    "192.0.2.21",
+		IPv4Len: 30,
+	}
+
+	atePort2DummyIP = attrs.Attributes{
+		Desc:    "atePort2",
+		IPv4:    "192.0.2.22",
+		IPv4Len: 30,
+	}
+
 	atePorts = map[string]attrs.Attributes{
 		"port1": atePort1,
 		"port2": atePort2,
@@ -153,6 +166,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
+	}
+
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		staticARPWithSecondaryIP(t, dut)
 	}
 
 	configureNetworkInstance(t, dut)
@@ -336,10 +353,11 @@ func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 		}
 		nh := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHop(nhIndexInst).State())
 		if nhtype == "MAC" {
-			if got, want := nh.GetMacAddress(), nhMAC; !strings.EqualFold(got, want) {
-				t.Errorf("next-hop MAC is incorrect: got %v, want %v", got, want)
+			if !deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
+				if got, want := nh.GetMacAddress(), nhMAC; !strings.EqualFold(got, want) {
+					t.Errorf("next-hop MAC is incorrect: got %v, want %v", got, want)
+				}
 			}
-
 		} else {
 			if got, want := nh.GetIpAddress(), atePort2.IPv4; got != want {
 				t.Errorf("next-hop address is incorrect: got %v, want %v", got, want)
@@ -396,7 +414,11 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 
 	p := args.dut.Port(t, "port2")
 	t.Logf("Adding IP %v with NHG %d NH %d with interface %v and MAC %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, p.Name(), nhMAC)
-	args.client.AddNH(t, nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), SubInterface: 0, Mac: nhMAC})
+	if deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
+		args.client.AddNH(t, nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), Mac: nhMAC, Dest: atePort2DummyIP.IPv4})
+	} else {
+		args.client.AddNH(t, nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), Mac: nhMAC})
+	}
 	args.client.AddNHG(t, nhgIndex2, map[uint64]uint64{nhIndex2: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddIPv4(t, ateIndirectNHCIDR, nhgIndex2, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
@@ -430,6 +452,23 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 			t.Errorf("Loss: got %v, want %v", got, want)
 		}
 	})
+}
+
+func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p2 := dut.Port(t, "port2")
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2, atePort2DummyIP.IPv4, nhMAC))
+}
+
+func configStaticArp(p *ondatra.Port, ipv4addr string, macAddr string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p.Name())}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
 }
 
 func TestRecursiveIPv4Entries(t *testing.T) {
