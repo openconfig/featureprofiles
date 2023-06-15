@@ -15,6 +15,7 @@ platform_exceptions: {
   }
   deviations: {
     interface_ref_config_unsupported: true
+    ipv4_missing_enabled: true
   }
 }
 platform_exceptions: {
@@ -25,6 +26,8 @@ platform_exceptions: {
   }
   deviations: {
     no_mix_of_tagged_and_untagged_subinterfaces: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
   }
 }
 platform_exceptions: {

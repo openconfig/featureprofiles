@@ -327,7 +327,7 @@ func TestGNMICombinedLACPSpeed(t *testing.T) {
 
 				dutPorts: sortPorts(dut.Ports()),
 				atePorts: sortPorts(ate.Ports()),
-				aggID:    netutil.NextBundleInterface(t, dut),
+				aggID:    netutil.NextAggregateInterface(t, dut),
 			}
 			tc.configureDUT(t)
 			tc.configureATE(t)
@@ -353,7 +353,7 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 
 				dutPorts: sortPorts(dut.Ports()),
 				atePorts: sortPorts(ate.Ports()),
-				aggID:    netutil.NextBundleInterface(t, dut),
+				aggID:    netutil.NextAggregateInterface(t, dut),
 			}
 			tc.configureDUT(t)
 			tc.configureATE(t)

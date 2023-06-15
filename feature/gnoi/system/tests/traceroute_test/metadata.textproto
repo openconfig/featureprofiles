@@ -18,3 +18,13 @@ platform_exceptions: {
     traceroute_l4_protocol_udp: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+  }
+}
