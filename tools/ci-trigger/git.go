@@ -117,7 +117,7 @@ func mergeBase(repo *git.Repository, head, base string) (string, error) {
 	}
 
 	if len(res) < 1 {
-		return "", fmt.Errorf("no common git ancestor found for hash '%s'", head)
+		return "", fmt.Errorf("no common git ancestor found for hash %q", head)
 	}
 
 	return res[0].Hash.String(), nil

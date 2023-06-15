@@ -32,15 +32,12 @@ func createCommit(wt *git.Worktree, contents string) error {
 		return err
 	}
 
-	if _, err := wt.Commit("test commit message", &git.CommitOptions{
+	_, err = wt.Commit("test commit message", &git.CommitOptions{
 		All:       true,
 		Author:    &author,
 		Committer: &author,
-	}); err != nil {
-		return err
-	}
-
-	return nil
+	})
+	return err
 }
 
 func createBranch(r *git.Repository, name string) (*plumbing.Reference, error) {
