@@ -5,7 +5,7 @@ steps:
     env:
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=fp-presubmit-arista-ceos-$BUILD_ID
-      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type e2-standard-4 --boot-disk-size 100GB --preemptible
+      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type e2-standard-8 --boot-disk-size 200GB --preemptible
       - ZONE=us-west1-a
       - REMOTE_WORKSPACE=/tmp/featureprofiles
       - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/featureprofiles/cloudbuild/test.sh arista_ceos 2>&1
@@ -15,7 +15,7 @@ steps:
     env:
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=fp-presubmit-juniper-cptx-$BUILD_ID
-      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-16 --boot-disk-size 100GB --enable-nested-virtualization --preemptible
+      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-16 --boot-disk-size 200GB --enable-nested-virtualization --preemptible
       - ZONE=us-west1-a
       - REMOTE_WORKSPACE=/tmp/featureprofiles
       - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/featureprofiles/cloudbuild/test.sh juniper_cptx 2>&1
@@ -25,7 +25,7 @@ steps:
     env:
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=fp-presubmit-cisco-8000e-$BUILD_ID
-      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-8 --boot-disk-size 100GB --enable-nested-virtualization --preemptible
+      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type n2-standard-8 --boot-disk-size 200GB --enable-nested-virtualization --preemptible
       - ZONE=us-west1-a
       - REMOTE_WORKSPACE=/tmp/featureprofiles
       - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/featureprofiles/cloudbuild/test.sh cisco_8000e 2>&1
@@ -35,7 +35,7 @@ steps:
     env:
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=fp-presubmit-cisco-xrd-$BUILD_ID
-      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type e2-standard-4 --boot-disk-size 100GB --preemptible
+      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type e2-standard-8 --boot-disk-size 200GB --preemptible
       - ZONE=us-west1-a
       - REMOTE_WORKSPACE=/tmp/featureprofiles
       - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/featureprofiles/cloudbuild/test.sh cisco_xrd 2>&1
@@ -46,7 +46,7 @@ steps:
       - USERNAME=user
       - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
       - INSTANCE_NAME=fp-presubmit-nokia-srlinux-$BUILD_ID
-      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type e2-standard-4 --boot-disk-size 100GB --preemptible
+      - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type e2-standard-8 --boot-disk-size 200GB --preemptible
       - ZONE=us-west1-a
       - REMOTE_WORKSPACE=/tmp/featureprofiles
       - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/featureprofiles/cloudbuild/test.sh nokia_srlinux 2>&1

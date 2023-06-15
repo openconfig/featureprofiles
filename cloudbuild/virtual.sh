@@ -34,6 +34,9 @@ case ${platform} in
   nokia_srlinux)
     vendor_creds=NOKIA/admin/NokiaSrl1!
     ;;
+  openconfig_lemming)
+    vendor_creds=OPENCONFIG/admin/admin
+    ;;
   :)
     echo "Model ${platform} not valid"
     exit 1
@@ -89,7 +92,8 @@ for dut_test in ${dut_tests}; do
   go test -v ./"${test_path}"/... -timeout 0 \
   -kne-topo /tmp/kne/"${kne_topology}" \
   -kne-skip-reset \
-  -vendor_creds "${vendor_creds}"
+  -vendor_creds "${vendor_creds}" \
+  -alsologtostderr
   if [[ $? -eq 0 ]]; then
     gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"success\"}"
   else

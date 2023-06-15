@@ -60,6 +60,7 @@ kne create /tmp/kne/"$topology"
 go test -v ./feature/system/tests/... \
   -timeout 0 \
   -kne-topo /tmp/kne/"$topology" \
-  -vendor_creds "$vendor_creds"
+  -vendor_creds "$vendor_creds" \
+  -alsologtostderr
 
 popd
