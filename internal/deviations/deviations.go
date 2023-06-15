@@ -124,11 +124,6 @@ func DefaultNetworkInstance(_ *ondatra.DUTDevice) string {
 	return *defaultNetworkInstance
 }
 
-// P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
-func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
-	return *p4rtMissingDelete
-}
-
 // P4rtUnsetElectionIDPrimaryAllowed returns whether the device does not support unset election ID.
 func P4rtUnsetElectionIDPrimaryAllowed(_ *ondatra.DUTDevice) bool {
 	return *p4rtUnsetElectionIDPrimaryAllowed
@@ -172,11 +167,6 @@ func CLITakesPrecedenceOverOC(dut *ondatra.DUTDevice) bool {
 // BGPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
 func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
 	return *bgpTrafficTolerance
-}
-
-// MacAddressMissing returns whether device does not support /system/mac-address/state
-func MacAddressMissing(_ *ondatra.DUTDevice) bool {
-	return *macAddressMissing
 }
 
 // StaticProtocolName returns the name used for the static routing protocol.
@@ -440,8 +430,9 @@ func ExplicitInterfaceRefDefinition(dut *ondatra.DUTDevice) bool {
 }
 
 // QOSDroppedOctets returns if device should skip checking QOS Dropped octets stats for interface.
-func QOSDroppedOctets(_ *ondatra.DUTDevice) bool {
-	return *qosDroppedOctets
+func QOSDroppedOctets(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_qos_dropped_octets")
+	return lookupDUTDeviations(dut).GetQosDroppedOctets()
 }
 
 // ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
@@ -617,12 +608,10 @@ var (
 
 	bgpMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
 
-	qosDroppedOctets = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
+	_ = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
 
 	_ = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
-
-	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
 
 	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
@@ -636,8 +625,6 @@ var (
 
 	_ = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
-
-	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
 
