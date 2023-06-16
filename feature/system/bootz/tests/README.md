@@ -40,17 +40,18 @@ bootserver can initialize the devices configuration into the provided configurat
 2. Initiate bootz boot on device via gnoi.FactoryReset()
 3. Validate device sends bootz request to bootserver
 4. Validate device telemetry
-    * `/system/bootz/state/last-boot` is in expected state
-    * `/system/bootz/state/failure-count` is in incremented if failure case
+
+    * `/system/bootz/state/last-boot-attempt` is in expected state
+    * `/system/bootz/state/error-count` is in incremented if failure case
     * `/system/bootz/state/status` is in expected state
     * `/system/bootz/state/checksum` matches sent proto
+
 5. Validate device state
+
     * OS version is the same
     * System configuration is as expected.
 
-### bootz-2: Validate gNSI components in bootz configuration
-
-### Test: Validate Software image in bootz configuration
+### bootz-3: Validate Software image in bootz configuration
 
 This test validates the bootz behavior based changes to software version.
 
@@ -71,7 +72,7 @@ This test validates the bootz behavior based changes to software version.
         * BOOTZ_OS_UPGRADE_IN_PROGRESS
         * BOOTZ_OS_UPGRADE_COMPLETE
         * BOOTZ_CONFIGURATION_APPLIED
-        * OK
+        * BOOTZ_OK
     * For error case device should report
         * BOOTZ_UNSPECIFIED
         * BOOTZ_SENT
@@ -79,8 +80,8 @@ This test validates the bootz behavior based changes to software version.
         * BOOTZ_OS_UPGRADE_IN_PROGRESS
         * BOOTZ_OS_INVALID_IMAGE
 6. Validate device telemetry
-    * `/system/bootz/state/last-boot` is in expected state
-    * `/system/bootz/state/failure-count` is in incremented if failure case
+    * `/system/bootz/state/last-boot-attempt` is in expected state
+    * `/system/bootz/state/error-count` is in incremented if failure case
     * `/system/bootz/state/status` is in expected state
     * `/system/bootz/state/checksum` matches sent proto
 7. Validate device state
@@ -108,15 +109,15 @@ be sent to the device and properly handled.
         * BOOTZ_SENT
         * BOOTZ_RECEIVED
         * BOOTZ_CONFIGURATION_APPLIED
-        * OK
+        * BOOTZ_OK
     * For error case device should report
         * BOOTZ_UNSPECIFIED
         * BOOTZ_SENT
         * BOOTZ_RECEIVED
         * BOOTZ_OV_INVALID
 5. Validate device telemetry
-    * `/system/bootz/state/last-boot` is in expected state
-    * `/system/bootz/state/failure-count` is in incremented if failure case
+    * `/system/bootz/state/last-boot-attempt` is in expected state
+    * `/system/bootz/state/error-count` is in incremented if failure case
     * `/system/bootz/state/status` is in expected state
     * `/system/bootz/state/checksum` matches sent proto
 6. Validate device state
@@ -144,16 +145,18 @@ bootz mode.
         * BOOTZ_SENT
         * BOOTZ_RECEIVED
         * BOOTZ_CONFIGURATION_APPLIED
-        * OK
+        * BOOTZ_OK
     * For error case device should report
         * BOOTZ_UNSPECIFIED
         * BOOTZ_SENT
         * BOOTZ_RECEIVED
         * BOOTZ_OS_INVALID_IMAGE
 5. Validate device telemetry
-    * `/system/bootz/state/last-boot` is in expected state
-    * `/system/bootz/state/failure-count` is in incremented if failure case
+    * `/system/bootz/state/last-boot-attempt` is in expected state
+    * `/system/bootz/state/error-count` is in incremented if failure case
     * `/system/bootz/state/status` is in expected state
     * `/system/bootz/state/checksum` matches sent proto
 6. Validate device state
     * System configuration is as expected.
+
+### bootz-5: Validate gNSI components in bootz configuration
