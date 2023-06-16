@@ -234,13 +234,13 @@ links: {
 links: {
     a_node: "dut1"
     a_int: "eth9"
-    z_node: "otg1"
+    z_node: "otg"
     z_int: "eth6"
 }
 links: {
     a_node: "dut1"
     a_int: "eth10"
-    z_node: "otg1"
+    z_node: "otg"
     z_int: "eth7"
 }
 links: {

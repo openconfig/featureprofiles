@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "0c825514-daf0-4d46-a3d9-2b6e5bff5529"
-plan_id: "gNMI-1.11"
-description: "Telemetry: Interface Packet Counters"
+uuid: "78f99d29-c7db-4e6d-8284-614154efc0d1"
+plan_id: "P4RT-1.2"
+description: "P4RT Daemon Failure"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
@@ -15,18 +15,6 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    interface_counters_from_container: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-    hardware_model: "PTX10008"
-    hardware_model: "PTX10001-36MR"
-    hardware_model: "cptx"
-  }
-  deviations: {
-    ipv6_discarded_pkts_unsupported: true
   }
 }
 platform_exceptions: {
@@ -36,7 +24,7 @@ platform_exceptions: {
     hardware_model: "ixr10"
   }
   deviations: {
-    interface_counters_from_container: true
+    explicit_p4rt_node_component: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
   }

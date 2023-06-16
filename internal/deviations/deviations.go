@@ -124,11 +124,6 @@ func DefaultNetworkInstance(_ *ondatra.DUTDevice) string {
 	return *defaultNetworkInstance
 }
 
-// P4RTMissingDelete returns whether the device does not support delete mode in P4RT write requests.
-func P4RTMissingDelete(_ *ondatra.DUTDevice) bool {
-	return *p4rtMissingDelete
-}
-
 // P4rtUnsetElectionIDPrimaryAllowed returns whether the device does not support unset election ID.
 func P4rtUnsetElectionIDPrimaryAllowed(_ *ondatra.DUTDevice) bool {
 	return *p4rtUnsetElectionIDPrimaryAllowed
@@ -255,11 +250,6 @@ func MissingIsisInterfaceAfiSafiEnable(dut *ondatra.DUTDevice) bool {
 func Ipv6DiscardedPktsUnsupported(dut *ondatra.DUTDevice) bool {
 	logErrorIfFlagSet("deviation_ipv6_discarded_pkts_unsupported")
 	return lookupDUTDeviations(dut).GetIpv6DiscardedPktsUnsupported()
-}
-
-// FanOperStatusUnsupported returns whether the device supports oper-status leaf for fan components.
-func FanOperStatusUnsupported(_ *ondatra.DUTDevice) bool {
-	return *fanOperStatusUnsupported
 }
 
 // LinkQualWaitAfterDeleteRequired returns whether the device requires additional time to complete post delete link qualification cleanup.
@@ -618,8 +608,6 @@ var (
 	_ = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
-	p4rtMissingDelete = flag.Bool("deviation_p4rt_missing_delete", false, "Device does not support delete mode in P4RT write requests")
-
 	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
@@ -660,8 +648,6 @@ var (
 		"Configure CSNP, LSP and PSNP under level authentication explicitly if value is true, Default value is false to use default value for these.")
 
 	_ = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
-
-	fanOperStatusUnsupported = flag.Bool("deviation_fan_oper_status_unsupported", false, "Device does not support oper-status leaves for some of the fan components. Set this flag to skip checking the leaf.")
 
 	linkQualWaitAfterDeleteRequired = flag.Bool("deviation_link_qual_wait_after_delete_required", false, "Device requires additional time to complete post delete link qualification cleanup.")
 
