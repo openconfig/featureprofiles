@@ -46,7 +46,7 @@ platform_exceptions: {
     vendor: ARISTA
     hardware_model: "DCS-7280CR3K-32D4"
     hardware_model: "DCS-7808"
-    hardware_model: "DCS-7804"
+    hardware_model: "DCS-7804-CH"
     hardware_model: "ceos"
   }
   deviations: {
