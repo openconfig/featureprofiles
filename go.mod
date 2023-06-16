@@ -18,14 +18,14 @@ require (
 	github.com/openconfig/gnmi v0.9.1
 	github.com/openconfig/gnoi v0.0.0-20230221223856-1727ed932554
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
-	github.com/openconfig/goyang v1.2.0
+	github.com/openconfig/goyang v1.4.0
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20230207233343-ef59db57c4fc
 	github.com/openconfig/kne v0.1.13
 	github.com/openconfig/ondatra v0.1.19
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.7.7
-	github.com/openconfig/ygot v0.27.0
+	github.com/openconfig/ygot v0.28.3
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yuin/goldmark v1.4.13
@@ -87,7 +87,6 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
@@ -96,7 +95,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf // indirect
 	github.com/open-traffic-generator/ixia-c-operator v0.3.0 // indirect
-	github.com/openconfig/entity-naming v0.0.0-20230609224707-9cc7aa2a8a3f // indirect
+	github.com/openconfig/entity-naming v0.0.0-20230615134154-46b7e6d34924 // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
@@ -112,7 +111,7 @@ require (
 	github.com/skeema/knownhosts v1.1.1 // indirect
 	github.com/spf13/afero v1.9.3 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
-	github.com/spf13/cobra v1.6.1 // indirect
+	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.15.0 // indirect
