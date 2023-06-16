@@ -183,6 +183,8 @@ message Metadata {
     bool components_software_module_unsupported = 47;
     // Set true for device that does not support route-policy under AFI/SAFI.
     bool route_policy_under_afi_unsupported = 48;
+    // Set to true for device that does not support use using gNOI to reboot the Fabric Component.
+    bool gnoi_fabric_component_reboot_unsupported = 49;
   }
 
   message PlatformExceptions {
