@@ -16,6 +16,7 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     interface_counters_from_container: true
+    subinterface_packet_counters_missing: true
   }
 }
 platform_exceptions: {
@@ -39,5 +40,18 @@ platform_exceptions: {
     interface_counters_from_container: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+    subinterface_packet_counters_missing: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model: "DCS-7280CR3K-32D4"
+    hardware_model: "DCS-7808"
+    hardware_model: "DCS-7804-CH"
+    hardware_model: "ceos"
+  }
+  deviations: {
+    subinterface_packet_counters_missing: true
   }
 }
