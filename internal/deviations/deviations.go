@@ -154,8 +154,9 @@ func MissingBgpLastNotificationErrorCode(dut *ondatra.DUTDevice) bool {
 }
 
 // GRIBIMACOverrideWithStaticARP returns whether for a gRIBI IPv4 route the device does not support a mac-address only next-hop-entry.
-func GRIBIMACOverrideWithStaticARP(_ *ondatra.DUTDevice) bool {
-	return *gribiMACOverrideWithStaticARP
+func GRIBIMACOverrideWithStaticARP(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_gribi_mac_override_with_static_arp")
+	return lookupDUTDeviations(dut).GetGribiMacOverrideWithStaticArp()
 }
 
 // CLITakesPrecedenceOverOC returns whether config pushed through origin CLI takes precedence over config pushed through origin OC.
@@ -193,8 +194,9 @@ func BackplaneFacingCapacityUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
-func ComponentsSoftwareModuleUnsupported(_ *ondatra.DUTDevice) bool {
-	return *componentsSoftwareModuleUnsupported
+func ComponentsSoftwareModuleUnsupported(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_components_software_module_unsupported")
+	return lookupDUTDeviations(dut).GetComponentsSoftwareModuleUnsupported()
 }
 
 // SchedulerInputWeightLimit returns whether the device does not support weight above 100.
@@ -354,8 +356,9 @@ func LLDPInterfaceConfigOverrideGlobal(dut *ondatra.DUTDevice) bool {
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
 // so the test will skip checking them.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
-func SubinterfacePacketCountersMissing(_ *ondatra.DUTDevice) bool {
-	return *subinterfacePacketCountersMissing
+func SubinterfacePacketCountersMissing(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_subinterface_packet_counters_missing")
+	return lookupDUTDeviations(dut).GetSubinterfacePacketCountersMissing()
 }
 
 // MissingPrePolicyReceivedRoutes returns if device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
@@ -377,8 +380,9 @@ func OSActivateNoReboot(dut *ondatra.DUTDevice) bool {
 }
 
 // ConnectRetry returns if /bgp/neighbors/neighbor/timers/config/connect-retry is not supported.
-func ConnectRetry(_ *ondatra.DUTDevice) bool {
-	return *connectRetry
+func ConnectRetry(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_connect_retry")
+	return lookupDUTDeviations(dut).GetConnectRetry()
 }
 
 // InstallOSForStandbyRP returns if device requires OS installation on standby RP as well as active RP.
@@ -489,8 +493,9 @@ func DequeueDeleteNotCountedAsDrops(_ *ondatra.DUTDevice) bool {
 }
 
 // RoutePolicyUnderAFIUnsupported returns if Route-Policy under the AFI/SAFI is not supported
-func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
-	return *routePolicyUnderAFIUnsupported
+func RoutePolicyUnderAFIUnsupported(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_route_policy_under_afi_unsupported")
+	return lookupDUTDeviations(dut).GetRoutePolicyUnderAfiUnsupported()
 }
 
 // InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
@@ -527,7 +532,7 @@ var (
 	defaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
 		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Full OpenConfig compliant devices should be able to use any operator-assigned value.")
 
-	subinterfacePacketCountersMissing = flag.Bool("deviation_subinterface_packet_counters_missing", false,
+	_ = flag.Bool("deviation_subinterface_packet_counters_missing", false,
 		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	omitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
@@ -563,7 +568,7 @@ var (
 
 	_ = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
 
-	connectRetry = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
+	_ = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 
 	_ = flag.Bool("deviation_ipv6_enable_for_gribi_nh_dmac", false, "Device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address")
 
@@ -621,7 +626,7 @@ var (
 	_ = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
 
-	gribiMACOverrideWithStaticARP = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
+	_ = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
 
 	gribiMACOverrideStaticARPStaticRoute = flag.Bool("deviation_gribi_mac_override_static_arp_static_route", false, "Set to true for device that requires gRIBI MAC Override using Static ARP + Static Route")
 
@@ -635,7 +640,7 @@ var (
 
 	_ = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
 
-	componentsSoftwareModuleUnsupported = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
+	_ = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
 	_ = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 
@@ -663,7 +668,7 @@ var (
 
 	dequeueDeleteNotCountedAsDrops = flag.Bool("deviation_dequeue_delete_not_counted_as_drops", false, "devices do not count dequeued and deleted packets as drops, default is false")
 
-	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
+	_ = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 
 	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
