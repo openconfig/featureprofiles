@@ -495,8 +495,7 @@ func RoutePolicyUnderAFIUnsupported(_ *ondatra.DUTDevice) bool {
 
 // InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
 func InterfaceRefConfigUnsupported(dut *ondatra.DUTDevice) bool {
-	logErrorIfFlagSet("deviation_interface_ref_config_unsupported")
-	return lookupDUTDeviations(dut).GetInterfaceRefConfigUnsupported()
+	return *interfaceRefConfigUnsupported
 }
 
 // StorageComponentUnsupported returns if telemetry path /components/component/storage is not supported.
@@ -665,7 +664,7 @@ var (
 
 	routePolicyUnderAFIUnsupported = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 
-	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
+	interfaceRefConfigUnsupported = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
 	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
 )
