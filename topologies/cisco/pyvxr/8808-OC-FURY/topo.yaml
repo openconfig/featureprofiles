@@ -59,37 +59,37 @@ devices:
 connections: 
   hubs: 
     port1: 
-      - dut.FourHundredGigE0/0/0/10
+      - dut.FourHundredGigE0/0/0/10/1
       - ate.1/1
     port2: 
-      - dut.FourHundredGigE0/0/0/11
+      - dut.FourHundredGigE0/0/0/11/1
       - ate.1/2
     port3: 
-      - dut.FourHundredGigE0/0/0/12
+      - dut.FourHundredGigE0/0/0/12/1
       - ate.1/3
     port4: 
-      - dut.FourHundredGigE0/0/0/13
+      - dut.FourHundredGigE0/0/0/13/1
       - ate.1/4
     port5: 
-      - dut.FourHundredGigE0/0/0/14
+      - dut.FourHundredGigE0/0/0/14/1
       - ate.1/5
     port6: 
-      - dut.FourHundredGigE0/0/0/15
+      - dut.FourHundredGigE0/0/0/15/1
       - ate.1/6
     port7: 
-      - dut.FourHundredGigE0/0/0/16
+      - dut.FourHundredGigE0/0/0/16/1
       - ate.1/7
     port8: 
-      - dut.FourHundredGigE0/0/0/17
+      - dut.FourHundredGigE0/0/0/17/1
       - ate.1/8
     port9: 
-      - dut.FourHundredGigE0/0/0/18
+      - dut.FourHundredGigE0/0/0/18/1
       - ate.1/9
     peer_dut_1: 
-      - dut.FourHundredGigE0/0/0/0
+      - dut.FourHundredGigE0/0/0/0/1
       - peer.FourHundredGigE0/0/0/0
     peer_dut_2: 
-      - dut.FourHundredGigE0/0/0/1
+      - dut.FourHundredGigE0/0/0/1/1
       - peer.FourHundredGigE0/0/0/1
 
 custom: 

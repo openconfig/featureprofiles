@@ -24,7 +24,7 @@ devices:
     dual_rp: true
     num_linecards: 1
     lcc_type: 8808-gb
-    linecard_slots: 0
+    linecard_slots: [0]
     linecard_types:
       - 88-LC1-36EH
     num_fabcards: 1
@@ -42,16 +42,16 @@ devices:
 connections: 
   hubs: 
     port1: 
-      - dut.FourHundredGigE0/0/0/10
+      - dut.FourHundredGigE0/0/0/10/1
       - ate.1/1
     port2: 
-      - dut.FourHundredGigE0/0/0/20
+      - dut.FourHundredGigE0/0/0/20/1
       - ate.1/2
     port3: 
-      - dut.FourHundredGigE0/0/0/12
+      - dut.FourHundredGigE0/0/0/12/1
       - ate.1/3
     port4: 
-      - dut.FourHundredGigE0/0/0/13
+      - dut.FourHundredGigE0/0/0/13/1
       - ate.1/4
 custom: 
   ondatra: 
