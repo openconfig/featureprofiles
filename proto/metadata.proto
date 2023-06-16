@@ -171,6 +171,18 @@ message Metadata {
     bool explicit_interface_in_default_vrf = 42;
     // Set to true to skip checking QOS Dropped octets stats for interface.
     bool qos_dropped_octets = 43;
+    // Device is missing subinterface packet counters for IPv4/IPv6.
+    bool subinterface_packet_counters_missing = 44;
+    // Connect-retry is not supported
+    // /bgp/neighbors/neighbor/timers/config/connect-retry.
+    bool connect_retry = 45;
+    // Set to true for device not supporting programming a gribi flow with a
+    // next-hop entry of mac-address only.
+    bool gribi_mac_override_with_static_arp = 46;
+    // Set true for Device that does not support software module components.
+    bool components_software_module_unsupported = 47;
+    // Set true for device that does not support route-policy under AFI/SAFI.
+    bool route_policy_under_afi_unsupported = 48;
   }
 
   message PlatformExceptions {
