@@ -171,6 +171,8 @@ message Metadata {
     bool explicit_interface_in_default_vrf = 42;
     // Set to true to skip checking QOS Dropped octets stats for interface.
     bool qos_dropped_octets = 43;
+    // Set to true for device that does not support use using gNOI to reboot the Fabric Component.
+    bool gnoi_fabric_component_reboot_unsupported = 44;
   }
 
   message PlatformExceptions {
