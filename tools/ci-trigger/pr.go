@@ -25,10 +25,11 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
-	"github.com/go-git/go-git/v5"
-	"github.com/golang/glog"
 	"github.com/google/go-github/v50/github"
 	"google.golang.org/api/cloudbuild/v1"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/golang/glog"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
@@ -41,7 +42,6 @@ type pullRequest struct {
 	Virtual  []device
 	Physical []device
 
-	baseSHA  string
 	cloneURL string
 
 	repo      *git.Repository
@@ -127,7 +127,7 @@ func (p *pullRequest) identifyModifiedTests() error {
 		return err
 	}
 
-	mf, err := modifiedFiles(p.repo, p.HeadSHA, p.baseSHA)
+	mf, err := modifiedFiles(p.repo, p.HeadSHA)
 	if err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (p *pullRequest) populateTestDetail(functionalTests []string) error {
 			return err
 		}
 		md := &mpb.Metadata{}
-		if err := prototext.Unmarshal(in, md); err != nil {
+		if err := (prototext.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(in, md); err != nil {
 			return err
 		}
 		for _, d := range virtualDeviceTypes {

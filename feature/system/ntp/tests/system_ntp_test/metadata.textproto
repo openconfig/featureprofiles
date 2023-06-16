@@ -14,7 +14,7 @@ platform_exceptions: {
     hardware_model: "xrd"
   }
   deviations: {
-    ntp_non_default_vrf: true
+    ntp_non_default_vrf_unsupported: true
   }
 }
 

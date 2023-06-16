@@ -17,7 +17,6 @@ package telemetry_inventory_test
 import (
 	"fmt"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
@@ -251,7 +250,7 @@ func TestHardwareCards(t *testing.T) {
 				nameValidation:        true,
 				partNoValidation:      true,
 				serialNoValidation:    true,
-				mfgNameValidation:     true,
+				mfgNameValidation:     false,
 				mfgDateValidation:     false,
 				swVerValidation:       false,
 				hwVerValidation:       false,
@@ -657,14 +656,10 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			}
 
 			if p.operStatus != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
-				if deviations.FanOperStatusUnsupported(dut) && strings.Contains(cName, "Fan") {
-					t.Logf("Skipping check for fan oper-status due to deviation FanOperStatusUnsupported")
-				} else {
-					operStatus := card.GetOperStatus()
-					t.Logf("Component %s OperStatus: %s", cName, operStatus.String())
-					if operStatus != p.operStatus {
-						t.Errorf("Component %s OperStatus: got %s, want %s", cName, operStatus, p.operStatus)
-					}
+				operStatus := card.GetOperStatus()
+				t.Logf("Component %s OperStatus: %s", cName, operStatus.String())
+				if operStatus != p.operStatus {
+					t.Errorf("Component %s OperStatus: got %s, want %s", cName, operStatus, p.operStatus)
 				}
 			}
 
