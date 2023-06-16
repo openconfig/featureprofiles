@@ -28,3 +28,14 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    ipv6_enable_for_gribi_nh_dmac: true
+  }
+}

@@ -148,18 +148,18 @@ func TestReuseIP(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
-	bundles := nextBundles(t, dut, 2)
-	bundle1 := bundles[0]
-	bundle2 := bundles[1]
+	aggs := nextAggregates(t, dut, 2)
+	agg1 := aggs[0]
+	agg2 := aggs[1]
 
-	t.Logf("Using dut:bundle1 = %q, dut:bundle2 = %q", bundle1, bundle2)
+	t.Logf("Using dut:agg1 = %q, dut:agg2 = %q", agg1, agg2)
 
 	scope := &pushScope{
 		interfaces: []string{
 			p1.Name(),
 			p2.Name(),
-			bundle1,
-			bundle2,
+			agg1,
+			agg2,
 		},
 	}
 
@@ -167,42 +167,42 @@ func TestReuseIP(t *testing.T) {
 		t.Log("Initialize")
 
 		config.DeleteInterface(p1.Name())
-		config.DeleteInterface(bundle1)
-		configMember(config.GetOrCreateInterface(p1.Name()), bundle1, dut)
-		configBundle(config.GetOrCreateInterface(bundle1), &ip1, dut)
+		config.DeleteInterface(agg1)
+		configMember(config.GetOrCreateInterface(p1.Name()), agg1, dut)
+		configAggregate(config.GetOrCreateInterface(agg1), &ip1, dut)
 
 		config.DeleteInterface(p2.Name())
-		config.DeleteInterface(bundle2)
-		configMember(config.GetOrCreateInterface(p2.Name()), bundle2, dut)
-		configBundle(config.GetOrCreateInterface(bundle2), &ip2, dut)
+		config.DeleteInterface(agg2)
+		configMember(config.GetOrCreateInterface(p2.Name()), agg2, dut)
+		configAggregate(config.GetOrCreateInterface(agg2), &ip2, dut)
 
 		op.push(t, dut, config, scope)
 
 		t.Run("VerifyBeforeReuse", func(t *testing.T) {
-			verifyMember(t, p1, bundle1)
-			verifyBundle(t, dut, bundle1, &ip1)
+			verifyMember(t, p1, agg1)
+			verifyAggregate(t, dut, agg1, &ip1)
 
-			verifyMember(t, p2, bundle2)
-			verifyBundle(t, dut, bundle2, &ip2)
+			verifyMember(t, p2, agg2)
+			verifyAggregate(t, dut, agg2, &ip2)
 		})
 
 		t.Log("Modify Interfaces")
 
 		config.Interface[p1.Name()].Ethernet.AggregateId = nil
-		config.DeleteInterface(bundle1)
-		config.DeleteInterface(bundle2)
-		configBundle(config.GetOrCreateInterface(bundle2), &ip1, dut)
+		config.DeleteInterface(agg1)
+		config.DeleteInterface(agg2)
+		configAggregate(config.GetOrCreateInterface(agg2), &ip1, dut)
 
 		op.push(t, dut, config, scope)
 
 		t.Run("VerifyAfterReuse", func(t *testing.T) {
-			verifyBundle(t, dut, bundle2, &ip1)
+			verifyAggregate(t, dut, agg2, &ip1)
 		})
 
 		t.Log("Cleanup")
 
 		config.Interface[p2.Name()].Ethernet.AggregateId = nil
-		config.DeleteInterface(bundle2)
+		config.DeleteInterface(agg2)
 
 		op.push(t, dut, config, scope)
 	})
@@ -536,26 +536,27 @@ const (
 
 var numRE = regexp.MustCompile(`(\d+)`)
 
-// nextBundles is like netutil.NextBundleInterface but obtains multiple bundles.
-func nextBundles(t *testing.T, dut *ondatra.DUTDevice, n int) []string {
-	// netutil.NextBundleInterface does not actually reserve a bundle, so it will just
-	// return the same bundle when called repeatedly.
-	firstBundle := netutil.NextBundleInterface(t, dut)
-	start, err := strconv.Atoi(numRE.FindString(firstBundle))
+// nextAggregates is like netutil.NextAggregateInterface but obtains multiple
+// aggregate interfaces.
+func nextAggregates(t *testing.T, dut *ondatra.DUTDevice, n int) []string {
+	// netutil.NextAggregateInterface does not reserve an aggregate interface,
+	// so it will return the same aggregate interface when called repeatedly.
+	firstAgg := netutil.NextAggregateInterface(t, dut)
+	start, err := strconv.Atoi(numRE.FindString(firstAgg))
 	if err != nil {
-		t.Fatalf("Cannot extract integer from %q: %v", firstBundle, err)
+		t.Fatalf("Cannot extract integer from %q: %v", firstAgg, err)
 	}
-	bundles := []string{firstBundle}
+	aggs := []string{firstAgg}
 	for i := start + 1; i < start+n; i++ {
-		bundle := numRE.ReplaceAllStringFunc(firstBundle, func(_ string) string {
+		agg := numRE.ReplaceAllStringFunc(firstAgg, func(_ string) string {
 			return strconv.Itoa(i)
 		})
-		bundles = append(bundles, bundle)
+		aggs = append(aggs, agg)
 	}
-	return bundles
+	return aggs
 }
 
-// configMember configures an interface as a member of aggID bundle.
+// configMember configures an interface as a member of aggID interface.
 func configMember(i *oc.Interface, aggID string, dut *ondatra.DUTDevice) {
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
@@ -566,8 +567,8 @@ func configMember(i *oc.Interface, aggID string, dut *ondatra.DUTDevice) {
 	e.AggregateId = ygot.String(aggID)
 }
 
-// configBundle configures an interface as a STATIC LAG bundle.
-func configBundle(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) {
+// configAggregate configures an interface as a STATIC LAG interface.
+func configAggregate(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) {
 	a.ConfigOCInterface(i, dut)
 
 	// Overrides for LAG specific settings.
@@ -577,7 +578,7 @@ func configBundle(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) 
 	g.LagType = oc.IfAggregate_AggregationType_STATIC
 }
 
-// verifyMember verifies an interface as a member of aggID bundle.
+// verifyMember verifies an interface as a member of aggID interface.
 func verifyMember(t testing.TB, p *ondatra.Port, aggID string) {
 	t.Helper()
 	q := gnmi.OC().Interface(p.Name()).Ethernet().AggregateId().State()
@@ -587,16 +588,16 @@ func verifyMember(t testing.TB, p *ondatra.Port, aggID string) {
 	}
 }
 
-// verifyBundle verifies an interface as a STATIC LAG bundle.
-func verifyBundle(t testing.TB, dev gnmi.DeviceOrOpts, bundle string, a *attrs.Attributes) {
+// verifyAggregate verifies an interface as a STATIC LAG aggregate.
+func verifyAggregate(t testing.TB, dev gnmi.DeviceOrOpts, aggID string, a *attrs.Attributes) {
 	t.Helper()
-	q := gnmi.OC().Interface(bundle).Aggregation().LagType().State()
+	q := gnmi.OC().Interface(aggID).Aggregation().LagType().State()
 	v := gnmi.Lookup(t, dev, q)
 	const want = oc.IfAggregate_AggregationType_STATIC
 	if got, ok := v.Val(); !ok || got != want {
 		t.Errorf("State got %v, want %v", v, want)
 	}
-	verifyInterface(t, dev, bundle, a)
+	verifyInterface(t, dev, aggID, a)
 }
 
 // verifyInterface verifies the IP address configured on the interface.
