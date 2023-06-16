@@ -512,7 +512,6 @@ func StorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 
 // GNOIFabricComponentRebootUnsupported returns if device does not support use using gNOI to reboot the Fabric Component.
 func GNOIFabricComponentRebootUnsupported(dut *ondatra.DUTDevice) bool {
-	logErrorIfFlagSet("deviation_gnoi_fabric_component_reboot_unsupported")
 	return lookupDUTDeviations(dut).GetGnoiFabricComponentRebootUnsupported()
 }
 
