@@ -40,15 +40,3 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
   }
 }
-platform_exceptions: {
-  platform: {
-    vendor: ARISTA
-    hardware_model: "DCS-7280CR3K-32D4"
-    hardware_model: "DCS-7808"
-    hardware_model: "ceos"
-  }
-  deviations: {
-    gribi_mac_override_with_static_arp: true
-  }
-}
-
