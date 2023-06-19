@@ -5,3 +5,14 @@ uuid: "7c282986-8100-416a-9364-1893ae9df055"
 plan_id: "gNOI-3.2"
 description: "Per-Component Reboot"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    gnoi_fabric_component_reboot_unsupported: true
+  }
+}
