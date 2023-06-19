@@ -4,10 +4,6 @@
 # This is an example static binding that demonstrates how to specify
 # options to be used in conjunction with the atedut_*.testbed
 # testbeds.
-
-# These options are inherited throughout the entire binding for both the
-# DUT and the ATE, unless overridden by a specific device or protocol.
-
 #
 #router static
 # address-family ipv4 unicast
@@ -21,75 +17,78 @@
 # !
 
 #interface MgmtEth0/RP0/CPU0/0
-# ipv4 address 5.78.24.101 255.255.0.0
+# ipv4 address 5.78.26.27 255.255.0.0
 # no shut
 #!
 
-#telnet: R3 -  telnet 10.85.84.51 2014 (the below topo is wrong)
+#interface MgmtEth0/RP1/CPU0/0
+# ipv4 address 5.78.26.28 255.255.0.0
+# no shut
+#!
+
+#telnet: RP0 -  telnet 10.85.84.54 2005
+#telnet: RP1 -  telnet 10.85.84.54 2006
 
 ##Exec server:
 #ssh ott2lab-as3
 
 ## Consoe server:
-# telnet 10.85.84.51 
-# Pass1: lab
+# telnet 10.85.84.54
+# Pass1: roZes!23
 # Pass2: roZes!23
 
-# Username: cafyauto
-# Password: cisco123
+# Username: cisco
+# Password: cisco
 
-## Management interface:
-# ipv4 address 5.78.24.101 
+## Management interface RP0:
+# ipv4 address 5.78.26.27 
 
+## Management interface RP1:
+# ipv4 address 5.78.26.28 
 
 
 options {
-  username: "cafyauto"
-  password: "cisco123"
+  username: "cisco"
+  password: "cisco"
 }
 
 duts {
   id: "dut"
-  name: "R3-10.85.84.51:2014"  # Change this to the device hostname.
+  name: "SF-D"  # Change this to the device hostname.
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
-
+  # telnet RP0: 10.85.84.54 2005
+  # telnet RP1: 10.85.84.54 2006
+  # Mgmt RP0: 5.78.26.27
+  # Mgmt RP0: 5.78.26.28
+  # Rack Location : 22-18-27
+  # Exec server: ott2lab-as3
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
   options {
     insecure: false 
     skip_verify: true
-    username: "cafyauto"
-    password: "cisco123"
+    username: "cisco"
+    password: "cisco"
   }
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    #target: "161.44.211.250:47400"
-    target: "10.85.84.159:47400"
-    #target: "10.85.80.63:47400"
+    target: "10.85.84.159:47777"
   }
   gnmi {
-    #target: "161.44.211.250:47400"
-    target: "10.85.84.159:47400"
-    #target: "10.85.80.63:47400"
-  }
-  gribi{
-    #target: "161.44.211.250:47400"
-    target: "10.85.84.159:47400"
-    #target: "10.85.80.63:47400"
+    target: "10.85.84.159:47777" 
   }
 
-  ssh{
-    #target: "161.44.211.250:47401"
-    target: "10.85.84.159:47401"
+  gribi{
+    target: "10.85.84.159:47777"
   }
-  
+  ssh{
+    target: "10.85.84.159:48777"
+  }
   p4rt{
-    #target: "161.44.211.250:47400"
-    target: "10.85.84.159:47400"
-    #target: "10.85.80.63:47400"
+    target: "10.85.84.159:47777"
   }
 
 # Before this binding can be used with a topology, add ports mapping
@@ -97,35 +96,35 @@ duts {
   
   ports {
     id: "port1"
-    name: "TenGigE0/0/0/1/0"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/4/0"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "TenGigE0/0/0/1/1"  # Change this to the actual port name.
+    name: "TenGigE0/5/0/0/1"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "TenGigE0/0/0/1/2" # Change this to the actual port name.
+    name: "TenGigE0/7/0/14/1" # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "TenGigE0/0/0/1/3"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/4/1"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
-    name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.
+    name: "TenGigE0/5/0/0/0"  # Change this to the actual port name.
   }
   ports {
     id: "port6"
-    name: "TenGigE0/0/0/2/1"  # Change this to the actual port name.
+    name: "TenGigE0/5/0/34/0"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "TenGigE0/0/0/2/2"  # Change this to the actual port name.
+    name: "TenGigE0/5/0/34/1" # Change this to the actual port name.
   }
   ports {
     id: "port8"
-    name: "TenGigE0/0/0/2/3"  # Change this to the actual port name.
+    name: "TenGigE0/7/0/14/0"  # Change this to the actual port name.
   }
 }
 
@@ -143,44 +142,50 @@ ates {
    username: "admin"
    password: "admin" 
 
+   #linux
+   #target: "10.85.84.214"
+   #skip_verify: true
+   #username: "admin"
+   #password: "Admin!@#123123" 
+
    # windows
-    #target: "10.85.84.161:12009" 
-    #skip_verify: true
-    #session_id: 1
+   # target: "10.85.84.161:12009" 
+   # skip_verify: true
+   # session_id: 1
   }
 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "3/21"  # Change this to the actual port name.
+    name: "10/9"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "3/22"  # Change this to the actual port name.
+    name: "10/14"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "3/23"  # Change this to the actual port name.
+    name: "10/12"  # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "3/24"  # Change this to the actual port name.
+    name: "10/10"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
-    name: "3/29" # Change this to the actual port name.
+    name: "10/13"  # Change this to the actual port name.
   }
   ports {
     id: "port6"
-    name: "3/30"  # Change this to the actual port name.
+    name: "10/15"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "3/31"  # Change this to the actual port name.
+    name: "10/16"  # Change this to the actual port name.
   }
   ports {
     id: "port8"
-    name: "3/32"  # Change this to the actual port name.
-  }
-} 
+    name: "10/11"  # Change this to the actual port name.
+  } 
+}

@@ -74,40 +74,20 @@ duts {
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
-    id: "port8"
-    name: "FourHundredGigE0/0/0/0"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port2"
-    name: "HundredGigE0/0/0/1"  # Change this to the actual port name.
+    id: "port4"
+    name: "HundredGigE0/1/0/10"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "HundredGigE0/0/0/2"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port4"
-    name: "HundredGigE0/0/0/12"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port5"
-    name: "HundredGigE0/0/0/13"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port6"
-    name: "HundredGigE0/0/0/14"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port7"
-    name: "HundredGigE0/0/0/24"  # Change this to the actual port name.
+    name: "HundredGigE0/1/0/11"  # Change this to the actual port name.
   }
   ports {
     id: "port1"
-    name: "HundredGigE0/0/0/25"  # Change this to the actual port name.
+    name: "HundredGigE0/1/0/12"  # Change this to the actual port name.
   }
   ports {
-    id: "port9"
-    name: "HundredGigE0/0/0/26"  # Change this to the actual port name.
+    id: "port2"
+    name: "HundredGigE0/1/0/13"  # Change this to the actual port name.
   }
 }
 
@@ -119,52 +99,31 @@ ates {
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
-    #target: "10.85.84.194"
-    #username: "admin"
-    #password: "ixia123!"
     target: "10.85.84.118"
     username: "admin"
     password: "admin"
     skip_verify: true
+    #username: "admin"
+    #password: "ixia123!"
     #session_id: 1 
   }
 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
-    id: "port8"
-    name: "1/1"  # Change this to the actual port name.
+    id: "port1"
+    name: "1/25"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "1/17"  # Change this to the actual port name.
+    name: "1/26"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "1/18"  # Change this to the actual port name.
+    name: "1/27"  # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "1/19"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port5"
-    name: "1/20"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port6"
-    name: "1/21"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port7"
-    name: "1/22"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port1"
-    name: "1/23"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port9"
-    name: "1/24"  # Change this to the actual port name.
+    name: "1/28"  # Change this to the actual port name.
   }
 }
