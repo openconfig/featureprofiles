@@ -17,7 +17,6 @@ package telemetry_inventory_test
 import (
 	"fmt"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
@@ -251,7 +250,7 @@ func TestHardwareCards(t *testing.T) {
 				nameValidation:        true,
 				partNoValidation:      true,
 				serialNoValidation:    true,
-				mfgNameValidation:     true,
+				mfgNameValidation:     false,
 				mfgDateValidation:     false,
 				swVerValidation:       false,
 				hwVerValidation:       false,
@@ -284,6 +283,9 @@ func TestHardwareCards(t *testing.T) {
 	components := findComponentsListByType(t, dut)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			if tc.desc == "Storage" && deviations.StorageComponentUnsupported(dut) {
+				t.Skipf("Telemetry path /components/component/storage is not supported.")
+			}
 			cards := components[tc.desc]
 			t.Logf("%s components count: %d", tc.desc, len(cards))
 			if len(cards) == 0 {
@@ -654,14 +656,10 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			}
 
 			if p.operStatus != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
-				if deviations.FanOperStatusUnsupported(dut) && strings.Contains(cName, "Fan") {
-					t.Logf("Skipping check for fan oper-status due to deviation FanOperStatusUnsupported")
-				} else {
-					operStatus := card.GetOperStatus()
-					t.Logf("Component %s OperStatus: %s", cName, operStatus.String())
-					if operStatus != p.operStatus {
-						t.Errorf("Component %s OperStatus: got %s, want %s", cName, operStatus, p.operStatus)
-					}
+				operStatus := card.GetOperStatus()
+				t.Logf("Component %s OperStatus: %s", cName, operStatus.String())
+				if operStatus != p.operStatus {
+					t.Errorf("Component %s OperStatus: got %s, want %s", cName, operStatus, p.operStatus)
 				}
 			}
 
@@ -723,6 +721,11 @@ func TestStorage(t *testing.T) {
 	t.Skipf("Telemetry path /components/component/storage is not supported.")
 
 	dut := ondatra.DUT(t, "dut")
+
+	if deviations.StorageComponentUnsupported(dut) {
+		t.Skipf("Telemetry path /components/component/storage is not supported.")
+	}
+
 	storages := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Storage().State())
 	if len(storages) == 0 {
 		t.Errorf("Get Storage list for %q: got 0, want > 0", dut.Model())

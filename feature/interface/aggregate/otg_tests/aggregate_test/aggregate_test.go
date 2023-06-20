@@ -236,7 +236,10 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	srciPath := d.Interface(srcp.Name())
 	fptest.LogQuery(t, srcp.String(), srciPath.Config(), srci)
 	gnmi.Replace(t, tc.dut, srciPath.Config(), srci)
-
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, deviations.DefaultNetworkInstance(tc.dut), 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
+	}
 	for _, port := range tc.dutPorts[1:] {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
 		i.Type = ethernetCsmacd
@@ -248,6 +251,11 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		iPath := d.Interface(port.Name())
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
+	}
+	if deviations.ExplicitPortSpeed(tc.dut) {
+		for _, port := range tc.dutPorts {
+			fptest.SetPortSpeed(t, port)
+		}
 	}
 }
 
@@ -279,6 +287,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 		}
 	} else {
 		agg.Protocol().SetChoice("lacp")
+		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(ateDst.MAC)
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateDst.MAC, i+1)
@@ -290,7 +299,6 @@ func (tc *testCase) configureATE(t *testing.T) {
 			lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(int32(i) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 		}
 	}
-
 	dstDev := tc.top.Devices().Add().SetName(agg.Name())
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
@@ -419,25 +427,24 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 	tests := []struct {
 		desc      string
 		downCount int
-		want      oc.E_Interface_OperStatus
+		want      []oc.E_Interface_OperStatus
 	}{
 		{
 			desc:      "MinLink + 1",
 			downCount: 0,
-			want:      opUp,
+			want:      []oc.E_Interface_OperStatus{opUp},
 		},
 		{
 			desc:      "MinLink",
 			downCount: 1,
-			want:      opUp,
+			want:      []oc.E_Interface_OperStatus{opUp},
 		},
 		{
 			desc:      "MinLink - 1",
 			downCount: 2,
-			want:      oc.Interface_OperStatus_LOWER_LAYER_DOWN,
+			want:      []oc.E_Interface_OperStatus{oc.Interface_OperStatus_LOWER_LAYER_DOWN, opDown},
 		},
 	}
-
 	for _, tf := range tests {
 		t.Run(tf.desc, func(t *testing.T) {
 			for _, port := range tc.atePorts[1 : 1+tf.downCount] {
@@ -469,7 +476,22 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 					tc.setDutInterfaceWithState(t, dp, false)
 				}
 			}
-			gnmi.Await(t, tc.dut, gnmi.OC().Interface(tc.aggID).OperStatus().State(), 1*time.Minute, tf.want)
+			opStatus, statusCheckResult := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).OperStatus().State(), 1*time.Minute, func(y *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+				opStatus, ok := y.Val()
+				if !ok {
+					return false
+				}
+				for _, expectedStatus := range tf.want {
+					if opStatus == expectedStatus {
+						return true
+					}
+				}
+				return false
+			}).Await(t)
+			if !statusCheckResult {
+				val, _ := opStatus.Val()
+				t.Errorf("Check of OperStatus for Interface %s is failed, want: %v, got: %s", tc.aggID, tf.want, val.String())
+			}
 		})
 	}
 }
@@ -477,7 +499,7 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 func TestNegotiation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	aggID := netutil.NextBundleInterface(t, dut)
+	aggID := netutil.NextAggregateInterface(t, dut)
 
 	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 

@@ -5,3 +5,29 @@ uuid: "44fed7d9-4c79-4952-8b83-fbd5f7138ae9"
 plan_id: "gNMI-1.4"
 description: "Telemetry: Inventory"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    switch_chip_id_unsupported: true
+    backplane_facing_capacity_unsupported: true
+    storage_component_unsupported: true
+    components_software_module_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model: "DCS-7280CR3K-32D4"
+    hardware_model: "DCS-7808"
+    hardware_model: "DCS-7804-CH"
+    hardware_model: "ceos"
+  }
+  deviations: {
+    components_software_module_unsupported: true
+  }
+}
