@@ -36,3 +36,10 @@ for d in ${DIRS[@]} ; do
     done
   done
 done
+
+# Make the trust bundles.
+for d in ${DIRS[@]}; do
+  for t in ${TYPES[@]}; do
+    cat ca-${d}/ca-*-${t}-cert.pem > ca-${d}/trust_bundle_${d}_${t}.pem
+  done
+done

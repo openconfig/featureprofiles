@@ -38,6 +38,9 @@ the system. Test that the example trust bundles, which contain
 one, ten, one thousand CA keys all operate nominally on the
 system.
 
+Trust bundles, server and client certificates are provided
+to be used in testing this feature. 
+
 ## Config Parameter Coverage
 
 ## Telemetry Parameter Coverage
