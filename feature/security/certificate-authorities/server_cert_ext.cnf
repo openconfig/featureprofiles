@@ -1,0 +1,7 @@
+basicConstraints = CA:FALSE
+nsCertType = server
+nsComment = "Test Server Certificates - openconfig / featureprofiles"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
