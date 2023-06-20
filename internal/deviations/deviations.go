@@ -510,6 +510,11 @@ func StorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStorageComponentUnsupported()
 }
 
+// GNOIFabricComponentRebootUnsupported returns if device does not support use using gNOI to reboot the Fabric Component.
+func GNOIFabricComponentRebootUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiFabricComponentRebootUnsupported()
+}
+
 // NtpNonDefaultVrfUnsupported returns true if the device does not support ntp nondefault vrf.
 // Default value is false.
 func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
