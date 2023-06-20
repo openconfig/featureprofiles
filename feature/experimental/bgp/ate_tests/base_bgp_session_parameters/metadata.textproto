@@ -16,6 +16,7 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     skip_bgp_test_password_mismatch: true
+    connect_retry: true
   }
 }
 platform_exceptions: {
@@ -27,5 +28,17 @@ platform_exceptions: {
   deviations: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model: "DCS-7280CR3K-32D4"
+    hardware_model: "DCS-7808"
+    hardware_model: "DCS-7804-CH"
+    hardware_model: "ceos"
+  }
+  deviations: {
+    connect_retry: true
   }
 }
