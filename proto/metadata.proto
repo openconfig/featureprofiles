@@ -185,6 +185,8 @@ message Metadata {
     bool route_policy_under_afi_unsupported = 48;
     // Set to true for device that does not support use using gNOI to reboot the Fabric Component.
     bool gnoi_fabric_component_reboot_unsupported = 49;
+    // Device does not support the ntp nondefault vrf case.
+    bool ntp_non_default_vrf_unsupported = 50;
   }
 
   message PlatformExceptions {
