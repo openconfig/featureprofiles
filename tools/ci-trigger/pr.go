@@ -42,7 +42,6 @@ type pullRequest struct {
 	Virtual  []device
 	Physical []device
 
-	baseSHA  string
 	cloneURL string
 
 	repo      *git.Repository
@@ -128,7 +127,7 @@ func (p *pullRequest) identifyModifiedTests() error {
 		return err
 	}
 
-	mf, err := modifiedFiles(p.repo, p.HeadSHA, p.baseSHA)
+	mf, err := modifiedFiles(p.repo, p.HeadSHA)
 	if err != nil {
 		return err
 	}
