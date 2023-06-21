@@ -74,20 +74,36 @@ duts {
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
-    id: "port4"
-    name: "HundredGigE0/1/0/10"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port3"
-    name: "HundredGigE0/1/0/11"  # Change this to the actual port name.
-  }
-  ports {
     id: "port1"
     name: "HundredGigE0/1/0/12"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
     name: "HundredGigE0/1/0/13"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "HundredGigE0/1/0/11"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "HundredGigE0/1/0/10"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "HundredGigE0/1/0/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "HundredGigE0/1/0/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "HundredGigE0/1/0/2"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port8"
+    name: "HundredGigE0/1/0/3"  # Change this to the actual port name.
   }
 }
 
@@ -125,5 +141,21 @@ ates {
   ports {
     id: "port4"
     name: "1/28"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "1/13"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "1/14"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "1/15"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port8"
+    name: "1/16"  # Change this to the actual port name.
   }
 }
