@@ -5,3 +5,16 @@ uuid: "9e5ec4a5-0adb-48aa-b6c2-c0d604d15934"
 plan_id: "OC-26.1"
 description: "Network Time Protocol (NTP)"
 testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    ntp_non_default_vrf_unsupported: true
+  }
+}
+
