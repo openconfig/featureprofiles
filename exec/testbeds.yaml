@@ -81,6 +81,14 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp-mgmt-vrf.conf
+  - id: 8808-1DUT-1ATE-FURY
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT-1ATE-FURY/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE-FURY/basefp.conf
+  - id: 8808-1DUT-1ATE-FURY-vrf-mgmt
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT-1ATE-FURY/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE-FURY/basefp-mgmt-vrf.conf
   - id: 8808-2DUT
     sim: true
     topology: topologies/cisco/pyvxr/8808-2DUT/topo.yaml
@@ -93,6 +101,12 @@ testbeds:
     baseconf: 
       dut: topologies/cisco/pyvxr/8808-OC/basefp.conf
       peer: topologies/cisco/pyvxr/8808-OC/basefp-peer.conf
+  - id: 8808-OC-FURY
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-OC-FURY/topo.yaml
+    baseconf: 
+      dut: topologies/cisco/pyvxr/8808-OC-FURY/basefp.conf
+      peer: topologies/cisco/pyvxr/8808-OC-FURY/basefp-peer.conf
   - id: 8808_FOX2625PLW8
     owner: arvbaska
     testbed: topologies/cisco/hw/8808_FOX2625PLW8/testbed
