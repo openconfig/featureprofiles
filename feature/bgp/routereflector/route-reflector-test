@@ -14,8 +14,8 @@ Procedure:
     - ATE port 2 and ATE port3 are emulating RR clients peered with the DUT acting as the RR server. DUT's loopback address should be used for the IBGP peering and 
       "transport/config/local-address" OC path should be used on DUT to configure BGP transport address for IBGP peering. ATE addresses used for the IBGP peering (different from ATE Port1 and ATE Port2 addreses) and DUT 
       loopback addresses should be reachable via IS-IS. Each of the IBGP peering should advertise 5M IPv4 and 1M IPv6 prefixes.
-    - The DUT Port1 has eBGP peering with ATE Port 1 and is receiving 10M IPv4 and 3M IPv6 prefixes. The DUT should automatically determine the BGP transport source address based on the nearest interface.
-      Hence, the OC path "transport/config/local-address" shouldnt be used.
+    - The DUT Port1 has eBGP peering with ATE Port 1 and is receiving 10M IPv4 and 3M IPv6 prefixes. Please note: The FIB is expected to be 1.5M v4 routes and 600K v6 routes. 
+The DUT should automatically determine the BGP transport source address based on the nearest interface. Hence, the OC path "transport/config/local-address" shouldnt be used.
   - Validate session state on ATE ports and DUT using telemetry.
     - The check should also include accurately receiving values for the path "transport/state/local-address" for RRCs as well as for the EBGP peering
     - Validate accuracy of the peer-type leaf (neighbor/config/peer-type) for EBGP and IBGP peering.
@@ -27,7 +27,6 @@ Procedure:
   - Validate BGP route/path attributes below for each of the EBGP and IBGP learnt routes
     - NH
     - Local Pref
-    - Metric
     - Communities
     - AS-Path
 
