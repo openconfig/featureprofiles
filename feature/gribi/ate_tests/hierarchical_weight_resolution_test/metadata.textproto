@@ -16,6 +16,7 @@ platform_exceptions: {
   deviations: {
     hierarchical_weight_resolution_tolerance: 1.5
     ipv4_missing_enabled: true
+    interface_ref_config_unsupported: true
   }
 }
 platform_exceptions: {
