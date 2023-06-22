@@ -19,9 +19,9 @@ Procedure:
       - Ensure that only IPv6-Unicast enabled boolean is made "true" for IPv6 neighbor. "IPv4-unicast enabled" boolean is left to OC default for the IPv6 peer".
       - Ensure that there are no AFI-SAFI configurations at the global and peer-group levels. 
       - On the ATE side ensure that IPv4-unicast and IPv6-unicast AFI-SAFI are enabled==true for IPv4 and IPv6 neighbors.
-    - Ensure that only IPv4-unicast AFI-SAFI neighborship is in "established" state for the IPv4 neighbor. 
+    - Ensure that IPv4 neighbor is in "established" state
       - Test is a fail if IPv6-unicast AFI-SAFI is in "supported-capabilities" for the IPv4 neighbor
-    - Ensure that only IPv6-unicast AFI-SAFI neighborship is in "established" state for the IPv6 neighbor. 
+    - Ensure that IPv6 neighbor is in "established" state. 
       - Test is a fail if IPv4-unicast AFI-SAFI is in "supported-capabilities" for the IPv6 neighbor.
   - [Test case-2] IPv4-unicast and IPv6-Unicast AFI-SAFIs enabled at peer-group level:
     - Configuration at the neighbor level is same as in [Test case-1] except for IPv4-unicast and IPv6-unicast being enabled at the peer-group level
