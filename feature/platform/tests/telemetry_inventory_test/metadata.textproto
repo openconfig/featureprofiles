@@ -16,7 +16,6 @@ platform_exceptions: {
     switch_chip_id_unsupported: true
     backplane_facing_capacity_unsupported: true
     storage_component_unsupported: true
-    components_software_module_unsupported: true
   }
 }
 platform_exceptions: {
