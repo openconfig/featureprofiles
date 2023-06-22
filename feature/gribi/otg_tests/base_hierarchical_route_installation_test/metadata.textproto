@@ -15,6 +15,8 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    gribi_mac_override_with_static_arp: true
+    interface_ref_config_unsupported: true
   }
 }
 platform_exceptions: {
