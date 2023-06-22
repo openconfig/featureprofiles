@@ -17,4 +17,15 @@ platform_exceptions: {
     ntp_non_default_vrf_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    ntp_non_default_vrf_unsupported: true
+  }
+}
 
