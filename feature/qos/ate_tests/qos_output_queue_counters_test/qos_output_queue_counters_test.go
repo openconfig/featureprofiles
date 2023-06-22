@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -89,36 +90,37 @@ func TestQoSCounters(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	var trafficFlows map[string]*trafficData
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "3"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "2"},
-			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 24, queue: "5"},
-			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "1"},
-			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "4"},
-			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "0"},
+			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: queues.NC1},
+			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: queues.AF4},
+			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 24, queue: queues.AF3},
+			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: queues.AF2},
+			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: queues.AF1},
+			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: queues.BE1},
 		}
 	case ondatra.ARISTA:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: "NC1"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "AF4"},
-			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: "AF3"},
-			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: "AF2"},
-			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: "AF1"},
-			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: "BE0"},
-			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: "BE1"},
+			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: queues.NC1},
+			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: queues.AF4},
+			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: queues.AF3},
+			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: queues.AF2},
+			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: queues.AF1},
+			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: queues.BE0},
+			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: queues.BE1},
 		}
 	case ondatra.CISCO:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: "NC1"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "AF4"},
-			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: "AF3"},
-			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: "AF2"},
-			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: "AF1"},
-			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: "BE0"},
-			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: "BE1"},
+			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: queues.NC1},
+			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: queues.AF4},
+			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: queues.AF3},
+			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: queues.AF2},
+			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: queues.AF1},
+			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: queues.BE0},
+			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: queues.BE1},
 		}
 	default:
 		t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
