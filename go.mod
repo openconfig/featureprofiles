@@ -16,7 +16,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/open-traffic-generator/snappi/gosnappi v0.11.14
 	github.com/openconfig/gnmi v0.9.1
-	github.com/openconfig/gnoi v0.0.0-20230221223856-1727ed932554
+	github.com/openconfig/gnoi v0.1.0
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.4.0
 	github.com/openconfig/gribi v1.0.0
