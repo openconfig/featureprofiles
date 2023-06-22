@@ -1,0 +1,55 @@
+Summary:
+  - When operating in "openconfig mode", NOS (network operating system) defaults should match what OC defines as the defaults i.e. BGP AFI-SAFI are not enabled by default.
+    This test currently only verifies the defaults for ipv4-unicast and ipv6-unicast AFI-SAFI implementations. However, this test can be extended further to cover for other
+    AFI/SAFIs as well.
+  - The test will check for default implementations under the neighbor and peer-group hierarchies.
+
+
+Topology:
+ATE (Port1) <-EBGP-> (Port1) DUT (Port2) <-IBGP-> (Port2) ATE
+  - Connect ATE Port1 to DUT port1 (EBGP peering)
+  - Connect ATE Port2 to DUT port2 (IBGP peering)
+
+Procedure:
+  - [Test case-1] IPv4-unicast Enabled, IPv6-Unicast disabled at neighbor level:
+    - Push EBGP and IBGP OC configuration to the DUT 
+      -  Configuration should include corresponding IPv4 and IPv6 neighbor configurations.
+      -  Ensure that only IPv4-Unicast enabled boolean is made "true". IPv6-unicast is left to OC default which is "Disabled". 
+    - Ensure that only IPv4-unicast AFI-SAFI neighborship is in "established" state. Test is a fail if the IPv6-unicast neighbor is also in "established" state.
+  - [Test case-2] IPv6-unicast Enabled, IPv4-Unicast disabled at neighbor level:
+    - Repeat the same steps as above in "Test case-1" but this time with "IPv4-Unicast enabled" boolean as OC-default and "IPv6-Unicast enabled" boolean as true.
+    - Ensure that only IPv6-unicast AFI-SAFI neighborship is in "established" state. Test is a fail if the IPv4-unicast neighbor is also in "established" state.
+  - [Test case-3] IPv4-unicast Enabled, IPv6-Unicast disabled at peer-group level:
+    - Conduct the same test as "Test case-1" but this time at the peer-group level. Peer-groups configured for both IBGP and EBGP neighbors.
+  - [Test case-4] IPv6-unicast Enabled, IPv4-Unicast disabled at peer-group level:
+    - Conduct the same test as "Test case-2" but this time at the peer-group level. Peer-groups configured for both IBGP and EBGP neighbors.
+
+Config Parameter coverage:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/auth-password
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/neighbor-address
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/auth-password
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/local-as
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/neighbor-address
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled
+
+Telemetry Parameter coverage:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
+
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-type
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-as
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/local-as
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group
+
