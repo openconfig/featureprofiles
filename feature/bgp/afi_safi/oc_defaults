@@ -21,7 +21,7 @@ Procedure:
       - On the ATE side ensure that IPv4-unicast and IPv6-unicast AFI-SAFI are enabled==true for IPv4 and IPv6 neighbors.
   - verification:
       - For IPv4 neighbor, ensure that the IPv4 neighborship is up and IPv6-unicast capability is not negotiated.
-      - For IPv6 neighbor ensure that the IPv6 neighborship is up and both IPv4-unicast capability is not negotiated.    
+      - For IPv6 neighbor ensure that the IPv6 neighborship is up and IPv4-unicast capability is not negotiated.    
   - [Test case-2] IPv4-unicast and IPv6-Unicast AFI-SAFIs enabled at peer-group level:
     - Configuration at the neighbor level is same as in [Test case-1] except for IPv4-unicast and IPv6-unicast being enabled at the peer-group level
     - No configuration should be made at the global AFI-SAFI level
