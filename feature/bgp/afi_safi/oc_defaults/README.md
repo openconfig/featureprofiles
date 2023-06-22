@@ -36,6 +36,7 @@ Procedure:
       - For IPv6 neighbor ensure that the IPv6 neighborship is up and both IPv4-unicast and IPv6-unicast capabilities are negotiated.
 
 Config Parameter coverage:
+
   /network-instances/network-instance/protocols/protocol/bgp/global/config/as
   /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/auth-password
