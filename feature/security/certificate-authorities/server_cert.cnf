@@ -9,11 +9,11 @@ C="AQ"
 ST="NZ"
 L="NZ"
 O="OpenconfigFeatureProfiles"
-CN="server.service.example.com"
+CN="{bb1d2545-1e93-49a6-8d0c-761d92011fde}"
 
 [req_ext]
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.0 = *.example.com
-DNS.1 = *.service.example.com
+URI.0 = spiffe://teamname.groupname.location.place.example.com/role/groupname-group
+DNS.0 = role001.pop55.net.example.com
