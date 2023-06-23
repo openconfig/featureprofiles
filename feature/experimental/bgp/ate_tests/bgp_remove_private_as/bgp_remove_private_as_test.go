@@ -52,6 +52,7 @@ const (
 	advertisedRoutesv4CIDR = "203.0.113.1/32"
 	peerGrpName1           = "BGP-PEER-GROUP1"
 	peerGrpName2           = "BGP-PEER-GROUP2"
+	policyName             = "ALLOW"
 	routeCount             = 254
 	dutAS                  = 500
 	ateAS1                 = 100
@@ -127,6 +128,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	global.RouterId = ygot.String(dutDst.IPv4)
 	global.As = ygot.Uint32(localAs)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
@@ -137,6 +139,28 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	pg2 := bgp.GetOrCreatePeerGroup(peerGrpName2)
 	pg2.PeerAs = ygot.Uint32(ateAS2)
 	pg2.PeerGroupName = ygot.String(peerGrpName2)
+
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		rpl := pg1.GetOrCreateApplyPolicy()
+		rpl.ImportPolicy = []string{policyName}
+		rpl.ExportPolicy = []string{policyName}
+
+		rp2 := pg2.GetOrCreateApplyPolicy()
+		rp2.ImportPolicy = []string{policyName}
+		rp2.ExportPolicy = []string{policyName}
+	} else {
+		pgaf := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		pgaf.Enabled = ygot.Bool(true)
+		rpl := pgaf.GetOrCreateApplyPolicy()
+		rpl.ImportPolicy = []string{policyName}
+		rpl.ExportPolicy = []string{policyName}
+
+		pgaf2 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		pgaf2.Enabled = ygot.Bool(true)
+		rp2 := pgaf2.GetOrCreateApplyPolicy()
+		rp2.ImportPolicy = []string{policyName}
+		rp2.ExportPolicy = []string{policyName}
+	}
 
 	for _, nbr := range nbrs {
 		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
@@ -269,6 +293,18 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	}
 }
 
+// configreRoutePolicy adds route-policy config
+func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(name)
+	st := pd.GetOrCreateStatement("id-1")
+	stc := st.GetOrCreateConditions()
+	stc.InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	st.GetOrCreateActions().PolicyResult = pr
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+}
+
 // TestRemovePrivateAS is to Validate that private AS numbers are stripped
 // before advertisement to the eBGP neighbor.
 func TestRemovePrivateAS(t *testing.T) {
@@ -290,6 +326,7 @@ func TestRemovePrivateAS(t *testing.T) {
 	t.Run("Configure BGP Neighbors.", func(t *testing.T) {
 		t.Logf("Start DUT BGP Config.")
 		gnmi.Delete(t, dut, dutConfPath.Config())
+		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
