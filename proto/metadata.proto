@@ -179,14 +179,12 @@ message Metadata {
     // Set to true for device not supporting programming a gribi flow with a
     // next-hop entry of mac-address only.
     bool gribi_mac_override_with_static_arp = 46;
-    // Set true for Device that does not support software module components.
-    bool components_software_module_unsupported = 47;
     // Set true for device that does not support route-policy under AFI/SAFI.
-    bool route_policy_under_afi_unsupported = 48;
+    bool route_policy_under_afi_unsupported = 47;
     // Set to true for device that does not support use using gNOI to reboot the Fabric Component.
-    bool gnoi_fabric_component_reboot_unsupported = 49;
+    bool gnoi_fabric_component_reboot_unsupported = 48;
     // Device does not support the ntp nondefault vrf case.
-    bool ntp_non_default_vrf_unsupported = 50;
+    bool ntp_non_default_vrf_unsupported = 49;
   }
 
   message PlatformExceptions {

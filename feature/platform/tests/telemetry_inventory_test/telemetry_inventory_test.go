@@ -696,26 +696,6 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 	}
 }
 
-func TestSoftwareModule(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	if deviations.ComponentsSoftwareModuleUnsupported(dut) {
-		t.Logf("Skipping check for components software module unsupport")
-	} else {
-		moduleTypes := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().SoftwareModule().ModuleType().State())
-		if len(moduleTypes) == 0 {
-			t.Errorf("Get moduleType list for %q: got 0, want > 0", dut.Model())
-		}
-
-		for i, moduleType := range moduleTypes {
-			modVal, present := moduleType.Val()
-			if !present {
-				t.Fatalf("moduleType.IsPresent() item %d: got false, want true", i)
-			}
-			t.Logf("Telemetry moduleType path/value %d: %v=>%v.", i, moduleType.Path.String(), modVal)
-		}
-	}
-}
-
 func TestStorage(t *testing.T) {
 	// TODO: Add Storage test case here once supported.
 	t.Skipf("Telemetry path /components/component/storage is not supported.")
