@@ -96,50 +96,50 @@ duts {
 # Before this binding can be used with a topology, add ports mapping
 # from its topology ID to the actual port name on the device.
   
-  # ports {
-  #   id: "port1"
-  #   name: "HundredGigE0/7/0/34"  # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port2"
-  #   name: "HundredGigE0/7/0/2"  # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port3"
-  #   name: "HundredGigE0/7/0/4" # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port4"
-  #   name: "HundredGigE0/7/0/5"  # Change this to the actual port name.
-  # }
   ports {
     id: "port1"
-    name: "HundredGigE0/7/0/34"  # Change this to the actual port name.
+    name: "TenGigE0/7/0/12/0"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "HundredGigE0/7/0/22"  # Change this to the actual port name.
+    name: "TenGigE0/7/0/30/3"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "HundredGigE0/7/0/33"  # Change this to the actual port name.
+    name: "TenGigE0/7/0/12/2" # Change this to the actual port name.
   }
   ports {
-   id: "port4"
-   name: "HundredGigE0/7/0/21"  # Change this to the actual port name.
+    id: "port4"
+    name: "TenGigE0/7/0/12/3"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "TenGigE0/7/0/30/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "TenGigE0/7/0/30/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "TenGigE0/7/0/30/2"  # Change this to the actual port name.
+  }
+  ports {
+   id: "port8"
+   name: "TenGigE0/7/0/12/1"  # Change this to the actual port name.
   }
 }
 
 ates {
   id: "ate"
-  name: "10.85.84.214"  # Change this to the Ixia chassis name.
+  name: "10.85.84.155"  # Change this to the Ixia chassis name.
 
   # Options specific to the IxNetwork API.  Remove if not needed.
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
    #linux
-   target: "10.85.84.119"
+   target: "10.85.84.118"
    skip_verify: true
    username: "admin"
    password: "admin"
@@ -158,36 +158,36 @@ ates {
 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
-  # ports {
-  #   id: "port1"
-  #   name: "1/68"  # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port2"
-  #   name: "1/50"  # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port3"
-  #   name: "1/51"  # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port4"
-  #   name: "1/52"  # Change this to the actual port name.
-  # }
   ports {
     id: "port1"
-    name: "1/68" # Change this to the actual port name.
+    name: "9/9"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "1/66"  # Change this to the actual port name.
+    name: "9/16"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "1/67"  # Change this to the actual port name.
+    name: "9/11"  # Change this to the actual port name.
   }
   ports {
-   id: "port4"
-   name: "1/65"  # Change this to the actual port name.
+    id: "port4"
+    name: "9/12"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "9/13" # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "9/14"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "9/15"  # Change this to the actual port name.
+  }
+  ports {
+   id: "port8"
+   name: "9/10"  # Change this to the actual port name.
   }
 }
