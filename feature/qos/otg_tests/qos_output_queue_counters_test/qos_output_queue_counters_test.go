@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -106,37 +107,38 @@ func TestQoSCounters(t *testing.T) {
 	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
 	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(ateDstIp).SetGateway(ateDstGateway).SetPrefix(int32(prefixLen))
 
+	queues := netutil.CommonTrafficQueues(t, dut)
 	var trafficFlows map[string]*trafficData
 
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "3"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "2"},
-			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 24, queue: "5"},
-			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "1"},
-			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "4"},
-			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "0"},
+			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: queues.NC1},
+			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: queues.AF4},
+			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 24, queue: queues.AF3},
+			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: queues.AF2},
+			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: queues.AF1},
+			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: queues.BE1},
 		}
 	case ondatra.ARISTA:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: "NC1"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "AF4"},
-			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: "AF3"},
-			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: "AF2"},
-			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: "AF1"},
-			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: "BE0"},
-			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: "BE1"},
+			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: queues.NC1},
+			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: queues.AF4},
+			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: queues.AF3},
+			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: queues.AF2},
+			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: queues.AF1},
+			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: queues.BE0},
+			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: queues.BE1},
 		}
 	case ondatra.CISCO:
 		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: "NC1"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "AF4"},
-			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: "AF3"},
-			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: "AF2"},
-			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: "AF1"},
-			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: "BE0"},
-			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: "BE1"},
+			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: queues.NC1},
+			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: queues.AF4},
+			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: queues.AF3},
+			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: queues.AF2},
+			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: queues.AF1},
+			"flow-be0": {frameSize: 1110, trafficRate: 1, dscp: 4, queue: queues.BE0},
+			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: queues.BE1},
 		}
 	default:
 		t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
@@ -320,31 +322,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 
-	type qosVals struct {
-		be0, be1, af1, af2, af3, af4, nc1 string
-	}
-
-	qos := qosVals{
-		be0: "BE0",
-		be1: "BE1",
-		af1: "AF1",
-		af2: "AF2",
-		af3: "AF3",
-		af4: "AF4",
-		nc1: "NC1",
-	}
-
-	if dut.Vendor() == ondatra.JUNIPER {
-		qos = qosVals{
-			be0: "6",
-			be1: "0",
-			af1: "4",
-			af2: "1",
-			af3: "5",
-			af4: "2",
-			nc1: "3",
-		}
-	}
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	nc1InputWeight := uint64(200)
 	af4InputWeight := uint64(100)
@@ -360,31 +338,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   qos.be1,
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   qos.be0,
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   qos.af1,
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   qos.af2,
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   qos.af3,
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   qos.af4,
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   qos.nc1,
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -574,7 +552,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   qos.be1,
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -583,7 +561,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
-		queueName:   qos.be0,
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -592,7 +570,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(8),
-		queueName:   qos.af1,
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -601,7 +579,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(16),
-		queueName:   qos.af2,
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -610,7 +588,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(32),
-		queueName:   qos.af3,
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -619,7 +597,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      af4InputWeight,
-		queueName:   qos.af4,
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -628,7 +606,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      nc1InputWeight,
-		queueName:   qos.nc1,
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -654,31 +632,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		scheduler string
 	}{{
 		desc:      "output-interface-BE1",
-		queueName: qos.be1,
+		queueName: queues.BE1,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-BE0",
-		queueName: qos.be0,
+		queueName: queues.BE0,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF1",
-		queueName: qos.af1,
+		queueName: queues.AF1,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF2",
-		queueName: qos.af2,
+		queueName: queues.AF2,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF3",
-		queueName: qos.af3,
+		queueName: queues.AF3,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF4",
-		queueName: qos.af4,
+		queueName: queues.AF4,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-NC1",
-		queueName: qos.nc1,
+		queueName: queues.NC1,
 		scheduler: "scheduler",
 	}}
 
