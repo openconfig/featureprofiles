@@ -13,8 +13,6 @@ replace: {
 "!\n"
 "grpc\n"
 " vrf mgmt\n"
-" port 57777\n"
-" !\n"
 "!\n"
 "telemetry model-driven\n"
 " sensor-group test\n"
