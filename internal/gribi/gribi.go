@@ -106,7 +106,6 @@ type NHOptions struct {
 	Mac          string
 	Interface    string
 	SubInterface uint64
-	Timeout      time.Duration
 }
 
 // Start function start establish a client connection with the gribi server.
@@ -232,21 +231,12 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 			} else {
 				nh = nh.WithIPAddress(opt.Dest).WithMacAddress(opt.Mac)
 			}
-			if opt.Dest != "" {
-				nh = nh.WithIPAddress(opt.Dest)
-			}
 		}
 	default:
 		nh = nh.WithIPAddress(address)
 	}
 	c.fluentC.Modify().AddEntry(t, nh)
-	to := timeout
-	for _, opt := range opts {
-		if opt.Timeout > to {
-			to = opt.Timeout
-		}
-	}
-	if err := c.AwaitTimeout(context.Background(), t, to); err != nil {
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NH: %v", err)
 	}
 	chk.HasResult(t, c.fluentC.Results(t),
