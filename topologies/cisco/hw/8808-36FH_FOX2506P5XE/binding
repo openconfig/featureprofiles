@@ -82,7 +82,8 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-   target: "10.85.84.159:47402"
+   #target: "10.85.84.159:47402"
+   target: "10.85.84.159:9339" 
   }
   gnmi {
      # default grpc mapping : 57777  target: "10.85.84.159:47402"
