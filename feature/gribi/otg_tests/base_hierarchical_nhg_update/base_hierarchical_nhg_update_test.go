@@ -472,6 +472,7 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, dsts ...*attr
 	innerIPHeader := flowipv4.Packet().Add().Ipv4()
 	innerIPHeader.Src().Increment().SetStart(innerSrcIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
 	innerIPHeader.Dst().Increment().SetStart(innerDstIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
+	flowipv4.Size().SetFixed(100)
 }
 
 func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fluent.GRIBIClient, error) {
