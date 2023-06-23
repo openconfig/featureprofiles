@@ -20,6 +20,8 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// Deviation set to true for devices where the CPU components do not map
+// to a FRU parent component in the OC tree.
 func CPUMissingAncestor(*ondatra.DUTDevice) bool {
 	return *cpuMissingAncestor
 }
