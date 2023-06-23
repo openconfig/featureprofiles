@@ -22,7 +22,7 @@ Test the abnormal termination of session using notification message:
     *   Send `CEASE` notification from ATE.
     *   Ensure that DUT telemetry correctly reports the error code.
 
-Test md5 password authentication on session establishment:
+TODO: Test md5 password authentication on session establishment:
 
 *   Configure matching passwords on DUT and ATE. Verify that BGP adjacency succeeds.
 
