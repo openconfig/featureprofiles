@@ -515,6 +515,12 @@ func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
 }
 
+// MatchedPacketsOctetsUnsupported returns if telemetry path /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets and matched-octets is not supported.
+func MatchedPacketsOctetsUnsupported(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_matched_packets_octets_unsupported")
+	return lookupDUTDeviations(dut).GetMatchedPacketsOctetsUnsupported()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -676,4 +682,6 @@ var (
 	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
 	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
+
+	_ = flag.Bool("deviation_matched_packets_octets_unsupported", false, "Set to true for device that does not support telemetry path /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets and matched-octets")
 )

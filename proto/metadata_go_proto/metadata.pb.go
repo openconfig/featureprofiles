@@ -379,6 +379,9 @@ type Metadata_Deviations struct {
 	GnoiFabricComponentRebootUnsupported bool `protobuf:"varint,48,opt,name=gnoi_fabric_component_reboot_unsupported,json=gnoiFabricComponentRebootUnsupported,proto3" json:"gnoi_fabric_component_reboot_unsupported,omitempty"`
 	// Device does not support the ntp nondefault vrf case.
 	NtpNonDefaultVrfUnsupported bool `protobuf:"varint,49,opt,name=ntp_non_default_vrf_unsupported,json=ntpNonDefaultVrfUnsupported,proto3" json:"ntp_non_default_vrf_unsupported,omitempty"`
+	// Set to true for device that does not support telemetry path
+	// /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets and matched-octets
+	MatchedPacketsOctetsUnsupported bool `protobuf:"varint,39,opt,name=matched_packets_octets_unsupported,json=matchedPacketsOctetsUnsupported,proto3" json:"matched_packets_octets_unsupported,omitempty"`
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -752,6 +755,13 @@ func (x *Metadata_Deviations) GetGnoiFabricComponentRebootUnsupported() bool {
 func (x *Metadata_Deviations) GetNtpNonDefaultVrfUnsupported() bool {
 	if x != nil {
 		return x.NtpNonDefaultVrfUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMatchedPacketsOctetsUnsupported() bool {
+	if x != nil {
+		return x.MatchedPacketsOctetsUnsupported
 	}
 	return false
 }
