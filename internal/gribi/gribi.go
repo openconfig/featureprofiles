@@ -229,7 +229,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 				nh = nh.WithSubinterfaceRef(opt.Interface, opt.SubInterface).
 					WithMacAddress(opt.Mac)
 			} else {
-				nh = nh.WithIPAddress(opt.Dest).WithMacAddress(opt.Mac)
+				nh = nh.WithInterfaceRef(opt.Interface).WithMacAddress(opt.Mac)
 			}
 		}
 	default:

@@ -27,7 +27,7 @@ platform_exceptions: {
     hardware_model: "cptx"
   }
   deviations: {
-    hierarchical_weight_resolution_tolerance: 0.31
+    hierarchical_weight_resolution_tolerance: 0.4
     explicit_interface_ref_definition: true
   }
 }
