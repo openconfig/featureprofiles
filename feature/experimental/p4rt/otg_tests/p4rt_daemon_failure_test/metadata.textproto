@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "9167593f-9a06-4e8c-8bf7-96b5e30bd996"
-plan_id: "TE-3.7"
-description: "Base Hierarchical NHG Update"
-testbed: TESTBED_DUT_ATE_4LINKS
+uuid: "78f99d29-c7db-4e6d-8284-614154efc0d1"
+plan_id: "P4RT-1.2"
+description: "P4RT Daemon Failure"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -15,18 +15,6 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    gribi_mac_override_with_static_arp: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-    hardware_model: "PTX10008"
-    hardware_model: "PTX10001-36MR"
-    hardware_model: "cptx"
-  }
-  deviations: {
-    ipv6_enable_for_gribi_nh_dmac: true
   }
 }
 platform_exceptions: {
@@ -36,7 +24,7 @@ platform_exceptions: {
     hardware_model: "ixr10"
   }
   deviations: {
-    explicit_gribi_under_network_instance: true
+    explicit_p4rt_node_component: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
   }
