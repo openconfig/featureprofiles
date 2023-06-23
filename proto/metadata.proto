@@ -187,8 +187,6 @@ message Metadata {
     bool gnoi_fabric_component_reboot_unsupported = 49;
     // Device does not support the ntp nondefault vrf case.
     bool ntp_non_default_vrf_unsupported = 50;
-    // Devices where the CPU components do not map to a FRU parent component in the OC tree.
-    bool cpu_missing_ancestor = 51;
   }
 
   message PlatformExceptions {
