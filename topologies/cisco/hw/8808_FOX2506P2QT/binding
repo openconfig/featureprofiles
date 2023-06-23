@@ -75,7 +75,7 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.159:47700"
+    target: "10.85.84.159:47701"
   }
   gnmi {
     target: "10.85.84.159:47701" 
