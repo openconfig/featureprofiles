@@ -574,6 +574,7 @@ replace: {
 "ssh server vrf default\n"
 "hw-module profile pbr vrf-redirect\n"
 "hw-module profile npu-compatibility Q200\n"
+"hw-module profile qos qos-stats-push-collection\n"
 "interface TenGigE0/7/0/1/1\n"
 " description not connected interface\n"
 " shutdown\n"
