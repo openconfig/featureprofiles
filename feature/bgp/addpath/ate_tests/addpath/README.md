@@ -17,6 +17,7 @@ ATE5:Port5 <-IBGP-> DUT:Port5
 * DUT:Port1 and DUT:Port2 has EBGP peering with ATE1:Port1 and ATE2:Port2 respectively.
 * DUT:Port3 and DUT:Port4 has IBGP peering with directly connected ATE3:Port3 and ATE4:Port4 respectively. In this case, DUT is the RR server and ATE3 and ATE4 are RR clients
 * DUT:Port5 has IBGP peering with directly connected ATE5:Port5. In this case DUT is the RR client and ATE5:Port5 is the RR server
+* Ensure that the EBGP and IBGP peering are enabled for both address famailies.
 * DUT should be configured with "Both" Send and Receive ability for addpath on all IBGP peering. Same for ATE3:Port3, ATE4:Port4 and ATE5:Port5
   * During BGP capabilities negotiation in Open message, verify that the DUT negotiated addpath cability with Send/Receive field set to "3"
 
@@ -27,6 +28,8 @@ ATE5:Port5 <-IBGP-> DUT:Port5
 
 **Test-2**: Verify ADDPATH Receive capability 
 * DUT:Port3 and DUT:Port4 has IBGP peering with directly connected ATE3:Port3 and ATE4:Port4 respectively. In this case, DUT is the RR server and ATE3 and ATE4 are RR clients
+* DUT:Port5 has IBGP peering with directly connected ATE5:Port5. In this case DUT is the RR client and ATE5:Port5 is the RR server
+* Ensure that the EBGP and IBGP peering are enabled for both address famailies.
 * DUT is configued with addpath Receive capability only on its peering with ATE3:Port3 and ATE4:Port4
   * During BGP capabilities negotiation in Open message, verify that the DUT negotiated addpath cability with Send/Receive field set to "1" signaling Receive capability.
  * DUT is configued with addpath Send capability only on its peering with ATE5:Port5
