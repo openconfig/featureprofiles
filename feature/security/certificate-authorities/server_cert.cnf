@@ -15,5 +15,5 @@ CN="{bb1d2545-1e93-49a6-8d0c-761d92011fde}"
 subjectAltName = @alt_names
 
 [alt_names]
-URI = spiffe://teamname.groupname.location.place.example.com/role/groupname-group
 DNS.0 = role001.pop55.net.example.com
+URI.1 = spiffe://teamname.groupname.location.place.example.com/role/groupname-group

@@ -5,3 +5,4 @@ subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer
 keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment
 extendedKeyUsage = clientAuth, emailProtection
+subjectAltName=DNS:thing.place.client.example.com,URI:spiffe://teamname.groupname.location.place.example.com/role/servicename
