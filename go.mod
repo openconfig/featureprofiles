@@ -144,7 +144,6 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
 replace github.com/openconfig/ondatra => /usr/local/google/home/robjs/go/src/github.com/openconfig/ondatra
-
 replace github.com/openconfig/kne => /usr/local/google/home/robjs/go/src/github.com/openconfig/kne
+

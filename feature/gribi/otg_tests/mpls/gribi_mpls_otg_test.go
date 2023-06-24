@@ -144,7 +144,7 @@ func configureATEInterfaces(t *testing.T, ate *ondatra.ATEDevice, srcATE, srcDUT
 	if err != nil {
 		return topology, err
 	}
-	fmt.Printf("config is %s\n", c)
+	t.Logf("configuration for OTG is %s", c)
 
 	otg.PushConfig(t, topology)
 	return topology, nil
@@ -252,6 +252,12 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		otg.StopTraffic(t)
 
 		// TODO(robjs): validate traffic counters and received headers.
+		metrics := gnmi.Get(t, otg, gnmi.OTG().Flow("MPLS_FLOW").State())
+		got, want := metrics.GetCounters().GetInPkts(), metrics.GetCounters().GetOutPkts()
+		lossPackets := want - got
+		if lossPackets != 0 {
+			t.Fatalf("did not get expected number of packets, got: %d, want: %d", got, want)
+		}
 	}
 
 	baseLabel := 42
