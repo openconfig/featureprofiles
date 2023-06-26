@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/openconfig/gribigo/chk"
+	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -177,32 +178,20 @@ func (c *Client) ElectionID() Uint128 {
 // in a given network instance.
 func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHGOptions) {
 	t.Helper()
-	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
-	for nhIndex, weight := range nhWeights {
-		nhg.AddNextHop(nhIndex, weight)
-	}
-	for _, opt := range opts {
-		if opt != nil && opt.BackupNHG != 0 {
-			nhg.WithBackupNHG(opt.BackupNHG)
-		}
-	}
-	c.fluentC.Modify().AddEntry(t, nhg)
-	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("Error waiting to add NHG: %v", err)
-	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhgIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
+	nhg, opResult := NHGEntry(nhgIndex, nhWeights, instance, expectedResult, opts...)
+	c.AddEntries(t, []fluent.GRIBIEntry{nhg}, []*client.OpResult{opResult})
 }
 
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
 func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHOptions) {
 	t.Helper()
+	nh, opResult := NHEntry(nhIndex, address, instance, expectedResult, opts...)
+	c.AddEntries(t, []fluent.GRIBIEntry{nh}, []*client.OpResult{opResult})
+}
+
+// NHEntry returns a fluent NextHopEntry that can be programmed and the
+// gribigo client OpResult to expect.
+func NHEntry(nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHOptions) (fluent.GRIBIEntry, *client.OpResult) {
 	nh := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
@@ -235,18 +224,45 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, e
 	default:
 		nh = nh.WithIPAddress(address)
 	}
-	c.fluentC.Modify().AddEntry(t, nh)
-	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("Error waiting to add NH: %v", err)
+	return nh, fluent.OperationResult().
+		WithNextHopOperation(nhIndex).
+		WithOperationType(constants.Add).
+		WithProgrammingResult(expectedResult).
+		AsResult()
+}
+
+// NHGEntry returns a fluent NextHopGroupEntry that can be programmed and the
+// gribigo client OpResult to expect.
+func NHGEntry(nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHGOptions) (fluent.GRIBIEntry, *client.OpResult) {
+	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
+	for nhIndex, weight := range nhWeights {
+		nhg.AddNextHop(nhIndex, weight)
 	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
+	for _, opt := range opts {
+		if opt != nil && opt.BackupNHG != 0 {
+			nhg.WithBackupNHG(opt.BackupNHG)
+		}
+	}
+	return nhg, fluent.OperationResult().
+		WithNextHopGroupOperation(nhgIndex).
+		WithOperationType(constants.Add).
+		WithProgrammingResult(expectedResult).
+		AsResult()
+}
+
+// AddEntries adds the input gRIBI entries and checks the success of the input OperationResults.
+func (c *Client) AddEntries(t testing.TB, entries []fluent.GRIBIEntry, expectedResults []*client.OpResult) {
+	t.Helper()
+	c.fluentC.Modify().AddEntry(t, entries...)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add NHG: %v", err)
+	}
+	for _, result := range expectedResults {
+		chk.HasResult(t, c.fluentC.Results(t),
+			result,
+			chk.IgnoreOperationID(),
+		)
+	}
 }
 
 // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.

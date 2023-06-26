@@ -1,0 +1,19 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "44fb709e-fc15-4285-94cf-cb6b9dc19d1a"
+plan_id: "P4RT-6.1"
+description: "Required Packet I/O rate: Performance"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_p4rt_node_component: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+  }
+}
