@@ -185,6 +185,8 @@ message Metadata {
     bool gnoi_fabric_component_reboot_unsupported = 48;
     // Device does not support the ntp nondefault vrf case.
     bool ntp_non_default_vrf_unsupported = 49;
+    // Skip PLQ packets count check.
+    bool skip_plq_packets_count_check = 50;
   }
 
   message PlatformExceptions {
