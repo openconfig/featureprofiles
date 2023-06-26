@@ -425,7 +425,7 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 	case deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut):
 		nh, op1 = gribi.NHEntry(nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), Mac: nhMAC, Dest: atePort2DummyIP.IPv4})
 	case deviations.GRIBIMACOverrideWithStaticARP(args.dut):
-		nh, op1 = gribi.NHEntry(nhIndex2, "MACwithIp", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), Mac: nhMAC, Dest: atePort2DummyIP.IPv4})
+		nh, op1 = gribi.NHEntry(nhIndex2, "MACwithIp", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Mac: nhMAC, Dest: atePort2DummyIP.IPv4})
 	default:
 		nh, op1 = gribi.NHEntry(nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), Mac: nhMAC})
 	}
