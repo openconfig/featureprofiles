@@ -26,7 +26,7 @@ func CPUMissingAncestor(*ondatra.DUTDevice) bool {
 	return *cpuMissingAncestor
 }
 
-// IntfRefConfigUnsupported deviation Set to true for devices that do not support
+// IntfRefConfigUnsupported deviation set to true for devices that do not support
 // interface-ref configuration when applying features to interface.
 func IntfRefConfigUnsupported(*ondatra.DUTDevice) bool {
 	return *intfRefConfigUnsupported
