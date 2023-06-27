@@ -312,9 +312,6 @@ func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 		// for devices that return  the nexthop with resolving it recursively. For a->b->c the device returns c
 		if got := nh.GetIpAddress(); got != ateIndirectNH {
 			if nhtype == "MAC" {
-				if deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) || deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
-					continue
-				}
 				if gotMac := nh.GetMacAddress(); !strings.EqualFold(gotMac, nhMAC) {
 					t.Errorf("next-hop MAC is incorrect:  gotMac %v, wantMac %v", gotMac, nhMAC)
 				}
