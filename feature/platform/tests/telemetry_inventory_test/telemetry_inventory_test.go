@@ -545,6 +545,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					case componentType["Storage"]:
 						fallthrough
 					case componentType["Cpu"]:
+						if deviations.CPUMissingAncestor(dut) {
+							break
+						}
 						parent := card.GetParent()
 						for {
 							cp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).State()).Val()
@@ -580,6 +583,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					case componentType["Storage"]:
 						fallthrough
 					case componentType["Cpu"]:
+						if deviations.CPUMissingAncestor(dut) {
+							break
+						}
 						parent := card.GetParent()
 						for {
 							cp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).State()).Val()
@@ -666,6 +672,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			if p.parentValidation {
 				cur := cName
 				for {
+					if p.pType == componentType["Cpu"] && deviations.CPUMissingAncestor(dut) {
+						break
+					}
 					val := gnmi.Lookup(t, dut, gnmi.OC().Component(cur).Parent().State())
 					parent, ok := val.Val()
 					if !ok {
