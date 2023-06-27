@@ -492,11 +492,6 @@ func RoutePolicyUnderAFIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRoutePolicyUnderAfiUnsupported()
 }
 
-// SkipPLQQualificationRateCheck returns if PLQ QualificationRateBytesPerSecond and ExpectedRateBytesPerSecond comparison should be skipped
-func SkipPLQQualificationRateCheck(_ *ondatra.DUTDevice) bool {
-	return *skipPLQQualificationRateCheck
-}
-
 // InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
 func InterfaceRefConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	logErrorIfFlagSet("deviation_interface_ref_config_unsupported")
@@ -518,6 +513,13 @@ func GNOIFabricComponentRebootUnsupported(dut *ondatra.DUTDevice) bool {
 // Default value is false.
 func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
+}
+
+// SkipPLQPacketsCountCheck returns if PLQ packets count check should be skipped.
+// Default value is false.
+func SkipPLQPacketsCountCheck(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_skip_plq_packets_count_check")
+	return lookupDUTDeviations(dut).GetSkipPlqPacketsCountCheck()
 }
 
 // Vendor deviation flags.
@@ -682,7 +684,5 @@ var (
 
 	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
 
-	skipPLQQualificationRateCheck = flag.Bool("deviation_skip_plq_qualification_rate_check", false,
-		"Skip PLQ QualificationRateBytesPerSecond and ExpectedRateBytesPerSecond comparison if value is true, Default value is false.")
-
+	_ = flag.Bool("deviation_skip_plq_packets_count_check", false, "Set to true if PLQ packets count check should be skipped. Default is false.")
 )

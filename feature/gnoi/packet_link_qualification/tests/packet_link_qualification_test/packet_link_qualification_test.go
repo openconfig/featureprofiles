@@ -229,16 +229,18 @@ func TestLinkQualification(t *testing.T) {
 		// packet linkqual duration
 		testDuration time.Duration
 		// time to wait post link-qual before starting teardown
-		postSyncDuration time.Duration
+		generatorPostSyncDuration time.Duration
+		postSyncDuration          time.Duration
 		// time required to bring the interface back to pre-test state
 		tearDownDuration time.Duration
 	}
 	plqDuration := &LinkQualificationDuration{
-		preSyncDuration:  30 * time.Second,
-		setupDuration:    30 * time.Second,
-		testDuration:     120 * time.Second,
-		postSyncDuration: 5 * time.Second,
-		tearDownDuration: 30 * time.Second,
+		preSyncDuration:           30 * time.Second,
+		setupDuration:             30 * time.Second,
+		testDuration:              120 * time.Second,
+		generatorPostSyncDuration: 0 * time.Second,
+		postSyncDuration:          5 * time.Second,
+		tearDownDuration:          30 * time.Second,
 	}
 
 	generatorCreateRequest := &plqpb.CreateRequest{
@@ -257,7 +259,7 @@ func TestLinkQualification(t *testing.T) {
 						Duration:         durationpb.New(plqDuration.testDuration),
 						PreSyncDuration:  durationpb.New(plqDuration.preSyncDuration),
 						SetupDuration:    durationpb.New(plqDuration.setupDuration),
-						PostSyncDuration: durationpb.New(plqDuration.postSyncDuration),
+						PostSyncDuration: durationpb.New(plqDuration.generatorPostSyncDuration),
 						TeardownDuration: durationpb.New(plqDuration.tearDownDuration),
 					},
 				},
@@ -353,7 +355,7 @@ func TestLinkQualification(t *testing.T) {
 		Ids: []string{plqID},
 	}
 
-	var expectedRateBytesPerSecond uint64
+	var generatorPktsSent, generatorPktsRxed, reflectorPktsSent, reflectorPktsRxed uint64
 
 	for i, client := range []raw.GNOI{gnoiClient1, gnoiClient2} {
 		t.Logf("Check client: %d", i+1)
@@ -370,22 +372,31 @@ func TestLinkQualification(t *testing.T) {
 		if got, want := result.GetState(), plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED; got != want {
 			t.Errorf("result.GetState(): got %v, want %v", got, want)
 		}
-
-		// Get ExpectedRateBytesPerSecond only from the PLQ generator.
-		if client == gnoiClient1 {
-			expectedRateBytesPerSecond = result.GetExpectedRateBytesPerSecond()
-		}
-
-		if !deviations.SkipPLQQualificationRateCheck(dut1) {
-			if got, want := result.GetQualificationRateBytesPerSecond(), expectedRateBytesPerSecond; got != want {
-				t.Errorf("result.GetQualificationRateBytesPerSecond(): got %v, want %v", got, want)
-			}
-		}
 		if got, want := result.GetPacketsError(), uint64(0); got != want {
 			t.Errorf("result.GetPacketsError(): got %v, want %v", got, want)
 		}
 		if got, want := result.GetPacketsDropped(), uint64(0); got != want {
 			t.Errorf("result.GetPacketsDropped(): got %v, want %v", got, want)
 		}
+
+		if client == gnoiClient1 {
+			generatorPktsSent = result.GetPacketsSent()
+			generatorPktsRxed = result.GetPacketsReceived()
+		}
+
+		if client == gnoiClient2 {
+			reflectorPktsSent = result.GetPacketsSent()
+			reflectorPktsRxed = result.GetPacketsReceived()
+		}
 	}
+
+	if !deviations.SkipPLQPacketsCountCheck(dut1) {
+		if generatorPktsSent != reflectorPktsRxed {
+			t.Errorf("Packets received count at Reflector is not matching the packets sent count at Generator: generatorPktsSent %v, reflectorPktsRxed %v", generatorPktsSent, reflectorPktsRxed)
+		}
+		if reflectorPktsSent != generatorPktsRxed {
+			t.Errorf("Packets received count at Generator is not matching the packets sent count at Reflector: reflectorPktsSent %v, generatorPktsRxed %v", reflectorPktsSent, generatorPktsRxed)
+		}
+	}
+
 }
