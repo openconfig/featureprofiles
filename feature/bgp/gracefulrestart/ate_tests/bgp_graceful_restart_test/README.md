@@ -13,18 +13,15 @@ BGP Graceful Restart
 *   Validate received capabilities at DUT and ATE reflect support for graceful
     restart.
 *   For IPv4 and IPv6 routes:
-    *   (Restarting speaker) Advertise prefixes between the ATE ports, through
-        the DUT. Trigger DUT session restart by disconnecting TCP session
-        between DUT and ATE (this may be achieved by using an ACL), determine
-        that packets are:
-        *   Forwarded between ATE port-1 and DUT port-1 for the duration of the
-            specified stale routes time.
-        *   Dropped after the stale routes timer has expired.
-        *   Forwarded again between ATE port-1 and DUT port-1 after the session
-            is re-established.
-    *   (Receiving speaker) Advertise prefixes between the ATE ports, through
-        the DUT. Trigger session restart by disconnecting the BGP session from
-        ATE port-2.
+    *   (Restarting speaker) Advertise prefixes between the ATE ports, through the DUT. Trigger DUT session restart by killing the BGP process in the DUT,
+        *   Please use the `gNOI.killProcessRequest_Signal_Term` as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/system/system.proto#L326)
+           *   Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista this is the `BGP` process. Similar processes need to be included for Cisco and Nokia.
+        *   Once the process is killied, verify that the packets are:
+           *   Forwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
+           *   Dropped after the stale routes timer has expired.
+           *   Forwarded again between ATE port-1 and DUT port-1 after the session is re-established.
+    *   (Receiving speaker) Advertise prefixes between the ATE ports through
+        the DUT. Send Graceful restart trigger from ATE port-2.
         *   Ensure that prefixes are propagated to ATE port-2 during the
             restart.
         *   Ensure that traffic can be forwarded between ATE port-1 and ATE
