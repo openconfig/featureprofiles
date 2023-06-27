@@ -280,7 +280,7 @@ func gNOIKillProcess(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 	// compare the new process with the old one and ensure the process is restarted
 	newProc := findProcessByName(ctx, t, dut, proc.GetName())
 	if newProc == nil {
-		// retry once again when GNXIUseSameProcess since the the first gnmi request may fail after restart
+		// retry once again when GNXI use same process since the first gnmi request may fail after restart
 		if *gargs.GNXIUseSameProcess {
 			t.Logf("Retry to get the process %s info after restart", pName)
 			time.Sleep(30 * time.Second)
