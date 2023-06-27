@@ -149,6 +149,7 @@ tests:
     path: feature/experimental/gribi/ate_tests/dut_daemon_failure
     owners:
       - mananpat
+    pr: 1802
     mustpass: true
     priority: 8
   - name: TE-11.1 (Backup NHG Single NH)
