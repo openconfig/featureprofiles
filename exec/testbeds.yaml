@@ -199,4 +199,11 @@ testbeds:
     testbed: topologies/cisco/hw/8812-FOC2326NBZB_OTG/otg.testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB_OTG/otg.binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
+  
+
+  - id: 8201-32FH-FLM254306M8_OTG
+    owner: mananpat
+    testbed: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.testbed
+    binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.binding
+    baseconf: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.proto
  
