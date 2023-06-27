@@ -33,6 +33,6 @@ func IntfRefConfigUnsupported(*ondatra.DUTDevice) bool {
 }
 
 var (
-	cpuMissingAncestor       = flag.Bool("cpu_missing_ancestor", false, "Set to true for devices where the CPU components do not map to a FRU parent component in the OC tree.")
-	intfRefConfigUnsupported = flag.Bool("intf_ref_config_unsupported", false, "Set to true for devices that do not support interface-ref configuration when applying features to interface.")
+	cpuMissingAncestor       = flag.Bool("deviation_cpu_missing_ancestor", false, "Set to true for devices where the CPU components do not map to a FRU parent component in the OC tree.")
+	intfRefConfigUnsupported = flag.Bool("deviation_intf_ref_config_unsupported", false, "Set to true for devices that do not support interface-ref configuration when applying features to interface.")
 )
