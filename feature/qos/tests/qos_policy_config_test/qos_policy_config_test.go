@@ -25,7 +25,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -167,7 +166,6 @@ func testQoSForwadingGroupsConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-	queues := netutil.CommonTrafficQueues(t, dut)
 
 	cases := []struct {
 		desc        string
@@ -175,31 +173,31 @@ func testQoSForwadingGroupsConfig(t *testing.T) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   queues.BE1,
+		queueName:   "BE1",
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   queues.BE0,
+		queueName:   "BE0",
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   queues.AF1,
+		queueName:   "AF1",
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   queues.AF2,
+		queueName:   "AF2",
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   queues.AF3,
+		queueName:   "AF3",
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   queues.AF4,
+		queueName:   "AF4",
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   queues.NC1,
+		queueName:   "NC1",
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -375,7 +373,7 @@ func testQoSClassifierConfig(t *testing.T) {
 		cmp.Equal([]uint8{1, 2, 3}, []uint8{1, 2, 3})
 		cmp.Equal([]uint8{1, 2, 3}, []uint8{1, 3, 2})
 
-		if got, want := gnmi.Get(t, dut, classifier.Name().State()), tc.name; got != want {
+		if got, want := gnmi.GetConfig(t, dut, classifier.Name().Config()), tc.name; got != want {
 			t.Errorf("classifier.Name().State(): got %v, want %v", got, want)
 		}
 		if got, want := gnmi.Get(t, dut, classifier.Type().State()), tc.classType; got != want {
@@ -457,7 +455,6 @@ func testSchedulerPoliciesConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-	queues := netutil.CommonTrafficQueues(t, dut)
 
 	cases := []struct {
 		desc        string
@@ -475,7 +472,7 @@ func testSchedulerPoliciesConfig(t *testing.T) {
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   queues.BE1,
+		queueName:   "BE1",
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -484,7 +481,7 @@ func testSchedulerPoliciesConfig(t *testing.T) {
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(2),
-		queueName:   queues.BE0,
+		queueName:   "BE0",
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -493,7 +490,7 @@ func testSchedulerPoliciesConfig(t *testing.T) {
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
-		queueName:   queues.AF1,
+		queueName:   "AF1",
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -502,7 +499,7 @@ func testSchedulerPoliciesConfig(t *testing.T) {
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(8),
-		queueName:   queues.AF2,
+		queueName:   "AF2",
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -511,7 +508,7 @@ func testSchedulerPoliciesConfig(t *testing.T) {
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(16),
-		queueName:   queues.AF3,
+		queueName:   "AF3",
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -520,7 +517,7 @@ func testSchedulerPoliciesConfig(t *testing.T) {
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(100),
-		queueName:   queues.AF4,
+		queueName:   "AF4",
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -529,7 +526,7 @@ func testSchedulerPoliciesConfig(t *testing.T) {
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(200),
-		queueName:   queues.NC1,
+		queueName:   "NC1",
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -640,7 +637,6 @@ func testECNConfig(t *testing.T) {
 func testQoSOutputIntfConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
-	queues := netutil.CommonTrafficQueues(t, dut)
 
 	cases := []struct {
 		desc       string
@@ -649,37 +645,37 @@ func testQoSOutputIntfConfig(t *testing.T) {
 		scheduler  string
 	}{{
 		desc:       "output-interface-BE1",
-		queueName:  queues.BE1,
+		queueName:  "BE1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-BE0",
-		queueName:  queues.BE0,
+		queueName:  "BE0",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-AF1",
-		queueName:  queues.AF1,
+		queueName:  "AF1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-AF2",
-		queueName:  queues.AF2,
+		queueName:  "AF2",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-AF3",
-		queueName:  queues.AF3,
+		queueName:  "AF3",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-AF4",
-		queueName:  queues.AF4,
+		queueName:  "AF4",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-NC1",
-		queueName:  queues.NC1,
+		queueName:  "NC1",
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}}
@@ -931,6 +927,7 @@ func testQoSCiscoClassifierConfig(t *testing.T) {
 
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 
 	t.Logf("qos input classifier config cases: %v", cases)
 	for _, tc := range casesintf {
@@ -1168,6 +1165,7 @@ func testCiscoSchedulerPoliciesConfig(t *testing.T) {
 	}}
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 	t.Logf("qos output interface config cases: %v", cases)
 
 	for _, tc := range intcases {
@@ -1178,10 +1176,11 @@ func testCiscoSchedulerPoliciesConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.queueName)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			//gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	for _, tc := range cases {
 		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
@@ -1565,7 +1564,6 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	}
-	queues := netutil.CommonTrafficQueues(t, dut)
 
 	schedulers := []struct {
 		desc        string
@@ -1581,7 +1579,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "BE1",
 		weight:      uint64(1),
-		queueName:   queues.BE1,
+		queueName:   "6",
 		targetGroup: "BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -1589,7 +1587,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "BE0",
 		weight:      uint64(2),
-		queueName:   queues.BE0,
+		queueName:   "0",
 		targetGroup: "BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -1597,7 +1595,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF1",
 		weight:      uint64(4),
-		queueName:   queues.AF1,
+		queueName:   "4",
 		targetGroup: "AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -1605,7 +1603,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF2",
 		weight:      uint64(8),
-		queueName:   queues.AF2,
+		queueName:   "1",
 		targetGroup: "AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -1613,13 +1611,13 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "AF3",
 		weight:      uint64(16),
-		queueName:   queues.AF3,
+		queueName:   "5",
 		targetGroup: "AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
 		sequence:    uint32(0),
 		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     queues.AF4,
+		inputID:     "AF4",
 		weight:      uint64(99),
 		queueName:   "2",
 		targetGroup: "AF4",
@@ -1629,7 +1627,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
 		weight:      uint64(100),
-		queueName:   queues.NC1,
+		queueName:   "3",
 		targetGroup: "NC1",
 	}}
 
