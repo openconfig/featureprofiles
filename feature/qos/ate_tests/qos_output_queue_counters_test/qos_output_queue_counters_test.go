@@ -289,32 +289,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	dp2 := dut.Port(t, "port2")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-
-	type qosVals struct {
-		be0, be1, af1, af2, af3, af4, nc1 string
-	}
-
-	qos := qosVals{
-		be0: "BE0",
-		be1: "BE1",
-		af1: "AF1",
-		af2: "AF2",
-		af3: "AF3",
-		af4: "AF4",
-		nc1: "NC1",
-	}
-
-	if dut.Vendor() == ondatra.JUNIPER {
-		qos = qosVals{
-			be0: "6",
-			be1: "0",
-			af1: "4",
-			af2: "1",
-			af3: "5",
-			af4: "2",
-			nc1: "3",
-		}
-	}
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	nc1InputWeight := uint64(200)
 	af4InputWeight := uint64(100)
@@ -330,31 +305,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   qos.be1,
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   qos.be0,
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   qos.af1,
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   qos.af2,
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   qos.af3,
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   qos.af4,
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   qos.nc1,
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -544,7 +519,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   qos.be1,
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -553,7 +528,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
-		queueName:   qos.be0,
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -562,7 +537,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(8),
-		queueName:   qos.af1,
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -571,7 +546,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(16),
-		queueName:   qos.af2,
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -580,7 +555,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(32),
-		queueName:   qos.af3,
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -589,7 +564,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      af4InputWeight,
-		queueName:   qos.af4,
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -598,7 +573,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      nc1InputWeight,
-		queueName:   qos.nc1,
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -624,31 +599,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		scheduler string
 	}{{
 		desc:      "output-interface-BE1",
-		queueName: qos.be1,
+		queueName: queues.BE1,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-BE0",
-		queueName: qos.be0,
+		queueName: queues.BE0,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF1",
-		queueName: qos.af1,
+		queueName: queues.AF1,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF2",
-		queueName: qos.af2,
+		queueName: queues.AF2,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF3",
-		queueName: qos.af3,
+		queueName: queues.AF3,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF4",
-		queueName: qos.af4,
+		queueName: queues.AF4,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-NC1",
-		queueName: qos.nc1,
+		queueName: queues.NC1,
 		scheduler: "scheduler",
 	}}
 

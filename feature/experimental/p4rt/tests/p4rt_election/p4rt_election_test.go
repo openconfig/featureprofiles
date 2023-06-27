@@ -278,10 +278,8 @@ func canWrite(t *testing.T, args *testArgs) (bool, error) {
 	if writeErr != nil {
 		return false, fmt.Errorf("error writing table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
 	}
-	if writeErr == nil {
-		if writeErr = writeTableEntry(t, args, pktIO, true); writeErr != nil {
-			return false, fmt.Errorf("error deleting table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
-		}
+	if writeErr = writeTableEntry(t, args, pktIO, true); writeErr != nil {
+		return false, fmt.Errorf("error deleting table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
 	}
 	return true, nil
 }
