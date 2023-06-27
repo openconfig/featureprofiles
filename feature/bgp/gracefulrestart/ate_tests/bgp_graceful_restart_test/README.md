@@ -27,10 +27,9 @@ Follwing connections:
  *   (Helper for a restarting IBGP speaker) Advertise prefixes between the ATE ports through the DUT. Send Graceful restart trigger from ATE port-2.
        *   Ensure that traffic can be forwarded between ATE port-1 and ATE port-2 during stale routes time.
        *   Ensure that prefixes are withdrawn, and traffic cannot be forwarded between ATE port-1 and port-2 after the stale routes time expires.
-  
-  *  (Helper for a restarting EBGP speaker) Advertise prefixes between the ATE ports through the DUT. Send Graceful restart trigger from ATE port-1.
-       *   Ensure that traffic can be forwarded between ATE port-1 and ATE port-2 during stale routes time.
-       *   Ensure that prefixes are withdrawn, and traffic cannot be forwarded between ATE port-1 and port-2 after the stale routes time expires.
+*  (Helper for a restarting EBGP speaker) Advertise prefixes between the ATE ports through the DUT. Send Graceful restart trigger from ATE port-1.
+     *  Ensure that traffic can be forwarded between ATE port-1 and ATE port-2 during stale routes time.
+     *  Ensure that prefixes are withdrawn, and traffic cannot be forwarded between ATE port-1 and port-2 after the stale routes time expires.
 
 ## Config Parameter Coverage
 
