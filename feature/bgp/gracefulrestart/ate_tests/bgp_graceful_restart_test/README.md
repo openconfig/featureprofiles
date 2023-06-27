@@ -10,24 +10,24 @@ Follwing connections:
  *   ATE port-2 <--> DUT port-2
 
 ## Procedure
-*   Configure EBGP peering between ATE:Port1 and DUT:Port1
-*   Configure IBGP peering between ATE:Port2 and DUT:Port2
-*   Ensure that the EBGP and IBGP peering are setup for IPv4-Unicast and IPv6-unicast AFI-SAFIs
-*   Enable `Graceful-Restart` capability at the `Peer-Group` level.
-*   Ensure that the `restart-time` and the `stale-routes-time` are configured at the `Global` level
-*   Configure allow route-policy under BGP peer-group address-family
-*   Validate received capabilities at DUT and ATE reflect support for graceful
-    restart.
-*   (Restarting speaker) Advertise prefixes between the ATE ports, through the DUT. Trigger DUT session restart by killing the BGP process in the DUT. Please use the `gNOI.killProcessRequest_Signal_Term` as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/system/system.proto#L326).
-   *   Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista this is the `BGP` process. Similar processes need to be included for Cisco and Nokia.
-   *   Once the process is killied, verify that the packets are:
-      *   Forwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
-      *   Dropped after the stale routes timer has expired.
-      *   Forwarded again between ATE port-1 and DUT port-1 after the session is re-established.
-*   (Receiving speaker) Advertise prefixes between the ATE ports through the DUT. Send Graceful restart trigger from ATE port-2.
-   *   Ensure that prefixes are propagated to ATE port-2 during the restart.
-   *   Ensure that traffic can be forwarded between ATE port-1 and ATE port-2 during stale routes time.
-   *   Ensure that prefixes are withdrawn, and traffic cannot be forwarded between ATE port-1 and port-2 after the stale routes time expires.
+    *   Configure EBGP peering between ATE:Port1 and DUT:Port1
+    *   Configure IBGP peering between ATE:Port2 and DUT:Port2
+    *   Ensure that the EBGP and IBGP peering are setup for IPv4-Unicast and IPv6-unicast AFI-SAFIs
+    *   Enable `Graceful-Restart` capability at the `Peer-Group` level.
+    *   Ensure that the `restart-time` and the `stale-routes-time` are configured at the `Global` level
+    *   Configure allow route-policy under BGP peer-group address-family
+    *   Validate received capabilities at DUT and ATE reflect support for graceful
+        restart.
+    *   (Restarting speaker) Advertise prefixes between the ATE ports, through the DUT. Trigger DUT session restart by killing the BGP process in the DUT. Please use the `gNOI.killProcessRequest_Signal_Term` as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/system/system.proto#L326).
+       *   Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista this is the `BGP` process. Similar processes need to be included for Cisco and Nokia.
+       *   Once the process is killied, verify that the packets are:
+          *   Forwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
+          *   Dropped after the stale routes timer has expired.
+          *   Forwarded again between ATE port-1 and DUT port-1 after the session is re-established.
+    *   (Receiving speaker) Advertise prefixes between the ATE ports through the DUT. Send Graceful restart trigger from ATE port-2.
+       *   Ensure that prefixes are propagated to ATE port-2 during the restart.
+       *   Ensure that traffic can be forwarded between ATE port-1 and ATE port-2 during stale routes time.
+       *   Ensure that prefixes are withdrawn, and traffic cannot be forwarded between ATE port-1 and port-2 after the stale routes time expires.
 
 ## Config Parameter Coverage
 
