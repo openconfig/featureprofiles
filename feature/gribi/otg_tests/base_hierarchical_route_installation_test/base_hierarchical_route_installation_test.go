@@ -27,8 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/gribigo/chk"
-	"github.com/openconfig/gribigo/constants"
+	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -322,10 +321,8 @@ func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 		// for devices that return  the nexthop with resolving it recursively. For a->b->c the device returns c
 		if got := nh.GetIpAddress(); got != ateIndirectNH {
 			if nhtype == "MAC" {
-				if !deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
-					if gotMac := nh.GetMacAddress(); !strings.EqualFold(gotMac, nhMAC) {
-						t.Errorf("next-hop MAC is incorrect:  gotMac %v, wantMac %v", gotMac, nhMAC)
-					}
+				if gotMac := nh.GetMacAddress(); !strings.EqualFold(gotMac, nhMAC) {
+					t.Errorf("next-hop MAC is incorrect:  gotMac %v, wantMac %v", gotMac, nhMAC)
 				}
 			} else {
 				if got := nh.GetIpAddress(); got != atePort2.IPv4 {
@@ -380,65 +377,15 @@ func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
 func testRecursiveIPv4EntrywithIPNexthop(t *testing.T, args *testArgs) {
 
 	t.Logf("Adding IP %v with NHG %d NH %d with IP %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, atePort2.IPv4)
-	var entries []fluent.GRIBIEntry
-	entries = append(entries, fluent.NextHopEntry().
-		WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-		WithIndex(nhIndex2).WithIPAddress(atePort2.IPv4))
-	entries = append(entries, fluent.NextHopGroupEntry().
-		WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-		WithID(nhgIndex2).AddNextHop(nhIndex2, 1))
-	args.client.Fluent(t).Modify().AddEntry(t, entries...)
-	if err := args.client.AwaitTimeout(context.Background(), t, time.Minute); err != nil {
-		t.Fatalf("Error waiting to add NHG: %v", err)
-	}
-
-	chk.HasResult(t, args.client.Fluent(t).Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex2).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-	chk.HasResult(t, args.client.Fluent(t).Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhgIndex2).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
+	nh, op1 := gribi.NHEntry(nhIndex2, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	nhg, op2 := gribi.NHGEntry(nhgIndex2, map[uint64]uint64{nhIndex2: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
 	args.client.AddIPv4(t, ateIndirectNHCIDR, nhgIndex2, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	t.Logf("Adding IP %v with NHG %d NH %d  with indirect IP %v via gRIBI", ateDstNetCIDR, nhgIndex, nhIndex, ateIndirectNHCIDR)
-	entries = []fluent.GRIBIEntry{}
-	entries = append(entries, fluent.NextHopEntry().
-		WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-		WithIndex(nhIndex).WithIPAddress(ateIndirectNH))
-	entries = append(entries, fluent.NextHopGroupEntry().
-		WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-		WithID(nhgIndex).AddNextHop(nhIndex, 1))
-	args.client.Fluent(t).Modify().AddEntry(t, entries...)
-	if err := args.client.AwaitTimeout(context.Background(), t, time.Minute); err != nil {
-		t.Fatalf("Error waiting to add NHG: %v", err)
-	}
-
-	chk.HasResult(t, args.client.Fluent(t).Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-	chk.HasResult(t, args.client.Fluent(t).Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhgIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
+	nh, op1 = gribi.NHEntry(nhIndex, ateIndirectNH, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	nhg, op2 = gribi.NHGEntry(nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
 	args.client.AddIPv4(t, ateDstNetCIDR, nhgIndex, nonDefaultVRF, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
 	time.Sleep(30 * time.Second)
@@ -475,76 +422,24 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 
 	p := args.dut.Port(t, "port2")
 	t.Logf("Adding IP %v with NHG %d NH %d with interface %v and MAC %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, p.Name(), nhMAC)
-	var entries []fluent.GRIBIEntry
-	if deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
-		entries = append(entries, fluent.NextHopEntry().
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(nhIndex2).WithIPAddress(atePort2DummyIP.IPv4).WithInterfaceRef(p.Name()).
-			WithMacAddress(nhMAC))
-	} else if deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
-		entries = append(entries, fluent.NextHopEntry().
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(nhIndex2).WithIPAddress(atePort2DummyIP.IPv4).WithMacAddress(nhMAC))
-	} else {
-		entries = append(entries, fluent.NextHopEntry().
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(nhIndex2).WithSubinterfaceRef(p.Name(), 0).
-			WithMacAddress(nhMAC))
+	var nh fluent.GRIBIEntry
+	var op1 *client.OpResult
+	switch {
+	case deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut):
+		nh, op1 = gribi.NHEntry(nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), Mac: nhMAC, Dest: atePort2DummyIP.IPv4})
+	case deviations.GRIBIMACOverrideWithStaticARP(args.dut):
+		nh, op1 = gribi.NHEntry(nhIndex2, "MACwithIp", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Mac: nhMAC, Dest: atePort2DummyIP.IPv4})
+	default:
+		nh, op1 = gribi.NHEntry(nhIndex2, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: p.Name(), Mac: nhMAC})
 	}
-	entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).WithID(nhgIndex2).AddNextHop(nhIndex2, 1))
-	args.client.Fluent(t).Modify().AddEntry(t, entries...)
-	if err := args.client.AwaitTimeout(context.Background(), t, time.Minute); err != nil {
-		t.Fatalf("Error waiting to add NHG: %v", err)
-	}
-
-	chk.HasResult(t, args.client.Fluent(t).Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex2).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-	chk.HasResult(t, args.client.Fluent(t).Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhgIndex2).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
+	nhg, op2 := gribi.NHGEntry(nhgIndex2, map[uint64]uint64{nhIndex2: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
 	args.client.AddIPv4(t, ateIndirectNHCIDR, nhgIndex2, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	t.Logf("Adding IP %v with NHG %d NH %d  with indirect IP %v via gRIBI", ateDstNetCIDR, nhgIndex, nhIndex, ateIndirectNHCIDR)
-	entries = []fluent.GRIBIEntry{}
-
-	entries = append(entries, fluent.NextHopEntry().
-		WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-		WithIndex(nhIndex).WithIPAddress(ateIndirectNH))
-	entries = append(entries, fluent.NextHopGroupEntry().
-		WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-		WithID(nhgIndex).AddNextHop(nhIndex, 1))
-	args.client.Fluent(t).Modify().AddEntry(t, entries...)
-	if err := args.client.AwaitTimeout(context.Background(), t, time.Minute); err != nil {
-		t.Fatalf("Error waiting to add NHG: %v", err)
-	}
-
-	chk.HasResult(t, args.client.Fluent(t).Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-	chk.HasResult(t, args.client.Fluent(t).Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhgIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
+	nh, op1 = gribi.NHEntry(nhIndex, ateIndirectNH, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	nhg, op2 = gribi.NHGEntry(nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
 	args.client.AddIPv4(t, ateDstNetCIDR, nhgIndex, nonDefaultVRF, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
 	time.Sleep(30 * time.Second)
