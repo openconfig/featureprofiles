@@ -37,4 +37,5 @@ var (
 	FanNamePattern           = flag.String("arg_fan_name_pattern", "", "This name pattern is used to filter out Fan components.")
 	FabricChipNamePattern    = flag.String("arg_fabricChip_name_pattern", "", "This name pattern is used to filter out FabricChip components.")
 	CheckInterfacesInBinding = flag.Bool("arg_check_interfaces_in_binding", true, "GNOI tests perform interface status validation based on all interfaces. This can cause flakiness in testing environments where only connectivity of interfaces in binding is guaranteed.")
+	GNXIUseSameProcess       = flag.Bool("arg_gnxi_use_same_process", true, "the device uses the same OS process to serve gnxi services. Use this flag to change the expected behavior correspondingly. E.g., killing gribi requires killing the related process that leads to killing other services (gnmi, gnoi, p4rt).")
 )
