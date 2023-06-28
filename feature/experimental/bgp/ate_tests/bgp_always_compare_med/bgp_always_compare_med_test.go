@@ -164,11 +164,9 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rp2 := pg2.GetOrCreateApplyPolicy()
-		rp2.SetExportPolicy([]string{rplAllowPolicy})
 		rp2.SetImportPolicy([]string{rplAllowPolicy})
 
 		rp3 := pg3.GetOrCreateApplyPolicy()
-		rp3.SetExportPolicy([]string{rplAllowPolicy})
 		rp3.SetImportPolicy([]string{rplAllowPolicy})
 
 	} else {
@@ -177,14 +175,12 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		pg2af4.Enabled = ygot.Bool(true)
 
 		pg2rpl4 := pg2af4.GetOrCreateApplyPolicy()
-		pg2rpl4.SetExportPolicy([]string{rplAllowPolicy})
 		pg2rpl4.SetImportPolicy([]string{rplAllowPolicy})
 
 		pg3af4 := pg3.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pg3af4.Enabled = ygot.Bool(true)
 
 		pg3rpl4 := pg3af4.GetOrCreateApplyPolicy()
-		pg3rpl4.SetExportPolicy([]string{rplAllowPolicy})
 		pg3rpl4.SetImportPolicy([]string{rplAllowPolicy})
 	}
 
