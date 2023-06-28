@@ -17,7 +17,7 @@ id {
   version: 1
 }
 
-TODO: move the https://github.com/openconfig/gnsi/blob/main/authz/gnsi-authz.yang to the OC main.
+# TODO: move the https://github.com/openconfig/gnsi/blob/main/authz/gnsi-authz.yang to the OC main.
 # telemetry_path {
 #   path: "/system/grpc-servers/grpc-server/state/authz-policy-version"
 # }
