@@ -55,19 +55,19 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/link-attributes/state/local-protection"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/max-link-bandwidth/state/max-link-bandwidth"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/max-link-bandwidth/state/bandwidth"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/max-reservable-link-bandwidth/state/max-reservable-link-bandwidth"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/max-reservable-link-bandwidth/state/bandwidth"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/residual-bandwidth/state/residual-bandwidth"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/residual-bandwidth/state/bandwidth"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/unreserved-bandwidth/setup-priority/state/unreserved-bandwidth"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/unreserved-bandwidth/setup-priority/state/bandwidth"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/utilized-bandwidth/state/utilized-bandwidth"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/utilized-bandwidth/state/bandwidth"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-interface-addresses/state/address"
