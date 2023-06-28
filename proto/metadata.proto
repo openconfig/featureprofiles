@@ -199,5 +199,7 @@ message Metadata {
     Deviations deviations = 2;
   }
 
+  // The `platform` field for each `platform_exceptions` should be mutually
+  // exclusive. Duplicate matches will result in a test failure.
   repeated PlatformExceptions platform_exceptions = 5;
 }

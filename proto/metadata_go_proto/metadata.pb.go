@@ -108,7 +108,9 @@ type Metadata struct {
 	// One-line description of the test.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Testbed on which the test is intended to run.
-	Testbed            Metadata_Testbed               `protobuf:"varint,4,opt,name=testbed,proto3,enum=openconfig.testing.Metadata_Testbed" json:"testbed,omitempty"`
+	Testbed Metadata_Testbed `protobuf:"varint,4,opt,name=testbed,proto3,enum=openconfig.testing.Metadata_Testbed" json:"testbed,omitempty"`
+	// The `platform` field for each `platform_exceptions` should be mutually
+	// exclusive. Duplicate matches will result in a test failure.
 	PlatformExceptions []*Metadata_PlatformExceptions `protobuf:"bytes,5,rep,name=platform_exceptions,json=platformExceptions,proto3" json:"platform_exceptions,omitempty"`
 }
 
@@ -188,10 +190,11 @@ type Metadata_Platform struct {
 	Vendor proto.Device_Vendor `protobuf:"varint,1,opt,name=vendor,proto3,enum=ondatra.Device_Vendor" json:"vendor,omitempty"`
 	// Hardware models of the device.
 	HardwareModel []string `protobuf:"bytes,2,rep,name=hardware_model,json=hardwareModel,proto3" json:"hardware_model,omitempty"`
+	// Leaving the regex fields empty will match any hardware model and software
+	// version.
 	// Regex for hardware model of the device.
 	HardwareModelRegex string `protobuf:"bytes,3,opt,name=hardware_model_regex,json=hardwareModelRegex,proto3" json:"hardware_model_regex,omitempty"`
 	// Regex for software version of the device.
-	// To use software_version_regex, hardware_model_regex must also be set.
 	SoftwareVersionRegex string `protobuf:"bytes,4,opt,name=software_version_regex,json=softwareVersionRegex,proto3" json:"software_version_regex,omitempty"`
 }
 
