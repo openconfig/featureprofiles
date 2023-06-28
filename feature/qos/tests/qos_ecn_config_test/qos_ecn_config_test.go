@@ -437,9 +437,9 @@ func testCiscoECNConfig(t *testing.T) {
 			queue.SetName(tc.queueName)
 
 		})
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	for _, tc := range cases {
 		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
