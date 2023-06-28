@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "system_authz"
+  name: "gnsi_authz"
   version: 1
 }
 
