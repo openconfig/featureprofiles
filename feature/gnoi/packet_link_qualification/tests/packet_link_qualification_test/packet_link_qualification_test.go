@@ -72,14 +72,6 @@ func TestCapabilitiesResponse(t *testing.T) {
 		got:  uint64(plqResp.GetMaxHistoricalResultsPerInterface()),
 		min:  uint64(2),
 	}, {
-		desc: "Reflector MinSetupDuration",
-		got:  uint64(plqResp.GetReflector().GetPmdLoopback().GetMinSetupDuration().GetSeconds()),
-		min:  uint64(1),
-	}, {
-		desc: "Reflector MinTeardownDuration",
-		got:  uint64(plqResp.GetReflector().GetPmdLoopback().GetMinTeardownDuration().GetSeconds()),
-		min:  uint64(1),
-	}, {
 		desc: "Generator MinSetupDuration",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds()),
 		min:  uint64(1),
@@ -116,6 +108,19 @@ func TestCapabilitiesResponse(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Reflector", func(t *testing.T) {
+		if ((uint64(plqResp.GetReflector().GetAsicLoopback().GetMinSetupDuration().GetSeconds())) >= 1) &&
+			((uint64(plqResp.GetReflector().GetAsicLoopback().GetMinTeardownDuration().GetSeconds())) >= 1) {
+			t.Logf("Device supports ASIC loopback reflector mode")
+		} else if ((uint64(plqResp.GetReflector().GetPmdLoopback().GetMinSetupDuration().GetSeconds())) >= 1) &&
+			((uint64(plqResp.GetReflector().GetPmdLoopback().GetMinTeardownDuration().GetSeconds())) >= 1) {
+			t.Logf("Device supports PMD loopback reflector mode")
+		} else {
+			t.Errorf("Reflector MinSetupDuration or MinTeardownDuration is not >=1 for supported mode. Device reflector capabilities: %v", plqResp.GetReflector())
+		}
+	})
+
 }
 
 func TestNonexistingID(t *testing.T) {
