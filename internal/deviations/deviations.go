@@ -78,16 +78,18 @@ func matchRegex(regex string, deviceInfo string) bool {
 	match, err := regexp.MatchString(regex, deviceInfo)
 	if err != nil {
 		log.Errorf("Error with regex match %v", err)
-	} else if match {
-		return true
 	}
-	return false
+	return match
 }
 
-// lookupDutDeviations returns the deviations for the specified dut.
 func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
-	metadataDeviations := &mpb.Metadata_Deviations{}
+	matchedPlatformException := &mpb.Metadata_PlatformExceptions{}
+	isPlatformExceptionsMatched := false
+
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
+		if platformExceptions.GetPlatform().Vendor.String() == "" {
+			log.Exitf("Vendor should be specified in textproto %v", platformExceptions)
+		}
 		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
 			continue
 		}
@@ -96,38 +98,49 @@ func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 		softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex()
 		hardwareModelCount := len(platformExceptions.GetPlatform().GetHardwareModel())
 
+		// Exit test if both hardware_model_regex and hardware_model fields are set.
 		if hardwareModelRegex != "" {
-			// Return an error if both hardware_model_regex and repeated hardware_model fields are set.
 			if hardwareModelCount > 0 {
-				log.Fatalf("Cannot set repeated hardware model field: %v and \n Hardware model regex: %v", platformExceptions.GetPlatform().GetHardwareModel(), platformExceptions.GetPlatform().GetHardwareModelRegex())
+				log.Exitf("Cannot set hardware_model field: %v and \n hardware_model_regex field: %v", platformExceptions.GetPlatform().GetHardwareModel(), platformExceptions.GetPlatform().GetHardwareModelRegex())
 			}
 			// If hardware_model_regex is set and does not match, continue
 			if !matchRegex(hardwareModelRegex, dut.Device.Model()) {
 				continue
 			}
-			if softwareVersionRegex != "" {
-				// If software_version_regex is set and does not match, continue
-				if !matchRegex(softwareVersionRegex, dut.Device.Version()) {
-					continue
-				}
-				// Return the deviations since both the hardware_model and software_version regex match.
-				return platformExceptions.GetDeviations()
+		}
+
+		if softwareVersionRegex != "" {
+			// If software_version_regex is set and does not match, continue
+			if !matchRegex(softwareVersionRegex, dut.Device.Version()) {
+				continue
 			}
 		}
-		metadataDeviations = platformExceptions.GetDeviations()
 
 		// TODO(prinikasn): Remove once repeated hardware model is removed.
+		if hardwareModelCount == 0 {
+			if isPlatformExceptionsMatched {
+				log.Exitf("Cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
+			}
+			matchedPlatformException = platformExceptions
+			isPlatformExceptionsMatched = true
+		}
 		// If hardware_model_regex is empty, get the deviations from matching the model in the repeated hardware_model field.
-		if hardwareModelCount > 0 {
-			for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
-				if dut.Device.Model() == hardwareModel {
-					metadataDeviations = platformExceptions.GetDeviations()
+		for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
+			if dut.Device.Model() == hardwareModel {
+				if isPlatformExceptionsMatched {
+					log.Exitf("Cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
 				}
+				matchedPlatformException = platformExceptions
+				isPlatformExceptionsMatched = true
 			}
 		}
 	}
 
-	return metadataDeviations
+	if matchedPlatformException.GetPlatform().Vendor.String() == "" {
+		log.Errorf("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
+	}
+
+	return matchedPlatformException.GetDeviations()
 }
 
 func logErrorIfFlagSet(name string) {
