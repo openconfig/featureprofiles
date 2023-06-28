@@ -75,6 +75,7 @@ func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
 		return "", "", err
 	}
 
+	build.LogsBucket = "gs://featureprofiles-ci-logs-" + vendor
 	build.Source = &cloudbuild.Source{
 		StorageSource: &cloudbuild.StorageSource{
 			Bucket: gcpCloudBuildBucketName,
