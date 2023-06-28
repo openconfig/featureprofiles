@@ -127,7 +127,7 @@ func TestBurstyTraffic(t *testing.T) {
 	intf2.AddToOTG(top, ap2, &dutPort2)
 	intf3.AddToOTG(top, ap3, &dutPort3)
 	ate.OTG().PushConfig(t, top)
-  
+
 	queues := netutil.CommonTrafficQueues(t, dut)
 
 	// Test case 1: Bursty NC1 traffic.
@@ -533,7 +533,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-
 	queues := netutil.CommonTrafficQueues(t, dut)
 
 	t.Logf("Create qos forwarding groups config")

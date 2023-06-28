@@ -741,7 +741,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-
 	queues := netutil.CommonTrafficQueues(t, dut)
 	if dut.Vendor() == ondatra.JUNIPER {
 		queues.AF4 = "5"

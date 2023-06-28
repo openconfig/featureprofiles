@@ -1244,6 +1244,7 @@ func testJuniperClassifierConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
@@ -1252,31 +1253,31 @@ func testJuniperClassifierConfig(t *testing.T) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   "0",
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   "1",
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   "2",
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   "3",
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   "4",
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   "6",
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   "7",
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 

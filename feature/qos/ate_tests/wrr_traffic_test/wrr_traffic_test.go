@@ -123,7 +123,6 @@ func TestWrrTraffic(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	var tolerance float32 = 3.0
-
 	queues := netutil.CommonTrafficQueues(t, dut)
 
 	// Test case 1: Non-oversubscription AF3 and AF2 traffic.
@@ -927,7 +926,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-
 	queues := netutil.CommonTrafficQueues(t, dut)
 
 	t.Logf("Create qos forwarding groups config")
@@ -1162,7 +1160,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   queues.be1,
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -1171,7 +1169,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   queues.be0,
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -1180,7 +1178,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
-		queueName:   queues.af1,
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -1189,7 +1187,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(16),
-		queueName:   queues.af2,
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -1198,7 +1196,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(64),
-		queueName:   queues.af3,
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",

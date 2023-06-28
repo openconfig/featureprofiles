@@ -289,9 +289,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	dp2 := dut.Port(t, "port2")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-
-  queues := netutil.CommonTrafficQueues(t, dut)
-
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	nc1InputWeight := uint64(200)
 	af4InputWeight := uint64(100)

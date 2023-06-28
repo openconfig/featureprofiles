@@ -150,9 +150,7 @@ func TestWrrTraffic(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 
 	var tolerance float32 = 3.0
-
 	queues := netutil.CommonTrafficQueues(t, dut)
-
 
 	// Test case 1: Non-oversubscription AF3 and AF2 traffic.
 	//   - There should be no packet drop for all traffic classes.
@@ -970,7 +968,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-
 	queues := netutil.CommonTrafficQueues(t, dut)
 
 	t.Logf("Create qos forwarding groups config")

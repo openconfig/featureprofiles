@@ -160,7 +160,6 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 	intf3.AddToOTG(top, ap3, &dutPort3)
 
 	var tolerance float32 = 2.0
-
 	queues := netutil.CommonTrafficQueues(t, dut)
 
 	// Test case 1: Non-oversubscription NC1 and AF4 traffic.
@@ -1201,7 +1200,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-
 	queues := netutil.CommonTrafficQueues(t, dut)
 
 	t.Logf("Create qos forwarding groups config")
