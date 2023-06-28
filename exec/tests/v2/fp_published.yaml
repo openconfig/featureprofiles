@@ -322,10 +322,11 @@ tests:
       - '-deviation_missing_interface_physical_channel="true"'
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
-      - '-deviation_sw_version_unsupported="true"'
     owners:
       - agvarghe
     mustpass: true
+    branch: kjahed/gnmi-1.10
+    internal: true
     priority: 34
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
