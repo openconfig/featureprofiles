@@ -424,6 +424,7 @@ func testCiscoECNConfig(t *testing.T) {
 	}}
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 	t.Logf("qos output interface config cases: %v", cases)
 
 	for _, tc := range intcases {
@@ -434,8 +435,9 @@ func testCiscoECNConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.queueName)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
 		})
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	}
 
