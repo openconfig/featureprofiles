@@ -1,0 +1,6 @@
+name: "openconfig-lemming-dut"
+nodes: {
+    name: "dut"
+    vendor: OPENCONFIG
+    model: "LEMMING"
+}
