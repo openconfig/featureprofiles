@@ -44,10 +44,11 @@ message Metadata {
     ondatra.Device.Vendor vendor = 1;
     // Hardware models of the device.
     repeated string hardware_model = 2;
+    // Leaving the regex fields empty will match any hardware model and software
+    // version.
     // Regex for hardware model of the device.
     string hardware_model_regex = 3;
     // Regex for software version of the device.
-    // To use software_version_regex, hardware_model_regex must also be set.
     string software_version_regex = 4;
   }
 
