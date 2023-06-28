@@ -43,7 +43,7 @@ const (
 	vlan20            = 20
 	ipipProtocol      = 4
 	ipv6ipProtocol    = 41
-	ipv4Address       = "198.18.0.1/32"
+	ipv4Address       = "192.0.2.2/32"
 	ateDestIPv4VLAN10 = "203.0.113.0/30"
 	ateDestIPv4VLAN20 = "203.0.113.4/30"
 	ateDestIPv6       = "2001:DB8:2::/64"
@@ -123,6 +123,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	niConfPath := gnmi.OC().NetworkInstance("VRF-10")
 	niConf := configNetworkInstance("VRF-10", i2, 10)
 	gnmi.Replace(t, dut, niConfPath.Config(), niConf)
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, 10, vlan10, dut))
+	}
 
 	// Configure default NI and forwarding policy
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
@@ -144,6 +147,10 @@ func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
+	}
+	if deviations.ParentInterfaceRouted(dut) {
+		s0 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+		s0.Enabled = ygot.Bool(true)
 	}
 
 	// Create subinterface.
@@ -257,7 +264,7 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 
 	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
-	if !deviations.InterfaceRefConfigUnsupported(dut) {
+	if !deviations.InterfaceRefConfigUnsupported(dut) || !deviations.IntfRefConfigUnsupported(dut) {
 		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 		intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	}
