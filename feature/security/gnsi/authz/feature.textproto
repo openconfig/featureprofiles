@@ -24,17 +24,17 @@ telemetry_path {
   path: "/system/grpc-servers/grpc-server/state/authz-policy-created-on"
 }
 telemetry_path {
-  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc[name]/state/name"
+  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/name"
 }
 telemetry_path {
-  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rotate/state/access-accepts"
+  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-accepts"
 }
 telemetry_path {
-  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rotate/state/access-rejects"
+  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-rejects"
 }
 telemetry_path {
-  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rotate/state/last-access-accept"
+  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/last-access-accept"
 }
 telemetry_path {
-  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rotate/state/last-access-reject"
+  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/last-access-reject"
 }
