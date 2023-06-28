@@ -220,6 +220,9 @@ func NHEntry(nhIndex uint64, address, instance string, expectedResult fluent.Pro
 			} else {
 				nh = nh.WithInterfaceRef(opt.Interface).WithMacAddress(opt.Mac)
 			}
+			if opt.Dest != "" {
+				nh = nh.WithIPAddress(opt.Dest)
+			}
 		}
 	case "MACwithIp":
 		for _, opt := range opts {
