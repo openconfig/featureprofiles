@@ -116,7 +116,7 @@ func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 			}
 		}
 
-		// TODO(prinikasn): Remove once repeated hardware model is removed.
+		// TODO(prinikasn): Remove once hardware_model field is removed.
 		if hardwareModelCount == 0 {
 			if isPlatformExceptionsMatched {
 				log.Exitf("Cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
@@ -124,7 +124,7 @@ func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 			matchedPlatformException = platformExceptions
 			isPlatformExceptionsMatched = true
 		}
-		// If hardware_model_regex is empty, get the deviations from matching the model in the repeated hardware_model field.
+		// If hardware_model_regex is empty, get the deviations from matching the model in the hardware_model field.
 		for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
 			if dut.Device.Model() == hardwareModel {
 				if isPlatformExceptionsMatched {
