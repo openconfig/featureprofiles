@@ -193,12 +193,6 @@ func BackplaneFacingCapacityUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBackplaneFacingCapacityUnsupported()
 }
 
-// ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
-func ComponentsSoftwareModuleUnsupported(dut *ondatra.DUTDevice) bool {
-	logErrorIfFlagSet("deviation_components_software_module_unsupported")
-	return lookupDUTDeviations(dut).GetComponentsSoftwareModuleUnsupported()
-}
-
 // SchedulerInputWeightLimit returns whether the device does not support weight above 100.
 func SchedulerInputWeightLimit(dut *ondatra.DUTDevice) bool {
 	logErrorIfFlagSet("deviation_scheduler_input_weight_limit")
@@ -515,6 +509,12 @@ func GNOIFabricComponentRebootUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnoiFabricComponentRebootUnsupported()
 }
 
+// NtpNonDefaultVrfUnsupported returns true if the device does not support ntp nondefault vrf.
+// Default value is false.
+func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -644,8 +644,6 @@ var (
 	_ = flag.Bool("deviation_switch_chip_id_unsupported", false, "Device does not support id leaf for SwitchChip components. Set this flag to skip checking the leaf.")
 
 	_ = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
-
-	_ = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
 	_ = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 
