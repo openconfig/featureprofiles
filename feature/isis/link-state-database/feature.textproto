@@ -25,13 +25,13 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/state/metric"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/adjacency-sid/sid/state/flags"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/adjacency-sids/adjacency-sid/state/flags"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/adjacency-sid/sid/state/value"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/adjacency-sids/adjacency-sid/state/value"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/adjacency-sid/sid/state/weight"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/adjacency-sids/adjacency-sid/state/weight"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/available-bandwidth/state/available-bandwidth"
@@ -40,16 +40,16 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/extended-admin-group/state/extended-admin-group"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/lan-adjacency-sid/sid/state/flags"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/lan-adjacency-sids/lan-adjacency-sid/state/flags"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/lan-adjacency-sid/sid/state/neighbor-id"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/lan-adjacency-sids/lan-adjacency-sid/state/neighbor-id"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/lan-adjacency-sid/sid/state/value"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/lan-adjacency-sids/lan-adjacency-sid/state/value"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/lan-adjacency-sid/sid/state/weight"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/lan-adjacency-sids/lan-adjacency-sid/state/weight"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/subtlvs/subtlv/link-attributes/state/local-protection"
