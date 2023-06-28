@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -175,6 +176,7 @@ func testECNConfig(t *testing.T) {
 func testQoSOutputIntfConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	cases := []struct {
 		desc       string
@@ -183,37 +185,37 @@ func testQoSOutputIntfConfig(t *testing.T) {
 		scheduler  string
 	}{{
 		desc:       "output-interface-BE1",
-		queueName:  "BE1",
+		queueName:  queues.BE1,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-BE0",
-		queueName:  "BE0",
+		queueName:  queues.BE0,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-AF1",
-		queueName:  "AF1",
+		queueName:  queues.AF1,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-AF2",
-		queueName:  "AF2",
+		queueName:  queues.AF2,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-AF3",
-		queueName:  "AF3",
+		queueName:  queues.AF3,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-AF4",
-		queueName:  "AF4",
+		queueName:  queues.AF4,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}, {
 		desc:       "output-interface-NC1",
-		queueName:  "NC1",
+		queueName:  queues.NC1,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
 	}}
