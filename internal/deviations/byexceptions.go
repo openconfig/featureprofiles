@@ -32,7 +32,13 @@ func IntfRefConfigUnsupported(*ondatra.DUTDevice) bool {
 	return *intfRefConfigUnsupported
 }
 
+// ParentInterfaceRouted returns if device needs parent interface to be routed for non-zero sub-interfaces.
+func ParentInterfaceRouted(*ondatra.DUTDevice) bool {
+	return *parentInterfaceRouted
+}
+
 var (
 	cpuMissingAncestor       = flag.Bool("deviation_cpu_missing_ancestor", false, "Set to true for devices where the CPU components do not map to a FRU parent component in the OC tree.")
 	intfRefConfigUnsupported = flag.Bool("deviation_intf_ref_config_unsupported", false, "Set to true for devices that do not support interface-ref configuration when applying features to interface.")
+	parentInterfaceRouted    = flag.Bool("deviation_parent_interface_routed", false, "Set to true for a device that needs parent interface to be routed for non-zero sub-interfaces")
 )
