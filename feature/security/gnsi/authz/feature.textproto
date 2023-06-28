@@ -13,28 +13,29 @@
 # limitations under the License.
 
 id {
-  name: "gnsi_authz"
+  name: "security_gnsi_authz"
   version: 1
 }
 
-telemetry_path {
-  path: "/system/grpc-servers/grpc-server/state/authz-policy-version"
-}
-telemetry_path {
-  path: "/system/grpc-servers/grpc-server/state/authz-policy-created-on"
-}
-telemetry_path {
-  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/name"
-}
-telemetry_path {
-  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-accepts"
-}
-telemetry_path {
-  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-rejects"
-}
-telemetry_path {
-  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/last-access-accept"
-}
-telemetry_path {
-  path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/last-access-reject"
-}
+TODO: move the https://github.com/openconfig/gnsi/blob/main/authz/gnsi-authz.yang to the OC main.
+# telemetry_path {
+#   path: "/system/grpc-servers/grpc-server/state/authz-policy-version"
+# }
+# telemetry_path {
+#   path: "/system/grpc-servers/grpc-server/state/authz-policy-created-on"
+# }
+# telemetry_path {
+#   path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/name"
+# }
+# telemetry_path {
+#   path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-accepts"
+# }
+# telemetry_path {
+#   path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-rejects"
+# }
+# telemetry_path {
+#   path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/last-access-accept"
+# }
+# telemetry_path {
+#   path: "/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/last-access-reject"
+# }
