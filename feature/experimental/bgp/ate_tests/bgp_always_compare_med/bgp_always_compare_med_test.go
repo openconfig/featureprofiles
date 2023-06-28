@@ -124,8 +124,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // verifyPortsUp asserts that each port on the device is operating.
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
-	//for _, p := range dev.Ports() {
-	for _, p := range []*ondatra.Port{dev.Port(t, "port1"), dev.Port(t, "port2"), dev.Port(t, "port3")} {
+	for _, p := range dev.Ports() {
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; status != want {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
@@ -507,15 +506,9 @@ func TestAlwaysCompareMED(t *testing.T) {
 		t.Log("Disable MED settings on DUT.")
 		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
-			gnmi.Delete(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).ApplyPolicy().ImportPolicy().Config())
-			gnmi.Delete(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).ApplyPolicy().ImportPolicy().Config())
-
 			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
 			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
 		} else {
-			gnmi.Delete(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config())
-			gnmi.Delete(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config())
-
 			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
 			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
 		}
