@@ -744,6 +744,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		i.SetInterfaceId(tc.intf)
 		i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
 		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
+		}
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
@@ -880,6 +883,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
 		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
+		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
