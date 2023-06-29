@@ -235,7 +235,7 @@ func TestLinkQualification(t *testing.T) {
 		testDuration time.Duration
 		// time to wait post link-qual before starting teardown
 		generatorPostSyncDuration time.Duration
-		postSyncDuration          time.Duration
+		reflectorPostSyncDuration time.Duration
 		// time required to bring the interface back to pre-test state
 		tearDownDuration time.Duration
 	}
@@ -243,8 +243,8 @@ func TestLinkQualification(t *testing.T) {
 		preSyncDuration:           30 * time.Second,
 		setupDuration:             30 * time.Second,
 		testDuration:              120 * time.Second,
-		generatorPostSyncDuration: 0 * time.Second,
-		postSyncDuration:          5 * time.Second,
+		generatorPostSyncDuration: 5 * time.Second,
+		reflectorPostSyncDuration: 10 * time.Second,
 		tearDownDuration:          30 * time.Second,
 	}
 
@@ -282,7 +282,7 @@ func TestLinkQualification(t *testing.T) {
 				Duration:         durationpb.New(plqDuration.testDuration),
 				PreSyncDuration:  durationpb.New(plqDuration.preSyncDuration),
 				SetupDuration:    durationpb.New(plqDuration.setupDuration),
-				PostSyncDuration: durationpb.New(plqDuration.postSyncDuration),
+				PostSyncDuration: durationpb.New(plqDuration.reflectorPostSyncDuration),
 				TeardownDuration: durationpb.New(plqDuration.tearDownDuration),
 			},
 		},
@@ -326,7 +326,7 @@ func TestLinkQualification(t *testing.T) {
 	}
 
 	sleepTime := 30 * time.Second
-	minTestTime := plqDuration.testDuration + plqDuration.postSyncDuration + plqDuration.preSyncDuration + plqDuration.setupDuration + plqDuration.tearDownDuration
+	minTestTime := plqDuration.testDuration + plqDuration.reflectorPostSyncDuration + plqDuration.preSyncDuration + plqDuration.setupDuration + plqDuration.tearDownDuration
 	counter := int(minTestTime.Seconds())/int(sleepTime.Seconds()) + 2
 	for i := 0; i <= counter; i++ {
 		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
