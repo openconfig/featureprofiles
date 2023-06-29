@@ -65,6 +65,7 @@ package deviations
 
 import (
 	"flag"
+	"fmt"
 	"regexp"
 
 	log "github.com/golang/glog"
