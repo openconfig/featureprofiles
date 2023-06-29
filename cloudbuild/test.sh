@@ -15,6 +15,8 @@
 
 set -xe
 
+nohup /tmp/featureprofiles/cloudbuild/cleanup.sh 2>/dev/null &
+
 case $1 in
   arista_ceos)
     topology=arista/ceos/dutate.textproto
