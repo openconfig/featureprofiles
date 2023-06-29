@@ -43,7 +43,8 @@ const (
 	vlan20            = 20
 	ipipProtocol      = 4
 	ipv6ipProtocol    = 41
-	ipv4Address       = "192.0.2.2/32"
+	ipv4Address       = "198.18.0.1/32"
+	flowSrcIp         = "198.18.0.1"
 	ateDestIPv4VLAN10 = "203.0.113.0/30"
 	ateDestIPv4VLAN20 = "203.0.113.4/30"
 	ateDestIPv6       = "2001:DB8:2::/64"
@@ -124,7 +125,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	niConf := configNetworkInstance("VRF-10", i2, 10)
 	gnmi.Replace(t, dut, niConfPath.Config(), niConf)
 	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
-		gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, 10, vlan10, dut))
+		gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), i2)
 	}
 
 	// Configure default NI and forwarding policy
@@ -148,7 +149,7 @@ func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
-	if deviations.ParentInterfaceRouted(dut) {
+	if deviations.RequireRoutedSubinterface0(dut) {
 		s0 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 		s0.Enabled = ygot.Bool(true)
 	}
@@ -264,10 +265,12 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 
 	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	if !deviations.InterfaceRefConfigUnsupported(dut) || !deviations.IntfRefConfigUnsupported(dut) {
-		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-		intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		intf.InterfaceRef = nil
 	}
+
 	// Configure default NI and forwarding policy.
 	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
 	gnmi.Replace(t, dut, intfConfPath.Config(), intf)
@@ -345,7 +348,7 @@ func createFlow(name string, top gosnappi.Config, dst attrs.Attributes, innerIpT
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(ateSrc.MAC)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(ateSrc.IPv4)
+	v4.Src().SetValue(flowSrcIp)
 	v4.Dst().SetValue(dst.IPv4)
 	if innerIpType == "IPv4" {
 		flow.Packet().Add().Ipv4()
