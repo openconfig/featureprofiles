@@ -86,7 +86,6 @@ func (t *trigger) processIssueComment(ctx context.Context, e *github.IssueCommen
 	pr := &pullRequest{
 		ID:        e.GetIssue().GetNumber(),
 		HeadSHA:   prData.GetHead().GetSHA(),
-		baseSHA:   prData.GetBase().GetSHA(),
 		cloneURL:  prData.GetHead().GetRepo().GetCloneURL(),
 		localFS:   os.DirFS(tmpDir),
 		localPath: tmpDir,
@@ -129,7 +128,6 @@ func (t *trigger) processPullRequest(ctx context.Context, e *github.PullRequestE
 	pr := &pullRequest{
 		ID:        e.GetPullRequest().GetNumber(),
 		HeadSHA:   e.GetPullRequest().GetHead().GetSHA(),
-		baseSHA:   e.GetPullRequest().GetBase().GetSHA(),
 		cloneURL:  e.GetPullRequest().GetHead().GetRepo().GetCloneURL(),
 		localFS:   os.DirFS(tmpDir),
 		localPath: tmpDir,

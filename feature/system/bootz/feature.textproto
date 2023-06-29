@@ -21,7 +21,7 @@ telemetry_path {
   path: "/system/bootz/state/checksum"
 }
 telemetry_path {
-  path: "/system/bootz/state/failure-count"
+  path: "/system/bootz/state/error-count"
 }
 telemetry_path {
   path: "/system/bootz/state/last-boot-attempt"
