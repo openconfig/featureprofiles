@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package openconfig.testing;
 
+import "github.com/openconfig/ondatra/proto/testbed.proto";
+
 option go_package = "github.com/openconfig/featureprofiles/topologies/proto/binding";
 
 // A binding configuration.
@@ -84,6 +86,15 @@ message Device {
 
   // Dial options for OTG Ixia-C (HW Only).
   Options otg = 18;
+
+  // Vendor of the device.
+  ondatra.Device.Vendor vendor = 19;
+
+  // Hardware models of the device.
+  string hardware_model = 20;
+
+  // Software version of the device.
+  string software_version = 21;
 }
 
 // Dial options.

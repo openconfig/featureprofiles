@@ -15,6 +15,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    gribi_mac_override_with_static_arp: true
   }
 }
 platform_exceptions: {
@@ -36,5 +37,7 @@ platform_exceptions: {
   }
   deviations: {
     explicit_gribi_under_network_instance: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
   }
 }
