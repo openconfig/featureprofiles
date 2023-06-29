@@ -77,19 +77,19 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.159:25000"
+    target: "10.85.84.159:55999"
   }
   gnmi {
-    target: "10.85.84.159:25000"
+    target: "10.85.84.159:55999"
   }
   gribi{
-    target: "10.85.84.159:25001"
+    target: "10.85.84.159:55999"
   }
   ssh{
     target: "10.85.84.159:5999"
   }
   p4rt{
-    target: "10.85.84.159:25002"
+    target: "10.85.84.159:55999"
   }
 
 # Before this binding can be used with a topology, add ports mapping
