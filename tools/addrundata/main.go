@@ -91,6 +91,11 @@ func main() {
 			glog.Exitf("Error writing TestTracker: %v", err)
 		}
 		return
+	case "deviations":
+		if err := listDeviations(os.Stdout, featuredir, ts); err != nil {
+			glog.Exitf("Error writing Deviations: %v", err)
+		}
+		return
 	default:
 		glog.Exitf("Unknown listing format: %s", *list)
 	}
