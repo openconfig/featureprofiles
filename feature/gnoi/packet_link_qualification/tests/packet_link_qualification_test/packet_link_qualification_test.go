@@ -204,7 +204,10 @@ func configInterfaceMTU(i *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
-	i.Mtu = ygot.Uint16(9000)
+
+	if !deviations.OmitL2MTU(dut) {
+		i.Mtu = ygot.Uint16(9000)
+	}
 
 	return i
 }
