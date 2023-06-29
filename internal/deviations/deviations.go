@@ -84,10 +84,10 @@ func matchRegex(regex string, deviceInfo string) bool {
 
 func isPlatformExceptionsValid(platformExceptions *mpb.Metadata_PlatformExceptions) error {
 	if platformExceptions.GetPlatform().Vendor.String() == "" {
-		return fmt.Errorf("Vendor should be specified in textproto %v", platformExceptions)
+		return fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 	}
 	if platformExceptions.GetPlatform().GetHardwareModelRegex() != "" && len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
-		return fmt.Errorf("Vendor should be specified in textproto %v", platformExceptions)
+		return fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 	}
 	return nil
 }
@@ -120,7 +120,7 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 		// TODO(prinikasn): Refactor after hardware_model field is removed.
 		if len(platformExceptions.GetPlatform().GetHardwareModel()) == 0 {
 			if isPlatformExceptionsMatched {
-				return nil, fmt.Errorf("Cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
+				return nil, fmt.Errorf("cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
 			}
 			matchedPlatformException = platformExceptions
 			isPlatformExceptionsMatched = true
@@ -130,7 +130,7 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 		for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
 			if dut.Device.Model() == hardwareModel {
 				if isPlatformExceptionsMatched {
-					return nil, fmt.Errorf("Cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
+					return nil, fmt.Errorf("cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
 				}
 				matchedPlatformException = platformExceptions
 				isPlatformExceptionsMatched = true
