@@ -406,7 +406,7 @@ func TestP4rtConnect(t *testing.T) {
 				Priority:      1,
 			},
 		})
-        expected_entity := expected_update[0]
+		expected_entity := expected_update[0]
 		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for GDP %s", err)
 			nomatch += 1
