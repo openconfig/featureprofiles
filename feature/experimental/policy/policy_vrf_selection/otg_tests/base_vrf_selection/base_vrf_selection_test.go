@@ -44,7 +44,6 @@ const (
 	ipipProtocol      = 4
 	ipv6ipProtocol    = 41
 	ipv4Address       = "198.18.0.1/32"
-	flowSrcIp         = "198.18.0.1"
 	ateDestIPv4VLAN10 = "203.0.113.0/30"
 	ateDestIPv4VLAN20 = "203.0.113.4/30"
 	ateDestIPv6       = "2001:DB8:2::/64"
@@ -348,7 +347,7 @@ func createFlow(name string, top gosnappi.Config, dst attrs.Attributes, innerIpT
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(ateSrc.MAC)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(flowSrcIp)
+	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().SetValue(dst.IPv4)
 	if innerIpType == "IPv4" {
 		flow.Packet().Add().Ipv4()
