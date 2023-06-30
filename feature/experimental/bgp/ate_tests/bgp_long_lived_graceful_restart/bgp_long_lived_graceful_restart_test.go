@@ -109,70 +109,70 @@ var (
 	}
 	dutPort1SubIntf2 = attrs.Attributes{
 		Desc:    "DUT to ATE sub interface 2",
-		IPv4:    "192.0.3.1",
+		IPv4:    "192.0.2.9",
 		IPv6:    "2001:db8::192:0:3:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort1SubIntf2 = attrs.Attributes{
 		Name:    "ateSrcSubIntf2",
-		IPv4:    "192.0.3.2",
+		IPv4:    "192.0.2.10",
 		IPv6:    "2001:db8::192:0:3:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort1SubIntf3 = attrs.Attributes{
 		Desc:    "DUT to ATE sub interface 3",
-		IPv4:    "192.0.5.1",
+		IPv4:    "192.0.2.13",
 		IPv6:    "2001:db8::192:0:5:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort1SubIntf3 = attrs.Attributes{
 		Name:    "ateSrcSubIntf3",
-		IPv4:    "192.0.5.2",
+		IPv4:    "192.0.2.14",
 		IPv6:    "2001:db8::192:0:5:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort1SubIntf4 = attrs.Attributes{
 		Desc:    "DUT to ATE sub interface 4",
-		IPv4:    "192.0.7.1",
+		IPv4:    "192.0.2.15",
 		IPv6:    "2001:db8::192:0:7:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort1SubIntf4 = attrs.Attributes{
 		Name:    "ateSrcSubIntf4",
-		IPv4:    "192.0.7.2",
+		IPv4:    "192.0.2.16",
 		IPv6:    "2001:db8::192:0:7:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort1SubIntf5 = attrs.Attributes{
 		Desc:    "DUT to ATE sub interface 5",
-		IPv4:    "192.0.9.1",
+		IPv4:    "192.0.2.19",
 		IPv6:    "2001:db8::192:0:9:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort1SubIntf5 = attrs.Attributes{
 		Name:    "ateSrcSubIntf5",
-		IPv4:    "192.0.9.2",
+		IPv4:    "192.0.2.20",
 		IPv6:    "2001:db8::192:0:9:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort1SubIntf6 = attrs.Attributes{
 		Desc:    "DUT to ATE sub interface 6",
-		IPv4:    "192.0.12.1",
+		IPv4:    "192.0.2.23",
 		IPv6:    "2001:db8::192:0:11:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort1SubIntf6 = attrs.Attributes{
 		Name:    "ateSrcSubIntf6",
-		IPv4:    "192.0.12.2",
+		IPv4:    "192.0.2.24",
 		IPv6:    "2001:db8::192:0:11:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
