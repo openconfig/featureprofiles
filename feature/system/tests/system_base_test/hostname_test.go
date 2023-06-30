@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 // TestHostname verifies that the hostname configuration paths can be read,

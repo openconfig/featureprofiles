@@ -22,9 +22,9 @@ import (
 
 	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
