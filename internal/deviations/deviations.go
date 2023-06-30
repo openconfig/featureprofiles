@@ -515,6 +515,13 @@ func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
 }
 
+// SkipControllerCardPowerAdmin returns if power-admin-state config on controller card should be skipped.
+// Default value is false.
+func SkipControllerCardPowerAdmin(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_skip_controller_card_power_admin")
+	return lookupDUTDeviations(dut).GetSkipControllerCardPowerAdmin()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -676,4 +683,6 @@ var (
 	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
 	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
+
+	_ = flag.Bool("deviation_skip_controller_card_power_admin", false, "Set to true if power-admin-state config on controller card should be skipped.")
 )
