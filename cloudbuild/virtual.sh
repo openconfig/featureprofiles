@@ -15,6 +15,8 @@
 
 set -x
 
+nohup /tmp/featureprofiles/cloudbuild/cleanup.sh 2>/dev/null &
+
 readonly platform="${1}"
 readonly dut_tests="${2}"
 

@@ -65,6 +65,8 @@ package deviations
 
 import (
 	"flag"
+	"fmt"
+	"regexp"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
@@ -72,19 +74,78 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// lookupDutDeviations returns the deviations for the specified dut.
-func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
+func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions, error) {
+	var matchedPlatformException *mpb.Metadata_PlatformExceptions
+
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
+		if platformExceptions.GetPlatform().Vendor.String() == "" {
+			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
+		}
+		if platformExceptions.GetPlatform().GetHardwareModelRegex() != "" && len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
+			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
+		}
+
 		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
 			continue
 		}
-		for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
-			if dut.Device.Model() == hardwareModel {
-				return platformExceptions.GetDeviations()
+
+		// If hardware_model_regex is set and does not match, continue
+		if hardwareModelRegex := platformExceptions.GetPlatform().GetHardwareModelRegex(); hardwareModelRegex != "" {
+			matchHw, errHw := regexp.MatchString(hardwareModelRegex, dut.Device.Model())
+			if errHw != nil {
+				return nil, fmt.Errorf("error with regex match %v", errHw)
+			}
+			if !matchHw {
+				continue
 			}
 		}
+
+		// If software_version_regex is set and does not match, continue
+		if softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex(); softwareVersionRegex != "" {
+			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dut.Device.Model())
+			if errSw != nil {
+				return nil, fmt.Errorf("error with regex match %v", errSw)
+			}
+			if !matchSw {
+				continue
+			}
+		}
+
+		// TODO(prinikasn): Remove after hardware_model field is removed.
+		if len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
+			matchedHwRepeated := false
+			for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
+				if dut.Device.Model() == hardwareModel {
+					matchedHwRepeated = true
+					break
+				}
+			}
+			if !matchedHwRepeated {
+				continue
+			}
+		}
+
+		if matchedPlatformException != nil {
+			return nil, fmt.Errorf("cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
+		}
+		matchedPlatformException = platformExceptions
 	}
-	log.Warningf("No platform exceptions for dut platform %v or model %v configured in platform exceptions metadata %v", dut.Device.Vendor().String(), dut.Device.Model(), metadata.Get().PlatformExceptions)
+	return matchedPlatformException, nil
+}
+
+func mustLookupDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_PlatformExceptions {
+	platformExceptions, err := lookupDeviations(dut)
+	if err != nil {
+		log.Exitf("Error looking up deviations: %v", err)
+	}
+	return platformExceptions
+}
+
+func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
+	if platformExceptions := mustLookupDeviations(dut); platformExceptions != nil {
+		return platformExceptions.GetDeviations()
+	}
+	log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
 	return &mpb.Metadata_Deviations{}
 }
 
@@ -191,12 +252,6 @@ func SwitchChipIDUnsupported(dut *ondatra.DUTDevice) bool {
 func BackplaneFacingCapacityUnsupported(dut *ondatra.DUTDevice) bool {
 	logErrorIfFlagSet("deviation_backplane_facing_capacity_unsupported")
 	return lookupDUTDeviations(dut).GetBackplaneFacingCapacityUnsupported()
-}
-
-// ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
-func ComponentsSoftwareModuleUnsupported(dut *ondatra.DUTDevice) bool {
-	logErrorIfFlagSet("deviation_components_software_module_unsupported")
-	return lookupDUTDeviations(dut).GetComponentsSoftwareModuleUnsupported()
 }
 
 // SchedulerInputWeightLimit returns whether the device does not support weight above 100.
@@ -510,6 +565,17 @@ func StorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStorageComponentUnsupported()
 }
 
+// GNOIFabricComponentRebootUnsupported returns if device does not support use using gNOI to reboot the Fabric Component.
+func GNOIFabricComponentRebootUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiFabricComponentRebootUnsupported()
+}
+
+// NtpNonDefaultVrfUnsupported returns true if the device does not support ntp nondefault vrf.
+// Default value is false.
+func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -639,8 +705,6 @@ var (
 	_ = flag.Bool("deviation_switch_chip_id_unsupported", false, "Device does not support id leaf for SwitchChip components. Set this flag to skip checking the leaf.")
 
 	_ = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
-
-	_ = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
 
 	_ = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 
