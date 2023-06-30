@@ -27,9 +27,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra"
 )
 
 var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{

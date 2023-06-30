@@ -18,11 +18,11 @@ package session
 import (
 	"fmt"
 
-	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // Attributes bundles some common attributes for devices and/or interfaces.

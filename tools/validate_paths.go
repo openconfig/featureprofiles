@@ -27,14 +27,13 @@ import (
 	"strings"
 
 	"flag"
-	
 
 	log "github.com/golang/glog"
-	"github.com/openconfig/goyang/pkg/yang"
-	"google.golang.org/protobuf/encoding/prototext"
-	"github.com/openconfig/ygot/util"
 	fppb "github.com/openconfig/featureprofiles/proto/feature_go_proto"
+	"github.com/openconfig/goyang/pkg/yang"
+	"github.com/openconfig/ygot/util"
 	"github.com/protocolbuffers/txtpbfmt/parser"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (
