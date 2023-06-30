@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 // TestCurrentDateTime verifies that the current date and time state path can
