@@ -295,7 +295,7 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
 		nextHops = append(nextHops, ateIPv4)
 	}
-	if deviations.ParentInterfaceRouted(dut) {
+	if deviations.RequireRoutedSubinterface0(dut) {
 		i := d.GetOrCreateInterface(dutPort.Name())
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
