@@ -5,7 +5,6 @@ uuid: "4e512503-5fec-4dcf-87f4-f510dede1cd0"
 plan_id: "RT-1.12"
 description: "BGP always compare MED"
 testbed: TESTBED_DUT_ATE_4LINKS
-
 platform_exceptions: {
   platform: {
     vendor: NOKIA
@@ -35,6 +34,7 @@ platform_exceptions: {
     hardware_model: "ceos"
   }
   deviations: {
+    omit_l2_mtu: true
     route_policy_under_afi_unsupported: true
   }
 }

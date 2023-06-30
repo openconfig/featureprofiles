@@ -50,5 +50,7 @@ platform_exceptions: {
   }
   deviations: {
     route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
+    bgp_tolerance_value: 2
   }
 }
