@@ -467,6 +467,18 @@ telemetry_path {
 
 # System Level Counters
 telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/exceed-max-seq-nums"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/manual-address-drop-from-areas"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/part-changes"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/total-lsps"
+}
+telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/corrupted-lsps"
 }
 telemetry_path {
@@ -490,19 +502,6 @@ telemetry_path {
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/spf-runs"
 }
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/exceeded-max-seq-nums"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/manual-address-drop-from-area"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/part-changes"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/total-lsps"
-}
-
 
 feature_profile_dependency {
   name: "networkinstance"
