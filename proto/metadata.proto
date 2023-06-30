@@ -192,6 +192,35 @@ message Metadata {
     bool gnoi_fabric_component_reboot_unsupported = 48;
     // Device does not support the ntp nondefault vrf case.
     bool ntp_non_default_vrf_unsupported = 49;
+    // Device does not support setting the L2 MTU. OpenConfig allows a device to
+    // enforce that L2 MTU, which has a default value of 1514, must be set to a
+    // higher value than L3 MTU.
+    // Arista: partnerissuetracker.corp.google.com/243445300
+    bool omit_l2_mtu = 50;
+    // Device requires the banner to have a delimiter character.
+    string banner_delimiter = 60;
+    // Allowed tolerance for BGP traffic flow while comparing for pass or fail
+    // condition.
+    int32 bgp_tolerance_value = 61;
+    // Device requires additional time to complete post delete link
+    // qualification cleanup.
+    bool link_qual_wait_after_delete_required = 62;
+    // The response of gNOI reboot status is a single value (not a list), so the
+    // device requires explict component path to account for a situation when
+    // there is more than one active reboot requests.
+    // Arista: partnerissuetracker.corp.google.com/245550570
+    bool gnoi_status_empty_subcomponent = 63;
+    // Set to true for device requiring explicit deletion of network-instance
+    // table.
+    bool network_instance_table_deletion_required = 64;
+    // Device requires a BGP session reset to utilize a new MD5 key.
+    bool bgp_md5_requires_reset = 65;
+    // Devices do not count dequeued and deleted packets as drops.
+    // Arista: partnerissuetracker.corp.google.com/275384848
+    bool dequeue_delete_not_counted_as_drops = 66;
+    // Device only supports RIB ack, so tests that normally expect FIB_ACK will
+    // allow just RIB_ACK.
+    bool gribi_riback_only = 67;
   }
 
   message PlatformExceptions {
