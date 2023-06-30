@@ -77,65 +77,50 @@ import (
 func matchRegex(regex string, deviceInfo string) bool {
 	match, err := regexp.MatchString(regex, deviceInfo)
 	if err != nil {
-		log.Errorf("Error with regex match %v", err)
+		log.Exitf("Error with regex match %v", err)
 	}
 	return match
 }
 
-func isPlatformExceptionsValid(platformExceptions *mpb.Metadata_PlatformExceptions) error {
-	if platformExceptions.GetPlatform().Vendor.String() == "" {
-		return fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
-	}
-	if platformExceptions.GetPlatform().GetHardwareModelRegex() != "" && len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
-		return fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
-	}
-	return nil
-}
-
 func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions, error) {
-	matchedPlatformException := &mpb.Metadata_PlatformExceptions{}
-	isPlatformExceptionsMatched := false
+	var matchedPlatformException *mpb.Metadata_PlatformExceptions = nil
 
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
-		if err := isPlatformExceptionsValid(platformExceptions); err != nil {
-			return nil, err
+		if platformExceptions.GetPlatform().Vendor.String() == "" {
+			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 		}
+		if platformExceptions.GetPlatform().GetHardwareModelRegex() != "" && len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
+			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
+		}
+
 		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
 			continue
 		}
-		// Exit test if both hardware_model_regex and hardware_model fields are set.
-		if hardwareModelRegex := platformExceptions.GetPlatform().GetHardwareModelRegex(); hardwareModelRegex != "" {
-			// If hardware_model_regex is set and does not match, continue
-			if !matchRegex(hardwareModelRegex, dut.Device.Model()) {
-				continue
-			}
+		// If hardware_model_regex is set and does not match, continue
+		if hardwareModelRegex := platformExceptions.GetPlatform().GetHardwareModelRegex(); hardwareModelRegex != "" && !matchRegex(hardwareModelRegex, dut.Device.Model()) {
+			continue
 		}
-		if softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex(); softwareVersionRegex != "" {
-			// If software_version_regex is set and does not match, continue
-			if !matchRegex(softwareVersionRegex, dut.Device.Version()) {
-				continue
+		// If software_version_regex is set and does not match, continue
+		if softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex(); softwareVersionRegex != "" && !matchRegex(softwareVersionRegex, dut.Device.Version()) {
+			continue
+		}
+
+		// TODO(prinikasn): Remove after hardware_model field is removed.
+		matchedHwRepeated := false
+		for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
+			if dut.Device.Model() == hardwareModel {
+				matchedHwRepeated = true
 			}
 		}
 
-		// TODO(prinikasn): Refactor after hardware_model field is removed.
-		if len(platformExceptions.GetPlatform().GetHardwareModel()) == 0 {
-			if isPlatformExceptionsMatched {
-				return nil, fmt.Errorf("cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
-			}
-			matchedPlatformException = platformExceptions
-			isPlatformExceptionsMatched = true
+		if len(platformExceptions.GetPlatform().GetHardwareModel()) != 0 && !matchedHwRepeated {
+			continue
 		}
-		// TODO(prinikasn): Remove after hardware_model field is removed.
-		// If hardware_model_regex is empty, get the deviations from matching the model in the hardware_model field.
-		for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
-			if dut.Device.Model() == hardwareModel {
-				if isPlatformExceptionsMatched {
-					return nil, fmt.Errorf("cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
-				}
-				matchedPlatformException = platformExceptions
-				isPlatformExceptionsMatched = true
-			}
+
+		if matchedPlatformException != nil {
+			return nil, fmt.Errorf("cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
 		}
+		matchedPlatformException = platformExceptions
 	}
 	return matchedPlatformException, nil
 }
@@ -145,8 +130,9 @@ func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
 	if err != nil {
 		log.Exitf("Error looking up deviations: %v", err)
 	}
-	if platformExceptions.GetPlatform().Vendor.String() == "" {
-		log.Errorf("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
+	if platformExceptions == nil {
+		log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
+		return &mpb.Metadata_Deviations{}
 	}
 
 	return platformExceptions.GetDeviations()
