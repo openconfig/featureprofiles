@@ -165,14 +165,14 @@ var (
 	}
 	dutPort1SubIntf6 = attrs.Attributes{
 		Desc:    "DUT to ATE sub interface 6",
-		IPv4:    "192.0.11.1",
+		IPv4:    "192.0.12.1",
 		IPv6:    "2001:db8::192:0:11:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort1SubIntf6 = attrs.Attributes{
 		Name:    "ateSrcSubIntf6",
-		IPv4:    "192.0.11.2",
+		IPv4:    "192.0.12.2",
 		IPv6:    "2001:db8::192:0:11:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
