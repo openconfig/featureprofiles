@@ -35,21 +35,25 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	trafficDuration   = 1 * time.Minute
-	sleepOnChange     = 10 * time.Second
-	plen4             = 30
-	plen6             = 126
-	vlan10            = 10
-	vlan20            = 20
-	ipipProtocol      = 4
-	ipv6ipProtocol    = 41
-	ipv4Address       = "198.18.0.1/32"
-	ateDestIPv4VLAN10 = "203.0.113.0/30"
-	ateDestIPv4VLAN20 = "203.0.113.4/30"
-	ateDestIPv6       = "2001:DB8:2::/64"
-	defaultNHv4       = "192.0.2.10"
-	defaultNHv6       = "2001:db8::a"
-	vrfNH             = "192.0.2.6"
+	trafficDuration           = 1 * time.Minute
+	sleepOnChange             = 10 * time.Second
+	plen4                     = 30
+	plen6                     = 126
+	vlan10                    = 10
+	vlan20                    = 20
+	ipipProtocol              = 4
+	ipv6ipProtocol            = 41
+	srcIpv4Address            = "198.18.0.1"
+	prefixedSrcIpv4Address    = "198.18.0.1/32"
+	nonMatchingIpv4Address    = "198.51.100.1"
+	ateDestIPv4VLAN10         = "203.0.113.0"
+	prefixedAteDestIPv4VLAN10 = "203.0.113.0/30"
+	ateDestIPv4VLAN20         = "203.0.113.4"
+	prefixedAteDestIPv4VLAN20 = "203.0.113.4/30"
+	ateDestIPv6               = "2001:DB8:2::/64"
+	defaultNHv4               = "192.0.2.10"
+	defaultNHv6               = "2001:db8::a"
+	vrfNH                     = "192.0.2.6"
 )
 
 var (
@@ -236,7 +240,7 @@ func configForwardingPolicy(dut *ondatra.DUTDevice) *oc.NetworkInstance_PolicyFo
 	fwdPolicy2 := policyFwding.GetOrCreatePolicy("match-ipip-src")
 	fwdPolicy2.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
-	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
+	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(prefixedSrcIpv4Address)
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("VRF-10")
 
 	fwdPolicy3 := policyFwding.GetOrCreatePolicy("match-ipv6inipv4")
@@ -247,7 +251,7 @@ func configForwardingPolicy(dut *ondatra.DUTDevice) *oc.NetworkInstance_PolicyFo
 	fwdPolicy4 := policyFwding.GetOrCreatePolicy("match-ipv6inipv4-src")
 	fwdPolicy4.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipv6ipProtocol)
-	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
+	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(prefixedSrcIpv4Address)
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("VRF-10")
 
 	return policyFwding
@@ -322,33 +326,42 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	// Create traffic flows
 	t.Logf("*** Configuring OTG flows ...")
 	topo.Flows().Clear().Items()
-	ipInIPFlow1 := createFlow("ipInIPFlow1", topo, ateDst, "IPv4")
-	ipInIPFlow2 := createFlow("ipInIPFlow2", topo, ateDst2, "IPv4")
-	ipInIPFlow3 := createFlow("ipInIPFlow3", topo, ateDst, "IPv4")
-	ipInIPFlow4 := createFlow("ipInIPFlow4", topo, ateDst2, "IPv4")
-	ipv6InIPFlow5 := createFlow("ipv6InIPFlow5", topo, ateDst, "IPv6")
-	ipv6InIPFlow6 := createFlow("ipv6InIPFlow6", topo, ateDst2, "IPv6")
-	ipv6InIPFlow7 := createFlow("ipv6InIPFlow7", topo, ateDst, "IPv6")
-	ipv6InIPFlow8 := createFlow("ipv6InIPFlow8", topo, ateDst2, "IPv6")
-	nativeIPv4 := createFlow("nativeIPv4", topo, ateDst2, "")
-	nativeIPv6 := createFlow("nativeIPv6", topo, ateDst2, "")
+	ipInIPFlow1 := createIPv4Flow("ipInIPFlow1", topo, ateDst, nonMatchingIpv4Address, ateDestIPv4VLAN10, "IPv4")
+	ipInIPFlow2 := createIPv4Flow("ipInIPFlow2", topo, ateDst2, nonMatchingIpv4Address, ateDestIPv4VLAN20, "IPv4")
+	ipInIPFlow3 := createIPv4Flow("ipInIPFlow3", topo, ateDst, srcIpv4Address, ateDestIPv4VLAN10, "IPv4")
+	ipInIPFlow4 := createIPv4Flow("ipInIPFlow4", topo, ateDst2, srcIpv4Address, ateDestIPv4VLAN20, "IPv4")
+	ipv6InIPFlow5 := createIPv4Flow("ipv6InIPFlow5", topo, ateDst, nonMatchingIpv4Address, ateDestIPv4VLAN10, "IPv6")
+	ipv6InIPFlow6 := createIPv4Flow("ipv6InIPFlow6", topo, ateDst2, nonMatchingIpv4Address, ateDestIPv4VLAN20, "IPv6")
+	ipv6InIPFlow7 := createIPv4Flow("ipv6InIPFlow7", topo, ateDst, srcIpv4Address, ateDestIPv4VLAN10, "IPv6")
+	ipv6InIPFlow8 := createIPv4Flow("ipv6InIPFlow8", topo, ateDst2, srcIpv4Address, ateDestIPv4VLAN20, "IPv6")
+	nativeIPv4 := createIPv4Flow("nativeIPv4", topo, ateDst2, ateSrc.IPv4, ateDestIPv4VLAN20, "")
+	nativeIPv6 := topo.Flows().Add().SetName("nativeIPv6")
+	nativeIPv6.Metrics().SetEnable(true)
+	nativeIPv6.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
+	nativeIPv6.Packet().Add().Ethernet().Src().SetValue(ateSrc.MAC)
+	v6 := nativeIPv6.Packet().Add().Ipv6()
+	v6.Src().SetValue(ateSrc.IPv6)
+	v6.Dst().SetValue("2001:DB8:2::")
+	nativeIPv6.Size().SetFixed(512)
+	nativeIPv6.Rate().SetChoice("percentage").SetPercentage(5)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	return &trafficFlows{ipInIPFlow1, ipInIPFlow2, ipInIPFlow3, ipInIPFlow4, ipv6InIPFlow5, ipv6InIPFlow6, ipv6InIPFlow7, ipv6InIPFlow8, nativeIPv4, nativeIPv6}
 }
 
-func createFlow(name string, top gosnappi.Config, dst attrs.Attributes, innerIpType string) gosnappi.Flow {
-
+func createIPv4Flow(name string, top gosnappi.Config, dst attrs.Attributes, srcIP, dstIP, innerIpType string) gosnappi.Flow {
 	flow := top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv4"}).SetRxNames([]string{dst.Name + ".IPv4"})
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(ateSrc.MAC)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(ateSrc.IPv4)
-	v4.Dst().SetValue(dst.IPv4)
+	v4.Src().SetValue(srcIP)
+	v4.Dst().SetValue(dstIP)
 	if innerIpType == "IPv4" {
 		flow.Packet().Add().Ipv4()
 	}
@@ -437,8 +450,8 @@ func TestVrfPolicy(t *testing.T) {
 
 	// Configure DUT interfaces and forwarding policy.
 	configureDUT(t, dut, p1, p2)
-	configDefaultRoute(t, dut, ateDestIPv4VLAN20, defaultNHv4, ateDestIPv6, defaultNHv6)
-	configVRFRoute(t, dut, ateDestIPv4VLAN10, vrfNH)
+	configDefaultRoute(t, dut, prefixedAteDestIPv4VLAN20, defaultNHv4, ateDestIPv6, defaultNHv6)
+	configVRFRoute(t, dut, prefixedAteDestIPv4VLAN10, vrfNH)
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
