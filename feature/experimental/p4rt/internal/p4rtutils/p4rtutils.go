@@ -26,13 +26,13 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/golang/glog"
+	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 

@@ -19,10 +19,10 @@ import (
 	"os"
 	"strings"
 
+	"google.golang.org/protobuf/encoding/prototext"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gribi/v1/proto/service"
-	"google.golang.org/protobuf/encoding/prototext"
 )
 
 func readCLI(path string) (string, error) {

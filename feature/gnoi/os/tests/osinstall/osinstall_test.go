@@ -25,13 +25,13 @@ import (
 
 	"flag"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	closer "github.com/openconfig/gocloser"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/openconfig/ondatra"
 
 	ospb "github.com/openconfig/gnoi/os"
 	spb "github.com/openconfig/gnoi/system"

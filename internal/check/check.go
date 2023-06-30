@@ -149,10 +149,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // FormatPath formats a PathStruct for display. On unresolvable or otherwise

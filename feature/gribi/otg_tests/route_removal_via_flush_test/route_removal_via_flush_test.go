@@ -27,8 +27,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 

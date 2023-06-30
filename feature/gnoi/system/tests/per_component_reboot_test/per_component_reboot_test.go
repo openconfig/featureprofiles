@@ -19,14 +19,14 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"

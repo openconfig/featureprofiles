@@ -23,8 +23,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra"
 )
 
 const (

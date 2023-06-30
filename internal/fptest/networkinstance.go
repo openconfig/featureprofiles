@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/ygot/ygot"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ondatra"
 )
 
 // AssignToNetworkInstance attaches a subinterface to a network instance.

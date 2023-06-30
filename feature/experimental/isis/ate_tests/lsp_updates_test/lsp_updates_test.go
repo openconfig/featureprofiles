@@ -20,13 +20,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/feature/experimental/isis/ate_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {

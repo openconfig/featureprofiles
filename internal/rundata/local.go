@@ -26,8 +26,8 @@ import (
 
 	"flag"
 
-	gitv5 "github.com/go-git/go-git/v5"
 	"github.com/golang/glog"
+	gitv5 "github.com/go-git/go-git/v5"
 )
 
 // buildInfo populates the properties from debug.ReadBuildInfo.

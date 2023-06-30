@@ -19,6 +19,11 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
+	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -27,11 +32,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
 
 	gpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra/gnmi"

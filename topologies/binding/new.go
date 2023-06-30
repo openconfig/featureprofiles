@@ -25,14 +25,14 @@ import (
 	"flag"
 
 	"github.com/golang/glog"
+	"google.golang.org/protobuf/encoding/prototext"
 	"github.com/openconfig/featureprofiles/internal/rundata"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
-	"github.com/openconfig/ondatra/knebind"
 	knecreds "github.com/openconfig/ondatra/knebind/creds"
+	"github.com/openconfig/ondatra/knebind"
+	"github.com/openconfig/ondatra"
 	opb "github.com/openconfig/ondatra/proto"
-	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (

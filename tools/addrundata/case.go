@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"google.golang.org/protobuf/proto"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 // testcase carries parsed rundata from different sources to be fixed and checked.
