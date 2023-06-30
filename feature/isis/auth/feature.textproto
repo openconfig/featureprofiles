@@ -116,3 +116,13 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication/state/keychain"
 }
+
+feature_profile_dependency {
+  name: "isis"
+  version: 1
+}
+
+feature_profile_dependency {
+  name: "networkinstance"
+  version: 1
+}
