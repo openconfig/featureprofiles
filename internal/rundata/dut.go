@@ -23,10 +23,10 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
