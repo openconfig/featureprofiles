@@ -811,9 +811,10 @@ func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string)
 }
 
 func juniperCLI() string {
+	var proto string = "bgp"
 	return fmt.Sprintf(`
 	protocols {
-		bgp {
+		%s {
 			graceful-restart {
 				long-lived {
 					receiver {
@@ -823,7 +824,7 @@ func juniperCLI() string {
 			}
 		}
 	}
-	`)
+	`, proto)
 }
 
 func removeATENewPeers(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology, intfList []*ondatra.Interface, bgpPeers []*ixnet.BGP) {
