@@ -37,7 +37,7 @@ func TestFabricPowerAdmin(t *testing.T) {
 				t.Skipf("Fabric Component %s is already INACTIVE, hence skipping", f)
 			}
 
-			before := helpers.FetchOperStatusUPIntfs(t, dut, true)
+			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
 
 			powerDownUp(t, dut, f, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 3*time.Minute)
 
@@ -66,7 +66,7 @@ func TestLinecardPowerAdmin(t *testing.T) {
 				t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", l)
 			}
 
-			before := helpers.FetchOperStatusUPIntfs(t, dut, true)
+			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
 
 			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 10*time.Minute)
 
