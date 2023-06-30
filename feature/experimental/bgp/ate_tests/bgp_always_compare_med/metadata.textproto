@@ -5,3 +5,36 @@ uuid: "4e512503-5fec-4dcf-87f4-f510dede1cd0"
 plan_id: "RT-1.12"
 description: "BGP always compare MED"
 testbed: TESTBED_DUT_ATE_4LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model: "DCS-7280CR3K-32D4"
+    hardware_model: "DCS-7808"
+    hardware_model: "DCS-7804-CH"
+    hardware_model: "ceos"
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+  }
+}

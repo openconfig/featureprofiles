@@ -44,6 +44,12 @@ message Metadata {
     ondatra.Device.Vendor vendor = 1;
     // Hardware models of the device.
     repeated string hardware_model = 2;
+    // Regex for hardware model of the device.
+    // The empty string will match any hardware model.
+    string hardware_model_regex = 3;
+    // Regex for software version of the device.
+    // The empty string will match any software version.
+    string software_version_regex = 4;
   }
 
   message Deviations {
@@ -181,7 +187,8 @@ message Metadata {
     bool gribi_mac_override_with_static_arp = 46;
     // Set true for device that does not support route-policy under AFI/SAFI.
     bool route_policy_under_afi_unsupported = 47;
-    // Set to true for device that does not support use using gNOI to reboot the Fabric Component.
+    // Set to true for device that does not support use using gNOI to reboot the
+    // Fabric Component.
     bool gnoi_fabric_component_reboot_unsupported = 48;
     // Device does not support the ntp nondefault vrf case.
     bool ntp_non_default_vrf_unsupported = 49;
@@ -192,5 +199,7 @@ message Metadata {
     Deviations deviations = 2;
   }
 
+  // The `platform` field for each `platform_exceptions` should be mutually
+  // exclusive. Duplicate matches will result in a test failure.
   repeated PlatformExceptions platform_exceptions = 5;
 }
