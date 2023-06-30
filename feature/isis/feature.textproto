@@ -139,27 +139,26 @@ telemetry_path {
 
 # Interfaces circuit-counters
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/adj-changes"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-changes"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/adj-number"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-number"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/id-field-len-mismatches"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/id-field-len-mismatches"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/init-fails"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/init-fails"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/lan-dis-changes"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/lan-dis-changes"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/max-area-address-mismatch"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/max-area-address-mismatch"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/rejected-adj"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/rejected-adj"
 }
-
 
 # Interfaces csnp interval
 config_path {
@@ -341,6 +340,48 @@ telemetry_path {
 
 # Adjacencies
 telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/area-address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/dis-system-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/local-extended-system-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-circuit-type"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-extended-system-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-snpa"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/nlpid"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/priority"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/remaining-hold-time"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-status"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-support"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-suppress"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/topology"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/up-time"
+}
+telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state"
 }
 telemetry_path {
@@ -351,60 +392,6 @@ telemetry_path {
 }
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/system-id"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/adjacency-state"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/area-address"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/dis-system-id"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/local-extended-system-id"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/neighbor-circuit-type"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/neighbor-extended-system-id"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/neighbor-ipv6-address"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/neighbor-snpa"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/nlpid"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/priority"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/remaining-hold-time"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/restart-status"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/restart-support"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/restart-suppress"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/system-id"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/topology"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/up-time"
 }
 
 

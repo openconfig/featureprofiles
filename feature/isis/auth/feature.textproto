@@ -47,12 +47,11 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/state/disable-lsp"
 }
-
 telemetry_path {
-    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-fails"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/auth-fails"
 }
 telemetry_path {
-    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-type-fails"
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/auth-type-fails"
 }
 
 # Interface auth
