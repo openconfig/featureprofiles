@@ -124,56 +124,56 @@ var (
 	dutPort1SubIntf3 = attrs.Attributes{
 		Desc:    "DUT to ATE sub interface 3",
 		IPv4:    "192.0.2.13",
-		IPv6:    "2001:db8::192:0:5:1",
+		IPv6:    "2001:db8::192:0:4:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort1SubIntf3 = attrs.Attributes{
 		Name:    "ateSrcSubIntf3",
 		IPv4:    "192.0.2.14",
-		IPv6:    "2001:db8::192:0:5:2",
+		IPv6:    "2001:db8::192:0:4:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort1SubIntf4 = attrs.Attributes{
 		Desc:    "DUT to ATE sub interface 4",
-		IPv4:    "192.0.2.15",
-		IPv6:    "2001:db8::192:0:7:1",
+		IPv4:    "192.0.2.17",
+		IPv6:    "2001:db8::192:0:5:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort1SubIntf4 = attrs.Attributes{
 		Name:    "ateSrcSubIntf4",
-		IPv4:    "192.0.2.16",
-		IPv6:    "2001:db8::192:0:7:2",
+		IPv4:    "192.0.2.18",
+		IPv6:    "2001:db8::192:0:5:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort1SubIntf5 = attrs.Attributes{
 		Desc:    "DUT to ATE sub interface 5",
-		IPv4:    "192.0.2.19",
-		IPv6:    "2001:db8::192:0:9:1",
+		IPv4:    "192.0.2.21",
+		IPv6:    "2001:db8::192:0:6:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort1SubIntf5 = attrs.Attributes{
 		Name:    "ateSrcSubIntf5",
-		IPv4:    "192.0.2.20",
-		IPv6:    "2001:db8::192:0:9:2",
+		IPv4:    "192.0.2.22",
+		IPv6:    "2001:db8::192:0:6:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort1SubIntf6 = attrs.Attributes{
 		Desc:    "DUT to ATE sub interface 6",
-		IPv4:    "192.0.2.23",
-		IPv6:    "2001:db8::192:0:11:1",
+		IPv4:    "192.0.2.25",
+		IPv6:    "2001:db8::192:0:7:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort1SubIntf6 = attrs.Attributes{
 		Name:    "ateSrcSubIntf6",
-		IPv4:    "192.0.2.24",
-		IPv6:    "2001:db8::192:0:11:2",
+		IPv4:    "192.0.2.26",
+		IPv6:    "2001:db8::192:0:7:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -502,7 +502,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (*ondatra.ATETopology, [
 		WithSrcEndpoints(iDut1SubIntf1).
 		WithDstEndpoints(iDut2).
 		WithHeaders(ethHeader, ipv4Header).
-		WithFrameSize(512).WithFrameRateFPS(50)
+		WithFrameSize(512)
 
 	return topo, []*ondatra.Flow{flowipv4}, []*ondatra.Interface{iDut1SubIntf2, iDut1SubIntf3, iDut1SubIntf4, iDut1SubIntf5, iDut1SubIntf6}
 }
@@ -838,19 +838,19 @@ func removeNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
 	for _, nbr := range nbrs {
 		gnmi.Delete(t, dut, dutConfPath.Neighbor(nbr.neighborip).Config())
 	}
-	fptest.LogQuery(t, "DUT1 BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 }
 
-func restartRoutingProcess(t *testing.T, dut1 *ondatra.DUTDevice) {
-	if _, ok := routingDaemon[dut1.Vendor()]; !ok {
-		t.Fatalf("Please add support for vendor %v in var routingDaemon", dut1.Vendor())
+func restartRoutingProcess(t *testing.T, dut *ondatra.DUTDevice) {
+	if _, ok := routingDaemon[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var routingDaemon", dut.Vendor())
 	}
 	t.Run("KillGRIBIDaemon", func(t *testing.T) {
 		// Find the PID of routing Daemon.
 		var pId uint64
-		pName := routingDaemon[dut1.Vendor()]
+		pName := routingDaemon[dut.Vendor()]
 		t.Run("FindroutingDaemonPid", func(t *testing.T) {
-			pId = findProcessByName(t, dut1, pName)
+			pId = findProcessByName(t, dut, pName)
 			if pId == 0 {
 				t.Fatalf("Couldn't find pid of routing daemon '%s'", pName)
 			} else {
@@ -862,7 +862,7 @@ func restartRoutingProcess(t *testing.T, dut1 *ondatra.DUTDevice) {
 		t.Run("ExecuteGnoiKill", func(t *testing.T) {
 			// TODO - pid type is uint64 in oc-system model, but uint32 in gNOI Kill Request proto.
 			// Until the models are brought in line, typecasting the uint64 to uint32.
-			gNOIKillProcess(t, dut1, pName, uint32(pId))
+			gNOIKillProcess(t, dut, pName, uint32(pId))
 			// Wait for a bit for routing daemon on the DUT to restart.
 			time.Sleep(30 * time.Second)
 		})
@@ -931,7 +931,7 @@ func configureDutNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeigh
 		}
 	}
 	gnmi.Update(t, dut, dutConfPath.Config(), ni_proto)
-	fptest.LogQuery(t, "DUT1 BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 }
 
 // configureATENewPeers configures five more new BGP peers on ATE.
@@ -940,31 +940,21 @@ func configureATENewPeers(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.AT
 	bgpDut1 := intfList[0].BGP()
 	bgpDut1.AddPeer().WithPeerAddress(dutPort1SubIntf2.IPv4).WithLocalASN(ateAS).
 		WithTypeExternal().Capabilities().WithGracefulRestart(true)
-	bgpDut1.AddPeer().WithPeerAddress(dutPort1SubIntf2.IPv6).WithLocalASN(ateAS).
-		WithTypeExternal().Capabilities().WithGracefulRestart(true)
 
 	bgpDut2 := intfList[1].BGP()
 	bgpDut2.AddPeer().WithPeerAddress(dutPort1SubIntf3.IPv4).WithLocalASN(ateAS).
-		WithTypeExternal().Capabilities().WithGracefulRestart(true)
-	bgpDut2.AddPeer().WithPeerAddress(dutPort1SubIntf3.IPv6).WithLocalASN(ateAS).
 		WithTypeExternal().Capabilities().WithGracefulRestart(true)
 
 	bgpDut3 := intfList[2].BGP()
 	bgpDut3.AddPeer().WithPeerAddress(dutPort1SubIntf4.IPv4).WithLocalASN(ateAS).
 		WithTypeExternal().Capabilities().WithGracefulRestart(true)
-	bgpDut3.AddPeer().WithPeerAddress(dutPort1SubIntf4.IPv6).WithLocalASN(ateAS).
-		WithTypeExternal().Capabilities().WithGracefulRestart(true)
 
 	bgpDut4 := intfList[3].BGP()
 	bgpDut4.AddPeer().WithPeerAddress(dutPort1SubIntf5.IPv4).WithLocalASN(ateAS).
 		WithTypeExternal().Capabilities().WithGracefulRestart(true)
-	bgpDut4.AddPeer().WithPeerAddress(dutPort1SubIntf5.IPv6).WithLocalASN(ateAS).
-		WithTypeExternal().Capabilities().WithGracefulRestart(true)
 
 	bgpDut5 := intfList[4].BGP()
 	bgpDut5.AddPeer().WithPeerAddress(dutPort1SubIntf6.IPv4).WithLocalASN(ateAS).
-		WithTypeExternal().Capabilities().WithGracefulRestart(true)
-	bgpDut5.AddPeer().WithPeerAddress(dutPort1SubIntf6.IPv6).WithLocalASN(ateAS).
 		WithTypeExternal().Capabilities().WithGracefulRestart(true)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
@@ -1025,7 +1015,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 
 	// Configure interface on the DUT.
 	t.Run("configureDut", func(t *testing.T) {
-		t.Log("Start DUT interface Config")
+		t.Log("Start DUT interface config")
 		configureDUT(t, dut)
 		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	})
@@ -1033,7 +1023,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	nbrList := buildNbrList(ateAS)
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	t.Run("configureBGP", func(t *testing.T) {
-		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
+		t.Log("Configure BGP with graceful restart option under global BGP")
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
@@ -1057,7 +1047,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	})
 
 	t.Run("VerifyTrafficPassBeforeAcLBlock", func(t *testing.T) {
-		t.Log("Send Traffic with GR timer enabled. Traffic should pass")
+		t.Log("Send traffic with GR timer enabled. Traffic should pass.")
 		sendTraffic(t, ate, allFlows, trafficDuration)
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
@@ -1071,7 +1061,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		t.Log("Starting traffic")
 		ate.Traffic().Start(t, allFlows...)
 		startTime := time.Now()
-		t.Log("Trigger Graceful Restart on ATE")
+		t.Log("Trigger graceful restart on ATE")
 		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime * time.Second).WithPeers(bgpPeer).Send(t)
 		if deviations.UseVendorNativeACLConfig(dut) {
 			configACLNative(t, dut, aclName)
@@ -1088,7 +1078,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 
 		replaceDuration := time.Since(startTime)
 		time.Sleep(grTimer - stopDuration - replaceDuration)
-		t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
+		t.Log("Send traffic while GR timer is counting down. Traffic should pass as BGP GR is enabled!")
 		ate.Traffic().Stop(t)
 		t.Log("Traffic stopped")
 		verifyNoPacketLoss(t, ate, allFlows)
@@ -1097,7 +1087,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
-		t.Log("Waiting for BGP neighbor to Not be in Established state after applying ACL DENY policy..")
+		t.Log("Waiting for BGP neighbor to be not in Established state after applying ACL DENY policy..")
 		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			currState, ok := val.Val()
 			return ok && currState != oc.Bgp_Neighbor_SessionState_ESTABLISHED
@@ -1137,7 +1127,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 			bgpIxPeer = configureATENewPeers(t, ate, topo, ateIntfList)
 		})
 
-		t.Run("Remove newly added BGP Peers", func(t *testing.T) {
+		t.Run("Remove newly added BGP peers", func(t *testing.T) {
 			t.Logf("Remove newly added 5 more new BGP peers.")
 			removeNewPeers(t, dut, dutNbrs)
 			removeATENewPeers(t, ate, topo, ateIntfList, bgpIxPeer)
@@ -1156,13 +1146,13 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	})
 
 	t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
-		t.Log("Send Traffic Again after GR timer has expired. This traffic should fail!")
+		t.Log("Send traffic again after GR timer has expired. This traffic should fail!")
 		sendTraffic(t, ate, allFlows, trafficDuration)
 		confirmPacketLoss(t, ate, allFlows)
 	})
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
-		t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
+		t.Log("Removing ACL on the interface to restore BGP GR. Traffic should now pass!")
 		if deviations.UseVendorNativeACLConfig(dut) {
 			configAdmitAllACLNative(t, dut, aclName)
 			configACLInterfaceNative(t, dut, ifName)
@@ -1200,14 +1190,14 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	t.Run("configureDut", func(t *testing.T) {
-		t.Log("Start DUT interface Config")
+		t.Log("Start DUT interface config")
 		configureDUT(t, dut)
 		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	})
 
 	nbrList := buildNbrList(ateAS)
 	t.Run("configureBGP", func(t *testing.T) {
-		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
+		t.Log("Configure BGP with graceful restart option under global Bgp")
 		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
@@ -1231,7 +1221,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	})
 
 	t.Run("VerifyTrafficPassBeforeAcLBlock", func(t *testing.T) {
-		t.Log("Send Traffic with GR timer enabled. Traffic should pass")
+		t.Log("Send traffic with GR timer enabled. Traffic should pass.")
 		sendTraffic(t, ate, allFlows, trafficDuration)
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
@@ -1257,12 +1247,12 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	ifName := dut.Port(t, "port2").Name()
 	iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
 	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
-		t.Log("Configure Acl to block BGP on port 179")
+		t.Log("Configure ACL to block BGP on port 179")
 		const stopDuration = 45 * time.Second
 		t.Log("Starting traffic")
 		ate.Traffic().Start(t, allFlows...)
 		startTime := time.Now()
-		t.Log("Trigger Graceful Restart on ATE")
+		t.Log("Trigger graceful restart on ATE")
 		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime * time.Second).WithPeers(bgpPeer).Send(t)
 		if deviations.UseVendorNativeACLConfig(dut) {
 			configACLNative(t, dut, aclName)
@@ -1278,9 +1268,9 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		})
 
 		replaceDuration := time.Since(startTime)
-		time.Sleep((grTimer - stopDuration - replaceDuration) * time.Second)
+		time.Sleep(grTimer - stopDuration - replaceDuration)
 
-		t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
+		t.Log("Send traffic while GR timer is counting down. Traffic should pass as BGP GR is enabled!")
 		ate.Traffic().Stop(t)
 		t.Log("Traffic stopped")
 		verifyNoPacketLoss(t, ate, allFlows)
@@ -1289,14 +1279,14 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 	t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
-		t.Log("Waiting for BGP neighbor to Not be in Established state after applying ACL DENY policy..")
+		t.Log("Waiting for BGP neighbor to be not in Established state after applying ACL DENY policy..")
 		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			currState, ok := val.Val()
 			return ok && currState != oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
 			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-			t.Errorf("BGP session did not go Down as expected")
+			t.Errorf("BGP session did not go Down as expected.")
 		}
 	})
 
