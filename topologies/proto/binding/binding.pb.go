@@ -24,10 +24,9 @@ import (
 	reflect "reflect"
 	sync "sync"
 
+	proto "github.com/openconfig/ondatra/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-
-	proto "github.com/openconfig/ondatra/proto"
 )
 
 const (
