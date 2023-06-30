@@ -39,6 +39,9 @@ telemetry_path {
 telemetry_path {
   path: "/lldp/state/chassis-id-type"
 }
+config_path {
+  path: "/lldp/config/system-name"
+}
 telemetry_path {
   path: "/lldp/state/system-name"
 }
@@ -47,6 +50,9 @@ config_path {
 }
 telemetry_path {
     path: "/lldp/state/system-description"
+}
+config_path {
+  path: "/lldp/interfaces/interface/name"
 }
 config_path {
     path: "/lldp/interfaces/interface/config/name"
