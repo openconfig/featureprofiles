@@ -352,7 +352,7 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-circuit-type"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-extended-system-id"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/state/system-id"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-snpa"
@@ -362,9 +362,6 @@ telemetry_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/priority"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/remaining-hold-time"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-status"
@@ -379,7 +376,7 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/topology"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/up-time"
+  path: "	/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/up-timestamp"
 }
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state"
