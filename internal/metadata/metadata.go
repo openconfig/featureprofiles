@@ -4,8 +4,8 @@ package metadata
 import (
 	"os"
 
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"google.golang.org/protobuf/encoding/prototext"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 var md *mpb.Metadata

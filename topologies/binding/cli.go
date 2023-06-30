@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/openconfig/ondatra/binding"
 	"golang.org/x/crypto/ssh"
+	"github.com/openconfig/ondatra/binding"
 )
 
 // cli implements the binding.StreamClient interface using an SSH

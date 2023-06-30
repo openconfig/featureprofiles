@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"google.golang.org/protobuf/proto"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 // listTestTracker writes the testsuite as a TestTracker test plan, which is formatted in

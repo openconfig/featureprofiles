@@ -25,14 +25,14 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	otgoc "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ondatra"
 )
 
 func TestMain(m *testing.M) {

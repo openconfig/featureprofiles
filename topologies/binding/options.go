@@ -27,14 +27,14 @@ import (
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 
-	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
-	"github.com/openconfig/ondatra/binding/ixweb"
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
-	"google.golang.org/grpc"
+	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/ondatra/binding/ixweb"
 )
 
 // IANA assigns 9339 for gNxI, and 9559 for P4RT.  There hasn't been a

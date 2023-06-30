@@ -20,10 +20,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra/binding"
 	opb "github.com/openconfig/ondatra/proto"
-	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestReserveRelease(t *testing.T) {

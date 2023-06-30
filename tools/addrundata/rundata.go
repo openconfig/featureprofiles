@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"google.golang.org/protobuf/encoding/prototext"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 // markdownRE matches the heading line: `# XX-1.1: Foo Functional Test`
