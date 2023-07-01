@@ -33,11 +33,3 @@ telemetry_path {
 telemetry_path {
     path: "/system/aaa/authentication/admin-user/state/admin-username"
 }
-
-#Local user authentication
-config_path {
-  path: "/system/config/aaa/authentication/users/user/config/ssh-key"
-}
-config_path {
-  path: "/system/config/aaa/authentication/users/user/config/username"
-}
