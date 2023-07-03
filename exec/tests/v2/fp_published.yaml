@@ -631,4 +631,5 @@ tests:
     owners:
       - mananpat
     mustpass: true
+    timeout: 2400
     pr: 1678 
