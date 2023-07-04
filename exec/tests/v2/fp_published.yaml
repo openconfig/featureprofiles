@@ -244,7 +244,7 @@ tests:
     owners:
       - sprem
     priority: 5
-    mustpass: false    
+    mustpass: true    
   - name: gNMI-1.1 (cli Origin)
     path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
     owners:
@@ -483,6 +483,12 @@ tests:
     skip: false
     priority: 6
     timeout: 4200
+  - name: RT-1.12 (BGP always compare MED)
+    path: feature/experimental/bgp/ate_tests/bgp_always_compare_med
+    owners:
+      - sprem
+    mustpass: true
+    priority: 52
   - name: gNMI-1.4 (Telemetry Inventory)
     path: feature/platform/tests/telemetry_inventory_test
     owners:
