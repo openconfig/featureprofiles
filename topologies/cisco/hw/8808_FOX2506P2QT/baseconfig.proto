@@ -13,7 +13,7 @@ replace: {
 "!\n"
 "lpts punt police location 0/0/CPU0\n"
 " exception ttl-expiry rate 1500\n"
-"lpts punt police location 0/6/CPU0\n"
+"lpts punt police location 0/7/CPU0\n"
 " exception ttl-expiry rate 1500\n"
 "lpts punt police location 0/5/CPU0\n"
 " exception ttl-expiry rate 1500\n"
