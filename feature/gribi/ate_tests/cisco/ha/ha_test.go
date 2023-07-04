@@ -830,6 +830,7 @@ func (a *testArgs) scaleIPV4(t *testing.T, vrf_name string, nhg_start int, opts 
 	}
 }
 
+//lint:ignore U1000 Ignore unused function temporarily for debugging
 func baseScaleProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// setting aft check false, as it can take forever to run
@@ -919,6 +920,7 @@ func baseScaleProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, "0.0.0.0/0", 4000, vrf4, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 }
 
+//lint:ignore U1000 Ignore unused function temporarily for debugging
 func (args *testArgs) gnmiConf(t *testing.T, conf string) {
 	updateRequest := &proto_gnmi.Update{
 		Path: &proto_gnmi.Path{
@@ -1660,6 +1662,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 	}
 }
 
+//lint:ignore U1000 Ignore unused function temporarily for debugging
 func test_multiple_clients(t *testing.T, args *testArgs) {
 	args.ATELock = sync.Mutex{}
 	testGroup := &sync.WaitGroup{}
@@ -1696,6 +1699,7 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 	testGroup.Wait()
 }
 
+//lint:ignore U1000 Ignore unused function temporarily for debugging
 func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
 
 	// base programming
