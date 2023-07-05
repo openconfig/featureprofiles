@@ -43,7 +43,6 @@ replace: {
 " vrf mgmt\n"
 " dscp cs4\n"
 " port 57998\n"
-" port 57998\n"
 " gnmi\n"
 " !\n"
 " p4rt\n"
