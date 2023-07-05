@@ -6,6 +6,10 @@ replace: {
       ascii_val:
 "hostname xx25.den8808\n"
 "clock timezone EST America/Toronto\n"
+"lpts punt police location 0/5/CPU0\n"
+" exception ttl-expiry rate 1500\n"
+"lpts punt police location 0/7/CPU0\n"
+" exception ttl-expiry rate 1500\n"
 "logging trap informational\n"
 "logging archive\n"
 " device harddisk\n"
