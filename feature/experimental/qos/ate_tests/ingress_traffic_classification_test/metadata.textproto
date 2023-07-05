@@ -5,3 +5,14 @@ uuid: "50213f26-ddde-441f-936a-b92414cc9dd3"
 plan_id: "QoS-1.1"
 description: "Ingress traffic classification Test"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    matched_packets_octets_unsupported: true
+  }
+}
