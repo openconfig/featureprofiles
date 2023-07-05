@@ -25,10 +25,10 @@ telemetry_path {
   path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/packets-forwarded"
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/octets-forwarded"
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded"
 }
 telemetry_path {
   path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol"
