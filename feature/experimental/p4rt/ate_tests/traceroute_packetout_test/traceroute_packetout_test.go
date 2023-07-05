@@ -18,11 +18,12 @@ package traceroute_packetout_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"net"
 	"sort"
 	"testing"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
