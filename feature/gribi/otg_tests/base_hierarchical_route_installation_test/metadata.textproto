@@ -43,3 +43,15 @@ platform_exceptions: {
     ipv6_enable_for_gribi_nh_dmac: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model: "DCS-7280CR3K-32D4"
+    hardware_model: "DCS-7808"
+    hardware_model: "DCS-7804-CH"
+    hardware_model: "ceos"
+  }
+  deviations: {
+    omit_l2_mtu: true
+  }
+}
