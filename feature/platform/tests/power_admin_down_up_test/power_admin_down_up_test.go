@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -30,7 +32,11 @@ func TestFabricPowerAdmin(t *testing.T) {
 				t.Skipf("Fabric Component %s is already INACTIVE, hence skipping", f)
 			}
 
+			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
+
 			powerDownUp(t, dut, f, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 3*time.Minute)
+
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
 		})
 	}
 }
@@ -52,7 +58,11 @@ func TestLinecardPowerAdmin(t *testing.T) {
 				t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", l)
 			}
 
+			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
+
 			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 3*time.Minute)
+
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
 		})
 	}
 }
@@ -60,11 +70,12 @@ func TestLinecardPowerAdmin(t *testing.T) {
 func TestControllerCardPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
-
+	primary := ""
 	for _, c := range cs {
 		t.Run(c, func(t *testing.T) {
 			role := gnmi.Get(t, dut, gnmi.OC().Component(c).RedundantRole().State())
 			if got, want := role, oc.Platform_ComponentRedundantRole_PRIMARY; got == want {
+				primary = c
 				t.Skipf("ControllerCard Component %s is PRIMARY, hence skipping", c)
 			}
 
@@ -75,6 +86,9 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 
 			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 3*time.Minute)
 		})
+	}
+	if primary != "" {
+		gnmi.Await(t, dut, gnmi.OC().Component(primary).SwitchoverReady().State(), 30*time.Minute, true)
 	}
 }
 
@@ -117,11 +131,13 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	t.Logf("Starting %s POWER_ENABLE", name)
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_ENABLED)
 
-	power, ok = gnmi.Await(t, dut, state, timeout, oc.Platform_ComponentPowerType_POWER_ENABLED).Val()
-	if !ok {
-		t.Errorf("Component %s, power-admin-state got: %v, want: %v", name, power, oc.Platform_ComponentPowerType_POWER_ENABLED)
+	if !deviations.MissingValueForDefaults(dut) {
+		power, ok = gnmi.Await(t, dut, state, timeout, oc.Platform_ComponentPowerType_POWER_ENABLED).Val()
+		if !ok {
+			t.Errorf("Component %s, power-admin-state got: %v, want: %v", name, power, oc.Platform_ComponentPowerType_POWER_ENABLED)
+		}
+		t.Logf("Component %s, power-admin-state after %f minutes: %v", name, time.Since(start).Minutes(), power)
 	}
-	t.Logf("Component %s, power-admin-state after %f minutes: %v", name, time.Since(start).Minutes(), power)
 
 	oper, ok = gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val()
 	if !ok {

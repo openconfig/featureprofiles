@@ -1,0 +1,20 @@
+name: "juniper-cptx-dut"
+nodes: {
+    name: "dut"
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
+    config: {
+        image: "cptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+}

@@ -721,6 +721,8 @@ github.com/open-traffic-generator/snappi/gosnappi v0.11.14 h1:AuD13HqZldjtPWvDKa
 github.com/open-traffic-generator/snappi/gosnappi v0.11.14/go.mod h1:CRT6BypHa7NOrNlrjw3Crcs9f7eLC4S34ERvyyGIusY=
 github.com/openconfig/entity-naming v0.0.0-20230609224707-9cc7aa2a8a3f h1:e0szPbW5dgJAllqlDVlRBJo4eZ9xvYbi0+38N+E10pU=
 github.com/openconfig/entity-naming v0.0.0-20230609224707-9cc7aa2a8a3f/go.mod h1:D5ex8EWeLV8K3FSpJDm2AuQ6lSWR7kRg70tb/vkNwjg=
+github.com/openconfig/entity-naming v0.0.0-20230615134154-46b7e6d34924 h1:Flw2W/S6peYe4uP1cC/b0gjKRJtNE7++kTVelEaDGxE=
+github.com/openconfig/entity-naming v0.0.0-20230615134154-46b7e6d34924/go.mod h1:ZRUrfwYYY+pLaOoWPad3p/8J4LLQcSqtXhBCkD2pXJc=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20200508230933-d19cebf5e7be/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2/go.mod h1:Y9os75GmSkhHw2wX8sMsxfI7qRGAEcDh8NTa5a8vj6E=
@@ -735,6 +737,8 @@ github.com/openconfig/goyang v0.2.2/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+R
 github.com/openconfig/goyang v0.2.9/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+RrNkXRd3W8=
 github.com/openconfig/goyang v1.2.0 h1:mChUZvp1kCWq6Q00wVCtOToddFzEsGlMGG+V+wNXva8=
 github.com/openconfig/goyang v1.2.0/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+RrNkXRd3W8=
+github.com/openconfig/goyang v1.4.0 h1:/7T1Wk0r/8Bxcdh1LhWsnAKl+QuUV6Pfl4AyH63r9bA=
+github.com/openconfig/goyang v1.4.0/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+RrNkXRd3W8=
 github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f/go.mod h1:OoH46A2kV42cIXGyviYmAlGmn6cHjGduyC2+I9d/iVs=
 github.com/openconfig/gribi v0.1.1-0.20221218044856-ec9f4fc18013/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/gribi v0.1.1-0.20230111180713-7ea0c4e1ee20/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
@@ -742,6 +746,8 @@ github.com/openconfig/gribi v1.0.0 h1:xMwEg0mBD+21mOxuFOw0d9dBKuIPwJEhMUUeUulZdL
 github.com/openconfig/gribi v1.0.0/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/gribigo v0.0.0-20230207233343-ef59db57c4fc h1:N+aVXDlRwVLmI55woEs7wxzKwh7JafGc6xGtlucuBl4=
 github.com/openconfig/gribigo v0.0.0-20230207233343-ef59db57c4fc/go.mod h1:j27O3AtRvufyXzMJrgvzmPxwerhZc/2Luqtr2FgyY10=
+github.com/openconfig/gribigo v0.0.0-20230626185201-89df3101721d h1:gdcKA3SbYU8SuaKJXrjZwGmcQW8u8Q4qbbwv6NFd8Cc=
+github.com/openconfig/gribigo v0.0.0-20230626185201-89df3101721d/go.mod h1:6KvHuGMbmtuLCUQDu0Qh+Ny0V9tALt3zOHZBircrGM8=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 h1:t6SvvdfWCMlw0XPlsdxO8EgO+q/fXnTevDjdYREKFwU=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
 github.com/openconfig/kne v0.1.13 h1:CXcy95vrUDAA7nTPGekwJXunlt2kBwM/oMQUlbDzmFM=
@@ -750,6 +756,8 @@ github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY0
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
 github.com/openconfig/ondatra v0.1.20 h1:WUbCT6QOr4/6vqQi3veCjKzecptvdDkKKISWfc0DYOQ=
 github.com/openconfig/ondatra v0.1.20/go.mod h1:XR5X6HGtXXs/6PjUEx3huyDlp/P1E+tVKBeqQx2lV4c=
+github.com/openconfig/ondatra v0.1.23 h1:1yU7d9gOUJqOg+VEM5092J4ZS952/hTLoeQTX+aAhD0=
+github.com/openconfig/ondatra v0.1.23/go.mod h1:k6UKXpEg+BaDjYYXsAtZuKgP/hVO8f9J0FNViOBUkwk=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygnmi v0.7.7 h1:VjmBhLFgPcKVftT8Uq6t3lXkCwsVTZUQmIwGIJbSfhU=
@@ -760,6 +768,8 @@ github.com/openconfig/ygot v0.13.2/go.mod h1:kJN0yCXIH07dOXvNBEFm3XxXdnDD5NI6K99
 github.com/openconfig/ygot v0.25.6/go.mod h1:+IVqHe5iTfGcDRi3szuq1Mgvy5q3S4x8DG69K5kw62o=
 github.com/openconfig/ygot v0.27.0 h1:B2f6BMp4v0Lex5qzcsqODv+HdQWqcc748pQ4eDF+ty4=
 github.com/openconfig/ygot v0.27.0/go.mod h1:wlup/5e/eQM6pscY1+pJZJjLfkAPVsyLp5FJMESHcVg=
+github.com/openconfig/ygot v0.28.3 h1:r1GSxzamx+HaO0/MdMTmSlOtX7us6arG+fDMWvRVGI0=
+github.com/openconfig/ygot v0.28.3/go.mod h1:MB1WlgmH/547+unI5oVy7dQ46Tx+pCA05bJB2Gr9iXY=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/p4lang/p4runtime v1.4.0-rc.5 h1:zztZGEkRM09Hf25SIX0p0ML07dmRCgsy0oC8uafmjtg=
 github.com/p4lang/p4runtime v1.4.0-rc.5/go.mod h1:m9laObIMXM9N1ElGXijc66/MSM5eheZJLRLxg/TG+fU=
@@ -812,6 +822,8 @@ github.com/spf13/cast v1.5.0 h1:rj3WzYc11XZaIZMPKmwP96zkFEnnAmV8s6XbB2aY32w=
 github.com/spf13/cast v1.5.0/go.mod h1:SpXXQ5YoyJw6s3/6cMTQuxvgRl3PCJiyaX9p6b155UU=
 github.com/spf13/cobra v1.6.1 h1:o94oiPyS4KD1mPy2fmcYYHHfCxLqYjJOhGsCHFZtEzA=
 github.com/spf13/cobra v1.6.1/go.mod h1:IOw/AERYS7UzyrGinqmz6HLUo219MORXGxhbaJUqzrY=
+github.com/spf13/cobra v1.7.0 h1:hyqWnYt1ZQShIddO5kBpj3vu05/++x6tJ6dg8EC572I=
+github.com/spf13/cobra v1.7.0/go.mod h1:uLxZILRyS/50WlhOIKD7W6V5bgeIt+4sICxh6uRMrb0=
 github.com/spf13/jwalterweatherman v1.1.0 h1:ue6voC5bR5F8YxI5S67j9i582FU4Qvo2bmqnqMYADFk=
 github.com/spf13/jwalterweatherman v1.1.0/go.mod h1:aNWZUN0dPAAO/Ljvb5BEdw96iTZ0EXowPYD95IqWIGo=
 github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
