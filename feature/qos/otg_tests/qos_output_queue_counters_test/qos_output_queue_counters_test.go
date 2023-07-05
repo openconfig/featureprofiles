@@ -884,6 +884,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i := q.GetOrCreateInterface(dp1.Name())
 	i.InterfaceId = ygot.String(dp1.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp1.Name())
 	for _, tc := range intcases {
 		t.Run(tc.desc, func(t *testing.T) {
 			c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
@@ -1023,12 +1024,13 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp2.Name())
 		i.SetInterfaceId(dp2.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp2.Name())
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 }

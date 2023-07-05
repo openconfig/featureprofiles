@@ -235,9 +235,12 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch 
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
-	if gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger() != switchTrigger {
-		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want USER_INITIATED.",
-			gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger().String())
+	wantTrigger := switchTrigger
+	if deviations.SwitchControlProcessorSystemInitiated(dut) {
+		wantTrigger = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
+	}
+	if got, want := gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger(), wantTrigger; got != want {
+		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s.", got, want)
 	}
 
 	if !gnmi.Lookup(t, dut, primary.LastRebootTime().State()).IsPresent() {
