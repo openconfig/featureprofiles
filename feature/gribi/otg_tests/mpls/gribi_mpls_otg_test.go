@@ -242,6 +242,11 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		mplsInner.Label().SetChoice("value").SetValue(innerLabel)
 		mplsInner.BottomOfStack().SetChoice("value").SetValue(1)
 
+		ip4 := mplsFlow.Packet().Add().Ipv4()
+		ip4.Src().SetChoice("value").SetValue("100.64.1.1")
+		ip4.Dst().SetChoice("value").SetValue("100.64.2.1")
+		ip4.Version().SetChoice("value").SetValue(4)
+
 		otg.PushConfig(t, otgCfg)
 
 		t.Logf("Starting MPLS traffic...")
