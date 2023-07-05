@@ -118,6 +118,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	niConfPath := gnmi.OC().NetworkInstance("VRF-10")
 	niConf := configNetworkInstance("VRF-10", i2, 10)
 	gnmi.Replace(t, dut, niConfPath.Config(), niConf)
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), i2)
+	}
 
 	// Configure default NI and forwarding policy
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
@@ -139,6 +142,10 @@ func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
+	}
+	if deviations.RequireRoutedSubinterface0(dut) {
+		s0 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+		s0.Enabled = ygot.Bool(true)
 	}
 
 	// Create subinterface.
@@ -252,9 +259,10 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 
 	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
-	if !deviations.InterfaceRefConfigUnsupported(dut) {
-		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-		intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+		intf.InterfaceRef = nil
 	}
 	// Configure default NI and forwarding policy.
 	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
