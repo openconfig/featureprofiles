@@ -3,6 +3,7 @@ package gribi_mpls_compliance_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/fluent"
@@ -35,10 +36,13 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
+	_ = PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+	sleepFn := func(_ *testing.T, _ []uint32) { time.Sleep(30 * time.Second) }
+
 	baseLabel := 42
 	for i := 1; i <= 20; i++ {
 		t.Run(fmt.Sprintf("push %d labels", i), func(t *testing.T) {
-			EgressLabelStack(t, c, defNIName, baseLabel, i, nil)
+			EgressLabelStack(t, c, defNIName, baseLabel, i, sleepFn)
 		})
 	}
 }

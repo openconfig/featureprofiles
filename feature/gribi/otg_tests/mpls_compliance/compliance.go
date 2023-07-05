@@ -59,6 +59,8 @@ func modify(ctx context.Context, t *testing.T, c *fluent.GRIBIClient, ops []func
 // label forwarding entry within defaultNIName, with a label stack with
 // numLabels in it, starting at baseLabel. After the DUT has been programmed
 // if trafficFunc is non-nil it is run to validate the dataplane.
+//
+// The DUT is expected to have a next-hop of 192.0.2.2 that is resolvable.
 func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, baseLabel, numLabels int, trafficFunc TrafficFunc) {
 	defer electionID.Inc()
 	defer flushServer(c, t)
@@ -67,9 +69,10 @@ func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, defaultNIName string,
 	for n := 1; n <= numLabels; n++ {
 		labels = append(labels, uint32(baseLabel+n))
 	}
-	// add a label that is the top of the stack that is
-	// the one that is forwarded on.
-	labels = append(labels, uint32(32768))
+	// TODO(robjs): Currently, some implementations require that the base label is
+	// resolvable outside of gRIBI. This ensures that this is satisifed but requires
+	// a static LSP to be configured.
+	labels = append(labels, 32768)
 
 	ops := []func(){
 		func() {
@@ -134,6 +137,8 @@ func EgressLabelStack(t *testing.T, c *fluent.GRIBIClient, defaultNIName string,
 // pushed to an IP packet. The entries are programmed into defaultNIName, with the stack
 // imposed being a stack of numLabels labels, starting with baseLabel. After the programming
 // has been verified trafficFunc is run to allow validation of the dataplane.
+//
+// The DUT is expected to be within a topology where 192.0.2.2 is a valid next-hop.
 func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, baseLabel, numLabels int, trafficFunc TrafficFunc) {
 	defer electionID.Inc()
 	defer flushServer(c, t)
@@ -154,7 +159,8 @@ func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 				fluent.NextHopEntry().
 					WithNetworkInstance(defaultNIName).
 					WithIndex(1).
-					WithPushedLabelStack(labels...))
+					WithPushedLabelStack(labels...).
+					WithIPAddress("192.0.2.2"))
 
 			c.Modify().AddEntry(t,
 				fluent.NextHopGroupEntry().
@@ -205,9 +211,9 @@ func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 	}
 }
 
-// PopTopLabel creates a test whereby the top label of an input packet is popped. The
-// next-hop specifying the pop is referenced by an IPv4Entry for the 10.0.0.0/24 prefix
-// and an MPLS label forwarding entry with outer label 100.
+// PopTopLabel creates a test whereby the top label of an input packet is popped.
+// The DUT is expected to be in a topology where 192.0.2.2 is a valid next-hop. Packets
+// with label 100 will have this label popped from the stack.
 func PopTopLabel(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, trafficFunc TrafficFunc) {
 	defer electionID.Inc()
 	defer flushServer(c, t)
@@ -233,13 +239,6 @@ func PopTopLabel(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, traf
 					WithLabel(100).
 					WithNetworkInstance(defaultNIName).
 					WithNextHopGroupNetworkInstance(defaultNIName).
-					WithNextHopGroup(1))
-
-			// Specify IP prefix that is pointed to our pop next-hop.
-			c.Modify().AddEntry(t,
-				fluent.IPv4Entry().
-					WithPrefix("10.0.0.0/24").
-					WithNetworkInstance(defaultNIName).
 					WithNextHopGroup(1))
 		},
 	}
@@ -280,6 +279,9 @@ func PopTopLabel(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, traf
 // PopNLabels programs a gRIBI server with a LFIB entry matching label 100
 // that pops the labels specified in popLabels from the stack. If trafficFunc
 // is non-nil it is called after the gRIBI programming is verified.
+//
+// The DUT is expected to be in a topology where 192.0.2.2 resolves to
+// a valid next-hop.
 func PopNLabels(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, popLabels []uint32, trafficFunc TrafficFunc) {
 	defer electionID.Inc()
 	defer flushServer(c, t)
@@ -343,6 +345,8 @@ func PopNLabels(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, popLa
 // PopOnePushN implements a test whereby one (the top) label is popped, and N labels as specified
 // by pushLabels are pushed to the stack for an input MPLS packet. Two LFIB entries (100 and 200)
 // are created. If trafficFunc is non-nil it is called after the gRIBI programming has been validated.
+//
+// The DUT is expected to be in a topology where 192.0.2.2 is a resolvable next-hop.
 func PopOnePushN(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, pushLabels []uint32, trafficFunc TrafficFunc) {
 	defer electionID.Inc()
 	defer flushServer(c, t)
