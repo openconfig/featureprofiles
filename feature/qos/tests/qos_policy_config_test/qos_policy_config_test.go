@@ -931,6 +931,7 @@ func testQoSCiscoClassifierConfig(t *testing.T) {
 
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 
 	t.Logf("qos input classifier config cases: %v", cases)
 	for _, tc := range casesintf {
@@ -1168,6 +1169,7 @@ func testCiscoSchedulerPoliciesConfig(t *testing.T) {
 	}}
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 	t.Logf("qos output interface config cases: %v", cases)
 
 	for _, tc := range intcases {
@@ -1178,10 +1180,10 @@ func testCiscoSchedulerPoliciesConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.queueName)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	for _, tc := range cases {
 		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
