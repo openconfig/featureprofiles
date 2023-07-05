@@ -97,35 +97,35 @@ duts {
   
   ports {
     id: "port1"
-    name: "TenGigE0/7/0/12/0"  # Change this to the actual port name.
+    name: "TenGigE0/5/0/12/0"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "TenGigE0/7/0/30/3"  # Change this to the actual port name.
+    name: "TenGigE0/5/0/30/3"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "TenGigE0/7/0/12/2" # Change this to the actual port name.
+    name: "TenGigE0/5/0/12/2" # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "TenGigE0/7/0/12/3"  # Change this to the actual port name.
+    name: "TenGigE0/5/0/12/3"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
-    name: "TenGigE0/7/0/30/0"  # Change this to the actual port name.
+    name: "TenGigE0/5/0/30/0"  # Change this to the actual port name.
   }
   ports {
     id: "port6"
-    name: "TenGigE0/7/0/30/1"  # Change this to the actual port name.
+    name: "TenGigE0/5/0/30/1"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "TenGigE0/7/0/30/2"  # Change this to the actual port name.
+    name: "TenGigE0/5/0/30/2"  # Change this to the actual port name.
   }
   ports {
    id: "port8"
-   name: "TenGigE0/7/0/12/1"  # Change this to the actual port name.
+   name: "TenGigE0/5/0/12/1"  # Change this to the actual port name.
   }
 }
 
@@ -159,34 +159,34 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "9/9"  # Change this to the actual port name.
+    name: "9/17"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "9/16"  # Change this to the actual port name.
+    name: "9/24"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "9/11"  # Change this to the actual port name.
+    name: "9/19"  # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "9/12"  # Change this to the actual port name.
+    name: "9/20"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
-    name: "9/13" # Change this to the actual port name.
+    name: "9/21" # Change this to the actual port name.
   }
   ports {
     id: "port6"
-    name: "9/14"  # Change this to the actual port name.
+    name: "9/22"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "9/15"  # Change this to the actual port name.
+    name: "9/23"  # Change this to the actual port name.
   }
   ports {
    id: "port8"
-   name: "9/10"  # Change this to the actual port name.
+   name: "9/18"  # Change this to the actual port name.
   }
 }
