@@ -64,11 +64,10 @@
 package deviations
 
 import (
+	"flag"
 	"fmt"
 	"regexp"
-
-	"flag"
-
+	
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
