@@ -1,5 +1,4 @@
-# RT-5.X: Interface hold-time
-[TODO]: assigne test number
+# RT-5.5: Interface hold-time
 
 ## Summary
 
