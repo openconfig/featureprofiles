@@ -40,5 +40,8 @@ platform_exceptions: {
   }
   deviations: {
     connect_retry: true
+    omit_l2_mtu: true
+    network_instance_table_deletion_required: true
+    bgp_md5_requires_reset: true
   }
 }
