@@ -197,6 +197,7 @@ var (
 )
 
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+	t.Helper()
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 	pd := rp.GetOrCreatePolicyDefinition(name)
@@ -205,7 +206,8 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
-func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint32, vlan uint16, dut *ondatra.DUTDevice) *oc.Interface {
+func configInterfaceDUT(t *testing.T, i *oc.Interface, me *attrs.Attributes, subIntfIndex uint32, vlan uint16, dut *ondatra.DUTDevice) *oc.Interface {
+	t.Helper()
 	i.Description = ygot.String(me.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if deviations.InterfaceEnabled(dut) {
@@ -245,14 +247,13 @@ func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint
 // configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
-
 	i1 := &oc.Interface{Name: ygot.String(dut.Port(t, "port1").Name())}
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(i1, &dutPort1SubIntf1, 10, vlan10, dut))
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(i1, &dutPort1SubIntf2, 20, vlan20, dut))
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(i1, &dutPort1SubIntf3, 30, vlan30, dut))
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(i1, &dutPort1SubIntf4, 40, vlan40, dut))
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(i1, &dutPort1SubIntf5, 50, vlan50, dut))
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(i1, &dutPort1SubIntf6, 60, vlan60, dut))
+	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf1, 10, vlan10, dut))
+	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf2, 20, vlan20, dut))
+	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf3, 30, vlan30, dut))
+	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf4, 40, vlan40, dut))
+	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf5, 50, vlan50, dut))
+	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf6, 60, vlan60, dut))
 
 	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
@@ -418,6 +419,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice, nbrIP []*bgpNeighbor) 
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) (*ondatra.ATETopology, []*ondatra.Flow, []*ondatra.Interface) {
+	t.Helper()
 	topo := ate.Topology().New()
 	port1 := ate.Port(t, "port1")
 
@@ -508,6 +510,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (*ondatra.ATETopology, [
 }
 
 func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
+	t.Helper()
 	captureTrafficStats(t, ate)
 	for _, flow := range allFlows {
 		if lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); lossPct < 5.0 {
@@ -519,6 +522,7 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatr
 }
 
 func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
+	t.Helper()
 	for _, flow := range allFlows {
 		if lossPct := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State()); lossPct > 99.0 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
@@ -529,6 +533,7 @@ func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra
 }
 
 func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Helper()
 	ap := ate.Port(t, "port1")
 	aic1 := gnmi.OC().Interface(ap.Name()).Counters()
 	sentPkts := gnmi.Get(t, ate, aic1.OutPkts().State())
@@ -549,6 +554,7 @@ func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice) {
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow, duration time.Duration) {
+	t.Helper()
 	t.Log("Starting traffic")
 	ate.Traffic().Start(t, allFlows...)
 	time.Sleep(duration)
@@ -589,6 +595,7 @@ func configAdmitAllACL(d *oc.Root, name string) *oc.Acl_AclSet {
 }
 
 func configACLInterface(t *testing.T, iFace *oc.Acl_Interface, ifName string) *acl.Acl_InterfacePath {
+	t.Helper()
 	aclConf := gnmi.OC().Acl().Interface(ifName)
 	if ifName != "" {
 		iFace.GetOrCreateIngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
