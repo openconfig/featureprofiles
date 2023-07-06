@@ -396,13 +396,6 @@ func TraceRouteL4ProtocolUDP(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTracerouteL4ProtocolUdp()
 }
 
-// TraceRouteFragmentation returns if device does not support fragmentation bit for traceroute.
-// Default value is false.
-func TraceRouteFragmentation(dut *ondatra.DUTDevice) bool {
-	logErrorIfFlagSet("deviation_traceroute_fragmentation")
-	return lookupDUTDeviations(dut).GetTracerouteFragmentation()
-}
-
 // LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
 // expect neighbours are seen when lldp is disabled globally but enabled on interface
 func LLDPInterfaceConfigOverrideGlobal(dut *ondatra.DUTDevice) bool {
@@ -637,8 +630,6 @@ var (
 	_ = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
 
 	_ = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
-
-	_ = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
 
 	_ = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 

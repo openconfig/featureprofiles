@@ -236,7 +236,7 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch 
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
 	wantTrigger := switchTrigger
-	if deviations.SwitchControlProcessorSystemInitiated(dut) {
+	if deviations.GNOISwitchoverReasonMissingUserInitiated(dut) {
 		wantTrigger = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
 	}
 	if got, want := gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger(), wantTrigger; got != want {

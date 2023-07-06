@@ -5,7 +5,7 @@ go 1.19
 require (
 	cloud.google.com/go/pubsub v1.30.0
 	cloud.google.com/go/storage v1.28.1
-	github.com/cisco-open/go-p4 v0.1.1-0.20230301194618-caa766ba7dd4
+	github.com/cisco-open/go-p4 v0.1.1
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-git/go-git/v5 v5.7.0
 	github.com/golang/glog v1.1.1
