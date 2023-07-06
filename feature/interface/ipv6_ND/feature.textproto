@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "interface_ipv6_nd_ra_disable"
+  name: "interface_ipv6_ND"
   version: 1
 }
 
