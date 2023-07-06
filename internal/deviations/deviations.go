@@ -578,7 +578,6 @@ func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 // SkipControllerCardPowerAdmin returns if power-admin-state config on controller card should be skipped.
 // Default value is false.
 func SkipControllerCardPowerAdmin(dut *ondatra.DUTDevice) bool {
-	logErrorIfFlagSet("deviation_skip_controller_card_power_admin")
 	return lookupDUTDeviations(dut).GetSkipControllerCardPowerAdmin()
 }
 
