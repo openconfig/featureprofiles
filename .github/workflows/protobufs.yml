@@ -109,7 +109,8 @@ jobs:
           # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
           git fetch origin
           export FEATURE_FILES=changed-feature-textprotos.githubactions.txt
-          git diff --diff-filter=d --name-only ${{ github.event.pull_request.base.sha }} | grep -E 'feature.textproto$' > "${FEATURE_FILES}"
+          # grep: don't error out on no match.
+          git diff --diff-filter=d --name-only ${{ github.event.pull_request.base.sha }} | { grep -E 'feature.textproto$' || true } > "${FEATURE_FILES}"
         fi
         make validate_paths
 
