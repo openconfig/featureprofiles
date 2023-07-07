@@ -20,6 +20,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
 	"text/template"
 
 	"flag"
@@ -62,6 +66,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	sortTests(docs)
 
 	err = writeTestDocs(docs, *outputRoot)
 	if err != nil {
@@ -154,4 +159,34 @@ func fetchTestDocs(rootPath string) ([]testDoc, error) {
 		docs = append(docs, v)
 	}
 	return docs, err
+}
+
+func sortTests(docs []testDoc) {
+	re := regexp.MustCompile("[0-9]+|[a-z]+")
+	sort.Slice(docs, func(i, j int) bool {
+		in := re.FindAllString(strings.ToLower(docs[i].Title), -1)
+		jn := re.FindAllString(strings.ToLower(docs[j].Title), -1)
+
+		minLen := len(in)
+		if len(in) > len(jn) {
+			minLen = len(jn)
+		}
+
+		for k := 0; k < minLen; k++ {
+			if in[k] == jn[k] {
+				continue
+			}
+
+			iv, errI := strconv.Atoi(in[k])
+			jv, errJ := strconv.Atoi(jn[k])
+
+			if errI == nil && errJ == nil {
+				return iv < jv
+			}
+
+			return strings.Compare(in[k], jn[k]) < 0
+		}
+
+		return len(in) < len(jn)
+	})
 }
