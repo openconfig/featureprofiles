@@ -15,3 +15,13 @@ platform_exceptions: {
     skip_controller_card_power_admin: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    skip_controller_card_power_admin: true
+  }
+}
