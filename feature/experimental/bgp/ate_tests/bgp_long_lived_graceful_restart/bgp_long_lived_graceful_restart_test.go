@@ -594,8 +594,7 @@ func configAdmitAllACL(d *oc.Root, name string) *oc.Acl_AclSet {
 	return acl
 }
 
-func configACLInterface(t *testing.T, iFace *oc.Acl_Interface, ifName string) *acl.Acl_InterfacePath {
-	t.Helper()
+func configACLInterface(iFace *oc.Acl_Interface, ifName string) *acl.Acl_InterfacePath {
 	aclConf := gnmi.OC().Acl().Interface(ifName)
 	if ifName != "" {
 		iFace.GetOrCreateIngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
@@ -834,7 +833,8 @@ func juniperCLI() string {
 	`, proto)
 }
 
-func removeATENewPeers(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology, intfList []*ondatra.Interface, bgpPeers []*ixnet.BGP) {
+func removeATENewPeers(t *testing.T, topo *ondatra.ATETopology, bgpPeers []*ixnet.BGP) {
+	t.Helper()
 	for _, peer := range bgpPeers {
 		peer.ClearPeers()
 	}
@@ -842,6 +842,7 @@ func removeATENewPeers(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETo
 }
 
 func removeNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
+	t.Helper()
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, nbr := range nbrs {
 		gnmi.Delete(t, dut, dutConfPath.Neighbor(nbr.neighborip).Config())
@@ -850,6 +851,7 @@ func removeNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
 }
 
 func restartRoutingProcess(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	if _, ok := routingDaemon[dut.Vendor()]; !ok {
 		t.Fatalf("Please add support for vendor %v in var routingDaemon", dut.Vendor())
 	}
@@ -879,6 +881,7 @@ func restartRoutingProcess(t *testing.T, dut *ondatra.DUTDevice) {
 
 // findProcessByName uses telemetry to find out the PID of a process
 func findProcessByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
+	t.Helper()
 	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
 	var pID uint64
 	for _, proc := range pList {
@@ -892,6 +895,7 @@ func findProcessByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint6
 
 // gNOIKillProcess kills a daemon on the DUT, given its name and pid.
 func gNOIKillProcess(t *testing.T, dut *ondatra.DUTDevice, pName string, pID uint32) {
+	t.Helper()
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
 	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
@@ -903,6 +907,7 @@ func gNOIKillProcess(t *testing.T, dut *ondatra.DUTDevice, pName string, pID uin
 
 // setBgpPolicy is used to configure routing policy on DUT.
 func setBgpPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
+	t.Helper()
 	// Configure SetMED on DUT.
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
@@ -910,11 +915,11 @@ func setBgpPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	actions5.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED)
 	actions5.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(100)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-	//gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
-// configureDutNewPeers configured five more BGP peers on subinterfaces.
-func configureDutNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
+// configureDUTNewPeers configured five more BGP peers on subinterfaces.
+func configureDUTNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
+	t.Helper()
 	d := &oc.Root{}
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
@@ -943,8 +948,8 @@ func configureDutNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeigh
 }
 
 // configureATENewPeers configures five more new BGP peers on ATE.
-func configureATENewPeers(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology, intfList []*ondatra.Interface) []*ixnet.BGP {
-
+func configureATENewPeers(t *testing.T, topo *ondatra.ATETopology, intfList []*ondatra.Interface) []*ixnet.BGP {
+	t.Helper()
 	bgpDut1 := intfList[0].BGP()
 	bgpDut1.AddPeer().WithPeerAddress(dutPort1SubIntf2.IPv4).WithLocalASN(ateAS).
 		WithTypeExternal().Capabilities().WithGracefulRestart(true)
@@ -973,6 +978,7 @@ func configureATENewPeers(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.AT
 
 // verifyGracefulRestart validates graceful restart telemetry on DUT.
 func verifyGracefulRestart(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
 
@@ -1021,9 +1027,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	// Configure interface on the DUT.
 	t.Run("configureDut", func(t *testing.T) {
-		t.Log("Start DUT interface config")
 		configureDUT(t, dut)
 		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	})
@@ -1031,7 +1035,6 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	nbrList := buildNbrList(ateAS)
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	t.Run("configureBGP", func(t *testing.T) {
-		t.Log("Configure BGP with graceful restart option under global BGP")
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
@@ -1045,12 +1048,10 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	})
 
 	t.Run("verifyDUTPorts", func(t *testing.T) {
-		t.Log("Verifying port status")
 		verifyPortsUp(t, dut.Device)
 	})
 
 	t.Run("VerifyBGPParameters", func(t *testing.T) {
-		t.Log("Check BGP parameters")
 		checkBgpStatus(t, dut, nbrList)
 	})
 
@@ -1076,7 +1077,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 			configACLInterfaceNative(t, dut, ifName)
 		} else {
 			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
-			aclConf := configACLInterface(t, iFace, ifName)
+			aclConf := configACLInterface(iFace, ifName)
 			gnmi.Replace(t, dut, aclConf.Config(), iFace)
 		}
 
@@ -1118,27 +1119,23 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	t.Run("Verify different BGP Operations during graceful restart", func(t *testing.T) {
 
 		t.Run("Configure MED routing policy", func(t *testing.T) {
-			t.Logf("Configure MED routing policy.")
 			setBgpPolicy(t, dut, d)
 			time.Sleep(2 * time.Second)
 		})
 
 		t.Run("Restart routing", func(t *testing.T) {
-			t.Logf("Restart routing process.")
 			restartRoutingProcess(t, dut)
 		})
 
 		var bgpIxPeer []*ixnet.BGP
-		t.Run("Add new BGP peers", func(t *testing.T) {
-			t.Logf("Configure 5 more new BGP peers.")
-			configureDutNewPeers(t, dut, dutNbrs)
-			bgpIxPeer = configureATENewPeers(t, ate, topo, ateIntfList)
+		t.Run("configure 5 more new BGP peers", func(t *testing.T) {
+			configureDUTNewPeers(t, dut, dutNbrs)
+			bgpIxPeer = configureATENewPeers(t, topo, ateIntfList)
 		})
 
-		t.Run("Remove newly added BGP peers", func(t *testing.T) {
-			t.Logf("Remove newly added 5 more new BGP peers.")
+		t.Run("Remove newly added 5 BGP peers", func(t *testing.T) {
 			removeNewPeers(t, dut, dutNbrs)
-			removeATENewPeers(t, ate, topo, ateIntfList, bgpIxPeer)
+			removeATENewPeers(t, topo, bgpIxPeer)
 		})
 
 		dutPolicyPath := gnmi.OC().RoutingPolicy().PolicyDefinition(setALLOWPolicy)
@@ -1166,7 +1163,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 			configACLInterfaceNative(t, dut, ifName)
 		} else {
 			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
-			aclPath := configACLInterface(t, iFace, ifName)
+			aclPath := configACLInterface(iFace, ifName)
 			gnmi.Replace(t, dut, aclPath.Config(), iFace)
 		}
 	})
@@ -1198,14 +1195,12 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	t.Run("configureDut", func(t *testing.T) {
-		t.Log("Start DUT interface config")
 		configureDUT(t, dut)
 		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	})
 
 	nbrList := buildNbrList(ateAS)
 	t.Run("configureBGP", func(t *testing.T) {
-		t.Log("Configure BGP with graceful restart option under global Bgp")
 		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
@@ -1214,17 +1209,14 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 
 	var allFlows []*ondatra.Flow
 	t.Run("configureATE", func(t *testing.T) {
-		t.Log("Start ATE Config")
 		_, allFlows, _ = configureATE(t, ate)
 	})
 
 	t.Run("verifyDUTPorts", func(t *testing.T) {
-		t.Log("Verifying port status")
 		verifyPortsUp(t, dut.Device)
 	})
 
 	t.Run("VerifyBGPParameters", func(t *testing.T) {
-		t.Log("Check BGP parameters")
 		checkBgpStatus(t, dut, nbrList)
 	})
 
@@ -1267,7 +1259,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 			configACLInterfaceNative(t, dut, ifName)
 		} else {
 			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
-			aclConf := configACLInterface(t, iFace, ifName)
+			aclConf := configACLInterface(iFace, ifName)
 			gnmi.Replace(t, dut, aclConf.Config(), iFace)
 		}
 
@@ -1311,7 +1303,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 			configACLInterfaceNative(t, dut, ifName)
 		} else {
 			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
-			aclPath := configACLInterface(t, iFace, ifName)
+			aclPath := configACLInterface(iFace, ifName)
 			gnmi.Replace(t, dut, aclPath.Config(), iFace)
 		}
 	})
