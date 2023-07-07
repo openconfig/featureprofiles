@@ -406,6 +406,10 @@ type Metadata_Deviations struct {
 	// higher value than L3 MTU.
 	// Arista: partnerissuetracker.corp.google.com/243445300
 	OmitL2Mtu bool `protobuf:"varint,50,opt,name=omit_l2_mtu,json=omitL2Mtu,proto3" json:"omit_l2_mtu,omitempty"`
+	// Skip power admin for controller card
+	SkipControllerCardPowerAdmin bool `protobuf:"varint,51,opt,name=skip_controller_card_power_admin,json=skipControllerCardPowerAdmin,proto3" json:"skip_controller_card_power_admin,omitempty"`
+	// Skip PLQ packets count check.
+	SkipPlqPacketsCountCheck bool `protobuf:"varint,55,opt,name=skip_plq_packets_count_check,json=skipPlqPacketsCountCheck,proto3" json:"skip_plq_packets_count_check,omitempty"`
 	// Device requires the banner to have a delimiter character.
 	BannerDelimiter string `protobuf:"bytes,60,opt,name=banner_delimiter,json=bannerDelimiter,proto3" json:"banner_delimiter,omitempty"`
 	// Allowed tolerance for BGP traffic flow while comparing for pass or fail
@@ -812,6 +816,20 @@ func (x *Metadata_Deviations) GetNtpNonDefaultVrfUnsupported() bool {
 func (x *Metadata_Deviations) GetOmitL2Mtu() bool {
 	if x != nil {
 		return x.OmitL2Mtu
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipControllerCardPowerAdmin() bool {
+	if x != nil {
+		return x.SkipControllerCardPowerAdmin
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipPlqPacketsCountCheck() bool {
+	if x != nil {
+		return x.SkipPlqPacketsCountCheck
 	}
 	return false
 }
