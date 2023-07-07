@@ -28,7 +28,6 @@ require (
 	github.com/openconfig/ygot v0.28.3
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
-	github.com/yuin/goldmark v1.4.13
 	golang.org/x/crypto v0.10.0
 	golang.org/x/text v0.10.0
 	google.golang.org/api v0.122.0
