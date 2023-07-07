@@ -246,6 +246,7 @@ func configInterfaceDUT(t *testing.T, i *oc.Interface, me *attrs.Attributes, sub
 
 // configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	dc := gnmi.OC()
 	i1 := &oc.Interface{Name: ygot.String(dut.Port(t, "port1").Name())}
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf1, 10, vlan10, dut))
@@ -370,6 +371,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Netw
 }
 
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice, nbrIP []*bgpNeighbor) {
+	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, nbr := range nbrIP {
 		nbrPath := statePath.Neighbor(nbr.neighborip)
