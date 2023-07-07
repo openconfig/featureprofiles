@@ -881,8 +881,8 @@ github.com/open-traffic-generator/ixia-c-operator v0.3.0 h1:DFINZYbM9MLNnKvi2+Bg
 github.com/open-traffic-generator/ixia-c-operator v0.3.0/go.mod h1:Q+ZXCinXxUKcnrJf5PJC1Q7JxUQc5ZPZA85jwVAqIRQ=
 github.com/open-traffic-generator/snappi/gosnappi v0.11.15 h1:4ZnW7UiIevRg8Pd62o4/2HK+6eH9G8ttMT/WAA1Urjc=
 github.com/open-traffic-generator/snappi/gosnappi v0.11.15/go.mod h1:iPsh5yqZBcItlBsX/x4WWCAqQ4siQm0fzsc84OMuwbA=
-github.com/openconfig/entity-naming v0.0.0-20230622215737-19e579a137ec h1:PYfPLQWvOkzuf70EQ9mYwwa77mdjr3/Ax9w3KL3DszI=
-github.com/openconfig/entity-naming v0.0.0-20230622215737-19e579a137ec/go.mod h1:ZRUrfwYYY+pLaOoWPad3p/8J4LLQcSqtXhBCkD2pXJc=
+github.com/openconfig/entity-naming v0.0.0-20230629170241-8a23ae047882 h1:wyzpW9J7E1Qb51fMCLWyJQoxOzSMRX8W/HQye++ZLUY=
+github.com/openconfig/entity-naming v0.0.0-20230629170241-8a23ae047882/go.mod h1:ZRUrfwYYY+pLaOoWPad3p/8J4LLQcSqtXhBCkD2pXJc=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20200508230933-d19cebf5e7be/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20220920173703-480bf53a74d2/go.mod h1:Y9os75GmSkhHw2wX8sMsxfI7qRGAEcDh8NTa5a8vj6E=
