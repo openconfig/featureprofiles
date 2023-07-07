@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1044,6 +1044,7 @@ func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 }
 
 func validateMatchedStats(t *testing.T, dut *ondatra.DUTDevice, counters map[string]map[string]uint64, trafficFlows map[string]*trafficData) {
+	t.Helper()
 	dp1 := dut.Port(t, "port1")
 	ipv4TermRange := [6]string{"0", "1", "2", "3", "4", "5"}
 	ipv6TermRange := [6]string{"0", "1", "2", "3", "4", "5"}
