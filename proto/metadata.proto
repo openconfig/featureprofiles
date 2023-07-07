@@ -197,6 +197,8 @@ message Metadata {
     // higher value than L3 MTU.
     // Arista: partnerissuetracker.corp.google.com/243445300
     bool omit_l2_mtu = 50;
+    // Skip power admin for controller card
+    bool skip_controller_card_power_admin = 51;
     // Device requires the banner to have a delimiter character.
     string banner_delimiter = 60;
     // Allowed tolerance for BGP traffic flow while comparing for pass or fail
