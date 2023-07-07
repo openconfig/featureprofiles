@@ -201,6 +201,8 @@ func constructValidProfiles(files []string) (map[string]bool, map[string]*file) 
 func checkFiles(knownOC map[string]pathType, files []string, validProfiles map[string]bool, reports map[string]*file) error {
 	tmp := fppb.FeatureProfile{}
 
+	log.Infof("%d files to validate", len(files))
+
 	for _, f := range files {
 		log.Infof("Validating file: %v", f)
 		report := reports[f]
