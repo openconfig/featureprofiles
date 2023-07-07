@@ -107,9 +107,8 @@ jobs:
           # feature.textprotos.
           #
           # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
-          # https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
           export FEATURE_FILES=changed-feature-textprotos.githubactions.txt
-          git diff --diff-filter=d --name-only ${{ github.base_ref }} | grep -E 'feature.textproto$' > "${FEATURE_FILES}"
+          git diff --diff-filter=d --name-only "origin/${GITHUB_BASE_REF}" | grep -E 'feature.textproto$' > "${FEATURE_FILES}"
         fi
         make validate_paths
 
