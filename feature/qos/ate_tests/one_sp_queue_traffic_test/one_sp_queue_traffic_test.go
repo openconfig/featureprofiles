@@ -116,7 +116,9 @@ func TestOneSPQueueTraffic(t *testing.T) {
 
 	var tolerance float32 = 2.0
 	queues := netutil.CommonTrafficQueues(t, dut)
-
+	if dut.Vendor() == ondatra.JUNIPER {
+		queues.AF4 = "5"
+	}
 	// Test case 1: Non-oversubscription NC1 and AF4 traffic.
 	//   - There should be no packet drop for all traffic classes.
 	nonOversubscribedTrafficFlows1 := map[string]*trafficData{
@@ -740,6 +742,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
+	if dut.Vendor() == ondatra.JUNIPER {
+		queues.AF4 = "5"
+	}
 
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
@@ -948,9 +953,10 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
-			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
+		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
 		}
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
@@ -1087,8 +1093,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
 		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
@@ -1322,6 +1329,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
@@ -1457,11 +1465,13 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 }
