@@ -203,6 +203,10 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string,
 	} else {
 		si.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
 	}
+	s4 := si.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
 
 	// create vrf and apply on subinterface
@@ -540,15 +544,13 @@ func TestPBR(t *testing.T) {
 			d := &oc.Root{}
 			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
 			pfIntfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(p1)
-
-			if !deviations.InterfaceRefConfigUnsupported(dut) {
-				pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
-				pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-				pfIntf.SetApplyVrfSelectionPolicy(args.policyName)
-				gnmi.Update(t, dut, pfIntfConfPath.Config(), pfIntf)
-			} else {
-				gnmi.Replace(t, args.dut, pfpath.Interface(p1).ApplyVrfSelectionPolicy().Config(), args.policyName)
+			pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
+			pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+			if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+				pfIntf.InterfaceRef = nil
 			}
+			pfIntf.SetApplyVrfSelectionPolicy(args.policyName)
+			gnmi.Update(t, dut, pfIntfConfPath.Config(), pfIntf)
 
 			// defer deletion of policy from interface
 			defer gnmi.Delete(t, args.dut, pfIntfConfPath.Config())
