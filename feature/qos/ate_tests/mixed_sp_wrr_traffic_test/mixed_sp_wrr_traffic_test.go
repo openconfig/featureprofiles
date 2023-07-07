@@ -877,14 +877,22 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
-			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
+		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
 		}
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+
+	nc1InputWeight := uint64(200)
+	af4InputWeight := uint64(100)
+	if deviations.SchedulerInputWeightLimit(dut) {
+		nc1InputWeight = uint64(100)
+		af4InputWeight = uint64(99)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -948,7 +956,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(100),
+		weight:      af4InputWeight,
 		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
@@ -957,7 +965,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(200),
+		weight:      nc1InputWeight,
 		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
@@ -1016,8 +1024,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
 		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
