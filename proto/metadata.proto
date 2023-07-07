@@ -221,6 +221,8 @@ message Metadata {
     // Device only supports RIB ack, so tests that normally expect FIB_ACK will
     // allow just RIB_ACK.
     bool gribi_riback_only = 67;
+    // Device does not support matched-packets and matched-octets state paths
+    bool matched_packets_octets_unsupported = 68;
   }
 
   message PlatformExceptions {

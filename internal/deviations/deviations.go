@@ -740,6 +740,4 @@ var (
 	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
 	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
-
-	_ = flag.Bool("deviation_matched_packets_octets_unsupported", false, "Set to true for device that does not support telemetry path /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets and matched-octets")
 )
