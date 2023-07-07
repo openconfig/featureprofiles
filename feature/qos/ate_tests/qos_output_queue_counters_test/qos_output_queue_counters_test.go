@@ -492,9 +492,10 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp1.Name())
-			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp1.Name())
+		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
 		}
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
@@ -631,8 +632,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp2.Name())
 		i.SetInterfaceId(dp2.Name())
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp2.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp2.Name())
+		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
 		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
