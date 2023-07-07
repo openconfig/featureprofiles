@@ -101,5 +101,14 @@ jobs:
     - name: Fetch Openconfig Models
       run: make openconfig_public
     - name: Validate Paths
-      run: make validate_paths
+      run: |
+        if [ ! -z "${GITHUB_BASE_REF}" ]; then
+          # If it is a pull request, then only check added/modified
+          # feature.textprotos.
+          #
+          # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
+          export FEATURE_FILES=changed-feature-textprotos.githubactions.txt
+          git diff --diff-filter=d --name-only "${GITHUB_BASE_REF}" | grep -E 'feature.textproto$' > "${FEATURE_FILES}"
+        fi
+        make validate_paths
 

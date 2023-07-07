@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -44,6 +45,7 @@ var (
 	yangSkipsFlag = flag.String(
 		"yang_skip_roots", "", "sub-directories of the .yang roots which should be ignored.",
 	)
+	featureFilesFlag = flag.String("feature_files", "", "optional file containing list of feature.textprotos to validate instead of checking all files. If empty, then all files will be checked.")
 )
 
 var (
@@ -51,21 +53,6 @@ var (
 	yangPaths    []string
 	skipYANGDirs = map[string]bool{}
 )
-
-func init() {
-	flag.Parse()
-	if *featuresRootFlag == "" {
-		log.Fatal("feature_root must be set.")
-	}
-	if *yangRootsFlag == "" {
-		log.Fatal("yang_roots must be set.")
-	}
-	featuresRoot = *featuresRootFlag
-	yangPaths = strings.Split(*yangRootsFlag, ",")
-	for _, s := range strings.Split(*yangSkipsFlag, ",") {
-		skipYANGDirs[s] = true
-	}
-}
 
 type pathType int
 
@@ -171,53 +158,81 @@ type file struct {
 	name  string
 	lines []line
 	// Errors which are not correlated with a line.
-	errors       []string
-	dependencies []string
+	errors []string
 }
 
-// checkFiles parses all `path:` lines in the input `files`, reporting any syntax errors and paths
-// which are not in the `knownOC` set.
-func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
-	report := []file{}
+func constructValidProfiles(files []string) (map[string]bool, map[string]*file) {
 	tmp := fppb.FeatureProfile{}
-	validProfile := make(map[string]bool)
+	validProfiles := make(map[string]bool)
+	reports := make(map[string]*file)
 
 	for _, f := range files {
+		report := reports[f]
+		if report == nil {
+			report = &file{name: f}
+			reports[f] = report
+		}
 		bs, err := os.ReadFile(f)
 		if err != nil {
 			// Just accumulate the file error since we can't do anything else.
-			report = append(report, file{name: f, errors: []string{err.Error()}})
+			report.errors = append(report.errors, err.Error())
 			continue
 		}
 
-		var errs []string
-		var dependencies []string
-
 		// Unmarshal will report syntax errors (although generally without line numbers).
 		if err := prototext.Unmarshal(bs, &tmp); err != nil {
-			errs = append(errs, err.Error())
+			report.errors = append(report.errors, err.Error())
 		}
 
 		// Validate feature profile ID name by checking path.
 		targetFeatureProfileName := getFeatureProfileNameFromPath(f)
 		featureProfileIDName := tmp.GetId().GetName()
-		validProfile[featureProfileIDName] = true
 		if targetFeatureProfileName != featureProfileIDName {
-			errs = append(errs, featureProfileIDName+" is inconsistent with path, want "+targetFeatureProfileName)
-			validProfile[featureProfileIDName] = false
+			report.errors = append(report.errors, featureProfileIDName+" is inconsistent with path, want "+targetFeatureProfileName)
+		} else {
+			validProfiles[featureProfileIDName] = true
+		}
+	}
+	return validProfiles, reports
+}
+
+// checkFiles parses all `path:` lines in the input `files`, reporting any syntax errors and paths
+// which are not in the `knownOC` set.
+func checkFiles(knownOC map[string]pathType, files []string, validProfiles map[string]bool, reports map[string]*file) error {
+	tmp := fppb.FeatureProfile{}
+
+	for _, f := range files {
+		log.Infof("Validating file: %v", f)
+		report := reports[f]
+		if report == nil {
+			report = &file{name: f}
+			reports[f] = report
+		}
+
+		bs, err := os.ReadFile(f)
+		if err != nil {
+			// Just accumulate the file error since we can't do anything else.
+			report.errors = append(report.errors, err.Error())
+			continue
+		}
+
+		// Unmarshal will report syntax errors (although generally without line numbers).
+		if err := prototext.Unmarshal(bs, &tmp); err != nil {
+			report.errors = append(report.errors, err.Error())
 		}
 
 		for _, dependency := range tmp.FeatureProfileDependency {
-			if dependency.GetName() != "" {
-				dependencies = append(dependencies, dependency.GetName())
+			if dependency := dependency.GetName(); dependency != "" {
+				if !validProfiles[dependency] {
+					report.errors = append(report.errors, "can not find feature profile dependency "+dependency)
+				}
 			}
 		}
 
 		// Use parser.Parse so I can get line numbers for OC paths we don't recognize.
-		lines := []line{}
 		ast, err := parser.Parse(bs)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, a := range ast {
 			switch a.Name {
@@ -239,7 +254,7 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 								detail = "missing from YANG"
 							}
 							if detail != "" {
-								lines = append(lines, line{
+								report.lines = append(report.lines, line{
 									oc: v.Value, line: c.Start.Line, detail: detail})
 							}
 						}
@@ -247,14 +262,17 @@ func checkFiles(knownOC map[string]pathType, files []string) ([]file, error) {
 				}
 			}
 		}
-
-		if len(lines) == 0 && len(errs) == 0 && len(dependencies) == 0 {
-			continue
-		}
-		report = append(report, file{name: f, lines: lines, dependencies: dependencies, errors: errs})
 	}
-	report = validateDependency(validProfile, report)
-	return report, nil
+	return nil
+}
+
+// cleanReports removes any empty reports.
+func cleanReports(reports map[string]*file) {
+	for key, report := range reports {
+		if reflect.DeepEqual(report, &file{name: report.name}) {
+			delete(reports, key)
+		}
+	}
 }
 
 // getFeatureProfileNameFromPath gets feature profile id.name from path.
@@ -265,25 +283,9 @@ func getFeatureProfileNameFromPath(file string) string {
 	return strings.Join(featureProfileFilePathArray, "_")
 }
 
-// validateDependency validates dependency from existing feature profile ID lists.
-func validateDependency(validProfile map[string]bool, reports []file) []file {
-	newReports := []file{}
-	for _, report := range reports {
-		for _, dependency := range report.dependencies {
-			if !validProfile[dependency] {
-				report.errors = append(report.errors, "can not find feature profile dependency "+dependency)
-			}
-		}
-		if len(report.lines) != 0 || len(report.errors) != 0 {
-			newReports = append(newReports, file{name: report.name, lines: report.lines, errors: report.errors})
-		}
-	}
-	return newReports
-}
-
-// featureFiles lists the file paths containing features data.
-func featureFiles() ([]string, error) {
-	files := []string{}
+// featureFiles returns the feature files to check and all existing feature files.
+func featureFiles() ([]string, []string, error) {
+	var allFiles []string
 	err := filepath.WalkDir(featuresRoot,
 		func(path string, e fs.DirEntry, err error) error {
 			if err != nil {
@@ -293,19 +295,55 @@ func featureFiles() ([]string, error) {
 				return nil
 			}
 			if e.Name() == "feature.textproto" {
-				files = append(files, path)
+				allFiles = append(allFiles, path)
 			}
 			return nil
 		})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	sort.Strings(files)
-	return files, nil
+	sort.Strings(allFiles)
+
+	var filesToCheck []string
+	if *featureFilesFlag != "" {
+		readBytes, err := os.ReadFile(*featureFilesFlag)
+		if err != nil {
+			log.Fatalf("cannot read feature_files flag: %v", err)
+		}
+		for _, line := range strings.Split(string(readBytes), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			path, err := filepath.Abs(line)
+			if err != nil {
+				return nil, nil, err
+			}
+			filesToCheck = append(filesToCheck, path)
+		}
+		sort.Strings(filesToCheck)
+	} else {
+		filesToCheck = allFiles
+	}
+
+	return filesToCheck, allFiles, nil
 }
 
 // Check that every OC path used in the Feature Profiles is defined in the public OpenConfig yang.
 func main() {
+	flag.Parse()
+	if *featuresRootFlag == "" {
+		log.Fatal("feature_root must be set.")
+	}
+	if *yangRootsFlag == "" {
+		log.Fatal("yang_roots must be set.")
+	}
+	featuresRoot = *featuresRootFlag
+	yangPaths = strings.Split(*yangRootsFlag, ",")
+	for _, s := range strings.Split(*yangSkipsFlag, ",") {
+		skipYANGDirs[s] = true
+	}
+
 	ms, err := modules()
 	if err != nil {
 		log.Fatal(err)
@@ -315,15 +353,17 @@ func main() {
 		addKnownPaths(knownPaths, yang.ToEntry(m))
 	}
 
-	files, err := featureFiles()
+	filesToCheck, allFiles, err := featureFiles()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	reports, err := checkFiles(knownPaths, files)
-	if err != nil {
+	validProfiles, reports := constructValidProfiles(allFiles)
+	if err := checkFiles(knownPaths, filesToCheck, validProfiles, reports); err != nil {
 		log.Fatal(err)
 	}
+
+	cleanReports(reports)
 
 	if len(reports) == 0 {
 		return
