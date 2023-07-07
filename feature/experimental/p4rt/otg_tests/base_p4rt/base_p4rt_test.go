@@ -281,8 +281,7 @@ func verifyReadReceiveMatch(t *testing.T, expected_table *p4_v1.Update, received
 	matches := 0
 	for _, table := range received_entry.Entities {
 		if cmp.Equal(table, expected_table.Entity, protocmp.Transform(), protocmp.IgnoreFields(&p4_v1.TableEntry{}, "meter_config", "counter_data")) {
-			t.Logf("Table match succesful")
-			matches += 1
+			matches++
 		}
 	}
 	if matches == 0 {
