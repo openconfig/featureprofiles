@@ -108,7 +108,6 @@ jobs:
           #
           # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
           git fetch origin
-          export FEATURE_FILES=changed-feature-textprotos.githubactions.txt
           if ! git diff --diff-filter=D --name-only | grep -E 'feature.textproto$'; then
             export FEATURE_FILES=changed-feature-textprotos.githubactions.txt
             # grep: don't error out on no match.
