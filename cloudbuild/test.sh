@@ -15,6 +15,8 @@
 
 set -xe
 
+nohup /tmp/featureprofiles/cloudbuild/cleanup.sh 2>/dev/null &
+
 case $1 in
   arista_ceos)
     topology=arista/ceos/dutate.textproto
@@ -60,6 +62,7 @@ kne create /tmp/kne/"$topology"
 go test -v ./feature/system/tests/... \
   -timeout 0 \
   -kne-topo /tmp/kne/"$topology" \
-  -vendor_creds "$vendor_creds"
+  -vendor_creds "$vendor_creds" \
+  -alsologtostderr
 
 popd

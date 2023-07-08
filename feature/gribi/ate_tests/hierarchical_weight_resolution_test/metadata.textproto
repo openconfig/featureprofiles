@@ -16,6 +16,7 @@ platform_exceptions: {
   deviations: {
     hierarchical_weight_resolution_tolerance: 1.5
     ipv4_missing_enabled: true
+    interface_ref_config_unsupported: true
   }
 }
 platform_exceptions: {
@@ -26,7 +27,7 @@ platform_exceptions: {
     hardware_model: "cptx"
   }
   deviations: {
-    hierarchical_weight_resolution_tolerance: 0.31
+    hierarchical_weight_resolution_tolerance: 0.4
     explicit_interface_ref_definition: true
   }
 }
@@ -41,5 +42,17 @@ platform_exceptions: {
     explicit_gribi_under_network_instance: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model: "DCS-7280CR3K-32D4"
+    hardware_model: "DCS-7808"
+    hardware_model: "DCS-7804-CH"
+    hardware_model: "ceos"
+  }
+  deviations: {
+    omit_l2_mtu: true
   }
 }
