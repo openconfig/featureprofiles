@@ -65,6 +65,8 @@ package deviations
 
 import (
 	"flag"
+	"fmt"
+	"regexp"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
@@ -72,19 +74,78 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// lookupDutDeviations returns the deviations for the specified dut.
-func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
+func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions, error) {
+	var matchedPlatformException *mpb.Metadata_PlatformExceptions
+
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
+		if platformExceptions.GetPlatform().Vendor.String() == "" {
+			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
+		}
+		if platformExceptions.GetPlatform().GetHardwareModelRegex() != "" && len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
+			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
+		}
+
 		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
 			continue
 		}
-		for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
-			if dut.Device.Model() == hardwareModel {
-				return platformExceptions.GetDeviations()
+
+		// If hardware_model_regex is set and does not match, continue
+		if hardwareModelRegex := platformExceptions.GetPlatform().GetHardwareModelRegex(); hardwareModelRegex != "" {
+			matchHw, errHw := regexp.MatchString(hardwareModelRegex, dut.Device.Model())
+			if errHw != nil {
+				return nil, fmt.Errorf("error with regex match %v", errHw)
+			}
+			if !matchHw {
+				continue
 			}
 		}
+
+		// If software_version_regex is set and does not match, continue
+		if softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex(); softwareVersionRegex != "" {
+			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dut.Device.Model())
+			if errSw != nil {
+				return nil, fmt.Errorf("error with regex match %v", errSw)
+			}
+			if !matchSw {
+				continue
+			}
+		}
+
+		// TODO(prinikasn): Remove after hardware_model field is removed.
+		if len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
+			matchedHwRepeated := false
+			for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
+				if dut.Device.Model() == hardwareModel {
+					matchedHwRepeated = true
+					break
+				}
+			}
+			if !matchedHwRepeated {
+				continue
+			}
+		}
+
+		if matchedPlatformException != nil {
+			return nil, fmt.Errorf("cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
+		}
+		matchedPlatformException = platformExceptions
 	}
-	log.Warningf("No platform exceptions for dut platform %v or model %v configured in platform exceptions metadata %v", dut.Device.Vendor().String(), dut.Device.Model(), metadata.Get().PlatformExceptions)
+	return matchedPlatformException, nil
+}
+
+func mustLookupDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_PlatformExceptions {
+	platformExceptions, err := lookupDeviations(dut)
+	if err != nil {
+		log.Exitf("Error looking up deviations: %v", err)
+	}
+	return platformExceptions
+}
+
+func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
+	if platformExceptions := mustLookupDeviations(dut); platformExceptions != nil {
+		return platformExceptions.GetDeviations()
+	}
+	log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
 	return &mpb.Metadata_Deviations{}
 }
 
@@ -98,13 +159,15 @@ func logErrorIfFlagSet(name string) {
 
 // BannerDelimiter returns if device requires the banner to have a delimiter character.
 // Full OpenConfig compliant devices should work without delimiter.
-func BannerDelimiter(_ *ondatra.DUTDevice) string {
-	return *bannerDelimiter
+func BannerDelimiter(dut *ondatra.DUTDevice) string {
+	logErrorIfFlagSet("deviation_banner_delimiter")
+	return lookupDUTDeviations(dut).GetBannerDelimiter()
 }
 
-// OmitL2MTU returns if Device does not support setting the L2 MTU.
-func OmitL2MTU(_ *ondatra.DUTDevice) bool {
-	return *omitL2MTU
+// OmitL2MTU returns if device does not support setting the L2 MTU.
+func OmitL2MTU(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_omit_l2_mtu")
+	return lookupDUTDeviations(dut).GetOmitL2Mtu()
 }
 
 // GRIBIMACOverrideStaticARPStaticRoute returns whether the device needs to configure Static ARP + Static Route to override setting MAC address in Next Hop.
@@ -166,8 +229,9 @@ func CLITakesPrecedenceOverOC(dut *ondatra.DUTDevice) bool {
 }
 
 // BGPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
-func BGPTrafficTolerance(_ *ondatra.DUTDevice) int {
-	return *bgpTrafficTolerance
+func BGPTrafficTolerance(dut *ondatra.DUTDevice) int32 {
+	logErrorIfFlagSet("deviation_bgp_tolerance_value")
+	return lookupDUTDeviations(dut).GetBgpToleranceValue()
 }
 
 // StaticProtocolName returns the name used for the static routing protocol.
@@ -191,12 +255,6 @@ func SwitchChipIDUnsupported(dut *ondatra.DUTDevice) bool {
 func BackplaneFacingCapacityUnsupported(dut *ondatra.DUTDevice) bool {
 	logErrorIfFlagSet("deviation_backplane_facing_capacity_unsupported")
 	return lookupDUTDeviations(dut).GetBackplaneFacingCapacityUnsupported()
-}
-
-// ComponentsSoftwareModuleUnsupported returns whether the device supports software module components.
-func ComponentsSoftwareModuleUnsupported(dut *ondatra.DUTDevice) bool {
-	logErrorIfFlagSet("deviation_components_software_module_unsupported")
-	return lookupDUTDeviations(dut).GetComponentsSoftwareModuleUnsupported()
 }
 
 // SchedulerInputWeightLimit returns whether the device does not support weight above 100.
@@ -255,8 +313,9 @@ func Ipv6DiscardedPktsUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // LinkQualWaitAfterDeleteRequired returns whether the device requires additional time to complete post delete link qualification cleanup.
-func LinkQualWaitAfterDeleteRequired(_ *ondatra.DUTDevice) bool {
-	return *linkQualWaitAfterDeleteRequired
+func LinkQualWaitAfterDeleteRequired(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_link_qual_wait_after_delete_required")
+	return lookupDUTDeviations(dut).GetLinkQualWaitAfterDeleteRequired()
 }
 
 // StatePathsUnsupported returns whether the device supports following state paths
@@ -312,13 +371,11 @@ func IPNeighborMissing(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpNeighborMissing()
 }
 
-// NTPAssociationTypeRequired returns if device requires NTP association-type to be explicitly set.
-// OpenConfig defaults the association-type to SERVER if not set.
-
 // GRIBIRIBAckOnly returns if device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.
 // Full gRIBI compliant devices should pass both with and without this deviation.
-func GRIBIRIBAckOnly(_ *ondatra.DUTDevice) bool {
-	return *gRIBIRIBAckOnly
+func GRIBIRIBAckOnly(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_gribi_riback_only")
+	return lookupDUTDeviations(dut).GetGribiRibackOnly()
 }
 
 // MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
@@ -337,13 +394,6 @@ func MissingValueForDefaults(_ *ondatra.DUTDevice) bool {
 func TraceRouteL4ProtocolUDP(dut *ondatra.DUTDevice) bool {
 	logErrorIfFlagSet("deviation_traceroute_l4_protocol_udp")
 	return lookupDUTDeviations(dut).GetTracerouteL4ProtocolUdp()
-}
-
-// TraceRouteFragmentation returns if device does not support fragmentation bit for traceroute.
-// Default value is false.
-func TraceRouteFragmentation(dut *ondatra.DUTDevice) bool {
-	logErrorIfFlagSet("deviation_traceroute_fragmentation")
-	return lookupDUTDeviations(dut).GetTracerouteFragmentation()
 }
 
 // LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
@@ -393,13 +443,15 @@ func InstallOSForStandbyRP(dut *ondatra.DUTDevice) bool {
 
 // GNOIStatusWithEmptySubcomponent returns if the response of gNOI reboot status is a single value (not a list),
 // the device requires explict component path to account for a situation when there is more than one active reboot requests.
-func GNOIStatusWithEmptySubcomponent(_ *ondatra.DUTDevice) bool {
-	return *gNOIStatusWithEmptySubcomponent
+func GNOIStatusWithEmptySubcomponent(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_gnoi_status_empty_subcomponent")
+	return lookupDUTDeviations(dut).GetGnoiStatusEmptySubcomponent()
 }
 
 // NetworkInstanceTableDeletionRequired returns if device requires explicit deletion of network-instance table.
-func NetworkInstanceTableDeletionRequired(_ *ondatra.DUTDevice) bool {
-	return *networkInstanceTableDeletionRequired
+func NetworkInstanceTableDeletionRequired(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_network_instance_table_deletion_required")
+	return lookupDUTDeviations(dut).GetNetworkInstanceTableDeletionRequired()
 }
 
 // ExplicitPortSpeed returns if device requires port-speed to be set because its default value may not be usable.
@@ -447,8 +499,9 @@ func SkipBGPTestPasswordMismatch(dut *ondatra.DUTDevice) bool {
 }
 
 // BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
-func BGPMD5RequiresReset(_ *ondatra.DUTDevice) bool {
-	return *bgpMD5RequiresReset
+func BGPMD5RequiresReset(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_bgp_md5_requires_reset")
+	return lookupDUTDeviations(dut).GetBgpMd5RequiresReset()
 }
 
 // ExplicitIPv6EnableForGRIBI returns if device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address.
@@ -488,8 +541,9 @@ func SecondaryBackupPathTrafficFailover(dut *ondatra.DUTDevice) bool {
 
 // DequeueDeleteNotCountedAsDrops returns if device dequeues and deletes the pkts after a while and those are not counted
 // as drops
-func DequeueDeleteNotCountedAsDrops(_ *ondatra.DUTDevice) bool {
-	return *dequeueDeleteNotCountedAsDrops
+func DequeueDeleteNotCountedAsDrops(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_dequeue_delete_not_counted_as_drops")
+	return lookupDUTDeviations(dut).GetDequeueDeleteNotCountedAsDrops()
 }
 
 // RoutePolicyUnderAFIUnsupported returns if Route-Policy under the AFI/SAFI is not supported
@@ -515,11 +569,29 @@ func GNOIFabricComponentRebootUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnoiFabricComponentRebootUnsupported()
 }
 
+// NtpNonDefaultVrfUnsupported returns true if the device does not support ntp nondefault vrf.
+// Default value is false.
+func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
+}
+
+// SkipPLQPacketsCountCheck returns if PLQ packets count check should be skipped.
+// Default value is false.
+func SkipPLQPacketsCountCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPlqPacketsCountCheck()
+}
+
+// SkipControllerCardPowerAdmin returns if power-admin-state config on controller card should be skipped.
+// Default value is false.
+func SkipControllerCardPowerAdmin(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipControllerCardPowerAdmin()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
 var (
-	bannerDelimiter = flag.String("deviation_banner_delimiter", "",
+	_ = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
 	interfaceEnabled = flag.Bool("deviation_interface_enabled", false,
@@ -540,10 +612,10 @@ var (
 	_ = flag.Bool("deviation_subinterface_packet_counters_missing", false,
 		"Device is missing subinterface packet counters for IPv4/IPv6, so the test will skip checking them.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	omitL2MTU = flag.Bool("deviation_omit_l2_mtu", false,
+	_ = flag.Bool("deviation_omit_l2_mtu", false,
 		"Device does not support setting the L2 MTU, so omit it.  OpenConfig allows a device to enforce that L2 MTU, which has a default value of 1514, must be set to a higher value than L3 MTU, so a full OpenConfig compliant device may fail with the deviation.")
 
-	gRIBIRIBAckOnly = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
+	_ = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
 	missingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
 		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
@@ -552,7 +624,7 @@ var (
 
 	gNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
 
-	gNOIStatusWithEmptySubcomponent = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
+	_ = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
 	_ = flag.Bool("deviation_osactivate_noreboot", false, "Device requires separate reboot to activate OS.")
 
@@ -570,8 +642,6 @@ var (
 	_ = flag.Bool("deviation_prepolicy_received_routes", false, "Device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy. Fully-compliant devices should pass with and without this deviation.")
 
 	_ = flag.Bool("deviation_traceroute_l4_protocol_udp", false, "Device only support UDP as l4 protocol for traceroute. Use this flag to set default l4 protocol as UDP and skip the tests explictly use TCP or ICMP.")
-
-	_ = flag.Bool("deviation_traceroute_fragmentation", false, "Device does not support fragmentation bit for traceroute.")
 
 	_ = flag.Bool("deviation_connect_retry", false, "Connect-retry is not supported /bgp/neighbors/neighbor/timers/config/connect-retry.")
 
@@ -605,20 +675,20 @@ var (
 
 	interfaceConfigVRFBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
-	bgpTrafficTolerance = flag.Int("deviation_bgp_tolerance_value", 0,
+	_ = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
 
 	_ = flag.Bool("deviation_explicit_gribi_under_network_instance", false,
 		"Device requires gribi-protocol to be enabled under network-instance.")
 
-	bgpMD5RequiresReset = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
+	_ = flag.Bool("deviation_bgp_md5_requires_reset", false, "Device requires a BGP session reset to utilize a new MD5 key")
 
 	_ = flag.Bool("deviation_qos_dropped_octets", false, "Set to true to skip checking QOS Dropped octets stats for interface")
 
 	_ = flag.Bool("deviation_skip_bgp_test_password_mismatch", false,
 		"Skip BGP TestPassword mismatch subtest if value is true, Default value is false")
 
-	networkInstanceTableDeletionRequired = flag.Bool("deviation_network_instance_table_deletion_required", false,
+	_ = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
 	p4rtUnsetElectionIDPrimaryAllowed = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary")
@@ -645,8 +715,6 @@ var (
 
 	_ = flag.Bool("deviation_backplane_facing_capacity_unsupported", false, "Device does not support backplane-facing-capacity leaves for some of the components. Set this flag to skip checking the leaves.")
 
-	_ = flag.Bool("deviation_components_software_module_unsupported", false, "Set true for Device that does not support software module components, default is false.")
-
 	_ = flag.Bool("deviation_scheduler_input_weight_limit", false, "device does not support weight above 100")
 
 	_ = flag.Bool("deviation_ecn_profile_required_definition", false, "device requires additional config for ECN")
@@ -659,7 +727,7 @@ var (
 
 	_ = flag.Bool("deviation_ipv6_discarded_pkts_unsupported", false, "Set true for device that does not support interface ipv6 discarded packet statistics, default is false")
 
-	linkQualWaitAfterDeleteRequired = flag.Bool("deviation_link_qual_wait_after_delete_required", false, "Device requires additional time to complete post delete link qualification cleanup.")
+	_ = flag.Bool("deviation_link_qual_wait_after_delete_required", false, "Device requires additional time to complete post delete link qualification cleanup.")
 
 	_ = flag.Bool("deviation_state_path_unsupported", false, "Device does not support these state paths, Set this flag to skip checking the leaves")
 
@@ -671,7 +739,7 @@ var (
 
 	_ = flag.Bool("deviation_secondary_backup_path_traffic_failover", false, "Device does not support traffic forward with secondary backup path failover")
 
-	dequeueDeleteNotCountedAsDrops = flag.Bool("deviation_dequeue_delete_not_counted_as_drops", false, "devices do not count dequeued and deleted packets as drops, default is false")
+	_ = flag.Bool("deviation_dequeue_delete_not_counted_as_drops", false, "devices do not count dequeued and deleted packets as drops, default is false")
 
 	_ = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
 
