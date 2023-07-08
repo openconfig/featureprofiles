@@ -102,13 +102,13 @@ jobs:
       run: make openconfig_public
     - name: Validate Paths
       run: |
+        # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
         if [ ! -z "${GITHUB_BASE_REF}" ]; then
-          # If it is a pull request, then only check added/modified
-          # feature.textprotos.
-          #
-          # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
           git fetch origin
-          if ! git diff --diff-filter=D --name-only | grep -E 'feature.textproto$'; then
+          if ! git diff --diff-filter=D --name-only ${{ github.event.pull_request.base.sha }} | grep -E 'feature.textproto$'; then
+            # If it is a pull request AND if no feature.textproto files were
+            # deleted, then we can skip checking all but the added/modified
+            # feature.textproto files.
             export FEATURE_FILES=changed-feature-textprotos.githubactions.txt
             # grep: don't error out on no match.
             git diff --diff-filter=d --name-only ${{ github.event.pull_request.base.sha }} | { grep -E 'feature.textproto$' || true; } > "${FEATURE_FILES}"
