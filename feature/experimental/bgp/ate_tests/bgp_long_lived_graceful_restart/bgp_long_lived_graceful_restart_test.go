@@ -17,7 +17,6 @@ package bgp_long_lived_graceful_restart_test
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -342,28 +341,23 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Netw
 	}
 
 	for _, nbr := range nbrs {
+		bgpNbr := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		bgpNbr.GetOrCreateTimers().HoldTime = ygot.Uint16(180)
+		bgpNbr.GetOrCreateTimers().KeepaliveInterval = ygot.Uint16(60)
+		bgpNbr.PeerAs = ygot.Uint32(nbr.as)
+		bgpNbr.Enabled = ygot.Bool(true)
 		if nbr.isV4 {
-			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv4.PeerGroup = ygot.String(peerv4GrpName)
-			nv4.GetOrCreateTimers().HoldTime = ygot.Uint16(180)
-			nv4.GetOrCreateTimers().KeepaliveInterval = ygot.Uint16(60)
-			nv4.PeerAs = ygot.Uint32(nbr.as)
-			nv4.Enabled = ygot.Bool(true)
-			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			bgpNbr.PeerGroup = ygot.String(peerv4GrpName)
+			af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(true)
-			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(false)
 		} else {
-			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv6.PeerGroup = ygot.String(peerv6GrpName)
-			nv6.GetOrCreateTimers().HoldTime = ygot.Uint16(180)
-			nv6.GetOrCreateTimers().KeepaliveInterval = ygot.Uint16(60)
-			nv6.PeerAs = ygot.Uint32(nbr.as)
-			nv6.Enabled = ygot.Bool(true)
-			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			bgpNbr.PeerGroup = ygot.String(peerv6GrpName)
+			bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(true)
-			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(false)
 		}
 	}
@@ -819,10 +813,9 @@ func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string)
 }
 
 func juniperCLI() string {
-	var proto string = "bgp"
-	return fmt.Sprintf(`
+	return `
 	protocols {
-		%s {
+		bgp {
 			graceful-restart {
 				long-lived {
 					receiver {
@@ -831,8 +824,7 @@ func juniperCLI() string {
 				}
 			}
 		}
-	}
-	`, proto)
+	}`
 }
 
 func removeATENewPeers(t *testing.T, topo *ondatra.ATETopology, bgpPeers []*ixnet.BGP) {
@@ -931,19 +923,17 @@ func configureDUTNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeigh
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
 	for _, nbr := range nbrs {
-		if nbr.isV4 {
-			pg1 := bgp.GetOrCreatePeerGroup(peerv4GrpName)
-			pg1.PeerAs = ygot.Uint32(nbr.as)
-			pg1.PeerGroupName = ygot.String(peerv4GrpName)
-			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv4.PeerGroup = ygot.String(peerv4GrpName)
-			nv4.PeerAs = ygot.Uint32(nbr.as)
-			nv4.Enabled = ygot.Bool(true)
-			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(true)
-			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(false)
-		}
+		pg1 := bgp.GetOrCreatePeerGroup(peerv4GrpName)
+		pg1.PeerAs = ygot.Uint32(nbr.as)
+		pg1.PeerGroupName = ygot.String(peerv4GrpName)
+		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		nv4.PeerGroup = ygot.String(peerv4GrpName)
+		nv4.PeerAs = ygot.Uint32(nbr.as)
+		nv4.Enabled = ygot.Bool(true)
+		af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		af4.Enabled = ygot.Bool(true)
+		af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		af6.Enabled = ygot.Bool(false)
 	}
 	gnmi.Update(t, dut, dutConfPath.Config(), ni_proto)
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
@@ -1007,13 +997,12 @@ func verifyGracefulRestart(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
+func buildCliConfigRequest(config string) *gpb.SetRequest {
 	// Build config with Origin set to cli and Ascii encoded config.
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{{
 			Path: &gpb.Path{
 				Origin: "cli",
-				Elem:   []*gpb.PathElem{},
 			},
 			Val: &gpb.TypedValue{
 				Value: &gpb.TypedValue_AsciiVal{
@@ -1022,7 +1011,7 @@ func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 			},
 		}},
 	}
-	return gpbSetRequest, nil
+	return gpbSetRequest
 }
 
 func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
@@ -1236,11 +1225,8 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 			config = juniperCLI()
 			t.Logf("Push the CLI config:%s", dut.Vendor())
 		}
-		gpbSetRequest, err := buildCliConfigRequest(config)
-		if err != nil {
-			t.Fatalf("Cannot build a gNMI SetRequest: %v", err)
-		}
-		if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		gpbSetRequest := buildCliConfigRequest(config)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 		}
 	})
