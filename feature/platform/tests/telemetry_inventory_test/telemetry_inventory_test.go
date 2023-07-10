@@ -380,8 +380,8 @@ func TestSwitchChip(t *testing.T) {
 
 		cName := card.GetName()
 		t.Run(fmt.Sprintf("Backplane:%s", cName), func(t *testing.T) {
-			if deviations.BackplaneFacingCapacityUnsupported(dut) && regexp.MustCompile("NPU[0-9]$").Match([]byte(card.GetName())) {
-				// Vendor does not support backplane-facing-capacity for nodes named 'NPU'.
+			if deviations.BackplaneFacingCapacityUnsupported(dut) {
+				// Vendor does not support backplane-facing-capacity
 				t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")
 			}
 			// For SwitchChip, check OC integrated-circuit paths.
