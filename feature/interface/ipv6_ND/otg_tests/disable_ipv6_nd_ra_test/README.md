@@ -27,10 +27,20 @@ Validate IPv6 ND Router Advertisement (RA) could be completely disabled.
 *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/suppress
 *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/interval
 
+> NOTE: PR #900 (https://github.com/openconfig/public/pull/900) deprecate "suppress" leaf and replace it by:
+> *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/enable: FALSE
+> *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/mode:   ALL (default)
+>  If PR #900 is mergeb by time of test coding, please follow new model.
+  
 ## Telemetry Parameter Coverage
 
 *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/suppress
 *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/interval
+
+> NOTE: PR #900 (https://github.com/openconfig/public/pull/900) deprecate "suppress" leaf and replace it by:
+> *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/enable: FALSE
+> *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/mode:   ALL (default)
+> If PR #900 is mergeb by time of test coding, please follow new model.
 
 ## Protocol/RPC Parameter Coverage
 
