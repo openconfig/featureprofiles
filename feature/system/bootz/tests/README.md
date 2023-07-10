@@ -95,7 +95,7 @@ be sent to the device and properly handled.
 
 | ID        |Case  | Result |
 | --------- | ------------- | --- |
-| bootz-3.1 | No ownership voucher  | Device boots without OV present  |
+| bootz-3.1 | No ownership voucher  | Device fails with status invalid parameter |
 | bootz-3.2 | Invalid OV  | Device fails with status invalid parameter  |
 | bootz-3.3 | OV fails | Device fails with status invalid parameter |
 | bootz-3.4 | OV valid | Device boots with OV installed |
