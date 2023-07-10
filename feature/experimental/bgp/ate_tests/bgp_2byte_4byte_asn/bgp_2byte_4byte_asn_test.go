@@ -76,48 +76,48 @@ func TestBgpSession(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		nbr     bgpNbr
+		nbr     *bgpNbr
 		dutConf *oc.NetworkInstance_Protocol
 		ateConf *ondatra.ATETopology
 	}{
 		{
 			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
-			nbr:     bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
+			nbr:     &bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 100, isV4: true}, connExternal),
 		}, {
 			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv6 peers",
-			nbr:     bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
+			nbr:     &bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 100, isV4: false}, connExternal),
 		}, {
 			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
-			nbr:     bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
+			nbr:     &bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 70000, isV4: true}, connExternal),
 		}, {
 			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
-			nbr:     bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: true},
+			nbr:     &bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 70000, isV4: false}, connExternal),
 		}, {
 			name:    "Establish iBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
-			nbr:     bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
+			nbr:     &bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 200, isV4: true}, connInternal),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte < 65535) for ipv6 peers",
-			nbr:     bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
+			nbr:     &bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 200, isV4: false}, connInternal),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
-			nbr:     bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
+			nbr:     &bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 80000, isV4: true}, connInternal),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
-			nbr:     bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
+			nbr:     &bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 80000, isV4: false}, connInternal),
 		},
@@ -141,7 +141,7 @@ func TestBgpSession(t *testing.T) {
 			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 
 			t.Log("Verify BGP AS numbers")
-			verifyPeer(t, &tc.nbr, dut)
+			verifyPeer(t, tc.nbr, dut)
 
 			t.Log("Clear BGP Configs on ATE")
 			tc.ateConf.StopProtocols(t)
@@ -229,29 +229,20 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 	pg.PeerAs = ygot.Uint32(nbr.peerAS)
 	pg.PeerGroupName = ygot.String("ATE")
 
+	neighbor := bgp.GetOrCreateNeighbor(nbr.peerIP)
+	neighbor.PeerAs = ygot.Uint32(nbr.peerAS)
+	neighbor.Enabled = ygot.Bool(true)
+	neighbor.PeerGroup = ygot.String("ATE")
+	neighbor.GetOrCreateTimers().RestartTime = ygot.Uint16(75)
+
 	if nbr.isV4 {
-		nv4 := bgp.GetOrCreateNeighbor(nbr.peerIP)
-		nv4.PeerAs = ygot.Uint32(nbr.peerAS)
-		nv4.Enabled = ygot.Bool(true)
-		nv4.PeerGroup = ygot.String("ATE")
-		nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(75)
-
-		afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		afisafi := neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		afisafi.Enabled = ygot.Bool(true)
-		nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
-
-		prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
-		prefixLimit.MaxPrefixes = ygot.Uint32(1000)
+		neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 	} else {
-		nv6 := bgp.GetOrCreateNeighbor(nbr.peerIP)
-		nv6.PeerAs = ygot.Uint32(nbr.peerAS)
-		nv6.Enabled = ygot.Bool(true)
-		nv6.PeerGroup = ygot.String("ATE")
-		nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(75)
-
-		afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		afisafi6 := neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		afisafi6.Enabled = ygot.Bool(true)
-		nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+		neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 	}
 	return ni_proto
 }
