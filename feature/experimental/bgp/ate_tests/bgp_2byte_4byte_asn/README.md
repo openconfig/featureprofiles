@@ -6,7 +6,7 @@ BGP 2-Byte and 4-Byte ASN support
 
 ## Procedure
 
-*   Establish BGP sessions as follows and verify all the sessions are established:
+*   Establish BGP sessions as follows and verify all the sessions are established
     *   ATE (2-byte) - DUT (4-byte) - eBGP IPv4 with ASN < 65535 on DUT side
     *   ATE (2-byte) - DUT (4-byte) - eBGP IPv6 with ASN < 65535 on DUT side
     *   ATE (4-byte) - DUT (4-byte) - eBGP IPv4
