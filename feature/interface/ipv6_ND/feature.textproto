@@ -21,9 +21,15 @@ id {
 config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/suppress"
 }
+# https://github.com/openconfig/public/pull/900 re-place above by:
+# path: "/interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/enable"
+# path: "/interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/mode"
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/suppress"
 }
+# https://github.com/openconfig/public/pull/900 re-place above by:
+# path: "/interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/enable"
+# path: "/interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/mode"
 config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/interval"
 }
