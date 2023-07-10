@@ -117,6 +117,7 @@ var (
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	dc := gnmi.OC()
 	i1 := dutSrc.NewOCInterface(dut.Port(t, "port1").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
@@ -183,6 +184,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 }
 
 func sendTraffic(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
+	t.Helper()
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
 	time.Sleep(trafficDuration)
@@ -191,16 +193,17 @@ func sendTraffic(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
 }
 
 func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state string) {
+	t.Helper()
 	for _, d := range c.Devices().Items() {
 		for _, ip := range d.Bgp().Ipv4Interfaces().Items() {
 			for _, configPeer := range ip.Peers().Items() {
 				nbrPath := gnmi.OTG().BgpPeer(configPeer.Name())
-				_, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+				status, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
 					currState, ok := val.Val()
 					return ok && currState.String() == state
 				}).Await(t)
 				if !ok {
-					fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, otg, nbrPath.State()))
+					t.Logf("BGP reported state %v", status.String())
 					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
 				}
 			}
@@ -208,12 +211,12 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 		for _, ip := range d.Bgp().Ipv6Interfaces().Items() {
 			for _, configPeer := range ip.Peers().Items() {
 				nbrPath := gnmi.OTG().BgpPeer(configPeer.Name())
-				_, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+				status, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
 					currState, ok := val.Val()
 					return ok && currState.String() == state
 				}).Await(t)
 				if !ok {
-					fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, otg, nbrPath.State()))
+					t.Logf("BGP reported state %v", status.String())
 					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
 				}
 			}
@@ -223,6 +226,7 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 
 // verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	var nbrIP = []string{ateSrc.IPv4, ateDst1.IPv4, ateDst2.IPv4}
 	t.Logf("Verifying BGP state.")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -231,13 +235,12 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		nbrPath := bgpPath.Neighbor(nbr)
 		// Get BGP adjacency state.
 		t.Logf("Waiting for BGP neighbor to establish...")
-		var status *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]
 		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			state, ok := val.Val()
 			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
-			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+			t.Logf("BGP reported state is %v", status.String())
 			t.Fatal("No BGP neighbor formed")
 		}
 		state, _ := status.Val()
@@ -251,6 +254,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // configureOTG configures the interfaces and BGP protocols on an ATE, including
 // advertising some(faked) networks over BGP.
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
+	t.Helper()
 	config := otg.NewConfig(t)
 	port1 := config.Ports().Add().SetName("port1")
 	port2 := config.Ports().Add().SetName("port2")
@@ -359,6 +363,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 // verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%
 // depending on wantLoss, +- 2%).
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flowName string, wantLoss bool) {
+	t.Helper()
 	otg := ate.OTG()
 	otgutils.LogFlowMetrics(t, otg, c)
 	t.Logf("Verifying flow metrics for flow %s\n", flowName)
@@ -384,7 +389,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flow
 
 // setMED is used to configure routing policy to set BGP MED on DUT.
 func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
-	// Configure SetMED on DUT.
+	t.Helper()
 	rp := d.GetOrCreateRoutingPolicy()
 
 	pdef1 := rp.GetOrCreatePolicyDefinition(setMEDPolicy100)
@@ -412,22 +417,22 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 
 // verifySetMed is used to validate MED on received prefixes at OTG Port1.
 func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDValue uint32) {
+	t.Helper()
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
-		time.Minute,
+		2*time.Minute,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			_, present := v.Val()
-			return present
+			return v.IsPresent()
 		}).Await(t)
 
 	if ok {
 		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
 		gotPrefixCount := len(bgpPrefixes)
 		if gotPrefixCount < routeCount {
-			t.Errorf("Received prefixes on otg are not as expected got prefixes%v, want prefixes %v", gotPrefixCount, routeCount)
+			t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 		} else {
-			t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes%v", gotPrefixCount, routeCount)
+			t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 		}
 	}
 
@@ -458,6 +463,7 @@ func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDVal
 
 // verifyBGPCapabilities is used to Verify BGP capabilities like route refresh as32 and mpbgp.
 func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	t.Log("Verifying BGP capabilities.")
 	var nbrIP = []string{ateSrc.IPv4, ateDst1.IPv4, ateDst2.IPv4}
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -481,6 +487,7 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 // verifyPrefixesTelemetry confirms that the dut shows the correct numbers of installed,
 // sent and received IPv4 prefixes.
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled, wantSent uint32) {
+	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateSrc.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
