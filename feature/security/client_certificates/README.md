@@ -12,8 +12,8 @@ the client to the server.
 
 ### Input Args
 
-* the set of certificate testdata in
-  featureprofiles/features/security/certificate-authorties/
+* the set of certificate testdata generated with the mk_cas.sh
+   script in featureprofiles/features/security/certificate-authorties/
 
 ### DUT service setup
 
