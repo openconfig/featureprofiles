@@ -199,6 +199,8 @@ message Metadata {
     bool omit_l2_mtu = 50;
     // Skip power admin for controller card
     bool skip_controller_card_power_admin = 51;
+    // Skip PLQ packets count check.
+    bool skip_plq_packets_count_check = 55;    
     // Device requires the banner to have a delimiter character.
     string banner_delimiter = 60;
     // Allowed tolerance for BGP traffic flow while comparing for pass or fail
