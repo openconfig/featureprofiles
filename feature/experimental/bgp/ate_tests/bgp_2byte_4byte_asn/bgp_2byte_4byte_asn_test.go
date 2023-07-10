@@ -1,6 +1,16 @@
-/*Here is the corrected code to establish eBGP IPv4 session between ATE-port1 and DUT-1:
-
- */
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package bgp_2byte_4byte_asn_test
 
@@ -51,7 +61,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestBgpSession(t *testing.T) {
-
 	t.Log("Configure DUT interface")
 	dut := ondatra.DUT(t, "dut")
 	dc := gnmi.OC()
@@ -72,42 +81,42 @@ func TestBgpSession(t *testing.T) {
 		ateConf *ondatra.ATETopology
 	}{
 		{
-			name:    " Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
+			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
 			nbr:     bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 100, isV4: true}, connExternal),
 		}, {
-			name:    " Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv6 peers",
+			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv6 peers",
 			nbr:     bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 100, isV4: false}, connExternal),
 		}, {
-			name:    " Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
+			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
 			nbr:     bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 70000, isV4: true}, connExternal),
 		}, {
-			name:    " Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
+			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
 			nbr:     bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 70000, isV4: false}, connExternal),
 		}, {
-			name:    " Establish iBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
+			name:    "Establish iBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
 			nbr:     bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 200, isV4: true}, connInternal),
 		}, {
-			name:    " Establish iBGP connection between ATE (4-byte) - DUT (4-byte < 65535) for ipv6 peers",
+			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte < 65535) for ipv6 peers",
 			nbr:     bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 200, isV4: false}, connInternal),
 		}, {
-			name:    " Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
+			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
 			nbr:     bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 80000, isV4: true}, connInternal),
 		}, {
-			name:    " Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
+			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
 			nbr:     bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 80000, isV4: false}, connInternal),
@@ -142,7 +151,7 @@ func TestBgpSession(t *testing.T) {
 
 // bgpClearConfig removes all BGP configuration from the DUT.
 func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
-
+	t.Helper()
 	resetBatch := &gnmi.SetBatch{}
 	gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
 
@@ -160,7 +169,7 @@ func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func verifyPeer(t *testing.T, nbr *bgpNbr, dut *ondatra.DUTDevice) {
-
+	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(nbr.peerIP)
 	glblPath := statePath.Global()
@@ -185,7 +194,7 @@ func verifyPeer(t *testing.T, nbr *bgpNbr, dut *ondatra.DUTDevice) {
 }
 
 func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string) *ondatra.ATETopology {
-
+	t.Helper()
 	t.Log("Configure ATE interface")
 	ate := ondatra.ATE(t, "ate")
 	port1 := ate.Port(t, "port1")
@@ -197,16 +206,16 @@ func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string) *ondat
 
 	bgpDut1 := iDut1.BGP()
 
+	peer := bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS)
 	if connectionType == connInternal {
-		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeInternal()
+		peer.WithTypeInternal()
 	} else {
-		bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS).WithTypeExternal()
+		peer.WithTypeExternal()
 	}
 	return topo
 }
 
 func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
-
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
