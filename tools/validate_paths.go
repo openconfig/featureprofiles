@@ -45,7 +45,7 @@ var (
 	yangSkipsFlag = flag.String(
 		"yang_skip_roots", "", "sub-directories of the .yang roots which should be ignored.",
 	)
-	featureFilesFlag = flag.String("feature_files", "", "optional file containing list of feature.textprotos to validate instead of checking all files. If empty, then all files will be checked.")
+	featureFilesFlag = flag.String("feature_files", "", "optional file containing list of feature.textprotos to validate instead of checking all files. If not specified, then all files will be checked. Note that all files will still be checked and annotated, but only these files will cause failure.")
 )
 
 var (
@@ -312,8 +312,9 @@ func getFeatureProfileNameFromPath(file string) string {
 }
 
 // featureFiles returns the feature files to check and all existing feature files.
-func featureFiles() ([]string, []string, error) {
+func featureFiles() (map[string]struct{}, []string, error) {
 	var allFiles []string
+	filesToCheck := map[string]struct{}{}
 	err := filepath.WalkDir(featuresRoot,
 		func(path string, e fs.DirEntry, err error) error {
 			if err != nil {
@@ -324,6 +325,7 @@ func featureFiles() ([]string, []string, error) {
 			}
 			if e.Name() == "feature.textproto" {
 				allFiles = append(allFiles, path)
+				filesToCheck[path] = struct{}{}
 			}
 			return nil
 		})
@@ -332,8 +334,8 @@ func featureFiles() ([]string, []string, error) {
 	}
 	sort.Strings(allFiles)
 
-	var filesToCheck []string
 	if *featureFilesFlag != "" {
+		filesToCheck = map[string]struct{}{}
 		readBytes, err := os.ReadFile(*featureFilesFlag)
 		if err != nil {
 			log.Fatalf("cannot read feature_files flag: %v", err)
@@ -347,11 +349,8 @@ func featureFiles() ([]string, []string, error) {
 			if err != nil {
 				return nil, nil, err
 			}
-			filesToCheck = append(filesToCheck, path)
+			filesToCheck[path] = struct{}{}
 		}
-		sort.Strings(filesToCheck)
-	} else {
-		filesToCheck = allFiles
 	}
 
 	return filesToCheck, allFiles, nil
@@ -387,7 +386,7 @@ func main() {
 	}
 
 	validProfiles, reports := constructValidProfiles(allFiles)
-	if err := checkFiles(knownPaths, filesToCheck, validProfiles, reports); err != nil {
+	if err := checkFiles(knownPaths, allFiles, validProfiles, reports); err != nil {
 		log.Fatal(err)
 	}
 
@@ -399,7 +398,9 @@ func main() {
 
 	msg := []string{"Feature paths inconsistent with YANG schema:"}
 	for _, f := range reports {
-		fmt.Print(f.githubAnnotations())
+		if _, ok := filesToCheck[f.name]; ok {
+			fmt.Print(f.githubAnnotations())
+		}
 		msg = append(msg, "  file: "+f.name)
 		if len(f.errors) != 0 {
 			msg = append(msg, "  toplevel errors:")
@@ -412,5 +413,5 @@ func main() {
 		}
 	}
 	log.Info(strings.Join(msg, "\n"))
-	os.Exit(0)
+	os.Exit(1)
 }
