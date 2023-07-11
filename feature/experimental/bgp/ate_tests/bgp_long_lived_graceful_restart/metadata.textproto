@@ -4,4 +4,4 @@
 uuid:  "9f319fa6-d197-48fa-84fe-ea075c422190"
 plan_id:  "RT-1.14"
 description:  "BGP Long-Lived Graceful Restart"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_2LINKS
