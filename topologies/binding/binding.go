@@ -421,7 +421,7 @@ func (b *staticBind) releaseIxSessions(ctx context.Context) error {
 	return nil
 }
 
-func (a *staticATE) ixWeb(ctx context.Context, d dialer) (*ixweb.IxWeb, error) {
+func (a *staticATE) ixWeb(ctx context.Context, d dialer, foo string) (*ixweb.IxWeb, error) {
 	if a.ixweb == nil {
 		ixw, err := d.newIxWebClient(ctx)
 		if err != nil {
@@ -434,7 +434,7 @@ func (a *staticATE) ixWeb(ctx context.Context, d dialer) (*ixweb.IxWeb, error) {
 
 func (a *staticATE) ixSession(ctx context.Context, d dialer) (*ixweb.Session, error) {
 	if a.ixsess == nil {
-		ixw, err := a.ixWeb(ctx, d)
+		ixw, err := a.ixWeb(ctx, d, "")
 		if err != nil {
 			return nil, err
 		}
