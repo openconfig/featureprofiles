@@ -93,7 +93,7 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 	return ni_proto
 }
 
-func configureNIType(t *testing.T) {
+func configureNIType(t *testing.T, foo string) {
 	dut := ondatra.DUT(t, "dut1")
 	ate := ondatra.DUT(t, "dut2")
 	// Configure Network instance type on DUT
