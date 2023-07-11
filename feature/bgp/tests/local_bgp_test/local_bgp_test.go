@@ -143,7 +143,7 @@ func TestEstablish(t *testing.T) {
 	gnmi.Replace(t, ate, gnmi.OC().Interface(intf2.GetName()).Config(), intf2)
 	configureRoutePolicy(t, ate, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	// Configure Network instance type, it has to be configured explicitly by user.
-	configureNIType(t)
+	configureNIType(t, "")
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
@@ -229,7 +229,7 @@ func TestDisconnect(t *testing.T) {
 	nbrPath := statePath.Neighbor(ateIP)
 
 	// Configure Network instance type, it has to be configured explicitly by user.
-	configureNIType(t)
+	configureNIType(t, "")
 
 	// Clear any existing config
 	bgpClearConfig(t, dut)
@@ -280,7 +280,7 @@ func TestParameters(t *testing.T) {
 	nbrPath := statePath.Neighbor(ateIP)
 
 	// Configure Network instance type, it has to be configured explicitly by user.
-	configureNIType(t)
+	configureNIType(t, "")
 
 	cases := []struct {
 		name      string
