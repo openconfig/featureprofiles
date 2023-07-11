@@ -95,10 +95,11 @@ be sent to the device and properly handled.
 
 | ID        |Case  | Result |
 | --------- | ------------- | --- |
-| bootz-3.1 | No ownership voucher  | Device boots without OV present  |
+| bootz-3.1 | No ownership voucher  | Device fails with status invalid parameter  |
 | bootz-3.2 | Invalid OV  | Device fails with status invalid parameter  |
 | bootz-3.3 | OV fails | Device fails with status invalid parameter |
 | bootz-3.4 | OV valid | Device boots with OV installed |
+| bootz-3.5 | skip OV check | Device boots without OV |
 
 1. Provide bootstrap reponse configured as prescribed.
 2. Initiate bootz boot on device via gnoi.FactoryReset()
@@ -108,6 +109,7 @@ be sent to the device and properly handled.
         * BOOTZ_UNSPECIFIED
         * BOOTZ_SENT
         * BOOTZ_RECEIVED
+        * BOOTZ_OV_SKIPPED (if the device is configured to skip ownership validation)
         * BOOTZ_CONFIGURATION_APPLIED
         * BOOTZ_OK
     * For error case device should report
@@ -120,6 +122,8 @@ be sent to the device and properly handled.
     * `/system/bootz/state/error-count` is in incremented if failure case
     * `/system/bootz/state/status` is in expected state
     * `/system/bootz/state/checksum` matches sent proto
+    * `/system/bootz/state/validate-ownership` represents next bootz workflow intent.
+    * `/system/bootz/state/ownership-validated` represents the last ov validation result.
 6. Validate device state
     * System configuration is as expected.
 

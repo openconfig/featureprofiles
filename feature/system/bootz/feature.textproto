@@ -17,6 +17,10 @@ id {
   version: 1
 }
 
+config_path {
+    path: "/system/bootz/state/validate-ownership"
+}
+
 telemetry_path {
   path: "/system/bootz/state/checksum"
 }
@@ -28,4 +32,10 @@ telemetry_path {
 }
 telemetry_path {
   path: "/system/bootz/state/status"
+}
+telemetry_path {
+    path: "/system/bootz/state/validate-ownership"
+}
+telemetry_path {
+    path: "/system/bootz/state/ownership-validated"
 }
