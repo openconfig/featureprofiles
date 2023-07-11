@@ -27,7 +27,8 @@ func TestFabricPowerAdmin(t *testing.T) {
 	for _, f := range fs {
 		t.Run(f, func(t *testing.T) {
 
-			if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
+			removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Removable().State()).Val()
+			if ok && !removable {
 				t.Skipf("Skip the test on non-removable fabric.")
 			}
 
@@ -52,7 +53,8 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 	for _, l := range ls {
 		t.Run(l, func(t *testing.T) {
-			if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
+			removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Removable().State()).Val()
+			if ok && !removable {
 				t.Skipf("Skip the test on non-removable linecard.")
 			}
 			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Empty().State()).Val()
