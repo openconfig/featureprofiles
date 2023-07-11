@@ -169,11 +169,11 @@ func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 			state, ok := val.Val()
 			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
+		state, _ := status.Val()
 		if !ok {
-			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+			t.Logf("BGP reported state is %v", state)
 			t.Fatal("No BGP neighbor formed")
 		}
-		state, _ := status.Val()
 		t.Logf("BGP adjacency for %s: %s", nbr, state)
 		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
 			t.Errorf("BGP peer %s status got %v, want %d", nbr, status, want)
@@ -272,12 +272,13 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 		for _, ip := range d.Bgp().Ipv4Interfaces().Items() {
 			for _, configPeer := range ip.Peers().Items() {
 				nbrPath := gnmi.OTG().BgpPeer(configPeer.Name())
-				_, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+				staus, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
 					currState, ok := val.Val()
 					return ok && currState.String() == state
 				}).Await(t)
+				state, _ := staus.Val()
 				if !ok {
-					fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, otg, nbrPath.State()))
+					t.Logf("BGP reported state is %v", state)
 					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
 				}
 			}
@@ -285,12 +286,13 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 		for _, ip := range d.Bgp().Ipv6Interfaces().Items() {
 			for _, configPeer := range ip.Peers().Items() {
 				nbrPath := gnmi.OTG().BgpPeer(configPeer.Name())
-				_, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+				status, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
 					currState, ok := val.Val()
 					return ok && currState.String() == state
 				}).Await(t)
+				state, _ := status.Val()
 				if !ok {
-					fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, otg, nbrPath.State()))
+					t.Logf("BGP reported state is %v", state)
 					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
 				}
 			}
@@ -303,8 +305,7 @@ func verifyBGPAsPath(t *testing.T, otg *otg.OTG, config gosnappi.Config, asSeg [
 	t.Helper()
 	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ateDst.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
 		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			_, present := v.Val()
-			return present
+			return v.IsPresent()
 		}).Await(t)
 
 	if ok {
@@ -316,12 +317,6 @@ func verifyBGPAsPath(t *testing.T, otg *otg.OTG, config gosnappi.Config, asSeg [
 			t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 		}
 	}
-
-	prefixPath := gnmi.OTG().BgpPeer(ateDst.Name + ".BGP4.peer").UnicastIpv4PrefixAny()
-	gnmi.WatchAll(t, otg, prefixPath.Address().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
-		_, present := v.Val()
-		return present
-	}).Await(t)
 
 	/*
 		// Below code will be un commented once issue 1659 is resolved for otg.
