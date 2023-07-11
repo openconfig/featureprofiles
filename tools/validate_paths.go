@@ -400,8 +400,8 @@ func main() {
 	msg := []string{"Feature paths inconsistent with YANG schema:"}
 	failed := false
 	for _, f := range reports {
+		fmt.Print(f.githubAnnotations())
 		if _, ok := filesToCheck[f.name]; ok {
-			fmt.Print(f.githubAnnotations())
 			failed = true
 		}
 		msg = append(msg, "  file: "+f.name)
