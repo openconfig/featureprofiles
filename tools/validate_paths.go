@@ -392,7 +392,7 @@ func main() {
 
 	cleanReports(reports)
 
-	log.Infof("%d files must pass", len(filesToCheck))
+	log.Infof("%d files must pass: %v", len(filesToCheck), filesToCheck)
 	if len(reports) == 0 {
 		return
 	}
