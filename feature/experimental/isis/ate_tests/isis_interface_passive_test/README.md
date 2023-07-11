@@ -1,4 +1,4 @@
-## RT-2.7: IS-IS Passive is enabled at interface level
+# RT-2.7: IS-IS Passive is enabled at interface level
 
 ## Summary
 
