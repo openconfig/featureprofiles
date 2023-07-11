@@ -66,7 +66,7 @@ config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/link-layer-address"
 }
 telemetry_path {
-  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address"
+  path: "/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address"
 }
 
 feature_profile_dependency {
