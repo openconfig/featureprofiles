@@ -249,7 +249,7 @@ func canRead(t *testing.T, args *testArgs) (bool, error) {
 		ElectionId: &p4v1pb.Uint128{High: args.highID, Low: args.lowID},
 		Action:     p4v1pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4v1pb.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4v1pb.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
@@ -278,10 +278,8 @@ func canWrite(t *testing.T, args *testArgs) (bool, error) {
 	if writeErr != nil {
 		return false, fmt.Errorf("error writing table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
 	}
-	if writeErr == nil {
-		if writeErr = writeTableEntry(t, args, pktIO, true); writeErr != nil {
-			return false, fmt.Errorf("error deleting table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
-		}
+	if writeErr = writeTableEntry(t, args, pktIO, true); writeErr != nil {
+		return false, fmt.Errorf("error deleting table entry (highID %d, lowID %d): %v", args.highID, args.lowID, writeErr)
 	}
 	return true, nil
 }
@@ -414,7 +412,7 @@ func TestUnsetElectionid(t *testing.T) {
 				DeviceId: deviceID,
 				Action:   p4v1pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 				Config: &p4v1pb.ForwardingPipelineConfig{
-					P4Info: &p4Info,
+					P4Info: p4Info,
 					Cookie: &p4v1pb.ForwardingPipelineConfig_Cookie{
 						Cookie: 159,
 					},

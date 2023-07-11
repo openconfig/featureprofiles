@@ -15,6 +15,8 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    gribi_mac_override_with_static_arp: true
+    interface_ref_config_unsupported: true
   }
 }
 platform_exceptions: {
@@ -26,6 +28,8 @@ platform_exceptions: {
   deviations: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+    explicit_gribi_under_network_instance: true
+    explicit_interface_ref_definition: true
   }
 }
 platform_exceptions: {
@@ -37,5 +41,17 @@ platform_exceptions: {
   }
   deviations: {
     ipv6_enable_for_gribi_nh_dmac: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model: "DCS-7280CR3K-32D4"
+    hardware_model: "DCS-7808"
+    hardware_model: "DCS-7804-CH"
+    hardware_model: "ceos"
+  }
+  deviations: {
+    omit_l2_mtu: true
   }
 }
