@@ -411,6 +411,6 @@ func main() {
 			msg = append(msg, fmt.Sprintf("    line %d: %s %s", l.line, l.detail, l.oc))
 		}
 	}
-	log.Error(strings.Join(msg, "\n"))
+	log.Info(strings.Join(msg, "\n"))
 	os.Exit(1)
 }
