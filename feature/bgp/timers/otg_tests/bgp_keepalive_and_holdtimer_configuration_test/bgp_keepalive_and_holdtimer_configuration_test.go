@@ -482,6 +482,8 @@ func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 	configureDUT(t, dut)
 	t.Log("Configure RPL")
 	configureRoutePolicy(t, dut, bgpGlobalAttrs.rplName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	t.Logf("Start DUT BGP Config")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := bgpCreateNbr(dut)
