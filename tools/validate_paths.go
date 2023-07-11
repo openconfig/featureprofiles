@@ -149,12 +149,10 @@ func modules() (map[string]*yang.Module, error) {
 }
 
 type line struct {
-	line      int32
-	endLine   int32
-	column    int32
-	endColumn int32
-	oc        string
-	detail    string
+	line   int32
+	column int32
+	oc     string
+	detail string
 }
 
 type file struct {
@@ -171,7 +169,8 @@ func (f file) githubAnnotations() string {
 	}
 
 	for _, line := range f.lines {
-		b.WriteString(fmt.Sprintf("::%s file=%s,line=%d,endLine=%d,col=%d,endColumn=%d::%s %s\n", "error", f.name, line.line, line.endLine, line.column, line.endColumn, line.detail, line.oc))
+		// https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-error-message
+		b.WriteString(fmt.Sprintf("::%s file=%s,line=%d,col=%d::%s %s\n", "error", f.name, line.line, line.column, line.detail, line.oc))
 	}
 
 	return b.String()
@@ -272,16 +271,11 @@ func checkFiles(knownOC map[string]pathType, files []string, validProfiles map[s
 								detail = "missing from YANG"
 							}
 							if detail != "" {
-								// Generate GitHub Actions annotations.
-								// https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-error-message
-								fmt.Printf("::%s file=%s,line=%d,endLine=%d,col=%d,endColumn=%d::%s\n", "error", f, c.Start.Line, c.End.Line, c.Start.Column, c.End.Column, detail)
 								report.lines = append(report.lines, line{
-									line:      c.Start.Line,
-									endLine:   c.End.Line,
-									column:    c.Start.Column,
-									endColumn: c.End.Column,
-									oc:        v.Value,
-									detail:    detail,
+									line:   c.Start.Line,
+									column: c.Start.Column,
+									oc:     v.Value,
+									detail: detail,
 								})
 							}
 						}
