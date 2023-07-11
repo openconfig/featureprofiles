@@ -37,15 +37,15 @@ func TestMain(m *testing.M) {
 const (
 	plenIPv4       = 30
 	plenIPv6       = 126
-	ISISInstance   = "DEFAULT"
+	isisInstance   = "DEFAULT"
 	dutAreaAddress = "49.0001"
 	ateAreaAddress = "49.0002"
 	dutSysID       = "1920.0000.2001"
 	lspLifetime    = 500
 	v4Route        = "203.0.113.0/30"
 	v6Route        = "2001:db8::203:0:113:0/126"
-	v4Ip           = "203.0.113.1"
-	v6Ip           = "2001:db8::203:0:113:1"
+	v4IP           = "203.0.113.1"
+	v6IP           = "2001:db8::203:0:113:1"
 )
 
 var (
@@ -103,9 +103,9 @@ func configureDUT(t *testing.T) {
 func configureIsisDut(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAreaAddress, dutSysID string) {
 	t.Helper()
 	d := &oc.Root{}
-	configPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
+	configPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
+	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 
 	if !deviations.ISISprotocolEnabledNotRequired(dut) {
 		prot.Enabled = ygot.Bool(true)
@@ -173,7 +173,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, ateTopo *ondatra.ATETopolo
 
 	t.Log("Configuring v4 traffic flow ")
 	v4Header := ondatra.NewIPv4Header()
-	v4Header.DstAddressRange().WithMin(v4Ip).WithCount(1)
+	v4Header.DstAddressRange().WithMin(v4IP).WithCount(1)
 
 	v4Flow := ate.Traffic().NewFlow("v4Flow").
 		WithSrcEndpoints(srcIntf).WithDstEndpoints(dstIntf).
@@ -181,7 +181,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, ateTopo *ondatra.ATETopolo
 
 	t.Log("Configuring v6 traffic flow ")
 	v6Header := ondatra.NewIPv6Header()
-	v6Header.DstAddressRange().WithMin(v6Ip).WithCount(1)
+	v6Header.DstAddressRange().WithMin(v6IP).WithCount(1)
 
 	v6Flow := ate.Traffic().NewFlow("v6Flow").
 		WithSrcEndpoints(srcIntf).WithDstEndpoints(dstIntf).
@@ -214,7 +214,7 @@ func TestIsisChangeLspLifetime(t *testing.T) {
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		intfName = intfName + ".0"
 	}
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).Isis()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
 	t.Run("Isis telemetry", func(t *testing.T) {
 		t.Run("Verifying adjacency", func(t *testing.T) {
@@ -306,10 +306,10 @@ func TestIsisChangeLspLifetime(t *testing.T) {
 			for _, flow := range flows {
 				t.Log("Checking flow telemetry...")
 				telem := gnmi.OC()
-				Loss := gnmi.Get(t, ate, telem.Flow(flow.Name()).LossPct().State())
+				loss := gnmi.Get(t, ate, telem.Flow(flow.Name()).LossPct().State())
 
-				if Loss > 1 {
-					t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", Loss, flow.Name())
+				if loss > 1 {
+					t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", loss, flow.Name())
 				}
 			}
 		})
