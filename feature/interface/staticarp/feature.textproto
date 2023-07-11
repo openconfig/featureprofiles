@@ -45,13 +45,13 @@ telemetry_path {
 
 # IPv6
 config_path {
-  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip"
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ippppp"
 }
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip"
 }
 config_path {
-  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length"
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addressesesesessses/address/config/prefix-length"
 }
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length"
