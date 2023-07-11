@@ -392,12 +392,12 @@ func main() {
 
 	cleanReports(reports)
 
+	log.Infof("%d files must pass", len(filesToCheck))
 	if len(reports) == 0 {
 		return
 	}
 
 	msg := []string{"Feature paths inconsistent with YANG schema:"}
-	log.Infof("%d files must pass", len(filesToCheck))
 	failed := false
 	for _, f := range reports {
 		if _, ok := filesToCheck[f.name]; ok {
