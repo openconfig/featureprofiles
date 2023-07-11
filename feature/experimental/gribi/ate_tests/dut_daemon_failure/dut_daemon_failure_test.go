@@ -16,6 +16,7 @@ package dut_daemon_failure_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -268,7 +269,8 @@ func gNOIKillProcess(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, 
 	if err != nil {
 		if *gargs.GNXIUseSameProcess {
 			t.Logf("Failed to get response for gNOI Kill Process, error received: %v", err)
-			if st, ok := status.FromError(err); !ok || st.Code() != codes.Unavailable {
+			if st, ok := status.FromError(err); !ok || st.Code() != codes.Unavailable ||
+				!strings.Contains(st.Message(), "error reading from server: EOF") {
 				t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
 			}
 		} else {
