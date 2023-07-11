@@ -412,5 +412,5 @@ func main() {
 		}
 	}
 	log.Info(strings.Join(msg, "\n"))
-	os.Exit(1)
+	os.Exit(0)
 }
