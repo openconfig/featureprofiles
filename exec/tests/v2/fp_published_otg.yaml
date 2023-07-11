@@ -12,46 +12,39 @@ tests:
       - arvbaska
     mustpass: true
     priority: 37
-    pr: 1671
   - name: DP-1.7 (One strict priority queue traffic test)
     path: feature/qos/otg_tests/one_sp_queue_traffic_test
     owners:
       - saarvind
     mustpass: true
     timeout: 2700
-    pr: 1673
   - name: DP-1.8 (Two strict priority queue traffic test)
     path: feature/qos/otg_tests/two_sp_queue_traffic_test
     owners:
       - saarvind
     mustpass: true
     timeout: 4200
-    pr: 1674
   - name: DP-1.9 (WRR traffic-test)
     path: feature/qos/otg_tests/wrr_traffic_test
     owners:
       - saarvind
     mustpass: true
     timeout: 4200
-    pr: 1675
   - name: DP-1.10 (QoS policy feature config)
     path: feature/qos/otg_tests/mixed_sp_wrr_traffic_test
     owners:
       - saarvind
     mustpass: true
-    pr: 1676
   - name: DP-1.11 (QoS Bursty Traffic)
     path: feature/qos/otg_tests/bursty_traffic_test
     owners:
       - saarvind
     mustpass: true
-    pr: 1677
   - name: DP-1.14 (QoS base config)
     path: feature/qos/otg_tests/qos_basic_test/
     owners:
       - saarvind
     mustpass: true
-    pr: 1672
 
 
 
