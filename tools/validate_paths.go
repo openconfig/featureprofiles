@@ -149,9 +149,12 @@ func modules() (map[string]*yang.Module, error) {
 }
 
 type line struct {
-	oc     string
-	line   int32
-	detail string
+	line      int32
+	endLine   int32
+	column    int32
+	endColumn int32
+	oc        string
+	detail    string
 }
 
 type file struct {
@@ -159,6 +162,19 @@ type file struct {
 	lines []line
 	// Errors which are not correlated with a line.
 	errors []string
+}
+
+func (f file) githubAnnotations() string {
+	var b strings.Builder
+	for _, errLine := range f.errors {
+		b.WriteString(fmt.Sprintf("::%s file=%s::%s\n", "error", f.name, errLine))
+	}
+
+	for _, line := range f.lines {
+		b.WriteString(fmt.Sprintf("::%s file=%s,line=%d,endLine=%d,col=%d,endColumn=%d::%s %s\n", "error", f.name, line.line, line.endLine, line.column, line.endColumn, line.detail, line.oc))
+	}
+
+	return b.String()
 }
 
 func constructValidProfiles(files []string) (map[string]bool, map[string]*file) {
@@ -226,7 +242,7 @@ func checkFiles(knownOC map[string]pathType, files []string, validProfiles map[s
 		for _, dependency := range tmp.FeatureProfileDependency {
 			if dependency := dependency.GetName(); dependency != "" {
 				if !validProfiles[dependency] {
-					report.errors = append(report.errors, "can not find feature profile dependency "+dependency)
+					report.errors = append(report.errors, "cannot find feature profile dependency "+dependency)
 				}
 			}
 		}
@@ -256,8 +272,17 @@ func checkFiles(knownOC map[string]pathType, files []string, validProfiles map[s
 								detail = "missing from YANG"
 							}
 							if detail != "" {
+								// Generate GitHub Actions annotations.
+								// https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-error-message
+								fmt.Printf("::%s file=%s,line=%d,endLine=%d,col=%d,endColumn=%d::%s\n", "error", f, c.Start.Line, c.End.Line, c.Start.Column, c.End.Column, detail)
 								report.lines = append(report.lines, line{
-									oc: v.Value, line: c.Start.Line, detail: detail})
+									line:      c.Start.Line,
+									endLine:   c.End.Line,
+									column:    c.Start.Column,
+									endColumn: c.End.Column,
+									oc:        v.Value,
+									detail:    detail,
+								})
 							}
 						}
 					}
@@ -373,6 +398,7 @@ func main() {
 
 	msg := []string{"Feature paths inconsistent with YANG schema:"}
 	for _, f := range reports {
+		fmt.Print(f.githubAnnotations())
 		msg = append(msg, "  file: "+f.name)
 		if len(f.errors) != 0 {
 			msg = append(msg, "  toplevel errors:")
