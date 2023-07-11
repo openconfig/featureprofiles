@@ -70,21 +70,23 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 		bgp.Global.RouterId = ygot.String(routerID)
 	}
 
-	// Note: we have to define the peer group even if we aren't setting any policy because it's
-	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
-	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
-	pg.PeerAs = ygot.Uint32(*nbr.PeerAs)
-	pg.PeerGroupName = ygot.String(peerGrpName)
-	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
-		rpl := pg.GetOrCreateApplyPolicy()
-		rpl.ImportPolicy = []string{policyName}
-		rpl.ExportPolicy = []string{policyName}
-	} else {
-		pgaf := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-		pgaf.Enabled = ygot.Bool(true)
-		rpl := pgaf.GetOrCreateApplyPolicy()
-		rpl.ImportPolicy = []string{policyName}
-		rpl.ExportPolicy = []string{policyName}
+	if true {
+		// Note: we have to define the peer group even if we aren't setting any policy because it's
+		// invalid OC for the neighbor to be part of a peer group that doesn't exist.
+		pg := bgp.GetOrCreatePeerGroup(peerGrpName)
+		pg.PeerAs = ygot.Uint32(*nbr.PeerAs)
+		pg.PeerGroupName = ygot.String(peerGrpName)
+		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+			rpl := pg.GetOrCreateApplyPolicy()
+			rpl.ImportPolicy = []string{policyName}
+			rpl.ExportPolicy = []string{policyName}
+		} else {
+			pgaf := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			pgaf.Enabled = ygot.Bool(true)
+			rpl := pgaf.GetOrCreateApplyPolicy()
+			rpl.ImportPolicy = []string{policyName}
+			rpl.ExportPolicy = []string{policyName}
+		}
 	}
 
 	bgp.AppendNeighbor(nbr)
