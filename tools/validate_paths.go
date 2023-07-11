@@ -238,14 +238,6 @@ func checkFiles(knownOC map[string]pathType, files []string, validProfiles map[s
 			report.errors = append(report.errors, err.Error())
 		}
 
-		for _, dependency := range tmp.FeatureProfileDependency {
-			if dependency := dependency.GetName(); dependency != "" {
-				if !validProfiles[dependency] {
-					report.errors = append(report.errors, "cannot find feature profile dependency "+dependency)
-				}
-			}
-		}
-
 		// Use parser.Parse so I can get line numbers for OC paths we don't recognize.
 		ast, err := parser.Parse(bs)
 		if err != nil {
@@ -276,6 +268,21 @@ func checkFiles(knownOC map[string]pathType, files []string, validProfiles map[s
 									column: c.Start.Column,
 									oc:     v.Value,
 									detail: detail,
+								})
+							}
+						}
+					}
+				}
+			case "feature_profile_dependency":
+				for _, c := range a.Children {
+					if c.Name == "name" {
+						for _, v := range c.Values {
+							profileName := v.Value[1 : len(v.Value)-1] // Trim quotes
+							if !validProfiles[profileName] {
+								report.lines = append(report.lines, line{
+									line:   c.Start.Line,
+									column: c.Start.Column,
+									detail: "cannot find feature profile dependency " + profileName,
 								})
 							}
 						}
