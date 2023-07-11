@@ -587,6 +587,19 @@ func SkipControllerCardPowerAdmin(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipControllerCardPowerAdmin()
 }
 
+// LinecardCpuUltilizationUnsupported returns if the device does not support telemetry path
+// /components/component/cpu/utilization/state/avg for linecards' CPU card.
+// Default value is false.
+func LinecardCpuUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinecardCpuUtilizationUnsupported()
+}
+
+// ConsistentComponentNamesUnsupported if the device does not support consistent component names for GNOI and GNMI.
+// Default value is false.
+func ConsistentComponentNamesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConsistentComponentNamesUnsupported()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.

@@ -1,0 +1,18 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+plan_id: "Health-1.1"
+description: "Generic Health Check"
+testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    linecard_cpu_utilization_unsupported: true
+    consistent_component_names_unsupported: true
+  }
+}

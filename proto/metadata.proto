@@ -225,6 +225,11 @@ message Metadata {
     // Device only supports RIB ack, so tests that normally expect FIB_ACK will
     // allow just RIB_ACK.
     bool gribi_riback_only = 67;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for linecards' CPU card
+    bool linecard_cpu_utilization_unsupported = 68;
+    // Device does not support consistent component names for GNOI and GNMI.
+    bool consistent_component_names_unsupported = 69;
   }
 
   message PlatformExceptions {
