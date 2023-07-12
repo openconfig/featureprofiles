@@ -13,8 +13,8 @@ This test plan requires that the DUT is managed by the lab infrastructure in the
 *   All DUT OOB interfaces are L3 with IPv6 addresses connected to lab infrastructure.
 *   Two DUT ports (say **port-11** and **port-12**) are L3 with IPv6 addresses connected to lab infrastructure.
 *   The DUT can be managed at an IPv6 address hosted by a loopback interface, and **via port-11, port-12 or OBB ports**. The loopback interface should host only one IPv6 address. (so that later the test can extract that IPv6 address and move it to another specified loopback interface in a management VRF).
-*   DUT port-1 and port-2 (L3, no vlan) are with IPv6 addresses and are connected to ATE port-1 and port-2, so that the test can exercise/validate some routing protocols (e.g. BGP) without touching LDA (lab device aggregation, a switch to aggregate connections to different DUT) which is part of the lab env infrastructure.
-*   Username used by the test can only be authenticated via TACACS.
+*   DUT port-1 and port-2 (L3, no vlan) are with IPv6 addresses and are connected to ATE port-1 and port-2, so that the test can exercise/validate some routing protocols (e.g. BGP) without touching lab env infrastructure.
+*   Username used by the test can only be authenticated via TACACS of the lab infra.
 *   If the DUT has multiple CONTROLLER CARD, one single OOB IP should be assigned.
 
 ## Test input args
@@ -29,7 +29,7 @@ This test plan requires that the DUT is managed by the lab infrastructure in the
     *   Configure the following interfaces are in the `mgmt_vrf_name`VRF:
         *   lo0.100, which is configured with only the IPv6 management IP that’s extracted from `lab_infra_loopback_name`. No IPv4 address is configured under lo0.100.
         *   Port-1, port-2, port-11, port-12 and OOB interfaces.
-    *   Configure the following services to listen on the lo0.100 management IP.
+    *   Configure the following services to listen on the lo0.100 management IP, with [IANA assigned ports](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml). If a service has no assigned port yet, it should be provided via a test input arguments.
         *   gRIBI
         *   gNOI
         *   gNMI
@@ -43,8 +43,8 @@ This test plan requires that the DUT is managed by the lab infrastructure in the
         *   Specify the target NTP server.
     *   Configure two `::/0` static routes configured in the management VRF, with default route preference and next hops being the adjacent IP of port-11 and port-12. This will be the primary channel for management traffic. In prod, this will be BGP routes. However, we don’t have to enforce this on the lab infrastructure.
     *   Configure a `::/0` static route configured in the management VRF with route preference 220 going via OOB interface. This will be the backup channel for management traffic.
-*   Configure a v6 BGP between DUT port-1 and ATE port-1.
-*   Configure a v6 BGP between DUT port-2 and ATE port-2.
+*   Configure a v6 eBGP between DUT port-1 and ATE port-1.
+*   Configure a v6 eBGP between DUT port-2 and ATE port-2.
 *   Configure ATE to advertise a prefix (say, [2001:DB8:0::/64](https://github.com/openconfig/featureprofiles/blob/main/CONTRIBUTING.md#ipv6)) to DUT.
 
 ## Tests
