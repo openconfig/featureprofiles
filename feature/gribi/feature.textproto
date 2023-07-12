@@ -33,7 +33,7 @@ telemetry_path {
   path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/id"
+  path: "network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index"
 }
 telemetry_path {
   path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight"
