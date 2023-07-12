@@ -38,13 +38,14 @@ const (
 	rejectCommunity     = "REJECT-COMMUNITY"
 	rejectAspath        = "REJECT-AS-PATH"
 	aclStatement1       = "10"
-	prefixSubnetRangeV4 = "24..32"
-	prefixSubnetRangeV6 = "64..128"
+	aclStatement2       = "50"
+	prefixSubnetRangeV4 = "30..32"
+	prefixSubnetRangeV6 = "126..128"
 )
 
-var prefixV4 = []string{"30.0.2.0/24", "40.0.2.0/24", "50.0.2.0/24"}
-var prefixV6 = []string{"3001::/64", "4001::/64", "5001::/64"}
-var community_Set = []string{"200:1"}
+var prefixV4 = []string{"198.51.100.0/30", "198.51.100.4/30", "198.51.100.8/30"}
+var prefixV6 = []string{"2001:DB8:1::0/126", "2001:DB8:1::4/126", "2001:DB8:1::8/126"}
+var community = []string{"200:1"}
 
 var (
 	dutSrc = attrs.Attributes{
@@ -253,17 +254,17 @@ func configureBGPPolicy(d *oc.Root, isV4 bool) *oc.RoutingPolicy {
 	stmt5.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 	stmt5.GetOrCreateConditions().GetOrCreateMatchPrefixSet().PrefixSet = ygot.String(rejectPrefix)
 
-	comm_set := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySet)
-	comm_set.CommunitySetName = ygot.String(communitySet)
+	commSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySet)
+	commSet.CommunitySetName = ygot.String(communitySet)
 	var communityMembers []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union
-	for _, member := range community_Set {
-		communityMember, _ := comm_set.To_RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union(member)
+	for _, member := range community {
+		communityMember, _ := commSet.To_RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union(member)
 		communityMembers = append(communityMembers, communityMember)
 	}
-	comm_set.SetCommunityMember(communityMembers)
-	pdef_comm := rp.GetOrCreatePolicyDefinition(rejectCommunity)
+	commSet.SetCommunityMember(communityMembers)
+	pdefComm := rp.GetOrCreatePolicyDefinition(rejectCommunity)
 
-	stmt50 := pdef_comm.GetOrCreateStatement("50")
+	stmt50 := pdefComm.GetOrCreateStatement(aclStatement2)
 	stmt50.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 	stmt50.GetOrCreateConditions().GetOrCreateBgpConditions().CommunitySet = ygot.String(communitySet)
 
@@ -277,7 +278,6 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled
 	} else {
 		verifyPrefixesTelemetryV6(t, dut, wantInstalled)
 	}
-
 }
 
 // verifyPrefixesTelemetry confirms that the dut shows the correct numbers of installed, sent and
@@ -301,7 +301,6 @@ func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 	if gotInstalledv6 := gnmi.Get(t, dut, prefixesv6.Installed().State()); gotInstalledv6 != wantInstalledv6 {
 		t.Errorf("IPV6 Installed prefixes mismatch: got %v, want %v", gotInstalledv6, wantInstalledv6)
 	}
-
 }
 
 // bgpClearConfig removes all BGP configuration from the DUT.
@@ -368,32 +367,30 @@ func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, prefix
 		peer.WithTypeExternal()
 	}
 
+	network1 := iDut1.AddNetwork("bgpNeti1")
+	network2 := iDut1.AddNetwork("bgpNeti2")
+	network3 := iDut1.AddNetwork("bgpNeti3")
+
 	if ateParams.isV4 {
-		network := iDut1.AddNetwork("bgpNeti1")
-		network.IPv4().WithAddress(prefixes[0]).WithCount(1)
-		network.BGP().WithNextHopAddress(ateSrc.IPv4).AddASPathSegment(55000, 4400, 3300)
+		network1.IPv4().WithAddress(prefixes[0]).WithCount(1)
+		network1.BGP().WithNextHopAddress(ateSrc.IPv4).AddASPathSegment(55000, 4400, 3300)
 
-		network = iDut1.AddNetwork("bgpNeti2")
-		network.IPv4().WithAddress(prefixes[1]).WithCount(1)
-		network.BGP().WithNextHopAddress(ateSrc.IPv4).AddASPathSegment(55000, 7700)
-		network.BGP().WithNextHopAddress(ateSrc.IPv4).Communities().WithPrivateCommunities("200:1")
+		network2.IPv4().WithAddress(prefixes[1]).WithCount(1)
+		network2.BGP().WithNextHopAddress(ateSrc.IPv4).AddASPathSegment(55000, 7700)
+		network2.BGP().Communities().WithPrivateCommunities("200:1")
 
-		network = iDut1.AddNetwork("bgpNeti3")
-		network.IPv4().WithAddress(prefixes[2]).WithCount(1)
-		network.BGP().WithNextHopAddress(ateSrc.IPv4)
+		network3.IPv4().WithAddress(prefixes[2]).WithCount(1)
+		network3.BGP().WithNextHopAddress(ateSrc.IPv4)
 	} else {
-		network := iDut1.AddNetwork("bgpNeti1")
-		network.IPv6().WithAddress(prefixes[0]).WithCount(1)
-		network.BGP().WithNextHopAddress(ateSrc.IPv6).AddASPathSegment(55000, 4400, 3300)
+		network1.IPv6().WithAddress(prefixes[0]).WithCount(1)
+		network1.BGP().WithNextHopAddress(ateSrc.IPv6).AddASPathSegment(55000, 4400, 3300)
 
-		network = iDut1.AddNetwork("bgpNeti2")
-		network.IPv6().WithAddress(prefixes[1]).WithCount(1)
-		network.BGP().WithNextHopAddress(ateSrc.IPv6).AddASPathSegment(55000, 7700)
-		network.BGP().WithNextHopAddress(ateSrc.IPv6).Communities().WithPrivateCommunities("200:1")
+		network2.IPv6().WithAddress(prefixes[1]).WithCount(1)
+		network2.BGP().WithNextHopAddress(ateSrc.IPv6).AddASPathSegment(55000, 7700)
+		network2.BGP().Communities().WithPrivateCommunities("200:1")
 
-		network = iDut1.AddNetwork("bgpNeti3")
-		network.IPv6().WithAddress(prefixes[2]).WithCount(1)
-		network.BGP().WithNextHopAddress(ateSrc.IPv6)
+		network3.IPv6().WithAddress(prefixes[2]).WithCount(1)
+		network3.BGP().WithNextHopAddress(ateSrc.IPv6)
 	}
 	return topo
 }
@@ -401,22 +398,22 @@ func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, prefix
 func applyBgpPolicy(policyName string, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 
 	pg := bgp.GetOrCreatePeerGroup("ATE")
 	pg.PeerGroupName = ygot.String("ATE")
 
 	pg.GetOrCreateApplyPolicy().ImportPolicy = []string{policyName}
 
-	return ni_proto
+	return niProto
 }
 
 func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(nbr.localAS)
@@ -441,5 +438,5 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 		afisafi6.Enabled = ygot.Bool(true)
 		neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 	}
-	return ni_proto
+	return niProto
 }
