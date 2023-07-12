@@ -82,6 +82,9 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 	for _, d := range devices {
 		for i, virtualDevice := range p.Virtual {
 			if virtualDevice.Type == d {
+				if len(virtualDevice.Tests) == 0 {
+					continue
+				}
 				skip := false
 				for _, v := range virtualDevice.Tests {
 					if v.Status != "pending authorization" {
