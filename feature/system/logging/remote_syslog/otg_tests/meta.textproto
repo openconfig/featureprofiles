@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid: ""
-plan_id: ""
+plan_id: "TR-6.1"
 description: "Syslog Protocol"
-testbed: TESTBED_DUT
+testbed: TESTBED_DUT_ATE_2LINKS

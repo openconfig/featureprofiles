@@ -14,13 +14,43 @@
 
 id {
     name: "syslog remote host"
-    version: 2
+    version: 1
 }
 
-# Name
+# remoet syslog
 config_path {
-    path: "/system/logging/"
+    path: "/system/logging/remote-servers/remote-server/config/host"
+}
+config_path {
+    path: "/system/logging/remote-servers/remote-server/config/network-instance"
+}
+config_path {
+    path: "/system/logging/remote-servers/remote-server/config/remote-port"
+}
+config_path {
+    path: "/system/logging/remote-servers/remote-server/config/source-address"
+}
+config_path {
+    path: "/system/logging/remote-servers/remote-server/selectors/selector/config/facility"
+}
+config_path {
+    path: "/system/logging/remote-servers/remote-server/selectors/selector/config/severity"
 }
 telemetry_path {
-    path: "/system/logging/"
+    path: "/system/logging/remote-servers/remote-server/state/host"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/state/network-instance"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/state/remote-port"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/state/source-address"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/selectors/selector/state/facility"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/selectors/selector/state/severity"
 }
