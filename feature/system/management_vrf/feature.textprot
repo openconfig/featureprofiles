@@ -53,15 +53,3 @@ telemetry_path {
 telemetry_path {
   path: "/network-instances/network-instance/interfaces/interface/config/subinterface"
 }
-
-
-
-
-
-
-
-
-
-
-
-
