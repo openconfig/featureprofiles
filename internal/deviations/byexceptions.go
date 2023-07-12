@@ -32,13 +32,21 @@ func IntfRefConfigUnsupported(*ondatra.DUTDevice) bool {
 	return *intfRefConfigUnsupported
 }
 
-// RequireRoutedSubinterface0 returns true if device needs to configure subinterface 0 for non-zero sub-interfaces.
+// RequireRoutedSubinterface0 returns true if device needs to configure subinterface 0
+// for non-zero sub-interfaces.
 func RequireRoutedSubinterface0(*ondatra.DUTDevice) bool {
 	return *requireRoutedSubinterface0
 }
 
+// GNOISwitchoverReasonMissingUserInitiated returns true for devices that don't
+// report last-switchover-reason as USER_INITIATED for gNOI.SwitchControlProcessor.
+func GNOISwitchoverReasonMissingUserInitiated(*ondatra.DUTDevice) bool {
+	return *gnoiSwitchoverReasonMissingUserInitiated
+}
+
 var (
-	cpuMissingAncestor         = flag.Bool("deviation_cpu_missing_ancestor", false, "Set to true for devices where the CPU components do not map to a FRU parent component in the OC tree.")
-	intfRefConfigUnsupported   = flag.Bool("deviation_intf_ref_config_unsupported", false, "Set to true for devices that do not support interface-ref configuration when applying features to interface.")
-	requireRoutedSubinterface0 = flag.Bool("deviation_require_routed_subinterface_0", false, "Set to true for a device that needs subinterface 0 to be routed for non-zero sub-interfaces")
+	cpuMissingAncestor                       = flag.Bool("deviation_cpu_missing_ancestor", false, "Set to true for devices where the CPU components do not map to a FRU parent component in the OC tree.")
+	intfRefConfigUnsupported                 = flag.Bool("deviation_intf_ref_config_unsupported", false, "Set to true for devices that do not support interface-ref configuration when applying features to interface.")
+	requireRoutedSubinterface0               = flag.Bool("deviation_require_routed_subinterface_0", false, "Set to true for a device that needs subinterface 0 to be routed for non-zero sub-interfaces")
+	gnoiSwitchoverReasonMissingUserInitiated = flag.Bool("deviation_gnoi_switchover_reason_missing_user_initiated", false, "Set to true for devices that don't report last-switchover-reason as USER_INITIATED for gNOI.SwitchControlProcessor.")
 )
