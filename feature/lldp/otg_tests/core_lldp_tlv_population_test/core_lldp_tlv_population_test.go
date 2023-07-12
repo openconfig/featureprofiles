@@ -22,6 +22,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -104,6 +105,9 @@ func TestLLDPEnabled(t *testing.T) {
 		chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
 	}
 	checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
+
+	// disable LLDP before releasing the devices.
+	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 }
 
 // TestLLDPDisabled tests LLDP advertisement turned off.
@@ -136,6 +140,9 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 	if lldpEnabled {
 		gnmi.Replace(t, node, lldp.Interface(p.Name()).Enabled().Config(), lldpEnabled)
 	}
+	if deviations.InterfaceEnabled(node) {
+		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
+	}
 
 	return node, gnmi.GetConfig(t, node, lldp.Config())
 }
@@ -146,8 +153,8 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	config := otg.NewConfig(t)
 	srcPort := config.Ports().Add().SetName(portName)
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
-	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
-	srcEth.SetPortName(srcPort.Name()).SetMac(ateSrc.MAC)
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
+	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
 
 	// LLDP configuration.
 	lldp := config.Lldp().Add()
@@ -228,17 +235,20 @@ func checkLLDPMetricsOTG(t *testing.T, otg *otg.OTG, c gosnappi.Config, lldpEnab
 func checkOTGLLDPNeighbor(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLldpNeighbor lldpNeighbors) {
 	otgutils.LogLLDPNeighborStates(t, otg, c)
 
-	lldpState := gnmi.Get(t, otg, gnmi.OTG().LldpInterface(lldpSrc.otgName).State())
-	neighbors := lldpState.GetLldpNeighborDatabase().LldpNeighbor
-	neighborFound := false
-	for _, neighbor := range neighbors {
-		if expLldpNeighbor.Equal(neighbor) {
-			neighborFound = true
-			break
+	lldpState := gnmi.Lookup(t, otg, gnmi.OTG().LldpInterface(lldpSrc.otgName).LldpNeighborDatabase().State())
+	v, isPresent := lldpState.Val()
+	if isPresent {
+		neighbors := v.LldpNeighbor
+		neighborFound := false
+		for _, neighbor := range neighbors {
+			if expLldpNeighbor.Equal(neighbor) {
+				neighborFound = true
+				break
+			}
 		}
-	}
-	if !neighborFound {
-		t.Errorf("LLDP Neighbor not found")
+		if !neighborFound {
+			t.Errorf("LLDP Neighbor not found")
+		}
 	}
 }
 
