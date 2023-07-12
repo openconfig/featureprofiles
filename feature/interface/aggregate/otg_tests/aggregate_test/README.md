@@ -7,8 +7,11 @@ Validate link operational status of Static LAG and LACP.
 ## Procedure
 
 *   Connect ATE port-1 to DUT port-1, and ATE ports 2 through 9 to DUT ports
-    2-9. Configure ATE and DUT ports 2-9 to be part of a LAG.
+    2-9. 
+*   Configure ATE and DUT ports 2-9 to be part of a LAG.
+    *   TODO: Configure `SDN port identifier` for LAG (aggregate)
 *   For both static LAG and LACP:
+    *   TODO: Verify that `SDN port identifier` is assigned to LAG and reported in gNMI get/subscribe
     *   Ensure that LAG is successfully negotiated, verifying port status for
         each of DUT ports 2-9 reflects expected LAG state via ATE and DUT
         telemetry.
@@ -33,6 +36,7 @@ Validate link operational status of Static LAG and LACP.
 *   /lacp/interfaces/interface/config/lacp-mode
 *   TODO: /lacp/interfaces/interface/config/system-id-mac
 *   TODO: /lacp/interfaces/interface/config/system-priority
+*   TODO: /interfaces/interface/config/id
 
 ## Telemetry Parameter Coverage
 
@@ -45,3 +49,4 @@ Validate link operational status of Static LAG and LACP.
 *   TODO: /lacp/interfaces/interface/members/member/state/system-id
 *   TODO: /lacp/interfaces/interface/members/member/state/port-num
 *   /interfaces/interface/ethernet/state/aggregate-id
+*   TODO: /interfaces/interface/state/id

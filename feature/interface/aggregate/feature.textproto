@@ -30,6 +30,10 @@ config_path {
 telemetry_path {
   path: "/interfaces/interface/aggregation/state/min-links"
 }
+telemetry_path {
+  path: "/interfaces/interface/config/id"
+}
+
 
 # Interface settings for member interface.
 config_path {
@@ -37,6 +41,9 @@ config_path {
 }
 telemetry_path {
   path: "/interfaces/interface/ethernet/state/aggregate-id"
+}
+telemetry_path {
+  path: "/interfaces/interface/state/id"
 }
 
 # LACP global config
