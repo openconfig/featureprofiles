@@ -9,6 +9,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -19,6 +20,18 @@ func TestMain(m *testing.M) {
 const (
 	pbrName       = "PBR"
 	InterfaceName = "Bundle-Ether1"
+	SeqID1        = 1
+	SeqID2        = 2
+	SeqID3        = 3
+	vrfBLUE       = "BLUE"
+	vrfRED        = "RED"
+	vrfGREEN      = "GREEN"
+	vrfORANGE     = "ORANGE"
+	vrfBROWN      = "BROWN"
+	vrfPINK       = "PINK"
+	vrfINDIGO     = "INDIGO"
+	vrfBLACK      = "BLACK"
+	vrfPURPLE     = "PURPLE"
 )
 
 func Test_Type(t *testing.T) {
@@ -1576,5 +1589,586 @@ func Test_Rule_L2_Destination_Mac(t *testing.T) {
 		t.Run("Delete", func(t *testing.T) {
 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Config())
 		})
+	})
+}
+
+func Test_Action_Decap_Network_Instance(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	t.Log("Remove Flowspec Config")
+	configToChange := "no flowspec \n"
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, configToChange)
+	t.Run("*", func(t *testing.T) {
+		r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+		r1.SequenceId = ygot.Uint32(1)
+		r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+			DecapNetworkInstance:         ygot.String(vrfBLUE),
+			DecapFallbackNetworkInstance: ygot.String(vrfRED),
+			PostDecapNetworkInstance:     ygot.String(vrfGREEN),
+		}
+
+		r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+			Protocol:      oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+			DscpSet:       []uint8{*ygot.Uint8(4)},
+			SourceAddress: ygot.String("222.222.222.222/32"),
+		}
+
+		p := oc.NetworkInstance_PolicyForwarding_Policy{}
+		p.PolicyId = ygot.String(pbrName)
+		p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+		policy := oc.NetworkInstance_PolicyForwarding{}
+		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+
+		t.Logf("replace@policy-forwarding cont - Create a Policy with decap actions")
+		t.Run("Replace", func(t *testing.T) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Config(), &policy)
+		})
+
+		t.Run("Get-Config", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().
+				Policy(pbrName).Rule(uint32(SeqID1)).Action().DecapNetworkInstance()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+
+			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
+			action.DecapNetworkInstance = ygot.String(vrfBLUE)
+
+			if configGot != *action.DecapNetworkInstance {
+				t.Errorf("TestFAIL : decap-network-instance expected: '%v', received: '%v'", *action.DecapNetworkInstance, configGot)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Run("Get-State", func(t *testing.T) {
+			state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1)
+			stateGot := gnmi.Get(t, dut, state.State())
+			if *(stateGot.Action.DecapNetworkInstance) != vrfBLUE {
+				t.Errorf("TestFAIL : Fetching state leaf for Action DecapNetworkInstance. Expected: '%v', Received: '%v'",
+					*(stateGot.Action.DecapNetworkInstance), vrfBLUE)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Logf("update@decap-network-instance leaf - change value from BLUE to PINK")
+		t.Run("Update", func(t *testing.T) {
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().DecapNetworkInstance().Config(), *ygot.String(vrfPINK))
+		})
+
+		t.Run("Get-Config", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().
+				Policy(pbrName).Rule(uint32(SeqID1)).Action().DecapNetworkInstance()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+
+			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
+			action.DecapNetworkInstance = ygot.String(vrfPINK)
+
+			if configGot != *action.DecapNetworkInstance {
+				t.Errorf("TestFAIL : decap-network-instance expected: '%v', received: '%v'", *action.DecapNetworkInstance, configGot)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Run("Get-State", func(t *testing.T) {
+			state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1)
+			stateGot := gnmi.Get(t, dut, state.State())
+			if *(stateGot.Action.DecapNetworkInstance) != vrfPINK {
+				t.Errorf("TestFAIL : Fetching state leaf for Action DecapNetworkInstance. Expected: '%v', Received: '%v'",
+					*(stateGot.Action.DecapNetworkInstance), vrfPINK)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Logf("replace@decap-network-instance leaf - change value from PINK to ORANGE")
+		t.Run("Replace", func(t *testing.T) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().DecapNetworkInstance().Config(), *ygot.String(vrfORANGE))
+		})
+
+		t.Run("Get-Config", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().
+				Policy(pbrName).Rule(uint32(SeqID1)).Action().DecapNetworkInstance()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+
+			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
+			action.DecapNetworkInstance = ygot.String(vrfORANGE)
+
+			if configGot != *action.DecapNetworkInstance {
+				t.Errorf("TestFAIL : decap-network-instance expected: '%v', received: '%v'", vrfORANGE, configGot)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Run("Get-State", func(t *testing.T) {
+			state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1)
+			stateGot := gnmi.Get(t, dut, state.State())
+			if *(stateGot.Action.DecapNetworkInstance) != vrfORANGE {
+				t.Errorf("TestFAIL : Fetching state leaf for Action DecapNetworkInstance. Expected: '%v', Received: '%v'",
+					*(stateGot.Action.DecapNetworkInstance), vrfORANGE)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		Decap_var := &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+			DecapNetworkInstance: ygot.String(vrfBLACK),
+		}
+
+		t.Logf("replace@action container - expected to fail")
+		got := testt.ExpectFatal(t, func(t testing.TB) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().Config(), Decap_var)
+		})
+
+		if got == "" {
+			t.Errorf("Replace did not fail as expected")
+		} else {
+			t.Logf("TestPASS")
+		}
+
+		t.Run("Delete", func(t *testing.T) {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Config())
+		})
+
+	})
+}
+
+func Test_Action_Decap_Fallback_Network_Instance(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	t.Log("Remove Flowspec Config")
+	configToChange := "no flowspec \n"
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, configToChange)
+	t.Run("*", func(t *testing.T) {
+		r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+		r1.SequenceId = ygot.Uint32(SeqID1)
+		r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+			DecapNetworkInstance:         ygot.String(vrfBLUE),
+			DecapFallbackNetworkInstance: ygot.String(vrfRED),
+			PostDecapNetworkInstance:     ygot.String(vrfGREEN),
+		}
+
+		r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+			Protocol:      oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+			DscpSet:       []uint8{*ygot.Uint8(4)},
+			SourceAddress: ygot.String("222.222.222.222/32"),
+		}
+
+		p := oc.NetworkInstance_PolicyForwarding_Policy{}
+		p.PolicyId = ygot.String(pbrName)
+		p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+		policy := oc.NetworkInstance_PolicyForwarding{}
+		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+
+		t.Logf("replace@policy-forwarding cont - Create a Policy with decap actions")
+		t.Run("Replace", func(t *testing.T) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Config(), &policy)
+		})
+
+		t.Run("Get-Config", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().
+				Policy(pbrName).Rule(uint32(SeqID1)).Action().DecapFallbackNetworkInstance()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+
+			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
+			action.DecapFallbackNetworkInstance = ygot.String(vrfRED)
+
+			if configGot != *action.DecapFallbackNetworkInstance {
+				t.Errorf("TestFAIL : decap-fallback-network-instance expected: '%v', received: '%v'", *action.DecapFallbackNetworkInstance, configGot)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Run("Get-State", func(t *testing.T) {
+			state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1)
+			stateGot := gnmi.Get(t, dut, state.State())
+			if *(stateGot.Action.DecapFallbackNetworkInstance) != vrfRED {
+				t.Errorf("TestFAIL : Fetching state leaf for Action DecapFallbackNetworkInstance. Expected: '%v', Received: '%v'",
+					*(stateGot.Action.DecapFallbackNetworkInstance), vrfRED)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Logf("update@decap-fallback-network-instance leaf - change value from RED to BROWN")
+		t.Run("Update", func(t *testing.T) {
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1).Action().DecapFallbackNetworkInstance().Config(), *ygot.String(vrfBROWN))
+		})
+
+		t.Run("Get-Config", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().
+				Policy(pbrName).Rule(uint32(SeqID1)).Action().DecapFallbackNetworkInstance()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+
+			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
+			action.DecapFallbackNetworkInstance = ygot.String(vrfBROWN)
+
+			if configGot != *action.DecapFallbackNetworkInstance {
+				t.Errorf("TestFAIL : decap-fallback-network-instance expected: '%v', received: '%v'", *action.DecapFallbackNetworkInstance, configGot)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Run("Get-State", func(t *testing.T) {
+			state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1)
+			stateGot := gnmi.Get(t, dut, state.State())
+			if *(stateGot.Action.DecapFallbackNetworkInstance) != vrfBROWN {
+				t.Errorf("TestFAIL : Fetching state leaf for Action DecapFallbackNetworkInstance. Expected: '%v', Received: '%v'",
+					*(stateGot.Action.DecapFallbackNetworkInstance), vrfBROWN)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Logf("replace@decap-fallback-network-instance leaf - change value from BROWN to INDIGO")
+		t.Run("Replace", func(t *testing.T) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1).Action().DecapFallbackNetworkInstance().Config(), *ygot.String(vrfINDIGO))
+		})
+
+		t.Run("Get-Config", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().
+				Policy(pbrName).Rule(uint32(SeqID1)).Action().DecapFallbackNetworkInstance()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+
+			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
+			action.DecapFallbackNetworkInstance = ygot.String(vrfINDIGO)
+
+			if configGot != *action.DecapFallbackNetworkInstance {
+				t.Errorf("TestFAIL : decap-fallback-network-instance expected: '%v', received: '%v'", *action.DecapFallbackNetworkInstance, configGot)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Run("Get-State", func(t *testing.T) {
+			state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1)
+			stateGot := gnmi.Get(t, dut, state.State())
+			if *(stateGot.Action.DecapFallbackNetworkInstance) != vrfINDIGO {
+				t.Errorf("TestFAIL : Fetching state leaf for Action DecapFallbackNetworkInstance. Expected: '%v', Received: '%v'",
+					*(stateGot.Action.DecapFallbackNetworkInstance), vrfINDIGO)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		DecapFallback_var := &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+			DecapFallbackNetworkInstance: ygot.String(vrfBLACK),
+		}
+
+		t.Logf("replace@action container - expected to fail")
+		got := testt.ExpectFatal(t, func(t testing.TB) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().Config(), DecapFallback_var)
+		})
+
+		if got == "" {
+			t.Errorf("Replace did not fail as expected")
+		} else {
+			t.Logf("TestPASS")
+		}
+
+		t.Run("Delete", func(t *testing.T) {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Config())
+		})
+
+	})
+}
+
+func Test_Action_Post_Decap_Network_Instance(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	t.Log("Remove Flowspec Config")
+	configToChange := "no flowspec \n"
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, configToChange)
+	t.Run("*", func(t *testing.T) {
+		r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+		r1.SequenceId = ygot.Uint32(SeqID1)
+		r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+			DecapNetworkInstance:         ygot.String(vrfBLUE),
+			DecapFallbackNetworkInstance: ygot.String(vrfRED),
+			PostDecapNetworkInstance:     ygot.String(vrfGREEN),
+		}
+
+		r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+			Protocol:      oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+			DscpSet:       []uint8{*ygot.Uint8(4)},
+			SourceAddress: ygot.String("222.222.222.222/32"),
+		}
+
+		p := oc.NetworkInstance_PolicyForwarding_Policy{}
+		p.PolicyId = ygot.String(pbrName)
+		p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
+		policy := oc.NetworkInstance_PolicyForwarding{}
+		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+
+		t.Logf("replace@policy-forwarding cont - Create a Policy with decap actions")
+		t.Run("Replace", func(t *testing.T) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Config(), &policy)
+		})
+
+		t.Run("Apply to interface", func(t *testing.T) {
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Interface(InterfaceName).ApplyVrfSelectionPolicy().Config(), pbrName)
+		})
+
+		t.Run("Get-Config", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().
+				Policy(pbrName).Rule(uint32(SeqID1)).Action().PostDecapNetworkInstance()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+
+			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
+			action.PostDecapNetworkInstance = ygot.String(vrfGREEN)
+
+			if configGot != *action.PostDecapNetworkInstance {
+				t.Errorf("TestFAIL : post-decap-network-instance expected: '%v', received: '%v'", *action.PostDecapNetworkInstance, configGot)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Run("Get-State", func(t *testing.T) {
+			state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(1)
+			stateGot := gnmi.Get(t, dut, state.State())
+			if *(stateGot.Action.PostDecapNetworkInstance) != vrfGREEN {
+				t.Errorf("TestFAIL : Fetching state leaf for Action PostDecapNetworkInstance. Expected: '%v', Received: '%v'",
+					*(stateGot.Action.PostDecapNetworkInstance), vrfGREEN)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Logf("update@post-decap-network-instance leaf - change value from GREEN to PURPLE")
+		t.Run("Update", func(t *testing.T) {
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().PostDecapNetworkInstance().Config(), *ygot.String(vrfPURPLE))
+		})
+
+		t.Run("Get-Config", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().
+				Policy(pbrName).Rule(uint32(SeqID1)).Action().PostDecapNetworkInstance()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+
+			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
+			action.PostDecapNetworkInstance = ygot.String(vrfPURPLE)
+
+			if configGot != *action.PostDecapNetworkInstance {
+				t.Errorf("TestFAIL : post-decap-network-instance expected: '%v', received: '%v'", *action.PostDecapNetworkInstance, configGot)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Run("Get-State", func(t *testing.T) {
+			state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1)
+			stateGot := gnmi.Get(t, dut, state.State())
+			if *(stateGot.Action.PostDecapNetworkInstance) != vrfPURPLE {
+				t.Errorf("TestFAIL : Fetching state leaf for Action PostDecapNetworkInstance. Expected: '%v', Received: '%v'",
+					*(stateGot.Action.PostDecapNetworkInstance), vrfPURPLE)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Logf("replace@post-decap-network-instance leaf - change value from PURPLE to BROWN")
+		t.Run("Replace", func(t *testing.T) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().PostDecapNetworkInstance().Config(), *ygot.String(vrfBROWN))
+		})
+
+		t.Run("Get-Config", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().
+				Policy(pbrName).Rule(uint32(SeqID1)).Action().PostDecapNetworkInstance()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+
+			action := oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{}
+			action.PostDecapNetworkInstance = ygot.String(vrfBROWN)
+
+			if configGot != *action.PostDecapNetworkInstance {
+				t.Errorf("TestFAIL : post-decap-network-instance expected: '%v', received: '%v'", *action.PostDecapNetworkInstance, configGot)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		t.Run("Get-State", func(t *testing.T) {
+			state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1)
+			stateGot := gnmi.Get(t, dut, state.State())
+			if *(stateGot.Action.PostDecapNetworkInstance) != vrfBROWN {
+				t.Errorf("TestFAIL : Fetching state leaf for Action PostDecapNetworkInstance. Expected: '%v', Received: '%v'",
+					*(stateGot.Action.PostDecapNetworkInstance), vrfBROWN)
+			} else {
+				t.Logf("TestPASS")
+			}
+		})
+
+		postDecap_var := &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+			PostDecapNetworkInstance: ygot.String(vrfBLACK),
+		}
+
+		t.Logf("replace@action container - expected to fail")
+		got := testt.ExpectFatal(t, func(t testing.TB) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().Config(), postDecap_var)
+		})
+
+		if got == "" {
+			t.Errorf("Replace did not fail as expected")
+		} else {
+			t.Logf("TestPASS")
+		}
+
+		t.Run("Delete", func(t *testing.T) {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Config())
+		})
+
+	})
+}
+
+func Test_Decap_feature(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	t.Log("Remove Flowspec Config")
+	configToChange := "no flowspec \n"
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, configToChange)
+
+	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r1.SequenceId = ygot.Uint32(SeqID1)
+
+	r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		Protocol:      oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+		DscpSet:       []uint8{*ygot.Uint8(4), *ygot.Uint8(8)},
+		SourceAddress: ygot.String("222.222.222.222/32"),
+	}
+
+	r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+		DecapNetworkInstance:         ygot.String(vrfBLUE),
+		DecapFallbackNetworkInstance: ygot.String(vrfRED),
+		PostDecapNetworkInstance:     ygot.String(vrfGREEN),
+	}
+
+	r2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r2.SequenceId = ygot.Uint32(SeqID2)
+
+	r2.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		Protocol:      oc.UnionUint8(41),
+		DscpSet:       []uint8{*ygot.Uint8(1), *ygot.Uint8(2)},
+		SourceAddress: ygot.String("111.111.111.111/32"),
+	}
+
+	r2.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+		DecapNetworkInstance:         ygot.String(vrfORANGE),
+		DecapFallbackNetworkInstance: ygot.String(vrfPINK),
+		PostDecapNetworkInstance:     ygot.String(vrfBROWN),
+	}
+
+	p := oc.NetworkInstance_PolicyForwarding_Policy{}
+	p.PolicyId = ygot.String(pbrName)
+	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+	p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2}
+
+	policy := oc.NetworkInstance_PolicyForwarding{}
+	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+
+	t.Run("Replace", func(t *testing.T) {
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Config(), &policy)
+	})
+
+	t.Run("Update", func(t *testing.T) {
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Interface(InterfaceName).ApplyVrfSelectionPolicy().Config(), pbrName)
+	})
+
+	t.Logf("Check State information for Rule1")
+	t.Run("Get-state", func(t *testing.T) {
+		state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1)
+		stateGot := gnmi.Get(t, dut, state.State())
+		if *(stateGot.Action.DecapNetworkInstance) != vrfBLUE {
+			t.Errorf("TestFAIL : Fetching state leaf for Action DecapNetworkInstance. Expected: '%v', Received: '%v'",
+				*(stateGot.Action.DecapNetworkInstance), vrfBLUE)
+		} else {
+			t.Logf("TestPASS : DecapNetworkInstance found as expected")
+		}
+		if *(stateGot.Action.DecapFallbackNetworkInstance) != vrfRED {
+			t.Errorf("TestFAIL : Fetching state leaf for Action DecapFallbackNetworkInstance. Expected: '%v', Received: '%v'",
+				*(stateGot.Action.DecapFallbackNetworkInstance), vrfRED)
+		} else {
+			t.Logf("TestPASS : DecapFallbackNetworkInstance found as expected")
+		}
+		if *(stateGot.Action.PostDecapNetworkInstance) != vrfGREEN {
+			t.Errorf("TestFAIL : Fetching state leaf for Action PostDecapNetworkInstance. Expected: '%v', Received: '%v'",
+				*(stateGot.Action.PostDecapNetworkInstance), vrfGREEN)
+		} else {
+			t.Logf("TestPASS : PostDecapNetworkInstance found as expected")
+		}
+	})
+
+	t.Logf("Check State information for Rule2")
+	t.Run("Get-state", func(t *testing.T) {
+		state := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID2)
+		stateGot := gnmi.Get(t, dut, state.State())
+		if *(stateGot.Action.DecapNetworkInstance) != vrfORANGE {
+			t.Errorf("TestFAIL : Fetching state leaf for Action DecapNetworkInstance. Expected: '%v', Received: '%v'",
+				*(stateGot.Action.DecapNetworkInstance), vrfORANGE)
+		} else {
+			t.Logf("TestPASS : DecapNetworkInstance found as expected")
+		}
+		if *(stateGot.Action.DecapFallbackNetworkInstance) != vrfPINK {
+			t.Errorf("TestFAIL : Fetching state leaf for Action DecapFallbackNetworkInstance. Expected: '%v', Received: '%v'",
+				*(stateGot.Action.DecapFallbackNetworkInstance), vrfPINK)
+		} else {
+			t.Logf("TestPASS : DecapFallbackNetworkInstance found as expected")
+		}
+		if *(stateGot.Action.PostDecapNetworkInstance) != vrfBROWN {
+			t.Errorf("TestFAIL : Fetching state leaf for Action PostDecapNetworkInstance. Expected: '%v', Received: '%v'",
+				*(stateGot.Action.PostDecapNetworkInstance), vrfBROWN)
+		} else {
+			t.Logf("TestPASS : PostDecapNetworkInstance found as expected")
+		}
+	})
+
+	t.Logf("replace@policy list should remove the existing rules, and add the new rule")
+	t.Run("Replace", func(t *testing.T) {
+		r3 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+		r3.SequenceId = ygot.Uint32(SeqID3)
+
+		r3.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+			Protocol:      oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+			DscpSet:       []uint8{*ygot.Uint8(4), *ygot.Uint8(8)},
+			SourceAddress: ygot.String("222.222.222.222/32"),
+		}
+
+		r3.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+			DecapNetworkInstance:         ygot.String(vrfBLUE),
+			DecapFallbackNetworkInstance: ygot.String(vrfRED),
+			PostDecapNetworkInstance:     ygot.String(vrfGREEN),
+		}
+
+		p := oc.NetworkInstance_PolicyForwarding_Policy{}
+		p.PolicyId = ygot.String(pbrName)
+		p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{3: &r3}
+
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Config(), &p)
+	})
+
+	//TODO: Validate r1 and r2 are deleted
+
+	//t.Run("Get-Config#3", func(t *testing.T) {
+	//    config := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Policy(pbrName).Rule(uint32(SeqID1)).Ipv4()
+	//    configGot := gnmi.GetConfig(t, dut, config.Config())
+
+	//    if len(configGot) > 0 {
+	//        t.Errorf("TestFAIL : Stale config exists!!!")
+	//    } else {
+	//        t.Logf("TestPASS")
+	//    }
+	//})
+
+	t.Run("Cleanup", func(t *testing.T) {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Config())
 	})
 }
