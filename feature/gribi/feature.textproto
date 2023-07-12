@@ -63,7 +63,7 @@ telemetry_path {
   path: "/network-instances/network-instance/afts/next-hops/next-hop/ip-in-ip/state/src-ip"
 }
 telemetry_path {
-  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/ip-in-ip/state/dst-ip"
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/ip-in-ip/state/dst-ip"
 }
 telemetry_path {
   path: "/network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface"
