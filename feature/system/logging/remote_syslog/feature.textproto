@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-    name: "system logging remote syslog"
+    name: "system_logging_remote_syslog"
     version: 1
 }
 
