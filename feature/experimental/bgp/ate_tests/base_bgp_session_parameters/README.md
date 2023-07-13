@@ -12,7 +12,8 @@ BGP session establishment between DUT - ATE and verifiying different session par
 
 Test the abnormal termination of session using notification message:
 
-*   Establish BGP session between DUT (AS 65540) and ATE (AS 65550).
+*   Establish BGP session between DUT (AS 65540) and ATE (AS 65550). The DUT/ATE
+    peers should be configured with MD5 authentication using the same password.
 
     *   Ensure session state should be `ESTABLISHED`.
     *   Verify BGP capabilities: route refresh, ASN32 and MPBGP.

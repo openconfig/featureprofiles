@@ -16,17 +16,20 @@ package osinstall_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
+
+	"flag"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	closer "github.com/openconfig/gocloser"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -84,23 +87,24 @@ func TestOSInstall(t *testing.T) {
 		osc:    dut.RawAPIs().GNOI().Default(t).OS(),
 		sc:     dut.RawAPIs().GNOI().Default(t).System(),
 	}
+	noReboot := deviations.OSActivateNoReboot(dut)
 	tc.fetchStandbySupervisorStatus(ctx, t)
 	tc.transferOS(ctx, t, false)
-	tc.activateOS(ctx, t, false)
+	tc.activateOS(ctx, t, false, noReboot)
 
-	if *deviations.InstallOSForStandbyRP && tc.dualSup {
+	if deviations.InstallOSForStandbyRP(dut) && tc.dualSup {
 		tc.transferOS(ctx, t, true)
-		tc.activateOS(ctx, t, true)
+		tc.activateOS(ctx, t, true, noReboot)
 	}
 
-	if *deviations.OSActivateNoReboot {
+	if noReboot {
 		tc.rebootDUT(ctx, t)
 	}
 
 	tc.verifyInstall(ctx, t)
 }
 
-func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) {
+func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noReboot bool) {
 	t.Helper()
 	if standby {
 		t.Log("OS.Activate is started for standby RP.")
@@ -110,7 +114,7 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby bool) 
 	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
 		StandbySupervisor: standby,
 		Version:           *osVersion,
-		NoReboot:          *deviations.OSActivateNoReboot,
+		NoReboot:          noReboot,
 	})
 	if err != nil {
 		t.Fatalf("OS.Activate request failed: %s", err)
@@ -262,6 +266,21 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 			t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
 			time.Sleep(rebootWait)
 			continue
+		}
+
+		dut := ondatra.DUT(t, "dut")
+		if !deviations.SwVersionUnsupported(dut) {
+			ver, ok := gnmi.Lookup(t, dut, gnmi.OC().System().SoftwareVersion().State()).Val()
+			if !ok {
+				t.Log("Reboot has not finished with the right version: couldn't get system/state/software-version")
+				time.Sleep(rebootWait)
+				continue
+			}
+			if got, want := ver, *osVersion; !strings.HasPrefix(got, want) {
+				t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
+				time.Sleep(rebootWait)
+				continue
+			}
 		}
 
 		if tc.dualSup {
