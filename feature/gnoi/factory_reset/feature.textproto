@@ -19,5 +19,5 @@ id {
 
 gnoi_service {
   service_name: "gnoi.factory_reset.FactoryReset"
-  method_name: "StartRequest"
+  method_name: "Start"
 }
