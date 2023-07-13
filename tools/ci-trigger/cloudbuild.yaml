@@ -1,0 +1,13 @@
+steps:
+  - name: golang:1.20
+    entrypoint: /bin/bash
+    args: [ '-c', 'go test -timeout 5m -v github.com/openconfig/featureprofiles/tools/ci-trigger/...']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [ 'build', '-t', 'us-west1-docker.pkg.dev/$PROJECT_ID/featureprofiles-ci/featureprofiles-ci-trigger:$COMMIT_SHA', '-t', 'us-west1-docker.pkg.dev/$PROJECT_ID/featureprofiles-ci/featureprofiles-ci-trigger:latest', '-f', 'tools/ci-trigger/Dockerfile', '.' ]
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-west1-docker.pkg.dev/$PROJECT_ID/featureprofiles-ci/featureprofiles-ci-trigger:$COMMIT_SHA']
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: ['run', 'deploy', 'ci-trigger', '--image', 'us-west1-docker.pkg.dev/$PROJECT_ID/featureprofiles-ci/featureprofiles-ci-trigger:$COMMIT_SHA', '--region', 'us-west1']
+images:
+  - us-west1-docker.pkg.dev/$PROJECT_ID/featureprofiles-ci/featureprofiles-ci-trigger
