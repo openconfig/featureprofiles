@@ -629,7 +629,7 @@ func testwithDecapEncapvrf(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 1000, "DecapEncapvrf", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+	args.client.AddNH(t, 1000, "DecapEncapvrf", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}, VrfName: *ciscoFlags.NonDefaultNetworkInstance})
 	args.client.AddNHG(t, 1000, 2000, map[uint64]uint64{1000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	prefixes := []string{}
@@ -688,7 +688,7 @@ func testwithDecapEncapvrfDelete(ctx context.Context, t *testing.T, args *testAr
 	args.client.AddNH(t, 2000, "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddNH(t, 1000, "DecapEncapvrf", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+	args.client.AddNH(t, 1000, "DecapEncapvrf", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}, VrfName: *ciscoFlags.NonDefaultNetworkInstance})
 	args.client.AddNHG(t, 1000, 2000, map[uint64]uint64{1000: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	prefixes := []string{}
@@ -1468,8 +1468,9 @@ func (args *testArgs) dorpfo(ctx context.Context, t *testing.T, gribi_reconnect 
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
 	gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch),
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
 	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
@@ -1480,7 +1481,7 @@ func (args *testArgs) dorpfo(ctx context.Context, t *testing.T, gribi_reconnect 
 
 	want := rpStandbyBeforeSwitch
 	got := ""
-	if *deviations.GNOISubcomponentPath {
+	if useNameOnly {
 		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
 	} else {
 		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
