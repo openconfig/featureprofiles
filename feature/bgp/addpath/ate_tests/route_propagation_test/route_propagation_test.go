@@ -121,11 +121,15 @@ type dutData struct {
 	bgpOC *oc.NetworkInstance_Protocol_Bgp
 }
 
-func configureRoutingPolicy(d *oc.Root) *oc.RoutingPolicy {
+func configureRoutingPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
-	pdef.GetOrCreateStatement("20").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	return rp
+	stmt, err := pdef.AppendNewStatement("20")
+	if err != nil {
+		return nil, err
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	return rp, nil
 }
 
 func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
@@ -168,7 +172,10 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 			},
 		},
 	}
-	rpl := configureRoutingPolicy(&oc.Root{})
+	rpl, err := configureRoutingPolicy(&oc.Root{})
+	if err != nil {
+		t.Fatalf("Failed to configure routing policy: %v", err)
+	}
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 	gnmi.Replace(t, dut, dutProto.Config(), niOC.Protocol[key])
 }
@@ -184,28 +191,29 @@ func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("BGP sessions established")
 }
 
-func getPeerGroup(pgn string, aftype oc.E_BgpTypes_AFI_SAFI_TYPE) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
+func getPeerGroup(pgn string, aftype oc.E_BgpTypes_AFI_SAFI_TYPE, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 	bgp := &oc.NetworkInstance_Protocol_Bgp{}
 	pg := bgp.GetOrCreatePeerGroup(pgn)
 
-	if *deviations.RoutePolicyUnderPeerGroup {
-		//policy under peer group address family
-		afisafi := pg.GetOrCreateAfiSafi(aftype)
-		afisafi.Enabled = ygot.Bool(true)
-		rpl := afisafi.GetOrCreateApplyPolicy()
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		//policy under peer group
+		rpl := pg.GetOrCreateApplyPolicy()
 		rpl.SetExportPolicy([]string{rplPermitAll})
 		rpl.SetImportPolicy([]string{rplPermitAll})
 		return pg
 	}
 
-	//policy under peer group
-	rpl := pg.GetOrCreateApplyPolicy()
+	//policy under peer group AFI
+	afisafi := pg.GetOrCreateAfiSafi(aftype)
+	afisafi.Enabled = ygot.Bool(true)
+	rpl := afisafi.GetOrCreateApplyPolicy()
 	rpl.SetExportPolicy([]string{rplPermitAll})
 	rpl.SetImportPolicy([]string{rplPermitAll})
 	return pg
 }
 
 func TestBGP(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	tests := []struct {
 		desc, fullDesc string
 		skipReason     string
@@ -217,8 +225,8 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
-				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
+				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, dut),
+				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, dut),
 			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
@@ -274,8 +282,8 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST),
-				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST),
+				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, dut),
+				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, dut),
 			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
@@ -332,8 +340,8 @@ func TestBGP(t *testing.T) {
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST),
-				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
+				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, dut),
+				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, dut),
 			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
@@ -393,7 +401,6 @@ func TestBGP(t *testing.T) {
 				t.Skip(tc.skipReason)
 			}
 
-			dut := ondatra.DUT(t, "dut")
 			tc.dut.Configure(t, dut)
 
 			ate := ondatra.ATE(t, "ate")
