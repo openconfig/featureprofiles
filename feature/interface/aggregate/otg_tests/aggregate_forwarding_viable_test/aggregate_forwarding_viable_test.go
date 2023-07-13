@@ -164,22 +164,22 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 }
 
 // configSrcDUT configures source port of DUT
-func (*testArgs) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
+func (tc *testArgs) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
 	i.Description = ygot.String(a.Desc)
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a4 := s4.GetOrCreateAddress(a.IPv4)
 	a4.PrefixLength = ygot.Uint8(plen4)
 
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
 	s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(plen6)
@@ -198,7 +198,7 @@ func (tc *testArgs) configDstMemberDUT(i *oc.Interface, p *ondatra.Port) {
 	i.Description = ygot.String(p.String())
 	i.Type = ethernetCsmacd
 
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
@@ -224,7 +224,7 @@ func (tc *testArgs) setupAggregateAtomically(t *testing.T) {
 
 		i.Type = ethernetCsmacd
 
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(tc.dut) {
 			i.Enabled = ygot.Bool(true)
 		}
 	}
@@ -286,8 +286,8 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, deviations.DefaultNetworkInstance(tc.dut), 0)
 	}
 
 	srcp := tc.dutPorts[0]
@@ -295,26 +295,26 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 	tc.configSrcDUT(srci, &dutSrc)
 	srci.Type = ethernetCsmacd
 	srciPath := d.Interface(srcp.Name())
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(tc.dut) {
 		srci.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, srcp)
 	}
 	fptest.LogQuery(t, srcp.String(), srciPath.Config(), srci)
 	gnmi.Replace(t, tc.dut, srciPath.Config(), srci)
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
+		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
 	}
 
 	for _, port := range tc.dutPorts[1:] {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
 		i.Type = ethernetCsmacd
 
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(tc.dut) {
 			i.Enabled = ygot.Bool(true)
 		}
 
 		tc.configDstMemberDUT(i, port)
 		iPath := d.Interface(port.Name())
-		if *deviations.ExplicitPortSpeed {
+		if deviations.ExplicitPortSpeed(tc.dut) {
 			i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, port)
 		}
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
@@ -352,6 +352,7 @@ func (tc *testArgs) configureATE(t *testing.T) {
 		}
 	} else {
 		agg.Protocol().SetChoice("lacp")
+		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(ateDst.MAC)
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateDst.MAC, i+1)
@@ -569,7 +570,7 @@ func (tc *testArgs) getCounters(t *testing.T, when string) []*oc.Interface_Count
 func TestAggregateForwardingViable(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	aggID := netutil.NextBundleInterface(t, dut)
+	aggID := netutil.NextAggregateInterface(t, dut)
 
 	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 	for _, lagType := range lagTypes {

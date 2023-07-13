@@ -18,11 +18,12 @@ package traceroute_packetout_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"net"
 	"sort"
 	"testing"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -55,7 +56,7 @@ var (
 )
 
 func dMAC(t *testing.T, dut *ondatra.DUTDevice) string {
-	if !deviations.GRIBIMACOverrideWithStaticARP(dut) {
+	if !deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		return dstMAC
 	}
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), dstMAC)
@@ -120,22 +121,22 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1").Name()
-	i1 := dutPort1.NewOCInterface(p1)
+	i1 := dutPort1.NewOCInterface(p1, dut)
 	i1.Id = ygot.Uint32(portId)
 	gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
 
 	p2 := dut.Port(t, "port2").Name()
-	i2 := dutPort2.NewOCInterface(p2)
+	i2 := dutPort2.NewOCInterface(p2, dut)
 	i2.Id = ygot.Uint32(portId + 1)
 	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
 		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2, deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -214,7 +215,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4v1.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4v1.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},

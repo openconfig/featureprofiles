@@ -203,6 +203,10 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string,
 	} else {
 		si.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
 	}
+	s4 := si.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
 
 	// create vrf and apply on subinterface
@@ -220,18 +224,18 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string,
 func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16, dut *ondatra.DUTDevice) *oc.Interface_Subinterface {
 	s := &oc.Interface_Subinterface{}
 	// unshut sub/interface
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s.Enabled = ygot.Bool(true)
 	}
 	s.Index = ygot.Uint32(index)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(dutPort.IPv4)
 	a.PrefixLength = ygot.Uint8(dutPort.IPv4Len)
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
 	a6 := s6.GetOrCreateAddress(dutPort.IPv6)
@@ -248,7 +252,7 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16, dut
 
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	i.Description = ygot.String(dutPort.Desc)
@@ -275,13 +279,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), i3)
 	}
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	outpath := d.Interface(p2.Name())
@@ -330,6 +334,7 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 	}
 	args.ate.OTG().PushConfig(t, args.top)
 	args.ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
 
 	t.Logf("*** Starting traffic ...")
 	args.ate.OTG().StartTraffic(t)
@@ -517,13 +522,13 @@ func TestPBR(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Log(tc.desc)
-			pfpath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding()
+			pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
 
 			//configure pbr policy-forwarding
-			dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), tc.policy)
 			})
 			if errMsg != nil {
 				if tc.rejectable {
@@ -537,17 +542,15 @@ func TestPBR(t *testing.T) {
 			// apply pbr policy on ingress interface
 			p1 := port1.Name()
 			d := &oc.Root{}
-			pfIntf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
-			pfIntfConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(p1)
-
-			if deviations.ExplicitInterfaceRefDefinition(dut) {
-				pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
-				pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-				pfIntf.SetApplyVrfSelectionPolicy(args.policyName)
-				gnmi.Update(t, dut, pfIntfConfPath.Config(), pfIntf)
-			} else {
-				gnmi.Replace(t, args.dut, pfpath.Interface(p1).ApplyVrfSelectionPolicy().Config(), args.policyName)
+			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
+			pfIntfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(p1)
+			pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
+			pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+			if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+				pfIntf.InterfaceRef = nil
 			}
+			pfIntf.SetApplyVrfSelectionPolicy(args.policyName)
+			gnmi.Update(t, dut, pfIntfConfPath.Config(), pfIntf)
 
 			// defer deletion of policy from interface
 			defer gnmi.Delete(t, args.dut, pfIntfConfPath.Config())

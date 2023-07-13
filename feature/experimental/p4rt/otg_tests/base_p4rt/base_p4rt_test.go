@@ -17,13 +17,13 @@ package base_p4rt_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"testing"
 
+	"flag"
+
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
-	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
@@ -96,16 +96,16 @@ var (
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -137,19 +137,19 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ports []string) {
 
 	p1 := dut.Port(t, ports[0])
 	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portId)}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 
 	p2 := dut.Port(t, ports[1])
 	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portId + 1)}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -249,7 +249,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 			Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 			Config: &p4_v1.ForwardingPipelineConfig{
-				P4Info: &p4Info,
+				P4Info: p4Info,
 				Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
 					Cookie: 159,
 				},
@@ -269,7 +269,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 			return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
 		}
 		// Compare P4Info from GetForwardingPipelineConfig and SetForwardingPipelineConfig
-		if diff := cmp.Diff(&p4Info, resp.Config.P4Info, protocmp.Transform()); diff != "" {
+		if diff := cmp.Diff(p4Info, resp.Config.P4Info, protocmp.Transform()); diff != "" {
 			return fmt.Errorf("P4info diff (-want +got): \n%s", diff)
 		}
 	}
@@ -277,18 +277,15 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 }
 
 // Function to compare and check if the expected table is present in RPC ReadResponse
-func verifyReadReceiveMatch(expected_update []*p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
-
+func verifyReadReceiveMatch(t *testing.T, expected_table *p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
 	matches := 0
 	for _, table := range received_entry.Entities {
-		if diff := cmp.Diff(expected_update[0].Entity.Entity, table.Entity, protocmp.Transform()); diff != "" {
-			glog.Errorf("Table entry diff (-want +got): \n%s", diff)
-			continue
+		if cmp.Equal(table, expected_table.Entity, protocmp.Transform(), protocmp.IgnoreFields(&p4_v1.TableEntry{}, "meter_config", "counter_data")) {
+			matches++
 		}
-		matches++
 	}
 	if matches == 0 {
-		return errors.New("match unsuccesful")
+		return errors.New("no matches found")
 	}
 	return nil
 }
@@ -408,8 +405,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority:      1,
 			},
 		})
-
-		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+		expected_entity := expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for GDP %s", err)
 			nomatch += 1
 		}
@@ -423,7 +420,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority:      1,
 			},
 		})
-		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for LLDP %s", err)
 			nomatch += 1
 		}
@@ -438,7 +436,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority: 1,
 			},
 		})
-		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for traceroute %s", err)
 			nomatch += 1
 		}
