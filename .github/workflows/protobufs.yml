@@ -1,0 +1,121 @@
+name: Protobufs
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  validate_protobufs:
+    name: Validate Protobufs
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.19'
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
+    - name: Install protobuf
+      uses: arduino/setup-protoc@v1
+      with:
+        version: '3.x'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Lint protobufs
+      run: |
+        go install github.com/googleapis/api-linter/cmd/api-linter@latest
+        # Set directory to hold symlink
+        readonly PROTOBUF_IMPORT_DIR='protobuf-import'
+        mkdir -p "${PROTOBUF_IMPORT_DIR}"
+        # Remove any existing symlinks & empty directories
+        find "${PROTOBUF_IMPORT_DIR}" -type l -delete
+        find "${PROTOBUF_IMPORT_DIR}" -type d -empty -delete
+        # Download the required dependencies
+        go mod download
+        # Get ondatra modules we use and create required directory structure
+        go list -f "${PROTOBUF_IMPORT_DIR}/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 dirname | sort | uniq | xargs mkdir -p
+        # Create symlink
+        go list -f "{{ .Dir }} "${PROTOBUF_IMPORT_DIR}"/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
+        find . -name \*.proto -exec api-linter -I./"${PROTOBUF_IMPORT_DIR}" --disable-rule all --enable-rule core {} \+
+    - name: Compile topology binding textprotos
+      run: |
+        fail=0
+        # Set directory to hold symlink
+        readonly PROTOBUF_IMPORT_DIR='protobuf-import'
+        mkdir -p "${PROTOBUF_IMPORT_DIR}"
+        # Remove any existing symlinks & empty directories
+        find "${PROTOBUF_IMPORT_DIR}" -type l -delete
+        find "${PROTOBUF_IMPORT_DIR}" -type d -empty -delete
+        # Download the required dependencies
+        go mod download
+        # Get ondatra modules we use and create required directory structure
+        go list -f "${PROTOBUF_IMPORT_DIR}/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 dirname | sort | uniq | xargs mkdir -p
+        # Create symlink
+        go list -f "{{ .Dir }} \"${PROTOBUF_IMPORT_DIR}\"/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
+        for i in `find topologies/ -type f -name "*.binding"`; do
+          if ! output=$(protoc -I="${PROTOBUF_IMPORT_DIR}" --proto_path=topologies/proto --encode=openconfig.testing.Binding topologies/proto/binding.proto < $i 2>&1 >/dev/null); then
+            fail=1
+            echo -e "Compile $i failed:\n$output\n"
+          fi
+        done
+        if [ "$fail" == "1" ]; then exit 1; fi
+    - name: Compile feature profile textprotos
+      run: |
+        fail=0
+        for i in `find feature/ -type f -name "feature.textproto"`; do
+          if ! output=$(protoc --encode=openconfig.profiles.FeatureProfile proto/feature.proto < $i 2>&1 >/dev/null); then
+            fail=1
+            echo -e "Compile $i failed:\n$output\n"
+          fi
+        done
+        if [ "$fail" == "1" ]; then exit 1; fi
+
+  validate_oc_paths:
+    name: Validate OpenConfig Paths
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.19'
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
+    - name: Fetch Openconfig Models
+      run: make openconfig_public
+    - name: Validate Paths
+      run: |
+        # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
+        if [ ! -z "${GITHUB_BASE_REF}" ]; then
+          readonly HEAD=${{ github.event.pull_request.head.sha }}
+          readonly BASE="$(git merge-base origin/main "${HEAD}")"
+          if ! git diff --diff-filter=D --name-only "${BASE}" | grep -E 'feature.textproto$'; then
+            # If it is a pull request AND if no feature.textproto files were
+            # deleted, then we can skip checking all but the added/modified
+            # feature.textproto files.
+            export FEATURE_FILES=changed-feature-textprotos.githubactions.txt
+            # grep: don't error out on no match.
+            git diff --diff-filter=d --name-only "${BASE}" | { grep -E 'feature.textproto$' || true; } > "${FEATURE_FILES}"
+          fi
+        fi
+        make validate_paths
+
