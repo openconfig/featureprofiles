@@ -36,7 +36,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	c.Connection().WithStub(gribic)
 
 	_ = PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
-	sleepFn := func(_ *testing.T, _ []uint32) { time.Sleep(*sleep * time.Second) }
+	sleepFn := func(_ *testing.T, _ []uint32) { time.Sleep(time.Duration(*sleep) * time.Second) }
 
 	baseLabel := 42
 	for i := 1; i <= 20; i++ {
