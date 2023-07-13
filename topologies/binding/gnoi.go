@@ -24,7 +24,6 @@ import (
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	fpb "github.com/openconfig/gnoi/file"
 	hpb "github.com/openconfig/gnoi/healthz"
-	ipb "github.com/openconfig/gnoi/interface"
 	lpb "github.com/openconfig/gnoi/layer2"
 	mpb "github.com/openconfig/gnoi/mpls"
 	ospb "github.com/openconfig/gnoi/os"
@@ -52,9 +51,6 @@ func (g gnoiConn) FactoryReset() frpb.FactoryResetClient {
 func (g gnoiConn) File() fpb.FileClient { return fpb.NewFileClient(g.conn) }
 func (g gnoiConn) Healthz() hpb.HealthzClient {
 	return hpb.NewHealthzClient(g.conn)
-}
-func (g gnoiConn) Interface() ipb.InterfaceClient {
-	return ipb.NewInterfaceClient(g.conn)
 }
 func (g gnoiConn) Layer2() lpb.Layer2Client {
 	return lpb.NewLayer2Client(g.conn)

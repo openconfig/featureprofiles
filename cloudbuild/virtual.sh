@@ -15,6 +15,8 @@
 
 set -x
 
+nohup /tmp/featureprofiles/cloudbuild/cleanup.sh 2>/dev/null &
+
 readonly platform="${1}"
 readonly dut_tests="${2}"
 
@@ -92,7 +94,8 @@ for dut_test in ${dut_tests}; do
   go test -v ./"${test_path}"/... -timeout 0 \
   -kne-topo /tmp/kne/"${kne_topology}" \
   -kne-skip-reset \
-  -vendor_creds "${vendor_creds}"
+  -vendor_creds "${vendor_creds}" \
+  -alsologtostderr
   if [[ $? -eq 0 ]]; then
     gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"success\"}"
   else

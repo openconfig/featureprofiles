@@ -23,12 +23,13 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 var (
 	bgpProcName = map[ondatra.Vendor]string{
 		ondatra.NOKIA:   "sr_bgp_mgr",
-		ondatra.ARISTA:  "bgp",
+		ondatra.ARISTA:  "Bgp-main",
 		ondatra.JUNIPER: "rpd",
 	}
 	components = map[ondatra.Vendor]string{
@@ -70,6 +71,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 	killProcessRequest := &spb.KillProcessRequest{
 		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
 		Name:    bgpProcName[dut.Vendor()],
+		Pid:     findProcessByName(context.Background(), t, dut, bgpProcName[dut.Vendor()]),
 		Restart: true,
 	}
 	processKillResponse, err := gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
@@ -101,4 +103,17 @@ func TestCopyingDebugFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", bgpProcName[dut.Vendor()], err)
 	}
+}
+
+// findProcessByName uses telemetry to find out the PID of a process
+func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) uint32 {
+	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	var pID uint32
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			pID = uint32(proc.GetPid())
+			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
+		}
+	}
+	return pID
 }
