@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "e12aa785-7464-4c10-b4a0-d22d7bc4d843"
+plan_id:  "QOS-1.2"
+description:  "DSCP trust classification test"
+testbed:  TESTBED_DUT_ATE_2LINKS
