@@ -102,6 +102,14 @@ var (
 		"test_repo_rev", "", "fp repo rev to use for test execution",
 	)
 
+	defaultTestRepoRevFlag = flag.String(
+		"default_test_repo_rev", "", "fp repo rev to use for test execution by default",
+	)
+
+	testNamePrefixFlag = flag.String(
+		"test_name_prefix", "", "prefix to pre-append to test name",
+	)
+
 	showTestbedsFlag = flag.Bool(
 		"show_testbeds", false, "just output the testbeds used",
 	)
@@ -130,32 +138,33 @@ var (
 		"ignore_deviations", false, "ignore all deviation flags",
 	)
 
-	files            []string
-	testNames        []string
-	groupNames       []string
-	excludeTestNames []string
-	extraPlugins     []string
-	testbeds         []string
-	env              map[string]string
-	outDir           string
-	testRepoRev      string
-	internalRepoRev  string
-	showTestbeds     bool
-	mustPassOnly     bool
-	ignorePatched    bool
-	randomize        bool
-	sorted           bool
-	useShortName     bool
-	ignoreDeviations bool
+	files              []string
+	testNames          []string
+	groupNames         []string
+	excludeTestNames   []string
+	extraPlugins       []string
+	testbeds           []string
+	env                map[string]string
+	outDir             string
+	testRepoRev        string
+	defaultTestRepoRev string
+	internalRepoRev    string
+	testNamePrefix     string
+	showTestbeds       bool
+	mustPassOnly       bool
+	ignorePatched      bool
+	randomize          bool
+	sorted             bool
+	useShortName       bool
+	ignoreDeviations   bool
 )
 
 var (
 	firexSuiteTemplate = template.Must(template.New("firexTestSuite").Funcs(template.FuncMap{
 		"join": strings.Join,
 	}).Parse(`
-{{ if $.UseShortTestNames}}{{ $.Test.ShortName }}{{ else }}({{ $.Test.ID }}) {{ $.Test.Name }}{{ end }}:
+{{ if $.UseShortTestNames}}{{ $.TestNamePrefix }}{{ $.Test.ShortName }}{{ else }}({{ $.Test.ID }}) {{ $.Test.Name }}{{ end }}:
     framework: b4
-    restrict_known_break_to_owners: true
     owners:
     {{- range $k, $ow := $.Test.Owners }}
         - {{ $ow }}
@@ -190,7 +199,7 @@ var (
     {{- end }}
     script_paths:
         {{- if $.UseShortTestNames}}
-        - {{ $.Test.ShortName }}:
+        - {{ $.TestNamePrefix }}{{ $.Test.ShortName }}:
         {{- else }}
         - ({{ $.Test.ID }}) {{ $.Test.Name }}{{ if $.Test.Branch }} ({{ if $.Test.Internal }}I-{{ end }}BR#{{ $.Test.Branch }}){{ end }}{{ if $.Test.PrNum }} ({{ if $.Test.Internal }}I-{{ end }}PR#{{ $.Test.PrNum }}){{ end }}{{ if $.Test.HasDeviations }} (Deviation){{ end }}{{ if $.Test.MustPass }} (MP){{ end }}:
         {{- end }}
@@ -213,6 +222,7 @@ var (
             {{- if $.InternalRepoRev }}
             internal_fp_repo_rev: {{ $.InternalRepoRev}}
             {{- end }}
+            smart_sanity_exclude: True
     {{- if gt (len $.Test.Posttests) 0 }}
     fp_post_tests:
         {{- range $j, $pt := $.Test.Posttests}}
@@ -223,7 +233,6 @@ var (
             {{- end }}
         {{- end }}
     {{- end }}
-    smart_sanity_exclude: True
 `))
 )
 
@@ -270,8 +279,16 @@ func init() {
 		internalRepoRev = *internalRepoRevFlag
 	}
 
+	if len(*testNamePrefixFlag) > 0 {
+		testNamePrefix = *testNamePrefixFlag
+	}
+
 	if len(*testRepoRevFlag) > 0 {
 		testRepoRev = *testRepoRevFlag
+	}
+
+	if len(*defaultTestRepoRevFlag) > 0 {
+		defaultTestRepoRev = *defaultTestRepoRevFlag
 	}
 
 	showTestbeds = *showTestbedsFlag
@@ -303,12 +320,11 @@ func main() {
 	// Targeted mode: remove untargeted tests
 	if len(testNames) > 0 {
 		targetedTests := []string{}
-		res := []*regexp.Regexp{}
+		res := map[string]*regexp.Regexp{}
 		for _, t := range testNames {
+			targetedTests = append(targetedTests, strings.Split(t, " ")[0])
 			if strings.HasPrefix(t, "r/") {
-				res = append(res, regexp.MustCompile(t[2:]))
-			} else {
-				targetedTests = append(targetedTests, strings.Split(t, " ")[0])
+				res[t] = regexp.MustCompile(t[2:])
 			}
 		}
 
@@ -320,22 +336,13 @@ func main() {
 					keptTests[suite[i].Name] = []GoTest{}
 				}
 				for j := range suite[i].Tests {
-					if t == strings.Split(suite[i].Tests[j].Name, " ")[0] {
-						suite[i].Tests[j].Priority = testCount
-						testCount = testCount + 1
-						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
-					}
-				}
-			}
-		}
-
-		for i := range suite {
-			for j := range suite[i].Tests {
-				for _, re := range res {
-					if re.MatchString(suite[i].Tests[j].Name) {
-						if _, ok := keptTests[suite[i].Name]; !ok {
-							keptTests[suite[i].Name] = []GoTest{}
+					if strings.HasPrefix(t, "r/") {
+						if res[t].MatchString(suite[i].Tests[j].Name) {
+							suite[i].Tests[j].Priority = testCount
+							testCount = testCount + 1
+							keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
 						}
+					} else if t == strings.Split(suite[i].Tests[j].Name, " ")[0] {
 						suite[i].Tests[j].Priority = testCount
 						testCount = testCount + 1
 						keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
@@ -392,10 +399,16 @@ func main() {
 
 	if len(excludeTestNames) > 0 {
 		excludedTests := map[string]bool{}
-		res := []*regexp.Regexp{}
 		for _, t := range excludeTestNames {
 			if strings.HasPrefix(t, "r/") {
-				res = append(res, regexp.MustCompile(t[2:]))
+				re := regexp.MustCompile(t[2:])
+				for i := range suite {
+					for j := range suite[i].Tests {
+						if re.MatchString(suite[i].Tests[j].Name) {
+							excludedTests[strings.Split(suite[i].Tests[j].Name, " ")[0]] = true
+						}
+					}
+				}
 			} else {
 				excludedTests[strings.Split(t, " ")[0]] = true
 			}
@@ -407,13 +420,6 @@ func main() {
 				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
 				if _, found := excludedTests[prefix]; !found {
 					keptTests = append(keptTests, suite[i].Tests[j])
-				} else {
-					for _, re := range res {
-						if !re.MatchString(suite[i].Tests[j].Name) {
-							keptTests = append(keptTests, suite[i].Tests[j])
-							break
-						}
-					}
 				}
 			}
 			suite[i].Tests = keptTests
@@ -533,43 +539,6 @@ func main() {
 		}
 	}
 
-	// Collect and remove -deviation flags
-	deviationSet := map[string]bool{}
-	for i := range suite {
-		for j := range suite[i].Tests {
-			keptsArgs := []string{}
-			for k := range suite[i].Tests[j].Args {
-				if strings.HasPrefix(suite[i].Tests[j].Args[k], "-deviation") {
-					if !isPatched(suite[i].Tests[j]) {
-						if _, ok := deviationSet[suite[i].Tests[j].Args[k]]; !ok {
-							deviationSet[suite[i].Tests[j].Args[k]] = true
-						}
-					} else {
-						keptsArgs = append(keptsArgs, suite[i].Tests[j].Args[k])
-					}
-					suite[i].Tests[j].HasDeviations = true
-				} else {
-					keptsArgs = append(keptsArgs, suite[i].Tests[j].Args[k])
-				}
-			}
-			suite[i].Tests[j].Args = keptsArgs
-		}
-	}
-
-	deviations := []string{}
-	for d := range deviationSet {
-		deviations = append(deviations, d)
-	}
-
-	// Add all deviations as args
-	for i := range suite {
-		for j := range suite[i].Tests {
-			if !isPatched(suite[i].Tests[j]) {
-				suite[i].Tests[j].Args = append(suite[i].Tests[j].Args, deviations...)
-			}
-		}
-	}
-
 	var testSuiteCode strings.Builder
 	tbFound := map[string]bool{}
 
@@ -581,20 +550,39 @@ func main() {
 				switch parts[0] {
 				case "I-PR":
 					suite[i].Tests[j].Internal = true
-					fallthrough
+					if pr, err := strconv.Atoi(parts[1]); err == nil {
+						suite[i].Tests[j].PrNum = pr
+					} else {
+						log.Fatalf("%v is not a valid integer pr number", parts[1])
+					}
 				case "PR":
+					suite[i].Tests[j].Internal = false
 					if pr, err := strconv.Atoi(parts[1]); err == nil {
 						suite[i].Tests[j].PrNum = pr
 					} else {
 						log.Fatalf("%v is not a valid integer pr number", parts[1])
 					}
 				case "I-BR":
+					suite[i].Tests[j].Branch = parts[1]
 					suite[i].Tests[j].Internal = true
-					fallthrough
 				case "BR":
 					suite[i].Tests[j].Branch = parts[1]
+					suite[i].Tests[j].Internal = false
+				case "I-REV":
+					suite[i].Tests[j].Revision = parts[1]
+					suite[i].Tests[j].Internal = true
+				case "REV":
+					suite[i].Tests[j].Revision = parts[1]
+					suite[i].Tests[j].Internal = false
 				default:
 					suite[i].Tests[j].Revision = testRepoRev
+					suite[i].Tests[j].Internal = true
+				}
+			}
+
+			if len(defaultTestRepoRev) > 0 {
+				if !isPatched(suite[i].Tests[j]) {
+					suite[i].Tests[j].Revision = defaultTestRepoRev
 					suite[i].Tests[j].Internal = true
 				}
 			}
@@ -635,12 +623,14 @@ func main() {
 			firexSuiteTemplate.Execute(&testSuiteCode, struct {
 				Test              GoTest
 				UseShortTestNames bool
+				TestNamePrefix    string
 				Plugins           []string
 				Env               map[string]string
 				InternalRepoRev   string
 			}{
 				Test:              suite[i].Tests[j],
 				UseShortTestNames: useShortName,
+				TestNamePrefix:    testNamePrefix,
 				Plugins:           extraPlugins,
 				Env:               env,
 				InternalRepoRev:   internalRepoRev,

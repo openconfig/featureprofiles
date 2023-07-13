@@ -131,26 +131,26 @@ func configureRoutingPolicy(d *oc.Root) *oc.RoutingPolicy {
 func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 		ocName := dut.Port(t, a.Name).Name()
-		gnmi.Replace(t, dut, gnmi.OC().Interface(ocName).Config(), a.NewOCInterface(ocName))
+		gnmi.Replace(t, dut, gnmi.OC().Interface(ocName).Config(), a.NewOCInterface(ocName, dut))
 	}
 
 	t.Log("Configure Network Instance")
-	dutConfNIPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 			fptest.SetPortSpeed(t, dut.Port(t, a.Name))
 		}
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 			ocName := dut.Port(t, a.Name).Name()
-			fptest.AssignToNetworkInstance(t, dut, ocName, *deviations.DefaultNetworkInstance, 0)
+			fptest.AssignToNetworkInstance(t, dut, ocName, deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
 
-	dutProto := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+	dutProto := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	key := oc.NetworkInstance_Protocol_Key{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
@@ -158,7 +158,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	niOC := &oc.NetworkInstance{
-		Name: deviations.DefaultNetworkInstance,
+		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
 		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 		Protocol: map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol{
 			key: {
@@ -175,7 +175,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 
 func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	for neighbor := range d.bgpOC.Neighbor {
-		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).
+		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
 			Neighbor(neighbor).
@@ -184,28 +184,29 @@ func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("BGP sessions established")
 }
 
-func getPeerGroup(pgn string, aftype oc.E_BgpTypes_AFI_SAFI_TYPE) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
+func getPeerGroup(pgn string, aftype oc.E_BgpTypes_AFI_SAFI_TYPE, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 	bgp := &oc.NetworkInstance_Protocol_Bgp{}
 	pg := bgp.GetOrCreatePeerGroup(pgn)
 
-	if *deviations.RoutePolicyUnderPeerGroup {
-		//policy under peer group address family
-		afisafi := pg.GetOrCreateAfiSafi(aftype)
-		afisafi.Enabled = ygot.Bool(true)
-		rpl := afisafi.GetOrCreateApplyPolicy()
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		//policy under peer group
+		rpl := pg.GetOrCreateApplyPolicy()
 		rpl.SetExportPolicy([]string{rplPermitAll})
 		rpl.SetImportPolicy([]string{rplPermitAll})
 		return pg
 	}
 
-	//policy under peer group
-	rpl := pg.GetOrCreateApplyPolicy()
+	//policy under peer group AFI
+	afisafi := pg.GetOrCreateAfiSafi(aftype)
+	afisafi.Enabled = ygot.Bool(true)
+	rpl := afisafi.GetOrCreateApplyPolicy()
 	rpl.SetExportPolicy([]string{rplPermitAll})
 	rpl.SetImportPolicy([]string{rplPermitAll})
 	return pg
 }
 
 func TestBGP(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	tests := []struct {
 		desc, fullDesc string
 		skipReason     string
@@ -217,8 +218,8 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
-				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
+				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, dut),
+				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, dut),
 			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
@@ -274,8 +275,8 @@ func TestBGP(t *testing.T) {
 		fullDesc: "Advertise IPv6 prefixes from ATE port1, observe received prefixes at ATE port2",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST),
-				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST),
+				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, dut),
+				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, dut),
 			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
@@ -332,8 +333,8 @@ func TestBGP(t *testing.T) {
 		fullDesc:   "IPv4 routes with an IPv6 next-hop when negotiating RFC5549 - validating that routes are accepted and advertised with the specified values.",
 		dut: dutData{&oc.NetworkInstance_Protocol_Bgp{
 			PeerGroup: map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup{
-				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST),
-				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST),
+				"BGP-PEER-GROUP1": getPeerGroup("BGP-PEER-GROUP1", oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, dut),
+				"BGP-PEER-GROUP2": getPeerGroup("BGP-PEER-GROUP2", oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, dut),
 			},
 			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As:       ygot.Uint32(dutAS),
@@ -393,7 +394,6 @@ func TestBGP(t *testing.T) {
 				t.Skip(tc.skipReason)
 			}
 
-			dut := ondatra.DUT(t, "dut")
 			tc.dut.Configure(t, dut)
 
 			ate := ondatra.ATE(t, "ate")

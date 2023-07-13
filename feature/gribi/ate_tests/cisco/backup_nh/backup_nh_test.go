@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gnps "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -79,6 +80,7 @@ const (
 	bundleEther123        = "Bundle-Ether123"
 	bundleEther124        = "Bundle-Ether124"
 	lc                    = "0/0/CPU0"
+	vrf1                  = "TE"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -2277,7 +2279,8 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
-	lineCardPath := components.GetSubcomponentPath(lc)
+	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
+	lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
 	rebootSubComponentRequest := &gnps.RebootRequest{
 		Method: gnps.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
@@ -2551,6 +2554,8 @@ func TestBackUp(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 
+	var vrfs = []string{vrf1}
+	configVRF(t, dut, vrfs)
 	// Configure the DUT
 	configureDUT(t, dut)
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})

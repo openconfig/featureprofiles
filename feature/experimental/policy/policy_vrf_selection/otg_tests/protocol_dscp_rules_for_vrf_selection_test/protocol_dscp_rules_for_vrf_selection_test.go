@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -78,7 +79,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
-		MAC:     "01:00:02:01:01:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:6",
@@ -96,7 +97,7 @@ var (
 
 	atePort2Vlan10 = attrs.Attributes{
 		Name:    "atePort2Vlan10",
-		MAC:     "01:00:02:01:01:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:a",
@@ -114,7 +115,7 @@ var (
 
 	atePort2Vlan20 = attrs.Attributes{
 		Name:    "atePort2Vlan20",
-		MAC:     "01:00:02:01:01:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.14",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:e",
@@ -132,7 +133,7 @@ var (
 
 	atePort2Vlan30 = attrs.Attributes{
 		Name:    "atePort2Vlan30",
-		MAC:     "01:00:02:01:01:01",
+		MAC:     "00:12:01:00:00:01",
 		IPv4:    "192.0.2.18",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:12",
@@ -145,7 +146,7 @@ func TestMain(m *testing.M) {
 }
 
 // configureATE configures port1, port2 and vlans on port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) gosnappi.Config {
 	top := ate.OTG().NewConfig(t)
 
 	p1 := ate.Port(t, "port1")
@@ -160,6 +161,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top.Ports().Add().SetName(p2.ID())
 	dstDev := top.Devices().Add().SetName(atePort2.Name)
 	ethDst := dstDev.Ethernets().Add().SetName(atePort2.Name + ".eth").SetMac(atePort2.MAC)
+	if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+		ethDst.Vlans().Add().SetName(atePort2.Name + "vlan").SetId(1)
+	}
 	ethDst.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
 	ethDst.Ipv4Addresses().Add().SetName(dstDev.Name() + ".ipv4").SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(int32(atePort2.IPv4Len))
 	ethDst.Ipv6Addresses().Add().SetName(dstDev.Name() + ".ipv6").SetAddress(atePort2.IPv6).SetGateway(dutPort2.IPv6).SetPrefix(int32(atePort2.IPv6Len))
@@ -190,43 +194,54 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 }
 
 // configNetworkInstance creates VRFs and subinterfaces and then applies VRFs on the subinterfaces.
-func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfname string, subint uint32) {
+func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfname string, subint uint32, vlanID uint16) {
 	// create empty subinterface
 	si := &oc.Interface_Subinterface{}
 	si.Index = ygot.Uint32(subint)
+	if deviations.DeprecatedVlanID(dut) {
+		si.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+	} else {
+		si.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+	}
+	s4 := si.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
 
 	// create vrf and apply on subinterface
 	v := &oc.NetworkInstance{
 		Name: ygot.String(vrfname),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 	}
 	vi := v.GetOrCreateInterface(intfname + "." + strconv.Itoa(int(subint)))
+	vi.Interface = ygot.String(intfname)
 	vi.Subinterface = ygot.Uint32(subint)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), v)
 }
 
 // getSubInterface returns a subinterface configuration populated with IP addresses and VLAN ID.
-func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc.Interface_Subinterface {
+func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16, dut *ondatra.DUTDevice) *oc.Interface_Subinterface {
 	s := &oc.Interface_Subinterface{}
 	// unshut sub/interface
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s.Enabled = ygot.Bool(true)
 	}
 	s.Index = ygot.Uint32(index)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(dutPort.IPv4)
 	a.PrefixLength = ygot.Uint8(dutPort.IPv4Len)
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
 	a6 := s6.GetOrCreateAddress(dutPort.IPv6)
 	a6.PrefixLength = ygot.Uint8(dutPort.IPv6Len)
 	if index != 0 {
-		if *deviations.DeprecatedVlanID {
+		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
 		} else {
 			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
@@ -236,13 +251,13 @@ func getSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
-	if *deviations.InterfaceEnabled {
+func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	i.Description = ygot.String(dutPort.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	i.AppendSubinterface(getSubInterface(dutPort, 0, 0))
+	i.AppendSubinterface(getSubInterface(dutPort, 0, 0, dut))
 	return i
 }
 
@@ -252,33 +267,39 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
+	if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+		i3 := &oc.Interface{Name: ygot.String(p2.Name())}
+		s := i3.GetOrCreateSubinterface(0)
+		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(1)
+		gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), i3)
+	}
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	outpath := d.Interface(p2.Name())
 	// create VRFs and VRF enabled subinterfaces
-	configNetworkInstance(t, dut, "VRF10", p2.Name(), uint32(1))
+	configNetworkInstance(t, dut, "VRF10", p2.Name(), uint32(1), 10)
 
 	// configure IP addresses on subinterfaces
-	gnmi.Update(t, dut, outpath.Subinterface(1).Config(), getSubInterface(&dutPort2Vlan10, 1, 10))
+	gnmi.Update(t, dut, outpath.Subinterface(1).Config(), getSubInterface(&dutPort2Vlan10, 1, 10, dut))
 
-	configNetworkInstance(t, dut, "VRF20", p2.Name(), uint32(2))
-	gnmi.Update(t, dut, outpath.Subinterface(2).Config(), getSubInterface(&dutPort2Vlan20, 2, 20))
+	configNetworkInstance(t, dut, "VRF20", p2.Name(), uint32(2), 20)
+	gnmi.Update(t, dut, outpath.Subinterface(2).Config(), getSubInterface(&dutPort2Vlan20, 2, 20, dut))
 
-	configNetworkInstance(t, dut, "VRF30", p2.Name(), uint32(3))
-	gnmi.Update(t, dut, outpath.Subinterface(3).Config(), getSubInterface(&dutPort2Vlan30, 3, 30))
+	configNetworkInstance(t, dut, "VRF30", p2.Name(), uint32(3), 30)
+	gnmi.Update(t, dut, outpath.Subinterface(3).Config(), getSubInterface(&dutPort2Vlan30, 3, 30, dut))
 }
 
 // getIPinIPFlow returns an IPv4inIPv4 *ondatra.Flow with provided DSCP value for a given set of endpoints.
@@ -313,6 +334,7 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 	}
 	args.ate.OTG().PushConfig(t, args.top)
 	args.ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
 
 	t.Logf("*** Starting traffic ...")
 	args.ate.OTG().StartTraffic(t)
@@ -402,7 +424,7 @@ func TestPBR(t *testing.T) {
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
+	top := configureATE(t, ate, dut)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
@@ -424,6 +446,7 @@ func TestPBR(t *testing.T) {
 		policy       *oc.NetworkInstance_PolicyForwarding
 		passingFlows []gosnappi.Flow
 		failingFlows []gosnappi.Flow
+		rejectable   bool
 	}{
 		{
 			name: "RT3.2 Case1",
@@ -474,6 +497,7 @@ func TestPBR(t *testing.T) {
 				getIPinIPFlow(args, atePort1, atePort2Vlan20, "ipinipd10v20", 10),
 				getIPinIPFlow(args, atePort1, atePort2Vlan20, "ipinipd11v20", 11),
 				getIPinIPFlow(args, atePort1, atePort2Vlan20, "ipinipd12v20", 12)},
+			rejectable: true,
 		},
 		{
 			name: "RT3.2 Case4",
@@ -498,19 +522,38 @@ func TestPBR(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Log(tc.desc)
-			pfpath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding()
+			pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
 
 			//configure pbr policy-forwarding
-			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Config(), tc.policy)
+			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), tc.policy)
+			})
+			if errMsg != nil {
+				if tc.rejectable {
+					t.Skipf("Skipping test case %q, PolicyForwarding config was rejected with an error: %s", tc.name, *errMsg)
+				}
+				t.Fatalf("PolicyForwarding config update failed: %v", *errMsg)
+			}
 			// defer cleaning policy-forwarding
 			defer gnmi.Delete(t, args.dut, pfpath.Config())
 
 			// apply pbr policy on ingress interface
-			gnmi.Replace(t, args.dut, pfpath.Interface(port1.Name()).ApplyVrfSelectionPolicy().Config(), args.policyName)
+			p1 := port1.Name()
+			d := &oc.Root{}
+			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
+			pfIntfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(p1)
+			pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
+			pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+			if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+				pfIntf.InterfaceRef = nil
+			}
+			pfIntf.SetApplyVrfSelectionPolicy(args.policyName)
+			gnmi.Update(t, dut, pfIntfConfPath.Config(), pfIntf)
 
 			// defer deletion of policy from interface
-			defer gnmi.Delete(t, args.dut, pfpath.Interface(port1.Name()).ApplyVrfSelectionPolicy().Config())
-
+			defer gnmi.Delete(t, args.dut, pfIntfConfPath.Config())
 			// traffic should pass
 			testTrafficFlows(t, args, true, tc.passingFlows...)
 

@@ -17,27 +17,33 @@ package binding
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"plugin"
 	"time"
 
+	"flag"
+
+	"github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/rundata"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/knebind"
+	knecreds "github.com/openconfig/ondatra/knebind/creds"
 	opb "github.com/openconfig/ondatra/proto"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
 var (
-	pluginFile  = flag.String("plugin", "", "vendor binding as a Go plugin")
-	pluginArgs  = flag.String("plugin-args", "", "arguments for the vendor binding")
-	bindingFile = flag.String("binding", "", "static binding configuration file")
-	kneConfig   = flag.String("kne-config", "", "YAML configuration file")
-	pushConfig  = flag.Bool("push-config", true, "push device reset config supplied to static binding")
+	pluginFile   = flag.String("plugin", "", "vendor binding as a Go plugin")
+	pluginArgs   = flag.String("plugin-args", "", "arguments for the vendor binding")
+	bindingFile  = flag.String("binding", "", "static binding configuration file")
+	kneConfig    = flag.String("kne-config", "", "YAML configuration file")
+	pushConfig   = flag.Bool("push-config", true, "push device reset config supplied to static binding")
+	kneTopo      = flag.String("kne-topo", "", "KNE topology file")
+	kneSkipReset = flag.Bool("kne-skip-reset", false, "skip the initial config reset phase when using KNE")
+	credFlags    = knecreds.DefineFlags()
 )
 
 // New creates a new binding that could be either a vendor plugin, a
@@ -75,14 +81,26 @@ func newBind() (binding.Binding, error) {
 	if *bindingFile != "" {
 		return staticBinding(*bindingFile)
 	}
+	if *kneTopo != "" {
+		cred, err := credFlags.Parse()
+		if err != nil {
+			return nil, err
+		}
+		return knebind.New(&knebind.Config{
+			Topology:    *kneTopo,
+			Credentials: cred,
+			SkipReset:   *kneSkipReset,
+		})
+	}
 	if *kneConfig != "" {
+		glog.Warning("-kne-config flag is deprecated; use -kne-topo and credentials flags instead")
 		cfg, err := knebind.ParseConfigFile(*kneConfig)
 		if err != nil {
 			return nil, err
 		}
 		return knebind.New(cfg)
 	}
-	return nil, errors.New("one of -plugin, -binding, or -kne-config must be provided")
+	return nil, errors.New("one of -plugin, -binding, or -kne-topo must be provided")
 }
 
 // NewFunc describes the type of the New function that a vendor

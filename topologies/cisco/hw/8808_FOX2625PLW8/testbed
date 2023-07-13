@@ -1,26 +1,43 @@
 # proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
 
-# This testbed provides 9 links between a DUT and an ATE connected pairwise.
+# This testbed provides 8 links between a DUT and an ATE connected pairwise.
 
 duts {
   id: "dut"
   vendor: CISCO
+  hardware_model: "CISCO-8808"
   ports {
     id: "port1"
-    speed: S_100GB   
+    speed: S_10GB   
   }
   ports {
     id: "port2"
-    speed: S_100GB  
+    speed: S_10GB  
   }
   ports {
     id: "port3"
-    speed: S_100GB  
+    speed: S_10GB  
   }
   ports {
     id: "port4"
-    speed: S_100GB  
+    speed: S_10GB  
+  }
+    ports {
+    id: "port5"
+    speed: S_10GB   
+  }
+  ports {
+    id: "port6"
+    speed: S_10GB  
+  }
+  ports {
+    id: "port7"
+    speed: S_10GB  
+  }
+  ports {
+    id: "port8"
+    speed: S_10GB  
   }
 }
 
@@ -28,19 +45,35 @@ ates {
   id: "ate"
   ports {
     id: "port1"
-    speed: S_100GB    
+    speed: S_10GB   
   }
   ports {
     id: "port2"
-    speed: S_100GB      
+    speed: S_10GB  
   }
   ports {
     id: "port3"
-    speed: S_100GB      
+    speed: S_10GB  
   }
   ports {
     id: "port4"
-    speed: S_100GB      
+    speed: S_10GB  
+  }
+    ports {
+    id: "port5"
+    speed: S_10GB   
+  }
+  ports {
+    id: "port6"
+    speed: S_10GB  
+  }
+  ports {
+    id: "port7"
+    speed: S_10GB  
+  }
+  ports {
+    id: "port8"
+    speed: S_10GB  
   }
 }
 
@@ -62,4 +95,24 @@ links {
 links {
   a: "dut:port4"
   b: "ate:port4"
+}
+
+links {
+  a: "dut:port5"
+  b: "ate:port5"
+}
+
+links {
+  a: "dut:port6"
+  b: "ate:port6"
+}
+
+links {
+  a: "dut:port7"
+  b: "ate:port7"
+}
+
+links {
+  a: "dut:port8"
+  b: "ate:port8"
 }

@@ -114,16 +114,17 @@ For example:
 *   `feature/interface/singleton/tests/` contains the singleton interfaces test
     suite without traffic generation.
 *   `internal/deviations` contains code which overrides test behavior where
-    there are known issues in a DUT.
+    there are known issues in a DUT. Follow the guidelines posted at
+    `internal/deviations/README.md` to add new deviations.
 
 Within each test directory, `README.md` should document the test plan. The test
 name directory and the `*.go` files should be named after the test name as shown
 in the [project](https://github.com/orgs/openconfig/projects/2/views/1) item.
 
-Each test must also be accompanied by a `rundata_test.go` file that supplies the
-metadata for annotating the JUnit XML test results. This file can be generated
-or updated using the command: `go run ./tools/addrundata --fix`. See
-[addrundata](/tools/addrundata/README.md) for more info.
+Each test must also be accompanied by a `metadata.textproto` file that supplies
+the metadata for annotating the JUnit XML test results. This file can be
+generated or updated using the command: `go run ./tools/addrundata --fix`.
+See [addrundata](/tools/addrundata/README.md) for more info.
 
 For example:
 

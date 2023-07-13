@@ -15,14 +15,17 @@
 package telemetry_basic_check_test
 
 import (
-	"flag"
+	"fmt"
 	"math"
 	"regexp"
-	"strings"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -33,32 +36,33 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-var (
-	p4rtNodeName = flag.String("p4rt_node_name", "SwitchChip3/0", "component name for P4RT Node")
-)
-
 const (
+	ethernetCsmacd  = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	adminStatusUp   = oc.Interface_AdminStatus_UP
 	adminStatusDown = oc.Interface_AdminStatus_DOWN
 	operStatusUp    = oc.Interface_OperStatus_UP
 	operStatusDown  = oc.Interface_OperStatus_DOWN
-	// Maximum Port Value: https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L81
-	maxPortVal = 0xFFFFFEFF
+	maxPortVal      = "FFFFFEFF" // Maximum Port Value : https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L63-L81
 )
-
-type trafficData struct {
-	trafficRate float64
-	frameSize   uint32
-	dscp        uint8
-	queue       string
-}
 
 var (
 	vendorQueueNo = map[ondatra.Vendor]int{
 		ondatra.ARISTA:  16,
 		ondatra.CISCO:   6,
-		ondatra.JUNIPER: 6,
+		ondatra.JUNIPER: 8,
 	}
+)
+
+const (
+	chassisType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
+	supervisorType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	linecardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
+	powerSupplyType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY
+	fabricType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
+	switchChipType  = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT
+	cpuType         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU
+	portType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT
+	osType          = oc.PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT_OPERATING_SYSTEM
 )
 
 var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
@@ -90,6 +94,9 @@ func TestMain(m *testing.M) {
 func TestEthernetPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dp)
+	}
 	want := portSpeed[dp.Speed()]
 	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Ethernet().PortSpeed().State())
 	t.Logf("Got %s PortSpeed from telmetry: %v, expected: %v", dp.Name(), got, want)
@@ -117,7 +124,9 @@ func TestEthernetMacAddress(t *testing.T) {
 func TestInterfaceAdminStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dp)
+	}
 	adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State())
 	t.Logf("Got %s AdminStatus from telmetry: %v", dp.Name(), adminStatus)
 	if adminStatus != adminStatusUp {
@@ -128,11 +137,27 @@ func TestInterfaceAdminStatus(t *testing.T) {
 func TestInterfaceOperStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dp)
+	}
 	operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
 	t.Logf("Got %s OperStatus from telmetry: %v", dp.Name(), operStatus)
 	if operStatus != operStatusUp {
 		t.Errorf("Get(DUT port1 OperStatus): got %v, want %v", operStatus, operStatusUp)
+	}
+}
+
+func TestInterfacePhysicalChannel(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.MissingInterfacePhysicalChannel(dut) {
+		t.Skip("Test is skipped due to MissingInterfacePhysicalChannel deviation")
+	}
+	dp := dut.Port(t, "port1")
+
+	phyChannel := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).PhysicalChannel().State())
+	t.Logf("Got %q PhysicalChannel from telmetry: %v", dp.Name(), phyChannel)
+	if len(phyChannel) == 0 {
+		t.Errorf("Get(DUT port1 PhysicalChannel): got empty %v, want non-empty list", phyChannel)
 	}
 }
 
@@ -163,8 +188,11 @@ func TestInterfaceStatusChange(t *testing.T) {
 		intUpdateTime := 2 * time.Minute
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
+			i.Type = ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-
+			if deviations.ExplicitPortSpeed(dut) {
+				fptest.SetPortSpeed(t, dp)
+			}
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedOperStatus)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State(), intUpdateTime, tc.expectedAdminStatus)
 			operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
@@ -180,21 +208,25 @@ func TestInterfaceStatusChange(t *testing.T) {
 }
 
 func TestHardwarePort(t *testing.T) {
-	t.Skip("Hardware port not supported on KNE.")
-
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
 
-	// Derive hardware port from interface name by removing the port number.
-	// For example, Ethernet3/35/1 hardware port is Ethernet3/35.
-	i := strings.LastIndex(dp.Name(), "/")
-	want := dp.Name()[:i]
-
-	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
-	t.Logf("Got %s HardwarePort from telmetry: %v, expected: %v", dp.Name(), got, want)
-	if got != want {
-		t.Errorf("Get(DUT port1 HardwarePort): got %v, want %v", got, want)
+	// Verify HardwarePort leaf is present under interface.
+	got := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
+	val, present := got.Val()
+	if !present {
+		t.Errorf("DUT port1 %s HardwarePort leaf not found", dp.Name())
 	}
+	t.Logf("For interface %s, HardwarePort is %s", dp.Name(), val)
+
+	// Verify HardwarePort is a component of type PORT.
+	typeGot := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+	if typeGot != portType {
+		t.Errorf("HardwarePort leaf's component type got %s, want %s", typeGot, portType)
+	}
+
+	// Verify HardwarePort component has CHASSIS as an ancestor.
+	verifyChassisIsAncestor(t, dut, val)
 }
 
 func TestInterfaceCounters(t *testing.T) {
@@ -273,6 +305,9 @@ func TestInterfaceCounters(t *testing.T) {
 }
 
 func TestQoSCounters(t *testing.T) {
+	if !*args.QoSBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for QoS is not loaded.")
+	}
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
 	queues := gnmi.OC().Qos().Interface(dp.Name()).Output().QueueAny()
@@ -295,7 +330,18 @@ func TestQoSCounters(t *testing.T) {
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
 	}}
-
+	if !deviations.QOSDroppedOctets(dut) {
+		cases = append(cases,
+			struct {
+				desc     string
+				path     string
+				counters []*ygnmi.Value[uint64]
+			}{
+				desc:     "DroppedOctets",
+				path:     qosQueuePath + "dropped-octets",
+				counters: gnmi.LookupAll(t, dut, queues.DroppedOctets().State()),
+			})
+	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
@@ -313,71 +359,109 @@ func TestQoSCounters(t *testing.T) {
 	}
 }
 
+func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][]string {
+	t.Helper()
+	componentType := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
+		"Fabric":      fabricType,
+		"Linecard":    linecardType,
+		"PowerSupply": powerSupplyType,
+		"Supervisor":  supervisorType,
+		"SwitchChip":  switchChipType,
+	}
+	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	s := make(map[string][]string)
+	for comp := range componentType {
+		for _, c := range components {
+			if c.GetType() == nil {
+				t.Logf("Component %s type is missing from telemetry", c.GetName())
+				continue
+			}
+			t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
+			if v := c.GetType(); v == componentType[comp] {
+				s[comp] = append(s[comp], c.GetName())
+			}
+		}
+	}
+	return s
+}
+
+// verifyChassisIsAncestor verifies that a given component has
+// a component of type CHASSIS as an ancestor.
+func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) {
+	visited := make(map[string]bool)
+	for curr := comp; ; {
+		if visited[curr] {
+			t.Errorf("Component %s already visited; loop detected in the hierarchy.", curr)
+			break
+		}
+		visited[curr] = true
+		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(curr).Parent().State())
+		val, present := parent.Val()
+		if !present {
+			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
+			break
+		}
+		got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+		if got == chassisType {
+			t.Logf("Found chassis component as an ancestor of component %s", comp)
+			break
+		}
+		// Not reached chassis yet; go one level up.
+		curr = gnmi.Get(t, dut, gnmi.OC().Component(val).Name().State())
+	}
+}
+
 func TestComponentParent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	var componentParent = map[string]string{
-		"Fabric":      "Chassis",
-		"FabricChip":  "Fabric",
-		"Linecard":    "Chassis",
-		"PowerSupply": "Chassis",
-		"Supervisor":  "Chassis",
-		"SwitchChip":  "Linecard",
+	componentParent := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
+		"Fabric":      chassisType,
+		"Linecard":    chassisType,
+		"PowerSupply": chassisType,
+		"Supervisor":  chassisType,
+		"SwitchChip":  linecardType,
 	}
-
+	compList := findComponentsListByType(t, dut)
 	cases := []struct {
 		desc          string
-		regexpPattern string
-		parent        string
+		componentType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT
+		parent        oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT
 	}{{
 		desc:          "Fabric",
-		regexpPattern: "^Fabric[0-9]",
+		componentType: fabricType,
 		parent:        componentParent["Fabric"],
 	}, {
-		desc:          "FabricChip",
-		regexpPattern: "^FabricChip",
-		parent:        componentParent["FabricChip"],
-	}, {
 		desc:          "Linecard",
-		regexpPattern: "^Linecard[0-9]",
+		componentType: linecardType,
 		parent:        componentParent["Linecard"],
 	}, {
-		desc:          "Power supply",
-		regexpPattern: "^PowerSupply[0-9]",
+		desc:          "PowerSupply",
+		componentType: powerSupplyType,
 		parent:        componentParent["PowerSupply"],
 	}, {
 		desc:          "Supervisor",
-		regexpPattern: "^Supervisor[0-9]$",
+		componentType: supervisorType,
 		parent:        componentParent["Supervisor"],
 	}, {
 		desc:          "SwitchChip",
-		regexpPattern: "^SwitchChip",
+		componentType: switchChipType,
 		parent:        componentParent["SwitchChip"],
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			r, err := regexp.Compile(tc.regexpPattern)
-			if err != nil {
-				t.Fatalf("Cannot compile regular expression: %v", err)
-			}
-			cards := findMatchedComponents(t, dut, r)
-			t.Logf("Found card list for %v: %v", tc.desc, cards)
 
-			if len(cards) == 0 {
-				t.Errorf("Get card list for %q on %v: got 0, want > 0", tc.desc, dut.Model())
+			if len(compList[tc.desc]) == 0 && dut.Model() == "DCS-7280CR3K-32D4" {
+				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
 			}
-			for _, card := range cards {
-				t.Logf("Validate card %s", card)
-				parent := gnmi.Lookup(t, dut, gnmi.OC().Component(card).Parent().State())
-				val, present := parent.Val()
-				if !present {
-					t.Errorf("parent.IsPresent() for %q: got %v, want true", card, parent.IsPresent())
-				}
 
-				t.Logf("Got %s parent: %s", tc.desc, val)
-				if !strings.HasPrefix(val, tc.parent) {
-					t.Errorf("Get parent for %q: got %v, want HasPrefix %v", card, val, tc.parent)
-				}
+			t.Logf("Found component list for type %v : %v", tc.componentType, compList[tc.desc])
+			if len(compList[tc.desc]) == 0 {
+				t.Fatalf("Get component list for %q: got 0, want > 0", dut.Model())
+			}
+			// Validate parent component.
+			for _, comp := range compList[tc.desc] {
+				t.Logf("Validate component %s", comp)
+				verifyChassisIsAncestor(t, dut, comp)
 			}
 		})
 	}
@@ -385,59 +469,63 @@ func TestComponentParent(t *testing.T) {
 
 func TestSoftwareVersion(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	regexpPattern := "^Supervisor[0-9]"
 
-	r, err := regexp.Compile(regexpPattern)
-	if err != nil {
-		t.Fatalf("Cannot compile regular expression: %v", err)
-	}
-	cards := findMatchedComponents(t, dut, r)
-	t.Logf("Found card list for %v: %v", regexpPattern, cards)
-	if len(cards) == 0 {
-		t.Errorf("Get card list for %q on %v: got 0, want > 0", regexpPattern, dut.Model())
+	if deviations.SwVersionUnsupported(dut) {
+		t.Skipf("Software version test is not supported by DUT")
 	}
 
-	// Validate Supervisor components include software version.
-	swVersionFound := false
-	for _, card := range cards {
-		t.Logf("Validate card %s", card)
-		softwareVersion := ""
-		// Only a subset of cards are expected to report Software Version.
-		swVersion := gnmi.Lookup(t, dut, gnmi.OC().Component(card).SoftwareVersion().State())
-		if val, present := swVersion.Val(); present {
-			softwareVersion = val
-			t.Logf("Hardware card %s SoftwareVersion: %s", card, softwareVersion)
-			swVersionFound = true
-			if softwareVersion == "" {
-				t.Errorf("swVersion.Val(t) for %q: got empty string, want non-empty string", card)
+	// validate /system/state/software-version.
+	swVer := gnmi.Lookup(t, dut, gnmi.OC().System().SoftwareVersion().State())
+	if v, ok := swVer.Val(); ok && v != "" {
+		t.Logf("Got a system software version value %q", v)
+	} else {
+		t.Errorf("System software version was not reported")
+	}
+
+	// validate OPERATING_SYSTEM component(s).
+	osList := components.FindSWComponentsByType(t, dut, osType)
+	if len(osList) == 0 {
+		t.Fatalf("Get OS component list: got 0, want > 0")
+	}
+	t.Logf("Found OS component list: %v", osList)
+
+	for _, os := range osList {
+		swVer = gnmi.Lookup(t, dut, gnmi.OC().Component(os).SoftwareVersion().State())
+		if v, ok := swVer.Val(); ok && v != "" {
+			t.Logf("Got a system software version value %q for component %v", v, os)
+		} else {
+			t.Errorf("System software version was not reported for component %v", v)
+		}
+
+		// validate OPERATING_SYSTEM component parent.
+		parent := gnmi.Lookup(t, dut, gnmi.OC().Component(os).Parent().State())
+		if v, ok := parent.Val(); ok {
+			got := gnmi.Get(t, dut, gnmi.OC().Component(v).Type().State())
+
+			// Arista_7280 OC component EOS has parent type Chassis
+			if dut.Model() == "DCS-7280CR3K-32D4" {
+				if got == chassisType {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, chassisType)
+				}
+			} else {
+				if got == supervisorType {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+				}
 			}
 		} else {
-			t.Logf("swVersion.Val(t) for %q: got no value.", card)
+			t.Errorf("Parent for the component %v was not found", os)
 		}
-	}
-	if !swVersionFound {
-		t.Errorf("Failed to find software version from %v", cards)
-	}
-
-	// Get /components/component/state/software-version directly.
-	swVersions := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
-	if len(swVersions) == 0 {
-		t.Errorf("SoftwareVersion().Lookup(t) for %q: got none, want non-empty string", dut.Name())
-	}
-	for i, ver := range swVersions {
-		val, present := ver.Val()
-		if !present {
-			t.Errorf("Telemetry path not present %d: %v:", i, ver.Path.String())
-		}
-		t.Logf("Telemetry path/value %d: %v=>%v:", i, ver.Path.String(), val)
 	}
 }
 
 func TestCPU(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	r := regexp.MustCompile("^CPU")
-	cpus := findMatchedComponents(t, dut, r)
+	cpus := components.FindComponentsByType(t, dut, cpuType)
 	t.Logf("Found CPU list: %v", cpus)
 	if len(cpus) == 0 {
 		t.Fatalf("Get CPU list for %q: got 0, want > 0", dut.Model())
@@ -451,7 +539,6 @@ func TestCPU(t *testing.T) {
 		} else {
 			t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
 		}
-
 		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
@@ -462,16 +549,15 @@ func TestCPU(t *testing.T) {
 
 func TestSupervisorLastRebootInfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	regexpPattern := "^Supervisor[0-9]"
 
-	r, err := regexp.Compile(regexpPattern)
-	if err != nil {
-		t.Fatalf("Cannot compile regular expression: %v", err)
+	if dut.Model() == "DCS-7280CR3K-32D4" {
+		t.Skipf("Test is skipped due to hardware platform compatibility")
 	}
-	cards := findMatchedComponents(t, dut, r)
-	t.Logf("Found card list for %v: %v", regexpPattern, cards)
+
+	cards := components.FindComponentsByType(t, dut, supervisorType)
+	t.Logf("Found card list: %v", cards)
 	if len(cards) == 0 {
-		t.Errorf("Get card list for %q on %v: got 0, want > 0", regexpPattern, dut.Model())
+		t.Fatalf("Get Card list for %q: got 0, want > 0", dut.Model())
 	}
 
 	rebootTimeFound := false
@@ -499,17 +585,6 @@ func TestSupervisorLastRebootInfo(t *testing.T) {
 	}
 }
 
-func findMatchedComponents(t *testing.T, dut *ondatra.DUTDevice, r *regexp.Regexp) []string {
-	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().Name().State())
-	var s []string
-	for _, c := range components {
-		if len(r.FindString(c)) > 0 {
-			s = append(s, c)
-		}
-	}
-	return s
-}
-
 func TestAFT(t *testing.T) {
 	// TODO: Remove t.Skipf() after the issue is fixed.
 	t.Skipf("Test is skipped due to the failure")
@@ -530,6 +605,9 @@ func TestAFT(t *testing.T) {
 }
 
 func TestLacpMember(t *testing.T) {
+	if !*args.LACPBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for LACP is not present")
+	}
 	dut := ondatra.DUT(t, "dut")
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
@@ -606,6 +684,11 @@ func TestP4rtInterfaceID(t *testing.T) {
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
 
+	maxPortValDec, err := strconv.ParseUint(maxPortVal, 16, 32)
+	if err != nil {
+		t.Fatalf("Error while converting portID value: %v", err)
+	}
+
 	cases := []struct {
 		desc   string
 		portID uint32
@@ -614,17 +697,20 @@ func TestP4rtInterfaceID(t *testing.T) {
 		portID: 1,
 	}, {
 		desc:   "AvePortID",
-		portID: uint32(maxPortVal) / 2,
+		portID: uint32(maxPortValDec) / 2,
 	}, {
 		desc:   "MaxPortID",
-		portID: uint32(maxPortVal),
+		portID: uint32(maxPortValDec),
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			i.Id = ygot.Uint32(tc.portID)
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-
+			if deviations.ExplicitPortSpeed(dut) {
+				fptest.SetPortSpeed(t, dp)
+			}
 			// Check path /interfaces/interface/state/id.
 			intfID := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Id().State())
 			intfVal, present := intfID.Val()
@@ -643,7 +729,8 @@ func TestP4rtNodeID(t *testing.T) {
 	// TODO: add p4rtNodeName to Ondatra's netutil
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
-	ic := d.GetOrCreateComponent(*p4rtNodeName).GetOrCreateIntegratedCircuit()
+	nodes := P4RTNodesByPort(t, dut)
+	ic := d.GetOrCreateComponent(nodes["port1"]).GetOrCreateIntegratedCircuit()
 
 	cases := []struct {
 		desc   string
@@ -662,20 +749,36 @@ func TestP4rtNodeID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ic.NodeId = ygot.Uint64(tc.nodeID)
-			gnmi.Replace(t, dut, gnmi.OC().Component(*p4rtNodeName).IntegratedCircuit().Config(), ic)
 
+			if _, ok := nodes["port1"]; !ok {
+				t.Fatalf("Couldn't find P4RT Node for port: %s", "port1")
+			}
+			t.Logf("Configuring P4RT Node: %s", nodes["port1"])
+			gnmi.Replace(t, dut, gnmi.OC().Component(nodes["port1"]).IntegratedCircuit().Config(), ic)
 			// Check path /components/component/integrated-circuit/state/node-id.
-			nodeID := gnmi.Lookup(t, dut, gnmi.OC().Component(*p4rtNodeName).IntegratedCircuit().NodeId().State())
+			nodeID := gnmi.Lookup(t, dut, gnmi.OC().Component(nodes["port1"]).IntegratedCircuit().NodeId().State())
 			nodeIDVal, present := nodeID.Val()
 			if !present {
-				t.Fatalf("nodeID.IsPresent() for %q: got false, want true", *p4rtNodeName)
+				t.Fatalf("nodeID.IsPresent() for %q: got false, want true", nodes["port1"])
 			}
 			t.Logf("Telemetry path/value: %v=>%v:", nodeID.Path.String(), nodeIDVal)
 			if nodeIDVal != tc.nodeID {
-				t.Fatalf("nodeID.Val(t) for %q: got %d, want %d", *p4rtNodeName, nodeIDVal, tc.nodeID)
+				t.Fatalf("nodeID.Val(t) for %q: got %d, want %d", nodes["port1"], nodeIDVal, tc.nodeID)
 			}
 		})
 	}
+}
+
+func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
+	if deviations.InterfaceCountersFromContainer(dut) {
+		inPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
+		outPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
+		return inPkts, outPkts
+	}
+
+	inPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
+	outPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
+	return inPkts, outPkts
 }
 
 func TestIntfCounterUpdate(t *testing.T) {
@@ -725,8 +828,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	otg.StartProtocols(t)
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
-	dutInPktsBeforeTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
-	dutOutPktsBeforeTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
+	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	otg.StartTraffic(t)
 	time.Sleep(10 * time.Second)
@@ -749,147 +851,24 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	otgutils.LogFlowMetrics(t, otg, config)
-	ateInPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State())
-	ateOutPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
+	ateInPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
+	ateOutPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
 
 	if ateOutPkts == 0 {
 		t.Errorf("Get(out packets for flow %q: got %v, want nonzero", flowName, ateOutPkts)
 	}
 	lossPct := (ateOutPkts - ateInPkts) * 100 / ateOutPkts
-	if lossPct >= 1 {
-		t.Errorf("Get(traffic loss for flow %q: got %v, want < 1", flowName, lossPct)
+	if lossPct >= 0.1 {
+		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
 	}
-	dutInPktsAfterTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
-	dutOutPktsAfterTraffic := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
-	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < ateInPkts {
+	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateInPkts) {
 		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts)
 	}
-	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < ateOutPkts {
+	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < uint64(ateOutPkts) {
 		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateOutPkts)
-	}
-}
-
-func TestQoSCounterUpdate(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-
-	// Configure DUT interfaces.
-	ConfigureDUTIntf(t, dut)
-
-	// Configure ATE interfaces.
-	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
-	ap1 := ate.Port(t, "port1")
-	ap2 := ate.Port(t, "port2")
-	config := otg.NewConfig(t)
-	config.Ports().Add().SetName(ap1.ID())
-	intf1 := config.Devices().Add().SetName(ap1.Name())
-	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").SetMac("02:00:01:01:01:01")
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
-	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
-		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
-		SetPrefix(31)
-	config.Ports().Add().SetName(ap2.ID())
-	intf2 := config.Devices().Add().SetName(ap2.Name())
-	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").SetMac("02:00:01:02:01:01")
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
-	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
-		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
-		SetPrefix(31)
-
-	trafficFlows := make(map[string]*trafficData)
-
-	// TODO: Please update the QoS test after the bug is closed.
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "3"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: "2"},
-			"flow-af3": {frameSize: 300, trafficRate: 3, dscp: 24, queue: "5"},
-			"flow-af2": {frameSize: 200, trafficRate: 2, dscp: 16, queue: "1"},
-			"flow-af1": {frameSize: 1100, trafficRate: 1, dscp: 8, queue: "4"},
-			"flow-be1": {frameSize: 1200, trafficRate: 1, dscp: 0, queue: "0"},
-		}
-	case ondatra.ARISTA:
-		trafficFlows = map[string]*trafficData{
-			"flow-nc1": {frameSize: 700, trafficRate: 7, dscp: 56, queue: dp2.Name() + "-7"},
-			"flow-af4": {frameSize: 400, trafficRate: 4, dscp: 32, queue: dp2.Name() + "-4"},
-			"flow-af3": {frameSize: 1300, trafficRate: 3, dscp: 24, queue: dp2.Name() + "-3"},
-			"flow-af2": {frameSize: 1200, trafficRate: 2, dscp: 16, queue: dp2.Name() + "-2"},
-			"flow-af1": {frameSize: 1000, trafficRate: 10, dscp: 8, queue: dp2.Name() + "-0"},
-			"flow-be1": {frameSize: 1111, trafficRate: 1, dscp: 0, queue: dp2.Name() + "-1"},
-		}
-	}
-
-	config.Flows().Clear()
-	for trafficID, data := range trafficFlows {
-		t.Logf("Configuring flow %s", trafficID)
-		flowipv4 := config.Flows().Add().SetName(trafficID)
-		flowipv4.Metrics().SetEnable(true)
-		flowipv4.TxRx().Device().
-			SetTxNames([]string{intf1.Name() + ".IPv4"}).
-			SetRxNames([]string{intf2.Name() + ".IPv4"})
-		flowipv4.Size().SetFixed(int32(data.frameSize))
-		flowipv4.Rate().SetPercentage(float32(data.trafficRate))
-		e1 := flowipv4.Packet().Add().Ethernet()
-		e1.Src().SetValue(eth1.Mac())
-		v4 := flowipv4.Packet().Add().Ipv4()
-		v4.Src().SetValue(ip4_1.Address())
-		v4.Dst().SetValue(ip4_2.Address())
-		v4.Priority().Dscp().Phb().SetValue(int32(data.dscp))
-	}
-	otg.PushConfig(t, config)
-	otg.StartProtocols(t)
-
-	ateOutPkts := make(map[string]uint64)
-	dutQosPktsBeforeTraffic := make(map[string]uint64)
-	dutQosPktsAfterTraffic := make(map[string]uint64)
-
-	// Get QoS egress packet counters before the traffic.
-	for _, data := range trafficFlows {
-		dutQosPktsBeforeTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
-	}
-
-	t.Logf("Running traffic on DUT interfaces: %s and %s ", dp1.Name(), dp2.Name())
-	otg.StartTraffic(t)
-	time.Sleep(10 * time.Second)
-	otg.StopTraffic(t)
-	time.Sleep(60 * time.Second)
-
-	otgutils.LogFlowMetrics(t, otg, config)
-	for trafficID, data := range trafficFlows {
-		ateOutPkts[data.queue] = gnmi.Get(t, otg, gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
-		lossPct := (ateOutPkts[data.queue] - gnmi.Get(t, otg, gnmi.OTG().Flow(trafficID).Counters().InPkts().State())) / ateOutPkts[data.queue] * 100
-		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
-		t.Logf("Get(out packets for queue %q): got %v", data.queue, ateOutPkts[data.queue])
-		if lossPct >= 1 {
-			t.Errorf("Get(traffic loss for queue %q): got %v, want < 1", data.queue, lossPct)
-		}
-	}
-
-	for trafficID, data := range trafficFlows {
-		ateOutPkts[data.queue] = gnmi.Get(t, otg, gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
-		lossPct := (ateOutPkts[data.queue] - gnmi.Get(t, otg, gnmi.OTG().Flow(trafficID).Counters().InPkts().State())) / ateOutPkts[data.queue] * 100
-		dutQosPktsAfterTraffic[data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
-		t.Logf("ateOutPkts: %v, txPkts %v, Queue: %v", ateOutPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
-		t.Logf("Get(out packets for flow %q): got %v, want nonzero", trafficID, ateOutPkts)
-		if lossPct >= 1 {
-			t.Errorf("Get(traffic loss for queue %q: got %v, want < 1", data.queue, lossPct)
-		}
-	}
-
-	// Check QoS egress packet counters are updated correctly.
-	t.Logf("QoS egress packet counters before traffic: %v", dutQosPktsBeforeTraffic)
-	t.Logf("QoS egress packet counters after traffic: %v", dutQosPktsAfterTraffic)
-	t.Logf("QoS packet counters from ATE: %v", ateOutPkts)
-	for _, data := range trafficFlows {
-		qosCounterDiff := dutQosPktsAfterTraffic[data.queue] - dutQosPktsBeforeTraffic[data.queue]
-		if qosCounterDiff < ateOutPkts[data.queue] {
-			t.Errorf("Get(telemetry packet update for queue %q): got %v, want >= %v", data.queue, qosCounterDiff, ateOutPkts[data.queue])
-		}
 	}
 }
 
@@ -926,9 +905,106 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		s.Enabled = ygot.Bool(true)
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+			s.Enabled = ygot.Bool(true)
+		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 	}
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+}
+
+func explicitP4RTNodes() map[string]string {
+	return map[string]string{
+		"port1": *args.P4RTNodeName1,
+		"port2": *args.P4RTNodeName2,
+	}
+}
+
+var nokiaPortNameRE = regexp.MustCompile("ethernet-([0-9]+)/([0-9]+)")
+
+// inferP4RTNodesNokia infers the P4RT node name from the port name for Nokia devices.
+func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
+	res := make(map[string]string)
+	for _, p := range dut.Ports() {
+		m := nokiaPortNameRE.FindStringSubmatch(p.Name())
+		if len(m) != 3 {
+			continue
+		}
+
+		fpc := m[1]
+		port, err := strconv.Atoi(m[2])
+		if err != nil {
+			t.Fatalf("Error generating P4RT Node Name: %v", err)
+		}
+		asic := 0
+		if port > 18 {
+			asic = 1
+		}
+		res[p.ID()] = fmt.Sprintf("SwitchChip%s/%d", fpc, asic)
+	}
+
+	if _, ok := res["port1"]; !ok {
+		res["port1"] = *args.P4RTNodeName1
+	}
+	if _, ok := res["port2"]; !ok {
+		res["port2"] = *args.P4RTNodeName2
+	}
+	return res
+}
+
+// P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
+// ports using the component and the interface OC tree.
+func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
+	t.Helper()
+	if deviations.ExplicitP4RTNodeComponent(dut) {
+		switch dut.Vendor() {
+		case ondatra.NOKIA:
+			return inferP4RTNodesNokia(t, dut)
+		default:
+			return explicitP4RTNodes()
+		}
+	}
+
+	ports := make(map[string][]string) // <hardware-port>:[<portID>]
+	for _, p := range dut.Ports() {
+		hp := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+		if v, ok := hp.Val(); ok {
+			if _, ok = ports[v]; !ok {
+				ports[v] = []string{p.ID()}
+			} else {
+				ports[v] = append(ports[v], p.ID())
+			}
+		}
+	}
+	nodes := make(map[string]string) // <hardware-port>:<p4rtComponentName>
+	for hp := range ports {
+		p4Node := gnmi.Lookup(t, dut, gnmi.OC().Component(hp).Parent().State())
+		if v, ok := p4Node.Val(); ok {
+			nodes[hp] = v
+		}
+	}
+	res := make(map[string]string) // <portID>:<P4RTNodeName>
+	for k, v := range nodes {
+		cType := gnmi.Lookup(t, dut, gnmi.OC().Component(v).Type().State())
+		ct, ok := cType.Val()
+		if !ok {
+			continue
+		}
+		if ct != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+			continue
+		}
+		for _, p := range ports[k] {
+			res[p] = v
+		}
+	}
+	return res
 }

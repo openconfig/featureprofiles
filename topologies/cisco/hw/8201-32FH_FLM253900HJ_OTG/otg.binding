@@ -1,0 +1,183 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+#
+#router static
+# address-family ipv4 unicast
+#  0.0.0.0/0 5.78.0.1
+#  5.0.0.0/8 5.78.0.1
+#  5.5.14.197/32 5.78.0.1
+#  5.24.27.1/32 5.78.0.1
+#  223.255.253.253/32 5.78.0.1
+#  223.255.254.0/24 5.78.0.1
+#  223.255.254.254/32 5.78.0.1
+# !
+
+#interface MgmtEth0/RP0/CPU0/0
+# ipv4 address 5.78.26.10 255.255.0.0
+# no shut
+#!
+
+#telnet: RP0 -  telnet 10.85.84.53 2010
+
+##Exec server:
+#ssh ott2lab-as3
+
+## Consoe server:
+# telnet 10.85.84.53
+# Pass1: lab
+# Pass2: lab
+
+# Username: cisco
+# Password: cisco
+
+## Management interface RP0:
+# ipv4 address 5.78.26.10
+
+options {
+  username: "cisco"
+  password: "cisco"
+}
+
+duts {
+  id: "dut"
+  name: "R4_churchill"  # Change this to the device hostname.
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+  # telnet RP0: 10.85.84.53 2010
+  # Mgmt RP0: 5.78.26.10
+  # Rack Location : 22-18-26
+  # PDU/outlets : 5.78.27.240/Outlets 5 & 6 
+  # Exec server: ott2lab-as3
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cisco"
+    password: "cisco"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.84.159:56666"
+  }
+  gnmi {
+    target: "10.85.84.159:56666"
+  }
+  gribi{
+    target: "10.85.84.159:56666"
+  }
+  ssh{
+    target: "10.85.84.159:46786"
+  }
+  p4rt{
+    target: "10.85.84.159:56666"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+  ports {
+    id: "port1"
+    name: "TenGigE0/0/0/6/2"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "TenGigE0/0/0/6/3"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "TenGigE0/0/0/7/1" # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "TenGigE0/0/0/7/2"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "TenGigE0/0/0/7/3"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "TenGigE0/0/0/6/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "TenGigE0/0/0/6/1"  # Change this to the actual port name.
+  }
+  #ports {
+  #  id: "port8"
+  #  name: "TenGigE0/0/0/8/3"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port9"
+  #  name: "TenGigE0/0/0/7/0"  # Change this to the actual port name.
+  #}
+}
+
+ates {
+  id: "ate"
+  name: "10.85.17.225:40053"  # Change this to the Ixia-C-Controler hostname.
+
+  # This option specific to OTG over Ixia-HW.
+  otg {
+    target: "10.85.17.225:40053" # Change this to the Ixia-c-grpc server endpoint.
+    insecure: true
+    timeout: 30
+  }
+
+  gnmi {
+    target: "10.85.17.225:50053"  # Change this to the Ixia-c-gnmi server endpoint.
+    skip_verify: true
+    timeout: 30
+  }
+
+  options {
+    username: "admin"
+    password: "admin"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "10.85.84.155;10;23"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "10.85.84.155;10;24"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "10.85.84.155;10;18"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "10.85.84.155;10;19"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port5"
+    name: "10.85.84.155;10;20" # Change this to the actual port name.
+  }
+  ports {
+    id: "port6"
+    name: "10.85.84.155;10;21"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port7"
+    name: "10.85.84.155;10;22"  # Change this to the actual port name.
+  }
+  #ports {
+  #  id: "port8"
+  #  name: "10.85.84.155;10;16"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port9"
+  #  name: "10.85.84.155;10;17"  # Change this to the actual port name.
+  #}  
+}

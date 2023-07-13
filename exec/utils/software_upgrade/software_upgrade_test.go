@@ -2,9 +2,11 @@ package software_upgrade_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"testing"
@@ -12,6 +14,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/gnoi/file"
+	"github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
 	"github.com/povsister/scp"
@@ -20,17 +24,20 @@ import (
 
 const (
 	imageDestination = "/harddisk:/8000-x64.iso"
-	installCmd       = "install replace reimage " + imageDestination + " noprompt commit"
 	installStatusCmd = "sh install request"
 	imgCopyTimeout   = 900 * time.Second
-	installTimeout   = 1800 * time.Second
-	compWaitTimeout  = 600 * time.Second
 	sshCmdTimeout    = 30 * time.Second
 	statusCheckDelay = 60 * time.Second
 )
 
 var (
 	imagePathFlag = flag.String("imagePath", "", "Full path to image iso")
+	lineupFlag    = flag.String("lineup", "", "lineup")
+	efrFlag       = flag.String("efr", "", "efr")
+	forceFlag     = flag.Bool("force", false, "Force install even if image already installed")
+	gnoiFlag      = flag.Bool("gnoi", false, "Use gNOI to copy image instead of SCP")
+
+	installTimeout = 1800 * time.Second
 )
 
 func TestMain(m *testing.M) {
@@ -50,28 +57,39 @@ func TestSoftwareUpgrade(t *testing.T) {
 		t.Fatal("Missing imagePath arg")
 	}
 
+	efr := *efrFlag
+	lineup := *lineupFlag
+	force := *forceFlag
+	gnoi := *gnoiFlag
 	imagePath := *imagePathFlag
-	if _, err := os.Stat(imagePath); err != nil {
-		t.Fatalf("Image {%s} does not exist: %v", imagePath, err)
-	}
+	http := strings.HasPrefix(imagePath, "http")
 
 	for _, d := range parseBindingFile(t) {
-		target := fmt.Sprintf("%s:%s", d.sshIp, d.sshPort)
-		t.Logf("Copying image to %s (%s)", d.dut, target)
-		sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
-		scpClient, err := scp.NewClient(target, sshConf, &scp.ClientOption{})
-		if err != nil {
-			t.Fatalf("Error initializing scp client: %v", err)
-		}
-		defer scpClient.Close()
-
-		if err := scpClient.CopyFileToRemote(imagePath, "/harddisk:/8000-x64.iso", &scp.FileTransferOption{
-			Timeout: imgCopyTimeout,
-		}); err != nil {
-			t.Fatalf("Error copying image to target %s (%s:%s): %v", d.dut, d.sshIp, d.sshPort, err)
-		}
-
 		dut := ondatra.DUT(t, d.dut)
+		if !force && len(lineup) > 0 && len(efr) > 0 {
+			if !shouldInstall(t, dut, lineup, efr) {
+				t.Logf("Image already installed on %s, skipping...", dut.ID())
+				continue
+			}
+		}
+
+		time.Sleep(5 * time.Second)
+
+		if !http {
+			if !gnoi {
+				copyImageSCP(t, &d, imagePath)
+			} else {
+				copyImageGNOI(t, dut, imagePath)
+			}
+		}
+
+		imageLocation := imageDestination
+		if http {
+			imageLocation = imagePath
+			installTimeout += imgCopyTimeout
+		}
+
+		installCmd := "install replace reimage " + imageLocation + " noprompt commit"
 		if result, err := sendCLI(t, dut, installCmd); err == nil {
 			if !strings.Contains(result, "has started") {
 				t.Fatalf("Unexpected response:\n%s\n", result)
@@ -108,7 +126,88 @@ func TestSoftwareUpgrade(t *testing.T) {
 		if !success {
 			t.Fatalf("Install operation timed out")
 		}
+
+		if !verifyInstall(t, dut, lineup, efr) {
+			t.Fatalf("Found unexpected image after install on %v", dut.ID())
+		}
 	}
+}
+
+func copyImageSCP(t testing.TB, d *targetInfo, imagePath string) {
+	target := fmt.Sprintf("%s:%s", d.sshIp, d.sshPort)
+	t.Logf("Copying image to %s (%s) over scp", d.dut, target)
+	sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
+	scpClient, err := scp.NewClient(target, sshConf, &scp.ClientOption{})
+	if err != nil {
+		t.Fatalf("Error initializing scp client: %v", err)
+	}
+	defer scpClient.Close()
+
+	if err := scpClient.CopyFileToRemote(imagePath, imageDestination, &scp.FileTransferOption{
+		Timeout: imgCopyTimeout,
+	}); err != nil {
+		t.Fatalf("Error copying image to target %s (%s:%s): %v", d.dut, d.sshIp, d.sshPort, err)
+	}
+}
+
+func copyImageGNOI(t testing.TB, dut *ondatra.DUTDevice, imagePath string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), imgCopyTimeout)
+	defer cancel()
+	fileClient, err := dut.RawAPIs().GNOI().New(t).File().Put(ctx)
+	if err != nil {
+		t.Fatalf("Could not create gNOI file client: %v", err)
+	}
+
+	if err = fileClient.Send(&file.PutRequest{
+		Request: &file.PutRequest_Open{
+			Open: &file.PutRequest_Details{
+				RemoteFile:  imageDestination,
+				Permissions: uint32(600),
+			},
+		},
+	}); err != nil {
+		t.Fatalf("Could not initiate gNOI file put request: %v", err)
+	}
+
+	imgData, imgHash := mustGetImageData(t, imagePath)
+	if err = fileClient.Send(&file.PutRequest{
+		Request: &file.PutRequest_Contents{
+			Contents: imgData,
+		},
+	}); err != nil {
+		t.Fatalf("Error sending image content: %v", err)
+	}
+
+	if err = fileClient.Send(&file.PutRequest{
+		Request: &file.PutRequest_Hash{
+			Hash: &types.HashType{
+				Method: types.HashType_SHA256,
+				Hash:   imgHash,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("Error sending image hash: %v", err)
+	}
+}
+
+func mustGetImageData(t testing.TB, imagePath string) ([]byte, []byte) {
+	t.Helper()
+	file, err := os.Open(imagePath)
+	if err != nil {
+		t.Fatalf("Could not open image: %v", err)
+	}
+	defer file.Close()
+	data, err := io.ReadAll(file)
+	if err != nil {
+		t.Fatalf("Could not read image data: %v", err)
+	}
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		log.Fatal(err)
+	}
+	return data, hash.Sum(nil)
 }
 
 func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
@@ -118,6 +217,28 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	sshClient := dut.RawAPIs().CLI(t)
 	defer sshClient.Close()
 	return sshClient.SendCommand(ctx, cmd)
+}
+
+func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
+	if buildInfo, err := sendCLI(t, dut, "run cat /etc/build-info.txt"); err == nil {
+		t.Logf("Installed image info:\n%s", buildInfo)
+		return !(strings.Contains(buildInfo, lineup) && strings.Contains(buildInfo, efr))
+	} else {
+		t.Logf("Could not get existing image build info: %v\n. Ignoring...", err)
+	}
+	return true
+}
+
+func verifyInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
+	if len(lineup) == 0 || len(efr) == 0 {
+		return true
+	}
+
+	if lineup == "UNKNOWN" || efr == "None" {
+		return true
+	}
+
+	return !shouldInstall(t, dut, lineup, efr)
 }
 
 func parseBindingFile(t *testing.T) []targetInfo {

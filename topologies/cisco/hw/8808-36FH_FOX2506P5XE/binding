@@ -82,21 +82,27 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.159:47402"
+   target: "10.85.84.159:47402"
+   #target: "10.85.84.159:9339" 
   }
   gnmi {
-    target: "10.85.84.159:47402"
-     #target: "172.26.228.238:64812" 
+      target: "10.85.84.159:47402"
+     # default grpc mapping : 57777  target: "10.85.84.159:47402"
+     #target: "10.85.84.159:9339" 
   }
 
   gribi{
-    target: "10.85.84.159:47402"
+     # default grpc mapping : 57777  target: "10.85.84.159:47402"
+     #target: "10.85.84.159:9340"
+     target: "10.85.84.159:47402"
   }
   ssh{
     target: "10.85.84.159:47403"
   }
   p4rt{
-    target: "10.85.84.159:47402"
+     # default grpc mapping : 57777  target: "10.85.84.159:47402"
+     #target: "10.85.84.159:9559"
+     target: "10.85.84.159:47402"
   }
 
 # Before this binding can be used with a topology, add ports mapping

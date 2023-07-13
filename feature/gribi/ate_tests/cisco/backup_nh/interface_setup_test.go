@@ -20,7 +20,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -158,22 +157,13 @@ var (
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if *deviations.InterfaceEnabled {
-		i.Enabled = ygot.Bool(true)
-	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
-		s4.Enabled = ygot.Bool(true)
-	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
-		s6.Enabled = ygot.Bool(true)
-	}
 	s6a := s6.GetOrCreateAddress(a.IPv6)
 	s6a.PrefixLength = ygot.Uint8(ipv6PrefixLen)
 
@@ -325,4 +315,15 @@ func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
+}
+
+// configVRF
+func configVRF(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
+	for _, vrf_name := range vrfs {
+		vrf := &oc.NetworkInstance{
+			Name: ygot.String(vrf_name),
+			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+		}
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf_name).Config(), vrf)
+	}
 }

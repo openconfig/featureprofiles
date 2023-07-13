@@ -17,10 +17,10 @@ package base_p4rt_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	"sort"
 	"testing"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -97,16 +97,16 @@ var (
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -116,80 +116,75 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 }
 
 // configureDeviceIDs configures p4rt device-id on the DUT.
-func configureDeviceIDs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+func configureDeviceIDs(t *testing.T, dut *ondatra.DUTDevice, nodes map[string]string) {
 	t.Helper()
-	nodes := p4rtutils.P4RTNodesByPort(t, dut)
 	deviceIDs := []uint64{deviceId1, deviceId2}
-
-	for idx, p := range []string{"port1", "port2"} {
-		if _, ok := nodes[p]; !ok {
-			t.Fatalf("Couldn't find P4RT Node for port: %s", p)
-		}
-		t.Logf("Configuring P4RT Node: %s", nodes[p])
+	i := 0
+	for node := range nodes {
+		t.Logf("Configuring P4RT Node: %s", node)
 		c := oc.Component{}
-		c.Name = ygot.String(nodes[p])
+		c.Name = ygot.String(node)
 		c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-		c.IntegratedCircuit.NodeId = ygot.Uint64(deviceIDs[idx])
-		gnmi.Replace(t, dut, gnmi.OC().Component(nodes[p]).Config(), &c)
+		c.IntegratedCircuit.NodeId = ygot.Uint64(deviceIDs[i])
+		gnmi.Replace(t, dut, gnmi.OC().Component(node).Config(), &c)
+		i++
 	}
 }
 
-// sortPorts sorts the ports by the testbed port ID.
-func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
-	sort.Slice(ports, func(i, j int) bool {
-		idi, idj := ports[i].ID(), ports[j].ID()
-		li, lj := len(idi), len(idj)
-		if li == lj {
-			return idi < idj
-		}
-		return li < lj // "port2" < "port10"
-	})
-	return ports
-}
-
-// configurePortId configures p4rt port-id on the DUT.
-func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	ports := sortPorts(dut.Ports())
-	for i, port := range ports {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Type().Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Id().Config(), uint32(i)+portId)
-	}
-}
-
-// configureDUT configures port1 and port2 on the DUT.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+// configureDUT configures two ports on the DUT.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ports []string) {
 	t.Helper()
 	d := gnmi.OC()
 
-	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	p1 := dut.Port(t, ports[0])
+	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portId)}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 
-	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	p2 := dut.Port(t, ports[1])
+	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portId + 1)}
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
+// findP4RTNodes returns a map[string]string where keys are unique P4RT Device IDs
+// and values represent ONDATRA DUT port IDs from the devices
+func findP4RTNodes(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
+	nodes := make(map[string]string)
+	p4NodeMap := p4rtutils.P4RTNodesByPort(t, dut)
+	for k, v := range p4NodeMap {
+		// skip empty device IDs
+		if v == "" {
+			continue
+		}
+		nodes[v] = k
+		// quit when found two unique devices with available ports
+		if len(nodes) == 2 {
+			t.Logf("Found P4RT devices and corresponding ports: %+v", nodes)
+			return nodes
+		}
+	}
+	t.Fatalf("The test requires two DUT ports located on different P4RT Nodes (found %v), cannot proceed.", len(nodes))
+	return nodes
+}
+
 // ATE configuration with IP address
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, ports []string) gosnappi.Config {
 	t.Helper()
 	otg := ate.OTG()
 	top := otg.NewConfig(t)
 
-	p1 := ate.Port(t, "port1")
+	p1 := ate.Port(t, ports[0])
 	atePort1.AddToOTG(top, p1, &dutPort1)
 
-	p2 := ate.Port(t, "port2")
+	p2 := ate.Port(t, ports[1])
 	atePort2.AddToOTG(top, p2, &dutPort2)
 
 	return top
@@ -308,11 +303,16 @@ func TestP4rtConnect(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	// configure DUT with P4RT node-id and ids on different FAPs
-	configureDUT(t, dut)
-	configureDeviceIDs(ctx, t, dut)
+	nodes := findP4RTNodes(t, dut)
+	configureDeviceIDs(t, dut, nodes)
 
-	configurePortId(ctx, t, dut)
-	top := configureATE(t, ate)
+	var ports []string
+	for _, v := range nodes {
+		ports = append(ports, v)
+	}
+	configureDUT(t, dut, ports)
+
+	top := configureATE(t, ate, ports)
 	ate.OTG().PushConfig(t, top)
 
 	// Setup two different clients for different FAPs

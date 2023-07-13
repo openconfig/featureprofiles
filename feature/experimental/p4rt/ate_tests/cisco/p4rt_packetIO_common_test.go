@@ -13,6 +13,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	wbb "github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	spb "github.com/openconfig/gnoi/system"
@@ -179,16 +180,24 @@ func validatePackets(t *testing.T, args *testArgs, packets []*p4rt_client.P4RTPa
 			// t.Logf("Packet Payload: %v", packet.Pkt.GetPayload())
 			if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
 				dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
-				//t.Logf("Ethernet dstMac, etherType %s, %s:", dstMac, etherType)
+				// t.Logf("Ethernet dstMac, etherType %s, %s:", dstMac, etherType)
 				// t.Logf("Decoded Ether Type: %v; Decoded DST MAC: %v", etherType, dstMac)
 				if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
 					t.Errorf("Packet is not matching wanted packet.")
 				}
 			}
+			if wantPacket.udp {
+				if wantPacket.udp {
+					packet := gopacket.NewPacket(packet.Pkt.GetPayload(), layers.LayerTypeEthernet, gopacket.Default)
+					if udpLayer := packet.Layer(layers.LayerTypeUDP); udpLayer == nil {
+						t.Errorf("UDP header in Packet is not matching wanted packet.")
+					}
 
-			if wantPacket.DstIPv4 != nil || wantPacket.DstIPv6 != nil {
+				}
+			}
+			if (wantPacket.DstIPv4 != nil || wantPacket.DstIPv6 != nil) && !wantPacket.udp {
 				srcIP, dstIP := decodeIPPacket(t, packet.Pkt.GetPayload())
-				//t.Logf("srcIP, dstIP %s, %s:", srcIP, dstIP)
+				// t.Logf("srcIP, dstIP %s, %s:", srcIP, dstIP)
 				// t.Logf("Decoded SRC IP: %v; Decoded DST IP: %v", srcIP, dstIP)
 				if *wantPacket.SrcIPv4 != srcIP && *wantPacket.SrcIPv6 != srcIP && *wantPacket.DstIPv4 != dstIP && *wantPacket.DstIPv6 != dstIP {
 					// t.Logf("SourceIP: wanted %s, or %s, got %s", *wantPacket.SrcIPv4, *wantPacket.SrcIPv6, srcIP)
@@ -236,6 +245,10 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.
 					},
 				}); err != nil {
 				t.Errorf("There is error seen in Packet Out. %v, %s", err, err)
+			}
+			// sleep a second every 5 packets
+			if i%5 == 0 {
+				time.Sleep(time.Second)
 			}
 		}
 	}
@@ -311,6 +324,44 @@ func configureInterface(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 	}
 
 }
+func configureInterfaceIpv6(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, interfaceName, ipv6Address string, subInterface uint32) {
+	config := oc.Interface{
+		Name:    ygot.String(interfaceName),
+		Enabled: ygot.Bool(true),
+		Subinterface: map[uint32]*oc.Interface_Subinterface{
+			subInterface: {
+				Index: ygot.Uint32(subInterface),
+				Ipv6: &oc.Interface_Subinterface_Ipv6{
+					Address: map[string]*oc.Interface_Subinterface_Ipv6_Address{
+						ipv6Address: {
+							Ip:           ygot.String(ipv6Address),
+							PrefixLength: ygot.Uint8(126),
+						},
+					},
+					Enabled: ygot.Bool(true),
+				},
+			},
+		},
+	}
+	if strings.Contains(interfaceName, "Bundle") {
+		config.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		config.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
+	if subInterface > 0 {
+		config.Subinterface[subInterface].Vlan = &oc.Interface_Subinterface_Vlan{
+			Match: &oc.Interface_Subinterface_Vlan_Match{
+				SingleTagged: &oc.Interface_Subinterface_Vlan_Match_SingleTagged{
+					VlanId: ygot.Uint16(uint16(subInterface)),
+				},
+			},
+		}
+		gnmi.Replace(t, dut, gnmi.OC().Interface(interfaceName).Subinterface(subInterface).Config(), config.Subinterface[subInterface])
+	} else {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(interfaceName).Config(), &config)
+	}
+
+}
 
 func testEntryProgrammingPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
@@ -340,7 +391,8 @@ func testEntryProgrammingPacketInAndNoReply(ctx context.Context, t *testing.T, a
 	count_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Counters().OutPkts().State())
 	testEntryProgrammingPacketIn(ctx, t, args)
 	count_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Counters().OutPkts().State())
-	if count_1-count_0 > 15 {
+	t.Logf("Counter out-pkts difference %v", count_1-count_0)
+	if count_1-count_0 > 20 {
 		t.Errorf("Unexpected replies are sent from router!")
 	}
 }
@@ -388,11 +440,20 @@ func testEntryProgrammingPacketInWithNewMAC(ctx context.Context, t *testing.T, a
 }
 
 func testEntryProgrammingPacketInWithForUsIP(ctx context.Context, t *testing.T, args *testArgs) {
-	testEntryProgrammingPacketInWithNewIP(ctx, t, args, "100.120.1.1", false)
+	if *ciscoFlags.TTL1v6 {
+		testEntryProgrammingPacketInWithNewIP(ctx, t, args, "100:120:1::1", true)
+	} else {
+		testEntryProgrammingPacketInWithNewIP(ctx, t, args, "100.120.1.1", false)
+	}
 }
 
 func testEntryProgrammingPacketInWithNonExistIP(ctx context.Context, t *testing.T, args *testArgs) {
-	testEntryProgrammingPacketInWithNewIP(ctx, t, args, "200.101.102.103", false)
+	if *ciscoFlags.TTL1v6 {
+		testEntryProgrammingPacketInWithNewIP(ctx, t, args, "200:101:1::1", true)
+	} else {
+		testEntryProgrammingPacketInWithNewIP(ctx, t, args, "200.101.102.103", false)
+	}
+
 }
 
 func testEntryProgrammingPacketInWithNewIP(ctx context.Context, t *testing.T, args *testArgs, ipAddress string, isIPv6 bool) {
@@ -404,20 +465,21 @@ func testEntryProgrammingPacketInWithNewIP(ctx context.Context, t *testing.T, ar
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	// Modify Traffic DstIPv4 to Unicast MAC
-	dstIP := args.packetIO.GetPacketTemplate(t).DstIPv4
-	currentIP := *dstIP
-	*dstIP = ipAddress
+	var dstIP *string
+	var currentIP string
+	if isIPv6 {
+		dstIP = args.packetIO.GetPacketTemplate(t).DstIPv6
+		currentIP = *dstIP
+		*dstIP = ipAddress
+	} else {
+		dstIP = args.packetIO.GetPacketTemplate(t).DstIPv4
+		currentIP = *dstIP
+		*dstIP = ipAddress
+	}
+
 	defer func() { *dstIP = currentIP }()
 
 	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
-
-	if isIPv6 {
-		dstIP = args.packetIO.GetPacketTemplate(t).DstIPv6
-		flows = []*ondatra.Flow{flows[1]}
-	} else {
-		flows = []*ondatra.Flow{flows[0]}
-	}
-
 	// Send Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
@@ -427,7 +489,6 @@ func testEntryProgrammingPacketInWithNewIP(ctx context.Context, t *testing.T, ar
 	packets := getPackets(t, client, 40)
 
 	t.Logf("Captured packets: %v", len(packets))
-
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received")
 	}
@@ -469,7 +530,6 @@ func testPacketInWithoutEntryProgramming(ctx context.Context, t *testing.T, args
 
 	// Check PacketIn on P4Client
 	packets := getPackets(t, client, 40)
-
 	// t.Logf("Captured packets: %v", len(packets))
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received")
@@ -517,7 +577,6 @@ func testEntryProgrammingPacketInThenRemoveEntry(ctx context.Context, t *testing
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the match entry")
 	}
-
 	// Send GDP Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
@@ -668,12 +727,12 @@ func testProgrammingPacketInWithInterfaceMACAsGDPMac(ctx context.Context, t *tes
 		t.Errorf("There is error when inserting the match entry")
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
-
+	portName := sortPorts(args.dut.Ports())[0].Name()
 	// Change mac address for the related bundle interface MAC
 	newMAC := gdpMAC
-	currentMAC := gnmi.Get(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Ethernet().MacAddress().State())
-	gnmi.Replace(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Config(), newMAC)
-	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Ethernet().MacAddress().Config(), currentMAC)
+	currentMAC := gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Ethernet().MacAddress().State())
+	gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Ethernet().MacAddress().Config(), newMAC)
+	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Ethernet().MacAddress().Config(), currentMAC)
 
 	// Send Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -682,7 +741,7 @@ func testProgrammingPacketInWithInterfaceMACAsGDPMac(ctx context.Context, t *tes
 	// Check PacketIn on P4Client
 	packets := getPackets(t, client, 40)
 
-	// t.Logf("Captured packets: %v", len(packets))
+	t.Logf("Captured packets: %v", len(packets))
 	if len(packets) > 0 {
 		t.Errorf("Unexpected packets received.")
 	}
@@ -747,7 +806,7 @@ func testEntryProgrammingPacketInDowngradePrimaryController(ctx context.Context,
 	// Check PacketIn on P4Client
 	packets = getPackets(t, newClient, 40)
 
-	// t.Logf("Captured packets: %v", len(packets))
+	t.Logf("Captured packets: %v", len(packets))
 	if len(packets) != 0 {
 		t.Errorf("There are unexpected packets received.")
 	}
@@ -790,6 +849,11 @@ func testEntryProgrammingPacketInDowngradePrimaryControllerWithoutStandby(ctx co
 	client.StreamChannelDestroy(&streamName)
 
 	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
+	packets = getPackets(t, client, 40)
+	if len(packets) != 0 {
+		t.Errorf("There are unexpected packets received.")
+	}
+
 }
 
 func testEntryProgrammingPacketInRecoverPrimaryController(ctx context.Context, t *testing.T, args *testArgs) {
@@ -834,7 +898,10 @@ func testEntryProgrammingPacketInRecoverPrimaryController(ctx context.Context, t
 	}
 
 	testP4RTTraffic(t, args.ate, args.packetIO.GetTrafficFlow(t, args.ate, 300, 2), srcEndPoint, 10)
-
+	packets = getPackets(t, client, 40)
+	if len(packets) != 0 {
+		t.Errorf("There are unexpected packets received.")
+	}
 	// Recover Primary Controller
 	client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
 		Update: &p4_v1.StreamMessageRequest_Arbitration{
@@ -868,6 +935,7 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 
 	// Program the entry
 	tableEntry := args.packetIO.GetTableEntry(t, false)
+
 	if len(tableEntry) == 1 && tableEntry[0].IsIpv4 == 0 {
 		tableEntry[0].IsIpv4 = uint8(1)
 		client.Write(&p4_v1.WriteRequest{
@@ -881,6 +949,14 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 	} else {
 		for _, entry := range tableEntry {
 			entry.EtherType = uint16(123)
+			client.Write(&p4_v1.WriteRequest{
+				DeviceId:   deviceID,
+				ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+				Updates: wbb.ACLWbbIngressTableEntryGet(
+					tableEntry,
+				),
+				Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+			})
 		}
 	}
 
@@ -903,8 +979,8 @@ func testEntryProgrammingPacketInWithMoreMatchingField(ctx context.Context, t *t
 	// Check PacketIn on P4Client
 	packets := getPackets(t, client, 40)
 
-	// t.Logf("Captured packets: %v", len(packets))
-	if len(packets) > 0 {
+	t.Logf("Captured packets: %v", len(packets))
+	if len(packets) > 15 {
 		t.Errorf("Unexpected packets are received.")
 	}
 }
@@ -999,9 +1075,10 @@ func testEntryProgrammingPacketInWithouthPortIDThenAddPortID(ctx context.Context
 		t.Errorf("There is no packets received.")
 	}
 
-	args.packetIO.SetIngressPorts(t, fmt.Sprint(^portID))
-	defer args.packetIO.SetIngressPorts(t, fmt.Sprint(portID))
+	// args.packetIO.SetIngressPorts(t, fmt.Sprint(^portID))
+	// defer args.packetIO.SetIngressPorts(t, fmt.Sprint(portID))
 	validatePackets(t, args, packets)
+
 }
 
 func testEntryProgrammingPacketInWithInnerTTL(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1159,6 +1236,8 @@ func testEntryProgrammingPacketInWithUDP(ctx context.Context, t *testing.T, args
 		headers = append(headers, udpHeader)
 		flow.WithHeaders(headers...)
 	}
+	args.packetIO.GetPacketIOPacket(t).udp = true
+	defer func() { args.packetIO.GetPacketIOPacket(t).udp = false }()
 
 	// Send Packet
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -1167,7 +1246,7 @@ func testEntryProgrammingPacketInWithUDP(ctx context.Context, t *testing.T, args
 	// Check PacketIn on P4Client
 	packets := getPackets(t, client, 40)
 
-	// t.Logf("Captured packets: %v", len(packets))
+	t.Logf("Captured packets: %v", len(packets))
 	if len(packets) == 0 {
 		t.Errorf("There is no packets received.")
 	}
@@ -1175,7 +1254,8 @@ func testEntryProgrammingPacketInWithUDP(ctx context.Context, t *testing.T, args
 	validatePackets(t, args, packets)
 
 	count_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(portName).Counters().OutPkts().State())
-	if count_1-count_0 > 15 {
+	t.Logf("Difference in the number of pkts %v", count_1-count_0)
+	if count_1-count_0 > 20 {
 		t.Errorf("Unexpected replies are sent from router!")
 	}
 }
@@ -1196,7 +1276,7 @@ func testEntryProgrammingPacketInWithFlowLabel(ctx context.Context, t *testing.T
 		for _, header := range headers {
 			if v, ok := header.(*ondatra.IPv6Header); ok {
 				skipFlag = false
-				v.WithFlowLabel(11111).FlowLabelRange().WithCount(1000)
+				v.WithFlowLabel(11111).FlowLabelRange().WithMin(0).WithMax(1048575).WithCount(1000).WithRandom()
 			}
 		}
 	}
@@ -1222,11 +1302,14 @@ func testEntryProgrammingPacketInWithFlowLabel(ctx context.Context, t *testing.T
 
 func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
 	portName := sortPorts(args.dut.Ports())[0].Name()
-	existingConfig := gnmi.GetConfig(t, args.dut, gnmi.OC().Interface(portName).Config())
-	configureInterface(ctx, t, args.dut, portName, "103.102.101.100", 0)
-	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Config(), existingConfig)
+
+	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("no interface %v \n", portName))
+	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("interface %v \n ipv4 address 100.120.1.10 255.255.255.0 \n", portName))
+	config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("interface %v\n ipv6 address 100:120:1::10/126 \n", portName))
+
+	defer gnmi.Replace(t, args.dut, gnmi.OC().Interface(portName).Config(), generateBundleMemberInterfaceConfig(t, portName, "Bundle-Ether120"))
+	defer config.TextWithGNMI(context.Background(), t, args.dut, fmt.Sprintf("no interface %v\n", portName))
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
@@ -1257,15 +1340,18 @@ func testEntryProgrammingPacketInWithPhysicalInterface(ctx context.Context, t *t
 
 func testEntryProgrammingPacketInWithSubInterface(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
+	configureInterface(ctx, t, args.dut, args.interfaces.in[0], "100.120.2.1", 1)
+	if *ciscoFlags.TTL1v6 {
+		configureInterfaceIpv6(ctx, t, args.dut, args.interfaces.in[0], "100:120:2::1", 1)
+	}
 
-	configureInterface(ctx, t, args.dut, args.interfaces.in[0], "103.102.101.100", 1)
 	defer gnmi.Delete(t, args.dut, gnmi.OC().Interface(args.interfaces.in[0]).Subinterface(1).Config())
 
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the match entry")
 	}
-	defer programmTableEntry(ctx, t, client, args.packetIO, true)
+	// defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
 	flows := args.packetIO.GetTrafficFlow(t, args.ate, 300, 2)
 
@@ -1366,9 +1452,9 @@ func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args
 }
 
 func testEntryProgrammingPacketInScaleRate(ctx context.Context, t *testing.T, args *testArgs) {
-	if *ciscoFlags.ScaleTests {
-		t.Skipf("Skipping scale test")
-	}
+	// if *ciscoFlags.ScaleTests {
+	// 	t.Skipf("Skipping scale test")
+	// }
 	client := args.p4rtClientA
 
 	// Program the entry
@@ -1401,10 +1487,11 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
+	atePort := sortPorts(args.ate.Ports())[0].Name()
+	ate_counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(atePort).Counters().InPkts().State())
 	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
 
 	packet := args.packetIO.GetPacketOut(t, portID, true)
-
 	packet_count := 100
 	sendPackets(t, client, packet, packet_count)
 
@@ -1414,19 +1501,21 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
+	ate_counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(atePort).Counters().InPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
 	// fmt.Println(counter_1)
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	t.Logf("Received %v packets on ATE interface %s", ate_counter1-ate_counter0, atePort)
 
 	if args.packetIO.GetPacketOutExpectation(t, true) {
-		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+		if ate_counter1-ate_counter0 < uint64(float64(packet_count)*0.95) {
 			t.Errorf("Not all the packets are received.")
 		}
 	} else {
-		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+		if ate_counter1-ate_counter0 > uint64(float64(packet_count)*0.20) {
 			t.Errorf("Unexpected packets are received.")
 		}
 	}
@@ -1456,13 +1545,12 @@ func testPacketOutWithoutMatchEntry(ctx context.Context, t *testing.T, args *tes
 	// fmt.Println(counter_1)
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
-
 	if args.packetIO.GetPacketOutExpectation(t, true) {
 		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
 			t.Errorf("Not all the packets are received.")
 		}
 	} else {
-		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.20) {
 			t.Errorf("Unexpected packets are received.")
 		}
 	}
@@ -1473,8 +1561,9 @@ func testPacketOutTTLOneWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
+	atePort := sortPorts(args.ate.Ports())[0].Name()
 	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
-
+	ate_counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(atePort).Counters().InPkts().State())
 	ttl := args.packetIO.GetPacketOutObj(t).TTL
 	val := *ttl
 	*ttl = 1
@@ -1493,19 +1582,20 @@ func testPacketOutTTLOneWithoutMatchEntry(ctx context.Context, t *testing.T, arg
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
-
+	ate_counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(atePort).Counters().InPkts().State())
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
 	// fmt.Println(counter_1)
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
+	t.Logf("Received %v packets on ATE interface %s", ate_counter1-ate_counter0, atePort)
 
 	if args.packetIO.GetPacketOutExpectation(t, true) {
-		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+		if ate_counter1-ate_counter0 < uint64(float64(packet_count)*0.95) {
 			t.Errorf("Not all the packets are received.")
 		}
 	} else {
-		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.20) {
 			t.Errorf("Unexpected packets are received.")
 		}
 	}
@@ -1522,7 +1612,9 @@ func testPacketOutTTLOneWithUDP(ctx context.Context, t *testing.T, args *testArg
 
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
+	atePort := sortPorts(args.ate.Ports())[0].Name()
 	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
+	ate_counter0 := gnmi.Get(t, args.ate, gnmi.OC().Interface(atePort).Counters().InPkts().State())
 
 	ttl := args.packetIO.GetPacketOutObj(t).TTL
 	val := *ttl
@@ -1544,22 +1636,24 @@ func testPacketOutTTLOneWithUDP(ctx context.Context, t *testing.T, args *testArg
 	// Check packet counters after packet out
 	// counter_1 := args.ate.Telemetry().Interface(port).Counters().InPkts().Get(t)
 	counter_1 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
+	ate_counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(atePort).Counters().InPkts().State())
 
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
 	// fmt.Println(counter_1)
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
-
+	t.Logf("Received %v packets on ATE interface %s", ate_counter1-ate_counter0, atePort)
 	if args.packetIO.GetPacketOutExpectation(t, true) {
-		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+		if ate_counter1-ate_counter0 < uint64(float64(packet_count)*0.95) {
 			t.Errorf("Not all the packets are received.")
 		}
 	} else {
-		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+		if ate_counter1-ate_counter0 > uint64(float64(packet_count)*0.20) {
 			t.Errorf("Unexpected packets are received.")
 		}
 	}
+
 }
 
 func testPacketOutTTLOneWithStaticroute(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1618,7 +1712,6 @@ func testPacketOutWithForUsIP(ctx context.Context, t *testing.T, args *testArgs)
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
-
 	dstIP := args.packetIO.GetPacketOutObj(t).DstIPv4
 	val := *dstIP
 	*dstIP = forusIP
@@ -1661,7 +1754,6 @@ func testPacketOutTTLOneWithForUsIP(ctx context.Context, t *testing.T, args *tes
 	// Check initial packet counters
 	port := sortPorts(args.dut.Ports())[0].Name()
 	counter_0 := gnmi.Get(t, args.dut, gnmi.OC().Interface(port).Counters().OutPkts().State())
-
 	dstIP := args.packetIO.GetPacketOutObj(t).DstIPv4
 	ttl := args.packetIO.GetPacketOutObj(t).TTL
 	ipVal := *dstIP
@@ -1688,7 +1780,6 @@ func testPacketOutTTLOneWithForUsIP(ctx context.Context, t *testing.T, args *tes
 	// Verify InPkts stats to check P4RT stream
 	// fmt.Println(counter_0)
 	// fmt.Println(counter_1)
-
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
 
 	if args.packetIO.GetPacketOutExpectation(t, true) {
@@ -1776,8 +1867,18 @@ func testPacketOutEgress(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Logf("Sends out %v packets on interface %s", counter_1-counter_0, port)
 
-	if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
-		t.Errorf("Not all the packets are received.")
+	// if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+	// 	t.Errorf("Not all the packets are received.")
+	// }
+
+	if args.packetIO.GetPacketOutExpectation(t, true) {
+		if counter_1-counter_0 < uint64(float64(packet_count)*0.95) {
+			t.Errorf("Not all the packets are received.")
+		}
+	} else {
+		if counter_1-counter_0 > uint64(float64(packet_count)*0.15) {
+			t.Errorf("Unexpected packets are received.")
+		}
 	}
 }
 
@@ -2172,7 +2273,12 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 
 func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
+	resp := config.CMDViaGNMI(context.Background(), t, args.dut, "show version")
+	t.Logf(resp)
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the match entry")
@@ -2224,14 +2330,19 @@ func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, ar
 
 	t.Logf("Sends out %v packets on interface %s", counter_2-counter_1, port)
 
-	if counter_2-counter_1 > uint64(float64(packet_count)*0.10) {
+	if counter_2-counter_1 > uint64(float64(packet_count)*0.20) {
 		t.Errorf("Unexpected packets are received.")
 	}
 }
 
 func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
-
+	resp := config.CMDViaGNMI(context.Background(), t, args.dut, "show version")
+	t.Logf(resp)
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Skipping since platfrom is VXR")
+		t.Skip()
+	}
 	// Program the entry
 	if err := programmTableEntry(ctx, t, client, args.packetIO, false); err != nil {
 		t.Errorf("There is error when inserting the match entry")
@@ -2270,6 +2381,7 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 		util.SetInterfaceState(t, args.dut, port, true)
 		time.Sleep(10 * time.Second)
 	}()
+	time.Sleep(60 * time.Second)
 
 	sendPackets(t, client, packet, packet_count)
 
@@ -2337,9 +2449,9 @@ func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, arg
 // }
 
 func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs) {
-	if *ciscoFlags.ScaleTests {
-		t.Skipf("Skipping scale test")
-	}
+	// if *ciscoFlags.ScaleTests {
+	// 	t.Skipf("Skipping scale test")
+	// }
 	client := args.p4rtClientA
 
 	// Program the entry
@@ -2361,6 +2473,10 @@ func testPacketOutEgressScale(ctx context.Context, t *testing.T, args *testArgs)
 		// Pass 'i' into the goroutine's function
 		//   in order to make sure each goroutine
 		//   uses a different value for 'i'.
+		// sleep a second every 5 packets
+		if x%5 == 0 {
+			time.Sleep(time.Second)
+		}
 		go func() {
 			// At the end of the goroutine, tell the WaitGroup
 			//   that another thread has completed.

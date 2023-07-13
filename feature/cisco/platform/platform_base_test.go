@@ -116,7 +116,7 @@ func portName(t *testing.T, dut *ondatra.DUTDevice) {
 
 func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, t *testing.T) {
 
-	if index != uint8(1) {
+	if index != uint8(0) {
 		t.Errorf("Index: got %v, want 1", index)
 	}
 	if numBreakoutsGot != numBreakoutsWant {

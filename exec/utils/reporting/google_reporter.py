@@ -10,13 +10,10 @@ import xml.etree.ElementTree as ET
 
 def _get_testsuites(files):
     test_suites = []
-    for f in list(Path(constants.tests_dir).rglob("*.yaml")):
+    for f in files:
         with open(f) as stream:
             try:
                 ts = yaml.safe_load(stream)
-                ts['updated'] = False
-                if str(f) in files: 
-                    ts['updated'] = True
                 test_suites.append(ts)
             except yaml.YAMLError as exc:
                 print(exc)
@@ -81,8 +78,9 @@ parser.add_argument('firex_ids', help='FireX run IDs')
 parser.add_argument('out_dir', help='Output directory')
 parser.add_argument('--patches', default=False, action='store_true', help="include patches")
 parser.add_argument('--patched-only', default=False, action='store_true', help="skip patched tests")
+parser.add_argument('--passed-only', default=False, action='store_true', help="skip failed tests")
 parser.add_argument('--skip-patched', default=False, action='store_true', help="skip patched tests")
-parser.add_argument('--update_failed', default=False, action='store_true', help="update failed tests only")
+parser.add_argument('--update-failed', default=False, action='store_true', help="update failed tests only")
 parser.add_argument('--set-property', action='store', type=str, nargs='*')
 args = parser.parse_args()
 
@@ -91,19 +89,23 @@ firex_ids= args.firex_ids
 out_dir = args.out_dir
 include_patches = args.patches
 skip_patched = args.skip_patched
+passed_only = args.passed_only
 patched_only = args.patched_only
 update_failed = args.update_failed
 set_properties = args.set_property
 
+total_count = 0
 for firex_id in firex_ids.split(','):
-    logs_dir = os.path.join(constants.base_logs_dir, firex_id, 'tests_logs')
+    print("Processing " + firex_id)
+    uname = firex_id.split('-')[1]
+    base_logs_dir = constants.base_logs_dir.replace('gob4', uname)
+    logs_dir = os.path.join(base_logs_dir, firex_id, 'tests_logs')
     test_id_map = _get_test_id_name_map(logs_dir)
-
-    properties = {}
-    if set_properties != None:
-        for p in set_properties:
-            k, v = p.split('=')
-            properties[k] = v
+    # properties = {}
+    # if set_properties != None:
+    #     for p in set_properties:
+    #         k, v = p.split('=')
+    #         properties[k] = v
 
     for ts in  _get_testsuites(testsuite_files.split(',')):
         for t in ts['tests']:
@@ -124,18 +126,21 @@ for firex_id in firex_ids.split(','):
                     print("Skipped " + t['name'] + " because it is patched")
                     continue
                 
+                did_fail = _did_fail(log_files[0])
+                if passed_only and did_fail:
+                    print("Skipped " + t['name'] + " due to failures")
+                    continue
+
                 if update_failed:
-                    if _did_fail(log_files[0]):
-                        print("Skipped " + t['name'] + " due to failures")
-                        continue
-                    
                     if os.path.exists(test_log_file) and _did_pass(test_log_file):
                         print("Skipped " + t['name'] + " since it is passing")
                         continue
 
                 print("Adding " + t['name'])
+                total_count += 1
                 os.makedirs(test_out_dir, exist_ok=True)
                 shutil.copyfile(log_files[0], test_log_file)
-                _update_properties(tree, test_log_file, properties)
+                # _update_properties(tree, test_log_file, properties)
                 # if include_patches and 'patch' in t and os.path.exists(t['patch']):
                 #     shutil.copyfile(t['patch'], os.path.join(test_out_dir, "test.patch"))
+print("Added " + str(total_count) + " tests")

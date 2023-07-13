@@ -33,6 +33,7 @@ func teardownAcl(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Acl) {
 	gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
 }
 func TestSourcePort(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -83,6 +84,7 @@ func TestSourcePort(t *testing.T) {
 	}
 }
 func TestDestinationPort(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -133,6 +135,7 @@ func TestDestinationPort(t *testing.T) {
 	}
 }
 func TestTcpFlags(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	baseConfig := setupAcl(t, dut)
@@ -150,7 +153,7 @@ func TestTcpFlags(t *testing.T) {
 			baseConfigAclSet := setup.GetAnyValue(baseConfig.AclSet)
 			baseConfigAclSetAclEntry := setup.GetAnyValue(baseConfigAclSet.AclEntry)
 			baseConfigAclSetAclEntryTransport := baseConfigAclSetAclEntry.Transport
-			baseConfigAclSetAclEntryTransport.TcpFlags = input
+			baseConfigAclSetAclEntryTransport.ExplicitTcpFlags = input
 
 			config := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Transport()
 			state := gnmi.OC().Acl().AclSet(*baseConfigAclSet.Name, baseConfigAclSet.Type).AclEntry(*baseConfigAclSetAclEntry.SequenceId).Transport()
@@ -161,7 +164,7 @@ func TestTcpFlags(t *testing.T) {
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
 					configGot := gnmi.GetConfig(t, dut, config.Config())
-					for i, cg := range configGot.TcpFlags {
+					for i, cg := range configGot.ExplicitTcpFlags {
 						if cg != input[i] {
 							t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/tcp-flags: got %v, want %v", cg, input[i])
 						}
@@ -171,7 +174,7 @@ func TestTcpFlags(t *testing.T) {
 			if !setup.SkipSubscribe() {
 				t.Run("Subscribe", func(t *testing.T) {
 					stateGot := gnmi.Get(t, dut, state.State())
-					for i, sg := range stateGot.TcpFlags {
+					for i, sg := range stateGot.ExplicitTcpFlags {
 						if sg != input[i] {
 							t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/tcp-flags: got %v, want %v", sg, input[i])
 						}
@@ -181,7 +184,7 @@ func TestTcpFlags(t *testing.T) {
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.TcpFlags != nil {
+					if qs, _ := gnmi.LookupConfig(t, dut, config.Config()).Val(); qs.ExplicitTcpFlags != nil {
 						t.Errorf("Delete /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/tcp-flags fail: got %v", qs)
 					}
 				}

@@ -56,7 +56,7 @@ connections:
       - dut.FourHundredGigE0/0/0/10
       - ate.1/1
     port2: 
-      - dut.FourHundredGigE0/0/0/20
+      - dut.FourHundredGigE0/0/0/11
       - ate.1/2
     port3: 
       - dut.FourHundredGigE0/0/0/12

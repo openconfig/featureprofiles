@@ -20,19 +20,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // setISISOverloadBit is used to configure isis overload bit to true.
 func setISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// ISIS Configs to set Overload Bit to true.
-	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
+	dutISISPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 	lspBit := dutISISPath.Global().LspBit().OverloadBit()
 	gnmi.Replace(t, dut, lspBit.SetBit().Config(), true)
 }
@@ -40,10 +40,14 @@ func setISISOverloadBit(t *testing.T, dut *ondatra.DUTDevice) {
 // setISISMetric is used to configure metric on isis interfaces.
 func setISISMetric(t *testing.T, dut *ondatra.DUTDevice) {
 
-	dutISISPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
+	dutISISPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, setup.ISISInstance).Isis()
 	t.Logf("Configure ISIS metric to %v", setup.ISISMetric)
 	for _, dp := range dut.Ports() {
-		dutISISPathIntfAF := dutISISPath.Interface(dp.Name()).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		intfName := dp.Name()
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			intfName = dp.Name() + ".0"
+		}
+		dutISISPathIntfAF := dutISISPath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		gnmi.Replace(t, dut, dutISISPathIntfAF.Metric().Config(), setup.ISISMetric)
 	}
 }
@@ -67,10 +71,13 @@ func verifyISISMetric(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 			}
 			is := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "0").Isis()
 			lsps := is.LevelAny().LspAny()
-			gotIsisMetric := gnmi.GetAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Metric().State())
 
-			if diff := cmp.Diff(setup.ISISMetricList, gotIsisMetric); diff != "" {
-				t.Errorf("obtained Metric on ATE is not as expected, got %v, want %v", gotIsisMetric, setup.ISISMetricList)
+			_, ok := gnmi.WatchAll(t, ate, lsps.Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Metric().State(), 5*time.Minute, func(v *ygnmi.Value[uint32]) bool {
+				val, present := v.Val()
+				return present && val == setup.ISISMetric
+			}).Await(t)
+			if !ok {
+				t.Errorf("Obtained Metric on ATE is not as expected")
 			}
 		}
 	})
