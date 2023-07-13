@@ -51,13 +51,20 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	// Configure SetMED on DUT.
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setMEDPolicy)
-	actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
+	stmt, err := pdef5.AppendNewStatement(aclStatement3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions5 := stmt.GetOrCreateActions()
 	setMedBGP := actions5.GetOrCreateBgpActions()
 	setMedBGP.SetMed = oc.UnionUint32(bgpMED)
 
 	// Configure Allow policy
 	pd := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
-	st := pd.GetOrCreateStatement("id-1")
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -69,7 +76,11 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	// Configure SetASPATH routing policy on DUT.
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setASpathPrependPolicy)
-	actions5 := pdef5.GetOrCreateStatement(aclStatement2).GetOrCreateActions()
+	stmt, err := pdef5.AppendNewStatement(aclStatement2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions5 := stmt.GetOrCreateActions()
 	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	aspend := actions5.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
 	aspend.Asn = ygot.Uint32(setup.DUTAs)
@@ -77,7 +88,11 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 
 	// Configure Allow policy
 	pdef := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
-	pdef.GetOrCreateStatement("id-1").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	stmt, err = pdef.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
@@ -176,9 +191,16 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			}).Await(t)
 
 			singlepath := []uint32{setup.DUTAs, setup.DUTAs, setup.DUTAs, setup.DUTAs, setup.ATEAs2}
-			_, ok := gnmi.WatchAll(t, ate, rib.AttrSetAny().AsSegmentAny().State(), 5*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet_AsSegment]) bool {
+			_, ok := gnmi.WatchAll(t, ate, rib.AttrSetAny().AsSegmentMap().State(), 5*time.Minute, func(v *ygnmi.Value[map[uint32]*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet_AsSegment]) bool {
 				val, present := v.Val()
-				return present && cmp.Diff(val.Member, singlepath) == ""
+				if present {
+					for _, as := range val {
+						if cmp.Equal(as.Member, singlepath) {
+							return true
+						}
+					}
+				}
+				return false
 			}).Await(t)
 			if !ok {
 				t.Errorf("Obtained AS path on ATE is not as expected")
