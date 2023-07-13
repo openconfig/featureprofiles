@@ -184,21 +184,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-// Waits for an ARP entry to be present for ATE Port1
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-}
-
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcEndPoint, dstEndPoint attrs.Attributes) {
 	otg := ate.OTG()
 	gwIp := gatewayMap[srcEndPoint].IPv4
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, otg, top, "IPv4")
 	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(srcEndPoint.Name+".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().State())
 	top.Flows().Clear().Items()
 	flowipv4 := top.Flows().Add().SetName("Flow")
