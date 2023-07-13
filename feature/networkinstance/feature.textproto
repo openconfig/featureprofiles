@@ -17,15 +17,28 @@ id {
   version: 1
 }
 
-# Type
+# Network Instance config
+config_path {
+  path: "/network-instances/network-instance/name"
+}
+config_path {
+    path: "/network-instances/network-instance/config/name"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/state/name"
+}
+config_path {
+    path: "/network-instances/network-instance/config/type"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/state/type"
+}
 config_path {
   path: "/network-instances/network-instance/config/type"
 }
 telemetry_path {
   path: "/network-instances/network-instance/state/type"
 }
-
-# Description
 config_path {
   path: "/network-instances/network-instance/config/description"
 }
@@ -39,4 +52,7 @@ config_path {
 }
 telemetry_path {
   path: "/network-instances/network-instance/interfaces/interface/state/id"
+}
+config_path {
+  path: "/network-instances/network-instance/interfaces/interface/id"
 }
