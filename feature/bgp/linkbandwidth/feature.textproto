@@ -41,9 +41,6 @@ telemetry_path {
   path: "/routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/match-set-options"
 }
 
-#Apply list containing link bandwidth community to peer group or neighbor
-
-
 
 
 feature_profile_dependency {
