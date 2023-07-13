@@ -26,6 +26,7 @@ platform_exceptions: {
   }
   deviations: {
     explicit_interface_ref_definition: true
+    scheduler_input_weight_limit: true
   }
 }
 platform_exceptions: {

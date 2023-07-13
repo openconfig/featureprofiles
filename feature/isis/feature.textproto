@@ -136,6 +136,9 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/circuit-type"
 }
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-changes"
+}
 
 # Interfaces circuit-counters
 telemetry_path {
@@ -386,6 +389,9 @@ telemetry_path {
 }
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/system-id"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/up-timestamp"
 }
 
 
