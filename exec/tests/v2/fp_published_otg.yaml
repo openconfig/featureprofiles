@@ -214,6 +214,11 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
+  - name: RT-5.4 (Aggregate Forwarding Viable)
+    path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
+    owners:
+      - agvarghe
+    mustpass: true
   - name: RT-6.1 (Core LLDP TLV Population)
     path: feature/lldp/otg_tests/core_lldp_tlv_population_test
     owners:
