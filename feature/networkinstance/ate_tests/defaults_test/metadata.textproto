@@ -20,6 +20,7 @@ platform_exceptions: {
   deviations: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -29,5 +30,6 @@ platform_exceptions: {
   deviations: {
     omit_l2_mtu: true
     interface_config_vrf_before_address: true
+    interface_enabled: true
   }
 }

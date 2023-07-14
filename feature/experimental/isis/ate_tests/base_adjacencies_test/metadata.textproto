@@ -18,6 +18,7 @@ platform_exceptions: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     missing_value_for_defaults: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -40,5 +41,6 @@ platform_exceptions: {
   deviations: {
     omit_l2_mtu: true
     missing_value_for_defaults: true
+    interface_enabled: true
   }
 }
