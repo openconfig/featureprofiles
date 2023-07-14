@@ -24,11 +24,3 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
-platform_exceptions: {
-  platform: {
-    vendor: ARISTA
-  }
-  deviations: {
-    interface_enabled: true
-  }
-}

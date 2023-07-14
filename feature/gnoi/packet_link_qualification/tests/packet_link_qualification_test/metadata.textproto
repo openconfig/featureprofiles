@@ -30,11 +30,3 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
-platform_exceptions: {
-  platform: {
-    vendor: NOKIA
-  }
-  deviations: {
-    interface_enabled: true
-  }
-}
