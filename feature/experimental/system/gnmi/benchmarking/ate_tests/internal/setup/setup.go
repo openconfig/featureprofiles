@@ -155,6 +155,9 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	isis := prot.GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
+	if !deviations.ISISInstanceEnabledNotRequired(dut) {
+		globalISIS.Instance = ygot.String(ISISInstance)
+	}
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	if !deviations.ISISGlobalAuthenticationNotRequired(dut) {
 		globalISIS.AuthenticationCheck = ygot.Bool(true)
@@ -165,6 +168,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	lspBit.SetBit = ygot.Bool(false)
 	isisTimers := globalISIS.GetOrCreateTimers()
 	isisTimers.LspLifetimeInterval = ygot.Uint16(600)
+	isisTimers.LspRefreshInterval = ygot.Uint16(100)
 	spfTimers := isisTimers.GetOrCreateSpf()
 	spfTimers.SpfHoldInterval = ygot.Uint64(5000)
 	spfTimers.SpfFirstInterval = ygot.Uint64(600)
@@ -225,14 +229,13 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		isisIntf.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 
-		isisIntfAuth := isisIntf.GetOrCreateAuthentication()
-		isisIntfAuth.Enabled = ygot.Bool(true)
-		isisIntfAuth.AuthPassword = ygot.String(authPassword)
-		isisIntfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-		isisIntfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
+		isisIntfLevelAuth := isisIntfLevel.GetOrCreateHelloAuthentication()
+		isisIntfLevelAuth.Enabled = ygot.Bool(true)
+		isisIntfLevelAuth.AuthPassword = ygot.String(authPassword)
+		isisIntfLevelAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+		isisIntfLevelAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 
 		isisIntfLevelTimers := isisIntfLevel.GetOrCreateTimers()
 		isisIntfLevelTimers.HelloInterval = ygot.Uint32(1)
@@ -244,8 +247,6 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		// Configure ISIS AfiSafi enable flag at the global level
 		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
 			isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-		} else {
-			isisIntfLevelAfi.Enabled = ygot.Bool(true)
 		}
 	}
 	p := gnmi.OC()
