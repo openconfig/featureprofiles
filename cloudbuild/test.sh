@@ -15,21 +15,28 @@
 
 set -xe
 
+nohup /tmp/featureprofiles/cloudbuild/cleanup.sh 2>/dev/null &
+
 case $1 in
   arista_ceos)
-    topology=arista_ceos.textproto
+    topology=arista/ceos/dutate.textproto
+    vendor_creds=ARISTA/admin/admin
     ;;
   juniper_cptx)
-    topology=juniper_cptx.textproto
+    topology=juniper/cptx/dutate.textproto
+    vendor_creds=JUNIPER/root/Google123
     ;;
   cisco_8000e)
-    topology=cisco_8000e.textproto
+    topology=cisco/8000e/dutate.textproto
+    vendor_creds=CISCO/cisco/cisco123
     ;;
   cisco_xrd)
-    topology=cisco_xrd.textproto
+    topology=cisco/xrd/dutate.textproto
+    vendor_creds=CISCO/cisco/cisco123
     ;;
   nokia_srlinux)
-    topology=nokia_srlinux.textproto
+    topology=nokia/srlinux/dutate.textproto
+    vendor_creds=NOKIA/admin/NokiaSrl1!
     ;;
   :)
     echo "Model $1 not valid"
@@ -41,7 +48,7 @@ export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-pushd /tmp/workspace
+pushd /tmp/featureprofiles
 
 cp -r "$PWD"/topologies/kne /tmp
 sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/kne/"$topology"
@@ -53,12 +60,9 @@ sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia
 kne create /tmp/kne/"$topology"
 
 go test -v ./feature/system/tests/... \
-  -testbed "$PWD"/topologies/dut.testbed \
+  -timeout 0 \
   -kne-topo /tmp/kne/"$topology" \
-  -kne-skip-reset \
-  -vendor_creds ARISTA/admin/admin \
-  -vendor_creds JUNIPER/root/Google123 \
-  -vendor_creds CISCO/cisco/cisco123 \
-  -vendor_creds NOKIA/admin/NokiaSrl1!
+  -vendor_creds "$vendor_creds" \
+  -alsologtostderr
 
 popd

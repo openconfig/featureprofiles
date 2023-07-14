@@ -9,7 +9,7 @@ syntax = "proto3";
 
 package ycov;
 
-import "metadata.proto";
+import "ycov_metadata.proto";
 
 // The current semantic version of the YangCoverage service.
 option go_package = ".;ycov";

@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -159,45 +160,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 	intf3.AddToOTG(top, ap3, &dutPort3)
 
 	var tolerance float32 = 2.0
-
-	queueMap := map[ondatra.Vendor]map[string]string{
-		ondatra.ARISTA: {
-			"NC1": "NC1",
-			"AF4": "AF4",
-			"AF3": "AF3",
-			"AF2": "AF2",
-			"AF1": "AF1",
-			"BE1": "BE1",
-			"BE0": "BE0",
-		},
-		ondatra.CISCO: {
-			"NC1": "a_NC1",
-			"AF4": "b_AF4",
-			"AF3": "c_AF3",
-			"AF2": "d_AF2",
-			"AF1": "e_AF1",
-			"BE0": "f_BE0",
-			"BE1": "g_BE1",
-		},
-		ondatra.JUNIPER: {
-			"NC1": "3",
-			"AF4": "2",
-			"AF3": "5",
-			"AF2": "1",
-			"AF1": "4",
-			"BE1": "0",
-			"BE0": "6",
-		},
-		ondatra.NOKIA: {
-			"NC1": "7",
-			"AF4": "4",
-			"AF3": "3",
-			"AF2": "2",
-			"AF1": "0",
-			"BE1": "1",
-			"BE0": "1",
-		},
-	}
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	// Test case 1: Non-oversubscription NC1 and AF4 traffic.
 	//   - There should be no packet drop for all traffic classes.
@@ -207,7 +170,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-af4": {
@@ -215,7 +178,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           45.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -223,7 +186,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-af4": {
@@ -231,7 +194,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           54.1,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 	}
@@ -244,7 +207,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-af3": {
@@ -252,7 +215,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           45.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  24,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -260,7 +223,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-af3": {
@@ -268,7 +231,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           54.1,
 			dscp:                  24,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf2,
 		},
 	}
@@ -281,7 +244,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-af2": {
@@ -289,7 +252,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           45.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -297,7 +260,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-af2": {
@@ -305,7 +268,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           54.1,
 			dscp:                  16,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf2,
 		},
 	}
@@ -318,7 +281,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-af1": {
@@ -326,7 +289,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           45.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -334,7 +297,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-af1": {
@@ -342,7 +305,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           54.1,
 			dscp:                  8,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf2,
 		},
 	}
@@ -355,7 +318,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
@@ -363,7 +326,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           45.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  4,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -371,7 +334,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
@@ -379,7 +342,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           54.1,
 			dscp:                  4,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf2,
 		},
 	}
@@ -392,7 +355,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-be1": {
@@ -400,7 +363,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           45.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -408,7 +371,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-be1": {
@@ -416,7 +379,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           54.1,
 			dscp:                  0,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf2,
 		},
 	}
@@ -429,7 +392,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-af3": {
@@ -437,7 +400,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 0.0,
 			dscp:                  24,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf1,
 		},
 		"intf2-af4": {
@@ -445,7 +408,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-af3": {
@@ -453,7 +416,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  24,
 			expectedThroughputPct: 0.0,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf2,
 		},
 	}
@@ -466,7 +429,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-af2": {
@@ -474,7 +437,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 0.0,
 			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf1,
 		},
 		"intf2-af4": {
@@ -482,7 +445,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-af2": {
@@ -490,7 +453,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  16,
 			expectedThroughputPct: 0.0,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf2,
 		},
 	}
@@ -503,7 +466,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-af1": {
@@ -511,7 +474,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 0.0,
 			dscp:                  8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf1,
 		},
 		"intf2-af4": {
@@ -519,7 +482,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-af1": {
@@ -527,7 +490,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  8,
 			expectedThroughputPct: 0.0,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf2,
 		},
 	}
@@ -540,7 +503,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
@@ -548,7 +511,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 0.0,
 			dscp:                  4,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf1,
 		},
 		"intf2-af4": {
@@ -556,7 +519,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
@@ -564,7 +527,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  4,
 			expectedThroughputPct: 0.0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf2,
 		},
 	}
@@ -577,7 +540,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-be1": {
@@ -585,7 +548,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 0.0,
 			dscp:                  0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf1,
 		},
 		"intf2-af4": {
@@ -593,7 +556,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-be1": {
@@ -601,7 +564,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  0,
 			expectedThroughputPct: 0.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf2,
 		},
 	}
@@ -614,7 +577,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-af4": {
@@ -622,7 +585,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.9,
 			expectedThroughputPct: 49.8,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -630,7 +593,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-af4": {
@@ -638,7 +601,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.3,
 			dscp:                  32,
 			expectedThroughputPct: 49.8,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 	}
@@ -651,7 +614,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-af3": {
@@ -659,7 +622,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.9,
 			expectedThroughputPct: 49.8,
 			dscp:                  24,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -667,7 +630,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-af3": {
@@ -675,7 +638,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.3,
 			dscp:                  24,
 			expectedThroughputPct: 49.8,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf2,
 		},
 	}
@@ -688,7 +651,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-af2": {
@@ -696,7 +659,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.9,
 			expectedThroughputPct: 49.8,
 			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -704,7 +667,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-af2": {
@@ -712,7 +675,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.3,
 			dscp:                  16,
 			expectedThroughputPct: 49.8,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf2,
 		},
 	}
@@ -725,7 +688,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-af1": {
@@ -733,7 +696,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.9,
 			expectedThroughputPct: 49.8,
 			dscp:                  8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -741,7 +704,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-af1": {
@@ -749,7 +712,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.3,
 			dscp:                  8,
 			expectedThroughputPct: 49.8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf2,
 		},
 	}
@@ -762,7 +725,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
@@ -770,7 +733,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.9,
 			expectedThroughputPct: 49.8,
 			dscp:                  4,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -778,7 +741,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
@@ -786,7 +749,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.3,
 			dscp:                  4,
 			expectedThroughputPct: 49.8,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf2,
 		},
 	}
@@ -799,7 +762,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.1,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-be1": {
@@ -807,7 +770,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.9,
 			expectedThroughputPct: 49.8,
 			dscp:                  0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -815,7 +778,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           0.7,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf2,
 		},
 		"intf2-be1": {
@@ -823,7 +786,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           99.3,
 			dscp:                  0,
 			expectedThroughputPct: 49.8,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf2,
 		},
 	}
@@ -836,7 +799,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           20,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-af3": {
@@ -844,7 +807,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 50.0,
 			dscp:                  24,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf1,
 		},
 		"intf2-af4": {
@@ -852,7 +815,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           30,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-af3": {
@@ -860,7 +823,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  24,
 			expectedThroughputPct: 50.0,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf2,
 		},
 	}
@@ -873,7 +836,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           20,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-af2": {
@@ -881,7 +844,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 50.0,
 			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf1,
 		},
 		"intf2-af4": {
@@ -889,7 +852,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           30,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-af2": {
@@ -897,7 +860,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  16,
 			expectedThroughputPct: 50.0,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf2,
 		},
 	}
@@ -910,7 +873,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           20,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-af1": {
@@ -918,7 +881,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 50.0,
 			dscp:                  8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf1,
 		},
 		"intf2-af4": {
@@ -926,7 +889,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           30,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-af1": {
@@ -934,7 +897,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  8,
 			expectedThroughputPct: 50.0,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf2,
 		},
 	}
@@ -947,7 +910,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           20,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
@@ -955,7 +918,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 50.0,
 			dscp:                  4,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf1,
 		},
 		"intf2-af4": {
@@ -963,7 +926,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           30,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
@@ -971,7 +934,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  4,
 			expectedThroughputPct: 50.0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf2,
 		},
 	}
@@ -984,7 +947,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           20,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-be1": {
@@ -992,7 +955,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			expectedThroughputPct: 50.0,
 			dscp:                  0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf1,
 		},
 		"intf2-af4": {
@@ -1000,7 +963,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           30,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-be1": {
@@ -1008,7 +971,7 @@ func TestTwoSPQueueTraffic(t *testing.T) {
 			trafficRate:           50,
 			dscp:                  0,
 			expectedThroughputPct: 50.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf2,
 		},
 	}
@@ -1221,7 +1184,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			s.Enabled = ygot.Bool(true)
 		}
 		a := s.GetOrCreateAddress(intf.ipAddr)
@@ -1237,6 +1200,8 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
+	queues := netutil.CommonTrafficQueues(t, dut)
+
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
 		desc        string
@@ -1244,31 +1209,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   "BE1",
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   "BE0",
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   "AF1",
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   "AF2",
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   "AF3",
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   "AF4",
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   "NC1",
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1444,6 +1409,10 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range classifierIntfs {
 		i := q.GetOrCreateInterface(tc.intf)
 		i.SetInterfaceId(tc.intf)
+		if deviations.ExplicitInterfaceRefDefinition(dut) {
+			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
+			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		}
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
 		c.SetType(tc.inputClassifierType)
 		c.SetName(tc.classifier)
@@ -1467,7 +1436,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   "BE1",
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -1476,7 +1445,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
-		queueName:   "BE0",
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -1485,7 +1454,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(8),
-		queueName:   "AF1",
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -1494,7 +1463,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(16),
-		queueName:   "AF2",
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -1503,7 +1472,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(32),
-		queueName:   "AF3",
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -1512,7 +1481,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(100),
-		queueName:   "AF4",
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -1521,7 +1490,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(200),
-		queueName:   "NC1",
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1547,31 +1516,31 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		scheduler string
 	}{{
 		desc:      "output-interface-BE1",
-		queueName: "BE1",
+		queueName: queues.BE1,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-BE0",
-		queueName: "BE0",
+		queueName: queues.BE0,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF1",
-		queueName: "AF1",
+		queueName: queues.AF1,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF2",
-		queueName: "AF2",
+		queueName: queues.AF2,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF3",
-		queueName: "AF3",
+		queueName: queues.AF3,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF4",
-		queueName: "AF4",
+		queueName: queues.AF4,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-NC1",
-		queueName: "NC1",
+		queueName: queues.NC1,
 		scheduler: "scheduler",
 	}}
 
@@ -1579,6 +1548,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
+		if deviations.ExplicitInterfaceRefDefinition(dut) {
+			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
@@ -1603,114 +1575,159 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 		dscpSet     []uint8
 	}{{
-		desc:        "classifier_ipv4_nc1",
-		name:        "dscp_based_classifier",
+		desc:        "classifier_ipv4_be1",
+		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "a_NC1",
-		targetGroup: "a_NC1",
-		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
-	}, {
-		desc:        "classifier_ipv4_af4",
-		name:        "dscp_based_classifier",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "b_AF4",
-		targetGroup: "b_AF4",
-		dscpSet:     []uint8{32, 33, 34, 35},
-	}, {
-		desc:        "classifier_ipv4_af3",
-		name:        "dscp_based_classifier",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "c_AF3",
-		targetGroup: "c_AF3",
-		dscpSet:     []uint8{24, 25, 26, 27},
-	}, {
-		desc:        "classifier_ipv4_af2",
-		name:        "dscp_based_classifier",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "d_AF2",
-		targetGroup: "d_AF2",
-		dscpSet:     []uint8{16, 17, 18, 19},
-	}, {
-		desc:        "classifier_ipv4_af1",
-		name:        "dscp_based_classifier",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "e_AF1",
-		targetGroup: "e_AF1",
-		dscpSet:     []uint8{8, 9, 10, 11},
+		termID:      "0",
+		targetGroup: "target-group-BE1",
+		dscpSet:     []uint8{0, 1, 2, 3},
 	}, {
 		desc:        "classifier_ipv4_be0",
-		name:        "dscp_based_classifier",
+		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "f_BE0",
-		targetGroup: "f_BE0",
+		termID:      "1",
+		targetGroup: "target-group-BE0",
 		dscpSet:     []uint8{4, 5, 6, 7},
 	}, {
-		desc:        "classifier_ipv4_be1",
-		name:        "dscp_based_classifier",
+		desc:        "classifier_ipv4_af1",
+		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "g_BE1",
-		targetGroup: "g_BE1",
-		dscpSet:     []uint8{0, 1, 2, 3},
-	}, {
-		desc:        "classifier_ipv6_nc1",
-		name:        "dscp_based_classifier",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "a_NC1_ipv6",
-		targetGroup: "a_NC1",
-		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
-	}, {
-		desc:        "classifier_ipv6_af4",
-		name:        "dscp_based_classifier",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "b_AF4_ipv6",
-		targetGroup: "b_AF4",
-		dscpSet:     []uint8{32, 33, 34, 35},
-	}, {
-		desc:        "classifier_ipv6_af3",
-		name:        "dscp_based_classifier",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "c_AF3_ipv6",
-		targetGroup: "c_AF3",
-		dscpSet:     []uint8{24, 25, 26, 27},
-	}, {
-		desc:        "classifier_ipv6_af2",
-		name:        "dscp_based_classifier",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "d_AF2_ipv6",
-		targetGroup: "d_AF2",
-		dscpSet:     []uint8{16, 17, 18, 19},
-	}, {
-		desc:        "classifier_ipv6_af1",
-		name:        "dscp_based_classifier",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "e_AF1_ipv6",
-		targetGroup: "e_AF1",
+		termID:      "2",
+		targetGroup: "target-group-AF1",
 		dscpSet:     []uint8{8, 9, 10, 11},
 	}, {
-		desc:        "classifier_ipv6_be0",
-		name:        "dscp_based_classifier",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "f_BE0_ipv6",
-		targetGroup: "f_BE0",
-		dscpSet:     []uint8{4, 5, 6, 7},
+		desc:        "classifier_ipv4_af2",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "3",
+		targetGroup: "target-group-AF2",
+		dscpSet:     []uint8{16, 17, 18, 19},
+	}, {
+		desc:        "classifier_ipv4_af3",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "4",
+		targetGroup: "target-group-AF3",
+		dscpSet:     []uint8{24, 25, 26, 27},
+	}, {
+		desc:        "classifier_ipv4_af4",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "5",
+		targetGroup: "target-group-AF4",
+		dscpSet:     []uint8{32, 33, 34, 35},
+	}, {
+		desc:        "classifier_ipv4_nc1",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "6",
+		targetGroup: "target-group-NC1",
+		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}, {
 		desc:        "classifier_ipv6_be1",
-		name:        "dscp_based_classifier",
+		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "g_BE1_ipv6",
-		targetGroup: "g_BE1",
+		termID:      "0",
+		targetGroup: "target-group-BE1",
 		dscpSet:     []uint8{0, 1, 2, 3},
+	}, {
+		desc:        "classifier_ipv6_be0",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "1",
+		targetGroup: "target-group-BE0",
+		dscpSet:     []uint8{4, 5, 6, 7},
+	}, {
+		desc:        "classifier_ipv6_af1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "2",
+		targetGroup: "target-group-AF1",
+		dscpSet:     []uint8{8, 9, 10, 11},
+	}, {
+		desc:        "classifier_ipv6_af2",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "3",
+		targetGroup: "target-group-AF2",
+		dscpSet:     []uint8{16, 17, 18, 19},
+	}, {
+		desc:        "classifier_ipv6_af3",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "4",
+		targetGroup: "target-group-AF3",
+		dscpSet:     []uint8{24, 25, 26, 27},
+	}, {
+		desc:        "classifier_ipv6_af4",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "5",
+		targetGroup: "target-group-AF4",
+		dscpSet:     []uint8{32, 33, 34, 35},
+	}, {
+		desc:        "classifier_ipv6_nc1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "6",
+		targetGroup: "target-group-NC1",
+		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}}
 
 	t.Logf("qos Classifiers config: %v", classifiers)
-	queueName := []string{"a_NC1", "b_AF4", "c_AF3", "d_AF2", "e_AF1", "f_BE0", "g_BE1"}
-
-	for _, queue := range queueName {
+	queueName := []string{"NC1", "AF4", "AF3", "AF2", "AF1", "BE0", "BE1"}
+	for i, queue := range queueName {
 		q1 := q.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queueName) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	casesfwdgrp := []struct {
+		desc        string
+		queueName   string
+		targetGroup string
+	}{{
+		desc:        "forwarding-group-BE1",
+		queueName:   "BE1",
+		targetGroup: "target-group-BE1",
+	}, {
+		desc:        "forwarding-group-BE0",
+		queueName:   "BE0",
+		targetGroup: "target-group-BE0",
+	}, {
+		desc:        "forwarding-group-AF1",
+		queueName:   "AF1",
+		targetGroup: "target-group-AF1",
+	}, {
+		desc:        "forwarding-group-AF2",
+		queueName:   "AF2",
+		targetGroup: "target-group-AF2",
+	}, {
+		desc:        "forwarding-group-AF3",
+		queueName:   "AF3",
+		targetGroup: "target-group-AF3",
+	}, {
+		desc:        "forwarding-group-AF4",
+		queueName:   "AF4",
+		targetGroup: "target-group-AF4",
+	}, {
+		desc:        "forwarding-group-NC1",
+		queueName:   "NC1",
+		targetGroup: "target-group-NC1",
+	}}
+	t.Logf("qos forwarding groups config cases: %v", casesfwdgrp)
+	for _, tc := range casesfwdgrp {
+		t.Run(tc.desc, func(t *testing.T) {
+			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
+			fwdGroup.SetName(tc.targetGroup)
+			fwdGroup.SetOutputQueue(tc.queueName)
+			queue := q.GetOrCreateQueue(tc.queueName)
+			queue.SetName(tc.queueName)
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		})
+	}
 	for _, tc := range classifiers {
 		classifier := q.GetOrCreateClassifier(tc.name)
 		classifier.SetName(tc.name)
@@ -1729,9 +1746,6 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		} else if tc.classType == oc.Qos_Classifier_Type_IPV6 {
 			condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
 		}
-		fwdgroups := q.GetOrCreateForwardingGroup(tc.targetGroup)
-		fwdgroups.Name = ygot.String(tc.targetGroup)
-		fwdgroups.OutputQueue = ygot.String(tc.targetGroup)
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
@@ -1745,24 +1759,32 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		desc:                "Input Classifier Type IPV4",
 		intf:                dp1.Name(),
 		inputClassifierType: oc.Input_Classifier_Type_IPV4,
-		classifier:          "dscp_based_classifier",
+		classifier:          "dscp_based_classifier_ipv4",
+	}, {
+		desc:                "Input Classifier Type IPV6",
+		intf:                dp1.Name(),
+		inputClassifierType: oc.Input_Classifier_Type_IPV6,
+		classifier:          "dscp_based_classifier_ipv6",
 	}, {
 		desc:                "Input Classifier Type IPV4",
 		intf:                dp2.Name(),
 		inputClassifierType: oc.Input_Classifier_Type_IPV4,
-		classifier:          "dscp_based_classifier",
+		classifier:          "dscp_based_classifier_ipv4",
+	}, {
+		desc:                "Input Classifier Type IPV6",
+		intf:                dp2.Name(),
+		inputClassifierType: oc.Input_Classifier_Type_IPV6,
+		classifier:          "dscp_based_classifier_ipv6",
 	}}
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
 
 		i := q.GetOrCreateInterface(tc.intf)
-		i.InterfaceId = ygot.String(tc.intf)
-		c := i.GetOrCreateInput()
-		c.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV4).Name = ygot.String(tc.classifier)
-		c.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV6).Name = ygot.String(tc.classifier)
-		c.GetOrCreateClassifier(oc.Input_Classifier_Type_MPLS).Name = ygot.String(tc.classifier)
-
+		i.SetInterfaceId(tc.intf)
+		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
+		c.SetType(tc.inputClassifierType)
+		c.SetName(tc.classifier)
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
@@ -1778,66 +1800,66 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGrpoup string
 	}{{
 		desc:         "scheduler-policy-BE1",
-		sequence:     uint32(6),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "g_BE1",
+		inputID:      "BE1",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(1),
-		queueName:    "g_BE1",
+		queueName:    "BE1",
 		targetGrpoup: "target-group-BE1",
 	}, {
 		desc:         "scheduler-policy-BE0",
-		sequence:     uint32(5),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "f_BE0",
+		inputID:      "BE0",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(4),
-		queueName:    "f_BE0",
+		queueName:    "BE0",
 		targetGrpoup: "target-group-BE0",
 	}, {
 		desc:         "scheduler-policy-AF1",
-		sequence:     uint32(4),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "e_AF1",
+		inputID:      "AF1",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(8),
-		queueName:    "e_AF1",
+		queueName:    "AF1",
 		targetGrpoup: "target-group-AF1",
 	}, {
 		desc:         "scheduler-policy-AF2",
-		sequence:     uint32(3),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "d_AF2",
+		inputID:      "AF2",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(16),
-		queueName:    "d_AF2",
+		queueName:    "AF2",
 		targetGrpoup: "target-group-AF2",
 	}, {
 		desc:         "scheduler-policy-AF3",
-		sequence:     uint32(2),
+		sequence:     uint32(1),
 		priority:     oc.Scheduler_Priority_UNSET,
-		inputID:      "c_AF3",
+		inputID:      "AF3",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(32),
-		queueName:    "c_AF3",
+		queueName:    "AF3",
 		targetGrpoup: "target-group-AF3",
 	}, {
 		desc:         "scheduler-policy-AF4",
-		sequence:     uint32(1),
+		sequence:     uint32(0),
 		priority:     oc.Scheduler_Priority_STRICT,
-		inputID:      "b_AF4",
+		inputID:      "AF4",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(6),
-		queueName:    "b_AF4",
+		queueName:    "AF4",
 		targetGrpoup: "target-group-AF4",
 	}, {
 		desc:         "scheduler-policy-NC1",
 		sequence:     uint32(0),
 		priority:     oc.Scheduler_Priority_STRICT,
-		inputID:      "a_NC1",
+		inputID:      "NC1",
 		inputType:    oc.Input_InputType_QUEUE,
 		weight:       uint64(7),
-		queueName:    "a_NC1",
+		queueName:    "NC1",
 		targetGrpoup: "target-group-NC1",
 	}}
 	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
@@ -1849,7 +1871,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		s.SetPriority(tc.priority)
 		input := s.GetOrCreateInput(tc.inputID)
 		input.SetId(tc.inputID)
-		//input.SetInputType(tc.inputType)
+		input.SetInputType(tc.inputType)
 		input.SetQueue(tc.queueName)
 		input.SetWeight(tc.weight)
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
@@ -1862,32 +1884,32 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		queueName string
 		scheduler string
 	}{{
-		desc:      "output-interface-BE1",
-		queueName: "g_BE1",
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-BE0",
-		queueName: "f_BE0",
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF1",
-		queueName: "e_AF1",
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF2",
-		queueName: "d_AF2",
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF3",
-		queueName: "c_AF3",
+		desc:      "output-interface-NC1",
+		queueName: "NC1",
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF4",
-		queueName: "b_AF4",
+		queueName: "AF4",
 		scheduler: "scheduler",
 	}, {
-		desc:      "output-interface-NC1",
-		queueName: "a_NC1",
+		desc:      "output-interface-AF3",
+		queueName: "AF3",
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF2",
+		queueName: "AF2",
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF1",
+		queueName: "AF1",
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-BE0",
+		queueName: "BE0",
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-BE1",
+		queueName: "BE1",
 		scheduler: "scheduler",
 	}}
 

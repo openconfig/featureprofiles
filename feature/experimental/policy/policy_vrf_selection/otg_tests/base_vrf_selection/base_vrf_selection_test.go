@@ -35,21 +35,25 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	trafficDuration   = 1 * time.Minute
-	sleepOnChange     = 10 * time.Second
-	plen4             = 30
-	plen6             = 126
-	vlan10            = 10
-	vlan20            = 20
-	ipipProtocol      = 4
-	ipv6ipProtocol    = 41
-	ipv4Address       = "198.18.0.1/32"
-	ateDestIPv4VLAN10 = "203.0.113.0/30"
-	ateDestIPv4VLAN20 = "203.0.113.4/30"
-	ateDestIPv6       = "2001:DB8:2::/64"
-	defaultNHv4       = "192.0.2.10"
-	defaultNHv6       = "2001:db8::a"
-	vrfNH             = "192.0.2.6"
+	trafficDuration           = 1 * time.Minute
+	sleepOnChange             = 10 * time.Second
+	plen4                     = 30
+	plen6                     = 126
+	vlan10                    = 10
+	vlan20                    = 20
+	ipipProtocol              = 4
+	ipv6ipProtocol            = 41
+	srcIpv4Address            = "198.18.0.1"
+	prefixedSrcIpv4Address    = "198.18.0.1/32"
+	nonMatchingIpv4Address    = "198.51.100.1"
+	ateDestIPv4VLAN10         = "203.0.113.0"
+	prefixedAteDestIPv4VLAN10 = "203.0.113.0/30"
+	ateDestIPv4VLAN20         = "203.0.113.4"
+	prefixedAteDestIPv4VLAN20 = "203.0.113.4/30"
+	ateDestIPv6               = "2001:DB8:2::/64"
+	defaultNHv4               = "192.0.2.10"
+	defaultNHv6               = "2001:db8::a"
+	vrfNH                     = "192.0.2.6"
 )
 
 var (
@@ -113,7 +117,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, 10, vlan10, dut))
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst2, 20, vlan20, dut))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
@@ -123,18 +127,21 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	niConfPath := gnmi.OC().NetworkInstance("VRF-10")
 	niConf := configNetworkInstance("VRF-10", i2, 10)
 	gnmi.Replace(t, dut, niConfPath.Config(), niConf)
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), i2)
+	}
 
 	// Configure default NI and forwarding policy
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
-	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), *deviations.DefaultNetworkInstance, 20)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 20)
 	}
 
-	policyDutConf := configForwardingPolicy()
+	policyDutConf := configForwardingPolicy(dut)
 	gnmi.Replace(t, dut, dutConfPath.PolicyForwarding().Config(), policyDutConf)
 
 }
@@ -142,8 +149,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint32, vlan uint16, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(me.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
+	}
+	if deviations.RequireRoutedSubinterface0(dut) {
+		s0 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+		s0.Enabled = ygot.Bool(true)
 	}
 
 	// Create subinterface.
@@ -160,7 +171,7 @@ func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint
 	}
 	// Add IPv4 stack.
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a := s4.GetOrCreateAddress(me.IPv4)
@@ -168,7 +179,7 @@ func configInterfaceDUT(i *oc.Interface, me *attrs.Attributes, subIntfIndex uint
 
 	// Add IPv6 stack.
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
 	s6.GetOrCreateAddress(me.IPv6).PrefixLength = ygot.Uint8(plen6)
@@ -192,32 +203,32 @@ func configNetworkInstance(name string, intf *oc.Interface, id uint32) *oc.Netwo
 // configDefaultRoute configures a static route in DEFAULT network-instance.
 func configDefaultRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop, v6Prefix, v6NextHop string) {
 	t.Logf("*** Configuring static route in DEFAULT network-instance ...")
-	ni := oc.NetworkInstance{Name: deviations.DefaultNetworkInstance}
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	sr := static.GetOrCreateStatic(v4Prefix)
 	nh := sr.GetOrCreateNextHop("0")
 	nh.NextHop = oc.UnionString(v4NextHop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 	sr = static.GetOrCreateStatic(v6Prefix)
 	nh = sr.GetOrCreateNextHop("0")
 	nh.NextHop = oc.UnionString(v6NextHop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
 // configVRFRoute configures a static route in VRF.
 func configVRFRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop string) {
 	t.Logf("*** Configuring static route in VRF-10 network-instance ...")
 	ni := oc.NetworkInstance{Name: ygot.String("VRF-10")}
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	sr := static.GetOrCreateStatic(v4Prefix)
 	nh := sr.GetOrCreateNextHop("0")
 	nh.NextHop = oc.UnionString(v4NextHop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance("VRF-10").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance("VRF-10").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
-func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
+func configForwardingPolicy(dut *ondatra.DUTDevice) *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
-	ni := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance)
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	// Match policy.
 	policyFwding := ni.GetOrCreatePolicyForwarding()
 
@@ -229,7 +240,7 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	fwdPolicy2 := policyFwding.GetOrCreatePolicy("match-ipip-src")
 	fwdPolicy2.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipipProtocol)
-	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
+	fwdPolicy2.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(prefixedSrcIpv4Address)
 	fwdPolicy2.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("VRF-10")
 
 	fwdPolicy3 := policyFwding.GetOrCreatePolicy("match-ipv6inipv4")
@@ -240,7 +251,7 @@ func configForwardingPolicy() *oc.NetworkInstance_PolicyForwarding {
 	fwdPolicy4 := policyFwding.GetOrCreatePolicy("match-ipv6inipv4-src")
 	fwdPolicy4.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipv6ipProtocol)
-	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(ipv4Address)
+	fwdPolicy4.GetOrCreateRule(1).GetOrCreateIpv4().SourceAddress = ygot.String(prefixedSrcIpv4Address)
 	fwdPolicy4.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String("VRF-10")
 
 	return policyFwding
@@ -252,17 +263,19 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfpath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
+	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
 	gnmi.Delete(t, dut, pfpath.Config())
 
-	intf := d.GetOrCreateNetworkInstance(*deviations.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
-	if *deviations.ExplicitInterfaceRefDefinition {
-		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-		intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+		intf.InterfaceRef = nil
 	}
+
 	// Configure default NI and forwarding policy.
-	intfConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).PolicyForwarding().Interface(ingressPort)
+	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
 	gnmi.Replace(t, dut, intfConfPath.Config(), intf)
 
 	// Restart Protocols after policy change
@@ -313,33 +326,42 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	// Create traffic flows
 	t.Logf("*** Configuring OTG flows ...")
 	topo.Flows().Clear().Items()
-	ipInIPFlow1 := createFlow("ipInIPFlow1", topo, ateDst, "IPv4")
-	ipInIPFlow2 := createFlow("ipInIPFlow2", topo, ateDst2, "IPv4")
-	ipInIPFlow3 := createFlow("ipInIPFlow3", topo, ateDst, "IPv4")
-	ipInIPFlow4 := createFlow("ipInIPFlow4", topo, ateDst2, "IPv4")
-	ipv6InIPFlow5 := createFlow("ipv6InIPFlow5", topo, ateDst, "IPv6")
-	ipv6InIPFlow6 := createFlow("ipv6InIPFlow6", topo, ateDst2, "IPv6")
-	ipv6InIPFlow7 := createFlow("ipv6InIPFlow7", topo, ateDst, "IPv6")
-	ipv6InIPFlow8 := createFlow("ipv6InIPFlow8", topo, ateDst2, "IPv6")
-	nativeIPv4 := createFlow("nativeIPv4", topo, ateDst2, "")
-	nativeIPv6 := createFlow("nativeIPv6", topo, ateDst2, "")
+	ipInIPFlow1 := createIPv4Flow("ipInIPFlow1", topo, ateDst, nonMatchingIpv4Address, ateDestIPv4VLAN10, "IPv4")
+	ipInIPFlow2 := createIPv4Flow("ipInIPFlow2", topo, ateDst2, nonMatchingIpv4Address, ateDestIPv4VLAN20, "IPv4")
+	ipInIPFlow3 := createIPv4Flow("ipInIPFlow3", topo, ateDst, srcIpv4Address, ateDestIPv4VLAN10, "IPv4")
+	ipInIPFlow4 := createIPv4Flow("ipInIPFlow4", topo, ateDst2, srcIpv4Address, ateDestIPv4VLAN20, "IPv4")
+	ipv6InIPFlow5 := createIPv4Flow("ipv6InIPFlow5", topo, ateDst, nonMatchingIpv4Address, ateDestIPv4VLAN10, "IPv6")
+	ipv6InIPFlow6 := createIPv4Flow("ipv6InIPFlow6", topo, ateDst2, nonMatchingIpv4Address, ateDestIPv4VLAN20, "IPv6")
+	ipv6InIPFlow7 := createIPv4Flow("ipv6InIPFlow7", topo, ateDst, srcIpv4Address, ateDestIPv4VLAN10, "IPv6")
+	ipv6InIPFlow8 := createIPv4Flow("ipv6InIPFlow8", topo, ateDst2, srcIpv4Address, ateDestIPv4VLAN20, "IPv6")
+	nativeIPv4 := createIPv4Flow("nativeIPv4", topo, ateDst2, ateSrc.IPv4, ateDestIPv4VLAN20, "")
+	nativeIPv6 := topo.Flows().Add().SetName("nativeIPv6")
+	nativeIPv6.Metrics().SetEnable(true)
+	nativeIPv6.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
+	nativeIPv6.Packet().Add().Ethernet().Src().SetValue(ateSrc.MAC)
+	v6 := nativeIPv6.Packet().Add().Ipv6()
+	v6.Src().SetValue(ateSrc.IPv6)
+	v6.Dst().SetValue("2001:DB8:2::")
+	nativeIPv6.Size().SetFixed(512)
+	nativeIPv6.Rate().SetChoice("percentage").SetPercentage(5)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	return &trafficFlows{ipInIPFlow1, ipInIPFlow2, ipInIPFlow3, ipInIPFlow4, ipv6InIPFlow5, ipv6InIPFlow6, ipv6InIPFlow7, ipv6InIPFlow8, nativeIPv4, nativeIPv6}
 }
 
-func createFlow(name string, top gosnappi.Config, dst attrs.Attributes, innerIpType string) gosnappi.Flow {
-
+func createIPv4Flow(name string, top gosnappi.Config, dst attrs.Attributes, srcIP, dstIP, innerIpType string) gosnappi.Flow {
 	flow := top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv4"}).SetRxNames([]string{dst.Name + ".IPv4"})
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(ateSrc.MAC)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(ateSrc.IPv4)
-	v4.Dst().SetValue(dst.IPv4)
+	v4.Src().SetValue(srcIP)
+	v4.Dst().SetValue(dstIP)
 	if innerIpType == "IPv4" {
 		flow.Packet().Add().Ipv4()
 	}
@@ -428,8 +450,8 @@ func TestVrfPolicy(t *testing.T) {
 
 	// Configure DUT interfaces and forwarding policy.
 	configureDUT(t, dut, p1, p2)
-	configDefaultRoute(t, dut, ateDestIPv4VLAN20, defaultNHv4, ateDestIPv6, defaultNHv6)
-	configVRFRoute(t, dut, ateDestIPv4VLAN10, vrfNH)
+	configDefaultRoute(t, dut, prefixedAteDestIPv4VLAN20, defaultNHv4, ateDestIPv6, defaultNHv6)
+	configVRFRoute(t, dut, prefixedAteDestIPv4VLAN10, vrfNH)
 
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")

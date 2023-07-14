@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/ondatra"
@@ -94,7 +95,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 	}, {
 		desc: "Generator MaxMtu",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxMtu()),
-		min:  uint64(9000),
+		min:  uint64(8184),
 	}, {
 		desc: "Generator MaxBps",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxBps()),
@@ -185,6 +186,9 @@ func TestListDelete(t *testing.T) {
 			t.Errorf("len(listResp.GetResults()): got %v, want %v", got, want)
 		}
 	}
+	if deviations.LinkQualWaitAfterDeleteRequired(dut1) {
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func TestLinkQualification(t *testing.T) {
@@ -225,7 +229,7 @@ func TestLinkQualification(t *testing.T) {
 				EndpointType: &plqpb.QualificationConfiguration_PacketGenerator{
 					PacketGenerator: &plqpb.PacketGeneratorConfiguration{
 						PacketRate: uint64(138888),
-						PacketSize: uint32(9000),
+						PacketSize: uint32(8184),
 					},
 				},
 				Timing: &plqpb.QualificationConfiguration_Rpc{

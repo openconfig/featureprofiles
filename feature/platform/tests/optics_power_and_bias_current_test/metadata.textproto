@@ -5,3 +5,13 @@ uuid: "fd964d62-068c-486d-8b17-912dfd48f388"
 plan_id: "gNMI-1.13"
 description: "Telemetry: Optics Power and Bias Current"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    explicit_port_speed: true
+  }
+}

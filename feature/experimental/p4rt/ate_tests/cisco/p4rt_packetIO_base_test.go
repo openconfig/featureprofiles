@@ -307,6 +307,9 @@ func TestP4RTPacketIO(t *testing.T) {
 	}
 	if *ciscoFlags.TTLTests {
 		ttlTestcases := map[string]func(){}
+		//configure local station mac as its needed for PacketOut submit_to_ingress tests
+		const localStationMac = "00:1a:11:00:00:01"
+		gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), localStationMac)
 		if *ciscoFlags.TTL1v4 {
 			ttlTestcases["IPv4 TTL1 Only"] = func() { args.packetIO = getTTLParameter(t, true, false, false) }
 		}
@@ -678,12 +681,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		be1 := "Bundle-Ether120"
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1).Config(), generateBundleMemberInterfaceConfig(t, p1, be1))
 
-		i1 := dutPort1.NewOCInterface(be1)
+		i1 := dutPort1.NewOCInterface(be1, dut)
 		i1.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 		gnmi.Replace(t, dut, d.Interface(be1).Config(), i1)
 
 	} else {
-		i1 := dutPort1.NewOCInterface(p1)
+		i1 := dutPort1.NewOCInterface(p1, dut)
 		gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
 	}
 
@@ -692,12 +695,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		be2 := "Bundle-Ether121"
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p2).Config(), generateBundleMemberInterfaceConfig(t, p2, be2))
 
-		i2 := dutPort2.NewOCInterface(be2)
+		i2 := dutPort2.NewOCInterface(be2, dut)
 		i2.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 		gnmi.Replace(t, dut, d.Interface(be2).Config(), i2)
 
 	} else {
-		i2 := dutPort2.NewOCInterface(p2)
+		i2 := dutPort2.NewOCInterface(p2, dut)
 		gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
 	}
 

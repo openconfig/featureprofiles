@@ -5,3 +5,15 @@ uuid: "6163fd8a-2b42-4e3d-ad98-3c940aa70a4c"
 plan_id: "SEC-3.1"
 description: "Authentication"
 testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+    hardware_model: "CISCO-8808"
+    hardware_model: "CISCO-8202-32FH-M"
+    hardware_model: "8201"
+    hardware_model: "xrd"
+  }
+  deviations: {
+    banner_delimiter: "c"
+  }
+}

@@ -92,9 +92,9 @@ func TestResetGRIBIServerFP(t *testing.T) {
 	}
 	clientA.BecomeLeader(t)
 	t.Logf("an IPv4Entry for %s pointing to ATE port-3 via gRIBI-B", ateDstNetCIDR)
-	clientA.AddNH(t, nhIndex, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
+	clientA.AddNH(t, nhIndex, atePort3.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, deviations.DefaultNetworkInstance(dut), "", fluent.InstalledInRIB)
 
 	/*nhg := dut.Telemetry().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR).NextHopGroup()
 
@@ -110,7 +110,7 @@ func TestResetGRIBIServerFP(t *testing.T) {
 	nhg.Lookup(t)*/
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
-	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(ateDstNetCIDR)
 	gnmi.Lookup(t, dut, ipv4Path.State())
 
 	gnmi.Watch(t, dut, ipv4Path.State(), 33*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {

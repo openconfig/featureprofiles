@@ -44,7 +44,7 @@ var (
 		"service-layer", "grpc", "spi", "hw-ac", "bundles", "cfgmgr",
 		"ctrace", "ethernet interfaces", "fabric link-include", "p4rt",
 		"interface", "optics", "pfi", "platform-fwd", "rdsfs", "sysdb",
-		"telemetry model-driven", "routing isis", "linux networking",
+		"telemetry model-driven", "routing isis", "routing bgp", "linux networking",
 		"install",
 	}
 	pipedCmds = []string{

@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gnps "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -2278,7 +2279,8 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
-	lineCardPath := components.GetSubcomponentPath(lc)
+	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
+	lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
 	rebootSubComponentRequest := &gnps.RebootRequest{
 		Method: gnps.RebootMethod_COLD,
 		Subcomponents: []*tpb.Path{
