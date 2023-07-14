@@ -5,3 +5,26 @@ uuid: "e98e61ec-03cd-4bff-8094-2fc69491962a"
 plan_id: "gNOI-2.1"
 description: "Packet-based Link Qualification"
 testbed: TESTBED_DUT_DUT_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    skip_plq_packets_count_check: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model: "DCS-7280CR3K-32D4"
+    hardware_model: "DCS-7808"
+    hardware_model: "DCS-7804-CH"
+    hardware_model: "ceos"
+  }
+  deviations: {
+    omit_l2_mtu: true
+  }
+}

@@ -42,7 +42,6 @@ type pullRequest struct {
 	Virtual  []device
 	Physical []device
 
-	baseSHA  string
 	cloneURL string
 
 	repo      *git.Repository
@@ -51,10 +50,11 @@ type pullRequest struct {
 }
 
 type device struct {
-	Type             deviceType
-	CloudBuildID     string
-	CloudBuildLogURL string
-	Tests            []functionalTest
+	Type                deviceType
+	CloudBuildID        string
+	CloudBuildLogURL    string
+	CloudBuildRawLogURL string
+	Tests               []functionalTest
 }
 
 type deviceType struct {
@@ -82,6 +82,9 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 	for _, d := range devices {
 		for i, virtualDevice := range p.Virtual {
 			if virtualDevice.Type == d {
+				if len(virtualDevice.Tests) == 0 {
+					continue
+				}
 				skip := false
 				for _, v := range virtualDevice.Tests {
 					if v.Status != "pending authorization" {
@@ -103,6 +106,9 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 				}
 				p.Virtual[i].CloudBuildID = jobID
 				p.Virtual[i].CloudBuildLogURL = logURL
+				vendor := strings.ToLower(virtualDevice.Type.Vendor.String())
+				vendor = strings.ReplaceAll(vendor, " ", "")
+				p.Virtual[i].CloudBuildRawLogURL = fmt.Sprintf("https://storage.cloud.google.com/featureprofiles-ci-logs-%s/log-%s.txt", vendor, jobID)
 				for j := range virtualDevice.Tests {
 					p.Virtual[i].Tests[j].Status = "setup"
 				}
@@ -128,7 +134,7 @@ func (p *pullRequest) identifyModifiedTests() error {
 		return err
 	}
 
-	mf, err := modifiedFiles(p.repo, p.HeadSHA, p.baseSHA)
+	mf, err := modifiedFiles(p.repo, p.HeadSHA)
 	if err != nil {
 		return err
 	}
@@ -155,6 +161,9 @@ func (p *pullRequest) populateObjectMetadata(ctx context.Context, storClient *st
 			if cloudBuildLogURL, ok := objAttrs.Metadata["cloudBuildLogURL"]; ok {
 				p.Virtual[i].CloudBuildLogURL = cloudBuildLogURL
 			}
+			if cloudBuildRawLogURL, ok := objAttrs.Metadata["CloudBuildRawLogURL"]; ok {
+				p.Virtual[i].CloudBuildRawLogURL = cloudBuildRawLogURL
+			}
 		}
 	}
 }
@@ -175,10 +184,11 @@ func (p *pullRequest) updateBadges(ctx context.Context, storClient *storage.Clie
 			obj.ContentType = "image/svg+xml"
 			obj.CacheControl = "no-cache,max-age=0"
 			obj.Metadata = map[string]string{
-				"status":           test.Status,
-				"label":            test.Name,
-				"cloudBuild":       device.CloudBuildID,
-				"cloudBuildLogURL": device.CloudBuildLogURL,
+				"status":              test.Status,
+				"label":               test.Name,
+				"cloudBuild":          device.CloudBuildID,
+				"cloudBuildLogURL":    device.CloudBuildLogURL,
+				"cloudBuildRawLogURL": device.CloudBuildRawLogURL,
 			}
 			if _, err := buf.WriteTo(obj); err != nil {
 				return err

@@ -113,9 +113,9 @@ var commentTpl = template.Must(template.New("commentTpl").Funcs(template.FuncMap
 {{ if .Virtual }}
 ### Virtual Devices
 
-| Device | Test | Test Documentation | Job |
-| --- | --- | --- | --- |
-{{ range .Virtual }}| {{ .Type.Vendor.String | titleCase }} {{ .Type.HardwareModel }} | {{ range .Tests }}[![status]({{ .BadgeURL }})]({{ .TestURL }})<br />{{ end }} | {{ range .Tests }}[{{ .Name }}: {{ .Description }}]({{ .DocURL }})<br />{{ end }} | {{ if and .CloudBuildLogURL .CloudBuildID }}[{{ printf "%.8s" .CloudBuildID }}]({{ .CloudBuildLogURL }}){{ end }} |
+| Device | Test | Test Documentation | Job | Raw Log |
+| --- | --- | --- | --- | --- |
+{{ range .Virtual }}| {{ .Type.Vendor.String | titleCase }} {{ .Type.HardwareModel }} | {{ range .Tests }}[![status]({{ .BadgeURL }})]({{ .TestURL }})<br />{{ end }} | {{ range .Tests }}[{{ .Name }}: {{ .Description }}]({{ .DocURL }})<br />{{ end }} | {{ if and .CloudBuildLogURL .CloudBuildID }}[{{ printf "%.8s" .CloudBuildID }}]({{ .CloudBuildLogURL }}){{ end }} | {{ if .CloudBuildRawLogURL }}[Log]({{ .CloudBuildRawLogURL }}){{ end }} |
 {{ end }}{{ end }}{{ if .Physical }}
 ### Hardware Devices
 

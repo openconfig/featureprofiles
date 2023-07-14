@@ -86,7 +86,6 @@ func (t *trigger) processIssueComment(ctx context.Context, e *github.IssueCommen
 	pr := &pullRequest{
 		ID:        e.GetIssue().GetNumber(),
 		HeadSHA:   prData.GetHead().GetSHA(),
-		baseSHA:   prData.GetBase().GetSHA(),
 		cloneURL:  prData.GetHead().GetRepo().GetCloneURL(),
 		localFS:   os.DirFS(tmpDir),
 		localPath: tmpDir,
@@ -129,13 +128,22 @@ func (t *trigger) processPullRequest(ctx context.Context, e *github.PullRequestE
 	pr := &pullRequest{
 		ID:        e.GetPullRequest().GetNumber(),
 		HeadSHA:   e.GetPullRequest().GetHead().GetSHA(),
-		baseSHA:   e.GetPullRequest().GetBase().GetSHA(),
 		cloneURL:  e.GetPullRequest().GetHead().GetRepo().GetCloneURL(),
 		localFS:   os.DirFS(tmpDir),
 		localPath: tmpDir,
 	}
 	if err := pr.identifyModifiedTests(); err != nil {
 		return fmt.Errorf("identify modified tests: %w", err)
+	}
+
+	auth, err := t.authorizedUser(ctx, e.GetPullRequest().GetUser().GetLogin())
+	if err != nil {
+		return fmt.Errorf("validating user auth: %w", err)
+	}
+	if auth {
+		if err := pr.createBuild(ctx, t.buildClient, t.storClient, virtualDeviceTypes); err != nil {
+			return fmt.Errorf("create build: %w", err)
+		}
 	}
 
 	if err := pr.updateBadges(ctx, t.storClient); err != nil {

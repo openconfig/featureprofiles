@@ -3,7 +3,5 @@
 set -e
 git clone https://github.com/openconfig/public.git "$1"
 cd "$1"
-# presence of "-" indicates prelease https://semver.org/#spec-item-9
-branch="$(git tag -l | grep -v "-" | sort -V | tail -1)"
-git checkout "$branch"
+# Use latest commit of OpenConfig public repo.
 echo "Using github.com/openconfig/public branch: $branch"
