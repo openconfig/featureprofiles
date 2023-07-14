@@ -57,10 +57,10 @@ tests:
       - '-deviation_missing_interface_physical_channel="true"'
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
-      - '-deviation_sw_version_unsupported="true"'
     owners:
       - agvarghe
     mustpass: true
+    pr: 1816
     priority: 34
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
@@ -135,7 +135,6 @@ tests:
     path: feature/bgp/policybase/otg_tests/route_installation_test
     owners:
       - sprem
-    pr: 1679      
     args:
       - "-deviation_prepolicy_received_routes=true"
     mustpass: true
@@ -147,7 +146,6 @@ tests:
     owners:
       - sprem
     mustpass: true
-    pr: 1679    
     priority: 52
     skip: false
   - name: RT-1.5 (BGP Prefix Limit)
@@ -216,6 +214,11 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
+  - name: RT-5.4 (Aggregate Forwarding Viable)
+    path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
+    owners:
+      - agvarghe
+    mustpass: true
   - name: RT-6.1 (Core LLDP TLV Population)
     path: feature/lldp/otg_tests/core_lldp_tlv_population_test
     owners:
@@ -236,7 +239,6 @@ tests:
     priority: 50
   - name: TE-1.2 (My Station MAC)
     path: feature/experimental/interface/my_station_mac/otg_tests/my_station_mac_test
-    pr: 1687
     owners:
       - agvarghe
     mustpass: true
@@ -316,6 +318,7 @@ tests:
     path: feature/experimental/gribi/otg_tests/dut_daemon_failure
     owners:
       - mananpat
+    pr: 1802
     mustpass: true
     priority: 8
   - name: TE-8.2 (Supervisor Failure)
