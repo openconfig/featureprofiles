@@ -200,7 +200,7 @@ message Metadata {
     // Skip power admin for controller card
     bool skip_controller_card_power_admin = 51;
     // Skip PLQ packets count check.
-    bool skip_plq_packets_count_check = 55;    
+    bool skip_plq_packets_count_check = 55;
     // Device requires the banner to have a delimiter character.
     string banner_delimiter = 60;
     // Allowed tolerance for BGP traffic flow while comparing for pass or fail
@@ -225,6 +225,33 @@ message Metadata {
     // Device only supports RIB ack, so tests that normally expect FIB_ACK will
     // allow just RIB_ACK.
     bool gribi_riback_only = 67;
+    // Device requires that aggregate Port-Channel and its members be defined in
+    // a single gNMI Update transaction at /interfaces; otherwise lag-type will
+    // be dropped, and no member can be added to the aggregate.
+    // Arista: partnerissuetracker.corp.google.com/201574574
+    bool aggregate_atomic_update = 68;
+    // Device returns no value for some OpenConfig paths if the operational
+    // value equals the default.
+    // Arista: partnerissuetracker.corp.google.com/258286131
+    bool missing_value_for_defaults = 69;
+    // The name used for the static routing protocol.  The default name in
+    // OpenConfig is \"DEFAULT\" but some devices use other names.
+    // Arista: partnerissuetracker.corp.google.com/269699737
+    string static_protocol_name = 70;
+    // Device currently uses component name instead of a full openconfig path,
+    // so suppress creating a full oc compliant path for subcomponent.
+    bool gnoi_subcomponent_path = 71;
+    // When configuring interface, config VRF prior config IP address.
+    // Arista: partnerissuetracker.corp.google.com/261958938
+    bool interface_config_vrf_before_address = 72;
+    // Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id
+    // or openconfig-vlan:vlan/state/vlan-id leaves.
+    // Arista: partnerissuetracker.corp.google.com/261085885
+    bool deprecated_vlan_id = 73;
+    // Set to true for device that requires gRIBI MAC Override using Static ARP
+    // + Static Route
+    // Arista: partnerissuetracker.corp.google.com/234635355
+    bool gribi_mac_override_static_arp_static_route = 74;
   }
 
   message PlatformExceptions {

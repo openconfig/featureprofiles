@@ -171,30 +171,22 @@ func OmitL2MTU(dut *ondatra.DUTDevice) bool {
 }
 
 // GRIBIMACOverrideStaticARPStaticRoute returns whether the device needs to configure Static ARP + Static Route to override setting MAC address in Next Hop.
-func GRIBIMACOverrideStaticARPStaticRoute(*ondatra.DUTDevice) bool {
-	return *gribiMACOverrideStaticARPStaticRoute
+func GRIBIMACOverrideStaticARPStaticRoute(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_gribi_mac_override_static_arp_static_route")
+	return lookupDUTDeviations(dut).GetGribiMacOverrideStaticArpStaticRoute()
 }
 
 // AggregateAtomicUpdate returns if device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces.
 // Otherwise lag-type will be dropped, and no member can be added to the aggregate.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
-func AggregateAtomicUpdate(_ *ondatra.DUTDevice) bool {
-	return *aggregateAtomicUpdate
+func AggregateAtomicUpdate(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_aggregate_atomic_update")
+	return lookupDUTDeviations(dut).GetAggregateAtomicUpdate()
 }
 
 // DefaultNetworkInstance returns the name used for the default network instance for VRF.
 func DefaultNetworkInstance(_ *ondatra.DUTDevice) string {
 	return *defaultNetworkInstance
-}
-
-// P4rtUnsetElectionIDPrimaryAllowed returns whether the device does not support unset election ID.
-func P4rtUnsetElectionIDPrimaryAllowed(_ *ondatra.DUTDevice) bool {
-	return *p4rtUnsetElectionIDPrimaryAllowed
-}
-
-// P4rtBackupArbitrationResponseCode returns whether the device does not support unset election ID.
-func P4rtBackupArbitrationResponseCode(_ *ondatra.DUTDevice) bool {
-	return *p4rtBackupArbitrationResponseCode
 }
 
 // ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
@@ -235,8 +227,12 @@ func BGPTrafficTolerance(dut *ondatra.DUTDevice) int32 {
 }
 
 // StaticProtocolName returns the name used for the static routing protocol.
-func StaticProtocolName(_ *ondatra.DUTDevice) string {
-	return *staticProtocolName
+func StaticProtocolName(dut *ondatra.DUTDevice) string {
+	logErrorIfFlagSet("deviation_static_protocol_name")
+	if spn := lookupDUTDeviations(dut).GetStaticProtocolName(); spn != "" {
+		return spn
+	}
+	return "DEFAULT"
 }
 
 // UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
@@ -385,8 +381,9 @@ func MissingInterfacePhysicalChannel(dut *ondatra.DUTDevice) bool {
 }
 
 // MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
-func MissingValueForDefaults(_ *ondatra.DUTDevice) bool {
-	return *missingValueForDefaults
+func MissingValueForDefaults(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_missing_value_for_defaults")
+	return lookupDUTDeviations(dut).GetMissingValueForDefaults()
 }
 
 // TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
@@ -419,8 +416,9 @@ func MissingPrePolicyReceivedRoutes(dut *ondatra.DUTDevice) bool {
 }
 
 // DeprecatedVlanID returns if device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.
-func DeprecatedVlanID(_ *ondatra.DUTDevice) bool {
-	return *deprecatedVlanID
+func DeprecatedVlanID(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_deprecated_vlan_id")
+	return lookupDUTDeviations(dut).GetDeprecatedVlanId()
 }
 
 // OSActivateNoReboot returns if device requires separate reboot to activate OS.
@@ -470,8 +468,9 @@ func ExplicitInterfaceInDefaultVRF(dut *ondatra.DUTDevice) bool {
 }
 
 // InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
-func InterfaceConfigVRFBeforeAddress(_ *ondatra.DUTDevice) bool {
-	return *interfaceConfigVRFBeforeAddress
+func InterfaceConfigVRFBeforeAddress(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_interface_config_vrf_before_address")
+	return lookupDUTDeviations(dut).GetInterfaceConfigVrfBeforeAddress()
 }
 
 // ExplicitInterfaceRefDefinition returns if device requires explicit interface ref configuration when applying features to interface.
@@ -523,8 +522,9 @@ func ISISInstanceEnabledNotRequired(dut *ondatra.DUTDevice) bool {
 }
 
 // GNOISubcomponentPath returns if device currently uses component name instead of a full openconfig path.
-func GNOISubcomponentPath(_ *ondatra.DUTDevice) bool {
-	return *gNOISubcomponentPath
+func GNOISubcomponentPath(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_gnoi_subcomponent_path")
+	return lookupDUTDeviations(dut).GetGnoiSubcomponentPath()
 }
 
 // NoMixOfTaggedAndUntaggedSubinterfaces returns if device does not support a mix of tagged and untagged subinterfaces
@@ -603,7 +603,7 @@ var (
 
 	_ = flag.Bool("deviation_interface_counters_from_container", false, "Device only supports querying counters from the state container, not from individual counter leaves.")
 
-	aggregateAtomicUpdate = flag.Bool("deviation_aggregate_atomic_update", false,
+	_ = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	defaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
@@ -617,12 +617,12 @@ var (
 
 	_ = flag.Bool("deviation_gribi_riback_only", false, "Device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.  Full gRIBI compliant devices should pass both with and without this deviation.")
 
-	missingValueForDefaults = flag.Bool("deviation_missing_value_for_defaults", false,
+	_ = flag.Bool("deviation_missing_value_for_defaults", false,
 		"Device returns no value for some OpenConfig paths if the operational value equals the default. A fully compliant device should pass regardless of this deviation.")
 
-	staticProtocolName = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
+	_ = flag.String("deviation_static_protocol_name", "DEFAULT", "The name used for the static routing protocol.  The default name in OpenConfig is \"DEFAULT\" but some devices use other names.")
 
-	gNOISubcomponentPath = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
+	_ = flag.Bool("deviation_gnoi_subcomponent_path", false, "Device currently uses component name instead of a full openconfig path, so suppress creating a full oc compliant path for subcomponent.")
 
 	_ = flag.Bool("deviation_gnoi_status_empty_subcomponent", false, "The response of gNOI reboot status is a single value (not a list), so the device requires explict component path to account for a situation when there is more than one active reboot requests.")
 
@@ -630,7 +630,7 @@ var (
 
 	_ = flag.Bool("deviation_osinstall_for_standby_rp", false, "Device requires OS installation on standby RP as well as active RP.")
 
-	deprecatedVlanID = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
+	_ = flag.Bool("deviation_deprecated_vlan_id", false, "Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.")
 
 	_ = flag.Bool("deviation_explicit_interface_in_default_vrf", false,
 		"Device requires explicit attachment of an interface or subinterface to the default network instance. OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance. Fully-compliant devices should pass with and without this deviation.")
@@ -673,7 +673,7 @@ var (
 	_ = flag.Bool("deviation_missing_interface_physical_channel", false,
 		"Device does not support interface/physicalchannel leaf. Set this flag to skip checking the leaf.")
 
-	interfaceConfigVRFBeforeAddress = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
+	_ = flag.Bool("deviation_interface_config_vrf_before_address", false, "When configuring interface, config Vrf prior config IP address")
 
 	_ = flag.Int("deviation_bgp_tolerance_value", 0,
 		"Allowed tolerance for BGP traffic flow while comparing for pass or fail condition.")
@@ -691,10 +691,6 @@ var (
 	_ = flag.Bool("deviation_network_instance_table_deletion_required", false,
 		"Set to true for device requiring explicit deletion of network-instance table, default is false")
 
-	p4rtUnsetElectionIDPrimaryAllowed = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary")
-
-	p4rtBackupArbitrationResponseCode = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
-
 	_ = flag.Bool("deviation_isis_multi_topology_unsupported", false,
 		"Device skip isis multi-topology check if value is true, Default value is false")
 
@@ -703,7 +699,7 @@ var (
 
 	_ = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
 
-	gribiMACOverrideStaticARPStaticRoute = flag.Bool("deviation_gribi_mac_override_static_arp_static_route", false, "Set to true for device that requires gRIBI MAC Override using Static ARP + Static Route")
+	_ = flag.Bool("deviation_gribi_mac_override_static_arp_static_route", false, "Set to true for device that requires gRIBI MAC Override using Static ARP + Static Route")
 
 	_ = flag.Bool("deviation_cli_takes_precedence_over_oc", false, "Set to true for device in which config pushed through origin CLI takes precedence over config pushed through origin OC, default is false")
 
