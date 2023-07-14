@@ -341,12 +341,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
 	srcBgp4PeerRoutes := srcBgp4Peer.V4Routes().Add().SetName("bgpNeti1")
-	srcBgp4PeerRoutes.SetNextHopIpv4Address(dstIpv4.Address()).
+	srcBgp4PeerRoutes.SetNextHopIpv4Address(srcIpv4.Address()).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	srcBgp4PeerRoutes.Addresses().Add().SetAddress(advertisedRoutesv4Net2).SetPrefix(advertisedRoutesv4Prefix).SetCount(routeCount)
 	srcBgp6PeerRoutes := srcBgp6Peer.V6Routes().Add().SetName("bgpNeti1v6")
-	srcBgp6PeerRoutes.SetNextHopIpv6Address(dstIpv6.Address()).
+	srcBgp6PeerRoutes.SetNextHopIpv6Address(srcIpv6.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	srcBgp6PeerRoutes.Addresses().Add().SetAddress(advertisedRoutesv6Net2).SetPrefix(advertisedRoutesv6Prefix).SetCount(routeCount)
