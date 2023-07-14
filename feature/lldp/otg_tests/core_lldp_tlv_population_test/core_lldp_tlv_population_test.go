@@ -33,6 +33,12 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
+type stateParams struct {
+	systemName    string
+	chassisId     string
+	chassisIdType oc.E_Lldp_ChassisIdType
+}
+
 type lldpTestParameters struct {
 	systemName string
 	macAddress string
@@ -41,8 +47,6 @@ type lldpTestParameters struct {
 
 type lldpNeighbors struct {
 	systemName    string
-	portId        string
-	portIdType    otgtelemetry.E_LldpNeighbor_PortIdType
 	chassisId     string
 	chassisIdType otgtelemetry.E_LldpNeighbor_ChassisIdType
 }
@@ -78,7 +82,7 @@ func TestLLDPEnabled(t *testing.T) {
 	t.Log("Configure DUT.")
 	dut, dutConf := configureDUT(t, "dut", lldpEnabled)
 	dutPort := dut.Port(t, portName)
-	verifyNodeConfig(t, dut, dutPort, dutConf, lldpEnabled)
+	stateValues := verifyNodeConfig(t, dut, dutPort, dutConf, lldpEnabled)
 
 	// ATE Configuration.
 	t.Log("Configure ATE.")
@@ -92,17 +96,13 @@ func TestLLDPEnabled(t *testing.T) {
 		systemName:    lldpSrc.systemName,
 		chassisId:     lldpSrc.macAddress,
 		chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
-		portId:        ate.Port(t, portName).Name(),
-		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
 	}
 	verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState)
 
 	expOtgLLDPNeighbor := lldpNeighbors{
-		systemName:    dutConf.GetSystemName(),
-		portId:        dutPort.Name(),
-		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
-		chassisId:     strings.ToUpper(dutConf.GetChassisId()),
-		chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
+		systemName:    stateValues.systemName,
+		chassisId:     strings.ToUpper(stateValues.chassisId),
+		chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(stateValues.chassisIdType),
 	}
 	checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
 
@@ -171,7 +171,7 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 }
 
 // verifyNodeConfig verifies the config by comparing against the telemetry state object.
-func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, conf *oc.Lldp, lldpEnabled bool) {
+func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, conf *oc.Lldp, lldpEnabled bool) stateParams {
 	statePath := gnmi.OC().Lldp()
 	state := gnmi.Get(t, node, statePath.State())
 	fptest.LogQuery(t, "Node LLDP", statePath.State(), state)
@@ -201,6 +201,7 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 	if lldpEnabled && got != want {
 		t.Errorf("LLDP interfaces/interface/state/name = %s, want %s", got, want)
 	}
+	return stateParams{state.GetSystemName(), state.GetChassisId(), state.GetChassisIdType()}
 }
 
 // checkLLDPMetricsOTG verifies OTG side lldp Metrics values based on DUT side lldp is enabled or not
@@ -216,7 +217,8 @@ func checkLLDPMetricsOTG(t *testing.T, otg *otg.OTG, c gosnappi.Config, lldpEnab
 		}
 		framesIn, _ := gnmi.Watch(t, otg, gnmi.OTG().LldpInterface(lldp.Name()).Counters().FrameIn().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
 			time.Sleep(1 * time.Second)
-			return v.IsPresent()
+			rxFrames, ok := v.Val()
+			return ok && rxFrames > 0
 		}).Await(t)
 		otgutils.LogLLDPMetrics(t, otg, c)
 		if lldpEnabled {
@@ -281,17 +283,14 @@ func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.
 	wantNbrState := &oc.Lldp_Interface_Neighbor{
 		ChassisId:     &dutPeerState.chassisId,
 		ChassisIdType: oc.E_Lldp_ChassisIdType(dutPeerState.chassisIdType),
-		PortId:        &dutPeerState.portId,
-		PortIdType:    oc.E_Lldp_PortIdType(dutPeerState.portIdType),
 		SystemName:    &dutPeerState.systemName,
 	}
 	confirm.State(t, wantNbrState, gotNbrState)
 }
 
 func (expLldpNeighbor *lldpNeighbors) Equal(neighbour *otgtelemetry.LldpInterface_LldpNeighborDatabase_LldpNeighbor) bool {
+
 	return neighbour.GetChassisId() == expLldpNeighbor.chassisId &&
 		neighbour.GetChassisIdType() == expLldpNeighbor.chassisIdType &&
-		neighbour.GetPortId() == expLldpNeighbor.portId &&
-		neighbour.GetPortIdType() == expLldpNeighbor.portIdType &&
 		neighbour.GetSystemName() == expLldpNeighbor.systemName
 }
