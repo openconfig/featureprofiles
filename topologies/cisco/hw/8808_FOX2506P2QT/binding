@@ -75,20 +75,20 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.159:47777"
+    target: "10.85.84.159:47701"
   }
   gnmi {
-    target: "10.85.84.159:47777" 
+    target: "10.85.84.159:47701" 
   }
 
   gribi{
-    target: "10.85.84.159:47777"
-  }
-  ssh{
-    target: "10.85.84.159:48777"
+    target: "10.85.84.159:47702"
   }
   p4rt{
-    target: "10.85.84.159:47777"
+    target: "10.85.84.159:47703"
+  }
+  ssh{
+    target: "10.85.84.159:47722"
   }
 
 # Before this binding can be used with a topology, add ports mapping
@@ -121,10 +121,10 @@ ates {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
    #linux
-   target: "10.85.84.119"
-   skip_verify: true
-   username: "admin"
-   password: "admin" 
+    target: "10.85.84.194"
+    skip_verify: true
+    username: "admin"
+    password: "ixia123!"
 
    #linux
    #target: "10.85.84.214"

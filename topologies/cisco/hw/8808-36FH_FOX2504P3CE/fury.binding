@@ -118,10 +118,13 @@ ates {
     #target: "10.85.84.118"
     #username: "admin"
     #password: "admin"
-    skip_verify: true
+    #target: "10.85.84.214"
+    #username: "admin"
+    #password: "Admin!@#123123"
     target: "10.85.84.194"
     username: "admin"
     password: "ixia123!"
+    skip_verify: true
     #session_id: 1 
   }
 

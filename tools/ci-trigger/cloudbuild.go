@@ -29,9 +29,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/google/uuid"
 	"google.golang.org/api/cloudbuild/v1"
 	"gopkg.in/yaml.v2"
+
+	"github.com/google/uuid"
 )
 
 type cloudBuild struct {
@@ -74,6 +75,7 @@ func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
 		return "", "", err
 	}
 
+	build.LogsBucket = "gs://featureprofiles-ci-logs-" + vendor
 	build.Source = &cloudbuild.Source{
 		StorageSource: &cloudbuild.StorageSource{
 			Bucket: gcpCloudBuildBucketName,
