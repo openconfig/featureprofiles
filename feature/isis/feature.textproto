@@ -32,6 +32,9 @@ config_path {
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/global/state/instance"
 }
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/config/csnp-enable-on-p2p-links"
+}
 
 # Global lsp-bit
 config_path {
@@ -42,6 +45,12 @@ telemetry_path {
 }
 
 # AFI-SAFI
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/afi-name"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/safi-name"
+}
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/afi-name"
 }
@@ -74,6 +83,9 @@ telemetry_path {
 
 # Level number
 config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/level-number"
+}
+config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/config/level-number"
 }
 telemetry_path {
@@ -100,6 +112,9 @@ telemetry_path {
 
 # Interfaces interface-id
 config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/interface-id"
+}
+config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id"
 }
 telemetry_path {
@@ -125,6 +140,29 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-changes"
 }
 
+# Interfaces circuit-counters
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-changes"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-number"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/id-field-len-mismatches"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/init-fails"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/lan-dis-changes"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/max-area-address-mismatches"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/rejected-adj"
+}
+
 # Interfaces csnp interval
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/csnp-interval"
@@ -143,6 +181,9 @@ telemetry_path {
 
 # Interfaces afi name
 config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/afi-name"
+}
+config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name"
 }
 telemetry_path {
@@ -150,6 +191,9 @@ telemetry_path {
 }
 
 # Interfaces safi name
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/safi-name"
+}
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name"
 }
@@ -166,6 +210,9 @@ telemetry_path {
 }
 
 # Interfaces level number
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/level-number"
+}
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number"
 }
@@ -254,7 +301,7 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/retransmit"
 }
 
-# Network instance 
+# Network instance
 config_path {
     path: "/network-instances/network-instance/protocols/protocol/config/identifier"
 }
@@ -293,7 +340,44 @@ telemetry_path {
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/global/timers/spf/state/spf-hold-interval"
   }
+
 # Adjacencies
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/area-address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/dis-system-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-circuit-type"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/state/system-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-snpa"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/nlpid"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/priority"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-status"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-support"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-suppress"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/topology"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/up-timestamp"
+}
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state"
 }
@@ -309,6 +393,7 @@ telemetry_path {
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/up-timestamp"
 }
+
 
 # AFI-SAFI
 telemetry_path {
@@ -382,10 +467,16 @@ telemetry_path {
 
 # System Level Counters
 telemetry_path {
-    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-fails"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/exceed-max-seq-nums"
 }
 telemetry_path {
-    path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-type-fails"
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/manual-address-drop-from-areas"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/part-changes"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/total-lsps"
 }
 telemetry_path {
     path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/corrupted-lsps"
