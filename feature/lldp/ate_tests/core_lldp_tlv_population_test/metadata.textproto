@@ -8,12 +8,24 @@ testbed: TESTBED_DUT_DUT_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
-    hardware_model: "CISCO-8808"
-    hardware_model: "CISCO-8202-32FH-M"
-    hardware_model: "8201"
-    hardware_model: "xrd"
   }
   deviations: {
     lldp_interface_config_override_global: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    missing_value_for_defaults: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    missing_value_for_defaults: true
   }
 }
