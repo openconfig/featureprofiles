@@ -28,7 +28,15 @@ platform_exceptions: {
   }
   deviations: {
     explicit_interface_ref_definition: true
-		interface_enabled: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
   }
 }
 platform_exceptions: {

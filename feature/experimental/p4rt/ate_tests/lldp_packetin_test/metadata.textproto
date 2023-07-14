@@ -13,7 +13,15 @@ platform_exceptions: {
     explicit_p4rt_node_component: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
-		interface_enabled: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
   }
 }
 platform_exceptions: {
