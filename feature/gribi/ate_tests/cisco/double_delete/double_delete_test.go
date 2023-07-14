@@ -106,6 +106,7 @@ func TestDeleteIpv4NHGNH(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
 	ctx := context.Background()
 	ip := "203.0.2.1/32"
 
@@ -194,6 +195,8 @@ func TestDeleteIpv4(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 	ip := "203.1.2.1/32"
 
@@ -281,6 +284,7 @@ func TestDeleteNHG(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
 	ctx := context.Background()
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -355,6 +359,8 @@ func TestDeleteNH(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 
 	// Configure the gRIBI client
@@ -438,6 +444,8 @@ func TestWithBackup(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 
 	// Configure the gRIBI client
@@ -537,6 +545,8 @@ func TestWithBackupDelete(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 
 	// Configure the gRIBI client
@@ -648,6 +658,8 @@ func TestWithDecapEncap(t *testing.T) {
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	baseconfig(t)
+
 	var top *ondatra.ATETopology
 
 	// Configure the gRIBI client
@@ -736,6 +748,7 @@ func TestWithDecapEncapDelete(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
 	ctx := context.Background()
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -832,6 +845,8 @@ func TestWithDecapEncapvrf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 
 	// Configure the gRIBI client
@@ -917,6 +932,8 @@ func TestWithDecapEncapvrfDelete(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 
 	// Configure the gRIBI client
@@ -1010,6 +1027,8 @@ func TestWithBackupDecap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 
 	// Configure the gRIBI client
@@ -1083,6 +1102,8 @@ func TestWithBackupDecapDelete(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 
 	// Configure the gRIBI client
@@ -1166,6 +1187,8 @@ func TestWithScale(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 
 	// Configure the gRIBI client
@@ -1435,6 +1458,8 @@ func TestWithStatic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 
 	// Configure the gRIBI client
@@ -1537,6 +1562,8 @@ func TestWithStaticremove(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
+
 	ctx := context.Background()
 
 	// Configure the gRIBI client
@@ -1679,6 +1706,7 @@ func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
 	var top *ondatra.ATETopology
 	ctx := context.Background()
 	ip := "203.0.2.1/32"
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1768,6 +1796,7 @@ func TestWithBackuprpfo(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
 	ctx := context.Background()
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1868,6 +1897,7 @@ func TestWithDecapEncaprpfo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1957,6 +1987,7 @@ func TestWithDecapEncapvrfrpfo(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
 	ctx := context.Background()
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -2042,6 +2073,7 @@ func TestWithBackupDecaprpfo(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
 	ctx := context.Background()
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -2118,6 +2150,7 @@ func TestWithScalerpfo(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
 	ctx := context.Background()
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -2389,6 +2422,7 @@ func TestWithStaticrpfo(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
 	ctx := context.Background()
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -2414,9 +2448,6 @@ func TestWithStaticrpfo(t *testing.T) {
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 	time.Sleep(10 * time.Second)
-
-	// config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast vip1 Bundle-Ether126 192.0.2.26")
-	// config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 192.0.2.42/32 Bundle-Ether126 192.0.2.26")
 
 	addStaticRoute(t, dut, vip1, true)
 	addStaticRoute(t, dut, vip2, true)
@@ -2494,6 +2525,7 @@ func TestWithStaticremoverpfo(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	var top *ondatra.ATETopology
 	ctx := context.Background()
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -2517,11 +2549,7 @@ func TestWithStaticremoverpfo(t *testing.T) {
 	}
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
-	// vip1ip := "192.0.2.40"
-	// vip2ip := "192.0.2.42"
 
-	// config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast vip1 Bundle-Ether126 192.0.2.26")
-	// config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast vip2 Bundle-Ether126 192.0.2.26")
 	addStaticRoute(t, dut, vip1, false)
 	addStaticRoute(t, dut, vip2, false)
 
