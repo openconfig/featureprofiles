@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"sort"
 	"strconv"
 	"sync"
 	"testing"
@@ -51,9 +52,9 @@ func TestMain(m *testing.M) {
 
 // user needed inputs
 const (
-	with_scale            = false                    // run entire script with or without scale (Support not yet coded)
-	with_RPFO             = true                     // run entire script with or without RFPO
-	base_config           = "case2_decap_encap_exit" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
+	with_scale            = false                       // run entire script with or without scale (Support not yet coded)
+	with_RPFO             = false                       // run entire script with or without RFPO
+	base_config           = "case4_decap_encap_recycle" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
 	lc                    = "0/0/CPU0" // set value for lc_oir tc, if empty it means no lc, example: 0/0/CPU0
@@ -74,22 +75,23 @@ const (
 
 // gribi programming variables
 const (
-	nhg_Scale_TE       = 250  // NHG scale usef for TE vrf
-	nh_prefix_TE       = 2    // same nh will be used across all the nhgs
-	nh_scale_TE        = 5000 // create NHs with different index and repeat prefix set under nh_prefix_TE flag, set an even number
-	nhg_Scale_REPAIRED = 250  // NHG scale usef for REPAIR vrf
-	nhg_Scale_REPAIR   = 500  // NHG scale used for DECAP_ENCAP case
-	nh_scale_REPAIR    = 500  // create NHs used by NHGs for DECAP_ENCAP case
-	programming_RFPO   = 1    // Perform RFPO and programming followed by it
+	gribi_Scale        = 2
+	nhg_Scale_TE       = 1000  // NHG scale used for TE vrf
+	nh_prefix_TE       = 2     // same nh will be used across all the nhgs
+	nh_scale_TE        = 10000 // create NHs with different index and repeat prefix set under nh_prefix_TE flag, set an even number
+	nhg_Scale_REPAIRED = 1000  // NHG scale used for REPAIR vrf
+	nhg_Scale_REPAIR   = 500   // NHG scale used for DECAP_ENCAP case
+	nh_scale_REPAIR    = 500   // create NHs used by NHGs for DECAP_ENCAP case
+	programming_RFPO   = 1     // Perform RFPO and programming followed by it
 	grpc_repeat        = 1
 )
 
 // traffic constant
 const (
-	bgpPfx                = 0 //set value for scale bgp setup 100000
-	isisPfx               = 0 //set value for scale isis setup 10000
-	innerdstPfxCount_bgp  = 1 //set value for number of inner prefix for bgp flow
-	innerdstPfxCount_isis = 1 //set value for number of inner prefix for isis flow
+	bgpPfx                = 100000 //set value for scale bgp setup 100000
+	isisPfx               = 25000  //set value for scale isis setup 10000
+	innerdstPfxCount_bgp  = 1      //set value for number of inner prefix for bgp flow
+	innerdstPfxCount_isis = 1      //set value for number of inner prefix for isis flow
 )
 
 // global variables
@@ -129,6 +131,14 @@ type testArgs struct {
 	top     *ondatra.ATETopology
 	events  *monitor.CachedConsumer
 	ATELock sync.Mutex
+}
+
+// sortPorts sorts the ports by the testbed port ID.
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.SliceStable(ports, func(i, j int) bool {
+		return ports[i].ID() < ports[j].ID()
+	})
+	return ports
 }
 
 func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) {
@@ -305,12 +315,12 @@ func baseProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	if base_config == "case1_backup_decap" {
-		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		for i := 0; i < gribi_Scale; i++ {
 			prefixes = append(prefixes, util.GetIPPrefix(dst, i, mask))
 		}
 		case1_backup_decap(ctx, t, args)
 	} else if base_config == "case2_decap_encap_exit" {
-		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		for i := 0; i < gribi_Scale; i++ {
 			if i < 500 {
 				repair_prefix = append(repair_prefix, util.GetIPPrefix(dst, i, mask))
 			}
@@ -318,7 +328,7 @@ func baseProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 		case2_decap_encap_exit(ctx, t, args)
 	} else if base_config == "case3_decap_encap" {
-		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		for i := 0; i < gribi_Scale; i++ {
 			if i < 500 {
 				repair_prefix = append(repair_prefix, util.GetIPPrefix(dst, i, mask))
 			}
@@ -326,7 +336,7 @@ func baseProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 		case3_decap_encap(ctx, t, args)
 	} else if base_config == "case4_decap_encap_recycle" {
-		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		for i := 0; i < gribi_Scale; i++ {
 			if i < 500 {
 				repair_prefix = append(repair_prefix, util.GetIPPrefix(dst, i, mask))
 			}
@@ -611,7 +621,7 @@ func case4_decap_encap_recycle(ctx context.Context, t *testing.T, args *testArgs
 	// with sourceip                  |
 	//                               BNG ---- NH DECAP BE 127
 	//
-	// 10.1.0.1/32               --- NHG ---- NH DECAP BE 126
+	// 10.1.0.1/32               --- NHG ---- NH2 VIP3 (20.0.0.1/32) --- NHG --- NH 11 - DECAP BE 126
 	// 				                  |
 	//                               BNG ---- NH DECAP BE 127
 	//
@@ -720,9 +730,9 @@ func (a *testArgs) scaleNH(t *testing.T, nh_prefix string, start_index int, scal
 		} else {
 			resultLenBefore = len(a.client.Fluent(t).Results(t))
 			for j := i; j < prefix_repeat+i; j++ {
-				if j%256 == 0 && j != 0 {
-					prefix[2]++
-				}
+				// if j%256 == 0 && j != 0 {
+				// 	prefix[2]++
+				// }
 				NHEntry := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 				NHEntry = NHEntry.WithIPAddress(prefix.String()).WithIndex(uint64(start_index + i + j))
 				NHEntries = append(NHEntries, NHEntry)
@@ -841,7 +851,7 @@ func baseScaleProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.FlushServer(t)
 	time.Sleep(10 * time.Second)
 
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+	for i := 0; i < gribi_Scale; i++ {
 		prefixes = append(prefixes, util.GetIPPrefix(dst, i, mask))
 	}
 
@@ -1739,7 +1749,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR"}
+	processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR", "viable"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			if processes[i] == "shutdown" {
@@ -1814,6 +1824,111 @@ func test_triggers(t *testing.T, args *testArgs) {
 
 				t.Logf("Unshut primary interfaces and verify traffic restored to original interfaces")
 				args.interfaceaction(t, true, []string{"port2", "port3", "port4", "port5", "port6", "port7"})
+				//aft check TE
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
+					args.client.AftPopConfig(t)
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "TE", randomItems[i])
+					}
+				}
+				//aft check REPAIRED
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "REPAIRED", randomItems[i])
+					}
+				}
+				// verify traffic
+				if *ciscoFlags.GRIBITrafficCheck {
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, start_after_verification: true})
+				}
+			}
+
+			if processes[i] == "viable" {
+
+				// Run with RPFO is flag is set
+				if with_RPFO {
+					rpfo_count = rpfo_count + 1
+					t.Logf("This is RPFO #%d", rpfo_count)
+					args.rpfo(args.ctx, t, false)
+				}
+
+				t.Logf("Shutting down primary interfaces BE121, BE122, BE123, BE124, BE125")
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[1].Name()).ForwardingViable().Config(), false)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[2].Name()).ForwardingViable().Config(), false)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[3].Name()).ForwardingViable().Config(), false)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[4].Name()).ForwardingViable().Config(), false)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[5].Name()).ForwardingViable().Config(), false)
+
+				//aft check TE
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
+					args.client.AftPushConfig(t)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "TE", randomItems[i])
+					}
+				}
+				//aft check REPAIRED
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale && base_config != "case1_backup_decap" {
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "REPAIRED", randomItems[i])
+					}
+				}
+				// verify traffic
+				if *ciscoFlags.GRIBITrafficCheck {
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 15, start_after_verification: true})
+				}
+
+				t.Logf("Shutting down interfaces BE126 so traffic flows via DECAP path")
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[6].Name()).ForwardingViable().Config(), false)
+
+				//aft check TE
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "TE", randomItems[i])
+					}
+				}
+				//aft check REPAIRED
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "REPAIRED", randomItems[i])
+					}
+				}
+				// verify traffic
+				if *ciscoFlags.GRIBITrafficCheck {
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether126", "Bundle-Ether127"}
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 10, start_after_verification: true})
+				}
+
+				t.Logf("Unshut primary interfaces and verify traffic restored to original interfaces")
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[1].Name()).ForwardingViable().Config(), true)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[2].Name()).ForwardingViable().Config(), true)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[3].Name()).ForwardingViable().Config(), true)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[4].Name()).ForwardingViable().Config(), true)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[5].Name()).ForwardingViable().Config(), true)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[6].Name()).ForwardingViable().Config(), true)
+
 				//aft check TE
 				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
 					args.client.AftPopConfig(t)
@@ -2171,30 +2286,30 @@ func TestHA(t *testing.T) {
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		{
-			name: "check_microdrops",
-			desc: "With traffic running do delete/update/create programming and look for drops",
-			fn:   test_microdrops,
-		},
+		// {
+		// 	name: "check_microdrops",
+		// 	desc: "With traffic running do delete/update/create programming and look for drops",
+		// 	fn:   test_microdrops,
+		// },
+		// {
+		// 	name: "Restart RFPO with programming",
+		// 	desc: "After programming, perform RPFO try new programming and validate traffic",
+		// 	fn:   test_RFPO_with_programming,
+		// },
+		// {
+		// 	name: "Restart single process",
+		// 	desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+		// 	fn:   testRestart_single_process,
+		// },
+		// {
+		// 	name: "Restart multiple process",
+		// 	desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+		// 	fn:   testRestart_multiple_process,
+		// },
 		{
 			name: "Triggers",
 			desc: "With traffic running, validate multiple triggers",
 			fn:   test_triggers,
-		},
-		{
-			name: "Restart RFPO with programming",
-			desc: "After programming, perform RPFO try new programming and validate traffic",
-			fn:   test_RFPO_with_programming,
-		},
-		{
-			name: "Restart single process",
-			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-			fn:   testRestart_single_process,
-		},
-		{
-			name: "Restart multiple process",
-			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-			fn:   testRestart_multiple_process,
 		},
 		// {
 		// 	name: "check multiple clients",

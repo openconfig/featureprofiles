@@ -48,7 +48,7 @@ func (c *Client) getAft(instance string) *oc.NetworkInstance_Afts {
 	return c.getCurrentAftConfig()[instance]
 }
 
-func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInstance, interfaceRef string) {
+func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInstance, interfaceRef string, opts ...*NHOptions) {
 	t.Helper()
 	time.Sleep(time.Duration(*ciscoFlags.GRIBINHTimer) * time.Second)
 	aftNHs := gnmi.GetAll(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHopAny().State())
@@ -75,6 +75,19 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 					t.Fatalf("AFT Check failed for aft/next-hop/interface-ref got none, want interface ref %s", interfaceRef)
 				}
 			}
+			// if len(opts) > 1 {
+			// 	// if nh.GetEncapType() != 1 {
+			// 	// 	t.Fatalf("AFT Check failed for aft/next-hop/EncapType got %s, want %s", nh.GetEncapType(), 1)
+			// 	// }
+			// 	// if ipinip := nh.GetIpInIp(); ipinip != nil {
+			// 	// 	if nh.GetSrcIp() != opts[0].Src {
+			// 	// 		t.Fatalf("AFT Check failed for aft/next-hop/SourceIP got %s, want %s", ipinip.SrcIp, opts[0].Src)
+			// 	// 	}
+			// 	// 	if nh.GetDstIp() != opts[0].Dest[0] {
+			// 	// 		t.Fatalf("AFT Check failed for aft/next-hop/DestIP got %s, want %s", ipinip.DstIp, opts[0].Dest[0])
+			// 	// 	}
+			// 	// }
+			// }
 			found = true
 			break
 		}

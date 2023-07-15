@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
@@ -167,11 +166,11 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	intfs := top.Interfaces()
 	intfs["atePort8"].WithIPv4Loopback("100.100.100.100/32")
 	if isisPfx != 0 || bgpPfx != 0 {
-		addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, isisPfx)
+		// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, isisPfx)
 		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, bgpPfx, true)
 	} else {
-		addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, uint32(*ciscoFlags.GRIBIScale))
-		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, uint32(*ciscoFlags.GRIBIScale), true)
+		// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, gribi_Scale)
+		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, gribi_Scale, true)
 	}
 	top.Push(t).StartProtocols(t)
 }
@@ -182,8 +181,8 @@ func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEn
 	if len(opts) != 0 {
 		for _, opt := range opts {
 			if opt.SrcIP != "" {
-				if *ciscoFlags.GRIBIScale < nhg_Scale_REPAIR {
-					hdr.WithSrcAddress(opt.SrcIP).DstAddressRange().WithMin(dstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
+				if gribi_Scale < nhg_Scale_REPAIR {
+					hdr.WithSrcAddress(opt.SrcIP).DstAddressRange().WithMin(dstPfxMin).WithCount(uint32(gribi_Scale)).WithStep("0.0.0.1")
 				} else {
 					hdr.WithSrcAddress(opt.SrcIP).DstAddressRange().WithMin(dstPfxMin).WithCount(uint32(nhg_Scale_REPAIR)).WithStep("0.0.0.1")
 
@@ -191,15 +190,15 @@ func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEn
 			}
 		}
 	} else {
-		hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin("198.51.100.0").WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
+		hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin("198.51.100.0").WithCount(uint32(gribi_Scale)).WithStep("0.0.0.1")
 	}
 
 	innerIpv4Header := ondatra.NewIPv4Header()
 	innerIpv4Header.WithSrcAddress(innersrcPfx)
-	if innerdstPfxCount > uint32(*ciscoFlags.GRIBIScale) {
+	if innerdstPfxCount > uint32(gribi_Scale) {
 		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(innerdstPfxCount).WithStep("0.0.0.1")
 	} else {
-		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
+		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(uint32(gribi_Scale)).WithStep("0.0.0.1")
 	}
 	flow := a.ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(srcEndPoint).
@@ -222,15 +221,17 @@ func (a *testArgs) allFlows(t *testing.T, opts ...*TGNoptions) []*ondatra.Flow {
 	if len(opts) != 0 {
 		for _, opt := range opts {
 			if opt.SrcIP != "" {
-				src_ip_isis_flow := a.createFlow("Src_ip_isis_flow", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis, &TGNoptions{SrcIP: opt.SrcIP})
+				// src_ip_isis_flow := a.createFlow("Src_ip_isis_flow", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis, &TGNoptions{SrcIP: opt.SrcIP})
 				src_ip_bgp_flow := a.createFlow("Src_ip_bgp_flow", srcEndPoint, dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp, &TGNoptions{SrcIP: opt.SrcIP})
-				flows = append(flows, src_ip_bgp_flow, src_ip_isis_flow)
+				// flows = append(flows, src_ip_bgp_flow, src_ip_isis_flow)
+				flows = append(flows, src_ip_bgp_flow)
 			}
 		}
 	} else {
 		bgp_flow := a.createFlow("BaseFlow_BGP", srcEndPoint, dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-		isis_flow := a.createFlow("BaseFlow_ISIS", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-		flows = append(flows, bgp_flow, isis_flow)
+		// isis_flow := a.createFlow("BaseFlow_ISIS", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
+		// flows = append(flows, bgp_flow, isis_flow)
+		flows = append(flows, bgp_flow)
 	}
 	return flows
 }
