@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package generic_health_check_test
+package system_generic_health_check_test
 
 import (
 	"context"
@@ -82,32 +82,33 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 	t.Helper()
 	t.Log("Checking for core files on DUT")
 
+	dutVendor := dut.Vendor()
 	// vendorCoreFilePath and vendorCoreProcName should be provided to fetch core file on dut.
-	if _, ok := vendorCoreFilePath[dut.Vendor()]; !ok {
-		t.Fatalf("Please add support for vendor %v in var vendorCoreFilePath ", dut.Vendor())
+	if _, ok := vendorCoreFilePath[dutVendor]; !ok {
+		t.Fatalf("Please add support for vendor %v in var vendorCoreFilePath ", dutVendor)
 	}
-	if _, ok := vendorCoreFileNamePattern[dut.Vendor()]; !ok {
-		t.Fatalf("Please add support for vendor %v in var vendorCoreFileNamePattern.", dut.Vendor())
+	if _, ok := vendorCoreFileNamePattern[dutVendor]; !ok {
+		t.Fatalf("Please add support for vendor %v in var vendorCoreFileNamePattern.", dutVendor)
 	}
 
 	in := &fpb.StatRequest{
-		Path: vendorCoreFilePath[dut.Vendor()],
+		Path: vendorCoreFilePath[dutVendor],
 	}
 	validResponse, err := gnoiClient.File().Stat(context.Background(), in)
 	if err != nil {
 		if retry {
-			t.Logf("Retry GNOI request to check %v for core files on DUT", vendorCoreFilePath[dut.Vendor()])
+			t.Logf("Retry GNOI request to check %v for core files on DUT", vendorCoreFilePath[dutVendor])
 			validResponse, err = gnoiClient.File().Stat(context.Background(), in)
 		}
 	}
 	if err != nil {
-		t.Fatalf("Unable to stat path %v for core files on DUT, %v", vendorCoreFilePath[dut.Vendor()], err)
+		t.Fatalf("Unable to stat path %v for core files on DUT, %v", vendorCoreFilePath[dutVendor], err)
 	}
 	// Check cores creation time is greater than test start time.
 	for _, fileStatsInfo := range validResponse.GetStats() {
 		if fileStatsInfo.GetLastModified() > sysConfigTime {
 			coreFileName := fileStatsInfo.GetPath()
-			r := vendorCoreFileNamePattern[dut.Vendor()]
+			r := vendorCoreFileNamePattern[dutVendor]
 			if r.MatchString(coreFileName) {
 				t.Errorf("Found core %v on DUT.", coreFileName)
 			}
@@ -155,10 +156,8 @@ func TestGetComponentNames(t *testing.T) {
 	lineCards = components.FindComponentsByType(t, dut, lineCardType)
 	fabricCards = components.FindComponentsByType(t, dut, fabricCardType)
 	cpuCards = components.FindComponentsByType(t, dut, cpuType)
-
 	checkComponents = append(controllerCards, lineCards...)
 	checkComponents = append(checkComponents, fabricCards...)
-
 }
 
 func TestCheckForCoreFiles(t *testing.T) {
@@ -215,7 +214,7 @@ func TestComponentStatus(t *testing.T) {
 
 func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	deviceName := dut.Device.Name()
+	deviceName := dut.Name()
 
 	rpActiveCpuFound := false
 	for _, cpu := range cpuCards {
@@ -252,9 +251,9 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 
 func TestLineCardsNoHighCPUSpike(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	deviceName := dut.Device.Name()
+	deviceName := dut.Name()
 
-	if deviations.LinecardCpuUtilizationUnsupported(dut) {
+	if deviations.LinecardCPUUtilizationUnsupported(dut) {
 		t.Skipf("Skipping test due to deviation linecard_cpu_ultilization_unsupported")
 	}
 
@@ -299,7 +298,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 
 func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	deviceName := dut.Device.Name()
+	deviceName := dut.Name()
 	description := "Component"
 
 	cardList := append(controllerCards, lineCards...)
@@ -330,7 +329,7 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 
 func TestSystemProcessNoHighCPUSpike(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	deviceName := dut.Device.Name()
+	deviceName := dut.Name()
 
 	query := gnmi.OC().System().ProcessAny().State()
 	description := "System CPU Process"
@@ -352,7 +351,7 @@ func TestSystemProcessNoHighCPUSpike(t *testing.T) {
 
 func TestSystemProcessNoHighMemorySpike(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	deviceName := dut.Device.Name()
+	deviceName := dut.Name()
 
 	query := gnmi.OC().System().ProcessAny().State()
 	description := "System Process Memory"
@@ -439,74 +438,55 @@ func TestNoQueueDrop(t *testing.T) {
 
 func TestNoAsicDrop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
 	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().State()
 	asicDrops := gnmi.GetAll(t, dut, query)
 	if len(asicDrops) == 0 {
 		t.Fatalf("ERROR: %s is not present", query)
 	}
-
 	for _, drop := range asicDrops {
-
 		if drop.InterfaceBlock != nil {
-
-			if drop.InterfaceBlock.InDrops != nil && drop.InterfaceBlock.GetInDrops() > 0 {
+			if drop.InterfaceBlock.GetInDrops() > 0 {
 				t.Errorf("ERROR: InDrops counter got %d, want 0", drop.InterfaceBlock.GetInDrops())
 			}
-
-			if drop.InterfaceBlock.OutDrops != nil && drop.InterfaceBlock.GetOutDrops() > 0 {
+			if drop.InterfaceBlock.GetOutDrops() > 0 {
 				t.Errorf("ERROR: InDrops counter got %d, want 0", drop.InterfaceBlock.GetOutDrops())
 			}
-
-			if drop.InterfaceBlock.Oversubscription != nil && drop.InterfaceBlock.GetOversubscription() > 0 {
+			if drop.InterfaceBlock.GetOversubscription() > 0 {
 				t.Errorf("ERROR: InDrops counter got %d, want 0", drop.InterfaceBlock.GetOversubscription())
 			}
-
 		}
-
 		if drop.LookupBlock != nil {
-
-			if drop.LookupBlock.AclDrops != nil && drop.LookupBlock.GetAclDrops() > 0 {
+			if drop.LookupBlock.GetAclDrops() > 0 {
 				t.Errorf("ERROR: AclDrops counter got %d, want 0", drop.LookupBlock.GetAclDrops())
 			}
-
-			if drop.LookupBlock.ForwardingPolicy != nil && drop.LookupBlock.GetForwardingPolicy() > 0 {
+			if drop.LookupBlock.GetForwardingPolicy() > 0 {
 				t.Errorf("ERROR: ForwardingPolicy got %d, want 0", drop.LookupBlock.GetForwardingPolicy())
 			}
-
-			if drop.LookupBlock.FragmentTotalDrops != nil && drop.LookupBlock.GetFragmentTotalDrops() > 0 {
+			if drop.LookupBlock.GetFragmentTotalDrops() > 0 {
 				t.Errorf("ERROR: FragmentTotalDrops got %d, want 0", drop.LookupBlock.GetFragmentTotalDrops())
 			}
-
-			if drop.LookupBlock.IncorrectSoftwareState != nil && drop.LookupBlock.GetIncorrectSoftwareState() > 0 {
+			if drop.LookupBlock.GetIncorrectSoftwareState() > 0 {
 				t.Errorf("ERROR: IncorrectSoftwareState counter got %d, want 0", drop.LookupBlock.GetIncorrectSoftwareState())
 			}
-
-			if drop.LookupBlock.InvalidPacket != nil && drop.LookupBlock.GetInvalidPacket() > 0 {
+			if drop.LookupBlock.GetInvalidPacket() > 0 {
 				t.Errorf("ERROR: InvalidPacket counter got %d, want 0", drop.LookupBlock.GetInvalidPacket())
 			}
-
-			if drop.LookupBlock.LookupAggregate != nil && drop.LookupBlock.GetLookupAggregate() > 0 {
+			if drop.LookupBlock.GetLookupAggregate() > 0 {
 				t.Errorf("ERROR: LookupAggregate counter got %d, want 0", drop.LookupBlock.GetLookupAggregate())
 			}
-
-			if drop.LookupBlock.NoLabel != nil && drop.LookupBlock.GetNoLabel() > 0 {
+			if drop.LookupBlock.GetNoLabel() > 0 {
 				t.Errorf("ERROR: NoLabel counter got %d, want 0", drop.LookupBlock.GetNoLabel())
 			}
-
-			if drop.LookupBlock.NoNexthop != nil && drop.LookupBlock.GetNoNexthop() > 0 {
+			if drop.LookupBlock.GetNoNexthop() > 0 {
 				t.Errorf("ERROR: NoNexthop counter is %d, not zero", drop.LookupBlock.GetNoNexthop())
 			}
-
-			if drop.LookupBlock.NoRoute != nil && drop.LookupBlock.GetNoRoute() > 0 {
+			if drop.LookupBlock.GetNoRoute() > 0 {
 				t.Errorf("ERROR: NoRoute counter is %d, not zero", drop.LookupBlock.GetNoRoute())
 			}
-
-			if drop.LookupBlock.Oversubscription != nil && drop.LookupBlock.GetOversubscription() > 0 {
+			if drop.LookupBlock.GetOversubscription() > 0 {
 				t.Errorf("ERROR: Oversubscription counter got %d, want 0", drop.LookupBlock.GetOversubscription())
 			}
-
-			if drop.LookupBlock.RateLimit != nil && drop.LookupBlock.GetRateLimit() > 0 {
+			if drop.LookupBlock.GetRateLimit() > 0 {
 				t.Errorf("ERROR: RateLimit counter got %d, want 0", drop.LookupBlock.GetRateLimit())
 			}
 		}
@@ -515,36 +495,28 @@ func TestNoAsicDrop(t *testing.T) {
 
 func TestInterfaceStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
 	for _, intf := range interfaces {
-
 		query := gnmi.OC().Interface(intf).State()
 		root := gnmi.Get(t, dut, query)
 
 		if root.GetOperStatus() != oc.Interface_OperStatus_UP {
 			t.Errorf("ERROR: Oper status is not up on interface %s", intf)
 		}
-
 		if root.GetAdminStatus() != oc.Interface_AdminStatus_UP {
 			t.Errorf("ERROR: Admin status is not up on interface %s", intf)
 		}
-
 		if root.Type == oc.IETFInterfaces_InterfaceType_UNSET {
 			t.Errorf("ERROR: Type is not present on interface %s", intf)
 		}
-
 		if root.Description == nil {
 			t.Errorf("ERROR: Description is not present on interface %s", intf)
 		}
-
 		if root.GetCounters().OutOctets == nil {
 			t.Errorf("Counter OutOctets is not present on interface %s", intf)
 		}
-
 		if root.GetCounters().InMulticastPkts == nil {
 			t.Errorf("ERROR: Counter InMulticastPkts is not present on interface %s", intf)
 		}
-
 		if root.GetCounters().InDiscards == nil {
 			t.Errorf("ERROR: Counter InDiscards is not present on interface %s", intf)
 		} else {
@@ -552,7 +524,6 @@ func TestInterfaceStatus(t *testing.T) {
 				t.Errorf("Counter InDiscards is %d, not zero", root.GetCounters().GetInDiscards())
 			}
 		}
-
 		if root.GetCounters().InErrors == nil {
 			t.Errorf("ERROR: Counter InErrors is not present on interface %s", intf)
 		} else {
@@ -560,7 +531,6 @@ func TestInterfaceStatus(t *testing.T) {
 				t.Errorf("ERROR: Counter InErrors is %d, not zero", root.GetCounters().GetInErrors())
 			}
 		}
-
 		if root.GetCounters().InUnknownProtos == nil {
 			t.Errorf("ERROR: Counter InUnknownProtos is not present on interface %s", intf)
 		} else {
@@ -568,7 +538,6 @@ func TestInterfaceStatus(t *testing.T) {
 				t.Errorf("ERROR: Counter InUnknownProtos is %d, not zero", root.GetCounters().GetInUnknownProtos())
 			}
 		}
-
 		if root.GetCounters().OutDiscards == nil {
 			t.Errorf("ERROR: Counter OutDiscards is not present on interface %s", intf)
 		} else {
@@ -576,7 +545,6 @@ func TestInterfaceStatus(t *testing.T) {
 				t.Errorf("ERROR: Counter OutDiscards is %d, not zero", root.GetCounters().GetOutDiscards())
 			}
 		}
-
 		if root.GetCounters().OutErrors == nil {
 			t.Errorf("ERROR: Counter OutErrors is not present on interface %s", intf)
 		} else {
@@ -584,7 +552,6 @@ func TestInterfaceStatus(t *testing.T) {
 				t.Errorf("ERROR: Counter OutErrors is %d, not zero", root.GetCounters().GetOutErrors())
 			}
 		}
-
 		if root.GetCounters().InFcsErrors == nil {
 			t.Errorf("ERROR: Counter InFcsErrors is not present on interface %s", intf)
 		} else {
@@ -597,7 +564,6 @@ func TestInterfaceStatus(t *testing.T) {
 
 func TestInterfacesubIntfs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
 	for _, intf := range interfaces {
 		subIntfIndexes := gnmi.LookupAll(t, dut, gnmi.OC().Interface(intf).SubinterfaceAny().Index().State())
 		for _, index := range subIntfIndexes {
@@ -673,7 +639,6 @@ func TestInterfacesubIntfs(t *testing.T) {
 
 			for _, c := range cases {
 				t.Run(c.desc, func(t *testing.T) {
-
 					if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present && (val == 0) {
 						t.Logf("INFO: %s: %d", c.counter, val)
 					} else if pVal, pPresent := gnmi.Lookup(t, dut, c.parentCounter).Val(); pPresent && (pVal == 0) {
@@ -728,7 +693,6 @@ func TestInterfaceEthernetNoDrop(t *testing.T) {
 
 func TestSystemAlarms(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
 	query := gnmi.OC().System().AlarmAny().State()
 	alarms := gnmi.GetAll(t, dut, query)
 	if len(alarms) > 0 {

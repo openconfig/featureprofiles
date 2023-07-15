@@ -81,5 +81,4 @@ N/A
 *   /components/component/integrated-circuit/pipeline-counters/drop/interface-block/state/out-drops
 *   /components/component/integrated-circuit/pipeline-counters/drop/interface-block/state/oversubscription
 
-
 ## Protocol/RPC Parameter Coverage
