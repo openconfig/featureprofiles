@@ -13,6 +13,7 @@ platform_exceptions: {
     explicit_p4rt_node_component: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -21,5 +22,6 @@ platform_exceptions: {
   }
   deviations: {
     gribi_mac_override_static_arp_static_route: true
+    interface_enabled: true
   }
 }
