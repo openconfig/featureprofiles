@@ -137,12 +137,12 @@ func TestChassisComponentArtifacts(t *testing.T) {
 		},
 	}
 	t.Logf("Executing Healthz Check RPC for component %v", componentName["name"])
-	validResponse2, err2 := gnoiClient.Healthz().Check(context.Background(), chkReq)
-	if err2 != nil {
-		t.Fatalf("Unexpected error on executing Healthz Check RPC: %v", err2)
+	chkRes, err := gnoiClient.Healthz().Check(context.Background(), chkReq)
+	if err != nil {
+		t.Fatalf("Unexpected error on executing Healthz Check RPC: %v", err)
 	}
 	// Fetch artifact related metadata that was returned in the Check Response.
-	artifacts := validResponse2.GetStatus().GetArtifacts()
+	artifacts := chkRes.GetStatus().GetArtifacts()
 	if len(artifacts) == 0 {
 		t.Fatalf("Artifacts received for component %v after executing Healthz Check RPC - want non-nil, got nil", componentName["name"])
 	}
@@ -155,14 +155,14 @@ func TestChassisComponentArtifacts(t *testing.T) {
 			Id: artId,
 		}
 		// Verify that a valid response is received.
-		validResponse3, err3 := gnoiClient.Healthz().Artifact(context.Background(), artReq)
-		if err3 != nil {
-			t.Fatalf("Unexpected error on executing Healthz Artifact RPC: %v", err3)
+		artRes, err := gnoiClient.Healthz().Artifact(context.Background(), artReq)
+		if err != nil {
+			t.Fatalf("Unexpected error on executing Healthz Artifact RPC: %v", err)
 		}
-		h1, err31 := validResponse3.Header()
+		h1, err := artRes.Header()
 		t.Logf("Header of artifact %v: %v", artId, h1)
-		if err31 != nil {
-			t.Fatalf("Unexpected error when fetching the header of artifact %v: %v", artId, err31)
+		if err != nil {
+			t.Fatalf("Unexpected error when fetching the header of artifact %v: %v", artId, err)
 		}
 	}
 }
