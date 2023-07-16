@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 
 // user needed inputs
 const (
-	with_scale            = false                       // run entire script with or without scale (Support not yet coded)
+	with_scale            = true                        // run entire script with or without scale (Support not yet coded)
 	with_RPFO             = false                       // run entire script with or without RFPO
 	base_config           = "case4_decap_encap_recycle" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
@@ -75,7 +75,7 @@ const (
 
 // gribi programming variables
 const (
-	gribi_Scale        = 2
+	gribi_Scale        = 30208
 	nhg_Scale_TE       = 1000  // NHG scale used for TE vrf
 	nh_prefix_TE       = 2     // same nh will be used across all the nhgs
 	nh_scale_TE        = 10000 // create NHs with different index and repeat prefix set under nh_prefix_TE flag, set an even number
@@ -89,7 +89,7 @@ const (
 // traffic constant
 const (
 	bgpPfx                = 100000 //set value for scale bgp setup 100000
-	isisPfx               = 25000  //set value for scale isis setup 10000
+	isisPfx               = 20000  //set value for scale isis setup 10000
 	innerdstPfxCount_bgp  = 1      //set value for number of inner prefix for bgp flow
 	innerdstPfxCount_isis = 1      //set value for number of inner prefix for isis flow
 )

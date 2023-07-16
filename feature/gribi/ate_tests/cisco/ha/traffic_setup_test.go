@@ -117,20 +117,20 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 }
 
 // addAteISISL2 configures ISIS L2 ATE config
-// func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, v4prefix string, count uint32) {
+func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, v4prefix string, count uint32) {
 
-// 	intfs := topo.Interfaces()
-// 	if len(intfs) == 0 {
-// 		t.Fatal("There are no interfaces in the Topology")
-// 	}
-// 	network := intfs[atePort].AddNetwork(network_name)
-// 	network.ISIS().WithIPReachabilityMetric(metric + 1)
-// 	network.IPv4().WithAddress(v4prefix).WithCount(count)
-// 	rnetwork := intfs[atePort].AddNetwork("recursive")
-// 	rnetwork.ISIS().WithIPReachabilityMetric(metric + 1)
-// 	rnetwork.IPv4().WithAddress("100.100.100.100/32")
-// 	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
-// }
+	intfs := topo.Interfaces()
+	if len(intfs) == 0 {
+		t.Fatal("There are no interfaces in the Topology")
+	}
+	network := intfs[atePort].AddNetwork(network_name)
+	network.ISIS().WithIPReachabilityMetric(metric + 1)
+	network.IPv4().WithAddress(v4prefix).WithCount(count)
+	rnetwork := intfs[atePort].AddNetwork("recursive")
+	rnetwork.ISIS().WithIPReachabilityMetric(metric + 1)
+	rnetwork.IPv4().WithAddress("100.100.100.100/32")
+	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
+}
 
 // addAteEBGPPeer configures EBGP ATE config
 func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, network_name, nexthop, prefix string, count uint32, useLoopback bool) {
@@ -166,10 +166,10 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	intfs := top.Interfaces()
 	intfs["atePort8"].WithIPv4Loopback("100.100.100.100/32")
 	if isisPfx != 0 || bgpPfx != 0 {
-		// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, isisPfx)
+		addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, isisPfx)
 		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, bgpPfx, true)
 	} else {
-		// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, gribi_Scale)
+		addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, gribi_Scale)
 		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, gribi_Scale, true)
 	}
 	top.Push(t).StartProtocols(t)
