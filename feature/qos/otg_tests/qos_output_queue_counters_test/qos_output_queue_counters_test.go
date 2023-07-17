@@ -656,7 +656,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		i := q.GetOrCreateInterface(dp2.Name())
 		i.SetInterfaceId(dp2.Name())
 		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp2.Name())
-		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+		if deviations.InterfaceRefConfigUnsupported(dut) {
 			i.InterfaceRef = nil
 		}
 		output := i.GetOrCreateOutput()
