@@ -329,22 +329,17 @@ func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow 
 
 // validateAftTelmetry verifies aft telemetry entries.
 func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix, ipAddress, resolvedNhIpAddress string) {
-	aftPfxNHG := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(prefix + "/" + mask).NextHopGroup()
-	aftPfxNHGVal, found := gnmi.Watch(t, a.dut, aftPfxNHG.State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		if val.IsPresent() {
-			value, _ := val.Val()
-			if value != 0 {
-				return true
-			}
-		}
-		return false
+	aftPfxPath := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(prefix + "/" + mask)
+	aftPfxVal, found := gnmi.Watch(t, a.dut, aftPfxPath.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		value, present := val.Val()
+		return present && value.GetNextHopGroup() != 0
 	}).Await(t)
 	if !found {
 		t.Fatalf("Could not find prefix %s in telemetry AFT", prefix+"/"+mask)
 	}
-	nhg, _ := aftPfxNHGVal.Val()
+	aftPfx, _ := aftPfxVal.Val()
 
-	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(nhg).State())
+	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
 	if got := len(aftNHG.NextHop); got != 1 {
 		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", prefix+"/"+mask, got)
 	}
