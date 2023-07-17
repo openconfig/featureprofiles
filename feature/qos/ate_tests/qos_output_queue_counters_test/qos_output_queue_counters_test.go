@@ -20,6 +20,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -490,16 +491,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		i := q.GetOrCreateInterface(tc.intf)
-		i.SetInterfaceId(tc.intf)
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp1.Name())
-			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		}
-		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-		c.SetType(tc.inputClassifierType)
-		c.SetName(tc.classifier)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -631,8 +623,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp2.Name())
 		i.SetInterfaceId(dp2.Name())
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp2.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp2.Name())
+		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
 		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
@@ -850,15 +843,9 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 		classifier:          "dscp_based_classifier_ipv6",
 	}}
 
-	i := q.GetOrCreateInterface(dp1.Name())
-	i.InterfaceId = ygot.String(dp1.Name())
-	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp1.Name())
 	for _, tc := range intcases {
 		t.Run(tc.desc, func(t *testing.T) {
-			c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-			c.SetType(tc.inputClassifierType)
-			c.SetName(tc.classifier)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			qoscfg.SetInputClassifier(t, dut, q, dp1.Name(), tc.inputClassifierType, tc.classifier)
 		})
 	}
 
