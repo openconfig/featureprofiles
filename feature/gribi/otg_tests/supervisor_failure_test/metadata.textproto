@@ -20,6 +20,7 @@ platform_exceptions: {
   deviations: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -28,5 +29,6 @@ platform_exceptions: {
   }
   deviations: {
     gnoi_subcomponent_path: true
+    interface_enabled: true
   }
 }
