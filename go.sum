@@ -911,8 +911,8 @@ github.com/openconfig/kne v0.1.13 h1:CXcy95vrUDAA7nTPGekwJXunlt2kBwM/oMQUlbDzmFM
 github.com/openconfig/kne v0.1.13/go.mod h1:L3y17JPcmU06vcTFRssYynUdKS7HfcGJUJNVvwkl5S8=
 github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY05KS5X11jxVbw=
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
-github.com/openconfig/ondatra v0.1.24-0.20230713143210-d81989ceab89 h1:LmY4N2mt43E7NCfvH2PfS39bYaGt1uLz3ptCKAAE4po=
-github.com/openconfig/ondatra v0.1.24-0.20230713143210-d81989ceab89/go.mod h1:prhnBnjQC64W5wFbjNqSEomoUb6eWjJiTlAPHhZt2yE=
+github.com/openconfig/ondatra v0.2.0 h1:kaYEnVOZgIyEIL6FWQwBv8i/tvp78ptrCUfMP+trLYU=
+github.com/openconfig/ondatra v0.2.0/go.mod h1:prhnBnjQC64W5wFbjNqSEomoUb6eWjJiTlAPHhZt2yE=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygnmi v0.8.1 h1:wdjrn1wBBBTCSQGO94ht0CY2zyJdoOe4G6rmjsMdPdc=
