@@ -24,6 +24,7 @@ platform_exceptions: {
     explicit_gribi_under_network_instance: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -41,5 +42,6 @@ platform_exceptions: {
   }
   deviations: {
     deprecated_vlan_id: true
+    interface_enabled: true
   }
 }
