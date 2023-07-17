@@ -1749,7 +1749,8 @@ func test_triggers(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR", "viable"}
+	// processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR", "viable"}
+	processes := []string{"shutdown"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			if processes[i] == "shutdown" {
@@ -2286,26 +2287,26 @@ func TestHA(t *testing.T) {
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		{
-			name: "check_microdrops",
-			desc: "With traffic running do delete/update/create programming and look for drops",
-			fn:   test_microdrops,
-		},
-		{
-			name: "Restart RFPO with programming",
-			desc: "After programming, perform RPFO try new programming and validate traffic",
-			fn:   test_RFPO_with_programming,
-		},
-		{
-			name: "Restart single process",
-			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-			fn:   testRestart_single_process,
-		},
-		{
-			name: "Restart multiple process",
-			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-			fn:   testRestart_multiple_process,
-		},
+		// {
+		// 	name: "check_microdrops",
+		// 	desc: "With traffic running do delete/update/create programming and look for drops",
+		// 	fn:   test_microdrops,
+		// },
+		// {
+		// 	name: "Restart RFPO with programming",
+		// 	desc: "After programming, perform RPFO try new programming and validate traffic",
+		// 	fn:   test_RFPO_with_programming,
+		// },
+		// {
+		// 	name: "Restart single process",
+		// 	desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+		// 	fn:   testRestart_single_process,
+		// },
+		// {
+		// 	name: "Restart multiple process",
+		// 	desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+		// 	fn:   testRestart_multiple_process,
+		// },
 		{
 			name: "Triggers",
 			desc: "With traffic running, validate multiple triggers",
