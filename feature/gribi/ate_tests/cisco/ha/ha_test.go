@@ -2255,7 +2255,7 @@ func TestHA(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	// ctx, cancelMonitors := context.WithCancel(context.Background())
-
+	ondatra.Debug().Breakpoint(t)
 	// Configure the DUT
 	var vrfs = []string{vrf1, vrf2, vrf3, vrf4}
 	configVRF(t, dut, vrfs)
