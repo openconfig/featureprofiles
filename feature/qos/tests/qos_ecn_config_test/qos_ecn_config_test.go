@@ -128,9 +128,9 @@ func testECNConfig(t *testing.T) {
 	}{
 		ecnEnabled:                true,
 		dropEnabled:               false,
-		minThreshold:              uint64(80000),
-		maxThreshold:              math.MaxUint64,
-		maxDropProbabilityPercent: uint8(1),
+		minThreshold:              uint64(7950000),
+		maxThreshold:              uint64(8000000),
+		maxDropProbabilityPercent: uint8(100),
 		weight:                    uint32(0),
 	}
 
