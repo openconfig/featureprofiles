@@ -44,20 +44,21 @@ type testArgs struct {
 
 const (
 	// Destination prefix for DUT to ATE traffic.
-	dstPfx   = "198.51.100.0"
-	vrfA     = "VRF-A"
-	vrfB     = "VRF-B"
-	nh1ID    = 1
-	nh2ID    = 2
-	nh100ID  = 100
-	nh101ID  = 101
-	nhg1ID   = 1
-	nhg2ID   = 2
-	nhg100ID = 100
-	nhg101ID = 101
-	nhip     = "192.0.2.254"
-	mask     = "32"
-	policyID = "match-ipip"
+	dstPfx           = "198.51.100.0"
+	vrfA             = "VRF-A"
+	vrfB             = "VRF-B"
+	nh1ID            = 1
+	nh2ID            = 2
+	nh100ID          = 100
+	nh101ID          = 101
+	nhg1ID           = 1
+	nhg2ID           = 2
+	nhg100ID         = 100
+	nhg101ID         = 101
+	nhip             = "192.0.2.254"
+	mask             = "32"
+	policyID         = "match-ipip"
+	ipOverIPProtocol = 4
 )
 
 var (
@@ -140,7 +141,7 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 		pf := ni.GetOrCreatePolicyForwarding()
 		fp1 := pf.GetOrCreatePolicy(policyID)
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-		fp1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(4)
+		fp1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipOverIPProtocol)
 		fp1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(vrfB)
 		p1 := dut.Port(t, "port1")
 		intf := pf.GetOrCreateInterface(p1.Name())
