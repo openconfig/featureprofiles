@@ -54,6 +54,12 @@ func P4rtBackupArbitrationResponseCode(*ondatra.DUTDevice) bool {
 	return *p4rtBackupArbitrationResponseCode
 }
 
+// BackupNHGRequiresVrfWithDecap returns true for devices that require
+// IPOverIP Decapsulation for Backup NHG without interfaces.
+func BackupNHGRequiresVrfWithDecap(*ondatra.DUTDevice) bool {
+	return *backupNHGRequiresVrfWithDecap
+}
+
 var (
 	cpuMissingAncestor                       = flag.Bool("deviation_cpu_missing_ancestor", false, "Set to true for devices where the CPU components do not map to a FRU parent component in the OC tree.")
 	intfRefConfigUnsupported                 = flag.Bool("deviation_intf_ref_config_unsupported", false, "Set to true for devices that do not support interface-ref configuration when applying features to interface.")
@@ -61,4 +67,5 @@ var (
 	gnoiSwitchoverReasonMissingUserInitiated = flag.Bool("deviation_gnoi_switchover_reason_missing_user_initiated", false, "Set to true for devices that don't report last-switchover-reason as USER_INITIATED for gNOI.SwitchControlProcessor.")
 	p4rtUnsetElectionIDPrimaryAllowed        = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary")
 	p4rtBackupArbitrationResponseCode        = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
+	backupNHGRequiresVrfWithDecap            = flag.Bool("deviation_backup_nhg_requires_vrf_with_decap", false, "Set to true for devices that require IPOverIP Decapsulation for Backup NHG without interfaces.")
 )
