@@ -344,8 +344,9 @@ func HierarchicalWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
 }
 
 // InterfaceEnabled returns if device requires interface enabled leaf booleans to be explicitly set to true.
-func InterfaceEnabled(_ *ondatra.DUTDevice) bool {
-	return *interfaceEnabled
+func InterfaceEnabled(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_interface_enabled")
+	return lookupDUTDeviations(dut).GetInterfaceEnabled()
 }
 
 // InterfaceCountersFromContainer returns if the device only supports querying counters from the state container, not from individual counter leaves.
@@ -594,7 +595,7 @@ var (
 	_ = flag.String("deviation_banner_delimiter", "",
 		"Device requires the banner to have a delimiter character. Full OpenConfig compliant devices should work without delimiter.")
 
-	interfaceEnabled = flag.Bool("deviation_interface_enabled", false,
+	_ = flag.Bool("deviation_interface_enabled", false,
 		"Device requires interface enabled leaf booleans to be explicitly set to true.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
 	_ = flag.Bool("deviation_ipv4_missing_enabled", false, "Device does not support interface/ipv4/enabled, so suppress configuring this leaf.")

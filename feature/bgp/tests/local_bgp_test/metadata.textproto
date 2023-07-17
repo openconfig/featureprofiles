@@ -24,6 +24,7 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
     route_policy_under_afi_unsupported: true
     missing_value_for_defaults: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -44,5 +45,6 @@ platform_exceptions: {
     omit_l2_mtu: true
     network_instance_table_deletion_required: true
     missing_value_for_defaults: true
+    interface_enabled: true
   }
 }
