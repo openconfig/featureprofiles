@@ -20,6 +20,7 @@ platform_exceptions: {
   deviations: {
     omit_l2_mtu: true
     static_protocol_name: "STATIC"
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -28,5 +29,6 @@ platform_exceptions: {
   }
   deviations: {
     static_protocol_name: "static"
+    interface_enabled: true
   }
 }

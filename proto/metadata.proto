@@ -252,6 +252,9 @@ message Metadata {
     // + Static Route
     // Arista: partnerissuetracker.corp.google.com/234635355
     bool gribi_mac_override_static_arp_static_route = 74;
+    // Device requires interface enabled leaf booleans to be explicitly set to
+    // true.
+    bool interface_enabled = 75;
   }
 
   message PlatformExceptions {
