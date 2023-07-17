@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net"
-	"net/url"
 
 	//"net/http"
 	//"net/http/httptest"
@@ -26,7 +25,7 @@ var (
 	caPrivateKey *rsa.PrivateKey
 	caCert *x509.Certificate
 )
-func init() {
+func main() {
 	// read the CA keys from keys/ca and generate it if not found
 	var err error
 	caPrivateKey,caCert,err= loadRootCA(); if err!=nil {
@@ -35,21 +34,12 @@ func init() {
 		}
 		fmt.Println(caPrivateKey,caCert)
 	}
-	//genCERT("cafy_auto", 100, []net.IP{}, "")
-	//genCERT("Moji_SFD", 100, []net.IP{net.IPv4(10,85,84,159)})
-	// in our lab env we add all ips for proxy routers here, this way we use the same certificate for all lab routers.
-	//genCERT("ems", 100, []net.IP{net.IPv4(10,85,84,159)}, "")
+	genCERT("Moji_SFD", 100)
 }
 
-func genCERT(cn string, expireInDays int, ips []net.IP, spiffe  string) (*rsa.PrivateKey, *x509.Certificate, error) {
+func genCERT(cn string, expireInDays int) (*rsa.PrivateKey, *x509.Certificate, error) {
 	// set up our server certificate
-	uris:=[]*url.URL{}
-	if spiffe!="" {
-		uri, err:= url.Parse(spiffe); if err!=nil {
-			uris=append(uris,uri)
-		}
-	}
-	serial, err := rand.Int(rand.Reader,big.NewInt(big.MaxBase)); if err!=nil {
+	serial, err := rand.Int(rand.Reader,big.NewInt(9999999999999999)); if err!=nil {
 		return nil,nil, err
 	}
 	certSpec := &x509.Certificate{
@@ -59,8 +49,7 @@ func genCERT(cn string, expireInDays int, ips []net.IP, spiffe  string) (*rsa.Pr
 			Organization:  []string{"OpenConfig"},
 			Country:       []string{"US"},
 		},
-		IPAddresses:  ips,
-		URIs: uris,
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(0, 0, expireInDays),
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
@@ -140,12 +129,12 @@ func genRootCA() (*rsa.PrivateKey, *x509.Certificate, error){
 	ca := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
-			CommonName:     "localhost",
+			CommonName:     "OpenConfig",
 			Organization:  []string{"OpenConfig"},
 			Country:       []string{"US"},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(1000, 0, 0),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
