@@ -284,7 +284,7 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
 
-	entry := verifyEntry(t, dut, nonDefaultVRF, ateDstNetEntryNonDefault)
+	entry := hasIPv4Entry(t, dut, nonDefaultVRF, ateDstNetEntryNonDefault)
 	if !entry {
 		t.Errorf("ipv4-entry/state/prefix does not contain entry, expected: %s", ateDstNetEntryNonDefault)
 	} else {
@@ -292,7 +292,7 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	}
 
 	t.Log("Ensure that 203.0.113.0/24 (ateDstNetEntryDefault) has been removed by validating telemetry.")
-	entry = verifyEntry(t, dut, deviations.DefaultNetworkInstance(dut), ateDstNetEntryDefault)
+	entry = hasIPv4Entry(t, dut, deviations.DefaultNetworkInstance(dut), ateDstNetEntryDefault)
 	if entry {
 		t.Errorf("ipv4-entry/state/prefix contains entry %s, expected no entry", ateDstNetEntryDefault)
 	} else {
@@ -394,12 +394,11 @@ func computeLossPct(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 	return lossPct
 }
 
-// verifyEntry checks if the entry is active through AFT Telemetry.
-func verifyEntry(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName string, ateDstNetCIDR string) bool {
+// hasIPv4Entry checks if the entry is active through AFT Telemetry.
+func hasIPv4Entry(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName string, ateDstNetCIDR string) bool {
 	ipv4EntryPath := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
 	got := gnmi.Lookup(t, dut, ipv4EntryPath.State())
-	ipv4Entry, present := got.Val()
-	return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
+	return got.IsPresent()
 }
 
 // injectEntries adds a fully referenced IP Entry, NH and NHG.
