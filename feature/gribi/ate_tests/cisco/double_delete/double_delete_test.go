@@ -16,6 +16,7 @@ package double_delete_test
 
 import (
 	"context"
+	"fmt"
 
 	//"fmt"
 	"net"
@@ -88,6 +89,8 @@ const (
 	dsip                  = "10.1.0.1"
 )
 
+var baseconfigdone bool
+
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	ctx    context.Context
@@ -95,7 +98,6 @@ type testArgs struct {
 	dut    *ondatra.DUTDevice
 	ate    *ondatra.ATEDevice
 	top    *ondatra.ATETopology
-	rpfo   bool
 }
 
 func TestDeleteIpv4NHGNH(t *testing.T) {
@@ -105,9 +107,11 @@ func TestDeleteIpv4NHGNH(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 	ip := "203.0.2.1/32"
 
 	// Configure the gRIBI client
@@ -128,7 +132,6 @@ func TestDeleteIpv4NHGNH(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -143,13 +146,8 @@ func TestDeleteIpv4NHGNH(t *testing.T) {
 	args.client.AddNH(t, 100, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
 	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
@@ -194,10 +192,11 @@ func TestDeleteIpv4(t *testing.T) {
 	t.Logf("Program gribi entries on default vrf, verify traffic, reprogram & delete entries")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 	ip := "203.1.2.1/32"
 
 	// Configure the gRIBI client
@@ -218,7 +217,6 @@ func TestDeleteIpv4(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	args.client.BecomeLeader(t)
@@ -246,9 +244,6 @@ func TestDeleteIpv4(t *testing.T) {
 		}
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-	}
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
@@ -282,8 +277,10 @@ func TestDeleteNHG(t *testing.T) {
 	t.Logf("Program gribi entries on default vrf, verify traffic, delete ipv4/NHG")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -304,7 +301,6 @@ func TestDeleteNHG(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	args.client.BecomeLeader(t)
@@ -323,10 +319,6 @@ func TestDeleteNHG(t *testing.T) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
 	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
@@ -358,10 +350,11 @@ func TestDeleteNH(t *testing.T) {
 	t.Logf("Program gribi entries on default vrf, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -381,7 +374,6 @@ func TestDeleteNH(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	args.client.BecomeLeader(t)
@@ -401,14 +393,6 @@ func TestDeleteNH(t *testing.T) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-		}
 	}
 
 	for s := 0; s < 4; s++ {
@@ -443,10 +427,11 @@ func TestWithBackup(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -466,7 +451,6 @@ func TestWithBackup(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -497,13 +481,6 @@ func TestWithBackup(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
-		}
-	}
 	//Delete  twice
 	for s := 0; s < 4; s++ {
 
@@ -544,10 +521,11 @@ func TestWithBackupDelete(t *testing.T) {
 	t.Logf("Program gribi entries with backup, verify traffic, reprogram & delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -567,7 +545,6 @@ func TestWithBackupDelete(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	args.client.BecomeLeader(t)
@@ -595,14 +572,6 @@ func TestWithBackupDelete(t *testing.T) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
-		}
 	}
 
 	//Delete  twice
@@ -658,9 +627,11 @@ func TestWithDecapEncap(t *testing.T) {
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	baseconfig(t)
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
+	//ctx := context.Background()
 
-	var top *ondatra.ATETopology
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -680,7 +651,6 @@ func TestWithDecapEncap(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	args.client.BecomeLeader(t)
@@ -704,14 +674,6 @@ func TestWithDecapEncap(t *testing.T) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-		}
 	}
 
 	for s := 0; s < 4; s++ {
@@ -746,8 +708,10 @@ func TestWithDecapEncapDelete(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -768,7 +732,6 @@ func TestWithDecapEncapDelete(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -791,14 +754,6 @@ func TestWithDecapEncapDelete(t *testing.T) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-		}
 	}
 
 	//Delete  twice
@@ -844,10 +799,11 @@ func TestWithDecapEncapvrf(t *testing.T) {
 	t.Logf("Program gribi entries with decapencap/decap with nh on vrf, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -867,7 +823,6 @@ func TestWithDecapEncapvrf(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	args.client.BecomeLeader(t)
@@ -891,14 +846,6 @@ func TestWithDecapEncapvrf(t *testing.T) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-		}
 	}
 
 	//Delete  twice
@@ -931,10 +878,11 @@ func TestWithDecapEncapvrfDelete(t *testing.T) {
 	t.Logf("Program gribi entries with decapencap/decap with nh on vrf, verify traffic, reprogram & delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -954,7 +902,6 @@ func TestWithDecapEncapvrfDelete(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	args.client.BecomeLeader(t)
@@ -980,13 +927,6 @@ func TestWithDecapEncapvrfDelete(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-		}
-	}
 	//Delete  twice
 
 	args.client.DeleteIPv4Batch(t, prefixes, 1000, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -1026,10 +966,11 @@ func TestWithBackupDecap(t *testing.T) {
 	t.Logf("Program gribi entries with backup decap with nh on vrf, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1049,7 +990,6 @@ func TestWithBackupDecap(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	args.client.BecomeLeader(t)
@@ -1068,14 +1008,6 @@ func TestWithBackupDecap(t *testing.T) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-		}
 	}
 
 	//Delete  twice
@@ -1101,10 +1033,11 @@ func TestWithBackupDecap(t *testing.T) {
 func TestWithBackupDecapDelete(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1124,7 +1057,6 @@ func TestWithBackupDecapDelete(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	// Elect client as leader and flush all the past entries
@@ -1145,14 +1077,6 @@ func TestWithBackupDecapDelete(t *testing.T) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-		}
 	}
 
 	//Delete  twice
@@ -1186,10 +1110,11 @@ func TestWithScale(t *testing.T) {
 	t.Logf("Program scale gribi entries ~17K NH, 500 NHG/NH decapencap, 1K NHG, 1K default prefixes, 60K vrf prefixes verify traffic and delete")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1209,7 +1134,6 @@ func TestWithScale(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	args.client.BecomeLeader(t)
@@ -1366,29 +1290,6 @@ func TestWithScale(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
 		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
 
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: dstPfx3, Scalenum: 255}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.101.2.1", Scalenum: 243}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
-
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther120})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther120})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: dstPfx2, Scalenum: 255}), false, []string{bundleEther125}, &TGNoptions{Ifname: bundleEther120})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.100.2.1", Scalenum: 243}), false, []string{bundleEther125}, &TGNoptions{Ifname: bundleEther120})
-
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther121})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther121})
-
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
-
-		}
 	}
 
 	prefixes1 := []string{}
@@ -1457,15 +1358,16 @@ func TestWithStatic(t *testing.T) {
 	t.Logf("Program static route entries, and then through gribi, verify traffic, delete gribi entries")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:                   dut,
-		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		FibACK:                *ciscoFlags.GRIBIRIBCheck,
 		Persistence:           true,
 		InitialElectionIDLow:  10,
 		InitialElectionIDHigh: 0,
@@ -1480,7 +1382,6 @@ func TestWithStatic(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 
 	args.client.BecomeLeader(t)
@@ -1512,14 +1413,6 @@ func TestWithStatic(t *testing.T) {
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
-	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
-		}
 	}
 
 	for s := 0; s < 4; s++ {
@@ -1561,10 +1454,11 @@ func TestWithStaticremove(t *testing.T) {
 	t.Logf("Remove static routes, program gribi verify traffic, and delete gribi entries")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
-	baseconfig(t)
-
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
+	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1584,7 +1478,6 @@ func TestWithStaticremove(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   false,
 	}
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -1614,15 +1507,6 @@ func TestWithStaticremove(t *testing.T) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
-
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
-		}
-	}
-	time.Sleep(20 * time.Minute)
 
 	for s := 0; s < 4; s++ {
 
@@ -1658,7 +1542,9 @@ func TestWithStaticremove(t *testing.T) {
 }
 
 func baseconfig(t *testing.T) {
-	var baseconfigdone bool
+	//var baseconfigdone bool
+	fmt.Println("dsfadfa")
+	fmt.Println(baseconfigdone)
 	if !baseconfigdone {
 		//Configure the DUT
 		dut := ondatra.DUT(t, "dut")
@@ -1703,10 +1589,12 @@ func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
-	ip := "203.0.2.1/32"
+
 	baseconfig(t)
+	ip := "203.0.2.1/32"
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1726,11 +1614,9 @@ func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   true,
 	}
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
-	//dut := ondatra.DUT(t, "dut")
 	unconfigbasePBR(t, dut, "PBR", bundleEther120)
 	prefixes := []string{}
 	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
@@ -1747,9 +1633,7 @@ func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
-	}
+	confgen.Dorpfo(args.ctx, t, true)
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
@@ -1794,8 +1678,10 @@ func TestWithBackuprpfo(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -1816,11 +1702,9 @@ func TestWithBackuprpfo(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   true,
 	}
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
-	//dut := ondatra.DUT(t, "dut")
 
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", bundleEther120)
 
@@ -1848,13 +1732,12 @@ func TestWithBackuprpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
+	confgen.Dorpfo(args.ctx, t, true)
 
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
+
 	//Delete  twice
 	for s := 0; s < 4; s++ {
 
@@ -1896,7 +1779,10 @@ func TestWithDecapEncaprpfo(t *testing.T) {
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
+	//ctx := context.Background()
+
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -1917,7 +1803,6 @@ func TestWithDecapEncaprpfo(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   true,
 	}
 
 	args.client.BecomeLeader(t)
@@ -1943,12 +1828,10 @@ func TestWithDecapEncaprpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
+	confgen.Dorpfo(args.ctx, t, true)
 
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
 	for s := 0; s < 4; s++ {
@@ -1985,8 +1868,10 @@ func TestWithDecapEncapvrfrpfo(t *testing.T) {
 	t.Logf("Program gribi entries with decapencap/decap with nh on vrf, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -2007,7 +1892,6 @@ func TestWithDecapEncapvrfrpfo(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   true,
 	}
 
 	args.client.BecomeLeader(t)
@@ -2033,12 +1917,10 @@ func TestWithDecapEncapvrfrpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
+	confgen.Dorpfo(args.ctx, t, true)
 
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
 	//Delete  twice
@@ -2071,8 +1953,10 @@ func TestWithBackupDecaprpfo(t *testing.T) {
 	t.Logf("Program gribi entries with backup decap with nh on vrf, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -2093,7 +1977,6 @@ func TestWithBackupDecaprpfo(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   true,
 	}
 
 	args.client.BecomeLeader(t)
@@ -2114,12 +1997,10 @@ func TestWithBackupDecaprpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
+	confgen.Dorpfo(args.ctx, t, true)
 
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
 	//Delete  twice
@@ -2148,10 +2029,11 @@ func TestWithScalerpfo(t *testing.T) {
 	t.Logf("Program scale gribi entries ~17K NH, 500 NHG/NH decapencap, 1K NHG, 1K default prefixes, 60K vrf prefixes verify traffic and delete")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
-	baseconfig(t)
 
+	baseconfig(t)
 	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:                   dut,
@@ -2170,7 +2052,6 @@ func TestWithScalerpfo(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   true,
 	}
 
 	args.client.BecomeLeader(t)
@@ -2331,27 +2212,25 @@ func TestWithScalerpfo(t *testing.T) {
 
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
+	confgen.Dorpfo(args.ctx, t, true)
 
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: dstPfx3, Scalenum: 255}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.101.2.1", Scalenum: 243}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: dstPfx3, Scalenum: 255}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.101.2.1", Scalenum: 243}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
 
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther120})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther120})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: dstPfx2, Scalenum: 255}), false, []string{bundleEther125}, &TGNoptions{Ifname: bundleEther120})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.100.2.1", Scalenum: 243}), false, []string{bundleEther125}, &TGNoptions{Ifname: bundleEther120})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther120})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther120})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: dstPfx2, Scalenum: 255}), false, []string{bundleEther125}, &TGNoptions{Ifname: bundleEther120})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort1.Name, SrcIP: atePort1.IPv4, DstIP: "198.100.2.1", Scalenum: 243}), false, []string{bundleEther125}, &TGNoptions{Ifname: bundleEther120})
 
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther121})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther121})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther121})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort2.Name, SrcIP: atePort2.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther121})
 
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
-			args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
+		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort3.Name, SrcIP: atePort3.IPv4, DstIP: "198.52.101.244", Scalenum: 14442}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther122})
 
-		}
 	}
 
 	prefixes1 := []string{}
@@ -2420,14 +2299,16 @@ func TestWithStaticrpfo(t *testing.T) {
 	t.Logf("Program static route entries, and then through gribi, verify traffic, delete gribi entries")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
 	baseconfig(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:                   dut,
-		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		FibACK:                *ciscoFlags.GRIBIRIBCheck,
 		Persistence:           true,
 		InitialElectionIDLow:  10,
 		InitialElectionIDHigh: 0,
@@ -2442,7 +2323,6 @@ func TestWithStaticrpfo(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   true,
 	}
 
 	args.client.BecomeLeader(t)
@@ -2476,12 +2356,10 @@ func TestWithStaticrpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
+	confgen.Dorpfo(args.ctx, t, true)
 
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
 	}
 
 	for s := 0; s < 4; s++ {
@@ -2523,8 +2401,10 @@ func TestWithStaticremoverpfo(t *testing.T) {
 	t.Logf("Remove static routes, program gribi verify traffic, and delete gribi entries")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var top *ondatra.ATETopology
+	//var top *ondatra.ATETopology
+	top := configureATE(t, ate)
 	ctx := context.Background()
+
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -2545,7 +2425,6 @@ func TestWithStaticremoverpfo(t *testing.T) {
 		dut:    dut,
 		ate:    ate,
 		top:    top,
-		rpfo:   true,
 	}
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -2577,14 +2456,11 @@ func TestWithStaticremoverpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
 
-	if args.rpfo {
-		confgen.Dorpfo(args.ctx, t, true)
+	confgen.Dorpfo(args.ctx, t, true)
 
-		if *ciscoFlags.GRIBITrafficCheck {
-			args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
-		}
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
-	time.Sleep(20 * time.Minute)
 
 	for s := 0; s < 4; s++ {
 
