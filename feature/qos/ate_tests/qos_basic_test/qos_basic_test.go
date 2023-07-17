@@ -20,6 +20,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -746,12 +747,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		i := q.GetOrCreateInterface(tc.intf)
-		i.SetInterfaceId(tc.intf)
-		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-		c.SetType(tc.inputClassifierType)
-		c.SetName(tc.classifier)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -1139,13 +1135,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		i := q.GetOrCreateInterface(tc.intf)
-		i.SetInterfaceId(tc.intf)
-		i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
-		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-		c.SetType(tc.inputClassifierType)
-		c.SetName(tc.classifier)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -1519,14 +1509,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		i := q.GetOrCreateInterface(tc.intf)
-		i.SetInterfaceId(tc.intf)
-		i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
-		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-		c.SetType(tc.inputClassifierType)
-		c.SetName(tc.classifier)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -1547,7 +1530,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "BE1",
 		weight:      uint64(1),
-		queueName:   "6",
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -1556,7 +1539,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "BE0",
 		weight:      uint64(1),
-		queueName:   "0",
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -1565,7 +1548,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF1",
 		weight:      uint64(4),
-		queueName:   "4",
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -1574,7 +1557,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF2",
 		weight:      uint64(8),
-		queueName:   "1",
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -1583,7 +1566,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF3",
 		weight:      uint64(12),
-		queueName:   "5",
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -1592,7 +1575,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF4",
 		weight:      uint64(48),
-		queueName:   "2",
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -1601,7 +1584,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
-		queueName:   "3",
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
