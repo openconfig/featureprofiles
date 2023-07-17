@@ -396,10 +396,10 @@ func computeLossPct(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 
 // verifyEntry checks if the entry is active through AFT Telemetry.
 func verifyEntry(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName string, ateDstNetCIDR string) bool {
-	ipv4Entry := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
-	got := gnmi.Lookup(t, dut, ipv4Entry.Prefix().State())
-	prefix, present := got.Val()
-	return present && prefix == ateDstNetCIDR
+	ipv4EntryPath := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
+	got := gnmi.Lookup(t, dut, ipv4EntryPath.State())
+	ipv4Entry, present := got.Val()
+	return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 }
 
 // injectEntries adds a fully referenced IP Entry, NH and NHG.
@@ -417,9 +417,9 @@ func injectIPEntry(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cl
 
 	// After adding the entry, verify the entry is active through AFT Telemetry.
 	ipv4Path := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		prefix, present := val.Val()
-		return present && prefix == ateDstNetCIDR
+	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	}
