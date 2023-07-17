@@ -131,7 +131,7 @@ ates {
    target: "10.85.84.118"
    skip_verify: true
    username: "admin"
-   password: "admin"
+   password: "Admin@123"
 
    #linux
    #target: "10.85.84.214"

@@ -85,7 +85,7 @@ ates {
     target :"10.85.84.119"
     skip_verify: true
     username: "admin"
-    password: "admin"
+    password: "Admin@123"
     #session_id: 1 
   }
 
