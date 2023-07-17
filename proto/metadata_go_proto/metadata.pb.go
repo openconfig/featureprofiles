@@ -315,7 +315,7 @@ type Metadata_Deviations struct {
 	// Device does not support interface/physicalchannel leaf.
 	// Cisco: partnerissuetracker.corp.google.com/273287821
 	MissingInterfacePhysicalChannel bool `protobuf:"varint,20,opt,name=missing_interface_physical_channel,json=missingInterfacePhysicalChannel,proto3" json:"missing_interface_physical_channel,omitempty"`
-	// Set to true to skip check for
+	// Skip check for
 	// bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
 	// leaf missing case.
 	MissingBgpLastNotificationErrorCode bool `protobuf:"varint,21,opt,name=missing_bgp_last_notification_error_code,json=missingBgpLastNotificationErrorCode,proto3" json:"missing_bgp_last_notification_error_code,omitempty"`
@@ -332,8 +332,7 @@ type Metadata_Deviations struct {
 	// Device requires additional config for ECN.
 	// Juniper: partnerissuetracker.corp.google.com/277657269
 	EcnProfileRequiredDefinition bool `protobuf:"varint,25,opt,name=ecn_profile_required_definition,json=ecnProfileRequiredDefinition,proto3" json:"ecn_profile_required_definition,omitempty"`
-	// Set true for device that does not support interface ipv6 discarded packet
-	// statistics.
+	// Device does not support interface ipv6 discarded packet statistics.
 	// Juniper: partnerissuetracker.corp.google.com/277762075
 	Ipv6DiscardedPktsUnsupported bool `protobuf:"varint,26,opt,name=ipv6_discarded_pkts_unsupported,json=ipv6DiscardedPktsUnsupported,proto3" json:"ipv6_discarded_pkts_unsupported,omitempty"`
 	// Device does not support drop and weight leaves under queue management
@@ -344,8 +343,9 @@ type Metadata_Deviations struct {
 	// failover.
 	// Juniper: partnerissuetracker.corp.google.com/279727552
 	SecondaryBackupPathTrafficFailover bool `protobuf:"varint,28,opt,name=secondary_backup_path_traffic_failover,json=secondaryBackupPathTrafficFailover,proto3" json:"secondary_backup_path_traffic_failover,omitempty"`
-	// Set to true for device in which config pushed through origin CLI takes
-	// precedence over config pushed through origin OC.
+	// Config pushed through origin CLI takes precedence over config pushed
+	// through origin OC.
+	// Juniper: partnerissuetracker.corp.google.com/270474468
 	CliTakesPrecedenceOverOc bool `protobuf:"varint,29,opt,name=cli_takes_precedence_over_oc,json=cliTakesPrecedenceOverOc,proto3" json:"cli_takes_precedence_over_oc,omitempty"`
 	// Device does not support weight above 100.
 	// Juniper: partnerissuetracker.corp.google.com/277066804
@@ -362,6 +362,7 @@ type Metadata_Deviations struct {
 	InterfaceCountersFromContainer bool `protobuf:"varint,33,opt,name=interface_counters_from_container,json=interfaceCountersFromContainer,proto3" json:"interface_counters_from_container,omitempty"`
 	// Use this deviation when the device does not support a mix of tagged and
 	// untagged subinterfaces.
+	// Juniper: partnerissuetracker.corp.google.com/267822588
 	NoMixOfTaggedAndUntaggedSubinterfaces bool `protobuf:"varint,34,opt,name=no_mix_of_tagged_and_untagged_subinterfaces,json=noMixOfTaggedAndUntaggedSubinterfaces,proto3" json:"no_mix_of_tagged_and_untagged_subinterfaces,omitempty"`
 	// Device does not report P4RT node names in the component hierarchy.
 	ExplicitP4RtNodeComponent bool `protobuf:"varint,35,opt,name=explicit_p4rt_node_component,json=explicitP4rtNodeComponent,proto3" json:"explicit_p4rt_node_component,omitempty"`
@@ -369,12 +370,13 @@ type Metadata_Deviations struct {
 	UseVendorNativeAclConfig bool `protobuf:"varint,36,opt,name=use_vendor_native_acl_config,json=useVendorNativeAclConfig,proto3" json:"use_vendor_native_acl_config,omitempty"`
 	// Device does not support reporting software version according to the
 	// requirements in gNMI-1.10.
+	// Juniper: partnerissuetracker.corp.google.com/278764547
 	SwVersionUnsupported bool `protobuf:"varint,37,opt,name=sw_version_unsupported,json=swVersionUnsupported,proto3" json:"sw_version_unsupported,omitempty"`
 	// Device requires explicit interface ref configuration when applying
 	// features to interface.
+	// Juniper: partnerissuetracker.corp.google.com/267691571
 	ExplicitInterfaceRefDefinition bool `protobuf:"varint,38,opt,name=explicit_interface_ref_definition,json=explicitInterfaceRefDefinition,proto3" json:"explicit_interface_ref_definition,omitempty"`
-	// Set to true for device that does not support telemetry path
-	// /components/component/storage.
+	// Device does not support telemetry path /components/component/storage.
 	// Juniper: partnerissuetracker.corp.google.com/284239001
 	StorageComponentUnsupported bool `protobuf:"varint,39,opt,name=storage_component_unsupported,json=storageComponentUnsupported,proto3" json:"storage_component_unsupported,omitempty"`
 	// Device requires gribi-protocol to be enabled under network-instance.
@@ -386,7 +388,8 @@ type Metadata_Deviations struct {
 	// the default network instance.
 	// Nokia: partnerissuetracker.corp.google.com/260928639
 	ExplicitInterfaceInDefaultVrf bool `protobuf:"varint,42,opt,name=explicit_interface_in_default_vrf,json=explicitInterfaceInDefaultVrf,proto3" json:"explicit_interface_in_default_vrf,omitempty"`
-	// Set to true to skip checking QOS Dropped octets stats for interface.
+	// Skip checking QOS Dropped octets stats for interface.
+	// Juniper: partnerissuetracker.corp.google.com/282686094
 	QosDroppedOctets bool `protobuf:"varint,43,opt,name=qos_dropped_octets,json=qosDroppedOctets,proto3" json:"qos_dropped_octets,omitempty"`
 	// Device is missing subinterface packet counters for IPv4/IPv6.
 	SubinterfacePacketCountersMissing bool `protobuf:"varint,44,opt,name=subinterface_packet_counters_missing,json=subinterfacePacketCountersMissing,proto3" json:"subinterface_packet_counters_missing,omitempty"`
