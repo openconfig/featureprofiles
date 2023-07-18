@@ -258,7 +258,7 @@ message Metadata {
     // The name used for the default network instance for VRF.  The default name
     // in OpenConfig is \"DEFAULT\" but some legacy devices still use
     // \"default\".
-    string default_network_instance = 79;
+    string default_network_instance = 76;
   }
 
   message PlatformExceptions {
