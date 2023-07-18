@@ -260,6 +260,8 @@ message Metadata {
     bool qos_octets = 76;
     // Devices don't support ISIS Timers lsp-refresh-interval leaf.
     bool isis_timers_lsp_refresh_interval_unsupported = 77;
+    // Devices don't support configuring ISIS /afi-safi/af/config container.
+    bool isis_interface_afi_unsupported = 78;
   }
 
   message PlatformExceptions {

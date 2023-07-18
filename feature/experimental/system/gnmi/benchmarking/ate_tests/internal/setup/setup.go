@@ -234,6 +234,11 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		isisIntfAfi := isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		isisIntfAfi.Enabled = ygot.Bool(true)
+		if deviations.ISISInterfaceAfiUnsupported(dut) {
+			isisIntf.Af = nil
+		}
 
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
@@ -249,10 +254,11 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
+		isisIntfLevelAfi.Enabled = ygot.Bool(true)
 
 		// Configure ISIS AfiSafi enable flag at the global level
 		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
-			isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+			isisIntfLevelAfi.Enabled = nil
 		}
 	}
 	p := gnmi.OC()

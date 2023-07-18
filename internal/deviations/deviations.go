@@ -599,6 +599,10 @@ func ISISTimersLspRefreshIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisTimersLspRefreshIntervalUnsupported()
 }
 
+func ISISInterfaceAfiUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisInterfaceAfiUnsupported()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
