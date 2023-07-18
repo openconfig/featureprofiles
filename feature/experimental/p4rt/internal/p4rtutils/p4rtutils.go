@@ -194,10 +194,7 @@ func explicitP4RTNodes() map[string]string {
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	if deviations.ExplicitP4RTNodeComponent(dut) {
-		switch dut.Vendor() {
-		default:
-			return explicitP4RTNodes()
-		}
+		return explicitP4RTNodes()
 	}
 
 	ports := make(map[string][]string) // <hardware-port>:[<portID>]
