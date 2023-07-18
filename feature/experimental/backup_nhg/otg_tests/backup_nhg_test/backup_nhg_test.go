@@ -371,7 +371,7 @@ func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix, ipAddress
 // bad flow does not deliver traffic.
 func (a *testArgs) validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, good, bad string) {
 
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -385,14 +385,6 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, co
 		t.Errorf("LossPct for flow %s: got %v, want 100", bad, got)
 	}
 
-}
-
-// Waits for an ARP entry to be present for ATE Port1
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
 }
 
 // getLossPct returns the loss percentage for a given flow

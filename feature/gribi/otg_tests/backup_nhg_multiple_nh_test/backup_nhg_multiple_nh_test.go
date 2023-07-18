@@ -236,7 +236,7 @@ func TestBackup(t *testing.T) {
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	t.Run("IPv4BackUpSwitch", func(t *testing.T) {
 		t.Logf("Name: IPv4BackUpSwitch")
@@ -448,13 +448,4 @@ func (a *testArgs) aftCheck(t testing.TB, prefix string, instance string) {
 	if len(aftNHG.NextHop) == 0 && aftNHG.BackupNextHopGroup == nil {
 		t.Fatalf("Prefix %s references a NHG that has neither NH or backup NHG", prefix)
 	}
-}
-
-// Waits for at least one ARP entry on the tx OTG interface
-func waitOTGARPEntry(t *testing.T) {
-	t.Helper()
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
 }
