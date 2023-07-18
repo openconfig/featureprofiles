@@ -593,6 +593,12 @@ func QOSOctets(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosOctets()
 }
 
+// SetNativeUser creates a user and assigns role/rbac to that user via native model.
+func SetNativeUser(dut *ondatra.DUTDevice) bool {
+	logErrorIfFlagSet("deviation_set_native_user")
+	return lookupDUTDeviations(dut).GetSetNativeUser()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
@@ -749,3 +755,4 @@ var (
 
 	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
 )
+

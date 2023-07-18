@@ -258,6 +258,8 @@ message Metadata {
     // Set to true to skip checking QOS octet stats for interface.
     // Arista: partnerissuetracker.corp.google.com/283541442
     bool qos_octets = 76;
+    // Creates a user and assigns role/rbac to said user via native model.
+    bool set_native_user = 77;
   }
 
   message PlatformExceptions {
