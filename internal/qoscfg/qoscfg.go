@@ -24,6 +24,14 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
+// SetForwardingGroup sets a forwarding group in the specified QoS config.
+func SetForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, groupName, queueName string) {
+	t.Helper()
+	qos.GetOrCreateForwardingGroup(groupName).SetOutputQueue(queueName)
+	qos.GetOrCreateQueue(queueName)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+}
+
 // SetInputClassifier sets an input classifier in the specified QoS config.
 func SetInputClassifier(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, intfID string, classType oc.E_Input_Classifier_Type, className string) {
 	t.Helper()

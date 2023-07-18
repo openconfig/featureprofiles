@@ -39,5 +39,6 @@ platform_exceptions: {
   deviations: {
     dequeue_delete_not_counted_as_drops: true
     interface_enabled: true
+    qos_octets: true
   }
 }
