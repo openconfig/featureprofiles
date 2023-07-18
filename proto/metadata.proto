@@ -255,6 +255,10 @@ message Metadata {
     // Device requires interface enabled leaf booleans to be explicitly set to
     // true.
     bool interface_enabled = 75;
+    // The name used for the default network instance for VRF.  The default name
+    // in OpenConfig is \"DEFAULT\" but some legacy devices still use
+    // \"default\".
+    string default_network_instance = 79;
   }
 
   message PlatformExceptions {
