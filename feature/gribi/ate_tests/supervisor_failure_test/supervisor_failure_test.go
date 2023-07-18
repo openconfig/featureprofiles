@@ -389,7 +389,12 @@ func TestSupFailure(t *testing.T) {
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
 	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
 	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), 2*time.Minute, ateDstNetCIDR)
+	if _, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
+	}).Await(t); !ok {
+		t.Fatalf("ipv4-entry not found for %s after controller switchover.", ateDstNetCIDR)
+	}
 	t.Logf("ipv4-entry found for %s after controller switchover..", ateDstNetCIDR)
 
 	verifyTraffic(t, args.ate, flow)
