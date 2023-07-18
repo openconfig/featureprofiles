@@ -40,7 +40,7 @@ func SetInputClassifier(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, intfI
 	if dut.Vendor() != ondatra.CISCO {
 		intf.GetOrCreateInterfaceRef().SetSubinterface(0)
 	}
-	if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+	if deviations.InterfaceRefConfigUnsupported(dut) {
 		intf.InterfaceRef = nil
 	}
 	intf.GetOrCreateInput().GetOrCreateClassifier(classType).SetName(className)

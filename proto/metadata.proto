@@ -258,6 +258,15 @@ message Metadata {
     // Set to true to skip checking QOS octet stats for interface.
     // Arista: partnerissuetracker.corp.google.com/283541442
     bool qos_octets = 76;
+    // Set to true for devices where the CPU components do not map to a FRU
+    // parent component in the OC tree.
+    bool cpu_missing_ancestor = 77;
+    // Set to true for a device that needs subinterface 0 to be routed for
+    // non-zero sub-interfaces.
+    bool require_routed_subinterface_0 = 78;
+    // Set to true for devices that don't report last-switchover-reason as
+    // USER_INITIATED for gNOI.SwitchControlProcessor.
+    bool gnoi_switchover_reason_missing_user_initiated = 79;
   }
 
   message PlatformExceptions {
