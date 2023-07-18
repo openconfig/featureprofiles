@@ -255,6 +255,9 @@ message Metadata {
     // Device requires interface enabled leaf booleans to be explicitly set to
     // true.
     bool interface_enabled = 75;
+    // Set to true to skip checking QOS octet stats for interface.
+    // Arista: partnerissuetracker.corp.google.com/283541442
+    bool qos_octets = 76;
   }
 
   message PlatformExceptions {
