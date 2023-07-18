@@ -34,7 +34,7 @@ must be tested.
 Perform these positive tests:
 
 Test that a server certificate can be rotated by using the gNSI certz api if
-the certificate is request without the device generated CSR.
+the certificate is requested without the device generated CSR.
 
 Perform this test with both the RSA and ECDSA types.
 
@@ -60,7 +60,7 @@ Perform this test with both the RSA and ECDSA types.
 Perform these negative tests:
 
 Test that a server certificate can be rotated by using the gNSI certz api if
-the certificate is request without the device generated CSR, expect a failure
+the certificate is requested without the device generated CSR, expect a failure
 because the certificate loaded is not signed by a trusted CA.
 
 Perform this test with both the RSA and ECDSA types.
