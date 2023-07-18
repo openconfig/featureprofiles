@@ -12,6 +12,5 @@ platform_exceptions: {
     hardware_model: "ixr10"
   }
   deviations: {
-    explicit_p4rt_node_component: true
   }
 }
