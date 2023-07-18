@@ -27,4 +27,14 @@ platform_exceptions: {
     ntp_non_default_vrf_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+    hardware_model: "7250-ixr10e"
+    hardware_model: "ixr10"
+  }
+  deviations: {
+    ntp_non_default_vrf_unsupported: true
+  }
+}
 
