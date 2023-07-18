@@ -593,6 +593,12 @@ func QOSOctets(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosOctets()
 }
 
+// Set to true for devices that don't support ISIS Timers lsp-refresh-interval
+// leaf config.
+func ISISTimersLspRefreshIntervalUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisTimersLspRefreshIntervalUnsupported()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.

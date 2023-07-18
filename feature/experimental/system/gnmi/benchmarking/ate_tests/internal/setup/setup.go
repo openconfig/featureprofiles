@@ -149,18 +149,21 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 	// ISIS configs.
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
-	if !deviations.ISISprotocolEnabledNotRequired(dut) {
-		prot.Enabled = ygot.Bool(true)
+	prot.Enabled = ygot.Bool(true)
+	if deviations.ISISprotocolEnabledNotRequired(dut) {
+		prot.Enabled = nil
 	}
 	isis := prot.GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
-	if !deviations.ISISInstanceEnabledNotRequired(dut) {
-		globalISIS.Instance = ygot.String(ISISInstance)
+	globalISIS.Instance = ygot.String(ISISInstance)
+	if deviations.ISISInstanceEnabledNotRequired(dut) {
+		globalISIS.Instance = nil
 	}
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	if !deviations.ISISGlobalAuthenticationNotRequired(dut) {
-		globalISIS.AuthenticationCheck = ygot.Bool(true)
+	globalISIS.AuthenticationCheck = ygot.Bool(true)
+	if deviations.ISISGlobalAuthenticationNotRequired(dut) {
+		globalISIS.AuthenticationCheck = nil
 	}
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
@@ -168,7 +171,10 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	lspBit.SetBit = ygot.Bool(false)
 	isisTimers := globalISIS.GetOrCreateTimers()
 	isisTimers.LspLifetimeInterval = ygot.Uint16(600)
-	isisTimers.LspRefreshInterval = ygot.Uint16(100)
+	isisTimers.LspRefreshInterval = ygot.Uint16(200)
+	if deviations.ISISTimersLspRefreshIntervalUnsupported(dut) {
+		isisTimers.LspRefreshInterval = nil
+	}
 	spfTimers := isisTimers.GetOrCreateSpf()
 	spfTimers.SpfHoldInterval = ygot.Uint64(5000)
 	spfTimers.SpfFirstInterval = ygot.Uint64(600)
