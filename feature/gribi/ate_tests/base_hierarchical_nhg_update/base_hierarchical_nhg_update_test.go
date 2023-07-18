@@ -831,7 +831,6 @@ func configureBundle(t *testing.T, name, bundleID string) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(name)}
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	e := i.GetOrCreateEthernet()
-	//e.AutoNegotiate = ygot.Bool(false)
 	e.AggregateId = ygot.String(bundleID)
 	return i
 }
