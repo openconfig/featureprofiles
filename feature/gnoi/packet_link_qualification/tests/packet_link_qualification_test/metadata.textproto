@@ -8,11 +8,25 @@ testbed: TESTBED_DUT_DUT_4LINKS
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
-    hardware_model: "PTX10008"
-    hardware_model: "PTX10001-36MR"
-    hardware_model: "cptx"
   }
   deviations: {
     skip_plq_packets_count_check: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
   }
 }
