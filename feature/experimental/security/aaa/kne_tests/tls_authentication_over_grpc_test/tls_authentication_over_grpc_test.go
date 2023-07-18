@@ -304,4 +304,3 @@ func TestAuthentication(t *testing.T) {
 		})
 	}
 }
-
