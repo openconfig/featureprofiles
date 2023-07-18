@@ -8,8 +8,6 @@ testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
-    hardware_model: "PTX10008"
-    hardware_model: "cptx"
   }
   deviations: {
     skip_controller_card_power_admin: true
@@ -17,11 +15,18 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
-    vendor: NOKIA
-    hardware_model: "7250-ixr10e"
-    hardware_model: "ixr10"
+    vendor: ARISTA
   }
   deviations: {
+    missing_value_for_defaults: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    missing_value_for_defaults: true
     skip_controller_card_power_admin: true
   }
 }
