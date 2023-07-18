@@ -10,7 +10,7 @@ and present a valid TLS certificate to the calling clients.
 ### Input Args
 
 * the set of certificate testdata generated with the mk_cas.sh
-  script in featureprofiles/features/security/certificate-authorties/
+  script in featureprofiles/feature/security/certificate-authorties/
 
 ### DUT Service setup
 
@@ -23,7 +23,7 @@ up and require user mTLS for authentication:
    * gRIBI
 
 Be prepared to load the relevant trust_bundle.pem file for each test
-Certificate Authority(CA) under test on the DT. Each CA has an RSA and ECDSA
+Certificate Authority(CA) under test on the DUT. Each CA has an RSA and ECDSA
 form, both must be tested.
 
 ## Tests

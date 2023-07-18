@@ -35,7 +35,7 @@ CA keys in such a bundle.
 ### Input Args
 
   * the set of certificate testdata generated with the mk_cas.sh
-    script in the featureprofiles/features/security/certificate-authorities/
+    script in the featureprofiles/feature/security/certificate-authorities/
     directory.
 
 ### DUT service setup
