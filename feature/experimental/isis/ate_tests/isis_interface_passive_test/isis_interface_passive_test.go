@@ -80,8 +80,8 @@ func configureDUT(t *testing.T) {
 	}
 }
 
-// configureIsisDut configures isis configs on DUT.
-func configureIsisDut(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAreaAddress, dutSysID string) {
+// configureISIS configures isis configs on DUT.
+func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAreaAddress, dutSysID string) {
 	t.Helper()
 	d := &oc.Root{}
 	configPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
@@ -191,7 +191,7 @@ func TestIsisInterfacePassive(t *testing.T) {
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	// Configure isis on DUT.
-	configureIsisDut(t, dut, intfName, dutAreaAddress, dutSysID)
+	configureISIS(t, dut, intfName, dutAreaAddress, dutSysID)
 
 	// Configure interface,isis and traffic on ATE.
 	configureATE(t, ate)
