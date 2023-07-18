@@ -234,9 +234,9 @@ func routeAck(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
 	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 		pre, present := val.Val()
-		return present && pre == ateDstNetCIDR
+		return present && pre.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, ateDstNetCIDR)
 	}
@@ -265,9 +265,9 @@ func TestRouteAck(t *testing.T) {
 	configStaticRoute(t, dut, ateDstNetCIDR, staticNH)
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
 	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		pre, present := val.Val()
-		return present && pre == ateDstNetCIDR
+	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	} else {
