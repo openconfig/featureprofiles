@@ -10,7 +10,7 @@ steps:
       - ZONE=us-west1-a
       - REMOTE_WORKSPACE=/tmp/featureprofiles
       - COMMAND=sudo su -c "echo 'user ALL=(ALL) NOPASSWD:ALL' | sudo EDITOR='tee -a' visudo"; sudo -iu user /tmp/featureprofiles/cloudbuild/virtual.sh "${_DUT_PLATFORM}" "${_DUT_TESTS}"
-timeout: 2700s
+timeout: 28800s
 substitutions:
     _DUT_PLATFORM: unknown
     _DUT_TESTS: ""
