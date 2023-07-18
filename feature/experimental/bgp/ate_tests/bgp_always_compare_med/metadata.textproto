@@ -8,18 +8,15 @@ testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: NOKIA
-    hardware_model: "7250-ixr10e"
-    hardware_model: "ixr10"
   }
   deviations: {
     route_policy_under_afi_unsupported: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
-    hardware_model: "PTX10001-36MR"
-    hardware_model: "cptx"
   }
   deviations: {
     route_policy_under_afi_unsupported: true
@@ -28,13 +25,10 @@ platform_exceptions: {
 platform_exceptions: {
   platform: {
     vendor: ARISTA
-    hardware_model: "DCS-7280CR3K-32D4"
-    hardware_model: "DCS-7808"
-    hardware_model: "DCS-7804-CH"
-    hardware_model: "ceos"
   }
   deviations: {
     omit_l2_mtu: true
     route_policy_under_afi_unsupported: true
+    interface_enabled: true
   }
 }

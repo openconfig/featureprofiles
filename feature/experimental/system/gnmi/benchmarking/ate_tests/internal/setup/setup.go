@@ -132,7 +132,11 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	afipg.Enabled = ygot.Bool(true)
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
-	pdef.GetOrCreateStatement("id-1").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	stmt, err := pdef.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg.GetOrCreateApplyPolicy()
 		rpl.SetExportPolicy([]string{setALLOWPolicy})

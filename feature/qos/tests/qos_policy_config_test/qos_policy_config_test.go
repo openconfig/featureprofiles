@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -427,16 +428,11 @@ func testQoSInputIntfClassifierConfig(t *testing.T) {
 
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-	i := q.GetOrCreateInterface(dp.Name())
-	i.SetInterfaceId(dp.Name())
 
 	t.Logf("qos input classifier config cases: %v", cases)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-			c.SetType(tc.inputClassifierType)
-			c.SetName(tc.classifier)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			qoscfg.SetInputClassifier(t, dut, q, dp.Name(), tc.inputClassifierType, tc.classifier)
 		})
 
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
@@ -929,17 +925,10 @@ func testQoSCiscoClassifierConfig(t *testing.T) {
 		classifier:          "dscp_based_classifier_ipv6",
 	}}
 
-	i := q.GetOrCreateInterface(dp.Name())
-	i.SetInterfaceId(dp.Name())
-	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
-
 	t.Logf("qos input classifier config cases: %v", cases)
 	for _, tc := range casesintf {
 		t.Run(tc.desc, func(t *testing.T) {
-			c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-			c.SetType(tc.inputClassifierType)
-			c.SetName(tc.classifier)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			qoscfg.SetInputClassifier(t, dut, q, dp.Name(), tc.inputClassifierType, tc.classifier)
 		})
 		classifier := gnmi.OC().Qos().Interface(dp.Name()).Input().Classifier(tc.inputClassifierType)
 		if got, want := gnmi.GetConfig(t, dut, classifier.Name().Config()), tc.classifier; got != want {
@@ -1246,6 +1235,7 @@ func testJuniperClassifierConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
@@ -1254,31 +1244,31 @@ func testJuniperClassifierConfig(t *testing.T) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   "6",
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   "0",
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   "4",
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   "1",
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   "5",
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   "2",
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   "3",
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1517,12 +1507,6 @@ func testJuniperClassifierConfig(t *testing.T) {
 			})
 	}
 	dp := dut.Port(t, "port1")
-	i := q.GetOrCreateInterface(dp.Name())
-	i.SetInterfaceId(dp.Name())
-	if deviations.ExplicitInterfaceRefDefinition(dut) {
-		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
-		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	}
 	ip := &oc.Interface{Name: ygot.String(dp.Name())}
 	ip.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	s := ip.GetOrCreateSubinterface(0)
@@ -1538,10 +1522,7 @@ func testJuniperClassifierConfig(t *testing.T) {
 				s6.Enabled = ygot.Bool(true)
 			}
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), ip)
-			c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-			c.SetType(tc.inputClassifierType)
-			c.SetName(tc.classifier)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			qoscfg.SetInputClassifier(t, dut, q, dp.Name(), tc.inputClassifierType, tc.classifier)
 		})
 
 		// Verify the Classifier is applied on interface by checking the telemetry path state values.
@@ -1563,10 +1544,8 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 	dp := dut.Port(t, "port2")
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
-	if deviations.ExplicitInterfaceRefDefinition(dut) {
-		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
-		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	}
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
+	i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	queues := netutil.CommonTrafficQueues(t, dut)
 
 	schedulers := []struct {
@@ -1623,7 +1602,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     queues.AF4,
 		weight:      uint64(99),
-		queueName:   "2",
+		queueName:   queues.AF4,
 		targetGroup: "AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
