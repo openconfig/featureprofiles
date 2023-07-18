@@ -588,6 +588,11 @@ func SkipControllerCardPowerAdmin(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipControllerCardPowerAdmin()
 }
 
+// QOSOctets returns if device should skip checking QOS octet stats for interface.
+func QOSOctets(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosOctets()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
