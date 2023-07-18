@@ -637,8 +637,10 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 				dutOctetCounterDiff := counters["dutQosOctetsAfterTraffic"][data.queue] - counters["dutQosOctetsBeforeTraffic"][data.queue]
 				ateOctetCounterDiff := counters["ateInPkts"][data.queue] * uint64(data.frameSize)
 				t.Logf("Queue %q: ateOctetCounterDiff: %v dutOctetCounterDiff: %v", data.queue, ateOctetCounterDiff, dutOctetCounterDiff)
-				if dutOctetCounterDiff < ateOctetCounterDiff {
-					t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+				if !deviations.QOSOctets(dut) {
+					if dutOctetCounterDiff < ateOctetCounterDiff {
+						t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+					}
 				}
 
 				if !deviations.QOSDroppedOctets(dut) {
