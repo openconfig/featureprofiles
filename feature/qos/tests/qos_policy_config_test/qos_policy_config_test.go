@@ -207,12 +207,7 @@ func testQoSForwadingGroupsConfig(t *testing.T) {
 	t.Logf("qos forwarding groups config cases: %v", cases)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-			fwdGroup.SetName(tc.targetGroup)
-			fwdGroup.SetOutputQueue(tc.queueName)
-			queue := q.GetOrCreateQueue(tc.queueName)
-			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 		})
 
 		// TODO: Remove the following t.Skipf() after the config verification code has been tested.
@@ -764,12 +759,7 @@ func testQoSCiscoClassifierConfig(t *testing.T) {
 	t.Logf("qos forwarding groups config cases: %v", casesfwdgrp)
 	for _, tc := range casesfwdgrp {
 		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-			fwdGroup.SetName(tc.targetGroup)
-			fwdGroup.SetOutputQueue(tc.queueName)
-			queue := q.GetOrCreateQueue(tc.queueName)
-			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 		})
 		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGroup)
 		if got, want := gnmi.GetConfig(t, dut, forwardingGroup.Name().Config()), tc.targetGroup; got != want {
@@ -1275,12 +1265,7 @@ func testJuniperClassifierConfig(t *testing.T) {
 	t.Logf("qos forwarding groups config cases: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
 		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-			fwdGroup.SetName(tc.targetGroup)
-			fwdGroup.SetOutputQueue(tc.queueName)
-			queue := q.GetOrCreateQueue(tc.queueName)
-			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 		})
 
 		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
@@ -1619,9 +1604,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 	t.Logf("qos scheduler policies config cases: %v", schedulers)
 	for _, tc := range schedulers {
 		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-			fwdGroup.SetName(tc.targetGroup)
-			fwdGroup.SetOutputQueue(tc.queueName)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
 			s.SetSequence(tc.sequence)
 			s.SetPriority(tc.priority)
