@@ -1,4 +1,4 @@
-#RT-2.10: IS-IS change LSP lifetime
+# RT-2.10: IS-IS change LSP lifetime
 
 ## Summary
 

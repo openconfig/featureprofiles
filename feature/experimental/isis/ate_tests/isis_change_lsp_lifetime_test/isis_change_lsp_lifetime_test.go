@@ -65,15 +65,15 @@ var (
 	}
 	dutPort2Attr = attrs.Attributes{
 		Desc:    "DUT to ATE port2 ",
-		IPv4:    "192.0.4.1",
-		IPv6:    "2001:db8::192:0:4:1",
+		IPv4:    "192.0.2.5",
+		IPv6:    "2001:db8::192:0:2:5",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	atePort2attr = attrs.Attributes{
 		Name:    "ATE to DUT port2",
-		IPv4:    "192.0.4.2",
-		IPv6:    "2001:db8::192:0:4:2",
+		IPv4:    "192.0.2.6",
+		IPv6:    "2001:db8::192:0:2:6",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -99,8 +99,8 @@ func configureDUT(t *testing.T) {
 	}
 }
 
-// configureIsisDut configures isis on DUT.
-func configureIsisDut(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAreaAddress, dutSysID string) {
+// configureISIS configures isis on DUT.
+func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAreaAddress, dutSysID string) {
 	t.Helper()
 	d := &oc.Root{}
 	configPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
@@ -177,7 +177,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, ateTopo *ondatra.ATETopolo
 
 	v4Flow := ate.Traffic().NewFlow("v4Flow").
 		WithSrcEndpoints(srcIntf).WithDstEndpoints(dstIntf).
-		WithHeaders(ondatra.NewEthernetHeader(), v4Header).WithFrameRateFPS(100)
+		WithHeaders(ondatra.NewEthernetHeader(), v4Header)
 
 	t.Log("Configuring v6 traffic flow ")
 	v6Header := ondatra.NewIPv6Header()
@@ -185,13 +185,13 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, ateTopo *ondatra.ATETopolo
 
 	v6Flow := ate.Traffic().NewFlow("v6Flow").
 		WithSrcEndpoints(srcIntf).WithDstEndpoints(dstIntf).
-		WithHeaders(ondatra.NewEthernetHeader(), v6Header).WithFrameRateFPS(100)
+		WithHeaders(ondatra.NewEthernetHeader(), v6Header)
 
 	return []*ondatra.Flow{v4Flow, v6Flow}
 }
 
-// TestIsisChangeLspLifetime verifies isis lsp telemetry paramters with configured lsp lifetime.
-func TestIsisChangeLspLifetime(t *testing.T) {
+// TestISISChangeLSPLifetime verifies isis lsp telemetry paramters with configured lsp lifetime.
+func TestISISChangeLSPLifetime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	intfName := dut.Port(t, "port1").Name()
@@ -205,7 +205,7 @@ func TestIsisChangeLspLifetime(t *testing.T) {
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	// Configure isis on DUT.
-	configureIsisDut(t, dut, intfName, dutAreaAddress, dutSysID)
+	configureISIS(t, dut, intfName, dutAreaAddress, dutSysID)
 
 	// Configure interface,isis and traffic on ATE.
 	ateTopo := configureATE(t, ate)
