@@ -61,9 +61,6 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 		if platformExceptions.GetPlatform().Vendor.String() == "" {
 			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 		}
-		if platformExceptions.GetPlatform().GetHardwareModelRegex() != "" && len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
-			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
-		}
 
 		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
 			continue
@@ -87,20 +84,6 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 				return nil, fmt.Errorf("error with regex match %v", errSw)
 			}
 			if !matchSw {
-				continue
-			}
-		}
-
-		// TODO(prinikasn): Remove after hardware_model field is removed.
-		if len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
-			matchedHwRepeated := false
-			for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
-				if dut.Device.Model() == hardwareModel {
-					matchedHwRepeated = true
-					break
-				}
-			}
-			if !matchedHwRepeated {
 				continue
 			}
 		}
@@ -168,7 +151,7 @@ func AggregateAtomicUpdate(dut *ondatra.DUTDevice) bool {
 func DefaultNetworkInstance(dut *ondatra.DUTDevice) string {
 	logErrorIfFlagSet("deviation_default_network_instance")
 	//
-	if dni := lookupDUTDeviations(dut).GetStaticProtocolName(); dni != "" {
+	if dni := lookupDUTDeviations(dut).GetDefaultNetworkInstance(); dni != "" {
 		return dni
 	}
 	return "DEFAULT"
