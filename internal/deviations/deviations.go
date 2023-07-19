@@ -572,6 +572,18 @@ func QOSOctets(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosOctets()
 }
 
+// ISISTimersLspRefreshIntervalUnsupported returns true for devices that don't
+// support ISIS Timers lsp-refresh-interval leaf config.
+func ISISTimersLspRefreshIntervalUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisTimersLspRefreshIntervalUnsupported()
+}
+
+// ISISInterfaceAfiUnsupported returns true for devices that don't support configuring
+// ISIS /afi-safi/af/config container.
+func ISISInterfaceAfiUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisInterfaceAfiUnsupported()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.

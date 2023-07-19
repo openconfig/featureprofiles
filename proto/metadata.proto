@@ -278,6 +278,10 @@ message Metadata {
     // Set to true for devices that require IPOverIP Decapsulation for Backup
     // NHG without interfaces.
     bool backup_nhg_requires_vrf_with_decap = 83;
+    // Devices don't support ISIS Timers lsp-refresh-interval leaf.
+    bool isis_timers_lsp_refresh_interval_unsupported = 84;
+    // Devices don't support configuring ISIS /afi-safi/af/config container.
+    bool isis_interface_afi_unsupported = 85;
   }
 
   message PlatformExceptions {
