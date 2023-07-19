@@ -21,9 +21,6 @@
 package p4rtutils
 
 import (
-	"fmt"
-	"regexp"
-	"strconv"
 	"testing"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
@@ -192,54 +189,12 @@ func explicitP4RTNodes() map[string]string {
 	}
 }
 
-var nokiaPortNameRE = regexp.MustCompile("ethernet-([0-9]+)/([0-9]+)")
-
-// inferP4RTNodesNokia infers the P4RT node name from the port name for Nokia devices.
-func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
-	// if both P4RT NodeName1 and NodeName2 are explicitly specified by a user - return explicit values
-	if *args.P4RTNodeName1 != "" && *args.P4RTNodeName2 != "" {
-		return explicitP4RTNodes()
-	}
-
-	res := make(map[string]string)
-	for _, p := range dut.Ports() {
-		m := nokiaPortNameRE.FindStringSubmatch(p.Name())
-		if len(m) != 3 {
-			continue
-		}
-
-		fpc := m[1]
-		port, err := strconv.Atoi(m[2])
-		if err != nil {
-			t.Fatalf("Error generating P4RT Node Name: %v", err)
-		}
-		asic := 0
-		if port > 18 {
-			asic = 1
-		}
-		res[p.ID()] = fmt.Sprintf("SwitchChip%s/%d", fpc, asic)
-	}
-
-	if _, ok := res["port1"]; !ok {
-		res["port1"] = *args.P4RTNodeName1
-	}
-	if _, ok := res["port2"]; !ok {
-		res["port2"] = *args.P4RTNodeName2
-	}
-	return res
-}
-
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
 	if deviations.ExplicitP4RTNodeComponent(dut) {
-		switch dut.Vendor() {
-		case ondatra.NOKIA:
-			return inferP4RTNodesNokia(t, dut)
-		default:
-			return explicitP4RTNodes()
-		}
+		return explicitP4RTNodes()
 	}
 
 	ports := make(map[string][]string) // <hardware-port>:[<portID>]
