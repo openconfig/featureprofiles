@@ -45,6 +45,21 @@ const (
 	bgpMED                 = 25
 )
 
+// setAllow is used to configure ALLOW routing policy on DUT.
+func setAllow(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
+
+	// Configure Allow Policy on DUT.
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+}
+
 // setMED is used to configure routing policy to set BGP MED on DUT.
 func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 
@@ -58,14 +73,6 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	actions5 := stmt.GetOrCreateActions()
 	setMedBGP := actions5.GetOrCreateBgpActions()
 	setMedBGP.SetMed = oc.UnionUint32(bgpMED)
-
-	// Configure Allow policy
-	pd := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
-	st, err := pd.AppendNewStatement("id-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -86,13 +93,6 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	aspend.Asn = ygot.Uint32(setup.DUTAs)
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
 
-	// Configure Allow policy
-	pdef := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
-	stmt, err = pdef.AppendNewStatement("id-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
@@ -309,6 +309,9 @@ func TestBGPBenchmarking(t *testing.T) {
 		gnmi.Delete(t, dut, dutPolicyConfPath.ImportPolicy().Config())
 	}
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
+
+	t.Logf("Configure Allow policy.")
+	setAllow(t, dut, d)
 
 	t.Logf("Configure MED routing policy.")
 	setMED(t, dut, d)
