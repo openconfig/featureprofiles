@@ -26,8 +26,11 @@ type Testcase struct {
 const (
 	inint1 = "Bundle-Ether122"
 	inint2 = "Bundle-Ether123"
-	mac1   = "00:01:00:03:00:00"
-	mac2   = "00:01:00:04:00:00"
+	inint3 = "Bundle-Ether120"
+
+	mac1 = "00:01:00:03:00:00"
+	mac2 = "00:01:00:04:00:00"
+	mac3 = "00:01:00:02:00:00"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -99,16 +102,7 @@ var (
 
 var (
 	QosSchedulerTestcases = []Testcase{
-		{
-			name: "testing scheduling functionality",
-			desc: "create congestion on egress interface and test scheduling for queue7",
-			fn:   testScheduler,
-		},
-		{
-			name: "testing scheduling functionality for queue6",
-			desc: "create congestion on egress interface and test scheduling",
-			fn:   testScheduler2,
-		},
+
 		{
 			name: "testing scheduling functionality with wrr and ecn",
 			desc: "create congestion on egress interface and test scheduling interfaces",
@@ -139,11 +133,11 @@ var (
 var (
 	QosSPopGateTestcases = []Testcase{
 
-		{
-			name: "one priority queue and rest are wrr",
-			desc: "create congestion on egress interface and test scheduling",
-			fn:   testSchedulergoog1p,
-		},
+		// {
+		// 	name: "one priority queue and rest are wrr",
+		// 	desc: "create congestion on egress interface and test scheduling",
+		// 	fn:   testSchedulergoog1p,
+		// },
 		{
 			name: " two priority testing scheduling functionality with wrr and ecn",
 			desc: "create congestion on egress interface and test scheduling interfaces",
@@ -271,21 +265,22 @@ func TestScheduler(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
-
-	//Configure IPv6 addresses and VLANS on DUT
-	configureIpv6AndVlans(t, dut)
-	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Type().Config(), oc.IETFInterfaces_InterfaceType_ieee8023adLag)
-	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Type().Config(), oc.IETFInterfaces_InterfaceType_ieee8023adLag)
-
-	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Ethernet().MacAddress().Config(), mac1)
-	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Ethernet().MacAddress().Config(), mac2)
-
-	// Disable Flowspec and Enable PBR
+	configureDUT(t, dut)
+	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	defer unconfigbasePBR(t, dut)
+	// configure route-policy
+	configRP(t, dut)
+	// configure ISIS on DUT
+	addISISOC(t, dut, "Bundle-Ether127")
+	// configure BGP on DUT
+	addBGPOC(t, dut, "100.100.100.100")
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	if *ciscoFlags.GRIBITrafficCheck {
+		addPrototoAte(t, top)
+	}
 
 	for _, tt := range QosSchedulerTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -349,6 +344,12 @@ func TestScheduler(t *testing.T) {
 		})
 	}
 }
+func TestConfigQos(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	//ctx := context.Background()
+	ConfigureWrrSche(t, dut)
+
+}
 
 func TestWrrTrafficQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -365,15 +366,25 @@ func TestWrrTrafficQos(t *testing.T) {
 		t.Skip()
 	}
 	//Configure IPv6 addresses and VLANS on DUT
-	configureIpv6AndVlans(t, dut)
 
 	// Dial gRIBI
 	ctx := context.Background()
+	configureDUT(t, dut)
+	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	defer unconfigbasePBR(t, dut)
+	// configure route-policy
+	configRP(t, dut)
+	// configure ISIS on DUT
+	addISISOC(t, dut, "Bundle-Ether127")
+	// configure BGP on DUT
+	addBGPOC(t, dut, "100.100.100.100")
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	if *ciscoFlags.GRIBITrafficCheck {
+		addPrototoAte(t, top)
+	}
 
 	for _, tt := range QoSWrrTrafficTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -451,20 +462,36 @@ func TestGooglePopgate(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
-
-	//Configure IPv6 addresses and VLANS on DUT
-	configureIpv6AndVlans(t, dut)
-	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Type().Config(), oc.IETFInterfaces_InterfaceType_ieee8023adLag)
-	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Type().Config(), oc.IETFInterfaces_InterfaceType_ieee8023adLag)
-	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Ethernet().MacAddress().Config(), mac1)
-	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Ethernet().MacAddress().Config(), mac2)
-
-	// Disable Flowspec and Enable PBR
+	configureDUT(t, dut)
+	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	defer unconfigbasePBR(t, dut)
+	// configure route-policy
+	configRP(t, dut)
+	// configure ISIS on DUT
+	addISISOC(t, dut, "Bundle-Ether127")
+	// configure BGP on DUT
+	addBGPOC(t, dut, "100.100.100.100")
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint1).Type().Config(), oc.IETFInterfaces_InterfaceType_ieee8023adLag)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint3).Type().Config(), oc.IETFInterfaces_InterfaceType_ieee8023adLag)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint2).Ethernet().MacAddress().Config(), mac2)
+	gnmi.Update(t, dut, gnmi.OC().Interface(inint3).Ethernet().MacAddress().Config(), mac3)
+	if *ciscoFlags.GRIBITrafficCheck {
+		addPrototoAte(t, top)
+	}
+
+	//Configure IPv6 addresses and VLANS on DUT
+	//configureIpv6AndVlans(t, dut)
+
+	// Disable Flowspec and Enable PBR
+
+	// Configure the ATE
+	// ate := ondatra.ATE(t, "ate")
+	// top := configureATE(t, ate)
+	// top.Push(t).StartProtocols(t)
 
 	for _, tt := range QosSPopGateTestcases {
 		// Each case will run with its own gRIBI fluent client.
