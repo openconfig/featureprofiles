@@ -38,14 +38,7 @@ func TestMain(m *testing.M) {
 // pair, and the second the "destination" pair.
 //
 // 	ATE   Port-1 192.0.2.2 --------  DUT-1 Port-1 192.0.2.1
-//	DUT-1 Port-2 192.0.4.1 --------  DUT-2 Port-1 192.0.4.2
-//	DUT-2 Port-2 192.0.6.2 --------  ATE   port-2 192.0.6.1
-//
-// Note that the first (.0, .3) and last (.4, .7) IPv4 addresses are
-// reserved from the subnet for broadcast, so a /30 leaves exactly 2
-// usable addresses. This does not apply to IPv6 which allows /127
-// for point to point links, but we use /126 so the numbering is
-// consistent with IPv4.
+//	DUT-1 Port-2 192.0.2.5 --------  DUT-2 Port-1 192.0.2.6
 
 const (
 	peerGrpName1       = "BGP-PEER-GROUP1"
@@ -87,12 +80,12 @@ var (
 	}
 	dut1Port2 = attrs.Attributes{
 		Desc:    "DUT1 to DUT2",
-		IPv4:    "192.0.4.1",
+		IPv4:    "192.0.2.5",
 		IPv4Len: plenIPv4,
 	}
 	dut2Port1 = attrs.Attributes{
 		Name:    "DUT2 to DUT1",
-		IPv4:    "192.0.4.2",
+		IPv4:    "192.0.2.6",
 		IPv4Len: plenIPv4,
 	}
 )
