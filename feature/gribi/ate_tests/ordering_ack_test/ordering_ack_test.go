@@ -351,7 +351,7 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 				}
 			}
 			ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-			if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
+			if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR; got != want {
 				t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 			}
 		}
@@ -431,7 +431,7 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 
 	t.Run("Telemetry", func(t *testing.T) {
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	})
