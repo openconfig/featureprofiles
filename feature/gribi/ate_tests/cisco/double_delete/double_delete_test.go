@@ -16,7 +16,6 @@ package double_delete_test
 
 import (
 	"context"
-	"fmt"
 
 	//"fmt"
 	"net"
@@ -91,6 +90,8 @@ const (
 
 var baseconfigdone bool
 
+//var args *testArgs
+
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	ctx    context.Context
@@ -100,15 +101,14 @@ type testArgs struct {
 	top    *ondatra.ATETopology
 }
 
+var args *testArgs
+
 func TestDeleteIpv4NHGNH(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries on default vrf, verify traffic, delete entries")
 
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -126,13 +126,9 @@ func TestDeleteIpv4NHGNH(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 	unconfigbasePBR(t, dut, "PBR", bundleEther120)
@@ -146,9 +142,6 @@ func TestDeleteIpv4NHGNH(t *testing.T) {
 	args.client.AddNH(t, 100, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 100, 101, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4Batch(t, prefixes, 100, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
@@ -191,9 +184,6 @@ func TestDeleteIpv4(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries on default vrf, verify traffic, reprogram & delete entries")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -211,13 +201,10 @@ func TestDeleteIpv4(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -240,7 +227,7 @@ func TestDeleteIpv4(t *testing.T) {
 	if *ciscoFlags.GRIBIAFTChainCheck {
 		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
 		for i := 0; i < len(randomItems); i++ {
-			args.client.CheckAftIPv4(t, "TE", randomItems[i])
+			args.client.CheckAftIPv4(t, "DEFAULT", randomItems[i])
 		}
 	}
 
@@ -276,11 +263,7 @@ func TestDeleteNHG(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries on default vrf, verify traffic, delete ipv4/NHG")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
-
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -295,13 +278,9 @@ func TestDeleteNHG(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -349,11 +328,7 @@ func TestDeleteNH(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries on default vrf, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
-
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -368,17 +343,13 @@ func TestDeleteNH(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
-	dut = ondatra.DUT(t, "dut")
 
 	prefixes := []string{}
 	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
@@ -426,11 +397,7 @@ func TestWithBackup(t *testing.T) {
 	t.Logf("Program gribi entries with backup path, verify traffic, delete ipv4/NHG/NH")
 
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
-
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -445,13 +412,10 @@ func TestWithBackup(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
@@ -520,11 +484,7 @@ func TestWithBackupDelete(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with backup, verify traffic, reprogram & delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
-
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -539,13 +499,9 @@ func TestWithBackupDelete(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -626,10 +582,6 @@ func TestWithDecapEncap(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
-	//ctx := context.Background()
 
 	baseconfig(t)
 
@@ -645,13 +597,10 @@ func TestWithDecapEncap(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -707,9 +656,6 @@ func TestWithDecapEncapDelete(t *testing.T) {
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
 
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -726,13 +672,10 @@ func TestWithDecapEncapDelete(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
@@ -798,9 +741,6 @@ func TestWithDecapEncapvrf(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with decapencap/decap with nh on vrf, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -817,13 +757,10 @@ func TestWithDecapEncapvrf(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -877,11 +814,7 @@ func TestWithDecapEncapvrfDelete(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with decapencap/decap with nh on vrf, verify traffic, reprogram & delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
-
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -896,13 +829,10 @@ func TestWithDecapEncapvrfDelete(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -965,9 +895,6 @@ func TestWithBackupDecap(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with backup decap with nh on vrf, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -984,13 +911,10 @@ func TestWithBackupDecap(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -1032,9 +956,6 @@ func TestWithBackupDecap(t *testing.T) {
 
 func TestWithBackupDecapDelete(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -1051,13 +972,10 @@ func TestWithBackupDecapDelete(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with backup decap with nh on vrf, verify traffic, reprogram & delete ipv4/NHG/NH")
@@ -1109,9 +1027,6 @@ func TestWithScale(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program scale gribi entries ~17K NH, 500 NHG/NH decapencap, 1K NHG, 1K default prefixes, 60K vrf prefixes verify traffic and delete")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -1128,13 +1043,10 @@ func TestWithScale(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -1357,9 +1269,6 @@ func TestWithStatic(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program static route entries, and then through gribi, verify traffic, delete gribi entries")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -1376,13 +1285,9 @@ func TestWithStatic(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -1453,9 +1358,6 @@ func TestWithStaticremove(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Remove static routes, program gribi verify traffic, and delete gribi entries")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -1472,13 +1374,10 @@ func TestWithStaticremove(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 	addStaticRoute(t, dut, vip1, false)
@@ -1542,10 +1441,10 @@ func TestWithStaticremove(t *testing.T) {
 }
 
 func baseconfig(t *testing.T) {
-	//var baseconfigdone bool
-	fmt.Println("dsfadfa")
-	fmt.Println(baseconfigdone)
+
 	if !baseconfigdone {
+		args = &testArgs{}
+
 		//Configure the DUT
 		dut := ondatra.DUT(t, "dut")
 
@@ -1560,10 +1459,10 @@ func baseconfig(t *testing.T) {
 		util.AddBGPOC(t, dut, "100.100.100.100")
 
 		// Configure the ATE
-		ate := ondatra.ATE(t, "ate")
-		top := configureATE(t, ate)
+		args.ate = ondatra.ATE(t, "ate")
+		args.top = configureATE(t, args.ate)
 		if *ciscoFlags.GRIBITrafficCheck {
-			addPrototoAte(t, top)
+			addPrototoAte(t, args.top)
 		}
 		baseconfigdone = true
 	}
@@ -1588,9 +1487,6 @@ func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
 	t.Logf("Program gribi entries on default vrf, verify traffic, delete entries")
 
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -1608,13 +1504,10 @@ func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 	unconfigbasePBR(t, dut, "PBR", bundleEther120)
@@ -1634,6 +1527,20 @@ func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
 	}
 
 	confgen.Dorpfo(args.ctx, t, true)
+	client = gribi.Client{
+		DUT:                   args.dut,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	args.client = &client
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
@@ -1677,9 +1584,6 @@ func TestWithBackuprpfo(t *testing.T) {
 	t.Logf("Program gribi entries with backup path, verify traffic, delete ipv4/NHG/NH")
 
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -1696,13 +1600,10 @@ func TestWithBackuprpfo(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
@@ -1733,6 +1634,24 @@ func TestWithBackuprpfo(t *testing.T) {
 	}
 
 	confgen.Dorpfo(args.ctx, t, true)
+	client = gribi.Client{
+		DUT:                   args.dut,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	args.client = &client
+
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
@@ -1778,11 +1697,6 @@ func TestWithDecapEncaprpfo(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
-	//ctx := context.Background()
-
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -1797,14 +1711,10 @@ func TestWithDecapEncaprpfo(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
 
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
@@ -1829,6 +1739,24 @@ func TestWithDecapEncaprpfo(t *testing.T) {
 	}
 
 	confgen.Dorpfo(args.ctx, t, true)
+	client = gribi.Client{
+		DUT:                   args.dut,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	args.client = &client
+
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
@@ -1867,9 +1795,6 @@ func TestWithDecapEncapvrfrpfo(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with decapencap/decap with nh on vrf, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -1886,13 +1811,10 @@ func TestWithDecapEncapvrfrpfo(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -1918,6 +1840,24 @@ func TestWithDecapEncapvrfrpfo(t *testing.T) {
 	}
 
 	confgen.Dorpfo(args.ctx, t, true)
+	client = gribi.Client{
+		DUT:                   args.dut,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	args.client = &client
+
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
@@ -1952,9 +1892,6 @@ func TestWithBackupDecaprpfo(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with backup decap with nh on vrf, verify traffic, delete ipv4/NHG/NH")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -1971,13 +1908,10 @@ func TestWithBackupDecaprpfo(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -1998,6 +1932,24 @@ func TestWithBackupDecaprpfo(t *testing.T) {
 	}
 
 	confgen.Dorpfo(args.ctx, t, true)
+	client = gribi.Client{
+		DUT:                   args.dut,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	args.client = &client
+
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
@@ -2028,9 +1980,6 @@ func TestWithScalerpfo(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program scale gribi entries ~17K NH, 500 NHG/NH decapencap, 1K NHG, 1K default prefixes, 60K vrf prefixes verify traffic and delete")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -2046,18 +1995,13 @@ func TestWithScalerpfo(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
 
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 	time.Sleep(10 * time.Second)
-	//dut := ondatra.DUT(t, "dut")
 
 	dstPfxx := "198.51.100.1"
 
@@ -2213,6 +2157,24 @@ func TestWithScalerpfo(t *testing.T) {
 	}
 
 	confgen.Dorpfo(args.ctx, t, true)
+	client = gribi.Client{
+		DUT:                   args.dut,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	args.client = &client
+
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: dstPfx3, Scalenum: 255}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
@@ -2298,9 +2260,6 @@ func TestWithStaticrpfo(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program static route entries, and then through gribi, verify traffic, delete gribi entries")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -2317,13 +2276,9 @@ func TestWithStaticrpfo(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
@@ -2357,6 +2312,24 @@ func TestWithStaticrpfo(t *testing.T) {
 	}
 
 	confgen.Dorpfo(args.ctx, t, true)
+	client = gribi.Client{
+		DUT:                   args.dut,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	args.client = &client
+
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
@@ -2400,9 +2373,6 @@ func TestWithStaticremoverpfo(t *testing.T) {
 	// Elect client as leader and flush all the past entries
 	t.Logf("Remove static routes, program gribi verify traffic, and delete gribi entries")
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	//var top *ondatra.ATETopology
-	top := configureATE(t, ate)
 	ctx := context.Background()
 
 	baseconfig(t)
@@ -2419,13 +2389,9 @@ func TestWithStaticremoverpfo(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	args := &testArgs{
-		ctx:    ctx,
-		client: &client,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-	}
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 
@@ -2457,6 +2423,24 @@ func TestWithStaticremoverpfo(t *testing.T) {
 	}
 
 	confgen.Dorpfo(args.ctx, t, true)
+	client = gribi.Client{
+		DUT:                   args.dut,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	args.client = &client
+
+	if *ciscoFlags.GRIBITrafficCheck {
+		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
+	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})

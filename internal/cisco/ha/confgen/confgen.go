@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/google/go-jsonnet"
-	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
-	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	gnps "github.com/openconfig/gnoi/system"
@@ -138,23 +136,5 @@ func Dorpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
 		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
-	}
-
-	// reestablishing gribi connection
-	if gribi_reconnect {
-		client := gribi.Client{
-			DUT:                   dut,
-			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-			Persistence:           true,
-			InitialElectionIDLow:  1,
-			InitialElectionIDHigh: 0,
-		}
-		if err := client.Start(t); err != nil {
-			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-			if err = client.Start(t); err != nil {
-				t.Fatalf("gRIBI Connection could not be established: %v", err)
-			}
-		}
-		//client = &client
 	}
 }
