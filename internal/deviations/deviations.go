@@ -44,9 +44,10 @@
 package deviations
 
 import (
-	"flag"
 	"fmt"
 	"regexp"
+
+	"flag"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
@@ -59,9 +60,6 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
 		if platformExceptions.GetPlatform().Vendor.String() == "" {
-			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
-		}
-		if platformExceptions.GetPlatform().GetHardwareModelRegex() != "" && len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
 			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 		}
 
@@ -87,20 +85,6 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 				return nil, fmt.Errorf("error with regex match %v", errSw)
 			}
 			if !matchSw {
-				continue
-			}
-		}
-
-		// TODO(prinikasn): Remove after hardware_model field is removed.
-		if len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
-			matchedHwRepeated := false
-			for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
-				if dut.Device.Model() == hardwareModel {
-					matchedHwRepeated = true
-					break
-				}
-			}
-			if !matchedHwRepeated {
 				continue
 			}
 		}
