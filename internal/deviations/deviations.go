@@ -151,7 +151,7 @@ func AggregateAtomicUpdate(dut *ondatra.DUTDevice) bool {
 func DefaultNetworkInstance(dut *ondatra.DUTDevice) string {
 	logErrorIfFlagSet("deviation_default_network_instance")
 	//
-	if dni := lookupDUTDeviations(dut).GetStaticProtocolName(); dni != "" {
+	if dni := lookupDUTDeviations(dut).GetDefaultNetworkInstance(); dni != "" {
 		return dni
 	}
 	return "DEFAULT"
