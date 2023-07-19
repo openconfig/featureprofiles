@@ -69,7 +69,7 @@ func GNOISwitchoverReasonMissingUserInitiated(dut *ondatra.DUTDevice) bool {
 }
 
 // P4rtUnsetElectionIDPrimaryAllowed returns whether the device does not support unset election ID.
-func P4rtUnsetElectionIDPrimaryAllowed(*ondatra.DUTDevice) bool {
+func P4rtUnsetElectionIDPrimaryAllowed(dut *ondatra.DUTDevice) bool {
 	if isFlagSet("deviation_p4rt_unsetelectionid_primary_allowed") {
 		return *p4rtUnsetElectionIDPrimaryAllowed
 	}
@@ -77,7 +77,7 @@ func P4rtUnsetElectionIDPrimaryAllowed(*ondatra.DUTDevice) bool {
 }
 
 // P4rtBackupArbitrationResponseCode returns whether the device does not support unset election ID.
-func P4rtBackupArbitrationResponseCode(*ondatra.DUTDevice) bool {
+func P4rtBackupArbitrationResponseCode(dut *ondatra.DUTDevice) bool {
 	if isFlagSet("deviation_bkup_arbitration_resp_code") {
 		return *p4rtBackupArbitrationResponseCode
 	}
@@ -86,7 +86,7 @@ func P4rtBackupArbitrationResponseCode(*ondatra.DUTDevice) bool {
 
 // BackupNHGRequiresVrfWithDecap returns true for devices that require
 // IPOverIP Decapsulation for Backup NHG without interfaces.
-func BackupNHGRequiresVrfWithDecap(*ondatra.DUTDevice) bool {
+func BackupNHGRequiresVrfWithDecap(dut *ondatra.DUTDevice) bool {
 	if isFlagSet("deviation_backup_nhg_requires_vrf_with_decap") {
 		return *backupNHGRequiresVrfWithDecap
 	}
