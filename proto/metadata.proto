@@ -42,14 +42,15 @@ message Metadata {
   message Platform {
     // Vendor of the device.
     ondatra.Device.Vendor vendor = 1;
-    // Hardware models of the device.
-    repeated string hardware_model = 2;
     // Regex for hardware model of the device.
     // The empty string will match any hardware model.
     string hardware_model_regex = 3;
     // Regex for software version of the device.
     // The empty string will match any software version.
     string software_version_regex = 4;
+    // Reserved field numbers and identifiers.
+    reserved 2;
+    reserved "hardware_model";
   }
 
   message Deviations {
