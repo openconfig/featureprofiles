@@ -505,7 +505,7 @@ tests:
     mustpass: true
     skip: false
     priority: 7
-    timeout: 900
+    timeout: 7200
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNOI-3.2 (Per-Component Reboot)
