@@ -255,6 +255,10 @@ message Metadata {
     // Device requires interface enabled leaf booleans to be explicitly set to
     // true.
     bool interface_enabled = 75;
+    // Parent of OS component is of type LINECARD
+    bool os_component_parent_is_linecard = 76;
+    // Parent of OS component is of type CHASSIS
+    bool os_component_parent_is_chassis = 77;
   }
 
   message PlatformExceptions {

@@ -588,6 +588,16 @@ func SkipControllerCardPowerAdmin(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipControllerCardPowerAdmin()
 }
 
+// OSComponentParentIsLinecard returns true if parent of OS component is of type LINECARD.
+func OSComponentParentIsLinecard(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOsComponentParentIsLinecard()
+}
+
+// OSComponentParentIsChassis returns true if parent of OS component is of type CHASSIS.
+func OSComponentParentIsChassis(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOsComponentParentIsChassis()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
