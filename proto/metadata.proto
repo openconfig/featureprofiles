@@ -267,6 +267,10 @@ message Metadata {
     // Set to true for devices that don't report last-switchover-reason as
     // USER_INITIATED for gNOI.SwitchControlProcessor.
     bool gnoi_switchover_reason_missing_user_initiated = 79;
+    // The name used for the default network instance for VRF.  The default name
+    // in OpenConfig is \"DEFAULT\" but some legacy devices still use
+    // \"default\".
+    string default_network_instance = 80;
   }
 
   message PlatformExceptions {
