@@ -271,6 +271,13 @@ message Metadata {
     // in OpenConfig is \"DEFAULT\" but some legacy devices still use
     // \"default\".
     string default_network_instance = 80;
+    // Device allows unset Election ID to be primary.
+    bool p4rt_unsetelectionid_primary_allowed = 81;
+    // Device sets ALREADY_EXISTS status code for all backup client responses.
+    bool bkup_arbitration_resp_code = 82;
+    // Set to true for devices that require IPOverIP Decapsulation for Backup
+    // NHG without interfaces.
+    bool backup_nhg_requires_vrf_with_decap = 83;
   }
 
   message PlatformExceptions {
