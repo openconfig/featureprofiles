@@ -41,5 +41,6 @@ platform_exceptions: {
     omit_l2_mtu: true
     bgp_tolerance_value: 2
     interface_enabled: true
+    default_network_instance: "default"
   }
 }

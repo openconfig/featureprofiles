@@ -40,27 +40,7 @@
 // device to reject the deviated case even if it is compliant, then this should be
 // explained on a case-by-case basis.
 //
-// To add a deviation:
-//
-//   - Submit a github issue explaining the need for the deviation.
-//   - Submit a pull request referencing the above issue to add a flag to
-//     this file and updates to the tests where it is intended to be used.
-//   - Make sure the deviation defaults to false.  False (not deviated) means strictly
-//     compliant behavior.  True (deviated) activates the workaround.
-//
-// To remove a deviation:
-//
-//   - Submit a pull request which proposes to resolve the relevant
-//     github issue by removing the deviation and it's usage within tests.
-//   - Typically the author or an affiliate of the author's organization
-//     is expected to remove a deviation they introduced.
-//
-// To enable the deviations for a test run:
-//
-//   - By default, deviations are not enabled and instead require the
-//     test invocation to set an argument to enable the deviation.
-//   - For example:
-//     go test my_test.go --deviation_interface_enabled=true
+// To add, remove and enable deviations follow the guidelines at deviations/README.md
 package deviations
 
 import (
@@ -185,8 +165,13 @@ func AggregateAtomicUpdate(dut *ondatra.DUTDevice) bool {
 }
 
 // DefaultNetworkInstance returns the name used for the default network instance for VRF.
-func DefaultNetworkInstance(_ *ondatra.DUTDevice) string {
-	return *defaultNetworkInstance
+func DefaultNetworkInstance(dut *ondatra.DUTDevice) string {
+	logErrorIfFlagSet("deviation_default_network_instance")
+	//
+	if dni := lookupDUTDeviations(dut).GetStaticProtocolName(); dni != "" {
+		return dni
+	}
+	return "DEFAULT"
 }
 
 // ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
@@ -553,12 +538,6 @@ func RoutePolicyUnderAFIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRoutePolicyUnderAfiUnsupported()
 }
 
-// InterfaceRefConfigUnsupported returns if device does not support interface-ref configuration when applying features to interface
-func InterfaceRefConfigUnsupported(dut *ondatra.DUTDevice) bool {
-	logErrorIfFlagSet("deviation_interface_ref_config_unsupported")
-	return lookupDUTDeviations(dut).GetInterfaceRefConfigUnsupported()
-}
-
 // StorageComponentUnsupported returns if telemetry path /components/component/storage is not supported.
 func StorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	logErrorIfFlagSet("deviation_storage_component_unsupported")
@@ -618,7 +597,7 @@ var (
 	_ = flag.Bool("deviation_aggregate_atomic_update", false,
 		"Device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces; otherwise lag-type will be dropped, and no member can be added to the aggregate.  Full OpenConfig compliant devices should pass both with and without this deviation.")
 
-	defaultNetworkInstance = flag.String("deviation_default_network_instance", "DEFAULT",
+	_ = flag.String("deviation_default_network_instance", "DEFAULT",
 		"The name used for the default network instance for VRF.  The default name in OpenConfig is \"DEFAULT\" but some legacy devices still use \"default\".  Full OpenConfig compliant devices should be able to use any operator-assigned value.")
 
 	_ = flag.Bool("deviation_subinterface_packet_counters_missing", false,
@@ -750,8 +729,6 @@ var (
 	_ = flag.Bool("deviation_dequeue_delete_not_counted_as_drops", false, "devices do not count dequeued and deleted packets as drops, default is false")
 
 	_ = flag.Bool("deviation_route_policy_under_afi_unsupported", false, "Set true for device that does not support route-policy under AFI/SAFI, default is false")
-
-	_ = flag.Bool("deviation_interface_ref_config_unsupported", false, "Device does not support interface-ref configuration when applying features to interface")
 
 	_ = flag.Bool("deviation_storage_component_unsupported", false, "Set to true for device that does not support telemetry path /components/component/storage")
 )
