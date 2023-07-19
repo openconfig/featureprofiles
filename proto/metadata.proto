@@ -258,6 +258,30 @@ message Metadata {
     // Set to true to skip checking QOS octet stats for interface.
     // Arista: partnerissuetracker.corp.google.com/283541442
     bool qos_octets = 76;
+    // Set to true for devices where the CPU components do not map to a FRU
+    // parent component in the OC tree.
+    bool cpu_missing_ancestor = 77;
+    // Set to true for a device that needs subinterface 0 to be routed for
+    // non-zero sub-interfaces.
+    bool require_routed_subinterface_0 = 78;
+    // Set to true for devices that don't report last-switchover-reason as
+    // USER_INITIATED for gNOI.SwitchControlProcessor.
+    bool gnoi_switchover_reason_missing_user_initiated = 79;
+    // The name used for the default network instance for VRF.  The default name
+    // in OpenConfig is \"DEFAULT\" but some legacy devices still use
+    // \"default\".
+    string default_network_instance = 80;
+    // Device allows unset Election ID to be primary.
+    bool p4rt_unsetelectionid_primary_allowed = 81;
+    // Device sets ALREADY_EXISTS status code for all backup client responses.
+    bool bkup_arbitration_resp_code = 82;
+    // Set to true for devices that require IPOverIP Decapsulation for Backup
+    // NHG without interfaces.
+    bool backup_nhg_requires_vrf_with_decap = 83;
+    // Devices don't support ISIS Timers lsp-refresh-interval leaf.
+    bool isis_timers_lsp_refresh_interval_unsupported = 84;
+    // Devices don't support configuring ISIS /afi-safi/af/config container.
+    bool isis_interface_afi_unsupported = 85;
   }
 
   message PlatformExceptions {
