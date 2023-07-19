@@ -69,19 +69,28 @@ func GNOISwitchoverReasonMissingUserInitiated(dut *ondatra.DUTDevice) bool {
 }
 
 // P4rtUnsetElectionIDPrimaryAllowed returns whether the device does not support unset election ID.
-func P4rtUnsetElectionIDPrimaryAllowed(*ondatra.DUTDevice) bool {
-	return *p4rtUnsetElectionIDPrimaryAllowed
+func P4rtUnsetElectionIDPrimaryAllowed(dut *ondatra.DUTDevice) bool {
+	if isFlagSet("deviation_p4rt_unsetelectionid_primary_allowed") {
+		return *p4rtUnsetElectionIDPrimaryAllowed
+	}
+	return lookupDUTDeviations(dut).GetP4RtUnsetelectionidPrimaryAllowed()
 }
 
 // P4rtBackupArbitrationResponseCode returns whether the device does not support unset election ID.
-func P4rtBackupArbitrationResponseCode(*ondatra.DUTDevice) bool {
-	return *p4rtBackupArbitrationResponseCode
+func P4rtBackupArbitrationResponseCode(dut *ondatra.DUTDevice) bool {
+	if isFlagSet("deviation_bkup_arbitration_resp_code") {
+		return *p4rtBackupArbitrationResponseCode
+	}
+	return lookupDUTDeviations(dut).GetBkupArbitrationRespCode()
 }
 
 // BackupNHGRequiresVrfWithDecap returns true for devices that require
 // IPOverIP Decapsulation for Backup NHG without interfaces.
-func BackupNHGRequiresVrfWithDecap(*ondatra.DUTDevice) bool {
-	return *backupNHGRequiresVrfWithDecap
+func BackupNHGRequiresVrfWithDecap(dut *ondatra.DUTDevice) bool {
+	if isFlagSet("deviation_backup_nhg_requires_vrf_with_decap") {
+		return *backupNHGRequiresVrfWithDecap
+	}
+	return lookupDUTDeviations(dut).GetBackupNhgRequiresVrfWithDecap()
 }
 
 var (
@@ -89,7 +98,7 @@ var (
 	interfaceRefConfigUnsupported            = flag.Bool("deviation_interface_ref_config_unsupported", false, "Set to true for devices that do not support interface-ref configuration when applying features to interface.")
 	requireRoutedSubinterface0               = flag.Bool("deviation_require_routed_subinterface_0", false, "Set to true for a device that needs subinterface 0 to be routed for non-zero sub-interfaces.")
 	gnoiSwitchoverReasonMissingUserInitiated = flag.Bool("deviation_gnoi_switchover_reason_missing_user_initiated", false, "Set to true for devices that don't report last-switchover-reason as USER_INITIATED for gNOI.SwitchControlProcessor.")
-	p4rtUnsetElectionIDPrimaryAllowed        = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary")
-	p4rtBackupArbitrationResponseCode        = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses")
+	p4rtUnsetElectionIDPrimaryAllowed        = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary.")
+	p4rtBackupArbitrationResponseCode        = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses.")
 	backupNHGRequiresVrfWithDecap            = flag.Bool("deviation_backup_nhg_requires_vrf_with_decap", false, "Set to true for devices that require IPOverIP Decapsulation for Backup NHG without interfaces.")
 )
