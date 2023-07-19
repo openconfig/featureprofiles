@@ -100,14 +100,21 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	ctx := context.Background()
 
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
+	// For interface configuration, Arista prefers config Vrf first then the IP address
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		configureNetworkInstance(t, dut)
+		configureDUT(t, dut)
+	} else {
+		configureDUT(t, dut)
+		configureNetworkInstance(t, dut)
+	}
 
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
 
 	ate.OTG().PushConfig(t, ateTop)
 	ate.OTG().StartProtocols(t)
-	configureNetworkInstance(t, dut)
+	otgutils.WaitForARP(t, ate.OTG(), ateTop, "IPv4")
 
 	// Configure the gRIBI client clientA and make it leader.
 	clientA := &gribi.Client{
@@ -174,7 +181,7 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	injectIPEntry(ctx, t, dut, clientB, nonDefaultVRF, ateDstNetEntryNonDefault)
 
 	t.Log("Inject entry for 203.0.113.0/24 in default VRF from gRIBI-B. This function also verifies entry via telemetry.")
-	injectIPEntry(ctx, t, dut, clientB, *deviations.DefaultNetworkInstance, ateDstNetEntryDefault)
+	injectIPEntry(ctx, t, dut, clientB, deviations.DefaultNetworkInstance(dut), ateDstNetEntryDefault)
 
 	t.Run("flushNonZeroReference", func(t *testing.T) {
 		t.Log("After re-injecting entries, flush RPC from gRIBI-B for default VRF expected to return NON_ZERO_REFERENCE_REMAIN result.")
@@ -258,7 +265,7 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	}
 
 	t.Log("Issue Flush RPC from gRIBI-B for default VRF. It expected to return NON_ZERO_REFERENCE_REMAIN result.")
-	flushRes, _ := gribi.Flush(clientB.Fluent(t), clientB.ElectionID(), *deviations.DefaultNetworkInstance)
+	flushRes, _ := gribi.Flush(clientB.Fluent(t), clientB.ElectionID(), deviations.DefaultNetworkInstance(dut))
 
 	wantRes := &gpb.FlushResponse{
 		Result: gpb.FlushResponse_NON_ZERO_REFERENCE_REMAIN,
@@ -277,7 +284,7 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 		t.Log("Traffic can be forwarded between ATE port-1 and ATE port-2")
 	}
 
-	entry := verifyEntry(t, dut, nonDefaultVRF, ateDstNetEntryNonDefault)
+	entry := hasIPv4Entry(t, dut, nonDefaultVRF, ateDstNetEntryNonDefault)
 	if !entry {
 		t.Errorf("ipv4-entry/state/prefix does not contain entry, expected: %s", ateDstNetEntryNonDefault)
 	} else {
@@ -285,11 +292,11 @@ func flushNonZeroReference(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	}
 
 	t.Log("Ensure that 203.0.113.0/24 (ateDstNetEntryDefault) has been removed by validating telemetry.")
-	entry = verifyEntry(t, dut, *deviations.DefaultNetworkInstance, ateDstNetEntryDefault)
+	entry = hasIPv4Entry(t, dut, deviations.DefaultNetworkInstance(dut), ateDstNetEntryDefault)
 	if entry {
 		t.Errorf("ipv4-entry/state/prefix contains entry %s, expected no entry", ateDstNetEntryDefault)
 	} else {
-		t.Logf("IP Entry for %s has been successfully removed from network instance: %s as confirmed from telemetry.", ateDstNetEntryDefault, *deviations.DefaultNetworkInstance)
+		t.Logf("IP Entry for %s has been successfully removed from network instance: %s as confirmed from telemetry.", ateDstNetEntryDefault, deviations.DefaultNetworkInstance(dut))
 	}
 }
 
@@ -301,18 +308,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
 	}
 }
 
@@ -350,7 +357,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	niIntf.Interface = ygot.String(p1.Name())
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), nonDefaultNI)
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, nonDefaultVRF)
 	}
 }
@@ -387,32 +394,31 @@ func computeLossPct(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 	return lossPct
 }
 
-// verifyEntry checks if the entry is active through AFT Telemetry.
-func verifyEntry(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName string, ateDstNetCIDR string) bool {
-	ipv4Entry := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
-	got := gnmi.Lookup(t, dut, ipv4Entry.Prefix().State())
-	prefix, present := got.Val()
-	return present && prefix == ateDstNetCIDR
+// hasIPv4Entry checks if the entry is active through AFT Telemetry.
+func hasIPv4Entry(t *testing.T, dut *ondatra.DUTDevice, networkInstanceName string, ateDstNetCIDR string) bool {
+	ipv4EntryPath := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
+	got := gnmi.Lookup(t, dut, ipv4EntryPath.State())
+	return got.IsPresent()
 }
 
 // injectEntries adds a fully referenced IP Entry, NH and NHG.
 func injectEntries(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, networkInstanceName string, ateDstNetCIDR string) {
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via gRIBI client", ateDstNetCIDR)
-	client.AddNH(t, nhIndex, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	client.AddNH(t, nhIndex, atePort2.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 }
 
 // injectIPEntry adds only IPv4 entry to the specified network instance referencing to the nhgid, to the VRF.
 func injectIPEntry(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, networkInstanceName string, ateDstNetCIDR string) {
 	t.Logf("Add an IPv4Entry for %s via gRIBI client's %s network instance", ateDstNetCIDR, networkInstanceName)
-	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 
 	// After adding the entry, verify the entry is active through AFT Telemetry.
 	ipv4Path := gnmi.OC().NetworkInstance(networkInstanceName).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		prefix, present := val.Val()
-		return present && prefix == ateDstNetCIDR
+	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	}

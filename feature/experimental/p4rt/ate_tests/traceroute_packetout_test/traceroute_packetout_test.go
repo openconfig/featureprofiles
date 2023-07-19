@@ -18,11 +18,12 @@ package traceroute_packetout_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"net"
 	"sort"
 	"testing"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -45,6 +46,7 @@ const (
 	deviceID      = uint64(100)
 	portId        = uint32(2100)
 	electionId    = uint64(100)
+	dstMAC        = "00:1A:11:00:00:01"
 )
 
 var (
@@ -108,22 +110,22 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1").Name()
-	i1 := dutPort1.NewOCInterface(p1)
+	i1 := dutPort1.NewOCInterface(p1, dut)
 	i1.Id = ygot.Uint32(portId)
 	gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
 
 	p2 := dut.Port(t, "port2").Name()
-	i2 := dutPort2.NewOCInterface(p2)
+	i2 := dutPort2.NewOCInterface(p2, dut)
 	i2.Id = ygot.Uint32(portId + 1)
 	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
 		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1, *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2, *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2, deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -201,7 +203,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4v1.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4v1.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
@@ -218,6 +220,15 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 		IngressPort: fmt.Sprint(portId),
 	}
 }
+
+func dMAC(t *testing.T, dut *ondatra.DUTDevice) string {
+	if !deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		return dstMAC
+	}
+	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), dstMAC)
+	return dstMAC
+}
+
 func TestPacketOut(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -237,10 +248,14 @@ func TestPacketOut(t *testing.T) {
 	}
 
 	sm := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
-
 	srcMAC, err := net.ParseMAC(sm)
 	if err != nil {
 		t.Fatalf("Couldn't parse Source MAC: %v", err)
+	}
+
+	dstMAC, err := net.ParseMAC(dMAC(t, dut))
+	if err != nil {
+		t.Fatalf("Couldn't parse router MAC: %v", err)
 	}
 
 	args := &testArgs{
@@ -250,6 +265,7 @@ func TestPacketOut(t *testing.T) {
 		ate:    ate,
 		top:    top,
 		srcMAC: srcMAC,
+		dstMAC: dstMAC,
 	}
 
 	if err := setupP4RTClient(ctx, args); err != nil {
@@ -266,7 +282,7 @@ type TraceroutePacketIO struct {
 }
 
 // packetTracerouteRequestGet generates PacketOut payload for Traceroute packets.
-func packetTracerouteRequestGet(srcMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int) ([]byte, error) {
+func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int) ([]byte, error) {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
@@ -281,7 +297,7 @@ func packetTracerouteRequestGet(srcMAC net.HardwareAddr, isIPv4 bool, ttl uint8,
 	}
 	pktEth := &layers.Ethernet{
 		SrcMAC:       srcMAC,
-		DstMAC:       net.HardwareAddr{0x02, 0xF6, 0x65, 0x64, 0x00, 0x08},
+		DstMAC:       dstMAC,
 		EthernetType: ethType,
 	}
 
@@ -331,10 +347,10 @@ func packetTracerouteRequestGet(srcMAC net.HardwareAddr, isIPv4 bool, ttl uint8,
 
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
-func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error) {
+func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error) {
 	packets := []*p4v1.PacketOut{}
 	for i := 1; i <= numPkts; i++ {
-		pkt, err := packetTracerouteRequestGet(srcMAC, isIPv4, ttl, i)
+		pkt, err := packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl, i)
 		if err != nil {
 			return nil, err
 		}

@@ -174,8 +174,8 @@ func configNetworkInstanceInterface(t *testing.T, dut *ondatra.DUTDevice, vrfnam
 }
 
 // configInterfaceDUT configures the interface
-func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
-	if *deviations.InterfaceEnabled {
+func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 	i.Description = ygot.String(dutPort.Desc)
@@ -190,35 +190,35 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1 := dut.Port(t, "port1")
 	// create VRF "vrfA" and assign incoming port under it
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 	configNetworkInstanceInterface(t, dut, vrf1, p1.Name(), uint32(0))
 	// create VRF "vrfB"
 	configNetworkInstance(t, dut, vrf2)
 
-	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name()))
+	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 
 	p2 := dut.Port(t, "port2")
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name()))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 
 	p3 := dut.Port(t, "port3")
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name()))
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
 
 	p4 := dut.Port(t, "port4")
-	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name()))
+	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 		fptest.SetPortSpeed(t, p3)
 		fptest.SetPortSpeed(t, p4)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p4.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if *deviations.ExplicitGRIBIUnderNetworkInstance {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *deviations.DefaultNetworkInstance)
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf1)
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf2)
 	}
@@ -236,7 +236,7 @@ func TestBackup(t *testing.T) {
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	t.Run("IPv4BackUpSwitch", func(t *testing.T) {
 		t.Logf("Name: IPv4BackUpSwitch")
@@ -256,7 +256,8 @@ func TestBackup(t *testing.T) {
 		if err := client.Start(t); err != nil {
 			t.Fatalf("gRIBI Connection can not be established")
 		}
-		// Client becomes leader
+
+		// Make client leader
 		client.BecomeLeader(t)
 
 		// Flush past entries before running the tc
@@ -308,19 +309,19 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	)
 
 	t.Logf("Program a backup pointing to vrfB via gRIBI")
-	a.client.AddNH(t, nhid3, "VRFOnly", *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrf2})
-	a.client.AddNHG(t, backupnhgid, map[uint64]uint64{nhid3: 10}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNH(t, nhid3, "VRFOnly", deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrf2})
+	a.client.AddNHG(t, backupnhgid, map[uint64]uint64{nhid3: 10}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 
 	t.Logf("an IPv4Entry for %s in %s pointing to ATE port-2 and port-3 via gRIBI", dstPfx, vrf1)
-	a.client.AddNH(t, nhid1, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNH(t, nhid2, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhgid1, map[uint64]uint64{nhid1: 80, nhid2: 20}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: backupnhgid})
-	a.client.AddIPv4(t, dstPfx, nhgid1, vrf1, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNH(t, nhid1, atePort2.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddNH(t, nhid2, atePort3.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhgid1, map[uint64]uint64{nhid1: 80, nhid2: 20}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: backupnhgid})
+	a.client.AddIPv4(t, dstPfx, nhgid1, vrf1, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 
 	t.Logf("an IPv4Entry for %s in %s pointing to ATE port-4 via gRIBI", dstPfx, vrf2)
-	a.client.AddNH(t, nhid4, atePort4.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhgid2, map[uint64]uint64{nhid4: 100}, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
-	a.client.AddIPv4(t, dstPfx, nhgid2, vrf2, *deviations.DefaultNetworkInstance, fluent.InstalledInFIB)
+	a.client.AddNH(t, nhid4, atePort4.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddNHG(t, nhgid2, map[uint64]uint64{nhid4: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddIPv4(t, dstPfx, nhgid2, vrf2, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 
 	// validate programming using AFT
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
@@ -352,9 +353,10 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 
 	flow := a.top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
+	flow.Size().SetFixed(300)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	flow.TxRx().Port().SetTxName(atePort1.Name)
+	flow.TxRx().Port().SetTxName("port1")
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
@@ -380,22 +382,25 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
 	// Get send traffic
-	incoming_traffic_counters := gnmi.OC().Interface(a.ate.Port(t, "port1").Name()).Counters()
-	sentPkts := gnmi.Get(t, a.ate, incoming_traffic_counters.OutPkts().State())
+	incoming_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
+	sentPkts := gnmi.Get(t, a.ate.OTG(), incoming_traffic_state).GetCounters().GetOutFrames()
+	if sentPkts == 0 {
+		t.Fatalf("Tx packets should be higher than 0")
+	}
 
 	var receivedPkts uint64
 
 	// Get traffic received on primary outgoing interface before interface shutdown
 	for _, port := range shut_ports {
-		outgoing_traffic_counters := gnmi.OC().Interface(a.ate.Port(t, port).Name()).Counters()
-		outPkts := gnmi.Get(t, a.ate, outgoing_traffic_counters.InPkts().State())
+		outgoing_traffic_counters := gnmi.OTG().Port(a.ate.Port(t, port).ID()).State()
+		outPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_counters).GetCounters().GetInFrames()
 		receivedPkts = receivedPkts + outPkts
 	}
 
 	// Get traffic received on expected port after interface shut
 	for _, outPort := range expected_outgoing_port {
-		outgoing_traffic_counters := gnmi.OC().Interface(outPort.Name()).Counters()
-		outPkts := gnmi.Get(t, a.ate, outgoing_traffic_counters.InPkts().State())
+		outgoing_traffic_counters := gnmi.OTG().Port(outPort.ID()).State()
+		outPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_counters).GetCounters().GetInFrames()
 		receivedPkts = receivedPkts + outPkts
 	}
 
@@ -428,27 +433,19 @@ func (a *testArgs) flapinterface(t *testing.T, port string, action bool) {
 
 func (a *testArgs) aftCheck(t testing.TB, prefix string, instance string) {
 	// check prefix and get NHG ID
-	aftPfxNHG := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix).NextHopGroup()
-	aftPfxNHGVal, found := gnmi.Watch(t, a.dut, aftPfxNHG.State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		return val.IsPresent()
+	aftPfxPath := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix)
+	aftPfxVal, found := gnmi.Watch(t, a.dut, aftPfxPath.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.NextHopGroup != nil
 	}).Await(t)
 	if !found {
 		t.Fatalf("Could not find prefix %s in telemetry AFT", dstPfx)
 	}
-	nhg, _ := aftPfxNHGVal.Val()
+	aftPfx, _ := aftPfxVal.Val()
 
 	// using NHG ID validate NH
-	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().NextHopGroup(nhg).State())
+	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
 	if len(aftNHG.NextHop) == 0 && aftNHG.BackupNextHopGroup == nil {
 		t.Fatalf("Prefix %s references a NHG that has neither NH or backup NHG", prefix)
 	}
-}
-
-// Waits for at least one ARP entry on the tx OTG interface
-func waitOTGARPEntry(t *testing.T) {
-	t.Helper()
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
 }

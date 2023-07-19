@@ -17,11 +17,12 @@ package binding
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"plugin"
 	"time"
+
+	"flag"
 
 	"github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/rundata"
@@ -35,13 +36,14 @@ import (
 )
 
 var (
-	pluginFile  = flag.String("plugin", "", "vendor binding as a Go plugin")
-	pluginArgs  = flag.String("plugin-args", "", "arguments for the vendor binding")
-	bindingFile = flag.String("binding", "", "static binding configuration file")
-	kneConfig   = flag.String("kne-config", "", "YAML configuration file")
-	pushConfig  = flag.Bool("push-config", true, "push device reset config supplied to static binding")
-	kneTopo     = flag.String("kne-topo", "", "KNE topology file")
-	credFlags   = knecreds.DefineFlags()
+	pluginFile   = flag.String("plugin", "", "vendor binding as a Go plugin")
+	pluginArgs   = flag.String("plugin-args", "", "arguments for the vendor binding")
+	bindingFile  = flag.String("binding", "", "static binding configuration file")
+	kneConfig    = flag.String("kne-config", "", "YAML configuration file")
+	pushConfig   = flag.Bool("push-config", true, "push device reset config supplied to static binding")
+	kneTopo      = flag.String("kne-topo", "", "KNE topology file")
+	kneSkipReset = flag.Bool("kne-skip-reset", false, "skip the initial config reset phase when using KNE")
+	credFlags    = knecreds.DefineFlags()
 )
 
 // New creates a new binding that could be either a vendor plugin, a
@@ -87,6 +89,7 @@ func newBind() (binding.Binding, error) {
 		return knebind.New(&knebind.Config{
 			Topology:    *kneTopo,
 			Credentials: cred,
+			SkipReset:   *kneSkipReset,
 		})
 	}
 	if *kneConfig != "" {

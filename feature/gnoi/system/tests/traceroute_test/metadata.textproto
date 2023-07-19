@@ -4,3 +4,28 @@
 uuid: "5384dcdb-c427-4b35-94d3-d5f571960634"
 plan_id: "gNOI-5.2"
 description: "Traceroute Test"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    traceroute_l4_protocol_udp: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

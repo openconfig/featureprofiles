@@ -4,3 +4,45 @@
 uuid: "58c13a5a-d3b3-4a2c-98a7-0404596ee8ea"
 plan_id: "gNMI-1.10"
 description: "Telemetry: Basic Check"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    missing_interface_physical_channel: true
+    interface_counters_from_container: true
+    sw_version_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_counters_from_container: true
+    explicit_p4rt_node_component: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    sw_version_unsupported: true
+    qos_dropped_octets: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}

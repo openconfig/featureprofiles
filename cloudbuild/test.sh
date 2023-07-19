@@ -15,26 +15,28 @@
 
 set -xe
 
+nohup /tmp/featureprofiles/cloudbuild/cleanup.sh 2>/dev/null &
+
 case $1 in
   arista_ceos)
-    topology=arista_ixia.textproto
-    user=admin
-    pass=admin
+    topology=arista/ceos/dutate.textproto
+    vendor_creds=ARISTA/admin/admin
     ;;
   juniper_cptx)
-    topology=juniper_ixia.textproto
-    user=root
-    pass=Google123
+    topology=juniper/cptx/dutate.textproto
+    vendor_creds=JUNIPER/root/Google123
     ;;
   cisco_8000e)
-    topology=cisco_ixia.textproto
-    user=cisco
-    pass=cisco123
+    topology=cisco/8000e/dutate.textproto
+    vendor_creds=CISCO/cisco/cisco123
+    ;;
+  cisco_xrd)
+    topology=cisco/xrd/dutate.textproto
+    vendor_creds=CISCO/cisco/cisco123
     ;;
   nokia_srlinux)
-    topology=nokia_ixia.textproto
-    user=admin
-    pass=NokiaSrl1!
+    topology=nokia/srlinux/dutate.textproto
+    vendor_creds=NOKIA/admin/NokiaSrl1!
     ;;
   :)
     echo "Model $1 not valid"
@@ -46,22 +48,21 @@ export PATH=${PATH}:/usr/local/go/bin:$(/usr/local/go/bin/go env GOPATH)/bin
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-pushd /tmp/workspace
+pushd /tmp/featureprofiles
 
 cp -r "$PWD"/topologies/kne /tmp
 sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/kne/"$topology"
 sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/kne/"$topology"
 sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" /tmp/kne/"$topology"
+sed -i "s/xrd:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/xrd:ga/g" /tmp/kne/"$topology"
 sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" /tmp/kne/"$topology"
 
 kne create /tmp/kne/"$topology"
-cat >/tmp/testbed.kne.yml << EOF
-username: $user
-password: $pass
-topology: /tmp/kne/$topology
-skip_reset: true
-EOF
 
-go test -v ./feature/system/tests/... -kne-config /tmp/testbed.kne.yml -testbed "$PWD"/topologies/dut.testbed
+go test -v ./feature/system/tests/... \
+  -timeout 0 \
+  -kne-topo /tmp/kne/"$topology" \
+  -vendor_creds "$vendor_creds" \
+  -alsologtostderr
 
 popd

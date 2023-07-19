@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 openconfig_public:
-	tools/clone_oc_public.sh openconfig_public v1
+	tools/clone_oc_public.sh openconfig_public
 
 .PHONY: validate_paths
 validate_paths: openconfig_public proto/feature_go_proto/feature.pb.go
 	go run -v tools/validate_paths.go \
+		-alsologtostderr \
 		--feature_root=$(CURDIR)/feature/ \
 		--yang_roots=$(CURDIR)/openconfig_public/release/models/,$(CURDIR)/openconfig_public/third_party/ \
-		--yang_skip_roots=$(CURDIR)/openconfig_public/release/models/wifi
+		--yang_skip_roots=$(CURDIR)/openconfig_public/release/models/wifi \
+		--feature_files=${FEATURE_FILES}
 
 proto/feature_go_proto/feature.pb.go: proto/feature.proto
 	mkdir -p proto/feature_go_proto
@@ -27,5 +29,16 @@ proto/feature_go_proto/feature.pb.go: proto/feature.proto
 
 proto/metadata_go_proto/metadata.pb.go: proto/metadata.proto
 	mkdir -p proto/metadata_go_proto
-	protoc --proto_path=proto --go_out=./ --go_opt=Mmetadata.proto=proto/metadata_go_proto metadata.proto
+	# Set directory to hold symlink
+	mkdir -p protobuf-import
+	# Remove any existing symlinks & empty directories
+	find protobuf-import -type l -delete
+	find protobuf-import -type d -empty -delete
+	# Download the required dependencies
+	go mod download
+	# Get ondatra modules we use and create required directory structure
+	go list -f 'protobuf-import/{{ .Path }}' -m github.com/openconfig/ondatra | xargs -L1 dirname | sort | uniq | xargs mkdir -p
+        # Create symlink
+	go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
+	protoc -I='protobuf-import' --proto_path=proto --go_out=./ --go_opt=Mmetadata.proto=proto/metadata_go_proto metadata.proto
 	goimports -w proto/metadata_go_proto/metadata.pb.go

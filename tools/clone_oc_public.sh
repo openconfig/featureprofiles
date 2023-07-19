@@ -1,7 +1,7 @@
 #!/bin/bash
-# Usage: clone_oc_public.sh local_dir version_prefix
+# Usage: clone_oc_public.sh local_dir_name
 set -e
 git clone https://github.com/openconfig/public.git "$1"
 cd "$1"
-branch="$(git tag -l "$2.*" | sort -V | tail -1)"
-git checkout "$branch"
+# Use latest commit of OpenConfig public repo.
+echo "Using github.com/openconfig/public branch: $branch"

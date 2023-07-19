@@ -1,0 +1,105 @@
+name: "nokia-srlinux-dutdut"
+nodes: {
+    name: "dut1"
+    vendor: NOKIA
+    model: "ixr10"
+    config: {
+        image: "ghcr.io/nokia/srlinux:latest"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "kne-profile"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "ethernet-1/2"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "ethernet-1/3"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "ethernet-1/4"
+        }
+    }
+}
+nodes: {
+    name: "dut2"
+    vendor: NOKIA
+    model: "ixr10"
+    config: {
+        image: "ghcr.io/nokia/srlinux:latest"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "kne-profile"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "ethernet-1/2"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "ethernet-1/3"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "ethernet-1/4"
+        }
+    }
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth1"
+    z_node: "dut2"
+    z_int: "eth1"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth2"
+    z_node: "dut2"
+    z_int: "eth2"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth3"
+    z_node: "dut2"
+    z_int: "eth3"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth4"
+    z_node: "dut2"
+    z_int: "eth4"
+}
