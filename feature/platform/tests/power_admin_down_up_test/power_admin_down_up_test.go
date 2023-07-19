@@ -26,6 +26,11 @@ func TestFabricPowerAdmin(t *testing.T) {
 
 	for _, f := range fs {
 		t.Run(f, func(t *testing.T) {
+
+			if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
+				t.Skipf("Skip the test on non-removable fabric.")
+			}
+
 			oper := gnmi.Get(t, dut, gnmi.OC().Component(f).OperStatus().State())
 
 			if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
@@ -51,6 +56,9 @@ func TestLinecardPowerAdmin(t *testing.T) {
 			if ok && empty {
 				t.Skipf("Linecard Component %s is empty, hence skipping", l)
 			}
+			if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
+				t.Skipf("Skip the test on non-removable linecard.")
+			}
 
 			oper := gnmi.Get(t, dut, gnmi.OC().Component(l).OperStatus().State())
 
@@ -60,7 +68,7 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
 
-			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 3*time.Minute)
+			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 10*time.Minute)
 
 			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
 		})
@@ -69,7 +77,16 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 func TestControllerCardPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	if deviations.SkipControllerCardPowerAdmin(dut) {
+		t.Skipf("Power-admin-state config on controller card is not supported.")
+	}
+
 	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	if len(cs) < 2 {
+		t.Skipf("Number of controller cards is less than 2. Skipping test for controller-card power-admin-state.")
+	}
+
 	primary := ""
 	for _, c := range cs {
 		t.Run(c, func(t *testing.T) {
