@@ -461,8 +461,10 @@ func TestBurstyTraffic(t *testing.T) {
 				dutOctetCounterDiff := counters["dutQosOctetsAfterTraffic"][data.queue] - counters["dutQosOctetsBeforeTraffic"][data.queue]
 				ateOctetCounterDiff := counters["ateInPkts"][data.queue] * uint64(data.frameSize)
 				t.Logf("Queue %q: ateOctetCounterDiff: %v dutOctetCounterDiff: %v", data.queue, ateOctetCounterDiff, dutOctetCounterDiff)
-				if dutOctetCounterDiff < ateOctetCounterDiff {
-					t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+				if !deviations.QOSOctets(dut) {
+					if dutOctetCounterDiff < ateOctetCounterDiff {
+						t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+					}
 				}
 
 				if !deviations.QOSDroppedOctets(dut) {
@@ -573,12 +575,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos forwarding groups config: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
-		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-		fwdGroup.SetName(tc.targetGroup)
-		fwdGroup.SetOutputQueue(tc.queueName)
-		queue := q.GetOrCreateQueue(tc.queueName)
-		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 	}
 
 	t.Logf("Create qos Classifiers config")
@@ -874,7 +871,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
 		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
-		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+		if deviations.InterfaceRefConfigUnsupported(dut) {
 			i.InterfaceRef = nil
 		}
 		output := i.GetOrCreateOutput()
@@ -1045,12 +1042,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("qos forwarding groups config cases: %v", casesfwdgrp)
 	for _, tc := range casesfwdgrp {
 		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-			fwdGroup.SetName(tc.targetGroup)
-			fwdGroup.SetOutputQueue(tc.queueName)
-			queue := q.GetOrCreateQueue(tc.queueName)
-			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 		})
 	}
 	for _, tc := range classifiers {

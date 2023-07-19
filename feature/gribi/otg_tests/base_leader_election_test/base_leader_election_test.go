@@ -187,16 +187,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	got, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-	if !ok {
-		t.Fatalf("Did not receive OTG Neighbor entry, last got: %v", got)
-	}
-}
-
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
@@ -206,7 +196,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	otg := ate.OTG()
 	gwIP := gatewayMap[srcEndPoint].IPv4
 	otg.StartProtocols(t)
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
 	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(srcEndPoint.Name+".Eth").Ipv4Neighbor(gwIP).LinkLayerAddress().State())
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
