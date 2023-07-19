@@ -45,7 +45,7 @@ const (
 	bgpMED                 = 25
 )
 
-// setAllow is used to configure routing policy to set BGP MED on DUT.
+// setAllow is used to configure ALLOW routing policy on DUT.
 func setAllow(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 
 	// Configure Allow Policy on DUT.
