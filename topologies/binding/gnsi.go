@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,11 +18,11 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"google.golang.org/grpc"
 
-	authzpb "github.com/openconfig/gnsi/authz"
-	pathzpb "github.com/openconfig/gnsi/pathz"
 	accpb "github.com/openconfig/gnsi/accounting"
-	credpb "github.com/openconfig/gnsi/credentialz"
+	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
+	credpb "github.com/openconfig/gnsi/credentialz"
+	pathzpb "github.com/openconfig/gnsi/pathz"
 )
 
 // gnsiConn implements the stub builder needed by the Ondatra
@@ -40,8 +40,11 @@ func (g gnsiConn) Certz() certzpb.CertzClient { return certzpb.NewCertzClient(g.
 func (g gnsiConn) Credentialz() credpb.CredentialzClient {
 	return credpb.NewCredentialzClient(g.conn)
 }
-func (g gnsiConn) AccountingPull()  accpb.AccountingPullClient { return accpb.NewAccountingPullClient(g.conn) }
-func (g gnsiConn) AccountingPush()  accpb.AccountingPushClient {
+func (g gnsiConn) AccountingPull() accpb.AccountingPullClient {
+	return accpb.NewAccountingPullClient(g.conn)
+}
+func (g gnsiConn) AccountingPush() accpb.AccountingPushClient {
 	return accpb.NewAccountingPushClient(g.conn)
 }
-var _ = binding.GNOIClients(gnoiConn{})
+
+var _ = binding.GNSIClients(gnsiConn{})
