@@ -163,14 +163,14 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 
-	s4.Enabled = ygot.Bool(true)
+	//s4.Enabled = ygot.Bool(true)
 
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
 	s6 := s.GetOrCreateIpv6()
 
-	s6.Enabled = ygot.Bool(true)
+	//s6.Enabled = ygot.Bool(true)
 
 	s6a := s6.GetOrCreateAddress(a.IPv6)
 	s6a.PrefixLength = ygot.Uint8(ipv6PrefixLen)
