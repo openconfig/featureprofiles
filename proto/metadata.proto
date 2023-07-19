@@ -104,7 +104,7 @@ message Metadata {
     // Device does not support interface/physicalchannel leaf.
     // Cisco: partnerissuetracker.corp.google.com/273287821
     bool missing_interface_physical_channel = 20;
-    // Set to true to skip check for
+    // Skip check for
     // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
     // leaf missing case.
     bool missing_bgp_last_notification_error_code = 21;
@@ -133,8 +133,7 @@ message Metadata {
     // failover.
     // Juniper: partnerissuetracker.corp.google.com/279727552
     bool secondary_backup_path_traffic_failover = 28;
-    // Set to true for device in which config pushed through origin CLI takes
-    // precedence over config pushed through origin OC.
+    // Config pushed through origin CLI takes precedence over config pushed through origin OC.
     bool cli_takes_precedence_over_oc = 29;
     // Device does not support weight above 100.
     // Juniper: partnerissuetracker.corp.google.com/277066804
@@ -162,8 +161,7 @@ message Metadata {
     // Device requires explicit interface ref configuration when applying
     // features to interface.
     bool explicit_interface_ref_definition = 38;
-    // Set to true for device that does not support telemetry path
-    // /components/component/storage.
+    // Device does not support telemetry path /components/component/storage.
     // Juniper: partnerissuetracker.corp.google.com/284239001
     bool storage_component_unsupported = 39;
     // Device requires gribi-protocol to be enabled under network-instance.
@@ -175,20 +173,18 @@ message Metadata {
     // the default network instance.
     // Nokia: partnerissuetracker.corp.google.com/260928639
     bool explicit_interface_in_default_vrf = 42;
-    // Set to true to skip checking QOS Dropped octets stats for interface.
+    // Skip checking QOS Dropped octets stats for interface.
     bool qos_dropped_octets = 43;
     // Device is missing subinterface packet counters for IPv4/IPv6.
     bool subinterface_packet_counters_missing = 44;
     // Connect-retry is not supported
     // /bgp/neighbors/neighbor/timers/config/connect-retry.
     bool connect_retry = 45;
-    // Set to true for device not supporting programming a gribi flow with a
-    // next-hop entry of mac-address only.
+    // Device does not support programming a gribi flow with a next-hop entry of mac-address only.
     bool gribi_mac_override_with_static_arp = 46;
     // Set true for device that does not support route-policy under AFI/SAFI.
     bool route_policy_under_afi_unsupported = 47;
-    // Set to true for device that does not support use using gNOI to reboot the
-    // Fabric Component.
+    // Device does not support using gNOI to reboot the Fabric Component.
     bool gnoi_fabric_component_reboot_unsupported = 48;
     // Device does not support the ntp nondefault vrf case.
     bool ntp_non_default_vrf_unsupported = 49;
@@ -214,8 +210,7 @@ message Metadata {
     // there is more than one active reboot requests.
     // Arista: partnerissuetracker.corp.google.com/245550570
     bool gnoi_status_empty_subcomponent = 63;
-    // Set to true for device requiring explicit deletion of network-instance
-    // table.
+    // Device requiries explicit deletion of network-instance table.
     bool network_instance_table_deletion_required = 64;
     // Device requires a BGP session reset to utilize a new MD5 key.
     bool bgp_md5_requires_reset = 65;
@@ -248,24 +243,20 @@ message Metadata {
     // or openconfig-vlan:vlan/state/vlan-id leaves.
     // Arista: partnerissuetracker.corp.google.com/261085885
     bool deprecated_vlan_id = 73;
-    // Set to true for device that requires gRIBI MAC Override using Static ARP
-    // + Static Route
+    // Device requires gRIBI MAC Override using Static ARP + Static Route
     // Arista: partnerissuetracker.corp.google.com/234635355
     bool gribi_mac_override_static_arp_static_route = 74;
     // Device requires interface enabled leaf booleans to be explicitly set to
     // true.
     bool interface_enabled = 75;
-    // Set to true to skip checking QOS octet stats for interface.
+    // Skip checking QOS octet stats for interface.
     // Arista: partnerissuetracker.corp.google.com/283541442
     bool qos_octets = 76;
-    // Set to true for devices where the CPU components do not map to a FRU
-    // parent component in the OC tree.
+    // Device CPU components do not map to a FRU parent component in the OC tree.
     bool cpu_missing_ancestor = 77;
-    // Set to true for a device that needs subinterface 0 to be routed for
-    // non-zero sub-interfaces.
+    // Device needs subinterface 0 to be routed for non-zero sub-interfaces.
     bool require_routed_subinterface_0 = 78;
-    // Set to true for devices that don't report last-switchover-reason as
-    // USER_INITIATED for gNOI.SwitchControlProcessor.
+    // Device does not report last-switchover-reason as USER_INITIATED for gNOI.SwitchControlProcessor.
     bool gnoi_switchover_reason_missing_user_initiated = 79;
     // The name used for the default network instance for VRF.  The default name
     // in OpenConfig is \"DEFAULT\" but some legacy devices still use
@@ -275,8 +266,7 @@ message Metadata {
     bool p4rt_unsetelectionid_primary_allowed = 81;
     // Device sets ALREADY_EXISTS status code for all backup client responses.
     bool bkup_arbitration_resp_code = 82;
-    // Set to true for devices that require IPOverIP Decapsulation for Backup
-    // NHG without interfaces.
+    // Device requires IPOverIP decapsulation for backup NHG without interfaces.
     bool backup_nhg_requires_vrf_with_decap = 83;
     // Devices don't support ISIS Timers lsp-refresh-interval leaf.
     bool isis_timers_lsp_refresh_interval_unsupported = 84;

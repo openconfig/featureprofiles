@@ -314,7 +314,7 @@ type Metadata_Deviations struct {
 	// Device does not support interface/physicalchannel leaf.
 	// Cisco: partnerissuetracker.corp.google.com/273287821
 	MissingInterfacePhysicalChannel bool `protobuf:"varint,20,opt,name=missing_interface_physical_channel,json=missingInterfacePhysicalChannel,proto3" json:"missing_interface_physical_channel,omitempty"`
-	// Set to true to skip check for
+	// Skip check for
 	// bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
 	// leaf missing case.
 	MissingBgpLastNotificationErrorCode bool `protobuf:"varint,21,opt,name=missing_bgp_last_notification_error_code,json=missingBgpLastNotificationErrorCode,proto3" json:"missing_bgp_last_notification_error_code,omitempty"`
@@ -343,8 +343,7 @@ type Metadata_Deviations struct {
 	// failover.
 	// Juniper: partnerissuetracker.corp.google.com/279727552
 	SecondaryBackupPathTrafficFailover bool `protobuf:"varint,28,opt,name=secondary_backup_path_traffic_failover,json=secondaryBackupPathTrafficFailover,proto3" json:"secondary_backup_path_traffic_failover,omitempty"`
-	// Set to true for device in which config pushed through origin CLI takes
-	// precedence over config pushed through origin OC.
+	// Config pushed through origin CLI takes precedence over config pushed through origin OC.
 	CliTakesPrecedenceOverOc bool `protobuf:"varint,29,opt,name=cli_takes_precedence_over_oc,json=cliTakesPrecedenceOverOc,proto3" json:"cli_takes_precedence_over_oc,omitempty"`
 	// Device does not support weight above 100.
 	// Juniper: partnerissuetracker.corp.google.com/277066804
@@ -372,8 +371,7 @@ type Metadata_Deviations struct {
 	// Device requires explicit interface ref configuration when applying
 	// features to interface.
 	ExplicitInterfaceRefDefinition bool `protobuf:"varint,38,opt,name=explicit_interface_ref_definition,json=explicitInterfaceRefDefinition,proto3" json:"explicit_interface_ref_definition,omitempty"`
-	// Set to true for device that does not support telemetry path
-	// /components/component/storage.
+	// Device does not support telemetry path /components/component/storage.
 	// Juniper: partnerissuetracker.corp.google.com/284239001
 	StorageComponentUnsupported bool `protobuf:"varint,39,opt,name=storage_component_unsupported,json=storageComponentUnsupported,proto3" json:"storage_component_unsupported,omitempty"`
 	// Device requires gribi-protocol to be enabled under network-instance.
@@ -385,20 +383,18 @@ type Metadata_Deviations struct {
 	// the default network instance.
 	// Nokia: partnerissuetracker.corp.google.com/260928639
 	ExplicitInterfaceInDefaultVrf bool `protobuf:"varint,42,opt,name=explicit_interface_in_default_vrf,json=explicitInterfaceInDefaultVrf,proto3" json:"explicit_interface_in_default_vrf,omitempty"`
-	// Set to true to skip checking QOS Dropped octets stats for interface.
+	// Skip checking QOS Dropped octets stats for interface.
 	QosDroppedOctets bool `protobuf:"varint,43,opt,name=qos_dropped_octets,json=qosDroppedOctets,proto3" json:"qos_dropped_octets,omitempty"`
 	// Device is missing subinterface packet counters for IPv4/IPv6.
 	SubinterfacePacketCountersMissing bool `protobuf:"varint,44,opt,name=subinterface_packet_counters_missing,json=subinterfacePacketCountersMissing,proto3" json:"subinterface_packet_counters_missing,omitempty"`
 	// Connect-retry is not supported
 	// /bgp/neighbors/neighbor/timers/config/connect-retry.
 	ConnectRetry bool `protobuf:"varint,45,opt,name=connect_retry,json=connectRetry,proto3" json:"connect_retry,omitempty"`
-	// Set to true for device not supporting programming a gribi flow with a
-	// next-hop entry of mac-address only.
+	// Device does not support programming a gribi flow with a next-hop entry of mac-address only.
 	GribiMacOverrideWithStaticArp bool `protobuf:"varint,46,opt,name=gribi_mac_override_with_static_arp,json=gribiMacOverrideWithStaticArp,proto3" json:"gribi_mac_override_with_static_arp,omitempty"`
 	// Set true for device that does not support route-policy under AFI/SAFI.
 	RoutePolicyUnderAfiUnsupported bool `protobuf:"varint,47,opt,name=route_policy_under_afi_unsupported,json=routePolicyUnderAfiUnsupported,proto3" json:"route_policy_under_afi_unsupported,omitempty"`
-	// Set to true for device that does not support use using gNOI to reboot the
-	// Fabric Component.
+	// Device does not support using gNOI to reboot the Fabric Component.
 	GnoiFabricComponentRebootUnsupported bool `protobuf:"varint,48,opt,name=gnoi_fabric_component_reboot_unsupported,json=gnoiFabricComponentRebootUnsupported,proto3" json:"gnoi_fabric_component_reboot_unsupported,omitempty"`
 	// Device does not support the ntp nondefault vrf case.
 	NtpNonDefaultVrfUnsupported bool `protobuf:"varint,49,opt,name=ntp_non_default_vrf_unsupported,json=ntpNonDefaultVrfUnsupported,proto3" json:"ntp_non_default_vrf_unsupported,omitempty"`
@@ -424,8 +420,7 @@ type Metadata_Deviations struct {
 	// there is more than one active reboot requests.
 	// Arista: partnerissuetracker.corp.google.com/245550570
 	GnoiStatusEmptySubcomponent bool `protobuf:"varint,63,opt,name=gnoi_status_empty_subcomponent,json=gnoiStatusEmptySubcomponent,proto3" json:"gnoi_status_empty_subcomponent,omitempty"`
-	// Set to true for device requiring explicit deletion of network-instance
-	// table.
+	// Device requiries explicit deletion of network-instance table.
 	NetworkInstanceTableDeletionRequired bool `protobuf:"varint,64,opt,name=network_instance_table_deletion_required,json=networkInstanceTableDeletionRequired,proto3" json:"network_instance_table_deletion_required,omitempty"`
 	// Device requires a BGP session reset to utilize a new MD5 key.
 	BgpMd5RequiresReset bool `protobuf:"varint,65,opt,name=bgp_md5_requires_reset,json=bgpMd5RequiresReset,proto3" json:"bgp_md5_requires_reset,omitempty"`
@@ -458,24 +453,20 @@ type Metadata_Deviations struct {
 	// or openconfig-vlan:vlan/state/vlan-id leaves.
 	// Arista: partnerissuetracker.corp.google.com/261085885
 	DeprecatedVlanId bool `protobuf:"varint,73,opt,name=deprecated_vlan_id,json=deprecatedVlanId,proto3" json:"deprecated_vlan_id,omitempty"`
-	// Set to true for device that requires gRIBI MAC Override using Static ARP
-	// + Static Route
+	// Device requires gRIBI MAC Override using Static ARP + Static Route
 	// Arista: partnerissuetracker.corp.google.com/234635355
 	GribiMacOverrideStaticArpStaticRoute bool `protobuf:"varint,74,opt,name=gribi_mac_override_static_arp_static_route,json=gribiMacOverrideStaticArpStaticRoute,proto3" json:"gribi_mac_override_static_arp_static_route,omitempty"`
 	// Device requires interface enabled leaf booleans to be explicitly set to
 	// true.
 	InterfaceEnabled bool `protobuf:"varint,75,opt,name=interface_enabled,json=interfaceEnabled,proto3" json:"interface_enabled,omitempty"`
-	// Set to true to skip checking QOS octet stats for interface.
+	// Skip checking QOS octet stats for interface.
 	// Arista: partnerissuetracker.corp.google.com/283541442
 	QosOctets bool `protobuf:"varint,76,opt,name=qos_octets,json=qosOctets,proto3" json:"qos_octets,omitempty"`
-	// Set to true for devices where the CPU components do not map to a FRU
-	// parent component in the OC tree.
+	// Device CPU components do not map to a FRU parent component in the OC tree.
 	CpuMissingAncestor bool `protobuf:"varint,77,opt,name=cpu_missing_ancestor,json=cpuMissingAncestor,proto3" json:"cpu_missing_ancestor,omitempty"`
-	// Set to true for a device that needs subinterface 0 to be routed for
-	// non-zero sub-interfaces.
+	// Device needs subinterface 0 to be routed for non-zero sub-interfaces.
 	RequireRoutedSubinterface_0 bool `protobuf:"varint,78,opt,name=require_routed_subinterface_0,json=requireRoutedSubinterface0,proto3" json:"require_routed_subinterface_0,omitempty"`
-	// Set to true for devices that don't report last-switchover-reason as
-	// USER_INITIATED for gNOI.SwitchControlProcessor.
+	// Device does not report last-switchover-reason as USER_INITIATED for gNOI.SwitchControlProcessor.
 	GnoiSwitchoverReasonMissingUserInitiated bool `protobuf:"varint,79,opt,name=gnoi_switchover_reason_missing_user_initiated,json=gnoiSwitchoverReasonMissingUserInitiated,proto3" json:"gnoi_switchover_reason_missing_user_initiated,omitempty"`
 	// The name used for the default network instance for VRF.  The default name
 	// in OpenConfig is \"DEFAULT\" but some legacy devices still use
@@ -485,8 +476,7 @@ type Metadata_Deviations struct {
 	P4RtUnsetelectionidPrimaryAllowed bool `protobuf:"varint,81,opt,name=p4rt_unsetelectionid_primary_allowed,json=p4rtUnsetelectionidPrimaryAllowed,proto3" json:"p4rt_unsetelectionid_primary_allowed,omitempty"`
 	// Device sets ALREADY_EXISTS status code for all backup client responses.
 	BkupArbitrationRespCode bool `protobuf:"varint,82,opt,name=bkup_arbitration_resp_code,json=bkupArbitrationRespCode,proto3" json:"bkup_arbitration_resp_code,omitempty"`
-	// Set to true for devices that require IPOverIP Decapsulation for Backup
-	// NHG without interfaces.
+	// Device requires IPOverIP decapsulation for backup NHG without interfaces.
 	BackupNhgRequiresVrfWithDecap bool `protobuf:"varint,83,opt,name=backup_nhg_requires_vrf_with_decap,json=backupNhgRequiresVrfWithDecap,proto3" json:"backup_nhg_requires_vrf_with_decap,omitempty"`
 	// Devices don't support ISIS Timers lsp-refresh-interval leaf.
 	IsisTimersLspRefreshIntervalUnsupported bool `protobuf:"varint,84,opt,name=isis_timers_lsp_refresh_interval_unsupported,json=isisTimersLspRefreshIntervalUnsupported,proto3" json:"isis_timers_lsp_refresh_interval_unsupported,omitempty"`
