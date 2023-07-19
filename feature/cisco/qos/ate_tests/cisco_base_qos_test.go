@@ -176,15 +176,27 @@ func TestTrafficQos(t *testing.T) {
 	}
 
 	//Configure IPv6 addresses and VLANS on DUT
-	configureIpv6AndVlans(t, dut)
 
 	// Dial gRIBI
 	ctx := context.Background()
 
 	// Configure the ATE
+	configureDUT(t, dut)
+	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	defer unconfigbasePBR(t, dut)
+	// configure route-policy
+	configRP(t, dut)
+	// configure ISIS on DUT
+	addISISOC(t, dut, "Bundle-Ether127")
+	// configure BGP on DUT
+	addBGPOC(t, dut, "100.100.100.100")
+
+	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
+	if *ciscoFlags.GRIBITrafficCheck {
+		addPrototoAte(t, top)
+	}
 
 	for _, tt := range QoSTrafficTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -343,12 +355,6 @@ func TestScheduler(t *testing.T) {
 			tt.fn(ctx, t, args)
 		})
 	}
-}
-func TestConfigQos(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	//ctx := context.Background()
-	ConfigureWrrSche(t, dut)
-
 }
 
 func TestWrrTrafficQos(t *testing.T) {
