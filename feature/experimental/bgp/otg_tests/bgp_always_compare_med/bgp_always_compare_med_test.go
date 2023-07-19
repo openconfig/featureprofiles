@@ -333,7 +333,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	v4.Src().SetValue(iDut1Ipv4.Address())
 	v4.Dst().Increment().SetStart(advertisedRoutesv4Net).SetCount(routeCount)
 
-	t.Logf("TestBGP:start otg Traffic config")
+	t.Logf("TestBGP:start otg traffic config")
 	flow2ipv4 := config.Flows().Add().SetName(flow2)
 	flow2ipv4.Metrics().SetEnable(true)
 	flow2ipv4.TxRx().Device().
@@ -390,11 +390,19 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	rp := d.GetOrCreateRoutingPolicy()
 
 	pdef1 := rp.GetOrCreatePolicyDefinition(setMEDPolicy100)
-	actions1 := pdef1.GetOrCreateStatement(aclStatement20).GetOrCreateActions()
+	stmt1, err := pdef1.AppendNewStatement(aclStatement20)
+	if err != nil {
+		t.Errorf("Error while creating new statement %v", err)
+	}
+	actions1 := stmt1.GetOrCreateActions()
 	actions1.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED100)
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(setMEDPolicy50)
-	actions2 := pdef2.GetOrCreateStatement(aclStatement20).GetOrCreateActions()
+	stmt2, err := pdef2.AppendNewStatement(aclStatement20)
+	if err != nil {
+		t.Errorf("Error while creating new statement %v", err)
+	}
+	actions2 := stmt2.GetOrCreateActions()
 	actions2.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED50)
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
