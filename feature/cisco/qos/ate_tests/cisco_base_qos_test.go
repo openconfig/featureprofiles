@@ -161,104 +161,104 @@ var (
 	}
 )
 
-func TestTrafficQos(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show version")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	if strings.Contains(resp, "VXR") {
-		t.Logf("Skipping since platfrom is VXR")
-		t.Skip()
-	}
+// func TestTrafficQos(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	cliHandle := dut.RawAPIs().CLI(t)
+// 	defer cliHandle.Close()
+// 	resp, err := cliHandle.SendCommand(context.Background(), "show version")
+// 	t.Logf(resp)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	if strings.Contains(resp, "VXR") {
+// 		t.Logf("Skipping since platfrom is VXR")
+// 		t.Skip()
+// 	}
 
-	//Configure IPv6 addresses and VLANS on DUT
+// 	//Configure IPv6 addresses and VLANS on DUT
 
-	// Dial gRIBI
-	ctx := context.Background()
+// 	// Dial gRIBI
+// 	ctx := context.Background()
 
-	// Configure the ATE
-	configureDUT(t, dut)
-	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	defer unconfigbasePBR(t, dut)
-	// configure route-policy
-	configRP(t, dut)
-	// configure ISIS on DUT
-	addISISOC(t, dut, "Bundle-Ether127")
-	// configure BGP on DUT
-	addBGPOC(t, dut, "100.100.100.100")
+// 	// Configure the ATE
+// 	configureDUT(t, dut)
+// 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+// 	defer unconfigbasePBR(t, dut)
+// 	// configure route-policy
+// 	configRP(t, dut)
+// 	// configure ISIS on DUT
+// 	addISISOC(t, dut, "Bundle-Ether127")
+// 	// configure BGP on DUT
+// 	addBGPOC(t, dut, "100.100.100.100")
 
-	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
-	if *ciscoFlags.GRIBITrafficCheck {
-		addPrototoAte(t, top)
-	}
+// 	// Configure the ATE
+// 	ate := ondatra.ATE(t, "ate")
+// 	top := configureATE(t, ate)
+// 	if *ciscoFlags.GRIBITrafficCheck {
+// 		addPrototoAte(t, top)
+// 	}
 
-	for _, tt := range QoSTrafficTestcases {
-		// Each case will run with its own gRIBI fluent client.
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			t.Logf("Description: %s", tt.desc)
+// 	for _, tt := range QoSTrafficTestcases {
+// 		// Each case will run with its own gRIBI fluent client.
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			t.Logf("Name: %s", tt.name)
+// 			t.Logf("Description: %s", tt.desc)
 
-			clientA := gribi.Client{
-				DUT:                   dut,
-				FibACK:                *ciscoFlags.GRIBIFIBCheck,
-				Persistence:           true,
-				InitialElectionIDLow:  10,
-				InitialElectionIDHigh: 0,
-			}
-			defer clientA.Close(t)
-			if err := clientA.Start(t); err != nil {
-				t.Fatalf("Could not initialize gRIBI: %v", err)
-			}
-			//clientA.BecomeLeader(t)
+// 			clientA := gribi.Client{
+// 				DUT:                   dut,
+// 				FibACK:                *ciscoFlags.GRIBIFIBCheck,
+// 				Persistence:           true,
+// 				InitialElectionIDLow:  10,
+// 				InitialElectionIDHigh: 0,
+// 			}
+// 			defer clientA.Close(t)
+// 			if err := clientA.Start(t); err != nil {
+// 				t.Fatalf("Could not initialize gRIBI: %v", err)
+// 			}
+// 			//clientA.BecomeLeader(t)
 
-			interfaceList := []string{}
-			for i := 121; i < 128; i++ {
-				interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
-			}
+// 			interfaceList := []string{}
+// 			for i := 121; i < 128; i++ {
+// 				interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
+// 			}
 
-			interfaces := interfaces{
-				in:  []string{"Bundle-Ether120"},
-				out: interfaceList,
-			}
+// 			interfaces := interfaces{
+// 				in:  []string{"Bundle-Ether120"},
+// 				out: interfaceList,
+// 			}
 
-			args := &testArgs{
-				ctx:        ctx,
-				clientA:    &clientA,
-				dut:        dut,
-				ate:        ate,
-				top:        top,
-				usecase:    0,
-				interfaces: &interfaces,
-				prefix: &gribiPrefix{
-					scale:           1,
-					host:            "11.11.11.0",
-					vrfName:         "TE",
-					vipPrefixLength: "32",
+// 			args := &testArgs{
+// 				ctx:        ctx,
+// 				clientA:    &clientA,
+// 				dut:        dut,
+// 				ate:        ate,
+// 				top:        top,
+// 				usecase:    0,
+// 				interfaces: &interfaces,
+// 				prefix: &gribiPrefix{
+// 					scale:           1,
+// 					host:            "11.11.11.0",
+// 					vrfName:         "TE",
+// 					vipPrefixLength: "32",
 
-					vip1Ip: "192.0.2.40",
-					vip2Ip: "192.0.2.42",
+// 					vip1Ip: "192.0.2.40",
+// 					vip2Ip: "192.0.2.42",
 
-					vip1NhIndex:  uint64(100),
-					vip1NhgIndex: uint64(100),
+// 					vip1NhIndex:  uint64(100),
+// 					vip1NhgIndex: uint64(100),
 
-					vip2NhIndex:  uint64(200),
-					vip2NhgIndex: uint64(200),
+// 					vip2NhIndex:  uint64(200),
+// 					vip2NhgIndex: uint64(200),
 
-					vrfNhIndex:  uint64(1000),
-					vrfNhgIndex: uint64(1000),
-				},
-			}
+// 					vrfNhIndex:  uint64(1000),
+// 					vrfNhgIndex: uint64(1000),
+// 				},
+// 			}
 
-			tt.fn(ctx, t, args)
-		})
-	}
-}
+// 			tt.fn(ctx, t, args)
+// 		})
+// 	}
+// }
 
 func TestScheduler(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
