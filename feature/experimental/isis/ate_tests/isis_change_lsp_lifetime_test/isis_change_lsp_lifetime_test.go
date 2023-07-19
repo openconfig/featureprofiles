@@ -264,10 +264,10 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(v6Route).Prefix().State()); got != v6Route {
 				t.Errorf("FAIL- Expected v6 route not found in isis, got %v, want %v", got, v6Route)
 			}
-			if got := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(v4Route).Prefix().State()); got != v4Route {
+			if got := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(v4Route).State()).GetPrefix(); got != v4Route {
 				t.Errorf("FAIL- Expected v4 route not found in aft, got %v, want %v", got, v4Route)
 			}
-			if got := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(v6Route).Prefix().State()); got != v6Route {
+			if got := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(v6Route).State()).GetPrefix(); got != v6Route {
 				t.Errorf("FAIL- Expected v6 route not found in aft, got %v, want %v", got, v6Route)
 			}
 		})
