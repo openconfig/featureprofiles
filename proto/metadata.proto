@@ -267,10 +267,21 @@ message Metadata {
     // Set to true for devices that don't report last-switchover-reason as
     // USER_INITIATED for gNOI.SwitchControlProcessor.
     bool gnoi_switchover_reason_missing_user_initiated = 79;
+    // The name used for the default network instance for VRF.  The default name
+    // in OpenConfig is \"DEFAULT\" but some legacy devices still use
+    // \"default\".
+    string default_network_instance = 80;
+    // Device allows unset Election ID to be primary.
+    bool p4rt_unsetelectionid_primary_allowed = 81;
+    // Device sets ALREADY_EXISTS status code for all backup client responses.
+    bool bkup_arbitration_resp_code = 82;
+    // Set to true for devices that require IPOverIP Decapsulation for Backup
+    // NHG without interfaces.
+    bool backup_nhg_requires_vrf_with_decap = 83;
     // Devices don't support ISIS Timers lsp-refresh-interval leaf.
-    bool isis_timers_lsp_refresh_interval_unsupported = 80;
+    bool isis_timers_lsp_refresh_interval_unsupported = 84;
     // Devices don't support configuring ISIS /afi-safi/af/config container.
-    bool isis_interface_afi_unsupported = 81;
+    bool isis_interface_afi_unsupported = 85;
   }
 
   message PlatformExceptions {
