@@ -93,6 +93,9 @@ func BackupNHGRequiresVrfWithDecap(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBackupNhgRequiresVrfWithDecap()
 }
 
+// Vendor deviation flags.
+// Flags here should be added by exception only.
+// All flags should have a corresponding field in the Deviations message in the metadata.proto file.
 var (
 	cpuMissingAncestor                       = flag.Bool("deviation_cpu_missing_ancestor", false, "Set to true for devices where the CPU components do not map to a FRU parent component in the OC tree.")
 	interfaceRefConfigUnsupported            = flag.Bool("deviation_interface_ref_config_unsupported", false, "Set to true for devices that do not support interface-ref configuration when applying features to interface.")
