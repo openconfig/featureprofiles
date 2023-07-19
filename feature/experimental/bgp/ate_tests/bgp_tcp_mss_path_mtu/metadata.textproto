@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "7fbf408a-ac55-4e18-8f7f-1a937bff7921"
+plan_id: "RT-1.21"
+description: "BGP TCP MSS and PMTUD"
+testbed: TESTBED_DUT_ATE_2LINKS
