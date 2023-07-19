@@ -96,12 +96,12 @@ var virtualDeviceTypes = []deviceType{
 
 // virtualDeviceMachineType is a map of virtual machines to their expected machine type requirement.
 var virtualDeviceMachineType = map[deviceType]string{
-	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}:        "e2-standard-4",
+	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}:        "e2-standard-8",
 	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}:        "n2-standard-8",
-	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}:          "e2-standard-4",
+	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}:          "e2-standard-8",
 	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}:       "n2-standard-16",
-	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}:     "e2-standard-4",
-	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}: "e2-standard-4",
+	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}:     "e2-standard-8",
+	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}: "e2-standard-8",
 }
 
 func titleCase(input string) string {

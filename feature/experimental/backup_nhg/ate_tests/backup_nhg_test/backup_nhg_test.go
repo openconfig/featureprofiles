@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 
@@ -43,19 +44,21 @@ type testArgs struct {
 
 const (
 	// Destination prefix for DUT to ATE traffic.
-	dstPfx   = "198.51.100.0"
-	vrfA     = "VRF-A"
-	vrfB     = "VRF-B"
-	nh1ID    = 1
-	nh2ID    = 2
-	nh100ID  = 100
-	nh101ID  = 101
-	nhg1ID   = 1
-	nhg2ID   = 2
-	nhg100ID = 100
-	nhg101ID = 101
-	nhip     = "192.0.2.254"
-	mask     = "32"
+	dstPfx           = "198.51.100.0"
+	vrfA             = "VRF-A"
+	vrfB             = "VRF-B"
+	nh1ID            = 1
+	nh2ID            = 2
+	nh100ID          = 100
+	nh101ID          = 101
+	nhg1ID           = 1
+	nhg2ID           = 2
+	nhg100ID         = 100
+	nhg101ID         = 101
+	nhip             = "192.0.2.254"
+	mask             = "32"
+	policyID         = "match-ipip"
+	ipOverIPProtocol = 4
 )
 
 var (
@@ -127,6 +130,24 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 	configureNetworkInstance(t, dut)
+	// For interface configuration, prefer config Vrf first then the IP address
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		configureDUT(t, dut)
+	}
+
+	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
+		d := &oc.Root{}
+		ni := d.GetOrCreateNetworkInstance(vrfA)
+		pf := ni.GetOrCreatePolicyForwarding()
+		fp1 := pf.GetOrCreatePolicy(policyID)
+		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+		fp1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipOverIPProtocol)
+		fp1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(vrfB)
+		p1 := dut.Port(t, "port1")
+		intf := pf.GetOrCreateInterface(p1.Name())
+		intf.ApplyVrfSelectionPolicy = ygot.String(policyID)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfA).PolicyForwarding().Config(), pf)
+	}
 
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
@@ -158,6 +179,7 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 
 	baselineFlow := tcArgs.createFlow("Baseline Path Flow", &atePort2)
 	backupFlow := tcArgs.createFlow("Backup Path Flow", &atePort3)
+	backupIPIPFlow := tcArgs.createIPIPFlow("Backup IP Over IP Path Flow", &atePort3)
 
 	cases := []struct {
 		desc               string
@@ -199,7 +221,6 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 			},
 			removeImpairmentFn: func() {
 				client.AddIPv4(t, nhip+"/"+mask, nhg1ID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
 			},
 		},
 	}
@@ -219,7 +240,11 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 			defer tc.removeImpairmentFn()
 
 			t.Run("Validate Backup Path Traffic Delivery", func(t *testing.T) {
-				tcArgs.validateTrafficFlows(t, backupFlow, baselineFlow)
+				if deviations.BackupNHGRequiresVrfWithDecap(dut) {
+					tcArgs.validateTrafficFlows(t, backupIPIPFlow, baselineFlow)
+				} else {
+					tcArgs.validateTrafficFlows(t, backupFlow, baselineFlow)
+				}
 			})
 		})
 	}
@@ -271,23 +296,27 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // entry.
 func (a *testArgs) configureBackupNextHopGroup(t *testing.T, del bool) {
 	t.Logf("Adding NH %d with atePort2 via gRIBI", nh1ID)
-	a.client.AddNH(t, nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	nh1, op1 := gribi.NHEntry(nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 	t.Logf("Adding NH %d with atePort3 and NHGs %d, %d via gRIBI", nh2ID, nhg1ID, nhg2ID)
-	a.client.AddNH(t, nh2ID, atePort3.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhg2ID, map[uint64]uint64{nh2ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	nh2, op2 := gribi.NHEntry(nh2ID, atePort3.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	nhg1, op3 := gribi.NHGEntry(nhg1ID, map[uint64]uint64{nh1ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	nhg2, op4 := gribi.NHGEntry(nhg2ID, map[uint64]uint64{nh2ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddEntries(t, []fluent.GRIBIEntry{nh1, nh2, nhg1, nhg2}, []*client.OpResult{op1, op2, op3, op4})
 	t.Logf("Adding an IPv4Entry for %s via gRIBI", nhip)
 	a.client.AddIPv4(t, nhip+"/"+mask, nhg1ID, deviations.DefaultNetworkInstance(a.dut), deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 	t.Logf("Adding NH %d in VRF-B via gRIBI", nh100ID)
-	a.client.AddNH(t, nh100ID, "VRFOnly", deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfB})
+	nh100, op5 := gribi.NHEntry(nh100ID, "VRFOnly", deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfB})
+	if deviations.BackupNHGRequiresVrfWithDecap(a.dut) {
+		nh100, op5 = gribi.NHEntry(nh100ID, "Decap", deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfB})
+	}
 	t.Logf("Adding NH %d and NHGs %d, %d via gRIBI", nh101ID, nhg100ID, nhg101ID)
-	a.client.AddNH(t, nh101ID, nhip, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhg100ID, map[uint64]uint64{nh100ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-	a.client.AddNHG(t, nhg101ID, map[uint64]uint64{nh101ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: nhg100ID})
+	nh101, op6 := gribi.NHEntry(nh101ID, nhip, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	nhg100, op7 := gribi.NHGEntry(nhg100ID, map[uint64]uint64{nh100ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	nhg101, op8 := gribi.NHGEntry(nhg101ID, map[uint64]uint64{nh101ID: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: nhg100ID})
+	a.client.AddEntries(t, []fluent.GRIBIEntry{nh100, nh101, nhg100, nhg101}, []*client.OpResult{op5, op6, op7, op8})
 	t.Logf("Adding IPv4Entries for %s for VRF-A and VRF-B via gRIBI", dstPfx)
 	a.client.AddIPv4(t, dstPfx+"/"+mask, nhg101ID, vrfA, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 	a.client.AddIPv4(t, dstPfx+"/"+mask, nhg2ID, vrfB, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-
 }
 
 // configureNetworkInstance configures vrf VRF-A and adds the vrf to port1, and configures vrf-B.
@@ -323,6 +352,19 @@ func (a *testArgs) createFlow(name string, dst *attrs.Attributes) *ondatra.Flow 
 		WithSrcEndpoints(a.ateTop.Interfaces()[atePort1.Name]).
 		WithDstEndpoints(a.ateTop.Interfaces()[dst.Name]).
 		WithHeaders(ondatra.NewEthernetHeader(), hdr)
+
+	return flow
+}
+
+// createIPIPFlow returns a flow from atePort1 to the dstPfx as an IP over IP packet, expected to arrive on ATE interface dst.
+func (a *testArgs) createIPIPFlow(name string, dst *attrs.Attributes) *ondatra.Flow {
+	hdr := ondatra.NewIPv4Header()
+	hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfx).WithCount(1)
+
+	flow := a.ate.Traffic().NewFlow(name).
+		WithSrcEndpoints(a.ateTop.Interfaces()[atePort1.Name]).
+		WithDstEndpoints(a.ateTop.Interfaces()[dst.Name]).
+		WithHeaders(ondatra.NewEthernetHeader(), hdr, hdr)
 
 	return flow
 }

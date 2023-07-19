@@ -21,6 +21,7 @@ platform_exceptions: {
     omit_l2_mtu: true
     static_protocol_name: "STATIC"
     interface_enabled: true
+    default_network_instance: "default"
   }
 }
 platform_exceptions: {
