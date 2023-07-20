@@ -22,13 +22,13 @@ config_path {
   path: "/system/logging/console/selectors/selector/config/facility"
 }
 telemetry_path {
-  path: "/system/logging/console/selectors/selector/stat/facility"
+  path: "/system/logging/console/selectors/selector/state/facility"
 }
 config_path {
   path: "/system/logging/console/selectors/selector/config/severity"
 }
 telemetry_path {
-  path: "/system/logging/console/selectors/selector/stat/severity"
+  path: "/system/logging/console/selectors/selector/state/severity"
 }
 # logging to VTY
 # Not available in OpenConfig model definition yet.
