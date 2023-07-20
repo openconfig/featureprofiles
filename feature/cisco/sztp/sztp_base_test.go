@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,7 +20,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	fpb "github.com/openconfig/gnoi/file"
-	"github.com/openconfig/gnoi/system"
 	gnps "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -234,7 +232,14 @@ func ssh_session(t *testing.T, conn *ssh.Client, cmd string) {
 	// t.Logf("result of smd %v", stdout.String())
 	defer session.Close()
 }
-
+func ReadFullFile(remoteFile *sftp.File) (string, error) {
+	var buffer bytes.Buffer
+	var err error
+	_, err = io.Copy(&buffer, remoteFile)
+	fileContents := buffer.String()
+	fmt.Println(fileContents)
+	return fileContents, err
+}
 func modify_dhcp_entry(t *testing.T, conn *ssh.Client, hostEntry string, bootz bool) {
 	sftpClient, err := sftp.NewClient(conn)
 	if err != nil {
@@ -247,11 +252,11 @@ func modify_dhcp_entry(t *testing.T, conn *ssh.Client, hostEntry string, bootz b
 		t.Errorf("Failed to open file: %v", err)
 	}
 	defer remoteFile.Close()
-	contents, err := ioutil.ReadAll(remoteFile)
+
+	dhcpFileContents, err := ReadFullFile(remoteFile)
 	if err != nil {
 		t.Error(err)
 	}
-	dhcpFileContents := string(contents)
 	hostIndex := strings.Index(dhcpFileContents, "host SF-1")
 	if *sjcSetup == true {
 		hostIndex = strings.Index(dhcpFileContents, "host aaa-19-01-RP0")
@@ -280,10 +285,14 @@ func scp_local_remote(t *testing.T, serverConn *ssh.Client, remoteFile string, l
 	if jsonContent != "" {
 		content = []byte(jsonContent)
 	} else {
-		content, err = ioutil.ReadFile(localFile)
+		file, err := os.Open(localFile)
 		if err != nil {
-			t.Errorf("Error reading local file: %v", err)
-
+			t.Fatalf("Could not open image: %v", err)
+		}
+		defer file.Close()
+		content, err = io.ReadAll(file)
+		if err != nil {
+			t.Fatalf("Could not read image data: %v", err)
 		}
 		// Calculate the SHA256 hash of the local file
 		localHashBefore, err = calculateFileHash(localFile)
@@ -410,12 +419,7 @@ func create_backup_dhcpd_file(t *testing.T, dhcpServerConn *ssh.Client) {
 func restore_backup_dhcpd_file(t *testing.T, dhcpServerConn *ssh.Client, backupFile string) {
 	defer ssh_session(t, dhcpServerConn, fmt.Sprintf("yes | cp -rf %s /etc/dhcp/dhcpd.conf", backupFile))
 }
-func find_hwMac_address(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) string {
-	state := gnmi.OC().Interface(interfaceName).Ethernet().HwMacAddress()
-	hwMac := gnmi.Get(t, dut, state.State())
-	t.Logf(hwMac)
-	return hwMac
-}
+
 func create_dhcpEntry(t *testing.T, dut *ondatra.DUTDevice, bootz bool) string {
 	var dhcpEntry string
 	if *sjcSetup == true {
@@ -518,7 +522,7 @@ func start_bootz_server(t *testing.T, sztpServerConn *ssh.Client, dut *ondatra.D
 func remove_known_hosts(t *testing.T) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Println("Failed to get home directory:", err)
+		t.Log("Failed to get home directory:", err)
 		return
 	}
 
@@ -528,18 +532,18 @@ func remove_known_hosts(t *testing.T) {
 	// Check if the known_hosts file exists
 	_, err = os.Stat(knownHostsPath)
 	if os.IsNotExist(err) {
-		fmt.Println("The known_hosts file does not exist.")
+		t.Log("The known_hosts file does not exist.")
 		return
 	}
 
 	// Remove the known_hosts file
 	err = os.Remove(knownHostsPath)
 	if err != nil {
-		fmt.Println("Failed to remove the known_hosts file:", err)
+		t.Log("Failed to remove the known_hosts file:", err)
 		return
 	}
 
-	fmt.Println("The known_hosts file has been successfully removed.")
+	t.Logf("The known_hosts file has been successfully removed.")
 }
 func ztp_initiate(t *testing.T, dut *ondatra.DUTDevice) {
 
@@ -656,9 +660,9 @@ func rpSwitchOver(t *testing.T, dut *ondatra.DUTDevice) {
 }
 func verify_bootz(t *testing.T, dut *ondatra.DUTDevice) {
 	cli_handle_new := dut.RawAPIs().CLI(t)
-	ztp_logs, err := cli_handle_new.SendCommand(context.Background(), fmt.Sprint(`run [ -d "/misc/config/grpc/gnsi/" ] && echo "yes" || echo "no"`))
+	ztp_logs, err := cli_handle_new.SendCommand(context.Background(), `run [ -d "/misc/config/grpc/gnsi/" ] && echo "yes" || echo "no"`)
 	if err != nil {
-		t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprint(`run [ -d "/misc/config/grpc/gnsi/" ] && echo "yes" || echo "no"`), err)
+		t.Fatalf("Failed to send command %s on the device, Error: %v", `run [ -d "/misc/config/grpc/gnsi/" ] && echo "yes" || echo "no"`, err)
 	}
 	if strings.Contains(ztp_logs, "no") {
 		t.Errorf("Bootz was successfull but gnsi directory not created")
@@ -690,7 +694,7 @@ func verify_bootz(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 	//process restart emsd
-	killResponse, err := dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
+	killResponse, err := dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: "emsd", Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
 	t.Logf("Got kill process response: %v\n\n", killResponse)
 	if err != nil {
 		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)

@@ -28,7 +28,6 @@ var (
 	remote_dir      = fmt.Sprintf("%s/", os.Getenv("HOME"))
 	client_ca_dir   = client_ssh_dir
 	hostname, _     = os.Hostname()
-	ztp_timeout     = 10 * time.Minute
 	sztpServer      = "dev-mgbl-lnx6"
 	dhcpServer      = "dev-mgbl-lnx2"
 	sztpServerIP    = "5.38.4.124"
@@ -343,8 +342,9 @@ func TestBootz(t *testing.T) {
 		sztpServer = sjcSztpServer
 		dhcpPassword = sjcDhcpPassword
 		sztpPassword = sjcSztpPassword
+		dhcpServerIP = sjcDhcpServerIP
 	}
-	// t.Logf("Connect to dhcp server")
+	t.Logf("Connect to dhcp server")
 	dhcpServerConn := connect_remote_server(t, usernameServer, dhcpPassword, dhcpServer)
 	t.Logf("Connect to bootz server")
 	bootzServerConn := connect_remote_server(t, usernameServer, sztpPassword, sztpServer)
@@ -352,14 +352,14 @@ func TestBootz(t *testing.T) {
 	defer dhcpServerConn.Close()
 	defer bootzServerConn.Close()
 
-	// t.Logf("Take a backup of the existing dhcpd.conf")
-	// create_backup_dhcpd_file(t, dhcpServerConn)
+	t.Logf("Take a backup of the existing dhcpd.conf")
+	create_backup_dhcpd_file(t, dhcpServerConn)
 
-	// t.Logf("Create dhcp entry and start dhcp service")
-	// create_dhcpd_setup(t, dhcpServerConn, dhcpServerIP, dut, true)
+	t.Logf("Create dhcp entry and start dhcp service")
+	create_dhcpd_setup(t, dhcpServerConn, dhcpServerIP, dut, true)
 
-	// t.Logf("Revert the dhcpd.conf back ")
-	// defer restore_backup_dhcpd_file(t, dhcpServerConn, backupFile)
+	t.Logf("Revert the dhcpd.conf back ")
+	defer restore_backup_dhcpd_file(t, dhcpServerConn, backupFile)
 
 	t.Run("ZTP initiate dhcp4 management noprompt without disk-encryption", func(t *testing.T) {
 		t.Log("Deactivate Encryption\n")
