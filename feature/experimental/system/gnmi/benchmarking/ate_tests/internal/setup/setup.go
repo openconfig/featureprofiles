@@ -171,7 +171,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	lspBit.SetBit = ygot.Bool(false)
 	isisTimers := globalISIS.GetOrCreateTimers()
 	isisTimers.LspLifetimeInterval = ygot.Uint16(600)
-	isisTimers.LspRefreshInterval = ygot.Uint16(200)
+	isisTimers.LspRefreshInterval = ygot.Uint16(250)
 	if deviations.ISISTimersLspRefreshIntervalUnsupported(dut) {
 		isisTimers.LspRefreshInterval = nil
 	}
