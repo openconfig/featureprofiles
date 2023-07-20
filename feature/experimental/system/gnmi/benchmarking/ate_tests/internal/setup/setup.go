@@ -172,9 +172,6 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	isisTimers := globalISIS.GetOrCreateTimers()
 	isisTimers.LspLifetimeInterval = ygot.Uint16(600)
 	isisTimers.LspRefreshInterval = ygot.Uint16(250)
-	if deviations.ISISTimersLspRefreshIntervalUnsupported(dut) {
-		isisTimers.LspRefreshInterval = nil
-	}
 	spfTimers := isisTimers.GetOrCreateSpf()
 	spfTimers.SpfHoldInterval = ygot.Uint64(5000)
 	spfTimers.SpfFirstInterval = ygot.Uint64(600)
