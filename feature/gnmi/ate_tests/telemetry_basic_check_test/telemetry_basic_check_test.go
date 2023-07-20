@@ -499,13 +499,16 @@ func TestSoftwareVersion(t *testing.T) {
 		if v, ok := parent.Val(); ok {
 			got := gnmi.Get(t, dut, gnmi.OC().Component(v).Type().State())
 
-			if got == supervisorType {
+			switch got {
+			case supervisorType:
 				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
-			} else if deviations.OSComponentParentIsChassis(dut) && got == chassisType {
-				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
-			} else if deviations.OSComponentParentIsLinecard(dut) && got == linecardType {
-				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
-			} else {
+			case linecardType, chassisType:
+				if deviations.OSComponentParentIsChassis(dut) || deviations.OSComponentParentIsLinecard(dut) {
+					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
+				} else {
+					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
+				}
+			default:
 				t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
 			}
 		} else {
