@@ -45,5 +45,6 @@ platform_exceptions: {
     static_protocol_name: "STATIC"
     gribi_mac_override_static_arp_static_route: true
     interface_enabled: true
+    default_network_instance: "default"
   }
 }
