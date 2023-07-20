@@ -17,7 +17,9 @@ package binding
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -78,7 +80,7 @@ type dialer struct {
 // load trust bundle and client key and certificate
 func (d *dialer) loadCertificates() (*x509.CertPool, tls.Certificate, error) {
 	if d.CertFile == "" || d.KeyFile == "" || d.TrustBundleFile == "" {
-		return nil, tls.Certificate{}, fmt.Errorf("cert_file, key_file, and trust_bundle_file need to be set when mutual tls ise set")
+		return nil, tls.Certificate{}, fmt.Errorf("cert_file, key_file, and trust_bundle_file need to be set when mutual tls is set")
 	}
 	caCertBytes, err := ioutil.ReadFile(d.TrustBundleFile)
 	if err != nil {
