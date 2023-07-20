@@ -426,6 +426,7 @@ func (a *testArgs) flapinterface(t *testing.T, port string, action bool) {
 	dc := gnmi.OC()
 	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(action)
+	i.Name = ygot.String(dutP.Name())
 	i.Type = ethernetCsmacd
 	gnmi.Update(t, a.dut, dc.Interface(dutP.Name()).Config(), i)
 }
