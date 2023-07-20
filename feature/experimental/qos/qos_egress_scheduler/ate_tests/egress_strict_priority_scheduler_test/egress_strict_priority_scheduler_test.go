@@ -17,7 +17,6 @@ package egress_strict_priority_scheduler_test
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -955,7 +954,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		i.SetInterfaceId(tc.intf)
 		i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
 		i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+		if deviations.InterfaceRefConfigUnsupported(dut) {
 			i.InterfaceRef = nil
 		}
 		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
