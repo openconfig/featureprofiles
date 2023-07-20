@@ -1650,10 +1650,6 @@ func TestWithBackuprpfo(t *testing.T) {
 	args.client = &client
 
 	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
 
@@ -1758,10 +1754,6 @@ func TestWithDecapEncaprpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
 	for s := 0; s < 4; s++ {
 
 		//Delete  twice
@@ -1859,10 +1851,6 @@ func TestWithDecapEncapvrfrpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
 	//Delete  twice
 	for s := 0; s < 4; s++ {
 
@@ -1946,10 +1934,6 @@ func TestWithBackupDecaprpfo(t *testing.T) {
 		}
 	}
 	args.client = &client
-
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
@@ -2173,10 +2157,6 @@ func TestWithScalerpfo(t *testing.T) {
 	args.client = &client
 
 	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: dstPfx3, Scalenum: 255}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
 		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.101.2.1", Scalenum: 243}), false, []string{bundleEther123, bundleEther124}, &TGNoptions{Ifname: bundleEther126})
 		args.validateTrafficFlows(t, args.allFlows(t, &TGNoptions{SrcIf: atePort7.Name, SrcIP: atePort7.IPv4, DstIP: "198.51.100.2", Scalenum: 243}), false, []string{bundleEther123}, &TGNoptions{Ifname: bundleEther126})
@@ -2328,10 +2308,6 @@ func TestWithStaticrpfo(t *testing.T) {
 	args.client = &client
 
 	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
-
-	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
 	}
 
@@ -2437,10 +2413,6 @@ func TestWithStaticremoverpfo(t *testing.T) {
 		}
 	}
 	args.client = &client
-
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
-	}
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
