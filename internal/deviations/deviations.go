@@ -44,7 +44,6 @@
 package deviations
 
 import (
-	"flag"
 	"fmt"
 	"regexp"
 
