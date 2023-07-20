@@ -14,6 +14,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // Testcase defines testcase structure
@@ -31,6 +32,10 @@ const (
 	mac1 = "00:01:00:03:00:00"
 	mac2 = "00:01:00:04:00:00"
 	mac3 = "00:01:00:02:00:00"
+	vrf1 = "TE"
+	vrf2 = "REPAIRED"
+	vrf3 = "REPAIR"
+	vrf4 = "DECAP"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -260,6 +265,15 @@ var (
 // 	}
 // }
 
+func configVRF(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
+	for _, vrf_name := range vrfs {
+		vrf := &oc.NetworkInstance{
+			Name: ygot.String(vrf_name),
+			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+		}
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf_name).Config(), vrf)
+	}
+}
 func TestScheduler(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	time.Sleep(time.Minute)
@@ -278,6 +292,8 @@ func TestScheduler(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 	configureDUT(t, dut)
+	var vrfs = []string{vrf1, vrf2, vrf3, vrf4}
+	configVRF(t, dut, vrfs)
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 	defer unconfigbasePBR(t, dut)
 	// configure route-policy
@@ -376,6 +392,8 @@ func TestWrrTrafficQos(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 	configureDUT(t, dut)
+	var vrfs = []string{vrf1, vrf2, vrf3, vrf4}
+	configVRF(t, dut, vrfs)
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 	defer unconfigbasePBR(t, dut)
 	// configure route-policy
@@ -469,6 +487,8 @@ func TestGooglePopgate(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 	configureDUT(t, dut)
+	var vrfs = []string{vrf1, vrf2, vrf3, vrf4}
+	configVRF(t, dut, vrfs)
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 	defer unconfigbasePBR(t, dut)
 	// configure route-policy
