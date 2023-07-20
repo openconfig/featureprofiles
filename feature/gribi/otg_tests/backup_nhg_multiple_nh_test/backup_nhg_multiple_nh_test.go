@@ -43,8 +43,8 @@ const (
 	routeCount     = 1
 	vrf1           = "vrfA"
 	vrf2           = "vrfB"
-	fps            = 1000000 // traffic frames per second
-	switchovertime = 250.0   // switchovertime during interface shut in milliseconds
+	fps            = 10000 // traffic frames per second
+	switchovertime = 250.0 // switchovertime during interface shut in milliseconds
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
@@ -354,10 +354,11 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 
 	flow := a.top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
-	flow.Size().SetFixed(300)
+	flow.Size().SetFixed(100)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	flow.TxRx().Port().SetTxName("port1")
+	flow.Rate().SetPps(fps)
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
@@ -371,6 +372,7 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 
 // validateTrafficFlows verifies that the flow on ATE and check interface counters on DUT
 func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outgoing_port []*ondatra.Port, shut_ports ...string) {
+	otgutils.WaitForARP(t, a.ate.OTG(), a.top, "IPv4")
 	a.ate.OTG().StartTraffic(t)
 	//Shutdown interface if provided while traffic is flowing and validate traffic
 	time.Sleep(30 * time.Second)
@@ -380,11 +382,11 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	}
 	time.Sleep(30 * time.Second)
 	a.ate.OTG().StopTraffic(t)
-	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
+	// otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
 	// Get send traffic
-	incoming_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
-	sentPkts := gnmi.Get(t, a.ate.OTG(), incoming_traffic_state).GetCounters().GetOutFrames()
+	outgoing_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
+	sentPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_state).GetCounters().GetOutFrames()
 	if sentPkts == 0 {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
