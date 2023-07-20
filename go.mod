@@ -5,7 +5,7 @@ go 1.19
 require (
 	cloud.google.com/go/pubsub v1.30.0
 	cloud.google.com/go/storage v1.28.1
-	github.com/cisco-open/go-p4 v0.1.1-0.20230301194618-caa766ba7dd4
+	github.com/cisco-open/go-p4 v0.1.1
 	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/go-git/go-git/v5 v5.7.0
 	github.com/golang/glog v1.1.1
@@ -20,21 +20,21 @@ require (
 	github.com/open-traffic-generator/snappi/gosnappi v0.11.15
 	github.com/openconfig/gnmi v0.9.1
 	github.com/openconfig/gnoi v0.1.0
+	github.com/openconfig/gnsi v1.2.1
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.4.0
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20230207233343-ef59db57c4fc
 	github.com/openconfig/kne v0.1.13
-	github.com/openconfig/ondatra v0.1.22
+	github.com/openconfig/ondatra v0.2.1
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygnmi v0.7.10
-	github.com/openconfig/ygot v0.28.3
+	github.com/openconfig/ygnmi v0.8.1
+	github.com/openconfig/ygot v0.29.0
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
-	github.com/yuin/goldmark v1.4.13
 	golang.org/x/crypto v0.10.0
 	golang.org/x/net v0.11.0
 	golang.org/x/text v0.10.0
@@ -105,7 +105,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf // indirect
 	github.com/open-traffic-generator/ixia-c-operator v0.3.0 // indirect
-	github.com/openconfig/entity-naming v0.0.0-20230622215737-19e579a137ec // indirect
+	github.com/openconfig/entity-naming v0.0.0-20230629170241-8a23ae047882 // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect

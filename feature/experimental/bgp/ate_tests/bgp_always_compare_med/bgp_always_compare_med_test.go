@@ -347,16 +347,28 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	rp := d.GetOrCreateRoutingPolicy()
 
 	pdef1 := rp.GetOrCreatePolicyDefinition(setMEDPolicy100)
-	actions1 := pdef1.GetOrCreateStatement(aclStatement20).GetOrCreateActions()
+	st, err := pdef1.AppendNewStatement(aclStatement20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions1 := st.GetOrCreateActions()
 	actions1.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED100)
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(setMEDPolicy50)
-	actions2 := pdef2.GetOrCreateStatement(aclStatement20).GetOrCreateActions()
+	st, err = pdef2.AppendNewStatement(aclStatement20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions2 := st.GetOrCreateActions()
 	actions2.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED50)
 
 	pdef3 := rp.GetOrCreatePolicyDefinition(rplAllowPolicy)
-	action3 := pdef3.GetOrCreateStatement("id-1")
-	action3.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	st, err = pdef3.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	action3 := st.GetOrCreateActions()
+	action3.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
