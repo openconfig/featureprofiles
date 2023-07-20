@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "8cab716c-70b4-4730-999d-b997fdf3e37d"
+plan_id:  "RT-2.7"
+description:  "IS-IS Passive is enabled at interface level"
+testbed:  TESTBED_DUT_ATE_2LINKS
