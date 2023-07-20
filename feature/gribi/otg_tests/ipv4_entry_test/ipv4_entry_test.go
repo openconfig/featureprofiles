@@ -78,6 +78,16 @@ var (
 		IPv4:    "192.0.2.9",
 		IPv4Len: 30,
 	}
+	dutPort2DummyIP = attrs.Attributes{
+		Desc:    "DUT Port 2",
+		IPv4:    "192.0.2.21",
+		IPv4Len: 30,
+	}
+	dutPort3DummyIP = attrs.Attributes{
+		Desc:    "DUT Port 3",
+		IPv4:    "192.0.2.41",
+		IPv4Len: 30,
+	}
 
 	atePort1 = attrs.Attributes{
 		Name:    "port1",
@@ -104,16 +114,6 @@ var (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
-}
-
-func configStaticArp(p *ondatra.Port, ipv4addr string, macAddr string) *oc.Interface {
-	i := &oc.Interface{Name: ygot.String(p.Name())}
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	n4 := s4.GetOrCreateNeighbor(ipv4addr)
-	n4.LinkLayerAddress = ygot.String(macAddr)
-	return i
 }
 
 func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
@@ -168,6 +168,7 @@ func TestIPv4Entry(t *testing.T) {
 		wantGoodFlows                            []string
 		wantBadFlows                             []string
 		wantOperationResults                     []*client.OpResult
+		gribiMACOverrideWithStaticARP            bool
 		gribiMACOverrideWithStaticARPStaticRoute bool
 	}{
 		{
@@ -271,6 +272,7 @@ func TestIPv4Entry(t *testing.T) {
 					WithOperationType(constants.Add).
 					AsResult(),
 			},
+			gribiMACOverrideWithStaticARP:            deviations.GRIBIMACOverrideWithStaticARP(dut),
 			gribiMACOverrideWithStaticARPStaticRoute: deviations.GRIBIMACOverrideStaticARPStaticRoute(dut),
 		},
 		{
@@ -341,6 +343,17 @@ func TestIPv4Entry(t *testing.T) {
 				t.Run(tc.desc, func(t *testing.T) {
 					if tc.gribiMACOverrideWithStaticARPStaticRoute {
 						staticARPWithMagicUniversalIP(t, dut)
+					} else if tc.gribiMACOverrideWithStaticARP {
+						//Creating a Static ARP entry for staticDstMAC
+						d := gnmi.OC()
+						p2 := dut.Port(t, "port2")
+						p3 := dut.Port(t, "port3")
+						gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name(), dut))
+						gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name(), dut))
+						gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configStaticArp(p2, nh1IpAddr, staticDstMAC))
+						gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), configStaticArp(p3, nh2IpAddr, staticDstMAC))
+					}
+					if tc.gribiMACOverrideWithStaticARP || tc.gribiMACOverrideWithStaticARPStaticRoute {
 						//Programming a gRIBI flow with above IP/mac-address as the next-hop entry
 						tc.entries = []fluent.GRIBIEntry{
 							fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -437,7 +450,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
-
 	if deviations.ExplicitIPv6EnableForGRIBI(dut) {
 		gnmi.Update(t, dut, d.Interface(p2.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
 		gnmi.Update(t, dut, d.Interface(p3.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
@@ -488,6 +500,7 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	if len(dsts) > 1 {
+		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
 		flowipv4.TxRx().Port().SetTxName(atePort1.Name)
 		otgutils.WaitForARP(t, otg, ateTop, "IPv4")
 		dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
@@ -589,6 +602,16 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return c.Await(subctx, t)
+}
+
+func configStaticArp(p *ondatra.Port, ipv4addr string, macAddr string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p.Name())}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
 }
 
 // setDUTInterfaceState sets the admin state on the dut interface
