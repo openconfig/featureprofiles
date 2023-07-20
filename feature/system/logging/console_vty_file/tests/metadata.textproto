@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 # uuid: ""
-plan_id: "AA-d.d"
+plan_id: "TR-6.2"
 description: "Configuration of logging consumers - console, vty, local files"
 testbed: TESTBED_DUT
