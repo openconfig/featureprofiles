@@ -40,4 +40,3 @@
 
     * global/timers/state/lsp-lifetime-interval
     * levels/level/link-state-database/lsp/state/remaining-lifetime
-
