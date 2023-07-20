@@ -11,9 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
-// Package Deviations in this file are to be added by exception only. These deviations can be set via
-// metadata.textproto or as a test flag, if a flag value is set, that will take precedence.
+
+// Deviations in this file are to be added by exception only.
+// New deviations should generally be specified in metadata alone.
+// These deviations can be set via metadata.textproto or as a test flag.
+// If a flag value is set, that will take precedence over the metadata value.
 package deviations
 
 import (
