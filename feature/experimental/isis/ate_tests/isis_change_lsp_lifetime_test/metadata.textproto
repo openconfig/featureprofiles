@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid: "7c80f692-478c-44c8-ba6e-d4d46bfebce1"
-plan_id: "#RT-2.10"
+plan_id: "RT-2.10"
 description: "IS-IS change LSP lifetime"
 testbed: TESTBED_DUT_ATE_2LINKS
