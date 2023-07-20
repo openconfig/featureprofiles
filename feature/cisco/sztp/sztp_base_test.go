@@ -549,10 +549,16 @@ func ztp_initiate(t *testing.T, dut *ondatra.DUTDevice) {
 
 	cli_handle := dut.RawAPIs().CLI(t)
 	ztp_resp, err := cli_handle.SendCommand(context.Background(), "ztp clean noprompt")
+	if err != nil {
+		t.Error(err)
+	}
 	t.Log(ztp_resp)
 	time.Sleep(60 * time.Second)
 	//only for testing purpose
 	ztp_resp, err = cli_handle.SendCommand(context.Background(), "run rm -rf /pkg/etc/giso_ztp.ini ")
+	if err != nil {
+		t.Error(err)
+	}
 	t.Log(ztp_resp)
 	ztp_resp, err = cli_handle.SendCommand(context.Background(), "run rm -rf /var/log/ztp.log \n ztp initiate management dhcp4 noprompt")
 	if err != nil {
