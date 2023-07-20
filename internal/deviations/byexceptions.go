@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Deviations in this file are to be added by exception only. These deviations can be set via
+// Package Deviations in this file are to be added by exception only. These deviations can be set via
 // metadata.textproto or as a test flag, if a flag value is set, that will take precedence.
 package deviations
 

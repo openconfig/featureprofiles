@@ -55,15 +55,13 @@
 	  }
 	  ```
 
-* Set the deviation value in the `metadata.textproto` file in the same folder as the test. For example, the deviations used in the test `feature/gnoi/system/tests/traceroute_test/traceroute_test.go` will be set in the file `feature/gnoi/system/tests/traceroute_test/metadata.textproto`. List all the vendor and hardware models that this deviation is applicable for.
+* Set the deviation value in the `metadata.textproto` file in the same folder as the test. For example, the deviations used in the test `feature/gnoi/system/tests/traceroute_test/traceroute_test.go` will be set in the file `feature/gnoi/system/tests/traceroute_test/metadata.textproto`. List all the vendor and optionally also hardware model regex that this deviation is applicable for.
 
   ```
   ...
   platform_exceptions: {
     platform: {
       vendor: CISCO
-      hardware_model: 'CISCO-8808'
-      hardware_model: 'CISCO-8202-32FH-M'
     }
     deviations: {
       traceroute_fragmentation: true
