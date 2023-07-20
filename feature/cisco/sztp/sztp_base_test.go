@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -17,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -33,19 +31,20 @@ import (
 )
 
 var (
-	filesCreated      = []string{}
-	fileCreateDevRand = "bash  dd if=/dev/urandom of=%s bs=1M count=2"
-	checkFileExists   = "bash [ -f \"%s\" ] && echo \"YES_exists\""
-	fileExists        = "YES_exists"
-	fileCreate        = "bash fallocate -l %dM %s"
-	remoteHashAfter   = ""
-	localHashBefore   = ""
-	content           = []byte{}
-	backupFile        = ""
-	bootzUrl          = `option bootz_bootstrap_servers "bootz://%v:50052/grpc"`
-	sztpUrl           = `option bootstrap_servers "https://%v:5000/restconf/operations/ietf-sztp-bootstrap-server:get-bootstrap-data"`
-	bootzFiles        = []string{"/misc/config/grpc/gnsi/authz.json", "/misc/config/grpc/gnsi/certz.json", "/misc/config/grpc/gnsi/pathz.json", "/misc/config/grpc/gnsi/credentialz.json", "/misc/config/bootz/credentialz.cfg", "/misc/config/bootz/vendor_config.cfg", "/misc/config/bootz/oc_config.json"}
-	sjcdhcpdEntry     = `		host aaa-19-01-RP0 {
+	filesCreated                 = []string{}
+	fileCreateDevRand            = "bash  dd if=/dev/urandom of=%s bs=1M count=2"
+	checkFileExists              = "bash [ -f \"%s\" ] && echo \"YES_exists\""
+	fileExists                   = "YES_exists"
+	fileCreate                   = "bash fallocate -l %dM %s"
+	remoteHashAfter              = ""
+	localHashBefore              = ""
+	content                      = []byte{}
+	backupFile                   = ""
+	imageUpgradeVersionRequested = ""
+	bootzUrl                     = `option bootz_bootstrap_servers "bootz://%v:50052/grpc"`
+	sztpUrl                      = `option bootstrap_servers "https://%v:5000/restconf/operations/ietf-sztp-bootstrap-server:get-bootstrap-data"`
+	bootzFiles                   = []string{"/misc/config/grpc/gnsi/authz.json", "/misc/config/grpc/gnsi/certz.json", "/misc/config/grpc/gnsi/pathz.json", "/misc/config/grpc/gnsi/credentialz.json", "/misc/config/bootz/credentialz.cfg", "/misc/config/bootz/vendor_config.cfg", "/misc/config/bootz/oc_config.json"}
+	sjcdhcpdEntry                = `		host aaa-19-01-RP0 {
 		hardware ethernet 78:bc:1a:c1:71:f8;	
 		fixed-address 1.1.16.3;
 			%v;
@@ -386,15 +385,15 @@ func update_onboarding(t *testing.T, image string, hashValue string, bootz bool)
 	var jsonContent string
 	hashString := strings.Join(splitIntoSegments(hashValue, 2), ":")
 	if bootz == true {
-		jsonContent = fmt.Sprintf(bootzImageJson, image, sjcSztpServerIP, image, hashValue)
+		jsonContent = fmt.Sprintf(bootzImageJson, image, dhcpServerIP, image, hashValue)
 	} else {
-		jsonContent = fmt.Sprintf(sztpImageJson, image, sjcSztpServerIP, image, hashString)
+		jsonContent = fmt.Sprintf(sztpImageJson, image, dhcpServerIP, image, hashString)
 	}
 	if *sjcSetup == true {
 		if bootz == true {
-			jsonContent = fmt.Sprintf(bootzImageJson, image, sjcSztpServerIP, image, hashValue)
+			jsonContent = fmt.Sprintf(bootzImageJson, image, dhcpServerIP, image, hashValue)
 		} else {
-			jsonContent = fmt.Sprintf(sztpImageJson, image, sjcSztpServerIP, image, hashString)
+			jsonContent = fmt.Sprintf(sztpImageJson, image, dhcpServerIP, image, hashString)
 		}
 	}
 	t.Log(jsonContent)
@@ -560,10 +559,7 @@ func ztp_initiate(t *testing.T, dut *ondatra.DUTDevice) {
 	deviceBootStatus(t, dut)
 	remove_known_hosts(t)
 	dutNew := ondatra.DUT(t, "dut")
-	version := config.CMDViaGNMI(context.Background(), t, dutNew, "show version")
-	if !strings.Contains(version, bootVersion) {
-		t.Error("Image upgrade unsucessfull")
-	}
+	var ztp_logs_full string
 	for i := 1; i <= 10; i++ {
 		cli_handle_new := dutNew.RawAPIs().CLI(t)
 		ztp_logs, err := cli_handle_new.SendCommand(context.Background(), "show ztp log | utility tail -n 60")
@@ -575,16 +571,34 @@ func ztp_initiate(t *testing.T, dut *ondatra.DUTDevice) {
 			return
 		}
 		time.Sleep(3 * time.Minute)
+		ztp_logs_full += ztp_logs
 	}
-
 	err = fmt.Errorf("ZTP Failed")
 	t.Fatal(err)
+	if strings.Contains(ztp_logs_full, "ERR") {
+		logLines := strings.Split(ztp_logs_full, "\n")
+		var errLines []string
+		for _, line := range logLines {
+			if strings.Contains(line, "ERR:") {
+				errLines = append(errLines, line)
+			}
+		}
+		t.Errorf("Errors found in log %v", errLines)
+	}
 
+}
+func versionOnBox(t *testing.T, dut *ondatra.DUTDevice) string {
+	compName := "0/RP0/CPU0"
+	if *sjcSetup == true {
+		_, compName, _ = findActiveRPActiveSerialNumber(t, dut)
+	}
+	state := gnmi.OC().Component(compName).SoftwareVersion()
+	versiononbox := gnmi.Get(t, dut, state.State())
+	return versiononbox
 }
 func version_check(t *testing.T, dut *ondatra.DUTDevice, sztpServerConn *ssh.Client, dhcpServerConn *ssh.Client, upgradeImage bool, bootz bool) {
 	if upgradeImage == false {
-		state := gnmi.OC().Component("0/RP0/CPU0").SoftwareVersion()
-		bootVersion = gnmi.Get(t, dut, state.State())
+		bootVersion = versionOnBox(t, dut)
 		t.Logf("Version on the box %v ", bootVersion)
 		t.Logf("Not changing the image")
 		jsonContent := update_onboarding(t, bootVersion, "", bootz)
@@ -599,6 +613,7 @@ func version_check(t *testing.T, dut *ondatra.DUTDevice, sztpServerConn *ssh.Cli
 
 	} else {
 		re := regexp.MustCompile(`\d+\.\d+\.\d+\.\d+[A-Za-z]`)
+		imageUpgradeVersionRequested, bootVersion = re.FindString(*imagePath), re.FindString(*imagePath)
 		bootVersion = re.FindString(*imagePath)
 		scp_local_remote(t, dhcpServerConn, fmt.Sprintf("/var/www/html/%v.iso", bootVersion), *imagePath, "")
 		jsonContent := update_onboarding(t, bootVersion, remoteHashAfter, bootz)
@@ -612,16 +627,7 @@ func version_check(t *testing.T, dut *ondatra.DUTDevice, sztpServerConn *ssh.Cli
 
 	}
 }
-func decodeBase64(t *testing.T, encodedString string) string {
-	decodedBytes, err := base64.StdEncoding.DecodeString(encodedString)
-	if err != nil {
-		t.Errorf("Error decoding Base64: %v", err)
-	}
 
-	decodedString := string(decodedBytes)
-	t.Logf("Decoded string: %v", decodedString)
-	return decodedString
-}
 func rpSwitchOver(t *testing.T, dut *ondatra.DUTDevice) {
 	// find active and standby RP
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch, _ := findActiveRPActiveSerialNumber(t, dut)
@@ -690,6 +696,7 @@ func verify_bootz(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
 	}
 	time.Sleep(60 * time.Second)
+	deviceBootStatus(t, dut)
 	//check if gnmi is reachable post emsd restart
 	t.Log(gnmi.Get(t, dut, gnmi.OC().System().Hostname().State()))
 

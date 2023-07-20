@@ -334,7 +334,6 @@ func TestSZTP(t *testing.T) {
 }
 
 func TestBootz(t *testing.T) {
-
 	remove_known_hosts(t)
 	dut := ondatra.DUT(t, "dut")
 	dhcpPassword := passwordServer
@@ -417,18 +416,20 @@ func TestBootz(t *testing.T) {
 		verify_bootz(t, dutNew)
 	})
 	t.Run("ZTP initiate dhcp4 management noprompt with RP Switchover", func(t *testing.T) {
-		t.Logf("Version Check ")
-		rpSwitchOver(t, dut)
-		version_check(t, dut, bootzServerConn, dhcpServerConn, false, true)
+		if *sjcSetup == true {
+			t.Logf("Version Check ")
+			rpSwitchOver(t, dut)
+			version_check(t, dut, bootzServerConn, dhcpServerConn, false, true)
 
-		start_bootz_server(t, bootzServerConn, dut)
-		defer stop_bootz_server(t, bootzServerConn)
-		t.Logf("Version %v ", bootVersion)
-		ztp_initiate(t, dut)
-		remove_known_hosts(t)
-		dutNew := ondatra.DUT(t, "dut")
+			start_bootz_server(t, bootzServerConn, dut)
+			defer stop_bootz_server(t, bootzServerConn)
+			t.Logf("Version %v ", bootVersion)
+			ztp_initiate(t, dut)
+			remove_known_hosts(t)
+			dutNew := ondatra.DUT(t, "dut")
 
-		verify_bootz(t, dutNew)
+			verify_bootz(t, dutNew)
+		}
 	})
 	t.Run("ZTP initiate dhcp4 management noprompt with image upgrade", func(t *testing.T) {
 		t.Logf("Version Check ")
@@ -442,6 +443,23 @@ func TestBootz(t *testing.T) {
 		dutNew := ondatra.DUT(t, "dut")
 
 		verify_bootz(t, dutNew)
+		bootVersionAfterUpgrade := versionOnBox(t, dutNew)
+		t.Logf("Version on the box %v ", bootVersionAfterUpgrade)
+		if bootVersionAfterUpgrade != imageUpgradeVersionRequested {
+			t.Errorf("Image Upgrade Unsuccessfull")
+		}
 	})
 
+	/*
+		TODO:
+		1. Missing configuration : pass an empty vendor config, /root/bootz/sahubbal/bootz_server_exec/configuration/server/vendorconfig/base.cfg
+		2. Invalid configuration : pass an invalid config, eg: miss ! at the bigining of the base.cfg
+		3. Invalid software image : pass on iso of a different platform
+		4. No ownership voucher	: pass an empty voucher, vouchers are stored here- /root/bootz/sahubbal/bootz_server_exec/certificates/vouchers/
+		5. Invalid OV : pass a junk ov or a pass an ov with different serial number
+		6. no OS provided : pass an empty json here - /root/bootz/sahubbal/bootz_server_exec/configuration/image/image_cfg_input.json
+		7. failed to fetch image from remote URL : pass on a differnt http ip so that fecthing fails
+		8. OS checksum doesn't match : pass on wrong hash value in image_cfg_input.json
+
+	*/
 }
