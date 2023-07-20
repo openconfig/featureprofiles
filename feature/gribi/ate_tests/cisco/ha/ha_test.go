@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 
 // user needed inputs
 const (
-	with_scale            = true                       // run entire script with or without scale (Support not yet coded)
+	with_scale            = true                        // run entire script with or without scale (Support not yet coded)
 	with_RPFO             = false                       // run entire script with or without RFPO
 	base_config           = "case4_decap_encap_recycle" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
@@ -1165,11 +1165,12 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface)
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 			}
 		})
 	}
+	args.ate.Traffic().Stop(t)
 }
 
 func test_RFPO_with_programming(t *testing.T, args *testArgs) {
@@ -1397,7 +1398,7 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
-			args.validateTrafficFlows(t, flows, false, outgoing_interface)
+			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true})
 		}
 	}
 }
@@ -1486,6 +1487,7 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 			}
 		})
 	}
+	args.ate.Traffic().Stop(t)
 }
 
 func test_microdrops(t *testing.T, args *testArgs) {
@@ -1667,7 +1669,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
-			args.validateTrafficFlows(t, flows, false, outgoing_interface)
+			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true})
 		}
 	}
 }
@@ -2286,26 +2288,26 @@ func TestHA(t *testing.T) {
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		// {
-		// 	name: "check_microdrops",
-		// 	desc: "With traffic running do delete/update/create programming and look for drops",
-		// 	fn:   test_microdrops,
-		// },
-		// {
-		// 	name: "Restart RFPO with programming",
-		// 	desc: "After programming, perform RPFO try new programming and validate traffic",
-		// 	fn:   test_RFPO_with_programming,
-		// },
-		// {
-		// 	name: "Restart single process",
-		// 	desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-		// 	fn:   testRestart_single_process,
-		// },
-		// {
-		// 	name: "Restart multiple process",
-		// 	desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-		// 	fn:   testRestart_multiple_process,
-		// },
+		{
+			name: "check_microdrops",
+			desc: "With traffic running do delete/update/create programming and look for drops",
+			fn:   test_microdrops,
+		},
+		{
+			name: "Restart RFPO with programming",
+			desc: "After programming, perform RPFO try new programming and validate traffic",
+			fn:   test_RFPO_with_programming,
+		},
+		{
+			name: "Restart single process",
+			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+			fn:   testRestart_single_process,
+		},
+		{
+			name: "Restart multiple process",
+			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+			fn:   testRestart_multiple_process,
+		},
 		{
 			name: "Triggers",
 			desc: "With traffic running, validate multiple triggers",

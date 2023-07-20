@@ -295,7 +295,6 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 			}
 		}
 		a.ate.Traffic().Stop(t)
-		ondatra.Debug().Breakpoint(t)
 	}
 
 	for _, f := range flows {
