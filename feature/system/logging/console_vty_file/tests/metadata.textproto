@@ -1,1 +1,7 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
 
+# uuid: ""
+plan_id: "AA-d.d"
+description: "Configuration of logging consumers - console, vty, local files"
+testbed: TESTBED_DUT
