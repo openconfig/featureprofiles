@@ -45,6 +45,7 @@ const (
 	vrf2           = "vrfB"
 	fps            = 1000000 // traffic frames per second
 	switchovertime = 250.0   // switchovertime during interface shut in milliseconds
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
 // testArgs holds the objects needed by a test case.
@@ -425,6 +426,7 @@ func (a *testArgs) flapinterface(t *testing.T, port string, action bool) {
 	dc := gnmi.OC()
 	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(action)
+	i.Type = ethernetCsmacd
 	gnmi.Update(t, a.dut, dc.Interface(dutP.Name()).Config(), i)
 }
 
