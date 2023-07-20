@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "d472b5af-70fa-4259-ae6d-29c921820419"
+plan_id:  "RT-2.8"
+description:  "IS-IS  metric style wide not enabled"
+testbed:  TESTBED_DUT_ATE_2LINKS
