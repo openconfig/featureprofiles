@@ -6,8 +6,6 @@
 
 ## Procedure
 
-* TestChangeLspLifetime
-
     * Configure IS-IS for ATE port-1 and DUT port-1.
     * Modify the default lifetime of the LSP PDU.
     * The default lifetime of the LSP PDU is 1200 seconds.
