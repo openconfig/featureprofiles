@@ -12,8 +12,8 @@ BGP Long-Lived Graceful Restart
 *   Validate received capabilities at DUT and ATE reflect support for graceful restart at the default 
     timer values.
 *   For IPv4 and IPv6 routes:
-    *   Advertise prefixes between the ATE ports, through the DUTs. 
-    *   Trigger DUT session restart by disconnecting TCP session between DUTs and determine that:
+    *   Advertise prefixes from ATE to DUT. 
+    *   Trigger DUT session restart by disconnecting TCP session between DUT - ATE Port2 and determine that:
         *   Forwarded traffic between between ATE port-1 and DUT port-1 for the duration of the  
             specified stale routes time (default), during the stale state traffic shouldnt be impacted. 
         *   Dropped after the stale routes timer has expired.
@@ -34,7 +34,7 @@ BGP Long-Lived Graceful Restart
 
 ## Config Parameter coverage
 
-*   /global/graceful-restart 
+*   /global/graceful-restart
 *   /global/graceful-restart/config 
 *   /global/graceful-restart/config/enabled 
 *   /global/graceful-restart/config/restart-time 
