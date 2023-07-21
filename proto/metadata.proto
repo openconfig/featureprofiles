@@ -49,7 +49,7 @@ message Metadata {
     // The empty string will match any software version.
     string software_version_regex = 4;
     // Reserved field numbers and identifiers.
-    reserved 2, 84;
+    reserved 2;
     reserved "hardware_model";
   }
 
@@ -277,6 +277,9 @@ message Metadata {
     bool isis_interface_afi_unsupported = 85;
     // Devices don't support modify table entry operation in P4 Runtime.
     bool p4rt_modify_table_entry_unsupported = 86;
+    
+    // Reserved field numbers and identifiers.
+    reserved 84;
   }
 
   message PlatformExceptions {
