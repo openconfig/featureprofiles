@@ -44,9 +44,10 @@
 package deviations
 
 import (
-	"flag"
 	"fmt"
 	"regexp"
+
+	"flag"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
@@ -59,9 +60,6 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
 		if platformExceptions.GetPlatform().Vendor.String() == "" {
-			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
-		}
-		if platformExceptions.GetPlatform().GetHardwareModelRegex() != "" && len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
 			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 		}
 
@@ -87,20 +85,6 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 				return nil, fmt.Errorf("error with regex match %v", errSw)
 			}
 			if !matchSw {
-				continue
-			}
-		}
-
-		// TODO(prinikasn): Remove after hardware_model field is removed.
-		if len(platformExceptions.GetPlatform().GetHardwareModel()) > 0 {
-			matchedHwRepeated := false
-			for _, hardwareModel := range platformExceptions.GetPlatform().HardwareModel {
-				if dut.Device.Model() == hardwareModel {
-					matchedHwRepeated = true
-					break
-				}
-			}
-			if !matchedHwRepeated {
 				continue
 			}
 		}
@@ -168,7 +152,7 @@ func AggregateAtomicUpdate(dut *ondatra.DUTDevice) bool {
 func DefaultNetworkInstance(dut *ondatra.DUTDevice) string {
 	logErrorIfFlagSet("deviation_default_network_instance")
 	//
-	if dni := lookupDUTDeviations(dut).GetStaticProtocolName(); dni != "" {
+	if dni := lookupDUTDeviations(dut).GetDefaultNetworkInstance(); dni != "" {
 		return dni
 	}
 	return "DEFAULT"
@@ -574,8 +558,25 @@ func QOSOctets(dut *ondatra.DUTDevice) bool {
 
 // SetNativeUser creates a user and assigns role/rbac to that user via native model.
 func SetNativeUser(dut *ondatra.DUTDevice) bool {
-	logErrorIfFlagSet("deviation_set_native_user")
 	return lookupDUTDeviations(dut).GetSetNativeUser()
+}
+
+// ISISTimersLspRefreshIntervalUnsupported returns true for devices that don't
+// support ISIS Timers lsp-refresh-interval leaf config.
+func ISISTimersLspRefreshIntervalUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisTimersLspRefreshIntervalUnsupported()
+}
+
+// ISISInterfaceAfiUnsupported returns true for devices that don't support configuring
+// ISIS /afi-safi/af/config container.
+func ISISInterfaceAfiUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisInterfaceAfiUnsupported()
+}
+
+// P4RTModifyTableEntryUnsupported returns true for devices that don't support
+// modify table entry operation in P4 Runtime.
+func P4RTModifyTableEntryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtModifyTableEntryUnsupported()
 }
 
 // Vendor deviation flags.

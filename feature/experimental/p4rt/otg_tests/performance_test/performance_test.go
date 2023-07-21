@@ -318,7 +318,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 		wg.Wait() // Wait for all four goroutines to finish before exiting.
 
 		// Wait for the packetOut requests to be completed on the server side
-		time.Sleep(30 * time.Second)
+		time.Sleep(1 * time.Minute)
 
 		// Check packet counters after packet out
 		counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())

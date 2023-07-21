@@ -8,9 +8,6 @@ testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
-    hardware_model: "PTX10008"
-    hardware_model: "PTX10001-36MR"
-    hardware_model: "cptx"
   }
   deviations: {
     sw_version_unsupported: true
@@ -19,10 +16,6 @@ platform_exceptions: {
 platform_exceptions: {
   platform: {
     vendor: CISCO
-    hardware_model: "CISCO-8808"
-    hardware_model: "CISCO-8202-32FH-M"
-    hardware_model: "8201"
-    hardware_model: "xrd"
   }
   deviations: {
     sw_version_unsupported: true
