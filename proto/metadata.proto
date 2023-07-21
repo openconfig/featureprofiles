@@ -42,8 +42,15 @@ message Metadata {
   message Platform {
     // Vendor of the device.
     ondatra.Device.Vendor vendor = 1;
-    // Hardware models of the device.
-    repeated string hardware_model = 2;
+    // Regex for hardware model of the device.
+    // The empty string will match any hardware model.
+    string hardware_model_regex = 3;
+    // Regex for software version of the device.
+    // The empty string will match any software version.
+    string software_version_regex = 4;
+    // Reserved field numbers and identifiers.
+    reserved 2;
+    reserved "hardware_model";
   }
 
   message Deviations {
@@ -98,7 +105,7 @@ message Metadata {
     // Device does not support interface/physicalchannel leaf.
     // Cisco: partnerissuetracker.corp.google.com/273287821
     bool missing_interface_physical_channel = 20;
-    // Set to true to skip check for
+    // Skip check for
     // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
     // leaf missing case.
     bool missing_bgp_last_notification_error_code = 21;
@@ -127,8 +134,8 @@ message Metadata {
     // failover.
     // Juniper: partnerissuetracker.corp.google.com/279727552
     bool secondary_backup_path_traffic_failover = 28;
-    // Set to true for device in which config pushed through origin CLI takes
-    // precedence over config pushed through origin OC.
+    // Config pushed through origin CLI takes precedence over config pushed
+    // through origin OC.
     bool cli_takes_precedence_over_oc = 29;
     // Device does not support weight above 100.
     // Juniper: partnerissuetracker.corp.google.com/277066804
@@ -156,8 +163,7 @@ message Metadata {
     // Device requires explicit interface ref configuration when applying
     // features to interface.
     bool explicit_interface_ref_definition = 38;
-    // Set to true for device that does not support telemetry path
-    // /components/component/storage.
+    // Device does not support telemetry path /components/component/storage.
     // Juniper: partnerissuetracker.corp.google.com/284239001
     bool storage_component_unsupported = 39;
     // Device requires gribi-protocol to be enabled under network-instance.
@@ -169,22 +175,110 @@ message Metadata {
     // the default network instance.
     // Nokia: partnerissuetracker.corp.google.com/260928639
     bool explicit_interface_in_default_vrf = 42;
-    // Set to true to skip checking QOS Dropped octets stats for interface.
+    // Skip checking QOS Dropped octets stats for interface.
     bool qos_dropped_octets = 43;
     // Device is missing subinterface packet counters for IPv4/IPv6.
     bool subinterface_packet_counters_missing = 44;
     // Connect-retry is not supported
     // /bgp/neighbors/neighbor/timers/config/connect-retry.
     bool connect_retry = 45;
-    // Set to true for device not supporting programming a gribi flow with a
-    // next-hop entry of mac-address only.
+    // Device does not support programming a gribi flow with a next-hop entry of
+    // mac-address only.
     bool gribi_mac_override_with_static_arp = 46;
     // Set true for device that does not support route-policy under AFI/SAFI.
     bool route_policy_under_afi_unsupported = 47;
-    // Set to true for device that does not support use using gNOI to reboot the Fabric Component.
+    // Device does not support using gNOI to reboot the Fabric Component.
     bool gnoi_fabric_component_reboot_unsupported = 48;
     // Device does not support the ntp nondefault vrf case.
     bool ntp_non_default_vrf_unsupported = 49;
+    // Device does not support setting the L2 MTU. OpenConfig allows a device to
+    // enforce that L2 MTU, which has a default value of 1514, must be set to a
+    // higher value than L3 MTU.
+    // Arista: partnerissuetracker.corp.google.com/243445300
+    bool omit_l2_mtu = 50;
+    // Skip power admin for controller card
+    bool skip_controller_card_power_admin = 51;
+    // Skip PLQ packets count check.
+    bool skip_plq_packets_count_check = 55;
+    // Device requires the banner to have a delimiter character.
+    string banner_delimiter = 60;
+    // Allowed tolerance for BGP traffic flow while comparing for pass or fail
+    // condition.
+    int32 bgp_tolerance_value = 61;
+    // Device requires additional time to complete post delete link
+    // qualification cleanup.
+    bool link_qual_wait_after_delete_required = 62;
+    // The response of gNOI reboot status is a single value (not a list), so the
+    // device requires explict component path to account for a situation when
+    // there is more than one active reboot requests.
+    // Arista: partnerissuetracker.corp.google.com/245550570
+    bool gnoi_status_empty_subcomponent = 63;
+    // Device requiries explicit deletion of network-instance table.
+    bool network_instance_table_deletion_required = 64;
+    // Device requires a BGP session reset to utilize a new MD5 key.
+    bool bgp_md5_requires_reset = 65;
+    // Devices do not count dequeued and deleted packets as drops.
+    // Arista: partnerissuetracker.corp.google.com/275384848
+    bool dequeue_delete_not_counted_as_drops = 66;
+    // Device only supports RIB ack, so tests that normally expect FIB_ACK will
+    // allow just RIB_ACK.
+    bool gribi_riback_only = 67;
+    // Device requires that aggregate Port-Channel and its members be defined in
+    // a single gNMI Update transaction at /interfaces; otherwise lag-type will
+    // be dropped, and no member can be added to the aggregate.
+    // Arista: partnerissuetracker.corp.google.com/201574574
+    bool aggregate_atomic_update = 68;
+    // Device returns no value for some OpenConfig paths if the operational
+    // value equals the default.
+    // Arista: partnerissuetracker.corp.google.com/258286131
+    bool missing_value_for_defaults = 69;
+    // The name used for the static routing protocol.  The default name in
+    // OpenConfig is \"DEFAULT\" but some devices use other names.
+    // Arista: partnerissuetracker.corp.google.com/269699737
+    string static_protocol_name = 70;
+    // Device currently uses component name instead of a full openconfig path,
+    // so suppress creating a full oc compliant path for subcomponent.
+    bool gnoi_subcomponent_path = 71;
+    // When configuring interface, config VRF prior config IP address.
+    // Arista: partnerissuetracker.corp.google.com/261958938
+    bool interface_config_vrf_before_address = 72;
+    // Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id
+    // or openconfig-vlan:vlan/state/vlan-id leaves.
+    // Arista: partnerissuetracker.corp.google.com/261085885
+    bool deprecated_vlan_id = 73;
+    // Device requires gRIBI MAC Override using Static ARP + Static Route
+    // Arista: partnerissuetracker.corp.google.com/234635355
+    bool gribi_mac_override_static_arp_static_route = 74;
+    // Device requires interface enabled leaf booleans to be explicitly set to
+    // true.
+    bool interface_enabled = 75;
+    // Skip checking QOS octet stats for interface.
+    // Arista: partnerissuetracker.corp.google.com/283541442
+    bool qos_octets = 76;
+    // Device CPU components do not map to a FRU parent component in the OC
+    // tree.
+    bool cpu_missing_ancestor = 77;
+    // Device needs subinterface 0 to be routed for non-zero sub-interfaces.
+    bool require_routed_subinterface_0 = 78;
+    // Device does not report last-switchover-reason as USER_INITIATED for
+    // gNOI.SwitchControlProcessor.
+    bool gnoi_switchover_reason_missing_user_initiated = 79;
+    // The name used for the default network instance for VRF.  The default name
+    // in OpenConfig is \"DEFAULT\" but some legacy devices still use
+    // \"default\".
+    string default_network_instance = 80;
+    // Device allows unset Election ID to be primary.
+    bool p4rt_unsetelectionid_primary_allowed = 81;
+    // Device sets ALREADY_EXISTS status code for all backup client responses.
+    bool bkup_arbitration_resp_code = 82;
+    // Device requires IPOverIP decapsulation for backup NHG without interfaces.
+    bool backup_nhg_requires_vrf_with_decap = 83;
+    // Devices don't support ISIS Timers lsp-refresh-interval leaf.
+    bool isis_timers_lsp_refresh_interval_unsupported = 84;
+    // Devices don't support configuring ISIS /afi-safi/af/config container.
+    bool isis_interface_afi_unsupported = 85;
+    // Devices don't support modify table entry operation in P4 Runtime.
+    bool p4rt_modify_table_entry_unsupported = 86;
   }
 
   message PlatformExceptions {
@@ -192,5 +286,7 @@ message Metadata {
     Deviations deviations = 2;
   }
 
+  // The `platform` field for each `platform_exceptions` should be mutually
+  // exclusive. Duplicate matches will result in a test failure.
   repeated PlatformExceptions platform_exceptions = 5;
 }
