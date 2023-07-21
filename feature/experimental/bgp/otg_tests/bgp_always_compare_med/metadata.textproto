@@ -7,6 +7,14 @@ description:  "BGP always compare MED"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
   }
   deviations: {
