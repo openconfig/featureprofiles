@@ -44,9 +44,10 @@
 package deviations
 
 import (
-	"flag"
 	"fmt"
 	"regexp"
+
+	"flag"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
@@ -565,6 +566,12 @@ func ISISTimersLspRefreshIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 // ISIS /afi-safi/af/config container.
 func ISISInterfaceAfiUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInterfaceAfiUnsupported()
+}
+
+// P4RTModifyTableEntryUnsupported returns true for devices that don't support
+// modify table entry operation in P4 Runtime.
+func P4RTModifyTableEntryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtModifyTableEntryUnsupported()
 }
 
 // Vendor deviation flags.
