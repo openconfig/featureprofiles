@@ -16,7 +16,6 @@ package egress_strict_priority_scheduler_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
