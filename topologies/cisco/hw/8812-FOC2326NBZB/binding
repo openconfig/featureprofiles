@@ -43,7 +43,7 @@ duts {
     target: "10.106.211.41:57783"
   }
   ssh{
-    target: "10.106.211.41:62641"
+    target: "10.106.211.41:62643"
   }
 
   # Before this binding can be used with a topology, add ports mapping
