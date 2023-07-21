@@ -1,5 +1,7 @@
 ## Guidelines to add deviations to FNT tests
 
+### Adding Deviations
+
 * Add the deviation to the `Deviations` message in the [proto/metadata.proto](https://github.com/openconfig/featureprofiles/blob/main/proto/metadata.proto) file.
 
   ```
@@ -81,6 +83,19 @@
 
 * Example PRs - https://github.com/openconfig/featureprofiles/pull/1649 and
   https://github.com/openconfig/featureprofiles/pull/1668
+
+### Removing Deviations
+
+* Once a deviation is no longer required and removed from all tests, delete the deviation by removing them from the following files:
+
+    * metadata.textproto - Remove the deviation field from all metadata.textproto in all tests.
+
+    * [deviations.go](https://github.com/openconfig/featureprofiles/blob/main/internal/deviations/deviations.go) - Remove the accessor method for this deviation.
+
+    * [metadata.proto](https://github.com/openconfig/featureprofiles/blob/main/proto/metadata.proto) - Remove the deviation field from the `Deviations` message and reserve the deleted field number by adding the `reserved n` to the `Deviations` message. 
+Ref: https://protobuf.dev/programming-guides/proto3/#deleting
+
+* Run `make proto/metadata_go_proto/metadata.pb.go` from your featureprofiles root directory to update the Go code for the removed proto fields.
 
 ## Notes
 * If you run into issues with the `make proto/metadata_go_proto/metadata.pb.go` you may need to check if the `protoc` module is installed in your environment. Also depending on your Go version you may need to update your PATH and GOPATH.
