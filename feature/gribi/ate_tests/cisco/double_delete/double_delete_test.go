@@ -17,7 +17,6 @@ package double_delete_test
 import (
 	"context"
 
-	//"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -92,8 +91,6 @@ const (
 )
 
 var baseconfigdone bool
-
-//var args *testArgs
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
@@ -1499,7 +1496,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 
 	ni2 := c.GetOrCreateNetworkInstance(vrf3)
 	ni2.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf3).Config(), ni1)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf3).Config(), ni2)
 
 }
 func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
