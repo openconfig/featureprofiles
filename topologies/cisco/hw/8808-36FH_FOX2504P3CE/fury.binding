@@ -20,7 +20,7 @@
 # no shut
 #!
 
-#telnet: R1 -  
+#telnet: R1 - 
 # RP1 telnet 10.85.65.155 2014
 # RP2 telnet 10.85.65.155 2015 
 

@@ -311,8 +311,8 @@ const (
 // modifyStationMac applies the configuration using gnmi SetRequest
 func modifyStationMac(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, op setOperation, config string) {
 	json_config, _ := json.Marshal(config)
-	path := &gnmipb.Path{Origin: "openconfig", Elem: []*gnmipb.PathElem{
-		{Name: "Cisco-IOS-XR-um-local-mac-cfg:hw-module"},
+	path := &gnmipb.Path{Origin: "Cisco-IOS-XR-um-local-mac-cfg", Elem: []*gnmipb.PathElem{
+		{Name: "hw-module"},
 		{Name: "local-mac"},
 		{Name: "address"}}}
 	val := &gnmipb.TypedValue{Value: &gnmipb.TypedValue_JsonIetfVal{JsonIetfVal: json_config}}
@@ -347,8 +347,8 @@ func getStationMacConfig(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 
 	r := &gnmipb.GetRequest{
 		Path: []*gnmipb.Path{
-			{Origin: "openconfig", Elem: []*gnmipb.PathElem{
-				{Name: "Cisco-IOS-XR-um-local-mac-cfg:hw-module"},
+			{Origin: "Cisco-IOS-XR-um-local-mac-cfg", Elem: []*gnmipb.PathElem{
+				{Name: "hw-module"},
 				{Name: "local-mac"},
 				{Name: "address"}}},
 		},

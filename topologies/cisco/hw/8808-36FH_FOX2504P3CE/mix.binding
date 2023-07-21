@@ -147,13 +147,14 @@ ates {
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
-    target: "10.85.84.118"
-    username: "admin"
-    password: "admin"
-    skip_verify: true
+    #target: "10.85.84.118"
     #username: "admin"
-    #password: "ixia123!"
-    #session_id: 1 
+    #password: "admin"
+    target: "10.85.84.194
+    skip_verify: true
+    username: "admin"
+    password: "ixia123!"
+    #session_id: 1
   }
 
   # Before this binding can be used with a topology, add ports mapping

@@ -363,7 +363,6 @@ tests:
       - agvarghe
     args:
       - '-deviation_traceroute_l4_protocol_udp="true"'
-      - '-deviation_traceroute_fragmentation="true"'
     mustpass: true
     priority: 41
     skip: false

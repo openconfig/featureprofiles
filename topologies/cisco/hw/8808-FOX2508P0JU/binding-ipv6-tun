@@ -118,7 +118,7 @@ ates {
     target: "10.85.84.119"
     skip_verify: true
     username: "admin"
-    password: "admin"
+    password: "Admin@123" 
   }
 
   # Before this binding can be used with a topology, add ports mapping
