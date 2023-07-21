@@ -27,5 +27,6 @@ platform_exceptions: {
   }
   deviations: {
     missing_value_for_defaults: true
+    skip_controller_card_power_admin: true
   }
 }

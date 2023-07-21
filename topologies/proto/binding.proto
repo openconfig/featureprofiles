@@ -124,6 +124,19 @@ message Options {
 
   // gRPC dial option to set the maximum recv message size in bytes.
   int32 max_recv_msg_size = 8;
+
+  //  When using TLS, enable mutual certificate verification (gRPC)
+  bool mutual_tls = 9;
+
+ // Trust bundle file: a *.pem file that contains one or more certificates (root and intermediate CAs)
+  string trust_bundle_file = 10;
+
+ // Certificate file path : a *.pem file that is signed by root or intermediate CA
+  string cert_file = 11;
+
+ // Key file Path: a *.pem file that contains a private key
+  string key_file = 12;
+
 }
 
 // Port binding.
