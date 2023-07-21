@@ -4,7 +4,7 @@ nodes: {
     vendor: NOKIA
     model: "ixr10"
     config: {
-        image: "ghcr.io/nokia/srlinux:latest"
+        image: "srlinux:latest"
         file: "config.cfg"
         cert: {
             self_signed: {
