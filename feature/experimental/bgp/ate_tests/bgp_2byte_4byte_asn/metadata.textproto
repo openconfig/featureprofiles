@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "b960ced4-2f59-49bf-b078-e53f169fac06"
+plan_id: "RT-1.19"
+description: "BGP 2-Byte and 4-Byte ASN support"
+testbed: TESTBED_DUT_ATE_2LINKS
