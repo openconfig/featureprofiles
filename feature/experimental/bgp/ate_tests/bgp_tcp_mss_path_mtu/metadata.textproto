@@ -5,3 +5,42 @@ uuid: "7fbf408a-ac55-4e18-8f7f-1a937bff7921"
 plan_id: "RT-1.21"
 description: "BGP TCP MSS and PMTUD"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    use_vendor_native_acl_config: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    route_policy_under_afi_unsupported: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
