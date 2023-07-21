@@ -11,18 +11,27 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
-// Package deviations defines the arguments to enable temporary workarounds for the
-// featureprofiles test suite.
-//
-// Deviations in this file are to be added by exception only. These deviations can be set via
-// metadata.textproto or as a test flag. If a flag value is set, that will take precedence.
+
 package deviations
 
 import (
 	"flag"
 
 	"github.com/openconfig/ondatra"
+)
+
+// Vendor deviation flags.
+// NOTE: Flags here should be added by exception only.
+// All flags should have a corresponding field in the Deviations message in the metadata.proto file.
+// If a flag value is set, that will take precedence over the metadata value.
+var (
+	cpuMissingAncestor                       = flag.Bool("deviation_cpu_missing_ancestor", false, "Set to true for devices where the CPU components do not map to a FRU parent component in the OC tree.")
+	interfaceRefConfigUnsupported            = flag.Bool("deviation_interface_ref_config_unsupported", false, "Set to true for devices that do not support interface-ref configuration when applying features to interface.")
+	requireRoutedSubinterface0               = flag.Bool("deviation_require_routed_subinterface_0", false, "Set to true for a device that needs subinterface 0 to be routed for non-zero sub-interfaces.")
+	gnoiSwitchoverReasonMissingUserInitiated = flag.Bool("deviation_gnoi_switchover_reason_missing_user_initiated", false, "Set to true for devices that don't report last-switchover-reason as USER_INITIATED for gNOI.SwitchControlProcessor.")
+	p4rtUnsetElectionIDPrimaryAllowed        = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary.")
+	p4rtBackupArbitrationResponseCode        = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses.")
+	backupNHGRequiresVrfWithDecap            = flag.Bool("deviation_backup_nhg_requires_vrf_with_decap", false, "Set to true for devices that require IPOverIP Decapsulation for Backup NHG without interfaces.")
 )
 
 func isFlagSet(name string) bool {
@@ -95,16 +104,3 @@ func BackupNHGRequiresVrfWithDecap(dut *ondatra.DUTDevice) bool {
 	}
 	return lookupDUTDeviations(dut).GetBackupNhgRequiresVrfWithDecap()
 }
-
-// Vendor deviation flags.
-// Flags here should be added by exception only.
-// All flags should have a corresponding field in the Deviations message in the metadata.proto file.
-var (
-	cpuMissingAncestor                       = flag.Bool("deviation_cpu_missing_ancestor", false, "Set to true for devices where the CPU components do not map to a FRU parent component in the OC tree.")
-	interfaceRefConfigUnsupported            = flag.Bool("deviation_interface_ref_config_unsupported", false, "Set to true for devices that do not support interface-ref configuration when applying features to interface.")
-	requireRoutedSubinterface0               = flag.Bool("deviation_require_routed_subinterface_0", false, "Set to true for a device that needs subinterface 0 to be routed for non-zero sub-interfaces.")
-	gnoiSwitchoverReasonMissingUserInitiated = flag.Bool("deviation_gnoi_switchover_reason_missing_user_initiated", false, "Set to true for devices that don't report last-switchover-reason as USER_INITIATED for gNOI.SwitchControlProcessor.")
-	p4rtUnsetElectionIDPrimaryAllowed        = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary.")
-	p4rtBackupArbitrationResponseCode        = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses.")
-	backupNHGRequiresVrfWithDecap            = flag.Bool("deviation_backup_nhg_requires_vrf_with_decap", false, "Set to true for devices that require IPOverIP Decapsulation for Backup NHG without interfaces.")
-)
