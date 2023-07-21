@@ -31,6 +31,11 @@ func TestFabricPowerAdmin(t *testing.T) {
 				t.Skipf("Skip the test on non-removable fabric.")
 			}
 
+			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+			if ok && empty {
+				t.Skipf("Fabric Component %s is empty, hence skipping", f)
+			}
+
 			oper := gnmi.Get(t, dut, gnmi.OC().Component(f).OperStatus().State())
 
 			if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
@@ -52,12 +57,12 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 	for _, l := range ls {
 		t.Run(l, func(t *testing.T) {
-			if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
-				t.Skipf("Skip the test on non-removable linecard.")
-			}
 			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Empty().State()).Val()
 			if ok && empty {
 				t.Skipf("Linecard Component %s is empty, hence skipping", l)
+			}
+			if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
+				t.Skipf("Skip the test on non-removable linecard.")
 			}
 
 			oper := gnmi.Get(t, dut, gnmi.OC().Component(l).OperStatus().State())
