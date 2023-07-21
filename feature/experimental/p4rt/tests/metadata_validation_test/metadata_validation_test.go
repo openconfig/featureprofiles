@@ -98,7 +98,7 @@ func TestP4RTMetadata(t *testing.T) {
 }
 
 func writeReadTableEntry(c *p4rt_client.P4RTClient, metadata string, action p4v1pb.Update_Type) (string, bool, error) {
-	if err := writeTableEntry(c, metadata, p4v1pb.Update_INSERT); err != nil {
+	if err := writeTableEntry(c, metadata, action); err != nil {
 		return "", false, fmt.Errorf("error in writing Table Entry: %v", err)
 	}
 	resp, err := readTableEntry(c)
