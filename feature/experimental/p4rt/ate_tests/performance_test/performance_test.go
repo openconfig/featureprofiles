@@ -300,6 +300,9 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 
 		wg.Wait() // Wait for all four goroutines to finish before exiting.
 
+		// Wait for the packetOut requests to be completed on the server side
+		time.Sleep(1 * time.Minute)
+
 		// Check packet counters after packet out
 		counter1 := gnmi.Get(t, args.ate, gnmi.OC().Interface(port).Counters().InPkts().State())
 
@@ -562,7 +565,7 @@ func setupP4RTClient(args *testArgs) error {
 		ElectionId: &p4v1pb.Uint128{High: uint64(0), Low: electionID},
 		Action:     p4v1pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4v1pb.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4v1pb.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},

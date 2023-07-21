@@ -149,6 +149,18 @@ func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (bind
 	return gnoiConn{conn: conn}, nil
 }
 
+func (d *staticDUT) DialGNSI(ctx context.Context, opts ...grpc.DialOption) (binding.GNSIClients, error) {
+	dialer, err := d.r.gnsi(d.Name())
+	if err != nil {
+		return nil, err
+	}
+	conn, err := dialer.dialGRPC(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return gnsiConn{conn: conn}, nil
+}
+
 func (d *staticDUT) DialGRIBI(ctx context.Context, opts ...grpc.DialOption) (grpb.GRIBIClient, error) {
 	dialer, err := d.r.gribi(d.Name())
 	if err != nil {
@@ -322,13 +334,35 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &binding.Dims{
+	dims := &binding.Dims{
 		Name:            bd.Name,
-		Vendor:          td.Vendor,
-		HardwareModel:   td.GetHardwareModel(),
-		SoftwareVersion: td.GetSoftwareVersion(),
+		Vendor:          bd.GetVendor(),
+		HardwareModel:   bd.GetHardwareModel(),
+		SoftwareVersion: bd.GetSoftwareVersion(),
 		Ports:           portmap,
-	}, nil
+	}
+	// Populate empty binding dimensions with testbed dimensions.
+	// TODO(prinikasn): Remove testbed override once all vendors are using binding dimensions exclusively.
+	if tdVendor := td.GetVendor(); tdVendor != opb.Device_VENDOR_UNSPECIFIED {
+		if dims.Vendor != opb.Device_VENDOR_UNSPECIFIED && dims.Vendor != tdVendor {
+			return nil, fmt.Errorf("binding vendor %v and testbed vendor %v do not match", dims.Vendor, tdVendor)
+		}
+		dims.Vendor = tdVendor
+	}
+	if tdHardwareModel := td.GetHardwareModel(); tdHardwareModel != "" {
+		if dims.HardwareModel != "" && dims.HardwareModel != tdHardwareModel {
+			return nil, fmt.Errorf("binding hardware model %v and testbed hardware model %v do not match", dims.HardwareModel, tdHardwareModel)
+		}
+		dims.HardwareModel = tdHardwareModel
+	}
+	if tdSoftwareVersion := td.GetSoftwareVersion(); tdSoftwareVersion != "" {
+		if dims.SoftwareVersion != "" && dims.SoftwareVersion != tdSoftwareVersion {
+			return nil, fmt.Errorf("binding software version %v and testbed software version %v do not match", dims.SoftwareVersion, tdSoftwareVersion)
+		}
+		dims.SoftwareVersion = tdSoftwareVersion
+	}
+
+	return dims, nil
 }
 
 func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port, error) {
