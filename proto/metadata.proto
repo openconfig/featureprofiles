@@ -134,7 +134,8 @@ message Metadata {
     // failover.
     // Juniper: partnerissuetracker.corp.google.com/279727552
     bool secondary_backup_path_traffic_failover = 28;
-    // Config pushed through origin CLI takes precedence over config pushed through origin OC.
+    // Config pushed through origin CLI takes precedence over config pushed
+    // through origin OC.
     bool cli_takes_precedence_over_oc = 29;
     // Device does not support weight above 100.
     // Juniper: partnerissuetracker.corp.google.com/277066804
@@ -181,7 +182,8 @@ message Metadata {
     // Connect-retry is not supported
     // /bgp/neighbors/neighbor/timers/config/connect-retry.
     bool connect_retry = 45;
-    // Device does not support programming a gribi flow with a next-hop entry of mac-address only.
+    // Device does not support programming a gribi flow with a next-hop entry of
+    // mac-address only.
     bool gribi_mac_override_with_static_arp = 46;
     // Set true for device that does not support route-policy under AFI/SAFI.
     bool route_policy_under_afi_unsupported = 47;
@@ -253,11 +255,13 @@ message Metadata {
     // Skip checking QOS octet stats for interface.
     // Arista: partnerissuetracker.corp.google.com/283541442
     bool qos_octets = 76;
-    // Device CPU components do not map to a FRU parent component in the OC tree.
+    // Device CPU components do not map to a FRU parent component in the OC
+    // tree.
     bool cpu_missing_ancestor = 77;
     // Device needs subinterface 0 to be routed for non-zero sub-interfaces.
     bool require_routed_subinterface_0 = 78;
-    // Device does not report last-switchover-reason as USER_INITIATED for gNOI.SwitchControlProcessor.
+    // Device does not report last-switchover-reason as USER_INITIATED for
+    // gNOI.SwitchControlProcessor.
     bool gnoi_switchover_reason_missing_user_initiated = 79;
     // The name used for the default network instance for VRF.  The default name
     // in OpenConfig is \"DEFAULT\" but some legacy devices still use
@@ -273,6 +277,8 @@ message Metadata {
     bool isis_timers_lsp_refresh_interval_unsupported = 84;
     // Devices don't support configuring ISIS /afi-safi/af/config container.
     bool isis_interface_afi_unsupported = 85;
+    // Devices don't support modify table entry operation in P4 Runtime.
+    bool p4rt_modify_table_entry_unsupported = 86;
   }
 
   message PlatformExceptions {
