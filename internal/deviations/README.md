@@ -88,11 +88,11 @@
 
 * Once a deviation is no longer required and removed from all tests, delete the deviation by removing them from the following files:
 
- * metadata.textproto - Remove the deviation field from all metadata.textproto in all tests.
+    * metadata.textproto - Remove the deviation field from all metadata.textproto in all tests.
 
- * deviations.go - Remove the accessor method for this deviation.
+    * deviations.go - Remove the accessor method for this deviation.
 
- * metadata.proto - Remove the deviation field from the `Deviations` message and reserve the deleted field number by adding the `reserved n` to the `Deviations` message. 
+    * metadata.proto - Remove the deviation field from the `Deviations` message and reserve the deleted field number by adding the `reserved n` to the `Deviations` message. 
 Ref: https://protobuf.dev/programming-guides/proto3/#deleting
 
 * Run `make proto/metadata_go_proto/metadata.pb.go` from your featureprofiles root directory to update the Go code for the removed proto fields.
