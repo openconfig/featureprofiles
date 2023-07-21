@@ -49,7 +49,7 @@ message Metadata {
     // The empty string will match any software version.
     string software_version_regex = 4;
     // Reserved field numbers and identifiers.
-    reserved 2;
+    reserved 2, 84;
     reserved "hardware_model";
   }
 
