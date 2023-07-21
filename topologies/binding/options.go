@@ -17,6 +17,7 @@ package binding
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -75,6 +76,27 @@ type dialer struct {
 	*bindpb.Options
 }
 
+// load trust bundle and client key and certificate
+func (d *dialer) loadCertificates() (*x509.CertPool, tls.Certificate, error) {
+	if d.CertFile == "" || d.KeyFile == "" || d.TrustBundleFile == "" {
+		return nil, tls.Certificate{}, fmt.Errorf("cert_file, key_file, and trust_bundle_file need to be set when mutual tls is set")
+	}
+	caCertBytes, err := os.ReadFile(d.TrustBundleFile)
+	if err != nil {
+		return nil, tls.Certificate{}, err
+	}
+	trusBundle := x509.NewCertPool()
+	if !trusBundle.AppendCertsFromPEM(caCertBytes) {
+		return nil, tls.Certificate{}, fmt.Errorf("error in loading ca trust bundle")
+	}
+	keyPair, err := tls.LoadX509KeyPair(d.CertFile, d.KeyFile)
+	if err != nil {
+		return nil, tls.Certificate{}, fmt.Errorf("could load the client keys")
+	}
+	return trusBundle, keyPair, nil
+
+}
+
 // dialGRPC dials a gRPC connection using the binding options.
 //
 //lint:ignore U1000 will be used by the binding.
@@ -86,6 +108,17 @@ func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.C
 	case d.SkipVerify:
 		tc := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 		opts = append(opts, grpc.WithTransportCredentials(tc))
+	case d.MutualTls:
+		trusBundle, keyPair, err := d.loadCertificates()
+		if err != nil {
+			return nil, err
+		}
+		tls := &tls.Config{
+			Certificates: []tls.Certificate{keyPair},
+			RootCAs:      trusBundle,
+		}
+		tlsConfig := credentials.NewTLS(tls)
+		opts = append(opts, grpc.WithTransportCredentials(tlsConfig))
 	}
 	if d.Username != "" {
 		c := &creds{d.Username, d.Password, !d.Insecure}
@@ -132,7 +165,10 @@ func knownHostsCallback() (ssh.HostKeyCallback, error) {
 func (d *dialer) dialSSH() (*ssh.Client, error) {
 	c := &ssh.ClientConfig{
 		User: d.Username,
-		Auth: []ssh.AuthMethod{ssh.Password(d.Password)},
+		Auth: []ssh.AuthMethod{
+			ssh.Password(d.Password),
+			ssh.KeyboardInteractive(d.sshInteractive),
+		},
 	}
 	if d.SkipVerify {
 		c.HostKeyCallback = ssh.InsecureIgnoreHostKey()
@@ -144,6 +180,17 @@ func (d *dialer) dialSSH() (*ssh.Client, error) {
 		c.HostKeyCallback = cb
 	}
 	return ssh.Dial("tcp", d.Target, c)
+}
+
+// For every question asked in an interactive login ssh session, set the answer to user password.
+func (d *dialer) sshInteractive(user, instruction string, questions []string, echoes []bool) (answers []string, err error) {
+	_, _, _ = user, instruction, echoes // unused
+	answers = make([]string, len(questions))
+	for n := range questions {
+		answers[n] = d.Password
+	}
+
+	return answers, nil
 }
 
 // newHTTPClient makes an http.Client using the binding options.

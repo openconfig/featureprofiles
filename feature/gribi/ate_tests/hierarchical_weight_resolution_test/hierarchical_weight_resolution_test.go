@@ -231,7 +231,10 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4.
 func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface, dut *ondatra.DUTDevice) {
 	t.Helper()
-
+	if deviations.RequireRoutedSubinterface0(dut) {
+		s0 := intf.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+		s0.Enabled = ygot.Bool(true)
+	}
 	for i := uint32(1); i <= a.numSubIntf; i++ {
 		ip := a.ip(uint8(i))
 
@@ -356,9 +359,10 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
 	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
-	if deviations.ExplicitInterfaceRefDefinition(dut) {
-		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		pfCfg.InterfaceRef = nil
 	}
 	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
