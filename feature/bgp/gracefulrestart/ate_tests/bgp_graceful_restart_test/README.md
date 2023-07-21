@@ -19,7 +19,8 @@ Follwing connections:
  *   Validate received capabilities at DUT and ATE reflect support for graceful
      restart.
  *   (Restarting speaker) Advertise prefixes between the ATE ports, through the DUT. Trigger DUT session restart by killing the BGP process in the DUT. Please use the `gNOI.killProcessRequest_Signal_Term` as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/system/system.proto#L326).
-       *   Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista this is the `BGP` process. For Nokia this is `sr_bgp_mgr`. Similar processes need to be included for Cisco.
+         *   Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista this is the `BGP` process. For Nokia this is `sr_bgp_mgr`. 
+ > TODO: Similar processes need to be included for Cisco.
        *   Once the process is killied, verify that the packets are:
              *   Forwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
              *   Dropped after the stale routes timer has expired.
