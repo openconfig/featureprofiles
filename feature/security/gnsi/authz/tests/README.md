@@ -274,28 +274,57 @@ For each of the scenarios in this test, we need to exercise the following 3 acti
   * `gNSI.Probe` after the `RotateAuthzRequest` call finished.
   * The actual corresponding service client calls, after the `RotateAuthzRequest` call finished.
 
+Each invocation of Service/Method RPC called for from the tests is expected to
+also update the system-level per RPC accept/reject metrics respectively as
+defined in
+https://github.com/openconfig/gnsi/blob/main/authz/README.md#gnsi-authzyang:
+
+Short-name in test cases | gnsi-authz.yang
+:----------------------- |:---------------
+Reject-count | `system/grpc-servers/grpc-server[name=<service>]/authz-policy-counters/rpcs/rpc[name=<rpc>]/state/access-rejects`
+Reject-time | `system/grpc-servers/grpc-server[name=<service>]/authz-policy-counters/rpcs/rpc[name=<rpc>]/state/last-access-reject`
+Accept-count | `system/grpc-servers/grpc-server[name=<service>]/authz-policy-counters/rpcs/rpc[name=<rpc>]/state/access-accepts`
+Accept-time | `system/grpc-servers/grpc-server[name=<service>]/authz-policy-counters/rpcs/rpc[name=<rpc>]/state/last-access-accept`
+
+
 Tests:
 * Authz-1.1, "Test empty source"
   1. Use `gNSI.Rotate` method to push policy `policy-everyone-can-gnmi-not-gribi`.
   2. Ensure all results match per the following:
     * `cert_user_admin` is allowed to issue `gNMI.Get` method.
+    * Accept-count(`gNMI.Get`, `Get`) is incremented.
+    * Accept-time(`gNMI.Get`, `Get`) is updated.
     * `cert_user_admin` is denied to issue `gRIBI.Get` method.
+    * Reject-count(`gRIBI`, `Get`) is incremented.
+    * Reject-time(`gRIBI`, `Get`) is updated.
 
 * Authz-1.2, "Test empty request"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-everyone-can-gribi-not-gnmi`.
   2. Ensure all results match per the following:
     * `cert_user_fake` is denied to issue `gRIBI.Get` method.
+    * Reject-count(`gRIBI`, `Get`) is incremented.
+    * Reject-time(`gRIBI`, `Get`) is updated.
     * `cert_user_admin` is allowed to issue `gRIBI.Get` method.
+    * Accept-count(`gRIBI`, `Get`) is incremented.
+    * Accept-time(`gRIBI`, `Get`) is updated.
 
 * Authz-1.3, "Test that there can only be one policy"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`.
   2. Ensure all results match per the following:
       * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
+      * Accept-count(`gRIBI`, `Get`) is incremented.
+      * Accept-time(`gRIBI`, `Get`) is updated.
       * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * Reject-count(`gNMI`, `Get`) is incremented.
+      * Reject-time(`gNMI`, `Get`) is updated.
   3. Use `gNSI.Rotate` method to push and finalize policy `policy-gnmi-get`.
   4. Ensure all results changed to the following:
       * `cert_ready_only` is denied to issue `gRIBI.Get` method.
+      * Reject-count(`gRIBI`, `Get`) is incremented.
+      * Reject-time(`gRIBI`, `Get`) is updated.
       * `cert_ready_only` is allowed to issue `gNMI.Get` method.
+      * Accept-count(`gNMI`, `Get`) is incremented.
+      * Accept-time(`gNMI`, `Get`) is updated.
 
 * Authz-1.4, "Test normal policy"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-normal-1`.
@@ -308,42 +337,74 @@ Tests:
   2. Initial another `gNSI.Rotate` method to push policy `policy-everyone-can-gribi-not-gnmi`, and expect to receive an  `UNAVAILABLE` gRPC error.
   3. Ensure all actual client authorization result stays as per the following:
       * `cert_user_admin` is allowed to issue `gNMI.Get` method.
+      * Accept-count(`gNMI`, `Get`) is incremented.
+      * Accept-time(`gNMI`, `Get`) is updated.
       * `cert_user_admin` is denied to issue `gRIBI.Get` method.
+      * Reject-count(`gRIBI`, `Get`) is incremented.
+      * Reject-time(`gRIBI`, `Get`) is updated.
 
 * Authz-2.2, "Test rollback when connection closed"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`.
   2. Ensure `gNSI.Probe` result matches the following:
       * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
+      * Accept-count(`gRIBI`, `Get`) is incremented.
+      * Accept-time(`gRIBI`, `Get`) is updated.
       * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * Reject-count(`gNMI`, `Get`) is incremented.
+      * Reject-time(`gNMI`, `Get`) is updated.
   3. Use `gNSI.Rotate` method to push policy `policy-gnmi-get`, but don't finalize it yet.
   4. Ensure `gNSI.Probe` result matches the following:
       * `cert_ready_only` is denied to issue `gRIBI.Get` method.
+      * Reject-count(`gRIBI`, `Get`) is incremented.
+      * Reject-time(`gRIBI`, `Get`) is updated.
       * `cert_ready_only` is allowed to issue `gNMI.Get` method.
+      * Accept-count(`gNMI`, `Get`) is incremented.
+      * Accept-time(`gNMI`, `Get`) is updated.
   5. Close the gRPC session.
   6. Ensure `gNSI.Probe` result changed back to the following:
       * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
+      * Accept-count(`gRIBI`, `Get`) is incremented.
+      * Accept-time(`gRIBI`, `Get`) is updated.
       * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * Reject-count(`gNMI`, `Get`) is incremented.
+      * Reject-time(`gNMI`, `Get`) is updated.
 
 * Authz-2.3, "Test rollback on invalid policy"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`.
   2. Ensure `gNSI.Probe` result matches the following:
       * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
+      * Accept-count(`gRIBI`, `Get`) is incremented.
+      * Accept-time(`gRIBI`, `Get`) is updated.
       * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * Reject-count(`gNMI`, `Get`) is incremented.
+      * Reject-time(`gNMI`, `Get`) is updated.
   3. Use `gNSI.Rotate` method to push policy `policy-invalid-no-allow-rules`, expect an error message and closed gRPC session.
   4. Ensure `gNSI.Probe` result remains as the following:
       * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
+      * Accept-count(`gRIBI`, `Get`) is incremented.
+      * Accept-time(`gRIBI`, `Get`) is updated.
       * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * Reject-count(`gNMI`, `Get`) is incremented.
+      * Reject-time(`gNMI`, `Get`) is updated.
 
-* Authz-2.4, "Test force_overwrite when the version does not change"
+* Authz-2.4, "Test `force_overwrite` when the version does not change"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`.
   2. Use `gNSI.Rotate` method to try to push policy `policy-gnmi-get` with version value not changed. Expect error message and closed gRPC session.
   4. Validate that actual client authorization result stays as the following:
       * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
+      * Accept-count(`gRIBI`, `Get`) is incremented.
+      * Accept-time(`gRIBI`, `Get`) is updated.
       * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * Reject-count(`gNMI`, `Get`) is incremented.
+      * Reject-time(`gNMI`, `Get`) is updated.
   3. Use `gNSI.Rotate` method to try to push policy `policy-gnmi-get` with version value, but `force_overwrite` set to true. Expect no error message, and the push can be finalized.
   4. Ensure actual client authorization results are changed to the following:
       * `cert_ready_only` is denied to issue `gRIBI.Get` method.
+      * Reject-count(`gRIBI`, `Get`) is incremented.
+      * Reject-time(`gRIBI`, `Get`) is updated.
       * `cert_ready_only` is allowed to issue `gNMI.Get` method.
+      * Accept-count(`gNMI`, `Get`) is incremented.
+      * Accept-time(`gNMI`, `Get`) is updated.
 
 
 ### Authz-3 Test Get behavior
