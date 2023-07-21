@@ -12,7 +12,7 @@ Follwing connections:
 ## Procedure
  *   Configure EBGP peering between ATE:Port1 and DUT:Port1
  *   Configure IBGP peering between ATE:Port2 and DUT:Port2
- *   Ensure that the EBGP and IBGP peering are setup for IPv4-Unicast and IPv6-unicast AFI-SAFIs
+ *   Ensure that the EBGP and IBGP peering are setup for IPv4-Unicast and IPv6-unicast AFI-SAFIs. Total 2xpeer-groups (1 per protocol) with 1 BGP session each.  
  *   Enable `Graceful-Restart` capability at the `Peer-Group` level.
  *   Ensure that the `restart-time` and the `stale-routes-time` are configured at the `Global` level
  *   Configure allow route-policy under BGP peer-group address-family
@@ -21,9 +21,8 @@ Follwing connections:
  *   TestCase - Restarting DUT speaker 
    * Advertise prefixes between the ATE ports, through the DUT. 
    * Trigger DUT session restart by killing the BGP process in the DUT. Please use the `gNOI.killProcessRequest_Signal_Term` as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/system/system.proto#L326).
-         *   Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista this is the `BGP` process. For Nokia this is `sr_bgp_mgr`. 
- > TODO: Similar processes need to be included for Cisco.
-       *   Once the process is killied, verify that the packets are:
+        * Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista and Cisco this is the `BGP` process. For Nokia this is `sr_bgp_mgr`.
+        * Once the process is killied, verify that the packets are:
              *   Forwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
              *   Dropped after the stale routes timer has expired.
              *   Forwarded again between ATE port-1 and DUT port-1 after the session is re-established.
