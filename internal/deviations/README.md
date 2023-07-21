@@ -90,9 +90,9 @@
 
     * metadata.textproto - Remove the deviation field from all metadata.textproto in all tests.
 
-    * deviations.go - Remove the accessor method for this deviation.
+    * [deviations.go](https://github.com/openconfig/featureprofiles/blob/main/internal/deviations/deviations.go) - Remove the accessor method for this deviation.
 
-    * metadata.proto - Remove the deviation field from the `Deviations` message and reserve the deleted field number by adding the `reserved n` to the `Deviations` message. 
+    * [metadata.proto](https://github.com/openconfig/featureprofiles/blob/main/proto/metadata.proto) - Remove the deviation field from the `Deviations` message and reserve the deleted field number by adding the `reserved n` to the `Deviations` message. 
 Ref: https://protobuf.dev/programming-guides/proto3/#deleting
 
 * Run `make proto/metadata_go_proto/metadata.pb.go` from your featureprofiles root directory to update the Go code for the removed proto fields.
