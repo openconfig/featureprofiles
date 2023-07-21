@@ -86,6 +86,9 @@ const (
 	vip2ip                = "192.0.2.42"
 	dip                   = "10.1.0.1/32"
 	dsip                  = "10.1.0.1"
+	vrf1                  = "TE"
+	vrf2                  = "TE2"
+	vrf3                  = "TE3"
 )
 
 var baseconfigdone bool
@@ -254,6 +257,7 @@ func TestDeleteIpv4(t *testing.T) {
 		args.client.DeleteIPv4(t, ip, 121, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	}
+	//Flush twice
 	args.client.FlushServer(t)
 	args.client.FlushServer(t)
 }
@@ -1137,6 +1141,7 @@ func TestWithScale(t *testing.T) {
 			k++
 
 		}
+		//Increment dest prefix
 		b := strings.Split(dstPfx, ".")
 		Var1, _ := strconv.Atoi(b[1])
 		Var2, _ := strconv.Atoi(b[2])
@@ -1457,6 +1462,7 @@ func baseconfig(t *testing.T) {
 		util.AddISISOC(t, dut, bundleEther127)
 		//configure BGP on DUT
 		util.AddBGPOC(t, dut, "100.100.100.100")
+		configureNetworkInstance(t, dut)
 
 		// Configure the ATE
 		args.ate = ondatra.ATE(t, "ate")
@@ -1481,6 +1487,21 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ip string, val bool) {
 	}
 }
 
+func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
+	c := &oc.Root{}
+	ni := c.GetOrCreateNetworkInstance(vrf1)
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf1).Config(), ni)
+
+	ni1 := c.GetOrCreateNetworkInstance(vrf2)
+	ni1.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf2).Config(), ni1)
+
+	ni2 := c.GetOrCreateNetworkInstance(vrf3)
+	ni2.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf3).Config(), ni1)
+
+}
 func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
@@ -2073,6 +2094,8 @@ func TestWithScalerpfo(t *testing.T) {
 			k++
 
 		}
+		//Increment dest prefix
+
 		b := strings.Split(dstPfx, ".")
 		Var1, _ := strconv.Atoi(b[1])
 		Var2, _ := strconv.Atoi(b[2])
