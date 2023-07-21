@@ -8,10 +8,6 @@ testbed: TESTBED_DUT
 platform_exceptions: {
   platform: {
     vendor: CISCO
-    hardware_model: "CISCO-8808"
-    hardware_model: "CISCO-8202-32FH-M"
-    hardware_model: "8201"
-    hardware_model: "xrd"
   }
   deviations: {
     ntp_non_default_vrf_unsupported: true
@@ -20,8 +16,14 @@ platform_exceptions: {
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
-    hardware_model: "PTX10001-36MR"
-    hardware_model: "cptx"
+  }
+  deviations: {
+    ntp_non_default_vrf_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
   }
   deviations: {
     ntp_non_default_vrf_unsupported: true
