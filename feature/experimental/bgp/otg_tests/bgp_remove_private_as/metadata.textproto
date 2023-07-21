@@ -5,3 +5,42 @@ uuid: "2b4372c2-8827-4624-837c-f44b1a54edf7"
 plan_id: "RT-1.11"
 description: "BGP remove private AS"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    use_vendor_native_acl_config: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    route_policy_under_afi_unsupported: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
