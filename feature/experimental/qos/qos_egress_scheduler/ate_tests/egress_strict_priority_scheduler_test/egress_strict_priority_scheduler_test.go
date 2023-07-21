@@ -1122,7 +1122,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 func juniperCLI() string {
-	return fmt.Sprintf(`
+	return `
 	class-of-service {
 		traffic-manager {
 			scheduling-mode {
@@ -1131,7 +1131,7 @@ func juniperCLI() string {
 			}
 		}
 	}
-  `)
+  `
 }
 func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	// Build config with Origin set to cli and Ascii encoded config.
