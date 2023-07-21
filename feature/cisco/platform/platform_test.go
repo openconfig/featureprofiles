@@ -730,11 +730,18 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	portName(t, dut)
 	port1 := strings.Replace(dut.Port(t, "port1").Name(), "FourHundredGigE", "Port", 1)
+	if count := strings.Count(port1, "/"); count == 4 {
+		port1 = port1[:strings.LastIndex(port1, "/")]
+	}
 	componentNameList = []string{port1}
 	if hundredGigEComponentName != "" {
 		port2 := strings.Replace(hundredGigE, "HundredGigE", "Port", 1)
+		if count := strings.Count(port2, "/"); count == 4 {
+			port2 = port1[:strings.LastIndex(port2, "/")]
+		}
 		componentNameList = append(componentNameList, port2)
 	}
+
 	for _, element := range componentNameList {
 		fmt.Print(element)
 	}
