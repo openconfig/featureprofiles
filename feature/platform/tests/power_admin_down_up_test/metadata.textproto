@@ -7,6 +7,31 @@ description: "Power admin DOWN/UP Test"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    skip_controller_card_power_admin: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    missing_value_for_defaults: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    missing_value_for_defaults: true
+    skip_controller_card_power_admin: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: CISCO
     hardware_model: "CISCO-8808"
     hardware_model: "CISCO-8202-32FH-M"
@@ -16,6 +41,6 @@ platform_exceptions: {
   deviations: {
     platform_power_enable_wait: 5
     platform_power_down_up_fabric_skip: true
-    platform_power_down_up_controller_card_skip: true
+    skip_controller_card_power_admin: true
   }
 }
