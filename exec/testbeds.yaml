@@ -121,7 +121,10 @@ testbeds:
     owner: arvbaska
     testbed: topologies/cisco/hw/8808_FOX2625PLW8/testbed
     binding: topologies/cisco/hw/8808_FOX2625PLW8/binding_gnmi_v6
-    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto   
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto  
+    overrides:
+      PBR:
+        baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt_PBR.proto     
   - id: 8808_FOX2625PLW8_v6_gNMI_fury
     owner: arvbaska
     testbed: topologies/cisco/hw/8808_FOX2625PLW8/testbed
