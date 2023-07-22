@@ -574,6 +574,32 @@ func P4RTModifyTableEntryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtModifyTableEntryUnsupported()
 }
 
+// LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
+// /components/component/cpu/utilization/state/avg for linecards' CPU card.
+// Default value is false.
+func LinecardCPUUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinecardCpuUtilizationUnsupported()
+}
+
+// ConsistentComponentNamesUnsupported returns if the device does not support consistent component names for GNOI and GNMI.
+// Default value is false.
+func ConsistentComponentNamesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConsistentComponentNamesUnsupported()
+}
+
+// ControllerCardCPUUtilizationUnsupported returns if the device does not support telemetry path
+// /components/component/cpu/utilization/state/avg for controller cards' CPU card.
+// Default value is false.
+func ControllerCardCPUUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetControllerCardCpuUtilizationUnsupported()
+}
+
+// FabricDropCounterUnsupported returns if the device does not support counter for fabric block lost packets.
+// Default value is false.
+func FabricDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFabricDropCounterUnsupported()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.

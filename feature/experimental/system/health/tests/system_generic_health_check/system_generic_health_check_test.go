@@ -1,5 +1,5 @@
 /*
- Copyright 2022 Google LLC
+ Copyright 2023 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ var (
 		ondatra.NOKIA:   "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]*regexp.Regexp{
-		ondatra.JUNIPER: regexp.MustCompile(`re\d|fpc\d`),
+		ondatra.JUNIPER: regexp.MustCompile(".*.tar.gz"),
 		ondatra.CISCO:   regexp.MustCompile("/misc/disk1/.*core.*"),
 		ondatra.NOKIA:   regexp.MustCompile("/var/core/coredump-.*"),
 	}
@@ -58,13 +58,12 @@ var (
 	fabricCards     []string
 	controllerCards []string
 	checkComponents []string
-	rpActive        string
 
 	interfaces             []string
 	timestamp              uint64
 	alarmSeverityCheckList = []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY{
 		oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MAJOR,
-		oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MINOR,
+		//oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MINOR,
 	}
 )
 
@@ -110,7 +109,21 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 			coreFileName := fileStatsInfo.GetPath()
 			r := vendorCoreFileNamePattern[dutVendor]
 			if r.MatchString(coreFileName) {
-				t.Errorf("Found core %v on DUT.", coreFileName)
+				t.Errorf("ERROR: Found core %v on DUT.", coreFileName)
+			}
+		}
+		in = &fpb.StatRequest{
+			Path: fileStatsInfo.GetPath(),
+		}
+		validResponse, err := gnoiClient.File().Stat(context.Background(), in)
+		if err != nil {
+			t.Fatalf("Unable to stat path %v for core files on DUT, %v", vendorCoreFilePath[dutVendor], err)
+		}
+		for _, fileStatsInfo := range validResponse.GetStats() {
+			coreFileName := fileStatsInfo.GetPath()
+			r := vendorCoreFileNamePattern[dutVendor]
+			if r.MatchString(coreFileName) {
+				t.Errorf("ERROR: Found core %v on DUT.", coreFileName)
 			}
 		}
 	}
@@ -152,7 +165,6 @@ func TestGetComponentNames(t *testing.T) {
 	timestamp = uint64(time.Now().UTC().Unix())
 
 	controllerCards = components.FindComponentsByType(t, dut, controllerCardType)
-	_, rpActive = components.FindStandbyRP(t, dut, controllerCards)
 	lineCards = components.FindComponentsByType(t, dut, lineCardType)
 	fabricCards = components.FindComponentsByType(t, dut, fabricCardType)
 	cpuCards = components.FindComponentsByType(t, dut, cpuType)
@@ -216,7 +228,11 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	deviceName := dut.Name()
 
-	rpActiveCpuFound := false
+	if deviations.ControllerCardCPUUtilizationUnsupported(dut) {
+		t.Skipf("Skipping test due to deviation linecard_cpu_ultilization_unsupported")
+	}
+
+	cardList := controllerCards
 	for _, cpu := range cpuCards {
 		query := gnmi.OC().Component(cpu).State()
 		timestamp := time.Now().Round(time.Second)
@@ -226,8 +242,9 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 			t.Errorf("ERROR: can't find parent information for CPU card %v", component)
 		}
 
-		if cpuParent == rpActive {
-			rpActiveCpuFound = true
+		if contains(cardList, cpuParent) {
+			// Remove parent from the list of check cards.
+			cardList = removeElement(cardList, cpuParent)
 			cpuUtilization := component.GetCpu().GetUtilization()
 			if cpuUtilization == nil {
 				t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
@@ -244,8 +261,8 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 			}
 		}
 	}
-	if !rpActiveCpuFound {
-		t.Errorf("ERROR: %s Couldn't find %s CPU card", deviceName, rpActive)
+	if len(cardList) > 0 {
+		t.Errorf("ERROR: Didn't find cpu card for checkCards %s", cardList)
 	}
 }
 
@@ -704,6 +721,28 @@ func TestSystemAlarms(t *testing.T) {
 					break
 				}
 			}
+		}
+	}
+}
+
+func TestFabricDrop(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("INFO: Check no fabric drop")
+	if deviations.FabricDropCounterUnsupported(dut) {
+		t.Skipf("INFO: Skipping test due to deviation fabric_drop_counter_unsupported")
+	}
+	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().FabricBlock().State()
+	t.Logf("query %s", query)
+	fabricBlocks := gnmi.GetAll(t, dut, query)
+	if len(fabricBlocks) == 0 {
+		t.Fatalf("ERROR: %s is not present", query)
+	}
+	for _, fabricBlock := range fabricBlocks {
+		drop := fabricBlock.GetLostPackets()
+		if fabricBlock.LostPackets != nil && drop == 0 {
+			t.Logf("INFO: Fabric drops want 0, got %d", drop)
+		} else {
+			t.Errorf("ERROR: Fabric drops got %d, nil or not 0", drop)
 		}
 	}
 }

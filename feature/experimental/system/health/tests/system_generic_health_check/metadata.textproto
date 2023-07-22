@@ -8,12 +8,11 @@ testbed:  TESTBED_DUT
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
-    hardware_model: "PTX10008"
-    hardware_model: "PTX10001-36MR"
-    hardware_model: "cptx"
   }
   deviations: {
+    controller_card_cpu_utilization_unsupported: true
     linecard_cpu_utilization_unsupported: true
     consistent_component_names_unsupported: true
+    fabric_drop_counter_unsupported: true
   }
 }

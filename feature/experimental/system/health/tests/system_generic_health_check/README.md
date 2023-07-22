@@ -25,9 +25,7 @@ Generic Health Check
         *   Major Alarms
     *   No HW component or SW processes crash
 *   TODO:
-    *   Fabric Drops
     *   DDOS/COPP violations
-    *   No SWAP memory utilization
     *   No memory leaks
     *   No system errors or logs
     *   No CRC or Layer 1 errors fabric links
@@ -80,5 +78,6 @@ N/A
 *   /components/component/integrated-circuit/pipeline-counters/drop/interface-block/state/in-drops
 *   /components/component/integrated-circuit/pipeline-counters/drop/interface-block/state/out-drops
 *   /components/component/integrated-circuit/pipeline-counters/drop/interface-block/state/oversubscription
+*   /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/lost-packets
 
 ## Protocol/RPC Parameter Coverage

@@ -279,6 +279,17 @@ message Metadata {
     bool isis_interface_afi_unsupported = 85;
     // Devices don't support modify table entry operation in P4 Runtime.
     bool p4rt_modify_table_entry_unsupported = 86;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for linecards' CPU card
+    bool linecard_cpu_utilization_unsupported = 87;
+    // Device does not support consistent component names for GNOI and GNMI.
+    bool consistent_component_names_unsupported = 88;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for controller cards'
+    // CPU card
+    bool controller_card_cpu_utilization_unsupported = 89;
+    // Device does not support counter for fabric block lost packets
+    bool fabric_drop_counter_unsupported = 90;
   }
 
   message PlatformExceptions {
