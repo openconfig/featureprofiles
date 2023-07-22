@@ -2,7 +2,7 @@
 
 ## Summary
 Test gRPC TLS authentication under various conditions created using
-combinations of different security credentials and artifacts managible using
+combinations of different security credentials and artifacts manageable using
 the gNSI protocol, including device certificates, Trust-Bundle (TB),
 Certificate Revocation List (CRL) and Authentication Policy.
 
