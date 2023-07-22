@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -317,8 +318,18 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// Verify the above entries are active through AFT Telemetry.
 	for ip := range ateDstNetCIDR {
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
-			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+		lastValue, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			return v.IsPresent()
+		}).Await(t)
+
+		if ok {
+			if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
+				// Value expected != value found
+				t.Fatalf("ipv4-entry/state/prefix got %s, want %s", got, want)
+			}
+		} else {
+			// Value is not present in the gnmi path
+			t.Fatalf("gnmi.Watch() failed value received = %s", lastValue)
 		}
 	}
 
@@ -345,10 +356,20 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	gnmi.Update(t, args.dut, niProto.Config(), static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
-		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
-			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
-		}
+	        ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
+                lastValue, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+                        return v.IsPresent()
+                }).Await(t)
+
+                if ok {
+                        if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
+                                // Value expected != value found
+                                t.Fatalf("ipv4-entry/state/prefix got %s, want %s", got, want)
+                        }
+                } else {
+                        // Value is not present in the gnmi path
+                        t.Fatalf("gnmi.Watch() failed value received = %s", lastValue)
+                }
 	}
 
 	// Inject an entry that cannot be installed into the FIB due to an unresolved next-hop
