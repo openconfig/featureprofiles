@@ -195,6 +195,11 @@ func BGPTrafficTolerance(dut *ondatra.DUTDevice) int32 {
 	return lookupDUTDeviations(dut).GetBgpToleranceValue()
 }
 
+// MacAddressMissing returns whether device does not support /system/mac-address/state
+func MacAddressMissing(_ *ondatra.DUTDevice) bool {
+        return *macAddressMissing
+}
+
 // StaticProtocolName returns the name used for the static routing protocol.
 func StaticProtocolName(dut *ondatra.DUTDevice) string {
 	logErrorIfFlagSet("deviation_static_protocol_name")
@@ -683,6 +688,8 @@ var (
 
 	_ = flag.Bool("deviation_isis_restart_suppress_unsupported", false,
 		"Device skip isis restart-suppress check if value is true, Default value is false")
+
+	macAddressMissing = flag.Bool("deviation_mac_address_missing", false, "Device does not support /system/mac-address/state.")
 
 	_ = flag.Bool("deviation_gribi_mac_override_with_static_arp", false, "Set to true for device not supporting programming a gribi flow with a next-hop entry of mac-address only, default is false")
 
