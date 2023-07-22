@@ -15,7 +15,8 @@ Generic Health Check
         *   QUEUE drops
             *   Interfaces
             *   VOQ
-    *   ASIC drops
+        *   Fabric drops
+        *   ASIC drops
     *   No flow control frames tx/rx
     *   No CRC or Layer 1 errors on interfaces
     *   No config commit errors
