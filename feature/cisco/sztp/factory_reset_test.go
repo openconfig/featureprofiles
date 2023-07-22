@@ -32,7 +32,7 @@ func factoryReset(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 	time.Sleep(2 * time.Minute)
 	deviceBootStatus(t, dut)
 	dutNew := ondatra.DUT(t, "dut")
-	checkFiles(t, dutNew)
+	checkFiles(t, dutNew, filesCreated, true)
 	t.Log("Factory reset successfull")
 }
 
