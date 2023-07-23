@@ -322,14 +322,13 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 			return v.IsPresent()
 		}).Await(t)
 
-		if ok {
-			if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
-				// Value expected != value found
-				t.Fatalf("ipv4-entry/state/prefix got %s, want %s", got, want)
-			}
-		} else {
-			// Value is not present in the gnmi path
+		if !ok {
 			t.Fatalf("gnmi.Watch() failed value received = %s", lastValue)
+		}
+
+		ipv4, _ := lastValue.Val()
+		if got, want := ipv4.GetPrefix(), ateDstNetCIDR[ip]; got != want {
+			t.Fatalf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	}
 
@@ -361,15 +360,14 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
                         return v.IsPresent()
                 }).Await(t)
 
-                if ok {
-                        if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
-                                // Value expected != value found
-                                t.Fatalf("ipv4-entry/state/prefix got %s, want %s", got, want)
-                        }
-                } else {
-                        // Value is not present in the gnmi path
-                        t.Fatalf("gnmi.Watch() failed value received = %s", lastValue)
-                }
+		if !ok {
+			t.Fatalf("gnmi.Watch() failed value received = %s", lastValue)
+		}
+
+		ipv4, _ := lastValue.Val()
+		if got, want := ipv4.GetPrefix(), ateDstNetCIDR[ip]; got != want {
+			t.Fatalf("ipv4-entry/state/prefix got %s, want %s", got, want)
+		}
 	}
 
 	// Inject an entry that cannot be installed into the FIB due to an unresolved next-hop
