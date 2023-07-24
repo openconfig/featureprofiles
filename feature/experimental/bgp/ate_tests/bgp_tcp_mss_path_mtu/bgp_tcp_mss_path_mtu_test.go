@@ -42,7 +42,6 @@ func TestMain(m *testing.M) {
 
 const (
 	peerGrpName1       = "BGP-PEER-GROUP1"
-	peerGrpName2       = "BGP-PEER-GROUP2"
 	dut1AS             = 65501
 	ateAS1             = 65502
 	dut2AS             = 65502
@@ -52,10 +51,10 @@ const (
 	dut1Tcp6MssDefault = uint16(1240)
 	dut1IntfMtu        = uint16(5040)
 	dut1TcpMss         = uint16(4096)
-	MTU512             = uint16(512)
+	mtu512             = uint16(512)
 	vlan10             = 10
 	vlan20             = 20
-	ISISInstance       = "DEFAULT"
+	isisInstance       = "DEFAULT"
 	authPWd            = "BGPTCPMSS"
 	dut1AreaAddress    = "49.0001"
 	dut1SysID          = "1920.0000.2001"
@@ -117,44 +116,38 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice, authPwd, routerId string
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(routerId)
 	global.As = ygot.Uint32(localAs)
-	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+
+	pg1 := bgp.GetOrCreatePeerGroup(peerGrpName1)
+	pg1.PeerAs = ygot.Uint32(ateAS1)
+	pg1.PeerGroupName = ygot.String(peerGrpName1)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
 	for _, nbr := range nbrs {
+		nv := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		nv.PeerGroup = ygot.String(nbr.peerGrp)
+		nv.PeerAs = ygot.Uint32(nbr.as)
+		nv.Enabled = ygot.Bool(true)
 		if nbr.isV4 {
-			// Create Peer group.
-			pg1 := bgp.GetOrCreatePeerGroup(nbr.peerGrp)
-			pg1.PeerAs = ygot.Uint32(nbr.as)
-			pg1.PeerGroupName = ygot.String(nbr.peerGrp)
-			// configure neighbor.
-			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv4.PeerGroup = ygot.String(nbr.peerGrp)
-			nv4.PeerAs = ygot.Uint32(nbr.as)
-			nv4.Enabled = ygot.Bool(true)
 			if authPwd != "" {
-				nv4.AuthPassword = ygot.String(authPWd)
+				nv.AuthPassword = ygot.String(authPWd)
 			}
-			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4 := nv.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(true)
-			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6 := nv.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(false)
 		} else {
-			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv6.PeerGroup = ygot.String(nbr.peerGrp)
-			nv6.PeerAs = ygot.Uint32(nbr.as)
-			nv6.Enabled = ygot.Bool(true)
-			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6 := nv.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(true)
-			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4 := nv.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(false)
 		}
 	}
 	return ni_proto
 }
 
-// verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
-func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrIP []string) {
+// verifyBGPTelemetry checks that the dut has an established BGP session with reasonable settings.
+func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrIP []string) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, nbr := range nbrIP {
 		nbrPath := statePath.Neighbor(nbr)
@@ -175,11 +168,11 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrIP []string) {
 	}
 }
 
-func configureIsisDut(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutAreaAddress, dutSysID string) {
+func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutAreaAddress, dutSysID string) {
 	d := &oc.Root{}
-	dutConfIsisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
+	dutConfIsisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
+	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	if !deviations.ISISprotocolEnabledNotRequired(dut) {
 		prot.Enabled = ygot.Bool(true)
 	}
@@ -269,8 +262,8 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
-// TestTcpMssPathMtu is to Validate TCP MSS for BGP v4/v6 sessions.
-func TestTcpMssPathMtu(t *testing.T) {
+// TestTCPMSSPathMTU is to Validate TCP MSS for BGP v4/v6 sessions.
+func TestTCPMSSPathMTU(t *testing.T) {
 
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
@@ -310,7 +303,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	t.Run("Verify BGP telemetry", func(t *testing.T) {
 		var dut1NbrIP = []string{atePort1.IPv4, atePort1.IPv6}
-		verifyBgpTelemetry(t, dut1, dut1NbrIP)
+		verifyBGPTelemetry(t, dut1, dut1NbrIP)
 	})
 
 	dut1Port1Path := gnmi.OC().Interface(dut1.Port(t, "port1").Name())
@@ -334,7 +327,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	t.Run("Verify BGP telemetry after reset.", func(t *testing.T) {
 		var dut1NbrIP = []string{atePort1.IPv4, atePort1.IPv6}
-		verifyBgpTelemetry(t, dut1, dut1NbrIP)
+		verifyBGPTelemetry(t, dut1, dut1NbrIP)
 	})
 
 	t.Run("Verify BGP TCP MSS value", func(t *testing.T) {
@@ -355,7 +348,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	t.Run("Configure ISIS Neighbors on DUT1 and ATE", func(t *testing.T) {
 		dut1PortNames := []string{dut1.Port(t, "port1").Name(), dut1.Port(t, "port2").Name()}
-		configureIsisDut(t, dut1, dut1PortNames, dut1AreaAddress, dut1SysID)
+		configureISIS(t, dut1, dut1PortNames, dut1AreaAddress, dut1SysID)
 	})
 
 	t.Run("Configure static route on DUT2 to ATE to establish multihop iBGP session", func(t *testing.T) {
@@ -380,12 +373,12 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	t.Run("Verify iBGP session between DUT2 - ATE Port1.", func(t *testing.T) {
 		var dut2NbrIP = []string{atePort1.IPv4}
-		verifyBgpTelemetry(t, dut2, dut2NbrIP)
+		verifyBGPTelemetry(t, dut2, dut2NbrIP)
 	})
 
 	t.Run("Change the MTU on DUT1-DUT2 to 512 bytes and Enable mtu discovery", func(t *testing.T) {
 		dut2Port1Path := gnmi.OC().Interface(dut2.Port(t, "port1").Name())
-		gnmi.Replace(t, dut2, dut2Port1Path.Mtu().Config(), MTU512)
+		gnmi.Replace(t, dut2, dut2Port1Path.Mtu().Config(), mtu512)
 		gnmi.Replace(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().MtuDiscovery().Config(), true)
 	})
 
@@ -397,7 +390,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	t.Run("Verify iBGP session between DUT2 - ATE Port1.", func(t *testing.T) {
 		var dut2NbrIP = []string{atePort1.IPv4}
-		verifyBgpTelemetry(t, dut2, dut2NbrIP)
+		verifyBGPTelemetry(t, dut2, dut2NbrIP)
 	})
 
 	t.Run("Verify TCP MSS adjusted to below 512 bytes", func(t *testing.T) {
