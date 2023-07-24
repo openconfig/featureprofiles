@@ -181,8 +181,6 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
 func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEndPoint []ondatra.Endpoint, innerdstPfxMin string, innerdstPfxCount uint32, opts ...*TGNoptions) *ondatra.Flow {
-	t.Helper()
-
 	hdr := ondatra.NewIPv4Header()
 	if len(opts) != 0 {
 		for _, opt := range opts {
