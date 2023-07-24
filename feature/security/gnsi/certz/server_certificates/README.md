@@ -10,7 +10,7 @@ and present a valid TLS certificate to the calling clients.
 ### Input Args
 
 * the set of certificate testdata generated with the mk_cas.sh
-  script in featureprofiles/feature/security/certificate-authorties/
+  script in featureprofiles/feature/security/gnsi/certz/test_data
 
 ### DUT Service setup
 

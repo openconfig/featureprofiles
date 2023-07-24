@@ -11,7 +11,7 @@ safe operation practices.
 ### Input Args
 
    * the set of certificate testdata generated with the mk_cas.sh script
-   in featureprofiles/feature/certificate-authorities/
+   in featureprofiles/feature/security/gnsi/certz/test_data
 
 ### DIT Service Setup
 

@@ -10,7 +10,7 @@ is added to the trust_bundles over time.
 ### Input Args
 
    * the set of certificate testdata generated with the mk_cas.sh script in
-     featureprofiles/features/security/certificate-authorties/
+     featureprofiles/feature/security/gnsi/certz/test_data
 
 ### DUT Service Setup
 
