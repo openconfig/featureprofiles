@@ -22,7 +22,7 @@ func TestRPLConfig(t *testing.T) {
 			t.Errorf("cannot reuse routing policy definition %v", err)
 		}
 
-		statement, err := rpd.NewStatement(policy.Name + "stmt")
+		statement, err := rpd.AppendNewStatement(policy.Name + "stmt")
 		if err != nil {
 			t.Errorf("cannot reuse routing policy definition %v", err)
 		}
