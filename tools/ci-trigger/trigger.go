@@ -136,6 +136,16 @@ func (t *trigger) processPullRequest(ctx context.Context, e *github.PullRequestE
 		return fmt.Errorf("identify modified tests: %w", err)
 	}
 
+	auth, err := t.authorizedUser(ctx, e.GetPullRequest().GetUser().GetLogin())
+	if err != nil {
+		return fmt.Errorf("validating user auth: %w", err)
+	}
+	if auth {
+		if err := pr.createBuild(ctx, t.buildClient, t.storClient, virtualDeviceTypes); err != nil {
+			return fmt.Errorf("create build: %w", err)
+		}
+	}
+
 	if err := pr.updateBadges(ctx, t.storClient); err != nil {
 		return fmt.Errorf("update GCS badges: %w", err)
 	}

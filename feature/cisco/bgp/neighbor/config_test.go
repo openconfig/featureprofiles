@@ -649,6 +649,18 @@ func TestApplyPolicyImportPolicy(t *testing.T) {
 		},
 	}
 
+	acceptMap := &oc.RoutingPolicy_PolicyDefinition_Statement_OrderedMap{}
+	acceptAction, _ := acceptMap.AppendNew("id-1")
+	acceptAction.Actions = &oc.RoutingPolicy_PolicyDefinition_Statement_Actions{
+		PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	}
+
+	rejectMap := &oc.RoutingPolicy_PolicyDefinition_Statement_OrderedMap{}
+	rejectAction, _ := rejectMap.AppendNew("id-1")
+	rejectAction.Actions = &oc.RoutingPolicy_PolicyDefinition_Statement_Actions{
+		PolicyResult: oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE,
+	}
+
 	bgp_instance, bgp_as := getNextBgpInstance()
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
@@ -656,26 +668,12 @@ func TestApplyPolicyImportPolicy(t *testing.T) {
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), &oc.RoutingPolicy{
 		PolicyDefinition: map[string]*oc.RoutingPolicy_PolicyDefinition{
 			"TEST_ACCEPT": {
-				Name: ygot.String("TEST_ACCEPT"),
-				Statement: map[string]*oc.RoutingPolicy_PolicyDefinition_Statement{
-					"id-1": {
-						Name: ygot.String("id-1"),
-						Actions: &oc.RoutingPolicy_PolicyDefinition_Statement_Actions{
-							PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-						},
-					},
-				},
+				Name:      ygot.String("TEST_ACCEPT"),
+				Statement: acceptMap,
 			},
 			"TEST_REJECT": {
-				Name: ygot.String("TEST_REJECT"),
-				Statement: map[string]*oc.RoutingPolicy_PolicyDefinition_Statement{
-					"id-1": {
-						Name: ygot.String("id-1"),
-						Actions: &oc.RoutingPolicy_PolicyDefinition_Statement_Actions{
-							PolicyResult: oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE,
-						},
-					},
-				},
+				Name:      ygot.String("TEST_REJECT"),
+				Statement: rejectMap,
 			},
 		},
 	})
@@ -775,6 +773,18 @@ func TestApplyPolicyExportPolicy(t *testing.T) {
 		},
 	}
 
+	acceptMap := &oc.RoutingPolicy_PolicyDefinition_Statement_OrderedMap{}
+	acceptAction, _ := acceptMap.AppendNew("id-1")
+	acceptAction.Actions = &oc.RoutingPolicy_PolicyDefinition_Statement_Actions{
+		PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+	}
+
+	rejectMap := &oc.RoutingPolicy_PolicyDefinition_Statement_OrderedMap{}
+	rejectAction, _ := rejectMap.AppendNew("id-1")
+	rejectAction.Actions = &oc.RoutingPolicy_PolicyDefinition_Statement_Actions{
+		PolicyResult: oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE,
+	}
+
 	bgp_instance, bgp_as := getNextBgpInstance()
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
@@ -782,26 +792,12 @@ func TestApplyPolicyExportPolicy(t *testing.T) {
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), &oc.RoutingPolicy{
 		PolicyDefinition: map[string]*oc.RoutingPolicy_PolicyDefinition{
 			"TEST_ACCEPT": {
-				Name: ygot.String("TEST_ACCEPT"),
-				Statement: map[string]*oc.RoutingPolicy_PolicyDefinition_Statement{
-					"id-1": {
-						Name: ygot.String("id-1"),
-						Actions: &oc.RoutingPolicy_PolicyDefinition_Statement_Actions{
-							PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-						},
-					},
-				},
+				Name:      ygot.String("TEST_ACCEPT"),
+				Statement: acceptMap,
 			},
 			"TEST_REJECT": {
-				Name: ygot.String("TEST_REJECT"),
-				Statement: map[string]*oc.RoutingPolicy_PolicyDefinition_Statement{
-					"id-1": {
-						Name: ygot.String("id-1"),
-						Actions: &oc.RoutingPolicy_PolicyDefinition_Statement_Actions{
-							PolicyResult: oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE,
-						},
-					},
-				},
+				Name:      ygot.String("TEST_REJECT"),
+				Statement: rejectMap,
 			},
 		},
 	})

@@ -8,10 +8,16 @@ testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: NOKIA
-    hardware_model: "7250-ixr10e"
-    hardware_model: "ixr10"
   }
   deviations: {
     explicit_interface_in_default_vrf: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
   }
 }
