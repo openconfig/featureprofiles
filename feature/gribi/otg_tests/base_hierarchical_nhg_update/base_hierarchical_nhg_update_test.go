@@ -460,11 +460,7 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, dsts ...*attr
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	e1.Dst().SetChoice("value").SetValue(pMAC)
-	if len(dsts) > 1 {
-		flowipv4.TxRx().Port().SetTxName("port1")
-	} else {
-		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
-	}
+	flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
 	outerIPHeader := flowipv4.Packet().Add().Ipv4()
 	outerIPHeader.Src().SetValue(atePort1.IPv4)
 	outerIPHeader.Dst().SetValue(dstPfxFlowIP)
@@ -515,17 +511,17 @@ func validateTrafficFlows(t *testing.T, goodFlow, badFlow string) {
 }
 
 // getLossPct returns the loss percentage for a given flow
-func getLossPct(t *testing.T, flowName string) uint64 {
+func getLossPct(t *testing.T, flowName string) float32 {
 	t.Helper()
 	otg := ondatra.ATE(t, "ate").OTG()
 	flowStats := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
 	txPackets := flowStats.GetCounters().GetOutPkts()
 	rxPackets := flowStats.GetCounters().GetInPkts()
-	lostPackets := txPackets - rxPackets
+	lostPackets := float32(txPackets - rxPackets)
 	if txPackets == 0 {
 		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
 	}
-	lossPct := lostPackets * 100 / txPackets
+	lossPct := lostPackets * 100 / float32(txPackets)
 	return lossPct
 }
 
