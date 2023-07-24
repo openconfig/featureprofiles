@@ -504,7 +504,7 @@ func TestSoftwareVersion(t *testing.T) {
 			if deviations.OSComponentParentIsChassis(dut) {
 				want = []oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{chassisType}
 			}
-			if deviations.OSComponentParentIsLinecard(dut) {
+			if deviations.OSComponentParentIsSupervisorOrLinecard(dut) {
 				want = []oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{supervisorType, linecardType}
 			}
 

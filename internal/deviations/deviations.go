@@ -575,8 +575,8 @@ func P4RTModifyTableEntryUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // OSComponentParentIsLinecard returns true if parent of OS component is of type LINECARD.
-func OSComponentParentIsLinecard(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetOsComponentParentIsLinecard()
+func OSComponentParentIsSupervisorOrLinecard(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOsComponentParentIsSupervisorOrLinecard()
 }
 
 // OSComponentParentIsChassis returns true if parent of OS component is of type CHASSIS.
