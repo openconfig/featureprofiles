@@ -3,7 +3,8 @@
 # Certificate Related Tests
 
 Support certificates and certificate trust bundles for identification/authentication
-of endpoints in a gN\*I ecosystem.
+of endpoints in a gN\*I ecosystem. Manipulate these certificates through the Rotate()
+rpc.
 
   1) support a server certificate on gN\*I service endpoint (/server_certificates)
      * provide basic cert signed by a CA - expect success

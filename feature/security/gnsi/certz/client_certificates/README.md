@@ -1,4 +1,4 @@
-# X.X: gNSI Client Certificate Tests
+# gNSI Client Certificate Tests
 
 ## Summary
 
@@ -13,7 +13,7 @@ the client to the server.
 ### Input Args
 
 * the set of certificate testdata generated with the mk_cas.sh
-   script in featureprofiles/feature/security/certificate-authorties/
+   script in featureprofiles/feature/security/gnsi/certz/test_data
 
 ### DUT service setup
 
