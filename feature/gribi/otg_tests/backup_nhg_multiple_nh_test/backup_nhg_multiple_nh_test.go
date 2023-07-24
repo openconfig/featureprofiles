@@ -43,8 +43,8 @@ const (
 	routeCount     = 1
 	vrf1           = "vrfA"
 	vrf2           = "vrfB"
-	fps            = 10000 // traffic frames per second
-	switchovertime = 2.5   // switchovertime during interface shut in milliseconds
+	fps            = 1000000 // traffic frames per second
+	switchovertime = 250.0   // switchovertime during interface shut in milliseconds
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
@@ -411,7 +411,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	// else if there is no interface trigger, validate received packets (control+data) are more than send packets
 	if len(shut_ports) > 0 {
 		// Time took for traffic to restore in milliseconds after trigger
-		fpm := float32((sentPkts - receivedPkts) / (fps / 1000))
+		fpm := ((sentPkts - receivedPkts) / (fps / 1000))
 		if fpm > switchovertime {
 			t.Fatalf("Traffic loss %v msecs more than expected %v msecs", fpm, switchovertime)
 		}
