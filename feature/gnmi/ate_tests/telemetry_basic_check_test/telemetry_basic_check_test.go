@@ -510,10 +510,10 @@ func TestSoftwareVersion(t *testing.T) {
 
 			if slices.IndexFunc(want, func(w oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) bool {
 				return w == got
-			}) != -1 {
-				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
-			} else {
+			}) == -1 {
 				t.Errorf("Got a parent %v with a type %v for the component %v, want one of %v", v, got, os, want)
+			} else {
+				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
 			}
 		} else {
 			t.Errorf("Parent for the component %v was not found", os)
