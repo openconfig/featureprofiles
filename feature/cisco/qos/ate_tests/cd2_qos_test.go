@@ -1488,11 +1488,11 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	minthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
-		minthresholdlist = append(minthresholdlist, 1000000+uint64(i*6144))
+		minthresholdlist = append(minthresholdlist, 24576000+uint64(i*6144))
 	}
 	maxthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
-		maxthresholdlist = append(maxthresholdlist, 1300000+uint64(i*6144))
+		maxthresholdlist = append(maxthresholdlist, 27576000+uint64(i*6144))
 	}
 	wredprofilelist := []string{}
 	for i := 1; i < 8; i++ {
@@ -1735,11 +1735,11 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	minthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
-		minthresholdlist = append(minthresholdlist, 1000000+uint64(i*6144))
+		minthresholdlist = append(minthresholdlist, 24576000+uint64(i*6144))
 	}
 	maxthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
-		maxthresholdlist = append(maxthresholdlist, 1300000+uint64(i*6144))
+		maxthresholdlist = append(maxthresholdlist, 27576000+uint64(i*6144))
 	}
 	wredprofilelist := []string{}
 	for i := 1; i < 8; i++ {
@@ -1852,11 +1852,11 @@ func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	minthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
-		minthresholdlist = append(minthresholdlist, 1000000+uint64(i*6144))
+		minthresholdlist = append(minthresholdlist, 24576000+uint64(i*6144))
 	}
 	maxthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
-		maxthresholdlist = append(maxthresholdlist, 1300000+uint64(i*6144))
+		maxthresholdlist = append(maxthresholdlist, 27576000+uint64(i*6144))
 	}
 	wredprofilelist := []string{}
 	for i := 1; i < 8; i++ {
