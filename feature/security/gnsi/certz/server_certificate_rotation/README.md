@@ -22,6 +22,7 @@ and required user mTLS for authentication:
    * gNOI
    * gNSI
    * gRIBI
+   * P4RT
 
 Be prepared to load the relevant trust_bundle.pem file for each test Certificate
 Authority(CA) under test on the DUT. Each CA has an RSA and ECDSA form, both
