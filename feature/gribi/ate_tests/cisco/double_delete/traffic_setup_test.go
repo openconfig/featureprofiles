@@ -115,7 +115,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, v4prefix string, count uint32) {
 	t.Helper()
 
-
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
@@ -132,7 +131,6 @@ func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, netw
 // addAteEBGPPeer configures EBGP ATE config
 func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, network_name, nexthop, prefix string, count uint32, useLoopback bool) {
 	t.Helper()
-
 
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
@@ -161,7 +159,6 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 // addPrototoAte calls ISIS/BGP api
 func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	t.Helper()
-
 
 	// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, uint32(innerdstPfxCount_isis))
 	// addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_network", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, innerdstPfxCount_bgp, false)
@@ -208,7 +205,6 @@ func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEn
 // allFlows designs all the flows needed for the backup testing
 func (a *testArgs) allFlows(t *testing.T, opts ...*TGNoptions) []*ondatra.Flow {
 	t.Helper()
-
 
 	srcEndPoint := a.top.Interfaces()[atePort1.Name]
 	if len(opts) != 0 {
