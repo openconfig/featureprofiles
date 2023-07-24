@@ -568,6 +568,17 @@ func P4RTModifyTableEntryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtModifyTableEntryUnsupported()
 }
 
+// OSComponentParentIsSupervisorOrLinecard returns true if parent of OS component is
+// of type SUPERVISOR or LINECARD.
+func OSComponentParentIsSupervisorOrLinecard(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOsComponentParentIsSupervisorOrLinecard()
+}
+
+// OSComponentParentIsChassis returns true if parent of OS component is of type CHASSIS.
+func OSComponentParentIsChassis(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOsComponentParentIsChassis()
+}
+
 // Vendor deviation flags.
 // All new flags should not be exported (define them in lowercase) and accessed
 // from tests through a public accessors like those above.
