@@ -39,8 +39,8 @@ platform_exceptions: {
     hardware_model: "xrd"
   }
   deviations: {
-    platform_power_enable_wait: 5
-    platform_power_down_up_fabric_skip: true
+    component_power_down_returns_inactive_state: true
+    skip_fabric_card_power_admin: true
     skip_controller_card_power_admin: true
   }
 }

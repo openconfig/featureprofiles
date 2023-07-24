@@ -580,16 +580,16 @@ func PlatformPowerEnableWait(dut *ondatra.DUTDevice) int64 {
 	return lookupDUTDeviations(dut).GetPlatformPowerEnableWait()
 }
 
-// PlatformPowerDownUpFabricSkip returns whether the device should skip the Platform Power Down Up for Fabric Card.
+// SkipFabricCardPowerAdmin returns whether the device should skip the Platform Power Down Up for Fabric Card.
 // Default value is false.
-func PlatformPowerDownUpFabricSkip(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPlatformPowerDownUpFabricSkip()
+func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipFabricCardPowerAdmin()
 }
 
-// PlatformPowerDownUpControllerCardSkip returns whether the device should skip the Platform Power Down Up for Controller Card.
-// Default value is false.
-func PlatformPowerDownUpControllerCardSkip(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPlatformPowerDownUpControllerCardSkip()
+// ComponentPowerDownReturnsInactiveState returns whether the device should allow the component power Down state inactive.
+// Default value is false and expected component power down state is shutdown.
+func ComponentPowerDownReturnsInactiveState(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetComponentPowerDownReturnsInactiveState()
 }
 
 // Vendor deviation flags.
