@@ -43,8 +43,8 @@ const (
 	routeCount     = 1
 	vrf1           = "vrfA"
 	vrf2           = "vrfB"
-	fps            = 10000 // traffic frames per second
-	switchovertime = 250.0 // switchovertime during interface shut in milliseconds
+	fps            = 10000        // traffic frames per second
+	switchovertime = float32(2.5) // switchovertime during interface shut in milliseconds
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
@@ -366,13 +366,13 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	a.ate.OTG().PushConfig(t, a.top)
 	// StartProtocols required for running on hardware
 	a.ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, a.ate.OTG(), a.top, "IPv4")
 	return name
 
 }
 
 // validateTrafficFlows verifies that the flow on ATE and check interface counters on DUT
 func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outgoing_port []*ondatra.Port, shut_ports ...string) {
-	otgutils.WaitForARP(t, a.ate.OTG(), a.top, "IPv4")
 	a.ate.OTG().StartTraffic(t)
 	//Shutdown interface if provided while traffic is flowing and validate traffic
 	time.Sleep(30 * time.Second)
@@ -411,7 +411,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	// else if there is no interface trigger, validate received packets (control+data) are more than send packets
 	if len(shut_ports) > 0 {
 		// Time took for traffic to restore in milliseconds after trigger
-		fpm := ((sentPkts - receivedPkts) / (fps / 1000))
+		fpm := float32((sentPkts - receivedPkts) / (fps / 1000))
 		if fpm > switchovertime {
 			t.Fatalf("Traffic loss %v msecs more than expected %v msecs", fpm, switchovertime)
 		}
