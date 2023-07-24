@@ -25,7 +25,7 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     missing_interface_physical_channel: true
     interface_counters_from_container: true
-    os_component_parent_is_linecard: true
+    os_component_parent_is_supervisor_or_linecard: true
   }
 }
 platform_exceptions: {
