@@ -568,8 +568,11 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 				txPackets = txPackets + portMetrics.GetCounters().GetOutFrames()
 				rxPackets = rxPackets + portMetrics.GetCounters().GetInFrames()
 			}
-			lostPackets := int64(txPackets - rxPackets)
-			lossPct := lostPackets * 100 / int64(txPackets)
+			if txPackets == 0 {
+				t.Fatalf("TxPkts == 0, want > 0")
+			}
+			lostPackets := float32(txPackets - rxPackets)
+			lossPct := lostPackets * 100 / float32(txPackets)
 			if got := lossPct; got > 0 {
 				t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
 			}
@@ -577,8 +580,11 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 			recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
 			txPackets = recvMetric.GetCounters().GetOutPkts()
 			rxPackets = recvMetric.GetCounters().GetInPkts()
-			lostPackets := txPackets - rxPackets
-			lossPct := lostPackets * 100 / txPackets
+			if txPackets == 0 {
+				t.Fatalf("TxPkts == 0, want > 0")
+			}
+			lostPackets := float32(txPackets - rxPackets)
+			lossPct := lostPackets * 100 / float32(txPackets)
 			if got := lossPct; got > 0 {
 				t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
 			}
@@ -589,8 +595,11 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 		recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
 		txPackets := recvMetric.GetCounters().GetOutPkts()
 		rxPackets := recvMetric.GetCounters().GetInPkts()
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
+		if txPackets == 0 {
+			t.Fatalf("TxPkts == 0, want > 0")
+		}
+		lostPackets := float32(txPackets - rxPackets)
+		lossPct := lostPackets * 100 / float32(txPackets)
 		if got := lossPct; got < 100 {
 			t.Fatalf("LossPct for flow %s: got %v, want 100", flow, got)
 		}
