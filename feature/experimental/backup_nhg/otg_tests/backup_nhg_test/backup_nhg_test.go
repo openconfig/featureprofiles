@@ -421,7 +421,6 @@ func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix, ipAddress
 // bad flow does not deliver traffic.
 func (a *testArgs) validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, good, bad string) {
 
-	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
