@@ -139,8 +139,6 @@ var (
 
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
-	t.Helper()
-
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 
