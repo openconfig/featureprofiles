@@ -574,12 +574,6 @@ func P4RTModifyTableEntryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtModifyTableEntryUnsupported()
 }
 
-// PlatformPowerEnableWait returns timer value to wait while platform is powered on.
-// Default value is 0.
-func PlatformPowerEnableWait(dut *ondatra.DUTDevice) int64 {
-	return lookupDUTDeviations(dut).GetPlatformPowerEnableWait()
-}
-
 // SkipFabricCardPowerAdmin returns whether the device should skip the Platform Power Down Up for Fabric Card.
 // Default value is false.
 func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
