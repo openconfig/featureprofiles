@@ -499,15 +499,7 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	flowipv4.Metrics().SetEnable(true)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	if len(dsts) > 1 {
-		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
-		flowipv4.TxRx().Port().SetTxName(atePort1.Name)
-		otgutils.WaitForARP(t, otg, ateTop, "IPv4")
-		dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
-		e1.Dst().SetChoice("value").SetValue(dstMac)
-	} else {
-		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
-	}
+	flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
@@ -562,32 +554,16 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 
 	for _, flow := range newGoodFlows {
 		var txPackets, rxPackets uint64
-		if flow == "ecmpFlow" {
-			for _, p := range ateTop.Ports().Items() {
-				portMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(p.Name()).State())
-				txPackets = txPackets + portMetrics.GetCounters().GetOutFrames()
-				rxPackets = rxPackets + portMetrics.GetCounters().GetInFrames()
-			}
-			if txPackets == 0 {
-				t.Fatalf("TxPkts == 0, want > 0")
-			}
-			lostPackets := float32(txPackets - rxPackets)
-			lossPct := lostPackets * 100 / float32(txPackets)
-			if got := lossPct; got > 0 {
-				t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
-			}
-		} else {
-			recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
-			txPackets = recvMetric.GetCounters().GetOutPkts()
-			rxPackets = recvMetric.GetCounters().GetInPkts()
-			if txPackets == 0 {
-				t.Fatalf("TxPkts == 0, want > 0")
-			}
-			lostPackets := float32(txPackets - rxPackets)
-			lossPct := lostPackets * 100 / float32(txPackets)
-			if got := lossPct; got > 0 {
-				t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
-			}
+		recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
+		txPackets = recvMetric.GetCounters().GetOutPkts()
+		rxPackets = recvMetric.GetCounters().GetInPkts()
+		if txPackets == 0 {
+			t.Fatalf("TxPkts == 0, want > 0")
+		}
+		lostPackets := float32(txPackets - rxPackets)
+		lossPct := lostPackets * 100 / float32(txPackets)
+		if got := lossPct; got > 0 {
+			t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
 		}
 	}
 
