@@ -25,7 +25,9 @@ import (
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/confgen"
+
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
+
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/fluent"
@@ -1548,7 +1550,7 @@ func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	confgen.Dorpfo(args.ctx, t, true)
+	utils.Dorpfo(args.ctx, t, true)
 	client = gribi.Client{
 		DUT:                   args.dut,
 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -1655,7 +1657,8 @@ func TestWithBackuprpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
 
-	confgen.Dorpfo(args.ctx, t, true)
+	utils.Dorpfo(args.ctx, t, true)
+
 	client = gribi.Client{
 		DUT:                   args.dut,
 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -1756,7 +1759,8 @@ func TestWithDecapEncaprpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	confgen.Dorpfo(args.ctx, t, true)
+	utils.Dorpfo(args.ctx, t, true)
+
 	client = gribi.Client{
 		DUT:                   args.dut,
 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -1853,7 +1857,8 @@ func TestWithDecapEncapvrfrpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	confgen.Dorpfo(args.ctx, t, true)
+	utils.Dorpfo(args.ctx, t, true)
+
 	client = gribi.Client{
 		DUT:                   args.dut,
 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -1941,7 +1946,8 @@ func TestWithBackupDecaprpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121})
 	}
 
-	confgen.Dorpfo(args.ctx, t, true)
+	utils.Dorpfo(args.ctx, t, true)
+
 	client = gribi.Client{
 		DUT:                   args.dut,
 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -2164,7 +2170,8 @@ func TestWithScalerpfo(t *testing.T) {
 
 	}
 
-	confgen.Dorpfo(args.ctx, t, true)
+	utils.Dorpfo(args.ctx, t, true)
+
 	client = gribi.Client{
 		DUT:                   args.dut,
 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -2315,7 +2322,8 @@ func TestWithStaticrpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
 	}
 
-	confgen.Dorpfo(args.ctx, t, true)
+	utils.Dorpfo(args.ctx, t, true)
+
 	client = gribi.Client{
 		DUT:                   args.dut,
 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -2422,7 +2430,8 @@ func TestWithStaticremoverpfo(t *testing.T) {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther121, bundleEther122})
 	}
 
-	confgen.Dorpfo(args.ctx, t, true)
+	utils.Dorpfo(args.ctx, t, true)
+
 	client = gribi.Client{
 		DUT:                   args.dut,
 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
