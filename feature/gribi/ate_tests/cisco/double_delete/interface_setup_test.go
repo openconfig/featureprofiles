@@ -139,6 +139,8 @@ var (
 
 // configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+	t.Helper()
+
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 
@@ -155,6 +157,8 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
@@ -209,6 +213,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
+	t.Helper()
 	i := &oc.Interface{Name: ygot.String(name)}
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	e := i.GetOrCreateEthernet()
@@ -219,6 +224,7 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *o
 
 // configRP, configures route_policy for BGP
 func configRP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateRoutingPolicy()
 	pdef := inst.GetOrCreatePolicyDefinition("ALLOW")

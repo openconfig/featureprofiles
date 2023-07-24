@@ -33,6 +33,8 @@ type TGNoptions struct {
 
 // configureATE configures port1, port2 and port3 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+	t.Helper()
+
 	top := ate.Topology().New()
 
 	p1 := ate.Port(t, "port1")
@@ -111,6 +113,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 
 // addAteISISL2 configures ISIS L2 ATE config
 func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, v4prefix string, count uint32) {
+	t.Helper()
+
 
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
@@ -127,6 +131,8 @@ func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, netw
 
 // addAteEBGPPeer configures EBGP ATE config
 func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, network_name, nexthop, prefix string, count uint32, useLoopback bool) {
+	t.Helper()
+
 
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
@@ -154,6 +160,8 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 
 // addPrototoAte calls ISIS/BGP api
 func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
+	t.Helper()
+
 
 	// addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, uint32(innerdstPfxCount_isis))
 	// addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_network", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, innerdstPfxCount_bgp, false)
@@ -173,6 +181,8 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
 func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEndPoint []ondatra.Endpoint, innerdstPfxMin string, innerdstPfxCount uint32, opts ...*TGNoptions) *ondatra.Flow {
+	t.Helper()
+
 	hdr := ondatra.NewIPv4Header()
 	if len(opts) != 0 {
 		for _, opt := range opts {
@@ -199,6 +209,8 @@ func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEn
 
 // allFlows designs all the flows needed for the backup testing
 func (a *testArgs) allFlows(t *testing.T, opts ...*TGNoptions) []*ondatra.Flow {
+	t.Helper()
+
 
 	srcEndPoint := a.top.Interfaces()[atePort1.Name]
 	if len(opts) != 0 {
@@ -245,6 +257,8 @@ func (a *testArgs) allFlows(t *testing.T, opts ...*TGNoptions) []*ondatra.Flow {
 
 // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
 func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, drop bool, d_port []string, opts ...*TGNoptions) {
+	t.Helper()
+
 	src_port := gnmi.OC().Interface("Bundle-Ether120")
 	if len(opts) != 0 {
 		for _, opt := range opts {

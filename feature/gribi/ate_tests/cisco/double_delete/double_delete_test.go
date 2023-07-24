@@ -1443,6 +1443,7 @@ func TestWithStaticremove(t *testing.T) {
 }
 
 func baseconfig(t *testing.T) {
+	t.Helper()
 
 	if !baseconfigdone {
 		args = &testArgs{}
@@ -1472,6 +1473,7 @@ func baseconfig(t *testing.T) {
 }
 
 func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ip string, val bool) {
+	t.Helper()
 	d := gnmi.OC()
 	s := &oc.Root{}
 	static := s.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
@@ -1485,6 +1487,8 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ip string, val bool) {
 }
 
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
 	c := &oc.Root{}
 	ni := c.GetOrCreateNetworkInstance(vrf1)
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF

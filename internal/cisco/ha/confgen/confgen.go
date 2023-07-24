@@ -48,7 +48,7 @@ func GenerateConfig(bundles []Bundle, templatePath string) string {
 }
 
 func Dorpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
-
+	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	// supervisor info
 	var supervisors []string

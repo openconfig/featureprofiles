@@ -409,6 +409,8 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 
 // addISISOC, configures ISIS on DUT
 func AddISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
+	t.Helper()
+
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
@@ -436,6 +438,8 @@ func AddISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 
 // addBGPOC, configures ISIS on DUT
 func AddBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
+	t.Helper()
+
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)

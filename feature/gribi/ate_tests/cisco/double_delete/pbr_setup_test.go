@@ -24,12 +24,10 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// const (
-// 	pbrName = "PBR"
-// )
-
 // configbasePBR, creates class map, policy and configures under source interface
 func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8, pbrName string, intfName string) {
+	t.Helper()
+
 	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
 
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
@@ -62,6 +60,8 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 
 // unconfigbasePBR, creates class map, policy and configures under source interface
 func unconfigbasePBR(t *testing.T, dut *ondatra.DUTDevice, pbrName string, intfName string) {
+	t.Helper()
+
 	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
 	gnmi.Delete(t, dut, pfpath.Interface(intfName).ApplyVrfSelectionPolicy().Config())
 	gnmi.Delete(t, dut, pfpath.Policy(pbrName).Config())
