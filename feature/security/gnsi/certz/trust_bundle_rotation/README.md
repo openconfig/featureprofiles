@@ -28,7 +28,7 @@ form, both must be tested.
 
 ## Tests
 
-### XXX-1
+### Certz-5.0
 
 Perform these positive tests:
 
@@ -56,7 +56,7 @@ Perform this test with both the RSA and ECDSA types.
 
    6) Verify that the server is still serving the certifcate properly.
 
-### XXX-2
+### Certz-5.1
 
 Perform these negative tests:
 

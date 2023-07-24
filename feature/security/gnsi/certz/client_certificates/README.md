@@ -31,7 +31,7 @@ form, both must be tested.
 
 ## Tests
 
-### XXX-1
+### Certz-1.0
 
 Perform these positive tests:
 
@@ -71,7 +71,7 @@ trust_bundle configurations: (## indicates the 1, 2, 10, 1000 CA testdata)
    7) Validate that the connection's provided certificate is used for
       authentication of the connection to the service on the DUT.
 
-### XXX-2
+### Certz-1.1
 
 Perform these negative tests, perform these tests with both RSA and ECDSA
 trust_bundles and certificates:
