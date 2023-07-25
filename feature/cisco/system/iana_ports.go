@@ -180,8 +180,8 @@ func TestIanaPorts(t *testing.T) {
 		s2 := strconv.FormatInt(int64(value2), 10)
 		s3 := strconv.FormatInt(int64(value3), 10)
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gnmi port "+s1+" \n commit \n", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gnmi port "+s2+" \n commit \n", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gnmi port "+s3+" \n commit \n", 10*time.Second)
+		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gribi port "+s2+" \n commit \n", 10*time.Second)
+		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc p4rt port "+s3+" \n commit \n", 10*time.Second)
 
 		// Verifications
 		// config.TextWithGNMI(context.Background(), t, dut, "vty-pool default 0 99 line-template default")
@@ -190,10 +190,10 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("Rollback to IANA Default Ports", func(t *testing.T) {
-		defer config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n no port \n commit \n", 10*time.Second)
-		defer config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n gnmi \n no port \n commit \n", 10*time.Second)
-		defer config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n gribi \nno port \n commit \n", 10*time.Second)
-		defer config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n p4rt \n no port \n commit \n", 10*time.Second)
+		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n no port \n commit \n", 10*time.Second)
+		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n gnmi \n no port \n commit \n", 10*time.Second)
+		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n gribi \n no port \n commit \n", 10*time.Second)
+		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n p4rt \n no port \n commit \n", 10*time.Second)
 		// Verifications
 		config.TextWithGNMI(context.Background(), t, dut, "vty-pool default 0 99 line-template default")
 		config.TextWithSSH(context.Background(), t, dut, "bash ip netns exec 'vrf-mgmt' netstat -anp", 10*time.Second)
