@@ -45,6 +45,14 @@ type lldpTestParameters struct {
 	otgName    string
 }
 
+type otgLLDPNeighbors struct {
+	systemName    string
+	chassisId     string
+	chassisIdType otgtelemetry.E_LldpNeighbor_ChassisIdType
+	portId        string
+	portIdType    otgtelemetry.E_LldpNeighbor_PortIdType
+}
+
 type lldpNeighbors struct {
 	systemName    string
 	chassisId     string
@@ -92,10 +100,12 @@ func TestLLDPEnabled(t *testing.T) {
 
 	checkLLDPMetricsOTG(t, otg, otgConfig, lldpEnabled)
 
-	dutPeerState := lldpNeighbors{
+	dutPeerState := otgLLDPNeighbors{
 		systemName:    lldpSrc.systemName,
 		chassisId:     lldpSrc.macAddress,
 		chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
+		portId:        ate.Port(t, portName).Name(),
+		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
 	}
 	verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState)
 
@@ -255,7 +265,7 @@ func checkOTGLLDPNeighbor(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLldp
 }
 
 // verifyDUTTelemetry verifies the telemetry values from the node such as port LLDP neighbor info.
-func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.Port, conf *oc.Lldp, dutPeerState lldpNeighbors) {
+func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.Port, conf *oc.Lldp, dutPeerState otgLLDPNeighbors) {
 	verifyNodeConfig(t, dut, nodePort, conf, true)
 	interfacePath := gnmi.OC().Lldp().Interface(nodePort.Name())
 
@@ -284,6 +294,8 @@ func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.
 		ChassisId:     &dutPeerState.chassisId,
 		ChassisIdType: oc.E_Lldp_ChassisIdType(dutPeerState.chassisIdType),
 		SystemName:    &dutPeerState.systemName,
+		PortId:        &dutPeerState.portId,
+		PortIdType:    oc.E_Lldp_PortIdType(dutPeerState.portIdType),
 	}
 	confirm.State(t, wantNbrState, gotNbrState)
 }
