@@ -303,7 +303,7 @@ func testFlow(
 				if got := ets[0].GetCounters().GetInPkts(); got != rxPkts {
 					t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, rxPkts)
 				} else {
-					t.Logf("Received %d packets with %s as the last 3 bytes in the dst MAC", got, macFilter)
+					t.Logf("Received %d packets with %s as the last 12 bits in the dst MAC", got, macFilter)
 				}
 			}
 		}
