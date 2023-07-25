@@ -24,6 +24,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -205,6 +206,7 @@ func TestWeightedBalancing(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	// Run through the test cases.
 	for _, s := range scales {

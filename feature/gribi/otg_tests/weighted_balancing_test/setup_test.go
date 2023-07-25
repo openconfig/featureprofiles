@@ -195,6 +195,11 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 			fptest.AssignToNetworkInstance(t, dut, dp.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
+	if deviations.ExplicitPortSpeed(dut) {
+		for _, dp := range dut.Ports() {
+			fptest.SetPortSpeed(t, dp)
+		}
+	}
 }
 
 // setDUTInterfaceState sets the admin state on the dut interface
@@ -305,7 +310,6 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
-	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(ateSrcPort+".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().State())
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
