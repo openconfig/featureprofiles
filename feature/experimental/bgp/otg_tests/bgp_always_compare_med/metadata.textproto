@@ -1,18 +1,16 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "f28e7a1a-7ce4-4ccc-810e-1d6cc4eac21e"
-plan_id: "gNMI-1.2"
-description: "Benchmarking: Full Configuration Replace"
-testbed: TESTBED_DUT_ATE_2LINKS
+uuid:  "4e512503-5fec-4dcf-87f4-f510dede1cd0"
+plan_id:  "RT-1.12"
+description:  "BGP always compare MED"
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
-    isis_protocol_enabled_not_required: true
-    isis_instance_enabled_not_required: true
-    missing_isis_interface_afi_safi_enable: true
+    ipv4_missing_enabled: true
   }
 }
 platform_exceptions: {
@@ -20,12 +18,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    isis_global_authentication_not_required: true
-    isis_instance_enabled_not_required: true
-    isis_explicit_level_authentication_config: true
-    missing_isis_interface_afi_safi_enable: true
-    explicit_port_speed: true
-    explicit_interface_in_default_vrf: true
     route_policy_under_afi_unsupported: true
     interface_enabled: true
   }
@@ -43,10 +35,9 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    omit_l2_mtu: true
     route_policy_under_afi_unsupported: true
     interface_enabled: true
-    missing_isis_interface_afi_safi_enable: true
-    isis_interface_afi_unsupported: true
     default_network_instance: "default"
   }
 }
