@@ -153,6 +153,7 @@ testbeds:
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
 
+
 #OTG
 
   - id: 8808-36FH_FOX2506P5XE_OTG
