@@ -43,8 +43,6 @@ tests:
     mustpass: true
   - name: TE-2.1 (gRIBI IPv4 Entry)
     path: feature/gribi/ate_tests/ipv4_entry_test
-    args:
-      - '-deviation_gribi_mac_override_with_static_arp="true"'
     owners:
       - mananpat
     mustpass: true
@@ -76,8 +74,6 @@ tests:
     priority: 3
   - name: TE-3.7 (Base Hierarchical NHG Update)
     path: feature/gribi/ate_tests/base_hierarchical_nhg_update
-    args:
-      - '-deviation_gribi_mac_override_with_static_arp="true"'
     owners:
       - mananpat
     mustpass: true
@@ -99,8 +95,6 @@ tests:
   - name: TE-3.3 (Hierarchical weight resolution)
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
     pr: 1654
-    args:
-      - '-deviation_hierarchical_weight_resolution_tolerance="1.5"'
     owners:
       - mananpat
     skip: false
@@ -279,16 +273,12 @@ tests:
     path: feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test
     owners:
       - sprem
-    args:
-      - '-deviation_interface_ref_config_unsupported="true"'
     mustpass: true
     priority: 30
   - name: RT-3.1 (Policy based VRF selection)
     path: feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection
     owners:
       - sprem
-    args:
-      - '-deviation_interface_ref_config_unsupported="true"'
     mustpass: true
     priority: 30
   - name: RT-5.1 (Singleton Interface)
@@ -298,8 +288,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 31
-    args:
-      - '-deviation_ip_neighbor_missing="true"'
   - name: gNMI-1.14 (Telemetry Optics Thresholds)
     path: feature/experimental/platform/tests/optics_thresholds_test
     owners:
@@ -315,10 +303,6 @@ tests:
   - name: gNMI-1.10 (Telemetry Basic Check)
     path: feature/gnmi/ate_tests/telemetry_basic_check_test
     args:
-      - '-deviation_interface_counters_from_container="true"'
-      - '-deviation_ipv4_missing_enabled="true"'
-      - '-deviation_subinterface_packet_counters_missing="true"'
-      - '-deviation_missing_interface_physical_channel="true"'
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
     owners:
@@ -328,10 +312,6 @@ tests:
     priority: 34
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
-    args:
-      - '-deviation_interface_counters_from_container="true"'
-      - '-deviation_ipv4_missing_enabled="true"'
-      - '-deviation_subinterface_packet_counters_missing="true"'
     owners:
       - agvarghe
     priority: 35
@@ -361,8 +341,6 @@ tests:
     path: feature/gnoi/system/tests/traceroute_test
     owners:
       - agvarghe
-    args:
-      - '-deviation_traceroute_l4_protocol_udp="true"'
     mustpass: true
     priority: 41
     skip: false
@@ -399,9 +377,6 @@ tests:
     priority: 46
   - name: RT-1.1 (Base BGP Session Parameters)
     path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
-    args:
-      - '-deviation_connect_retry="true"'
-      - '-deviation_skip_bgp_test_password_mismatch="true"'
     owners:
       - arvbaska
     mustpass: true
@@ -411,10 +386,6 @@ tests:
     path: feature/experimental/isis/ate_tests/lsp_updates_test
     owners:
       - mananpat
-    args:
-      - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-      - '-deviation_isis_protocol_enabled_not_required="true"'
-      - '-deviation_isis_instance_enabled_not_required="true"'
     mustpass: true
     priority: 48
     skip: false
@@ -422,12 +393,6 @@ tests:
     path: feature/experimental/isis/ate_tests/base_adjacencies_test
     owners:
       - mananpat
-    args:
-      - '-deviation_isis_interface_level1_disable_required="true"'
-      - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-      - '-deviation_isis_single_topology_required="true"'
-      - '-deviation_isis_protocol_enabled_not_required="true"'
-      - '-deviation_isis_instance_enabled_not_required="true"'
     mustpass: true
     priority: 49
     skip: false
@@ -435,8 +400,6 @@ tests:
     path: feature/lldp/ate_tests/core_lldp_tlv_population_test
     owners:
       - agvarghe
-    args:
-      - '-deviation_lldp_interface_config_override_global="true"'
     mustpass: true
     priority: 51
     skip: true # requires 2 dut
@@ -468,15 +431,10 @@ tests:
     mustpass: true
     priority: 55
     skip: true # requires 2 dut
-    args:
-      - '-deviation_connect_retry="true"'
-      - '-deviation_missing_bgp_last_notification_error_code="true"'
   - name: RT-1.2 (BGP Policy and Route Installation)
     path: feature/bgp/policybase/ate_tests/route_installation_test
     owners:
       - sprem
-    args:
-      - "-deviation_prepolicy_received_routes=true"
     mustpass: true
     skip: false
     priority: 6
@@ -586,17 +544,11 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    args:
-      - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-      - '-deviation_isis_protocol_enabled_not_required="true"'
   - name: gNMI-1.3 (Benchmarking Drained Configuration Convergence Time)
     path: feature/experimental/system/gnmi/benchmarking/ate_tests/drained_configuration_convergence_time
     owners:
       - agvarghe
     mustpass: true
-    args:
-      - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-      - '-deviation_isis_protocol_enabled_not_required="true"'
   - name: DP-1.14 (QoS base config)
     path: feature/qos/ate_tests/qos_basic_test/
     owners:
