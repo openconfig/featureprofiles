@@ -467,7 +467,7 @@ func createFlow(name string, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology
 	flow := ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(ateTop.Interfaces()[atePort1.Name]).
 		WithDstEndpoints(endpoints...).
-		WithHeaders(ondatra.NewEthernetHeader(), ipv4Header, innerIpv4Header)
+		WithHeaders(ondatra.NewEthernetHeader(), ipv4Header, innerIpv4Header).WithFrameSize(300).WithFrameRateFPS(fps)
 	flow.EgressTracking().WithOffset(33).WithWidth(15)
 	return flow
 }
@@ -765,9 +765,9 @@ func deleteinterfaceconfig(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
 
-	gnmi.Delete(t, dut, d.Interface(p2.Name()).Config())
-	gnmi.Delete(t, dut, d.Interface(p3.Name()).Config())
-	gnmi.Delete(t, dut, d.Interface(p4.Name()).Config())
+	gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
+	gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
+	gnmi.Delete(t, dut, d.Interface(p4.Name()).Subinterface(0).Config())
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		ni := deviations.DefaultNetworkInstance(dut)
@@ -786,19 +786,19 @@ func configDUTDrain(t *testing.T, dut *ondatra.DUTDevice) {
 	btrunk2 = netutil.NextAggregateInterface(t, dut)
 
 	i2 := &oc.Interface{Name: ygot.String(btrunk2)}
-	gnmi.Replace(t, dut, d.Interface(*i2.Name).Config(), configInterfaceDUT(i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(*i2.Name).Config(), configInterfaceDUT(i2, &dutPort2, dut))
 	T2 := configureBundle(t, p2.Name(), *i2.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), T2)
 
 	btrunk3 = netutil.NextAggregateInterface(t, dut)
 	i3 := &oc.Interface{Name: ygot.String(btrunk3)}
-	gnmi.Replace(t, dut, d.Interface(*i3.Name).Config(), configInterfaceDUT(i3, &dutPort3))
+	gnmi.Replace(t, dut, d.Interface(*i3.Name).Config(), configInterfaceDUT(i3, &dutPort3, dut))
 	T3 := configureBundle(t, p3.Name(), *i3.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Config(), T3)
 
 	btrunk4 = netutil.NextAggregateInterface(t, dut)
 	i4 := &oc.Interface{Name: ygot.String(btrunk4)}
-	gnmi.Replace(t, dut, d.Interface(*i4.Name).Config(), configInterfaceDUT(i4, &dutPort4))
+	gnmi.Replace(t, dut, d.Interface(*i4.Name).Config(), configInterfaceDUT(i4, &dutPort4, dut))
 	T4 := configureBundle(t, p4.Name(), *i4.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p4.Name()).Config(), T4)
 
@@ -807,22 +807,22 @@ func configDUTDrain(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, *i3.Name, deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, *i4.Name, deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p2)
-		fptest.SetPortSpeed(t, p3)
-		fptest.SetPortSpeed(t, p4)
-	}
-
 	staticARPWithSecondaryIP(t, dut, true, &bundleName{trunk2: btrunk2, trunk3: btrunk3, trunk4: btrunk4})
 }
 
 // configInterfaceDUT configures bundle members.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	if deviations.InterfaceEnabled(dut) { 
+		i.Enabled = ygot.Bool(true) 
+	}
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut){
+		s4.Enabled = ygot.Bool(true)
+	}
 	return i
 }
 
