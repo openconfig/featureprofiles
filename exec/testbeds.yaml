@@ -106,6 +106,12 @@ testbeds:
     baseconf: 
       dut: topologies/cisco/pyvxr/8808-OC/basefp.conf
       peer: topologies/cisco/pyvxr/8808-OC/basefp-peer.conf
+  - id: 8808-BIT 
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-BIT/topo.yaml
+    baseconf:
+      dut: topologies/cisco/pyvxr/8808-BIT/basefp.conf
+      peer: topologies/cisco/pyvxr/8808-BIT/basefp-peer.conf
   - id: 8808-OC-FURY
     sim: true
     topology: topologies/cisco/pyvxr/8808-OC-FURY/topo.yaml
