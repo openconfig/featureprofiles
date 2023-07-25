@@ -25,6 +25,41 @@ func TestMain(m *testing.M) {
 	ondatra.RunTests(m, binding.New)
 }
 
+type testArgs struct {
+	dut        *ondatra.DUTDevice
+	ate        *ondatra.ATEDevice
+	top        *ondatra.ATETopology
+	interfaces *interfaces
+	usecase    int
+	prefix     *gribiPrefix
+}
+
+type interfaces struct {
+	in  []string
+	out []string
+}
+
+type gribiPrefix struct {
+	scale int
+
+	host string
+
+	vrfName         string
+	vipPrefixLength string
+
+	vip1Ip string
+	vip2Ip string
+
+	vip1NhIndex  uint64
+	vip1NhgIndex uint64
+
+	vip2NhIndex  uint64
+	vip2NhgIndex uint64
+
+	vrfNhIndex  uint64
+	vrfNhgIndex uint64
+}
+
 func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	//Configure red profiles
 	redprofilelist := []string{}
@@ -42,6 +77,7 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -219,6 +255,8 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -433,6 +471,8 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
+	configureDUT(t, dut)
+
 	for i, wredprofile := range wredprofilelist {
 		wredqueum := qos.GetOrCreateQueueManagementProfile(wredprofile)
 		wredqueumred := wredqueum.GetOrCreateWred()
@@ -640,6 +680,8 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 	}
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
+	configureDUT(t, dut)
+
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
@@ -842,9 +884,12 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 
 func TestQmRedWrrSetUpdateQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
+
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
@@ -965,6 +1010,8 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -1097,6 +1144,8 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 
 func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -1255,6 +1304,8 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 
 func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -1382,6 +1433,8 @@ func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 
 func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -1507,6 +1560,8 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 
 func TestQmRedDelSchedIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -1638,6 +1693,8 @@ func TestDelWredAttchdIntf(t *testing.T) {
 	//This tests will try to Delete the wred profile already attached to interface
 	//Expected to Fail and will have to capture the Error
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -1735,6 +1792,8 @@ func TestDelWredAttchdIntf(t *testing.T) {
 func TestRepWredAttchdIntf(t *testing.T) {
 	//This test will try to replace the wred profile attached and this will fail
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -1868,6 +1927,8 @@ func TestRepWredAttchdIntf(t *testing.T) {
 func TestRepSchedQueueAttchdIntf(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -1994,6 +2055,8 @@ func TestRepSchedQueueAttchdIntf(t *testing.T) {
 func TestDelSchedQueueAttchdIntf(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -2114,6 +2177,8 @@ func TestDelSchedQueueAttchdIntf(t *testing.T) {
 
 func TestRepSchedSeqAttchdIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -2244,6 +2309,8 @@ func TestRepSchedSeqAttchdIntf(t *testing.T) {
 
 func TestDelSchedSeqAttchdIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -2347,6 +2414,8 @@ func TestDelSchedSeqAttchdIntf(t *testing.T) {
 
 func TestDelSchedPolAttchdIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -2441,6 +2510,8 @@ func TestDelSchedPolAttchdIntf(t *testing.T) {
 func TestRepSchedPolAttchdIntf(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
