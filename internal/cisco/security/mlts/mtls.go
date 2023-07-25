@@ -1,50 +1,43 @@
-package main
+package mtls
 
 import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 
+	certUtil "github.com/openconfig/featureprofiles/internal/cisco/security/cert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-
-	//"net/http"
-	//"net/http/httptest"
-	//"strings"
-	//"time"
 )
 
-
-func main() {
+func NewGRPCMTLS(clientCert, clientKey string, username, pass string, server string) (*grpc.ClientConn, error) {
 	// read the CA keys from keys/ca and generate it if not found
 	var err error
-	caPrivateKey,caCert,err= loadRootCA(); if err!=nil {
-			panic("Could load the CA keys")
-	}
 	caCertPool := x509.NewCertPool()
-	caCertPool.AddCert(caCert)
-	
-	keyPair, err := tls.LoadX509KeyPair("keys/nodes/cafy_auto.cert.pem", "keys/nodes/cafy_auto.key.pem"); if err!=nil {
-		panic("Could load the client keys")
+	caCertPool.AddCert(certUtil.CACert)
+
+	keyPair, err := tls.LoadX509KeyPair(clientCert, clientKey)
+	if err != nil {
+		return nil, err
 	}
 	tls := &tls.Config{
 		Certificates: []tls.Certificate{keyPair},
 		RootCAs:      caCertPool,
-		ClientCAs: caCertPool,
+		ClientCAs:    caCertPool,
 	}
-	tlsConfig:=credentials.NewTLS(tls)
+	tlsConfig := credentials.NewTLS(tls)
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(tlsConfig))
-	
 
-	c := &creds{"cafyauto", "cisco123",false}
+	c := &creds{username, pass, false}
 	opts = append(opts, grpc.WithPerRPCCredentials(c))
 	opts = append(opts, grpc.WithBlock())
 
-	_,err=grpc.DialContext(context.Background(), "10.85.84.159:47402", opts...); if err!=nil {
-		panic("could not establish connection")
+	mtlsClient, err := grpc.DialContext(context.Background(), server, opts...)
+	if err != nil {
+		return nil, err
 	}
-
+	return mtlsClient, nil
 
 }
 
@@ -67,5 +60,3 @@ func (c *creds) RequireTransportSecurity() bool {
 }
 
 var _ = grpc.PerRPCCredentials(&creds{})
-
-
