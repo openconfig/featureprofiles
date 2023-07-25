@@ -813,14 +813,14 @@ func configDUTDrain(t *testing.T, dut *ondatra.DUTDevice) {
 // configInterfaceDUT configures bundle members.
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if deviations.InterfaceEnabled(dut) { 
-		i.Enabled = ygot.Bool(true) 
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
 	}
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
-	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut){
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	return i
