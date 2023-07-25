@@ -13,11 +13,3 @@ platform_exceptions: {
     sw_version_unsupported: true
   }
 }
-platform_exceptions: {
-  platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    sw_version_unsupported: true
-  }
-}
