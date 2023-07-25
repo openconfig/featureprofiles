@@ -80,7 +80,7 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	}
 
 	d := &oc.Root{}
-	//defer teardownQos(t, dut)
+	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for j, redprofile := range redprofilelist {
 		redqueum := qos.GetOrCreateQueueManagementProfile(redprofile)
