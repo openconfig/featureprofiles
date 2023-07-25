@@ -281,6 +281,10 @@ message Metadata {
     bool os_component_parent_is_supervisor_or_linecard = 87;
     // Parent of OS component is of type CHASSIS.
     bool os_component_parent_is_chassis = 88;
+    // Device does not support fabric power-admin-state leaf.
+    bool skip_fabric_card_power_admin = 89;
+    // Device returns component state inactive during power down.
+    bool component_power_down_returns_inactive_state = 90;
     
     // Reserved field numbers and identifiers.
     reserved 84;
