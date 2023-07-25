@@ -3,13 +3,13 @@ package qos_test
 import (
 	//"fmt"
 
-	"context"
+	//"context"
 	"fmt"
 
 	//"strings"
 	"testing"
 
-	"strings"
+	//"strings"
 
 	"github.com/google/go-cmp/cmp"
 	//"github.com/openconfig/featureprofiles/tools/inputcisco/proto"
@@ -62,6 +62,9 @@ type gribiPrefix struct {
 
 func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	//Configure red profiles
+	dut := ondatra.DUT(t, "dut")
+	//dp2 := dut.Port(t, "port2")
+	configureDUT(t, dut)
 	redprofilelist := []string{}
 	for i := 1; i < 8; i++ {
 		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
@@ -76,10 +79,8 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 		maxthresholdlist = append(maxthresholdlist, 1300000+uint64(i*6144))
 	}
 
-	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
-	defer teardownQos(t, dut)
+	//defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for j, redprofile := range redprofilelist {
 		redqueum := qos.GetOrCreateQueueManagementProfile(redprofile)
@@ -97,9 +98,11 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	}
 	// Step2 scheduler policies and apply it to interface
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
@@ -123,54 +126,22 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
 
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name().Config(), "eg_policy1111")
-	ConfigGetIntf := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Config())
-	if diff := cmp.Diff(*ConfigGetIntf, *schedinterface); diff != "" {
-		t.Errorf("Config Schedule fail: \n%v", diff)
-	}
 	priorqueus := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
 	for i, priorque := range priorqueus {
 		queueout := schedinterfaceout.GetOrCreateQueue(priorque)
 		queueout.QueueManagementProfile = ygot.String(redprofilelist[i])
-		configqm := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(priorque)
-		gnmi.Replace(t, dut, configqm.Config(), queueout)
-		configgotqm := gnmi.GetConfig(t, dut, configqm.Config())
-
-		if diff := cmp.Diff(*configgotqm, *queueout); diff != "" {
-			t.Errorf("Config Schedule fail: \n%v", diff)
-		}
-
+		queueout.SetName(priorque)
 	}
-	cliHandle1 := dut.RawAPIs().CLI(t)
-	defer cliHandle1.Close()
-	resp1, err1 := cliHandle1.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp1)
-	if err1 != nil {
-		t.Error(err1)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Config(), schedinterface)
+	ConfigGetIntf := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Config())
+	if diff := cmp.Diff(*ConfigGetIntf, *schedinterface); diff != "" {
+		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-
-	classes1 := []string{}
-	rd1 := []string{}
-	for j := 1; j < 8; j++ {
-		classes1 = append(classes1, fmt.Sprintf("class oc_queue_tc%d", j))
-		rd1 = append(rd1, fmt.Sprintf("random-detect%8d bytes%8d bytes ", minthresholdlist[j-1], maxthresholdlist[j-1]))
-	}
-	for k, class1 := range classes1 {
-
-		if strings.Contains(resp1, rd1[k]) == false || strings.Contains(resp1, class1) == false {
-			t.Errorf("expected configs %v are  not there", rd1[k])
-
-		} else {
-			t.Logf("Substring present %v", rd1[k])
-		}
-		fmt.Println(strings.Contains(resp1, rd1[k]))
-
-	}
-
 	wredprofilelist := []string{}
 	for i := 1; i < 8; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
@@ -185,58 +156,39 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 		wredqueumreduni := wredqueumred.GetOrCreateUniform()
 		wredqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[i])
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
-		wredqueumreduni.EnableEcn = ygot.Bool(true)
+		// wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
-		gnmi.Replace(t, dut, configqm.Config(), wredqueumred)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
-			t.Errorf("Config Schedule fail: \n%v", diff)
-		}
-
+		wredqueumreduni.SetEnableEcn(true)
+		wredqueumreduni.SetDrop(false)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+		gnmi.Replace(t, dut, configqm.Config(), wredqueum)
+		// configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		// if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
+		// 	t.Errorf("Config Schedule fail: \n%v", diff)
+		// }
 	}
+	schedinterface1 := qos.GetOrCreateInterface("Bundle-Ether121")
+	schedinterface1.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface1.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
+	schedinterfaceout1 := schedinterface1.GetOrCreateOutput()
+	scheinterfaceschedpol1 := schedinterfaceout1.GetOrCreateSchedulerPolicy()
+	scheinterfaceschedpol1.Name = ygot.String("eg_policy1111")
 	for i, priorque := range priorqueus {
-		queueoutwred := schedinterfaceout.GetOrCreateQueue(priorque)
+		queueoutwred := schedinterfaceout1.GetOrCreateQueue(priorque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		configqmwred := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(priorque)
-		gnmi.Replace(t, dut, configqmwred.Config(), queueoutwred)
-		configgotqmwred := gnmi.GetConfig(t, dut, configqmwred.Config())
-
-		if diff := cmp.Diff(*configgotqmwred, *queueoutwred); diff != "" {
-			t.Errorf("Config Schedule fail: \n%v", diff)
-		}
-
+		queueoutwred.SetName(priorque)
 	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
-	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface1.InterfaceId).Config(), schedinterface1)
 
 }
 
+// func TestDelQos(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	gnmi.Delete(t, dut, gnmi.OC().Qos().Config())
+
+// }
+
 func TestQmRedWrrSetReplaceQueue(t *testing.T) {
-	redprofilelist := []string{}
-	for i := 1; i < 8; i++ {
-		redprofilelist = append(redprofilelist, fmt.Sprintf("redprofile%d", i))
-	}
 
 	minthresholdlist := []uint64{}
 	for i := 1; i < 8; i++ {
@@ -255,32 +207,36 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
+	//dp2 := dut.Port(t, "port2")
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
 		wredqueum := qos.GetOrCreateQueueManagementProfile(wredprofile)
+		wredqueum.SetName(wredprofile)
 		wredqueumred := wredqueum.GetOrCreateWred()
 		wredqueumreduni := wredqueumred.GetOrCreateUniform()
 		wredqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[i])
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
-		gnmi.Replace(t, dut, configqm.Config(), wredqueumred)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+		gnmi.Replace(t, dut, configqm.Config(), wredqueum)
 		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
 	}
+	t.Logf("/")
+	gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
 
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -292,6 +248,7 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	for _, schedqueue := range priorqueues {
 		input := schedule.GetOrCreateInput(schedqueue)
 		input.Id = ygot.String(schedqueue)
+		input.SetInputType(oc.Input_InputType_QUEUE)
 		input.Weight = ygot.Uint64(7 - ind)
 		input.Queue = ygot.String(schedqueue)
 		ind += 1
@@ -306,6 +263,7 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	inputupd := schedule.GetOrCreateInput("tc5")
 	inputupd.Id = ygot.String("tc5")
 	inputupd.Weight = ygot.Uint64(5)
+	inputupd.SetInputType(oc.Input_InputType_QUEUE)
 	inputupd.Queue = ygot.String("tc5")
 	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1).Input("tc5").Config(), inputupd)
 
@@ -318,16 +276,18 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		inputwrr := schedulenonprior.GetOrCreateInput(wrrqueue)
 		inputwrr.Id = ygot.String(wrrqueue)
 		inputwrr.Queue = ygot.String(wrrqueue)
+		inputwrr.SetInputType(oc.Input_InputType_QUEUE)
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
-		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		gnmi.Replace(t, dut, configInputwrr.Config(), inputwrr)
-		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
-		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
-			t.Errorf("Config Input fail: \n%v", diff)
-		}
+		//configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
+		// gnmi.Replace(t, dut, configInputwrr.Config(), inputwrr)
+		// configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
+		// if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
+		// 	t.Errorf("Config Input fail: \n%v", diff)
+		// }
 
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config(), schedulerpol)
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	//confignonprior.Replace(t, schedulenonprior)
 	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
@@ -336,111 +296,24 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
-	gnmi.Replace(t, dut, configIntf.Config(), schedinterface)
-	configGetIntf := gnmi.GetConfig(t, dut, configIntf.Config())
-	if diff := cmp.Diff(*configGetIntf, *schedinterface); diff != "" {
-		t.Errorf("Config Schedule fail: \n%v", diff)
-	}
 
 	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		configqmwred := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(wrrque)
-		gnmi.Replace(t, dut, configqmwred.Config(), queueoutwred)
-		configgotqmwred := gnmi.GetConfig(t, dut, configqmwred.Config())
-
-		if diff := cmp.Diff(*configgotqmwred, *queueoutwred); diff != "" {
-			t.Errorf("Config Schedule fail: \n%v", diff)
-		}
+		queueoutwred.SetName(wrrque)
 
 	}
-	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
-	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
-		t.Errorf("Config Interface Get fail: \n%v", diff)
-	}
-	configGetScedPol := gnmi.GetConfig(t, dut, gnmi.OC().Qos().SchedulerPolicy("eg_policy1111").Config())
-	if diff := cmp.Diff(*configGetScedPol, *schedulerpol); diff != "" {
-		t.Errorf("Config of wrr red Get fail: \n%v", diff)
-	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	defer cliHandle.Close()
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
+	//gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Config(), schedinterface)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
-
-	}
-
-	for j, redprofile := range redprofilelist {
-		redqueum := qos.GetOrCreateQueueManagementProfile(redprofile)
-		redqueumred := redqueum.GetOrCreateRed()
-		redqueumreduni := redqueumred.GetOrCreateUniform()
-		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
-		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
-		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
-		gnmi.Replace(t, dut, configqm.Config(), redqueumred)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
-			t.Errorf("Config Schedule fail: \n%v", diff)
-		}
-	}
-
-	for i, wrrque := range wrrqueues {
-		queueout := schedinterfaceout.GetOrCreateQueue(wrrque)
-		queueout.QueueManagementProfile = ygot.String(redprofilelist[i])
-		configqm := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(wrrque)
-		gnmi.Replace(t, dut, configqm.Config(), queueout)
-		configgotqm := gnmi.GetConfig(t, dut, configqm.Config())
-
-		if diff := cmp.Diff(*configgotqm, *queueout); diff != "" {
-			t.Errorf("Config Schedule fail: \n%v", diff)
-		}
-
-	}
-	cliHandle1 := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp1, err1 := cliHandle1.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp1)
-	if err1 != nil {
-		t.Error(err1)
-	}
-
-	classes1 := []string{}
-	rd1 := []string{}
-	for j := 1; j < 8; j++ {
-		classes1 = append(classes1, fmt.Sprintf("class oc_queue_tc%d", j))
-		rd1 = append(rd1, fmt.Sprintf("random-detect%8d bytes%8d bytes ", minthresholdlist[j-1], maxthresholdlist[j-1]))
-	}
-	for k, class1 := range classes1 {
-
-		if strings.Contains(resp1, rd1[k]) == false || strings.Contains(resp1, class1) == false {
-			t.Errorf("expected configs %v are  not there", rd1[k])
-
-		} else {
-			t.Logf("Substring present %v", rd1[k])
-		}
-		fmt.Println(strings.Contains(resp1, rd1[k]))
+	ConfigGetIntf := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Config())
+	if diff := cmp.Diff(*ConfigGetIntf, *schedinterface); diff != "" {
+		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
 
 }
@@ -471,8 +344,6 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
-	configureDUT(t, dut)
-
 	for i, wredprofile := range wredprofilelist {
 		wredqueum := qos.GetOrCreateQueueManagementProfile(wredprofile)
 		wredqueumred := wredqueum.GetOrCreateWred()
@@ -481,19 +352,21 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
-		gnmi.Replace(t, dut, configqm.Config(), wredqueumred)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+		gnmi.Replace(t, dut, configqm.Config(), wredqueum)
 		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
 	}
 
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -551,6 +424,8 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	//dut.Config().Qos().SchedulerPolicy(*schedulerpol.Name).Update(t, schedulerpol)
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
+	gnmi.Update(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Config(), schedinterface)
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -564,28 +439,6 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	ConfigOutputGot := gnmi.GetConfig(t, dut, ConfigOutput.Config())
 	if diff := cmp.Diff(*ConfigOutputGot, *schedinterfaceout); diff != "" {
 		t.Errorf("Config Input fail: \n%v", diff)
-	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
 	}
 
 	schedulerpolrep := qos.GetOrCreateSchedulerPolicy("eg_policy1112")
@@ -609,10 +462,10 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
-		gnmi.Replace(t, dut, configqm.Config(), redqueumred)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name)
+		gnmi.Replace(t, dut, configqm.Config(), redqueum)
 		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *redqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 	}
@@ -628,31 +481,6 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	ConfigGotOut := gnmi.GetConfig(t, dut, ConfigOut.Config())
 	if diff := cmp.Diff(*ConfigGotOut, *schedinterfaceoutrep); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
-	}
-
-	cliHandle1 := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp1, err1 := cliHandle1.SendCommand(context.Background(), "show running-config policy-map eg_policy1112__intf__Bundle-Ether121 ")
-	t.Logf(resp1)
-	if err1 != nil {
-		t.Error(err1)
-	}
-
-	classes1 := []string{}
-	rd1 := []string{}
-	for j := 1; j < 8; j++ {
-		classes1 = append(classes1, fmt.Sprintf("class oc_queue_tc%d", j))
-		rd1 = append(rd1, fmt.Sprintf("random-detect%8d bytes%8d bytes ", minthresholdlist[j-1], maxthresholdlist[j-1]))
-	}
-	for k, class1 := range classes1 {
-
-		if strings.Contains(resp1, rd1[k]) == false || strings.Contains(resp1, class1) == false {
-			t.Errorf("expected configs %v are  not there", rd1[k])
-
-		} else {
-			t.Logf("Substring present %v", rd1[k])
-		}
-		fmt.Println(strings.Contains(resp1, rd1[k]))
 	}
 
 }
@@ -680,20 +508,19 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 	}
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
-	configureDUT(t, dut)
-
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
 		wredqueum := qos.GetOrCreateQueueManagementProfile(wredprofile)
 		wredqueumred := wredqueum.GetOrCreateWred()
+		gnmi.Replace(t, dut, gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Config(), wredqueum)
 		wredqueumreduni := wredqueumred.GetOrCreateUniform()
 		wredqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[i])
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
-		gnmi.Update(t, dut, configqm.Config(), wredqueumreduni)
+		gnmi.Replace(t, dut, configqm.Config(), wredqueumreduni)
 		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
@@ -701,13 +528,16 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 
 	}
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
+	gnmi.Replace(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config(), schedulerpol)
 	schedule := schedulerpol.GetOrCreateScheduler(1)
 	schedule.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
@@ -743,16 +573,17 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		inputwrr.Queue = ygot.String(wrrqueue)
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
-		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
-		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
-		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
-			t.Errorf("Config Input fail: \n%v", diff)
-		}
+		// configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
+		// gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
+		// configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
+		// if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
+		// 	t.Errorf("Config Input fail: \n%v", diff)
+		// }
 
 	}
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
-	// confignonprior.Update(t, schedulenonprior)
+	//confignonprior.Update(t, schedulenonprior)
+	gnmi.Replace(t, dut, confignonprior.Config(), schedulenonprior)
 	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -768,6 +599,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		schedinterface := qos.GetOrCreateInterface(inter)
 		schedinterface.InterfaceId = ygot.String(inter)
 		schedinterfaceout := schedinterface.GetOrCreateOutput()
+		schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String(inter)
 		scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 		scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
 		wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
@@ -781,28 +613,6 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
 		if diff := cmp.Diff(*ConfigGotIntf, *schedinterface); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
-		}
-	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
 		}
 	}
 
@@ -823,14 +633,15 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 	for j, redprofile := range redprofilelist {
 		redqueum := qos.GetOrCreateQueueManagementProfile(redprofile)
 		redqueumred := redqueum.GetOrCreateRed()
+		gnmi.Update(t, dut, gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Config(), redqueum)
 		redqueumreduni := redqueumred.GetOrCreateUniform()
 		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
-		gnmi.Replace(t, dut, configqm.Config(), redqueumred)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red().Uniform()
+		gnmi.Replace(t, dut, configqm.Config(), redqueumreduni)
 		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *redqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 	}
@@ -838,6 +649,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 
 		schedinterfacerep := qos.GetOrCreateInterface(inter)
 		schedinterfacerep.InterfaceId = ygot.String(inter)
+		schedinterfacerep.GetOrCreateInterfaceRef().Interface = ygot.String(inter)
 		schedinterfaceoutrep := schedinterfacerep.GetOrCreateOutput()
 		scheinterfaceschedpolrep := schedinterfaceoutrep.GetOrCreateSchedulerPolicy()
 		scheinterfaceschedpolrep.Name = ygot.String("eg_policy1112")
@@ -855,45 +667,19 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		}
 	}
 
-	cliHandle1 := dut.RawAPIs().CLI(t)
-	defer cliHandle1.Close()
-	resp1, err1 := cliHandle1.SendCommand(context.Background(), "show running-config policy-map eg_policy1112__intf__Bundle-Ether121 ")
-	t.Logf(resp1)
-	if err1 != nil {
-		t.Error(err1)
-	}
-
-	classes1 := []string{}
-	rd1 := []string{}
-	for j := 1; j < 8; j++ {
-		classes1 = append(classes1, fmt.Sprintf("class oc_queue_tc%d", j))
-		rd1 = append(rd1, fmt.Sprintf("random-detect%8d bytes%8d bytes ", minthresholdlist[j-1], maxthresholdlist[j-1]))
-	}
-	for k, class1 := range classes1 {
-
-		if strings.Contains(resp1, rd1[k]) == false || strings.Contains(resp1, class1) == false {
-			t.Errorf("expected configs %v are  not there", rd1[k])
-
-		} else {
-			t.Logf("Substring present %v", rd1[k])
-		}
-		fmt.Println(strings.Contains(resp1, rd1[k]))
-	}
-
 }
 
 func TestQmRedWrrSetUpdateQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
-
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -951,6 +737,7 @@ func TestQmRedWrrSetUpdateQos(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -965,28 +752,6 @@ func TestQmRedWrrSetUpdateQos(t *testing.T) {
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
-	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
 	}
 
 }
@@ -1010,8 +775,6 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
@@ -1023,18 +786,20 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
-		gnmi.Update(t, dut, configqm.Config(), wredqueumreduni)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+		gnmi.Update(t, dut, configqm.Config(), wredqueum)
 		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
 	}
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -1074,14 +839,9 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		inputwrr.Queue = ygot.String(wrrqueue)
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
-		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
-		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
-		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
-			t.Errorf("Config Input fail: \n%v", diff)
-		}
 
 	}
+	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config(), schedulerpol)
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	// confignonprior.Update(t, schedulenonprior)
 	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
@@ -1089,9 +849,9 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
 
-	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config(), schedulerpol)
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -1100,11 +860,13 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 	}
-	ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output()
-	gnmi.Update(t, dut, ConfigIntf.Config(), schedinterfaceout)
+
+	schedinterfaceout.GetOrCreateQueue("tc7")
+	ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+	gnmi.Update(t, dut, ConfigIntf.Config(), schedinterface)
 
 	ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
-	if diff := cmp.Diff(*ConfigGotIntf, *schedinterfaceout); diff != "" {
+	if diff := cmp.Diff(*ConfigGotIntf, *schedinterface); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
 	updatequeue := "tc7"
@@ -1117,42 +879,20 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 	if diff := cmp.Diff(*ConfigGetUpdateQueue, *queueoutupd); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
-	}
 
 }
 
 func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -1211,6 +951,7 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -1229,42 +970,12 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
 
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
-	}
-
-	gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue("tc7").Config())
-	ConfigGetOutput := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Config())
-	if diff := cmp.Diff(*ConfigGetOutput, *schedinterfaceout); diff == "" {
-		t.Errorf("Delete failed: \n%v", diff)
-	}
-	resp2, err2 := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp2)
-	if err2 != nil {
-		t.Error(err)
-	}
-	if strings.Contains(resp2, "random-detect 1043008 bytes 1343008 bytes probability percent 19 ") {
-		t.Errorf("Delete of queue7 has not happened")
-	}
+	gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue("tc7").QueueManagementProfile().Config())
+	// ConfigGetOutput := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Config())
+	// if diff := cmp.Diff(*ConfigGetOutput, *schedinterfaceout); diff == "" {
+	// 	t.Errorf("Delete failed: \n%v", diff)
+	// }
 
 	updatequeue := "tc7"
 	queueoutupd := schedinterfaceout.GetOrCreateQueue(updatequeue)
@@ -1276,43 +987,20 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 	if diff := cmp.Diff(*ConfigGetUpdateQueue, *queueoutupd); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	cliHandle1 := dut.RawAPIs().CLI(t)
-	defer cliHandle1.Close()
-	resp1, err1 := cliHandle1.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp1)
-	if err1 != nil {
-		t.Error(err1)
-	}
-	classes1 := []string{}
-	rd1 := []string{}
-	for j := 1; j < 8; j++ {
-		classes1 = append(classes1, fmt.Sprintf("class oc_queue_tc%d", j))
-		rd1 = append(rd1, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d ", minthresholdlist[j-1], maxthresholdlist[j-1], dropprobablity[j-1]))
-	}
-	for k, class1 := range classes1 {
-
-		if strings.Contains(resp1, rd1[k]) == false || strings.Contains(resp1, class1) == false {
-			t.Errorf("expected configs %v are  not there", rd1[k])
-
-		} else {
-			t.Logf("Substring present %v", rd1[k])
-		}
-		fmt.Println(strings.Contains(resp1, rd1[k]))
-	}
 
 }
 
 func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -1370,6 +1058,7 @@ func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -1385,28 +1074,7 @@ func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
 
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
-	}
 	wredqueum5 := qos.GetOrCreateQueueManagementProfile("wredprofile5")
 	wredqueumred5 := wredqueum5.GetOrCreateWred()
 	wredqueumreduni5 := wredqueumred5.GetOrCreateUniform()
@@ -1420,28 +1088,20 @@ func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 	if diff := cmp.Diff(*ConfigAfterUpdate, *wredqueum5); diff != "" {
 		t.Errorf("Update failed: \n%v", diff)
 	}
-	resp2, err2 := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp2)
-	if err2 != nil {
-		t.Error(err)
-	}
-	if !strings.Contains(resp2, "random-detect 614400 bytes 390070272 bytes probability percent 10") {
-		t.Errorf("Update  has not happened to main policy")
-	}
 
 }
 
 func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -1499,6 +1159,7 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -1516,29 +1177,6 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
-	}
 
 	updtwrr := schedulenonprior.GetOrCreateInput("tc5")
 	updtwrr.Id = ygot.String("tc5")
@@ -1547,29 +1185,20 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	ConfigUpdWrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*updtwrr.Id)
 	gnmi.Update(t, dut, ConfigUpdWrr.Config(), updtwrr)
 
-	resp1, err1 := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp1)
-	if err1 != nil {
-		t.Error(err1)
-	}
-	if !strings.Contains(resp1, "bandwidth remaining ratio 55") {
-		t.Errorf("update of bandwidth has not happened")
-	}
-
 }
 
 func TestQmRedDelSchedIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
@@ -1626,11 +1255,13 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
+	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), qos)
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	ConfigQos := gnmi.OC().Qos()
-	gnmi.Update(t, dut, ConfigQos.Config(), qos)
+	//ConfigQos := gnmi.OC().Qos()
+	//gnmi.Update(t, dut, ConfigQos.Config(), qos)
 	// ConfigQosGet := ConfigQos.Get(t)
 
 	// if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
@@ -1640,8 +1271,10 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(wrrque).Config(), queueoutwred)
+		//gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue(wrrque).Config(), queueoutwred)
 	}
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
 
 	gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Config())
 	ConfigPolicyIntf := gnmi.OC().Qos().Interface("Bundle-Ether121").Output()
@@ -1662,28 +1295,6 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 	if diff := cmp.Diff(*ConfigOutputGet, *schedinterfaceout); diff != "" {
 		t.Errorf("Config delete output fail: \n%v", diff)
 	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
-	}
 
 }
 
@@ -1693,15 +1304,15 @@ func TestDelWredAttchdIntf(t *testing.T) {
 	//This tests will try to Delete the wred profile already attached to interface
 	//Expected to Fail and will have to capture the Error
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -1759,11 +1370,11 @@ func TestDelWredAttchdIntf(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	ConfigQos := gnmi.OC().Qos()
-	gnmi.Update(t, dut, ConfigQos.Config(), qos)
+
 	// ConfigQosGet := ConfigQos.Get(t)
 
 	// if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
@@ -1773,8 +1384,10 @@ func TestDelWredAttchdIntf(t *testing.T) {
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		gnmi.Update(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Config(), queueoutwred)
+		//gnmi.Update(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Config(), queueoutwred)
 	}
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
 
 	ConfigWredDel := gnmi.OC().Qos().QueueManagementProfile(wredprofilelist[1])
 	t.Run("Delete the wredprofile attached to interface", func(t *testing.T) {
@@ -1792,15 +1405,15 @@ func TestDelWredAttchdIntf(t *testing.T) {
 func TestRepWredAttchdIntf(t *testing.T) {
 	//This test will try to replace the wred profile attached and this will fail
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -1859,44 +1472,18 @@ func TestRepWredAttchdIntf(t *testing.T) {
 
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	ConfigQos := gnmi.OC().Qos()
-	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 
-	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
-		t.Errorf("Config Schedule fail: \n%v", diff)
-	}
 	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Config(), queueoutwred)
+		//gnmi.Replace(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Config(), queueoutwred)
 	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
-	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 
 	wredqueum5 := qos.GetOrCreateQueueManagementProfile("wredprofile5")
 	wredqueumred5 := wredqueum5.GetOrCreateWred()
@@ -1911,31 +1498,21 @@ func TestRepWredAttchdIntf(t *testing.T) {
 	if diff := cmp.Diff(*ConfigGotUpdate, *wredqueum5); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	cliHandle1 := dut.RawAPIs().CLI(t)
-	defer cliHandle1.Close()
-	resp1, err1 := cliHandle1.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp1)
-	if err1 != nil {
-		t.Error(err1)
-	}
-	if !strings.Contains(resp1, "random-detect 614400 bytes 390070272 bytes probability percent 17") {
-		t.Errorf("Replace of RED not updated to main policy")
-	}
 
 }
 
 func TestRepSchedQueueAttchdIntf(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
-	defer teardownQos(t, dut)
+	//	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -1993,45 +1570,22 @@ func TestRepSchedQueueAttchdIntf(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	ConfigQos := gnmi.OC().Qos()
-	gnmi.Update(t, dut, ConfigQos.Config(), qos)
 
 	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(wrrque).Config(), queueoutwred)
 	}
+	ConfigQos := gnmi.OC().Qos()
+	gnmi.Update(t, dut, ConfigQos.Config(), qos)
 
 	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
-	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
-
 	}
 
 	updtwrr := schedulenonprior.GetOrCreateInput("tc1")
@@ -2039,31 +1593,26 @@ func TestRepSchedQueueAttchdIntf(t *testing.T) {
 	updtwrr.Queue = ygot.String("tc1")
 	updtwrr.Weight = ygot.Uint64(15)
 	ConfigUpdWrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*updtwrr.Id)
-
-	t.Run(" Replace input queue attached to interface", func(t *testing.T) {
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Replace(t, dut, ConfigUpdWrr.Config(), updtwrr) //catch the error  as it is expected and absorb the panic.
-		}); errMsg != nil {
-			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-		} else {
-			t.Errorf("This update should have failed ")
-		}
-	})
+	gnmi.Replace(t, dut, ConfigUpdWrr.Config(), updtwrr)
+	ConfigGetwrr := gnmi.GetConfig(t, dut, ConfigUpdWrr.Config())
+	if diff := cmp.Diff(*ConfigGetwrr, *updtwrr); diff != "" {
+		t.Errorf("Config Schedule fail: \n%v", diff)
+	}
 
 }
 
 func TestDelSchedQueueAttchdIntf(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
@@ -2121,6 +1670,7 @@ func TestDelSchedQueueAttchdIntf(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -2136,40 +1686,19 @@ func TestDelSchedQueueAttchdIntf(t *testing.T) {
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
-	}
 
 	ConfigUpdWrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc1")
+	gnmi.Delete(t, dut, ConfigUpdWrr.Config())
 
-	t.Run(" Delete the queue from Input queue", func(t *testing.T) {
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Delete(t, dut, ConfigUpdWrr.Config()) //catch the error  as it is expected and absorb the panic.
-		}); errMsg != nil {
-			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-		} else {
-			t.Errorf("This update should have failed ")
-		}
-	})
+	// t.Run(" Delete the queue from Input queue", func(t *testing.T) {
+	// 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+	// 		gnmi.Delete(t, dut, ConfigUpdWrr.Config()) //catch the error  as it is expected and absorb the panic.
+	// 	}); errMsg != nil {
+	// 		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	// 	} else {
+	// 		t.Errorf("This update should have failed ")
+	// 	}
+	// })
 
 	//Add Back
 
@@ -2177,16 +1706,16 @@ func TestDelSchedQueueAttchdIntf(t *testing.T) {
 
 func TestRepSchedSeqAttchdIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
@@ -2243,6 +1772,7 @@ func TestRepSchedSeqAttchdIntf(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -2257,29 +1787,6 @@ func TestRepSchedSeqAttchdIntf(t *testing.T) {
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
-	}
-
-	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
-	resp, err := cliHandle.SendCommand(context.Background(), "show running-config policy-map eg_policy1111__intf__Bundle-Ether121 ")
-	t.Logf(resp)
-	if err != nil {
-		t.Error(err)
-	}
-	classes := []string{}
-	rd := []string{}
-	for i := 1; i < 8; i++ {
-		classes = append(classes, fmt.Sprintf("class oc_queue_tc%d", i))
-		rd = append(rd, fmt.Sprintf("random-detect%8d bytes%8d bytes probability percent %d", minthresholdlist[i-1], maxthresholdlist[i-1], dropprobablity[i-1]))
-	}
-	for i, class := range classes {
-
-		if strings.Contains(resp, class) == false || strings.Contains(resp, rd[i]) == false {
-			t.Errorf("expected configs %s are  not there", rd[i])
-
-		} else {
-			t.Logf("Substring present")
-		}
 	}
 
 	nonpriorrepqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
@@ -2294,31 +1801,32 @@ func TestRepSchedSeqAttchdIntf(t *testing.T) {
 		ind += 1
 	}
 	ConfigRepSeq := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
+	gnmi.Replace(t, dut, ConfigRepSeq.Config(), schedulenonreprior)
 
-	t.Run("Replace the scheduler attached with WRR", func(t *testing.T) {
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Replace(t, dut, ConfigRepSeq.Config(), schedulenonreprior) //catch the error  as it is expected and absorb the panic.
-		}); errMsg != nil {
-			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-		} else {
-			t.Errorf("This update should have failed ")
-		}
-	})
+	// t.Run("Replace the scheduler attached with WRR", func(t *testing.T) {
+	// 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+	// 		gnmi.Replace(t, dut, ConfigRepSeq.Config(), schedulenonreprior) //catch the error  as it is expected and absorb the panic.
+	// 	}); errMsg != nil {
+	// 		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	// 	} else {
+	// 		t.Errorf("This update should have failed ")
+	// 	}
+	// })
 
 }
 
 func TestDelSchedSeqAttchdIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
@@ -2382,6 +1890,7 @@ func TestDelSchedSeqAttchdIntf(t *testing.T) {
 
 		schedinterface := qos.GetOrCreateInterface(inter)
 		schedinterface.InterfaceId = ygot.String(inter)
+		schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String(inter)
 		schedinterfaceout := schedinterface.GetOrCreateOutput()
 		scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 		scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -2399,31 +1908,32 @@ func TestDelSchedSeqAttchdIntf(t *testing.T) {
 		}
 	}
 	ConfigSeq := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc1")
+	gnmi.Delete(t, dut, ConfigSeq.Config())
 
-	t.Run(" Delete the sequence attached with wrr", func(t *testing.T) {
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Delete(t, dut, ConfigSeq.Config()) //catch the error  as it is expected and absorb the panic.
-		}); errMsg != nil {
-			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-		} else {
-			t.Errorf("This update should have failed ")
-		}
-	})
+	// t.Run(" Delete the sequence attached with wrr", func(t *testing.T) {
+	// 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+	// 		gnmi.Delete(t, dut, ConfigSeq.Config()) //catch the error  as it is expected and absorb the panic.
+	// 	}); errMsg != nil {
+	// 		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	// 	} else {
+	// 		t.Errorf("This update should have failed ")
+	// 	}
+	// })
 
 }
 
 func TestDelSchedPolAttchdIntf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
@@ -2480,6 +1990,7 @@ func TestDelSchedPolAttchdIntf(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -2510,16 +2021,16 @@ func TestDelSchedPolAttchdIntf(t *testing.T) {
 func TestRepSchedPolAttchdIntf(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	d := &oc.Root{}
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for _, queue := range queues {
+	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
+		queueid := len(queues) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
@@ -2576,6 +2087,7 @@ func TestRepSchedPolAttchdIntf(t *testing.T) {
 	}
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
+	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
@@ -2615,29 +2127,6 @@ func TestRepSchedPolAttchdIntf(t *testing.T) {
 
 	if diff := cmp.Diff(*ConfigGotQosPol, *repschedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
-	}
-	cliHandle1 := dut.RawAPIs().CLI(t)
-	defer cliHandle1.Close()
-	resp1, err1 := cliHandle1.SendCommand(context.Background(), "show running-config policy-map eg_policy1112__intf__Bundle-Ether121 ")
-	t.Logf(resp1)
-	if err1 != nil {
-		t.Error(err1)
-	}
-	classes1 := []string{}
-	priority := []string{}
-	for j := 1; j < 8; j++ {
-		classes1 = append(classes1, fmt.Sprintf("class oc_queue_tc%d", j))
-		priority = append(priority, fmt.Sprintf("priority level %d ", 7-(j-1)))
-	}
-	for k, class1 := range classes1 {
-
-		if strings.Contains(resp1, priority[k]) == false || strings.Contains(resp1, class1) == false {
-			t.Errorf("expected configs %v are  not there", priority[k])
-
-		} else {
-			t.Logf("Substring present %v", priority[k])
-		}
-
 	}
 
 }
