@@ -277,6 +277,10 @@ message Metadata {
     bool isis_interface_afi_unsupported = 85;
     // Devices don't support modify table entry operation in P4 Runtime.
     bool p4rt_modify_table_entry_unsupported = 86;
+    // Parent of OS component is of type SUPERVISOR or LINECARD.
+    bool os_component_parent_is_supervisor_or_linecard = 87;
+    // Parent of OS component is of type CHASSIS.
+    bool os_component_parent_is_chassis = 88;
     
     // Reserved field numbers and identifiers.
     reserved 84;
