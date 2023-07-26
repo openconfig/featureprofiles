@@ -46,7 +46,7 @@ var (
 
 	trafficPause = flag.Duration("traffic_pause", 0,
 		"Amount of time to pause before sending traffic.")
-	trafficDuration = flag.Duration("traffic_duration", 5*time.Second,
+	trafficDuration = flag.Duration("traffic_duration", 30*time.Second,
 		"Duration for sending traffic.")
 )
 
