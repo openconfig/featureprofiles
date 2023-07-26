@@ -308,7 +308,6 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    pr: 1816
     priority: 34
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
@@ -510,7 +509,6 @@ tests:
       - saarvind
     mustpass: true
     priority: 802
-    pr: 1806
   - name: DP-1.10 (QoS policy feature config)
     path: feature/qos/ate_tests/mixed_sp_wrr_traffic_test
     owners:
@@ -581,4 +579,3 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
-    pr: 1678 
