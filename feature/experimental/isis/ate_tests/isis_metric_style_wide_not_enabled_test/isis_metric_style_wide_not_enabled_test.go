@@ -109,7 +109,7 @@ func configureDUT(t *testing.T) {
 }
 
 // configureISIS configures isis on DUT.
-func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAreaAddress, dutSysID string) {
+func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	t.Helper()
 	d := &oc.Root{}
 	configPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
@@ -120,14 +120,14 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAre
 		prot.Enabled = ygot.Bool(true)
 	}
 	isis := prot.GetOrCreateIsis()
-	globalIsis := isis.GetOrCreateGlobal()
+	globalISIS := isis.GetOrCreateGlobal()
 
 	// Global configs.
-	globalIsis.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
-	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	globalIsis.AuthenticationCheck = ygot.Bool(true)
+	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
+	globalISIS.AuthenticationCheck = ygot.Bool(true)
 
 	// Level configs.
 	level := isis.GetOrCreateLevel(2)
@@ -157,7 +157,6 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAre
 	// Interface level configs.
 	isisIntfLevel := intf.GetOrCreateLevel(2)
 	isisIntfLevel.LevelNumber = ygot.Uint8(2)
-	isisIntfLevel.Enabled = ygot.Bool(true)
 	isisIntfLevel.Passive = ygot.Bool(false)
 	isisIntfLevel.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
 	isisIntfLevel.GetHelloAuthentication().AuthPassword = ygot.String(password)
@@ -218,8 +217,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return topo
 }
 
-// createFlow returns v4 and v6 flow from atePort2 to atePort1
-func createFlow(t *testing.T, ate *ondatra.ATEDevice, ateTopo *ondatra.ATETopology) []*ondatra.Flow {
+// createFlows returns v4 and v6 flow from atePort2 to atePort1
+func createFlows(t *testing.T, ate *ondatra.ATEDevice, ateTopo *ondatra.ATETopology) []*ondatra.Flow {
 	t.Helper()
 	srcIntf := ateTopo.Interfaces()[atePort2attr.Name]
 	dstIntf := ateTopo.Interfaces()[atePort1attr.Name]
@@ -258,11 +257,11 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	// Configure isis on DUT.
-	configureISIS(t, dut, intfName, dutAreaAddress, dutSysID)
+	configureISIS(t, dut, intfName)
 
 	// Configure interface,isis and traffic on ATE.
 	ateTopo := configureATE(t, ate)
-	flows := createFlow(t, ate, ateTopo)
+	flows := createFlows(t, ate, ateTopo)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		intfName = intfName + ".0"
@@ -270,17 +269,16 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
 	t.Run("Isis telemetry", func(t *testing.T) {
-		t.Run("Verifying adjacency", func(t *testing.T) {
-			adjacencyPath := statePath.Interface(intfName).Level(2).AdjacencyAny().AdjacencyState().State()
 
-			_, ok := gnmi.WatchAll(t, dut, adjacencyPath, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-				state, present := val.Val()
-				return present && state == oc.Isis_IsisInterfaceAdjState_UP
-			}).Await(t)
-			if !ok {
-				t.Fatalf("No isis adjacency reported on interface %v", intfName)
-			}
-		})
+		adjacencyPath := statePath.Interface(intfName).Level(2).AdjacencyAny().AdjacencyState().State()
+
+		_, ok := gnmi.WatchAll(t, dut, adjacencyPath, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+			state, present := val.Val()
+			return present && state == oc.Isis_IsisInterfaceAdjState_UP
+		}).Await(t)
+		if !ok {
+			t.Fatalf("No isis adjacency reported on interface %v", intfName)
+		}
 		// Getting neighbors sysid.
 		sysid := gnmi.GetAll(t, dut, statePath.Interface(intfName).Level(2).AdjacencyAny().SystemId().State())
 		ateSysID := sysid[0]
