@@ -370,9 +370,7 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 
 	portmap := make(map[string]*binding.Port)
 	for _, tport := range tports {
-		portmap[tport.Id] = &binding.Port{
-			Speed: tport.Speed,
-		}
+		portmap[tport.Id] = &binding.Port{}
 	}
 	for _, bport := range bports {
 		p, ok := portmap[bport.Id]
@@ -381,6 +379,15 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 			continue
 		}
 		p.Name = bport.Name
+		// If binding does not have port speed populate it from testbed.
+		if bport.Speed == opb.Port_SPEED_UNSPECIFIED {
+			tp, tok := tports[bport.Id]
+			if tok {
+				p.Speed = tp.Speed
+			}
+		} else {
+			p.Speed = bport.Speed
+		}
 	}
 	for id, p := range portmap {
 		if p.Name == "" {
