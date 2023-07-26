@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 
 func authzRotate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	dut.ServiceAddress("GNMI")
 	routateStream, _ := dut.RawAPIs().GNSI().New(t).Authz().Rotate(context.Background())
 	policy := "{ \n    \"name\": \"authz\", \n    \"allow_rules\": [ \n        { \n            \"name\": \"Admin rules\", \n            \"source\": { \"principals\": [\"cafyauto\"]}, \n            \"request\": { \"paths\": [ \"*\" ] } \n        }\n    ] \n}\n"
 	err := routateStream.Send(&authz.RotateAuthzRequest{RotateRequest: &authz.RotateAuthzRequest_UploadRequest{UploadRequest: &authz.UploadRequest{Policy: policy, Version: "1.0", CreatedOn: uint64(time.Now().UnixMicro())}}})
@@ -52,6 +53,8 @@ func authzRotate(t *testing.T) {
 }
 func TestAuthz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	address, _:= dut.ServiceAddress("GNMI")
+	t.Logf("gnmi address is: %s", address)
 	probReq := &authz.ProbeRequest{User: "cafyauto", Rpc: "/gnmi.gNMI/Set"}
 	resp, err := dut.RawAPIs().GNSI().New(t).Authz().Get(context.Background(), &authz.GetRequest{})
 	if err != nil {

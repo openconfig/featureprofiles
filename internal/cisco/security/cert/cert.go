@@ -36,7 +36,7 @@ func init() {
 	//GenCERT("cafyauto", 100, []net.IP{}, "cafyauto")
 	//genCERT("Moji_SFD", 100, []net.IP{net.IPv4(10,85,84,159)})
 	// in our lab env we add all ips for proxy routers here, this way we use the same certificate for all lab routers.
-	//genCERT("ems", 100, []net.IP{net.IPv4(10,85,84,159)}, "")
+	//GenCERT("ems", 100, []net.IP{net.IPv4(10,85,84,159)}, "")
 }
 
 func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string) (*rsa.PrivateKey, *x509.Certificate, error) {
@@ -88,7 +88,7 @@ func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string) (*rsa.Pri
 		Type:  "CERTIFICATE",
 		Bytes: certBytes,
 	})
-	if err := ioutil.WriteFile("keys/nodes/"+cn+".cert.pem", certPEM.Bytes(), 0444); err != nil {
+	if err := ioutil.WriteFile("../keys/nodes/"+cn+".cert.pem", certPEM.Bytes(), 0444); err != nil {
 		return nil, nil, err
 	}
 
@@ -97,7 +97,7 @@ func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string) (*rsa.Pri
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(privKey),
 	})
-	if err := ioutil.WriteFile("keys/nodes/"+cn+".key.pem", privKeyPEM.Bytes(), 0400); err != nil {
+	if err := ioutil.WriteFile("../keys/nodes/"+cn+".key.pem", privKeyPEM.Bytes(), 0400); err != nil {
 		return nil, nil, err
 	}
 	// To ensure pem is correct.
