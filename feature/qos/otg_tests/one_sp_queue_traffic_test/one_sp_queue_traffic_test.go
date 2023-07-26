@@ -143,6 +143,9 @@ func TestOneSPQueueTraffic(t *testing.T) {
 	var tolerance float32 = 2.0
 
 	queues := netutil.CommonTrafficQueues(t, dut)
+	if dut.Vendor() == ondatra.JUNIPER {
+		queues.AF4 = "5"
+	}
 
 	// Test case 1: Non-oversubscription NC1 and AF4 traffic.
 	//   - There should be no packet drop for all traffic classes.
@@ -783,6 +786,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
+	if dut.Vendor() == ondatra.JUNIPER {
+		queues.AF4 = "5"
+	}
 
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
