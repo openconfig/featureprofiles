@@ -454,11 +454,14 @@ func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, con
 	otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		if txPackets == 0 {
+			t.Fatalf("TxPkts = 0, want > 0")
+		}
 		lostPackets := txPackets - rxPackets
 		lossPct := lostPackets * 100 / txPackets
-		if float32(lossPct) > tolerance {
+		if lossPct > tolerance {
 			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want 0", flow.Name(), lossPct)
 		} else {
 			t.Logf("Traffic Test Passed! Got %v loss", lossPct)
@@ -472,11 +475,14 @@ func (tc *testCase) verifyPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf 
 	otgutils.LogFlowMetrics(t, otg, conf)
 	for _, flow := range conf.Flows().Items() {
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		if txPackets == 0 {
+			t.Fatalf("TxPkts = 0, want > 0")
+		}
 		lostPackets := txPackets - rxPackets
 		lossPct := lostPackets * 100 / txPackets
-		if float32(lossPct) >= (100-tolerance) && lossPct <= 100 {
+		if lossPct >= (100-tolerance) && lossPct <= 100 {
 			t.Logf("Traffic Test Passed! Loss seen as expected: got %v, want 100%% ", lossPct)
 		} else {
 			t.Errorf("Traffic %s is expected to fail: got %v, want 100%% failure", flow.Name(), lossPct)
