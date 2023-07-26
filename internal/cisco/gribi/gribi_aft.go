@@ -92,24 +92,26 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 	for _, nhg := range aftNHGs {
 		if nhg.GetProgrammedId() == nhgIndex {
 			if nhg.GetBackupNextHopGroup() != 0 {
-				pid := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).ProgrammedId().State())
-				if pid != bkhgIndex {
+				aftBKNG := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).State())
+				nhgPid := aftBKNG.GetProgrammedId()
+				if nhgPid != bkhgIndex {
 					t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
 				}
 			}
 			if len(nhg.NextHop) != 1 {
 				for nhIndex, nh := range nhg.NextHop {
 					// can be avoided by caching indices in client 'c'
-					nhPIndex := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHop(nhIndex).ProgrammedIndex().State())
+					aftNH := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHop(nhIndex).State())
+					nhPid := aftNH.GetProgrammedIndex()
 
-					if weight, ok := nhWeights[nhPIndex]; ok {
+					if weight, ok := nhWeights[nhPid]; ok {
 						if weight != nh.GetWeight() {
-							t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want nh:weight %d:%d", nhPIndex, nh.GetWeight(), nhPIndex, weight)
+							t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want nh:weight %d:%d", nhPid, nh.GetWeight(), nhPid, weight)
 						}
-						delete(nhWeights, nhPIndex)
+						delete(nhWeights, nhPid)
 					} else {
 						// extra entry in NHG
-						t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want none", nhPIndex, nh.GetWeight())
+						t.Fatalf("AFT Check failed for aft/next-hop-group/next-hop got nh:weight %d:%d, want none", nhPid, nh.GetWeight())
 					}
 				}
 				if len(opts) > 0 {
@@ -153,9 +155,10 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 	}
 
 	gotNhgIndex := aftIPv4e.GetNextHopGroup()
-	nhgPId := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().State())
-	if nhgPId != nhgIndex {
-		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hop-group/state/programmed-id got %d, want %d", nhgPId, nhgIndex)
+	aftNHG := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts().NextHopGroup(gotNhgIndex).State())
+	nhgPID := aftNHG.GetProgrammedId()
+	if nhgPID != nhgIndex {
+		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hop-group/state/programmed-id got %d, want %d", nhgPID, nhgIndex)
 	}
 }
 
