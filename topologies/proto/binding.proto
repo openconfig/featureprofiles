@@ -148,5 +148,5 @@ message Port {
   string name = 2;
 
   // Speed of the port.
-  Speed speed = 3;
+  ondatra.Port.Speed speed = 3;
 }
