@@ -379,13 +379,7 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 			continue
 		}
 		p.Name = bport.Name
-		// If binding does not have port speed populate it from testbed.
-		if bport.Speed == opb.Port_SPEED_UNSPECIFIED {
-			tp, tok := tports[bport.Id]
-			if tok {
-				p.Speed = tp.Speed
-			}
-		} else {
+		if bport.Speed != opb.Port_SPEED_UNSPECIFIED {
 			p.Speed = bport.Speed
 		}
 	}
