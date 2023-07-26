@@ -209,10 +209,11 @@ func TestMyStationMAC(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), myStationMAC)
 
 	t.Logf("Verify configured MyStationMAC through telemetry")
-	if got := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State()); strings.ToUpper(got) != myStationMAC {
-		t.Errorf("MyStationMAC got %v, want %v", got, myStationMAC)
+	if !deviations.MacAddressMissing(dut) {
+		if got := gnmi.Get(t, dut, gnmi.OC().System().MacAddress().RoutingMac().State()); strings.ToUpper(got) != myStationMAC {
+			t.Errorf("MyStationMAC got %v, want %v", got, myStationMAC)
+		}
 	}
-
 	t.Logf("Verify traffic flow")
 
 	t.Run("With MyStationMAC", func(t *testing.T) {
