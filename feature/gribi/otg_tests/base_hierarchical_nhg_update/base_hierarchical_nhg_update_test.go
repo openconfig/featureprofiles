@@ -100,7 +100,6 @@ const (
 	vip1            = "198.18.196.1"
 	outerSrcIP      = "203.0.113.0"
 	fps             = 1000000 // traffic frames per second
-	switchovertime  = 250.0
 	innerSrcIP      = "198.51.100.61"
 	vrfPrefixcount  = 10000
 	ipv4Prefixcount = 700
