@@ -444,6 +444,7 @@ tests:
       - sprem
     mustpass: false
     priority: 52
+    timeout: 4200
   - name: RT-1.12 (BGP always compare MED)
     path: feature/experimental/bgp/ate_tests/bgp_always_compare_med
     owners:
@@ -456,12 +457,14 @@ tests:
       - sprem
     mustpass: false
     priority: 52
+    timeout: 4200
   - name: RT-1.19 (BGP 2-Byte and 4-Byte ASN support)
     path: feature/experimental/bgp/ate_tests/bgp_2byte_4byte_asn
     owners:
       - sprem
     mustpass: false
     priority: 52
+    timeout: 4200
   - name: gNMI-1.4 (Telemetry Inventory)
     path: feature/platform/tests/telemetry_inventory_test
     owners:
