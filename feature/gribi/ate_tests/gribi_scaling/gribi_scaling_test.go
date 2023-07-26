@@ -15,13 +15,16 @@
 package te_14_1_gribi_scaling_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"testing"
 	"time"
 
+	fpargs "github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -44,30 +47,28 @@ func TestMain(m *testing.M) {
 //
 // The testbed consists of ate:port1 -> dut:port1
 // and dut:port2 -> ate:port2.
-// There are 64 SubInterfaces between dut:port2
+// There are DefaultVRFIPv4NHCount SubInterfaces between dut:port2
 // and ate:port2
 //
 //   - ate:port1 -> dut:port1 subnet 192.0.2.0/30
-//   - ate:port2 -> dut:port2 64 Sub interfaces:
-//   - ate:port2.0 -> dut:port2.0 VLAN-ID: 0 subnet 198.51.100.0/30
-//   - ate:port2.1 -> dut:port2.1 VLAN-ID: 1 subnet 198.51.100.4/30
-//   - ate:port2.2 -> dut:port2.2 VLAN-ID: 2 subnet 198.51.100.8/30
-//   - ate:port2.i -> dut:port2.i VLAN-ID i subnet 198.51.100.(4*i)/30
-//   - ate:port2.63 -> dut:port2.63 VLAN-ID 63 subnet 198.51.100.252/30
+//   - ate:port2 -> dut:port2 DefaultVRFIPv4NHCount Sub interfaces, e.g.:
+//   - ate:port2.0 -> dut:port2.0 VLAN-ID: 0 subnet 198.51.0.0/30
+//   - ate:port2.1 -> dut:port2.1 VLAN-ID: 1 subnet 198.51.0.4/30
+//   - ate:port2.2 -> dut:port2.2 VLAN-ID: 2 subnet 198.51.0.8/30
+//   - ate:port2.i -> dut:port2.i VLAN-ID i subnet 198.51.0.(4*i)/30
 const (
-	ipv4PrefixLen = 30 // ipv4PrefixLen is the ATE and DUT interface IP prefix length.
-	vrf1          = "vrf1"
-	vrf2          = "vrf2"
-	vrf3          = "vrf3"
-	IPBlock1      = "198.18.0.1/18"   // IPBlock1 represents the ipv4 entries in VRF1
-	IPBlock2      = "198.18.64.1/18"  // IPBlock2 represents the ipv4 entries in VRF2
-	IPBlock3      = "198.18.128.1/18" // IPBlock3 represents the ipv4 entries in VRF3
-	nhID1         = 65                // nhID1 is the starting nh index for entries in VRF1
-	nhID2         = 1065              // nhID2 is the starting nh index for entries in VRF2
-	nhID3         = 18565             // nhID3 is the starting nh index for entries in VRF3
-	tunnelSrcIP   = "198.18.204.1"    // tunnelSrcIP represents Source IP of IPinIP Tunnel
-	tunnelDstIP   = "198.18.208.1"    // tunnelDstIP represents Dest IP of IPinIP Tunnel
-	policyName    = "redirect-to-VRF1"
+	ipv4PrefixLen          = 30 // ipv4PrefixLen is the ATE and DUT interface IP prefix length
+	vrf1                   = "VRF-A"
+	vrf2                   = "VRF-B"
+	vrf3                   = "VRF-C"
+	IPBlockDefaultVRF      = "198.18.128.0/17"
+	IPBlockNonDefaultVRF   = "198.18.0.0/17"
+	tunnelSrcIP            = "198.19.204.1" // tunnelSrcIP represents Source IP of IPinIP Tunnel
+	policyName             = "redirect-to-VRF1"
+	StaticMAC              = "00:1A:11:00:00:01"
+	subifBaseIP            = "198.51.0.0"
+	nextHopStartIndex      = 101 // set > 2 to avoid overlap with backup NH ids 1&2
+	nextHopGroupStartIndex = 101 // set > 2 to avoid overlap with backup NHG ids 1&2
 )
 
 var (
@@ -82,63 +83,167 @@ var (
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
+
+	atePort2 = attrs.Attributes{
+		Name: "atePort2",
+	}
 )
 
-// entryIndex captures all the parameters required for specifying :
-//
-//			a. number of nextHops in a nextHopGroup
-//	   b. number of IPEntries per nextHopGroup
+// routesParam holds parameters required for provisioning
+// gRIBI IP entries, next-hop-groups and next-hops
 type routesParam struct {
-	nhgIndex   int    // nhgIndex is the starting nhg Index for each IPBlock
-	maxNhCount int    // maxNhCount is the max number of nexthops per nextHopGroup
-	maxIPCount int    // maxIPCount is the max numbver of IPs per nextHopGroup
-	vrf        string // vrf represents the name of the vrf string
-	nhID       int    // nhID is the starting nh Index for each nextHop range
+	ipEntries     []string
+	numUniqueNHs  int
+	nextHops      []string
+	nextHopVRF    string
+	startNHIndex  int
+	numUniqueNHGs int
+	numNHPerNHG   int
+	startNHGIndex int
+	nextHopWeight []int
+	backupNHG     int
+	nhDecapEncap  bool
 }
 
-// pushIPv4Entries pushes IP entries in a specified VRF in the target DUT.
-// It uses the parameters from entryIndex and virtualVIPs for programming entries.
-func pushIPv4Entries(t *testing.T, virtualVIPs []string, indices []*routesParam, args *testArgs) {
-
-	IPBlocks := make(map[string][]string)
-	IPBlocks[vrf1] = createIPv4Entries(IPBlock1)
-	IPBlocks[vrf2] = createIPv4Entries(IPBlock2)
-	IPBlocks[vrf3] = createIPv4Entries(IPBlock3)
-	nextHops := make(map[string][]string)
-	nextHops[vrf2] = buildL3NextHops(17500, virtualVIPs)
-	nextHops[vrf1] = virtualVIPs
-	nextHops[vrf3] = IPBlocks[vrf1][:500]
-
-	for _, index := range indices {
-		installEntries(t, IPBlocks[index.vrf], nextHops[index.vrf], *index, args)
-	}
+// Parameters needed to provision next-hop with interface reference + static MAC
+type nextHopIntfRef struct {
+	nextHopIPAddress string
+	subintfIndex     uint32
+	intfName         string
 }
 
-// buildIndexList returns all indices required for installing entries in each VRF.
-func buildIndexList() []*routesParam {
-	index1v4 := &routesParam{nhgIndex: 3, maxNhCount: 10, maxIPCount: 200, vrf: vrf1, nhID: nhID1}
-	index2v4 := &routesParam{nhgIndex: 103, maxNhCount: 35, maxIPCount: 60, vrf: vrf2, nhID: nhID2}
-	index3v4 := &routesParam{nhgIndex: 605, maxNhCount: 1, maxIPCount: 40, vrf: vrf3, nhID: nhID3}
+// Generate weights for next hops when assigning to a next-hop-group
+// Weights are allocated such that there is no common divisor
+func generateNextHopWeights(weightSum int, nextHopCount int) []int {
+	weights := []int{}
 
-	return []*routesParam{index1v4, index2v4, index3v4}
-}
-
-// buildL3NextHop buids N number of NHs each reference (squentially) an IP from the provided IP block.
-func buildL3NextHops(n int, ips []string) []string {
-	// repeatedNextHops will store the "n" times repeated ips []string
-	repeatedNextHops := []string{}
-	if n > len(ips) {
-		repeatCount := len(ips) / n
-		for min, max := 1, repeatCount; min < max; {
-			repeatedNextHops = append(repeatedNextHops, ips...)
-			min = min + 1
+	switch {
+	case nextHopCount == 1:
+		weights = append(weights, weightSum)
+	case weightSum <= nextHopCount:
+		for i := 0; i < nextHopCount; i++ {
+			weights = append(weights, 1)
 		}
-		repeatCount = len(ips) % n
-		if repeatCount > 0 {
-			repeatedNextHops = append(repeatedNextHops, ips[:repeatCount]...)
+	case nextHopCount == 2:
+		weights = append(weights, 1, weightSum-1)
+	default:
+		weights = append(weights, 1, 2)
+		rem := (weightSum - 1 - 2) % (nextHopCount - 2)
+		weights = append(weights, rem+(weightSum-1-2)/(nextHopCount-2))
+		for i := 1; i < (nextHopCount - 2); i++ {
+			weights = append(weights, (weightSum-1-2)/(nextHopCount-2))
 		}
 	}
-	return repeatedNextHops
+	return weights
+}
+
+// incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
+func incrementMAC(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
+}
+
+// incrementIP increments the IPv4 address by i
+func incrementIP(ip string, i int) string {
+	ipAddr := net.ParseIP(ip)
+	convIP := binary.BigEndian.Uint32(ipAddr.To4())
+	convIP = convIP + uint32(i)
+	newIP := make(net.IP, 4)
+	binary.BigEndian.PutUint32(newIP, convIP)
+	return newIP.String()
+}
+
+// pushIPv4Entries pushes gRIBI IPv4 entries in a specified VRF, with corresponding NHs and NHGs in the default NI
+func pushIPv4Entries(t *testing.T, virtualVIPs []string, decapEncapVirtualIPs []string, args *testArgs) {
+
+	// install backup NHGs/NHs
+	// NHG {ID #1} --> NH {ID #1, network-instance: VRF-C}
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithIndex(uint64(1)).
+			WithNextHopNetworkInstance(vrf3).
+			WithElectionID(args.electionID.Low, args.electionID.High))
+
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopGroupEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithID(uint64(1)).
+			AddNextHop(uint64(1), uint64(1)).
+			WithElectionID(args.electionID.Low, args.electionID.High))
+
+	// NHG {ID #2} --> NH {ID #2, decap, network-instance: DEFAULT}
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithIndex(uint64(2)).
+			WithDecapsulateHeader(fluent.IPinIP).
+			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithElectionID(args.electionID.Low, args.electionID.High))
+
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopGroupEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithID(uint64(2)).
+			AddNextHop(uint64(2), uint64(1)).
+			WithElectionID(args.electionID.Low, args.electionID.High))
+
+	// provision non-default VRF gRIBI entries, and associated NHGs, NHs in default instance
+	vrfEntryParams := make(map[string]*routesParam)
+	vrfEntryParams[vrf1] = &routesParam{
+		ipEntries:     createIPv4Entries(IPBlockNonDefaultVRF)[0:*fpargs.NonDefaultVRFIPv4Count],
+		numUniqueNHs:  *fpargs.NonDefaultVRFIPv4NHGCount * *fpargs.NonDefaultVRFIPv4NHSize,
+		nextHops:      virtualVIPs,
+		nextHopVRF:    deviations.DefaultNetworkInstance(args.dut),
+		startNHIndex:  nextHopStartIndex + *fpargs.DefaultVRFIPv4NHCount,
+		numUniqueNHGs: *fpargs.NonDefaultVRFIPv4NHGCount,
+		numNHPerNHG:   *fpargs.NonDefaultVRFIPv4NHSize,
+		nextHopWeight: generateNextHopWeights(*fpargs.NonDefaultVRFIPv4NHGWeightSum, *fpargs.NonDefaultVRFIPv4NHSize),
+		startNHGIndex: nextHopGroupStartIndex + *fpargs.DefaultVRFIPv4Count,
+		backupNHG:     1,
+		nhDecapEncap:  false,
+	}
+	vrfEntryParams[vrf2] = &routesParam{
+		ipEntries:     createIPv4Entries(IPBlockNonDefaultVRF)[0:*fpargs.NonDefaultVRFIPv4Count],
+		numUniqueNHs:  len(decapEncapVirtualIPs),
+		nextHops:      decapEncapVirtualIPs,
+		nextHopVRF:    deviations.DefaultNetworkInstance(args.dut),
+		startNHIndex:  vrfEntryParams[vrf1].startNHIndex + vrfEntryParams[vrf1].numUniqueNHs,
+		numUniqueNHGs: *fpargs.NonDefaultVRFIPv4NHGCount,
+		numNHPerNHG:   *fpargs.NonDefaultVRFIPv4NHSize,
+		nextHopWeight: generateNextHopWeights(*fpargs.NonDefaultVRFIPv4NHGWeightSum, *fpargs.NonDefaultVRFIPv4NHSize),
+		startNHGIndex: vrfEntryParams[vrf1].startNHGIndex + vrfEntryParams[vrf1].numUniqueNHGs,
+		backupNHG:     2,
+		nhDecapEncap:  false,
+	}
+	vrfEntryParams[vrf3] = &routesParam{
+		ipEntries:     createIPv4Entries(IPBlockNonDefaultVRF)[0:*fpargs.NonDefaultVRFIPv4Count],
+		numUniqueNHs:  *fpargs.DecapEncapCount,
+		nextHops:      createIPv4Entries(IPBlockNonDefaultVRF)[0:*fpargs.DecapEncapCount],
+		nextHopVRF:    vrf2,
+		startNHIndex:  vrfEntryParams[vrf2].startNHIndex + vrfEntryParams[vrf2].numUniqueNHs,
+		numUniqueNHGs: *fpargs.DecapEncapCount,
+		numNHPerNHG:   1,
+		nextHopWeight: []int{1},
+		startNHGIndex: vrfEntryParams[vrf2].startNHGIndex + vrfEntryParams[vrf2].numUniqueNHGs,
+		backupNHG:     2,
+		nhDecapEncap:  true,
+	}
+
+	for _, vrf := range []string{vrf1, vrf2, vrf3} {
+		installEntries(t, vrf, vrfEntryParams[vrf], args)
+	}
 }
 
 // createIPv4Entries creates IPv4 Entries given the totalCount and starting prefix
@@ -158,138 +263,209 @@ func createIPv4Entries(startIP string) []string {
 }
 
 // installEntries installs IPv4 Entries in the VRF with the given nextHops and nextHopGroups using gRIBI.
-func installEntries(t *testing.T, ips []string, nexthops []string, index routesParam, args *testArgs) {
-	nextCount := 0
-	localIndex := index.nhgIndex
-	for i, ateAddr := range nexthops {
-		ind := uint64(index.nhID + i)
-		if index.vrf == "vrf3" {
-			nh := fluent.NextHopEntry().
-				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-				WithIndex(ind).
-				WithIPinIP(tunnelSrcIP, ateAddr).
-				WithDecapsulateHeader(fluent.IPinIP).
-				WithEncapsulateHeader(fluent.IPinIP).
-				WithNextHopNetworkInstance(vrf1).
-				WithElectionID(args.electionID.Low, args.electionID.High)
-			args.client.Modify().AddEntry(t, nh)
-		} else {
-			nh := fluent.NextHopEntry().
-				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-				WithIndex(ind).
-				WithIPAddress(ateAddr).
-				WithElectionID(args.electionID.Low, args.electionID.High)
-			args.client.Modify().AddEntry(t, nh)
-		}
+func installEntries(t *testing.T, vrf string, routeParams *routesParam, args *testArgs) {
 
-		nhg := fluent.NextHopGroupEntry().
-			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithID(uint64(localIndex)).
-			AddNextHop(ind, uint64(index.maxNhCount)).
-			WithElectionID(args.electionID.Low, args.electionID.High)
-		args.client.Modify().AddEntry(t, nhg)
-		nextCount = nextCount + 1
-		if nextCount == index.maxNhCount {
-			localIndex = localIndex + 1
-			nextCount = 0
+	// Provision next-hops
+	nextHopIndices := []uint64{}
+	for i := 0; i < routeParams.numUniqueNHs; i++ {
+		index := uint64(routeParams.startNHIndex + i)
+		if routeParams.nhDecapEncap {
+			args.client.Modify().AddEntry(t,
+				fluent.NextHopEntry().
+					WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+					WithIndex(index).
+					WithIPinIP(tunnelSrcIP, routeParams.nextHops[i%len(routeParams.nextHops)]).
+					WithDecapsulateHeader(fluent.IPinIP).
+					WithEncapsulateHeader(fluent.IPinIP).
+					WithNextHopNetworkInstance(routeParams.nextHopVRF).
+					WithElectionID(args.electionID.Low, args.electionID.High))
+		} else {
+			args.client.Modify().AddEntry(t,
+				fluent.NextHopEntry().
+					WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+					WithIndex(index).
+					WithIPAddress(routeParams.nextHops[i%len(routeParams.nextHops)]).
+					WithElectionID(args.electionID.Low, args.electionID.High))
 		}
+		nextHopIndices = append(nextHopIndices, index)
 	}
-	nhgCount := localIndex - index.nhgIndex
-	if nextCount == 0 { // last nhg without no nh needs to be ignored
-		nhgCount--
+	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via client, got err: %v", err)
 	}
-	// maxIPCount should be set based on the number of added nhg,
-	// otherwise ipv4entry may be added with invalid nhg id (Note. forward refrencing is not allowed)
-	index.maxIPCount = (len(ips) / nhgCount) + 1
-	nextCount = 0
-	localIndex = index.nhgIndex
-	for ip := range ips {
+
+	// Provision next-hop-groups
+	nextHopGroupIndices := []uint64{}
+	for i := 0; i < routeParams.numUniqueNHGs; i++ {
+		index := uint64(routeParams.startNHGIndex + i)
+		nhgEntry := fluent.NextHopGroupEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithID(index).
+			WithBackupNHG(uint64(routeParams.backupNHG)).
+			WithElectionID(args.electionID.Low, args.electionID.High)
+		for j := 0; j < routeParams.numNHPerNHG; j++ {
+			nhgEntry.AddNextHop(nextHopIndices[(i*routeParams.numNHPerNHG+j)%len(nextHopIndices)], uint64(routeParams.nextHopWeight[j]))
+		}
+		args.client.Modify().AddEntry(t, nhgEntry)
+		nextHopGroupIndices = append(nextHopGroupIndices, index)
+	}
+	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via client, got err: %v", err)
+	}
+
+	// Provision ip entires in VRF
+	for i := range routeParams.ipEntries {
 		args.client.Modify().AddEntry(t,
 			fluent.IPv4Entry().
-				WithPrefix(ips[ip]+"/32").
-				WithNetworkInstance(index.vrf).
-				WithNextHopGroup(uint64(localIndex)).
+				WithPrefix(routeParams.ipEntries[i]+"/32").
+				WithNetworkInstance(vrf).
+				WithNextHopGroup(nextHopGroupIndices[i%len(nextHopGroupIndices)]).
 				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(args.dut)))
-		nextCount = nextCount + 1
-		if nextCount == index.maxIPCount {
-			localIndex = localIndex + 1
-			nextCount = 0
-		}
+	}
+	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via client, got err: %v", err)
 	}
 
-	time.Sleep(1 * time.Minute)
-	if err := awaitTimeout(args.ctx, args.client, t, 2*time.Minute); err != nil {
-		t.Fatalf("Could not program entries via clientA, got err: %v", err)
-	}
-	gr, err := args.client.Get().
-		WithNetworkInstance(index.vrf).
-		WithAFT(fluent.IPv4).
-		Send()
-	if err != nil {
-		t.Fatalf("got unexpected error from get, got: %v", err)
-	}
-	nextCount = 0
-	for ip := range ips {
-		chk.GetResponseHasEntries(t, gr,
-			fluent.IPv4Entry().
-				WithNetworkInstance(index.vrf).
-				WithNextHopGroup(uint64(index.nhgIndex)).
-				WithPrefix(ips[ip]+"/32"),
-		)
-		nextCount = nextCount + 1
-		if nextCount == index.maxIPCount {
-			index.nhgIndex = index.nhgIndex + 1
-			nextCount = 0
-		}
-	}
+	t.Logf("Installed entries VRF %s - IPv4 entry count: %d, next-hop-group count: %d (index %d - %d), next-hop count: %d (index %d - %d)", vrf, len(routeParams.ipEntries), len(nextHopGroupIndices), nextHopGroupIndices[0], nextHopGroupIndices[len(nextHopGroupIndices)-1], len(nextHopIndices), nextHopIndices[0], nextHopIndices[len(nextHopIndices)-1])
 }
 
-// pushDefaultEntries creates NextHopGroup entries using the 64 SubIntf address and creates 1000 IPV4 Entries.
-func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []string) []string {
-	for i := range nextHops {
-		index := uint64(i + 1)
+// pushDefaultEntries installs gRIBI next-hops, next-hop-groups and IP entries for base route resolution
+func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []*nextHopIntfRef) ([]string, []string) {
+
+	primaryNextHopIfs := nextHops[0:*fpargs.DefaultVRFPrimarySubifCount]
+	decapEncapNextHopIfs := nextHops[*fpargs.DefaultVRFPrimarySubifCount:]
+
+	primaryNextHopIndices := []uint64{}
+	for i := 0; i < (*fpargs.DefaultVRFIPv4NHCount - len(decapEncapNextHopIfs)); i++ {
+		index := uint64(nextHopStartIndex + i)
+		mac, _ := incrementMAC(StaticMAC, i)
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopEntry().
 				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithIndex(index).
-				WithIPAddress(nextHops[i]).
+				WithSubinterfaceRef(primaryNextHopIfs[i%len(primaryNextHopIfs)].intfName, uint64(primaryNextHopIfs[i%len(primaryNextHopIfs)].subintfIndex)).
+				WithMacAddress(mac).
 				WithElectionID(args.electionID.Low, args.electionID.High))
-
-		args.client.Modify().AddEntry(t,
-			fluent.NextHopGroupEntry().
-				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-				WithID(uint64(2)).
-				AddNextHop(index, 64).
-				WithElectionID(args.electionID.Low, args.electionID.High))
+		primaryNextHopIndices = append(primaryNextHopIndices, index)
 	}
-	time.Sleep(time.Minute)
-	virtualVIPs := createIPv4Entries("198.18.196.1/22")
+	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via client, got err: %v", err)
+	}
+	t.Logf("Installed %s VRF \"primary\" next-hop count: %d (index %d - %d)", deviations.DefaultNetworkInstance(args.dut), len(primaryNextHopIndices), primaryNextHopIndices[0], primaryNextHopIndices[len(primaryNextHopIndices)-1])
 
-	for ip := range virtualVIPs {
+	decapEncapNextHopIndices := []uint64{}
+	for i := 0; i < len(decapEncapNextHopIfs); i++ {
+		index := primaryNextHopIndices[len(primaryNextHopIndices)-1] + uint64(1+i)
+		mac, _ := incrementMAC(StaticMAC, len(primaryNextHopIndices)+i)
+		args.client.Modify().AddEntry(t,
+			fluent.NextHopEntry().
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+				WithIndex(index).
+				WithSubinterfaceRef(decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].intfName, uint64(decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].subintfIndex)).
+				WithMacAddress(mac).
+				WithElectionID(args.electionID.Low, args.electionID.High))
+		decapEncapNextHopIndices = append(decapEncapNextHopIndices, index)
+	}
+	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via client, got err: %v", err)
+	}
+	t.Logf("Installed %s VRF \"decap/encap\" next-hop count: %d (index %d - %d)", deviations.DefaultNetworkInstance(args.dut), len(decapEncapNextHopIndices), decapEncapNextHopIndices[0], decapEncapNextHopIndices[len(decapEncapNextHopIndices)-1])
+
+	primaryNextHopGroupIndices := []uint64{}
+	for i := 0; i < (*fpargs.DefaultVRFIPv4Count - len(decapEncapNextHopIfs)); i++ {
+		index := uint64(nextHopGroupStartIndex + i)
+		nhgEntry := fluent.NextHopGroupEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithID(index).
+			WithElectionID(args.electionID.Low, args.electionID.High)
+		for j := 0; j < *fpargs.DefaultVRFIPv4NHSize; j++ {
+			nhgEntry.AddNextHop(primaryNextHopIndices[(i**fpargs.DefaultVRFIPv4NHSize+j)%len(primaryNextHopIndices)], uint64(generateNextHopWeights(*fpargs.DefaultVRFIPv4NHGWeightSum, *fpargs.DefaultVRFIPv4NHSize)[j]))
+		}
+		args.client.Modify().AddEntry(t, nhgEntry)
+		primaryNextHopGroupIndices = append(primaryNextHopGroupIndices, index)
+	}
+	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via client, got err: %v", err)
+	}
+	t.Logf("Installed %s VRF \"primary\" next-hop-group count: %d (index %d - %d)", deviations.DefaultNetworkInstance(args.dut), len(primaryNextHopGroupIndices), primaryNextHopGroupIndices[0], primaryNextHopGroupIndices[len(primaryNextHopGroupIndices)-1])
+
+	decapEncapNextHopGroupIndices := []uint64{}
+	for i := 0; i < len(decapEncapNextHopIfs); i++ {
+		index := uint64(nextHopGroupStartIndex + len(primaryNextHopGroupIndices) + i)
+		nhgEntry := fluent.NextHopGroupEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithID(index).
+			WithElectionID(args.electionID.Low, args.electionID.High)
+		for j := 0; j < *fpargs.DefaultVRFIPv4NHSize; j++ {
+			nhgEntry.AddNextHop(decapEncapNextHopIndices[(i**fpargs.DefaultVRFIPv4NHSize+j)%len(decapEncapNextHopIndices)], uint64(generateNextHopWeights(*fpargs.DefaultVRFIPv4NHGWeightSum, *fpargs.DefaultVRFIPv4NHSize)[j]))
+		}
+		args.client.Modify().AddEntry(t, nhgEntry)
+		decapEncapNextHopGroupIndices = append(decapEncapNextHopGroupIndices, index)
+	}
+	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via client, got err: %v", err)
+	}
+	t.Logf("Installed %s VRF \"decap/encap\" next-hop-group count: %d (index %d - %d)", deviations.DefaultNetworkInstance(args.dut), len(decapEncapNextHopGroupIndices), decapEncapNextHopGroupIndices[0], decapEncapNextHopGroupIndices[len(decapEncapNextHopGroupIndices)-1])
+
+	time.Sleep(time.Minute)
+	virtualVIPs := createIPv4Entries(IPBlockDefaultVRF)
+	primaryVirtualVIPs := virtualVIPs[0:(*fpargs.DefaultVRFIPv4Count - len(decapEncapNextHopIfs))]
+	decapEncapVirtualIPs := virtualVIPs[(*fpargs.DefaultVRFIPv4Count - len(decapEncapNextHopIfs)):*fpargs.DefaultVRFIPv4Count]
+
+	// install IPv4 entries for primary forwarding cases (referenced from vrf1)
+	for i := range primaryVirtualVIPs {
 		args.client.Modify().AddEntry(t,
 			fluent.IPv4Entry().
-				WithPrefix(virtualVIPs[ip]+"/32").
+				WithPrefix(primaryVirtualVIPs[i]+"/32").
 				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-				WithNextHopGroup(uint64(2)).
+				WithNextHopGroup(primaryNextHopGroupIndices[i%len(primaryNextHopGroupIndices)]).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
-		t.Fatalf("Could not program entries via clientA, got err: %v", err)
+		t.Fatalf("Could not program entries via client, got err: %v", err)
 	}
 
-	for ip := range virtualVIPs {
+	for i := range primaryVirtualVIPs {
 		chk.HasResult(t, args.client.Results(t),
 			fluent.OperationResult().
-				WithIPv4Operation(virtualVIPs[ip]+"/32").
+				WithIPv4Operation(primaryVirtualVIPs[i]+"/32").
 				WithOperationType(constants.Add).
 				WithProgrammingResult(fluent.InstalledInFIB).
 				AsResult(),
 			chk.IgnoreOperationID(),
 		)
 	}
-	return virtualVIPs
+	t.Logf("Installed %s VRF \"primary\" IPv4 entries, %s/32 to %s/32", deviations.DefaultNetworkInstance(args.dut), primaryVirtualVIPs[0], primaryVirtualVIPs[len(primaryVirtualVIPs)-1])
+
+	// install IPv4 entries for decap/encap cases (referenced from vrf2)
+	for i := range decapEncapVirtualIPs {
+		args.client.Modify().AddEntry(t,
+			fluent.IPv4Entry().
+				WithPrefix(decapEncapVirtualIPs[i]+"/32").
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+				WithNextHopGroup(decapEncapNextHopGroupIndices[i%len(decapEncapNextHopGroupIndices)]).
+				WithElectionID(args.electionID.Low, args.electionID.High))
+	}
+	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
+		t.Fatalf("Could not program entries via client, got err: %v", err)
+	}
+
+	for i := range decapEncapVirtualIPs {
+		chk.HasResult(t, args.client.Results(t),
+			fluent.OperationResult().
+				WithIPv4Operation(decapEncapVirtualIPs[i]+"/32").
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInFIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+	t.Logf("Installed %s VRF \"decap/encap\" IPv4 entries, %s/32 to %s/32", deviations.DefaultNetworkInstance(args.dut), decapEncapVirtualIPs[0], decapEncapVirtualIPs[len(decapEncapVirtualIPs)-1])
+	t.Log("Pushed gRIBI default entries")
+
+	return primaryVirtualVIPs, decapEncapVirtualIPs
 }
 
+// configureDUT configures DUT interfaces and policy forwarding. Subinterfaces on DUT port2 are configured separately
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
@@ -303,15 +479,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureInterfaceDUT(t, d, dut, dp2, "dst")
 
 	// configure an L3 subinterface without vlan tagging under DUT port#1
-	createSubifDUT(t, d, dut, dp1, 0, 0, dutPort1.IPv4)
+	createSubifDUT(t, d, dut, dp1, 0, 0, dutPort1.IPv4, ipv4PrefixLen)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	applyForwardingPolicy(t, dp1.Name())
-
-	// configure 64 L3 subinterfaces under DUT port#2 and assign them to DEFAULT vrf
-	configureDUTSubIfs(t, d, dut, dp2)
 }
 
 // createVrf takes in a list of VRF names and creates them on the target devices.
@@ -382,7 +555,7 @@ func configureInterfaceDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dut
 }
 
 // createSubifDUT creates a single L3 subinterface
-func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, index uint32, vlanID uint16, ipv4Addr string) {
+func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, index uint32, vlanID uint16, ipv4Addr string, ipv4SubintfPrefixLen int) {
 	ifName := dutPort.Name()
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
@@ -395,49 +568,55 @@ func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *o
 	}
 	s4 := s.GetOrCreateIpv4()
 	a := s4.GetOrCreateAddress(ipv4Addr)
-	a.PrefixLength = ygot.Uint8(uint8(ipv4PrefixLen))
+	a.PrefixLength = ygot.Uint8(uint8(ipv4SubintfPrefixLen))
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Subinterface(index).Config(), s)
 }
 
-// configureDUTSubIfs configures 64 DUT subinterfaces on the target device
-func configureDUTSubIfs(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port) {
-	for i := 0; i < 64; i++ {
+// configureDUTSubIfs configures DefaultVRFIPv4NHCount DUT subinterfaces on the target device
+func configureDUTSubIfs(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port) []*nextHopIntfRef {
+	d := &oc.Root{}
+	nextHops := []*nextHopIntfRef{}
+	for i := 0; i < *fpargs.DefaultVRFIPv4NHCount; i++ {
 		index := uint32(i)
 		vlanID := uint16(i)
 		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 			vlanID = uint16(i) + 1
 		}
-		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+2)
-		createSubifDUT(t, d, dut, dutPort, index, vlanID, dutIPv4)
+		dutIPv4 := incrementIP(subifBaseIP, (4*i)+2)
+		ateIPv4 := incrementIP(subifBaseIP, (4*i)+1)
+		createSubifDUT(t, d, dut, dutPort, index, vlanID, dutIPv4, ipv4PrefixLen)
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), deviations.DefaultNetworkInstance(dut), index)
 		}
-	}
-}
-
-// configureATESubIfs configures 64 ATE subinterfaces on the target device
-// It returns a slice of the corresponding ATE IPAddresses.
-func configureATESubIfs(t *testing.T, atePort *ondatra.Port, top *ondatra.ATETopology, dut *ondatra.DUTDevice) []string {
-	nextHops := []string{}
-	for i := 0; i < 64; i++ {
-		vlanID := uint16(i)
-		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-			vlanID = uint16(i) + 1
-		}
-		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+2)
-		ateIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+1)
-		name := fmt.Sprintf(`dst%d`, i)
-		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
-		nextHops = append(nextHops, ateIPv4)
+		nextHops = append(nextHops, &nextHopIntfRef{
+			nextHopIPAddress: ateIPv4,
+			subintfIndex:     index,
+			intfName:         dutPort.Name(),
+		})
 	}
 	return nextHops
 }
 
-// configureATE configures a single ATE layer 3 interface.
-func configureATE(t *testing.T, top *ondatra.ATETopology, atePort *ondatra.Port, Name string, vlanID uint16, dutIPv4 string, ateIPv4 string) {
+// configureATESubIfs configures ATE subinterfaces on the target device
+func configureATESubIfs(t *testing.T, atePort *ondatra.Port, top *ondatra.ATETopology, dut *ondatra.DUTDevice) {
+
+	for i := 0; i < *fpargs.DefaultVRFIPv4NHCount; i++ {
+		vlanID := uint16(i)
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+			vlanID = uint16(i) + 1
+		}
+		dutIPv4 := incrementIP(subifBaseIP, (4*i)+2)
+		ateIPv4 := incrementIP(subifBaseIP, (4*i)+1)
+		name := fmt.Sprintf(`dst%d`, i)
+		configureATEIf(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
+	}
+}
+
+// configureATEIf configures a single ATE layer 3 interface.
+func configureATEIf(t *testing.T, top *ondatra.ATETopology, atePort *ondatra.Port, Name string, vlanID uint16, dutIPv4 string, ateIPv4 string) {
 	t.Helper()
 
 	i := top.AddInterface(Name).WithPort(atePort)
@@ -455,6 +634,76 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 	return c.Await(subctx, t)
 }
 
+// createFlow creates an individual traffic flow on the ATE
+func createFlow(t *testing.T, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopology, ateSrcIf string, ateDstIf string, flowName string) *ondatra.Flow {
+
+	_, netCIDR, _ := net.ParseCIDR(IPBlockNonDefaultVRF)
+
+	ethHeader := ondatra.NewEthernetHeader()
+	outerIPv4Header := ondatra.NewIPv4Header()
+	outerIPv4Header.WithSrcAddress(atePort1.IPv4)
+	outerIPv4Header.DstAddressRange().
+		WithMin(netCIDR.IP.String()).
+		WithStep("0.0.0.1").
+		WithCount(uint32(*fpargs.NonDefaultVRFIPv4Count))
+	innerIPv4Header := ondatra.NewIPv4Header()
+	innerIPv4Header.WithSrcAddress("10.51.100.1")
+	innerIPv4Header.WithDstAddress("198.52.100.1")
+
+	flow := ate.Traffic().NewFlow(flowName).
+		WithSrcEndpoints(ateTop.Interfaces()[ateSrcIf]).
+		WithDstEndpoints(ateTop.Interfaces()[ateDstIf]).
+		WithHeaders(ethHeader, outerIPv4Header, innerIPv4Header)
+
+	return flow
+}
+
+// checkInputArgs verifies that gribi scaling input args are set
+func checkInputArgs(t *testing.T) error {
+	t.Logf("Input arg DefaultVRFIPv4Count           = %d", *fpargs.DefaultVRFIPv4Count)
+	t.Logf("Input arg DefaultVRFIPv4NHSize          = %d", *fpargs.DefaultVRFIPv4NHSize)
+	t.Logf("Input arg DefaultVRFIPv4NHGWeightSum    = %d", *fpargs.DefaultVRFIPv4NHGWeightSum)
+	t.Logf("Input arg DefaultVRFIPv4NHCount         = %d", *fpargs.DefaultVRFIPv4NHCount)
+	t.Logf("Input arg NonDefaultVRFIPv4Count        = %d", *fpargs.NonDefaultVRFIPv4Count)
+	t.Logf("Input arg NonDefaultVRFIPv4NHGCount     = %d", *fpargs.NonDefaultVRFIPv4NHGCount)
+	t.Logf("Input arg NonDefaultVRFIPv4NHSize       = %d", *fpargs.NonDefaultVRFIPv4NHSize)
+	t.Logf("Input arg NonDefaultVRFIPv4NHGWeightSum = %d", *fpargs.NonDefaultVRFIPv4NHGWeightSum)
+	t.Logf("Input arg DecapEncapCount               = %d", *fpargs.DecapEncapCount)
+	t.Logf("Input arg DefaultVRFPrimarySubifCount   = %d", *fpargs.DefaultVRFPrimarySubifCount)
+
+	if *fpargs.DefaultVRFIPv4Count == -1 {
+		return errors.New("Input argument DefaultVRFIPv4Count is not set")
+	}
+	if *fpargs.DefaultVRFIPv4NHSize == -1 {
+		return errors.New("Input argument DefaultVRFIPv4NHSize is not set")
+	}
+	if *fpargs.DefaultVRFIPv4NHGWeightSum == -1 {
+		return errors.New("Input argument DefaultVRFIPv4NHGWeightSum is not set")
+	}
+	if *fpargs.DefaultVRFIPv4NHCount == -1 {
+		return errors.New("Input argument DefaultVRFIPv4NHCount is not set")
+	}
+	if *fpargs.NonDefaultVRFIPv4Count == -1 {
+		return errors.New("Input argument NonDefaultVRFIPv4Count is not set")
+	}
+	if *fpargs.NonDefaultVRFIPv4NHGCount == -1 {
+		return errors.New("Input argument NonDefaultVRFIPv4NHGCount is not set")
+	}
+	if *fpargs.NonDefaultVRFIPv4NHSize == -1 {
+		return errors.New("Input argument NonDefaultVRFIPv4NHSize is not set")
+	}
+	if *fpargs.NonDefaultVRFIPv4NHGWeightSum == -1 {
+		return errors.New("Input argument NonDefaultVRFIPv4NHGWeightSum is not set")
+	}
+	if *fpargs.DecapEncapCount == -1 {
+		return errors.New("Input argument DecapEncapCount is not set")
+	}
+	if *fpargs.DefaultVRFPrimarySubifCount == -1 {
+		return errors.New("Input argument DefaultVRFPrimarySubifCount is not set")
+	}
+	return nil
+}
+
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	ctx        context.Context
@@ -466,19 +715,28 @@ type testArgs struct {
 }
 
 func TestScaling(t *testing.T) {
+
+	if err := checkInputArgs(t); err != nil {
+		t.Fatalf("Input arguments not set: %v", err)
+	}
+
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	ctx := context.Background()
 	gribic := dut.RawAPIs().GRIBI().Default(t)
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
+	dp2 := dut.Port(t, "port2")
 	top := ate.Topology().New()
 
 	configureDUT(t, dut)
+	// configure DefaultVRFIPv4NHCount L3 subinterfaces under DUT port#2 and assign them to DEFAULT vrf
+	// return slice containing interface name, subinterface index and ATE next hop IP that will be used for creating gRIBI next-hop entries
+	subIntfNextHops := configureDUTSubIfs(t, dut, dp2)
 
-	configureATE(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4CIDR())
-	// subIntfIPs is a []string slice with ATE IPv4 addresses for all the subInterfaces
-	subIntfIPs := configureATESubIfs(t, ap2, top, dut)
+	configureATEIf(t, top, ap1, "src", 0, dutPort1.IPv4, atePort1.IPv4CIDR())
+	// configure DefaultVRFIPv4NHCount L3 subinterfaces on ATE port#2 corresponding to subinterfaces on DUT port#2
+	configureATESubIfs(t, ap2, top, dut)
 
 	top.Push(t).StartProtocols(t)
 
@@ -500,7 +758,7 @@ func TestScaling(t *testing.T) {
 
 	client.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
-		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
+		t.Fatalf("Await got error during session negotiation for client: %v", err)
 	}
 	eID := gribi.BecomeLeader(t, client)
 
@@ -512,10 +770,30 @@ func TestScaling(t *testing.T) {
 		top:        top,
 		electionID: eID,
 	}
-	// nextHops are ipv4 entries used for deriving nextHops for IPBlock1 and IPBlock2
-	nextHops := pushDefaultEntries(t, args, subIntfIPs)
-	// indexList is the metadata of number of NH/NHG/IP count/VRF for each IPBlock
-	indexList := buildIndexList()
-	// pushIPv4Entries builds the scaling topology.
-	pushIPv4Entries(t, nextHops, indexList, args)
+
+	// pushDefaultEntries installs gRIBI next-hops, next-hop-groups and IP entries for base route resolution
+	// defaultIpv4Entries are ipv4 entries used for deriving nextHops for IPBlockNonDefaultVRF
+	defaultIpv4Entries, decapEncapDefaultIpv4Entries := pushDefaultEntries(t, args, subIntfNextHops)
+
+	// pushIPv4Entries builds the recursive scaling topology
+	pushIPv4Entries(t, defaultIpv4Entries, decapEncapDefaultIpv4Entries, args)
+
+	// create traffic flows
+	trafficFlow := createFlow(t, ate, top, "src", "dst0", "gribi_scaling_test_flow")
+	trafficFlow.WithFrameSize(uint32(500)).WithFrameRateFPS(uint64(10000))
+
+	ate.Traffic().Start(t, trafficFlow)
+	time.Sleep(30 * time.Second)
+	ate.Traffic().Stop(t)
+
+	t.Logf("Flow %s OutPkts : %d", trafficFlow.Name(), gnmi.Get(t, args.ate, gnmi.OC().Flow(trafficFlow.Name()).Counters().OutPkts().State()))
+	t.Logf("Flow %s InPkts  : %d", trafficFlow.Name(), gnmi.Get(t, args.ate, gnmi.OC().Flow(trafficFlow.Name()).Counters().InPkts().State()))
+	t.Logf("Flow %s LossPct : %.3f %%", trafficFlow.Name(), gnmi.Get(t, args.ate, gnmi.OC().Flow(trafficFlow.Name()).LossPct().State()))
+
+	pktLossPct := gnmi.Get(t, args.ate, gnmi.OC().Flow(trafficFlow.Name()).LossPct().State())
+	if pktLossPct > 0 {
+		t.Errorf("LossPct for %s, got: %.3f %%, want 0", trafficFlow.Name(), pktLossPct)
+	} else {
+		t.Logf("LossPct OK for %s, got: %.3f %%, want 0", trafficFlow.Name(), pktLossPct)
+	}
 }

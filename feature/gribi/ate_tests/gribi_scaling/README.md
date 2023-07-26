@@ -2,39 +2,60 @@
 
 ## Summary
 
-Validate gRIBI scaling requirements.
+Test gRIBI scaling.
+
+## Topology
+
+*   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2.
+*   Create <DefaultVRFIPv4NHCount> number of L3 sub-interfaces under DUT port-2
+    and corresponding L3 sub-interfaces on ATE port-2, sequentially starting
+    from sub-interface unit 1.
+*   Create 3 non default L3 VRFs:
+    *   VRF-A contains DUT port-1.
+    *   VRF-B contains no interface.
+    *   VRF-C contains no interface.
+*   Establish a gRIBI connection with DUT with `PRESERVE` mode `RIB_AND_FIB_ACK`
+    mode.
 
 ## Procedure
 
-*   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2.
-*   Create 64 L3 sub-interfaces under DUT port-2 and corresponding 64 L3
-    sub-interfaces on ATE port-2
-*   On DUT port-1 and ATE port-1 create a single L3 interface
-*   On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-1 (based on src. IP match criteria)
-*   Establish gRIBI client connection with DUT negotiating FIBACK as the
-    requested ack_type and make it become leader.
-*   Using gRIBI Modify RPC install the following IPv4Entry sets, and validate
-    the specified behaviours:
-    *   <Default VRF> IPv4Entries -> NHG -> Multiple NH.
-        *   Inject IPv4Entries(IPBlockDefaultVRF: 198.18.196.1/22) in default
-            VRF
-        *   Install 64 L3 sub-interfaces IP to NextHopGroup containing one
-            NextHop specified to ATE port-2.
-        *   Validate that the entries are installed as FIB_PROGRAMMED
-    *   <VRF1> IPv4Entries -> Multiple NHG -> Multiple NH.
-        *   Inject IPv4Entries(IPBlock1: "198.18.0.1/18") in VRF1.
-        *   Install 1000 IPs from IPBlockDefaultVRF to 10 NextHopGroups
-            containing 100 NextHops each
-        *   Validate that the entries are installed as FIB_PROGRAMMED
-    *   <VRF2> IPv4Entries -> Multiple NHG -> Multiple NH.
-        *   Inject IPv4Entries(IPBlock2: "198.18.64.1/18") in VRF2.
-        *   Install *repeat* 17.5K NH from 1K /32 from IPBlockDefaultVRF to 35
-            NextHopGroups containing 45 NextHops each
-        *   Validate that the entries are installed as FIB_PROGRAMMED
-    *   <VRF3> IPv4Entries -> Multiple NHG -> Multiple NH.
-        *   Inject IPv4Entries(IPBlock3: "198.18.128.1/18") in VRF3.
-        *   Install IPiniP decap-then-encap to 500 first /32 from <IPBlockVRF1>
-            to 500 NextHopGroups containing 1 NextHop each
-        *   Validate that the entries are installed as FIB_PROGRAMMED
-*   TODO: Add flows destinating to IPBlocks and ensure ATEPort2 receives it with
-    no loss
+1.  Install the following gRIBI entries into the DUT, and expect
+    `FIB_PROGRAMMED` for all of them.
+
+    Environment constants:
+
+    *   StaticMAC = 00:1A:11:00:00:01
+    *   IPBlockDefaultVRF = 198.18.64.1/18
+    *   IPBlockNonDefaultVRF = 198.18.0.1/18
+
+    Input variables to the tests:
+
+    *   DefaultVRFIPv4Count
+    *   DefaultVRFIPv4NHSize
+    *   DefaultVRFIPv4NHGWeightSum
+    *   DefaultVRFIPv4NHCount
+    *   NonDefaultVRFIPv4Count
+    *   NonDefaultVRFIPv4NHGCount
+    *   NonDefaultVRFIPv4NHSize
+    *   NonDefaultVRFIPv4NHGWeightSum
+    *   DecapEncapCount
+
+    (Unless specifically mentioned, all gRIBI objects are installed in the
+    DEFAULT VRF)
+
+    ```text
+    NHG {ID #1} --> NH {ID #1, network-instance: VRF-C}
+
+    NHG {ID #2} --> NH {ID #2, decap, network-instance: DEFAULT}
+
+    <DefaultVRFIPv4Count> number of IPv4Entry (/32 from <IPBlockDefaultVRF>), each reference an unique NHGs. Each of the NHG contains <DefaultVRFIPv4NHSize> number of NHs, the NH sum weight is <DefaultVRFIPv4NHGWeightSum> in each NHG. The number of unique NHs are <DefaultVRFIPv4NHCount>. Each of the NH reference one unique sub-interface of DUT port-2, and does MAC address override to <StaticMAC>. Round-robing allocation of NHs to NHGs is ok.
+
+    <NonDefaultVRFIPv4Count> number of IPv4Entry in VRF-A (/32 from <IPBlockNonDefaultVRF>) referencing to <NonDefaultVRFIPv4NHGCount> number of unique NHG. Round-robing allocation of NHGs to the IPs is ok. Each NHG contains <NonDefaultVRFIPv4NHSize> NHs, NH sum weight is <NonDefaultVRFIPv4NHGWeightSum>. Each NHG reference NHG #1 as the backup NHG. Here totally it's <NonDefaultVRFIPv4NHGCount x NonDefaultVRFIPv4NHSize> number of unique NHs. Each NH contains one next-hop IP (1:1 mapping to the <DefaultVRFIPv4Count> IPv4Entry above).
+
+    <NonDefaultVRFIPv4Count> number of same IPv4Entry in VRF-B (as in VRF-A) referencing to <NonDefaultVRFIPv4NHGCount> number of unique NHG. Round-robing allocation of NHGs to the IPs is ok. Each NHG contains <NonDefaultVRFIPv4NHSize> NHs, NH sum weight is <NonDefaultVRFIPv4NHGWeightSum>. Each NHG reference NHG #2 as the backup NHG. Here the referenced NHs are not unique. They are the same as above that are used by IPs in VRF-A.
+
+    <NonDefaultVRFIPv4Count> number of same IPv4Entry in VRF-B (as in VRF-A) referencing to <DecapEncapCount> number of unique NHG. Each of the NHG contains 1 unique NHs. Each of the NH does decap-and-encap to different destination addresses in <IPBlockNonDefaultVRF>, and points to VRF-B. Each NHG reference NHG#2 as the backup NHG.
+    ```
+
+2.  Send flows to the <NonDefaultVRFIPv4Count> destinations. Error out if any
+    loss.
