@@ -1,4 +1,4 @@
-# FACTORY RESET 
+# gNOI-6.1: Factory Reset 
 
 ## Summary
 Performs Factory Reset with and without disk-encryption 
