@@ -438,6 +438,12 @@ tests:
     skip: false
     priority: 6
     timeout: 4200
+  - name: RT-1.11 (BGP remove private AS)
+    path: feature/experimental/bgp/ate_tests/bgp_remove_private_as
+    owners:
+      - sprem
+    mustpass: false
+    priority: 52
   - name: RT-1.12 (BGP always compare MED)
     path: feature/experimental/bgp/ate_tests/bgp_always_compare_med
     owners:
