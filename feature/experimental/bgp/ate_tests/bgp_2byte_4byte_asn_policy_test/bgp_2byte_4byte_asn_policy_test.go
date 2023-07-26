@@ -41,6 +41,7 @@ const (
 	aclStatement2       = "50"
 	prefixSubnetRangeV4 = "30..32"
 	prefixSubnetRangeV6 = "126..128"
+	globalAsNumber      = 999
 )
 
 var prefixV4 = []string{"198.51.100.0/30", "198.51.100.4/30", "198.51.100.8/30"}
@@ -163,17 +164,17 @@ func TestBgpSession(t *testing.T) {
 			verifyPeer(t, tc.nbr, dut)
 
 			t.Log("Apply BGP policy for rejecting prefix")
-			pol := applyBgpPolicy(rejectPrefix, dut)
+			pol := applyBgpPolicy(rejectPrefix, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
 			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 
 			t.Log("Apply BGP policy for rejecting prefix with community filter")
-			pol = applyBgpPolicy(rejectCommunity, dut)
+			pol = applyBgpPolicy(rejectCommunity, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
 			verifyPrefixesTelemetry(t, dut, 1, tc.nbr.isV4)
 
 			t.Log("Apply BGP policy for rejecting prefix with as-path regex filter")
-			pol = applyBgpPolicy(rejectAspath, dut)
+			pol = applyBgpPolicy(rejectAspath, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
 			verifyPrefixesTelemetry(t, dut, 0, tc.nbr.isV4)
 
@@ -347,7 +348,7 @@ func verifyPeer(t *testing.T, nbr *bgpNbr, dut *ondatra.DUTDevice) {
 
 	// Check BGP globalAS from telemetry.
 	globalAS := gnmi.Get(t, dut, glblPath.State()).GetAs()
-	if globalAS != nbr.localAS {
+	if globalAS != globalAsNumber {
 		t.Errorf("BGP globalAS: got %v, want %v", globalAS, nbr.localAS)
 	}
 
@@ -402,7 +403,7 @@ func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, prefix
 	return topo
 }
 
-func applyBgpPolicy(policyName string, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+func applyBgpPolicy(policyName string, dut *ondatra.DUTDevice, isV4 bool) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -411,7 +412,21 @@ func applyBgpPolicy(policyName string, dut *ondatra.DUTDevice) *oc.NetworkInstan
 	pg := bgp.GetOrCreatePeerGroup("ATE")
 	pg.PeerGroupName = ygot.String("ATE")
 
-	pg.GetOrCreateApplyPolicy().ImportPolicy = []string{policyName}
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		//policy under peer group
+		pg.GetOrCreateApplyPolicy().ImportPolicy = []string{policyName}
+		return niProto
+	}
+
+	aftType := oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
+	if isV4 {
+		aftType = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+	}
+
+	afisafi := pg.GetOrCreateAfiSafi(aftType)
+	afisafi.Enabled = ygot.Bool(true)
+	rpl := afisafi.GetOrCreateApplyPolicy()
+	rpl.SetImportPolicy([]string{policyName})
 
 	return niProto
 }
@@ -423,7 +438,7 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
-	global.As = ygot.Uint32(nbr.localAS)
+	global.As = ygot.Uint32(globalAsNumber)
 	global.RouterId = ygot.String(dutSrc.IPv4)
 
 	pg := bgp.GetOrCreatePeerGroup("ATE")
@@ -432,6 +447,7 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 
 	neighbor := bgp.GetOrCreateNeighbor(nbr.peerIP)
 	neighbor.PeerAs = ygot.Uint32(nbr.peerAS)
+	neighbor.LocalAs = ygot.Uint32(nbr.localAS)
 	neighbor.Enabled = ygot.Bool(true)
 	neighbor.PeerGroup = ygot.String("ATE")
 	neighbor.GetOrCreateTimers().RestartTime = ygot.Uint16(75)
