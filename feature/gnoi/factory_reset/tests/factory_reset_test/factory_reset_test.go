@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	frpb "github.com/openconfig/gnoi/factory_reset"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/testt"
-	frpb "github.com/openconfig/gnoi/factory_reset"
 )
 
 var (
