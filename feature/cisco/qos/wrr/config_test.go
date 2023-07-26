@@ -55,7 +55,6 @@ type gribiPrefix struct {
 
 func TestSchedReplaceSched(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
@@ -139,7 +138,6 @@ func TestSchedReplaceSched(t *testing.T) {
 
 func TestSchedSchedReplaceSchedPolDelQueue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
@@ -207,7 +205,6 @@ func TestSchedSchedReplaceSchedPolDelQueue(t *testing.T) {
 func TestSchedUpdate(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
@@ -266,7 +263,6 @@ func TestSchedUpdate(t *testing.T) {
 func TestMultipeSchedUpdateInput(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
@@ -341,7 +337,6 @@ func TestMultipeSchedUpdateInput(t *testing.T) {
 
 func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
@@ -459,7 +454,6 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 }
 func TestMultipeSchedDelSeqtwo(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
@@ -553,7 +547,6 @@ func TestMultipeSchedDelSeqtwo(t *testing.T) {
 }
 func TestMultipeSchedDelSeqone(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
@@ -647,7 +640,6 @@ func TestMultipeSchedDelSeqone(t *testing.T) {
 
 func TestMultipeSchedPolDelete(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
@@ -732,7 +724,6 @@ func TestMultipeSchedPolDelete(t *testing.T) {
 
 func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
@@ -845,7 +836,6 @@ func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 
 func TestMultipeSchedDeleteShedPol(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
