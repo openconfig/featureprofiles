@@ -16,22 +16,118 @@
 package authz_test
 
 import (
-	"context"
+	//"context"
 	"testing"
-	"time"
+	//"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/gnsi/authz"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
+
+	//"github.com/openconfig/gnsi/authz"
+	authz "github.com/openconfig/featureprofiles/internal/cisco/security/authz"
 	"github.com/openconfig/ondatra"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+var (
+	sampleUser="user1"
+)
 
-// TestCLIBeforeOpenConfig pushes overlapping mixed SetRequest specifying CLI before OpenConfig for DUT port-1.
+func TestSimpleAuthzGet(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	authzPolicy:= authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t,dut)
+	t.Logf("Authz Policy of the device %s is %s", dut.Name(),authzPolicy.PrettyPrint())
+}
 
-func authzRotate(t *testing.T) {
+func createUsers(t *testing.T, dut *ondatra.DUTDevice,users ...authz.User) {
+	for _,user := range users {
+		ocUser := &oc.System_Aaa_Authentication_User{
+			Username: ygot.String(user.Name),
+			Role: oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
+			Password:ygot.String("123456"),
+		}
+		gnmi.Replace(t,dut, gnmi.OC().System().Aaa().Authentication().User(user.Name).Config(),ocUser)
+		gnmi.Get(t,dut,gnmi.OC().System().Aaa().Authentication().User(user.Name).State())
+	}
+}
+
+func TestSimpleRotate(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	authzPolicy:= authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t,dut)
+	authzPolicy.Get(t,dut)
+	users:=[]authz.User{}
+	users = append(users, authz.User{Name: "user1"})
+	createUsers(t,dut,users...)
+	authzPolicy.AddAllowRules(users,*authz.RPCs.GNMI_GET)
+	authzPolicy.Rotate(t,dut)
+
+}
+
+func TestAllowRuleAll(t *testing.T) {
+
+}
+
+
+
+func TestDenyRuleAll(t *testing.T) {
+
+}
+
+
+func TestDenyAllForService(t *testing.T) {
+
+}
+
+func TestAllowAllForService(t *testing.T) {
+
+}
+
+func TestAllowAallRPCs(t *testing.T) {
+
+}
+
+func TestAllowAllRPCs(t *testing.T) {
+	
+}
+func TestDenyOverWriteAllow(t *testing.T) {
+
+}
+
+
+func TestRotateIsSingleton(t *testing.T) {
+
+}
+
+func TestFailOverInSteadyState(t *testing.T) {
+
+}
+
+func TestFailOverDuringProb(t *testing.T) {
+
+}
+
+func TestSaclePolicy(t *testing.T) {
+
+}
+
+
+func TestSaclePolicyWithFailOver(t *testing.T) {
+
+}
+
+
+
+
+
+
+
+/*func authzRotate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dut.ServiceAddress("GNMI")
 	routateStream, _ := dut.RawAPIs().GNSI().New(t).Authz().Rotate(context.Background())
@@ -68,7 +164,6 @@ func TestAuthz(t *testing.T) {
 	}
 	t.Logf("resp is %v", probresp)
 	authzRotate(t)
-
-}
+}*/
 
 // TestOpenConfigBeforeCLI pushes overlapping mixed SetRequest specifying OpenConfig before CLI for DUT port-1.
