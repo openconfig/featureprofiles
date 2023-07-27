@@ -438,12 +438,33 @@ tests:
     skip: false
     priority: 6
     timeout: 4200
+  - name: RT-1.11 (BGP remove private AS)
+    path: feature/experimental/bgp/ate_tests/bgp_remove_private_as
+    owners:
+      - sprem
+    mustpass: false
+    priority: 52
+    timeout: 4200
   - name: RT-1.12 (BGP always compare MED)
     path: feature/experimental/bgp/ate_tests/bgp_always_compare_med
     owners:
       - sprem
     mustpass: true
     priority: 52
+  - name: RT-1.14 (BGP Long-Lived Graceful Restart)
+    path: feature/experimental/bgp/ate_tests/bgp_long_lived_graceful_restart
+    owners:
+      - sprem
+    mustpass: false
+    priority: 52
+    timeout: 4200
+  - name: RT-1.19 (BGP 2-Byte and 4-Byte ASN support)
+    path: feature/experimental/bgp/ate_tests/bgp_2byte_4byte_asn
+    owners:
+      - sprem
+    mustpass: false
+    priority: 52
+    timeout: 4200
   - name: gNMI-1.4 (Telemetry Inventory)
     path: feature/platform/tests/telemetry_inventory_test
     owners:
