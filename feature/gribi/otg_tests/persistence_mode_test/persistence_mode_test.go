@@ -149,14 +149,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-// Waits for at least one ARP entry on any OTG interface
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-}
-
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss. The boolean flag wantLoss could be used to check
@@ -165,7 +157,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 
 	otg := ate.OTG()
 	otg.StartProtocols(t)
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, otg, top, "IPv4")
 	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 	top.Flows().Clear().Items()
 	flowipv4 := top.Flows().Add().SetName("Flow")
@@ -229,9 +221,9 @@ func addRoute(ctx context.Context, t *testing.T, args *testArgs, clientA *gribi.
 func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through AFT Telemetry that %s is active", ateDstNetCIDR)
 	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		prefix, present := val.Val()
-		return present && prefix == ateDstNetCIDR
+	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	}
@@ -241,9 +233,9 @@ func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 func verifyNoAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through Telemetry that the route to %s is not present", ateDstNetCIDR)
 	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		prefix, present := val.Val()
-		return !present || (present && prefix == "")
+	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return !present || (present && ipv4Entry.Prefix == nil)
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want nil", got)
 	}

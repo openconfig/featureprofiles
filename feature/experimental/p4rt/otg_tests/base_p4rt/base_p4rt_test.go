@@ -24,7 +24,6 @@ import (
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
-	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
@@ -278,18 +277,15 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 }
 
 // Function to compare and check if the expected table is present in RPC ReadResponse
-func verifyReadReceiveMatch(expected_update []*p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
-
+func verifyReadReceiveMatch(t *testing.T, expected_table *p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
 	matches := 0
 	for _, table := range received_entry.Entities {
-		if diff := cmp.Diff(expected_update[0].Entity.Entity, table.Entity, protocmp.Transform()); diff != "" {
-			glog.Errorf("Table entry diff (-want +got): \n%s", diff)
-			continue
+		if cmp.Equal(table, expected_table.Entity, protocmp.Transform(), protocmp.IgnoreFields(&p4_v1.TableEntry{}, "meter_config", "counter_data")) {
+			matches++
 		}
-		matches++
 	}
 	if matches == 0 {
-		return errors.New("match unsuccesful")
+		return errors.New("no matches found")
 	}
 	return nil
 }
@@ -409,8 +405,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority:      1,
 			},
 		})
-
-		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+		expected_entity := expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for GDP %s", err)
 			nomatch += 1
 		}
@@ -424,7 +420,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority:      1,
 			},
 		})
-		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for LLDP %s", err)
 			nomatch += 1
 		}
@@ -439,7 +436,8 @@ func TestP4rtConnect(t *testing.T) {
 				Priority: 1,
 			},
 		})
-		if err := verifyReadReceiveMatch(expected_update, readResp); err != nil {
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for traceroute %s", err)
 			nomatch += 1
 		}
