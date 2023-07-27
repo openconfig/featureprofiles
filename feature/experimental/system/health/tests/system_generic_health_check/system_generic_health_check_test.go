@@ -1,18 +1,16 @@
-/*
- Copyright 2023 Google LLC
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      https://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-*/
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package system_generic_health_check_test
 
@@ -53,14 +51,6 @@ var (
 		ondatra.CISCO:   regexp.MustCompile("/misc/disk1/.*core.*"),
 		ondatra.NOKIA:   regexp.MustCompile("/var/core/coredump-.*"),
 	}
-	cpuCards        []string
-	lineCards       []string
-	fabricCards     []string
-	controllerCards []string
-	checkComponents []string
-
-	interfaces             []string
-	timestamp              uint64
 	alarmSeverityCheckList = []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY{
 		oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MAJOR,
 		//oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MINOR,
@@ -160,20 +150,9 @@ func removeElement(list []string, element string) []string {
 	return list
 }
 
-func TestGetComponentNames(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	timestamp = uint64(time.Now().UTC().Unix())
-
-	controllerCards = components.FindComponentsByType(t, dut, controllerCardType)
-	lineCards = components.FindComponentsByType(t, dut, lineCardType)
-	fabricCards = components.FindComponentsByType(t, dut, fabricCardType)
-	cpuCards = components.FindComponentsByType(t, dut, cpuType)
-	checkComponents = append(controllerCards, lineCards...)
-	checkComponents = append(checkComponents, fabricCards...)
-}
-
 func TestCheckForCoreFiles(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	timestamp := uint64(time.Now().UTC().Unix())
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	coreFileCheck(t, dut, gnoiClient, timestamp, true)
 }
@@ -181,6 +160,11 @@ func TestCheckForCoreFiles(t *testing.T) {
 func TestComponentStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
+	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
+	lineCards := components.FindComponentsByType(t, dut, lineCardType)
+	fabricCards := components.FindComponentsByType(t, dut, fabricCardType)
+	checkComponents := append(controllerCards, lineCards...)
+	checkComponents = append(checkComponents, fabricCards...)
 	// check oper-status of the components is Active.
 	for _, component := range checkComponents {
 		val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(component).OperStatus().State()).Val()
@@ -232,7 +216,9 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 		t.Skipf("Skipping test due to deviation linecard_cpu_ultilization_unsupported")
 	}
 
+	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	cardList := controllerCards
+	cpuCards := components.FindComponentsByType(t, dut, cpuType)
 	for _, cpu := range cpuCards {
 		query := gnmi.OC().Component(cpu).State()
 		timestamp := time.Now().Round(time.Second)
@@ -274,7 +260,9 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		t.Skipf("Skipping test due to deviation linecard_cpu_ultilization_unsupported")
 	}
 
+	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	cardList := lineCards
+	cpuCards := components.FindComponentsByType(t, dut, cpuType)
 	for _, cpu := range cpuCards {
 		timestamp := time.Now().Round(time.Second)
 
@@ -318,6 +306,8 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	deviceName := dut.Name()
 	description := "Component"
 
+	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
+	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	cardList := append(controllerCards, lineCards...)
 	for _, component := range cardList {
 		query := gnmi.OC().Component(component).State()
@@ -391,16 +381,6 @@ func TestSystemProcessNoHighMemorySpike(t *testing.T) {
 	}
 }
 
-func TestGetInterfaceName(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dutPorts := sortPorts(dut.Ports())
-
-	for _, port := range dutPorts {
-		interfaces = append(interfaces, port.Name())
-	}
-	t.Logf("Interface: %s", interfaces)
-}
-
 func TestNoQueueDrop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -408,6 +388,12 @@ func TestNoQueueDrop(t *testing.T) {
 		desc     string
 		path     string
 		counters []*ygnmi.Value[uint64]
+	}
+
+	dutPorts := sortPorts(dut.Ports())
+	interfaces := []string{}
+	for _, port := range dutPorts {
+		interfaces = append(interfaces, port.Name())
 	}
 
 	for _, intf := range interfaces {
@@ -512,6 +498,14 @@ func TestNoAsicDrop(t *testing.T) {
 
 func TestInterfaceStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	dutPorts := sortPorts(dut.Ports())
+	interfaces := []string{}
+	for _, port := range dutPorts {
+		interfaces = append(interfaces, port.Name())
+	}
+	t.Logf("Interface: %s", interfaces)
+
 	for _, intf := range interfaces {
 		query := gnmi.OC().Interface(intf).State()
 		root := gnmi.Get(t, dut, query)
@@ -581,6 +575,13 @@ func TestInterfaceStatus(t *testing.T) {
 
 func TestInterfacesubIntfs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	dutPorts := sortPorts(dut.Ports())
+	interfaces := []string{}
+	for _, port := range dutPorts {
+		interfaces = append(interfaces, port.Name())
+	}
+
 	for _, intf := range interfaces {
 		subIntfIndexes := gnmi.LookupAll(t, dut, gnmi.OC().Interface(intf).SubinterfaceAny().Index().State())
 		for _, index := range subIntfIndexes {
@@ -671,6 +672,12 @@ func TestInterfacesubIntfs(t *testing.T) {
 
 func TestInterfaceEthernetNoDrop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	dutPorts := sortPorts(dut.Ports())
+	interfaces := []string{}
+	for _, port := range dutPorts {
+		interfaces = append(interfaces, port.Name())
+	}
 
 	for _, intf := range interfaces {
 		counters := gnmi.OC().Interface(intf).Ethernet().Counters()
