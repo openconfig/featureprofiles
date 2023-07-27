@@ -238,7 +238,7 @@ func (p *AuthorizationPolicy)  Verify(t *testing.T, dut *ondatra.DUTDevice, deep
 						expectedResult= authz.ProbeResponse_ACTION_DENY
 					} else if !usersAccess[user][path] {
 						expectedResult= authz.ProbeResponse_ACTION_DENY
-					} else if  allAccess[path] || usersAccess[path][user] {
+					} else if  allAccess[path] || usersAccess[user][path] {
 						expectedResult= authz.ProbeResponse_ACTION_PERMIT
 					}
 					if resp.GetAction()!=expectedResult {
