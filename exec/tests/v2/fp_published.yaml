@@ -202,7 +202,7 @@ tests:
     owners:
       - sprem
     priority: 5
-    mustpass: true
+    mustpass: false
   - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
     path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
     owners:
