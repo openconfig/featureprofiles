@@ -52,21 +52,21 @@ func TestMain(m *testing.M) {
 //
 //   - ate:port1 -> dut:port1 subnet 192.0.2.0/30
 //   - ate:port2 -> dut:port2 DefaultVRFIPv4NHCount Sub interfaces, e.g.:
-//   - ate:port2.0 -> dut:port2.0 VLAN-ID: 0 subnet 198.51.0.0/30
-//   - ate:port2.1 -> dut:port2.1 VLAN-ID: 1 subnet 198.51.0.4/30
-//   - ate:port2.2 -> dut:port2.2 VLAN-ID: 2 subnet 198.51.0.8/30
-//   - ate:port2.i -> dut:port2.i VLAN-ID i subnet 198.51.0.(4*i)/30
+//   - ate:port2.0 -> dut:port2.0 VLAN-ID: 0 subnet 198.18.192.0/30
+//   - ate:port2.1 -> dut:port2.1 VLAN-ID: 1 subnet 198.18.192.4/30
+//   - ate:port2.2 -> dut:port2.2 VLAN-ID: 2 subnet 198.18.192.8/30
+//   - ate:port2.i -> dut:port2.i VLAN-ID i subnet 198.18.x.(4*i)/30 (out of subnet 198.18.192.0/18)
 const (
 	ipv4PrefixLen          = 30 // ipv4PrefixLen is the ATE and DUT interface IP prefix length
 	vrf1                   = "VRF-A"
 	vrf2                   = "VRF-B"
 	vrf3                   = "VRF-C"
-	IPBlockDefaultVRF      = "198.18.128.0/17"
+	IPBlockDefaultVRF      = "198.18.128.0/18"
 	IPBlockNonDefaultVRF   = "198.18.0.0/17"
-	tunnelSrcIP            = "198.19.204.1" // tunnelSrcIP represents Source IP of IPinIP Tunnel
+	tunnelSrcIP            = "198.51.100.99" // tunnelSrcIP represents Source IP of IPinIP Tunnel
 	policyName             = "redirect-to-VRF1"
 	StaticMAC              = "00:1A:11:00:00:01"
-	subifBaseIP            = "198.51.0.0"
+	subifBaseIP            = "198.18.192.0"
 	nextHopStartIndex      = 101 // set > 2 to avoid overlap with backup NH ids 1&2
 	nextHopGroupStartIndex = 101 // set > 2 to avoid overlap with backup NHG ids 1&2
 )
@@ -82,10 +82,6 @@ var (
 		Name:    "atePort1",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort2 = attrs.Attributes{
-		Name: "atePort2",
 	}
 )
 
@@ -647,8 +643,8 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, ateTop *ondatra.ATETopolog
 		WithStep("0.0.0.1").
 		WithCount(uint32(*fpargs.NonDefaultVRFIPv4Count))
 	innerIPv4Header := ondatra.NewIPv4Header()
-	innerIPv4Header.WithSrcAddress("10.51.100.1")
-	innerIPv4Header.WithDstAddress("198.52.100.1")
+	innerIPv4Header.WithSrcAddress("198.51.100.1")
+	innerIPv4Header.WithDstAddress("203.0.113.1")
 
 	flow := ate.Traffic().NewFlow(flowName).
 		WithSrcEndpoints(ateTop.Interfaces()[ateSrcIf]).
