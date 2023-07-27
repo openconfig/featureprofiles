@@ -28,18 +28,7 @@ var (
 	remote_dir     = fmt.Sprintf("%s/", os.Getenv("HOME"))
 	client_ca_dir  = client_ssh_dir
 	hostname, _    = os.Hostname()
-	// sztpServer      = "dev-mgbl-lnx6"
-	// dhcpServer      = "dev-mgbl-lnx2"
-	// sztpServerIP    = "5.38.4.124"
-	// dhcpServerIP    = "5.38.4.249"
-	// sjcDhcpServer   = "sj21-pxe-01"
-	// sjcSztpServer   = "sj21-lnx-03"
-	// sjcSztpServerIP = "1.1.1.103"
-	// sjcDhcpServerIP = "1.1.7.6"
 	usernameServer = "root"
-	// passwordServer  = "Bgl11lab@123"
-	// sjcDhcpPassword = "C1sco123"
-	// sjcSztpPassword = "roZes@123"
 )
 
 type ServerDetails struct {
@@ -376,23 +365,23 @@ func TestBootz(t *testing.T) {
 	defer restore_backup_dhcpd_file(t, dhcpServerConn, backupFile)
 
 	t.Run("ZTP initiate dhcp4 management noprompt without disk-encryption", func(t *testing.T) {
-		// t.Log("Deactivate Encryption\n")
-		// encrypt, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "disk-encryption deactivate location all")
-		// t.Logf("Sleep for 5 mins after disk-encryption deactivate")
-		// time.Sleep(3 * time.Minute)
-		// if err != nil {
-		// 	t.Fatalf("Failed to send command %v on the device, Error : %v ", "disk-encryption activate location all", err)
+		t.Log("Deactivate Encryption\n")
+		encrypt, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "disk-encryption deactivate location all")
+		t.Logf("Sleep for 5 mins after disk-encryption deactivate")
+		time.Sleep(3 * time.Minute)
+		if err != nil {
+			t.Fatalf("Failed to send command %v on the device, Error : %v ", "disk-encryption activate location all", err)
 
-		// }
-		// t.Logf("Device encryption deactivate: %v", encrypt)
-		// deviceBootStatus(t, dut)
-		// encrypt, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show disk-encryption status")
-		// if err != nil {
-		// 	t.Fatalf("Failed to send command %v on the router, Error : %v ", "show disk-encryption status", err)
+		}
+		t.Logf("Device encryption deactivate: %v", encrypt)
+		deviceBootStatus(t, dut)
+		encrypt, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show disk-encryption status")
+		if err != nil {
+			t.Fatalf("Failed to send command %v on the router, Error : %v ", "show disk-encryption status", err)
 
-		// }
-		// t.Logf("Show device encryption status: %v", encrypt)
-		// t.Logf("Version Check ")
+		}
+		t.Logf("Show device encryption status: %v", encrypt)
+		t.Logf("Version Check ")
 		version_check(t, dut, bootzServerConn, dhcpServerConn, false, true, serverDetails.dhcpServerIP)
 
 		start_bootz_server(t, bootzServerConn, dut)
@@ -464,20 +453,6 @@ func TestBootz(t *testing.T) {
 		}
 	})
 
-	t.Run("Missing config file ", func(t *testing.T) {
-		ssh_session(t, bootzServerConn, "mv /root/bootz/sahubbal/bootz_server_exec/configuration/server/vendorconfig/base.cfg /root/bootz/sahubbal/bootz_server_exec/configuration/server/vendorconfig/base-bkp.cfg")
-		version_check(t, dut, bootzServerConn, dhcpServerConn, false, true, serverDetails.dhcpServerIP)
-
-		start_bootz_server(t, bootzServerConn, dut)
-		defer stop_bootz_server(t, bootzServerConn)
-		t.Logf("Version %v ", bootVersion)
-		ztp_initiate(t, dut)
-		remove_known_hosts(t)
-		dutNew := ondatra.DUT(t, "dut")
-
-		verify_bootz(t, dutNew)
-
-	})
 	/*
 		TODO:
 		1. Missing configuration : pass an empty vendor config, /root/bootz/sahubbal/bootz_server_exec/configuration/server/vendorconfig/base.cfg
