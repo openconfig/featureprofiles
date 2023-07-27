@@ -238,15 +238,15 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 	})
 	t.Run("Telemetry on Ipv4Entry NextHopGroup", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).NextHopGroup()
-		nhgvalue := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).State())
+		nhgvalue := path.GetNextHopGroup()
 		if nhgvalue != nexthopgroup {
 			t.Errorf("Incorrect value for NextHopGroup , got:%v,want:%v", nhgvalue, nexthopgroup)
 		}
 	})
 	t.Run("Telemetry on Ipv4Entry Prefix", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).Prefix()
-		prefixvalue := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).State())
+		prefixvalue := path.GetPrefix()
 		if prefixvalue != ipv4prefix {
 			t.Errorf("Incorrect value for AFT Ipv4Entry Prefix got %s, want %s", prefixvalue, ipv4prefix)
 		}
@@ -258,8 +258,8 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	// 	path.Get(t)
 	// })
 	t.Run("Telemetry on Ipv4Entry NextHopGroupNetworkInstance", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).NextHopGroupNetworkInstance()
-		gnmi.Get(t, args.dut, path.State())
+		path := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(ipv4prefix).State())
+		path.GetNextHopGroupNetworkInstance()
 	})
 	// NOT-SUPPORTED
 	// t.Run("Telemetry on Ipv4Entry DecapsulateHeader", func(t *testing.T) {
@@ -285,8 +285,8 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 	})
 	t.Run("Telemetry on NextHopGroup Id", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).Id()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).State())
+		value := path.GetId()
 		t.Logf("NextHopGroup Id Value %d", value)
 		if value == 0 {
 			t.Errorf("Incorrect value for NextHopGroup Id  got %d, want non zero value", value)
