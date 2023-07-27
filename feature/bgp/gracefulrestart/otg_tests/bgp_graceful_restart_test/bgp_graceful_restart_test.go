@@ -193,30 +193,6 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Netw
 	pgv6.PeerAs = ygot.Uint32(ateAS)
 	pgv6.PeerGroupName = ygot.String(peerv6GrpName)
 
-	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
-		rpl := pg.GetOrCreateApplyPolicy()
-		rpl.SetExportPolicy([]string{"ALLOW"})
-		rpl.SetImportPolicy([]string{"ALLOW"})
-		rplv6 := pgv6.GetOrCreateApplyPolicy()
-		rplv6.SetExportPolicy([]string{"ALLOW"})
-		rplv6.SetImportPolicy([]string{"ALLOW"})
-
-	} else {
-		pg1af4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-		pg1af4.Enabled = ygot.Bool(true)
-
-		pg1rpl4 := pg1af4.GetOrCreateApplyPolicy()
-		pg1rpl4.SetExportPolicy([]string{"ALLOW"})
-		pg1rpl4.SetImportPolicy([]string{"ALLOW"})
-
-		pg1af6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-		pg1af6.Enabled = ygot.Bool(true)
-		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
-		pg1rpl6.SetExportPolicy([]string{"ALLOW"})
-		pg1rpl6.SetImportPolicy([]string{"ALLOW"})
-
-	}
-
 	for _, nbr := range nbrs {
 		if nbr.isV4 {
 			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
