@@ -273,23 +273,32 @@ message Metadata {
     bool bkup_arbitration_resp_code = 82;
     // Device requires IPOverIP decapsulation for backup NHG without interfaces.
     bool backup_nhg_requires_vrf_with_decap = 83;
-    // Devices don't support ISIS Timers lsp-refresh-interval leaf.
-    bool isis_timers_lsp_refresh_interval_unsupported = 84;
     // Devices don't support configuring ISIS /afi-safi/af/config container.
     bool isis_interface_afi_unsupported = 85;
     // Devices don't support modify table entry operation in P4 Runtime.
     bool p4rt_modify_table_entry_unsupported = 86;
+    // Parent of OS component is of type SUPERVISOR or LINECARD.
+    bool os_component_parent_is_supervisor_or_linecard = 87;
+    // Parent of OS component is of type CHASSIS.
+    bool os_component_parent_is_chassis = 88;
+    // Device does not support fabric power-admin-state leaf.
+    bool skip_fabric_card_power_admin = 89;
+    // Device returns component state inactive during power down.
+    bool component_power_down_returns_inactive_state = 90;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for linecards' CPU card.
-    bool linecard_cpu_utilization_unsupported = 87;
+    bool linecard_cpu_utilization_unsupported = 91;
     // Device does not support consistent component names for GNOI and GNMI.
-    bool consistent_component_names_unsupported = 88;
+    bool consistent_component_names_unsupported = 92;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for controller cards'
     // CPU card.
-    bool controller_card_cpu_utilization_unsupported = 89;
+    bool controller_card_cpu_utilization_unsupported = 93;
     // Device does not support counter for fabric block lost packets.
-    bool fabric_drop_counter_unsupported = 90;
+    bool fabric_drop_counter_unsupported = 94;
+    
+    // Reserved field numbers and identifiers.
+    reserved 84;
   }
 
   message PlatformExceptions {

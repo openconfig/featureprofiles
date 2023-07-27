@@ -556,12 +556,6 @@ func QOSOctets(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosOctets()
 }
 
-// ISISTimersLspRefreshIntervalUnsupported returns true for devices that don't
-// support ISIS Timers lsp-refresh-interval leaf config.
-func ISISTimersLspRefreshIntervalUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisTimersLspRefreshIntervalUnsupported()
-}
-
 // ISISInterfaceAfiUnsupported returns true for devices that don't support configuring
 // ISIS /afi-safi/af/config container.
 func ISISInterfaceAfiUnsupported(dut *ondatra.DUTDevice) bool {
@@ -572,6 +566,29 @@ func ISISInterfaceAfiUnsupported(dut *ondatra.DUTDevice) bool {
 // modify table entry operation in P4 Runtime.
 func P4RTModifyTableEntryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtModifyTableEntryUnsupported()
+}
+
+// OSComponentParentIsSupervisorOrLinecard returns true if parent of OS component is
+// of type SUPERVISOR or LINECARD.
+func OSComponentParentIsSupervisorOrLinecard(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOsComponentParentIsSupervisorOrLinecard()
+}
+
+// OSComponentParentIsChassis returns true if parent of OS component is of type CHASSIS.
+func OSComponentParentIsChassis(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOsComponentParentIsChassis()
+}
+
+// SkipFabricCardPowerAdmin returns whether the device should skip the Platform Power Down Up for Fabric Card.
+// Default value is false.
+func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipFabricCardPowerAdmin()
+}
+
+// ComponentPowerDownReturnsInactiveState returns whether the device should allow the component power Down state inactive.
+// Default value is false and expected component power down state is shutdown.
+func ComponentPowerDownReturnsInactiveState(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetComponentPowerDownReturnsInactiveState()
 }
 
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
