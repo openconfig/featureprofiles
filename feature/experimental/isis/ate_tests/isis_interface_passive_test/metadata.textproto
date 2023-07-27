@@ -4,7 +4,7 @@
 uuid:  "e43009e1-2f75-4926-88f2-43ae1823249a"
 plan_id:  "RT-2.7"
 description:  "IS-IS Passive is enabled at interface level"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: NOKIA
