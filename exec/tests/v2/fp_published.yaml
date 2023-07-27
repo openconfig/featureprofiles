@@ -471,6 +471,13 @@ tests:
     mustpass: false
     priority: 52
     timeout: 4200
+  - name: RT-1.20 (BGP 2-Byte and 4-Byte ASN support with policy)
+    path: feature/experimental/bgp/ate_tests/bgp_2byte_4byte_asn_policy_test
+    owners:
+      - sprem
+    mustpass: false
+    priority: 52
+    timeout: 4200
   - name: gNMI-1.4 (Telemetry Inventory)
     path: feature/platform/tests/telemetry_inventory_test
     owners:
