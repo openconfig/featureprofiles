@@ -9,7 +9,7 @@ import (
 	"text/template"
 
 	"github.com/golang/glog"
-	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
+	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -41,7 +41,7 @@ import (
 var (
 	srcFolder   = flag.String("src_folder", ".", "The directory where the generated source code will be saved")
 	genExecFunc = flag.Bool("gen_exec_func", true, "if set to true, the skeleton for exec function with be generated")
-	pkgName     = flag.String("pkg_name", "authz", "The name of the package for the generated source code")
+	pkgName     = flag.String("pkg_name", "gnxi", "The name of the package for the generated source code")
 )
 
 var (
@@ -72,9 +72,9 @@ var (
 
 func main() {
 
-	rpcMap := make(map[string]*authz.RPC)
+	rpcMap := make(map[string]*gnxi.RPC)
 	p4rtpb.File_p4_v1_p4data_proto.Services()
-	rpcMap["ALL"] = &authz.RPC{
+	rpcMap["ALL"] = &gnxi.RPC{
 		Name:    "*",
 		Service: "*",
 		QFN:     "*",
@@ -96,7 +96,7 @@ func main() {
 					path = "/" + rpcQFN[:lastPointIdx] + "/" + rpcQFN[lastPointIdx+1:]
 				}
 				serviceName = rpcQFN[:lastPointIdx]
-				rpcMap[enumName] = &authz.RPC{
+				rpcMap[enumName] = &gnxi.RPC{
 					Name:    rpcName,
 					Service: serviceName,
 					QFN:     rpcQFN,
@@ -107,7 +107,7 @@ func main() {
 
 			}
 			// add service/* for each service that represenst all RPC for the service
-			rpcMap[strings.ToUpper(serviceName)+"_ALL"] = &authz.RPC{
+			rpcMap[strings.ToUpper(serviceName)+"_ALL"] = &gnxi.RPC{
 				Name:    "*",
 				Service: serviceName,
 				QFN:     serviceName + ".*",
@@ -244,7 +244,7 @@ func {{ funcName .Service .Name}}(deviceAddress string, certificate tls.Certific
 
 	var (
 		{{- range .}}
-		{{ varName .Service .Name}} = RPC{
+		{{ varName .Service .Name}} = &RPC{
 			Name: "{{.Name}}",
 			Service: "{{.Service}}",
 			QFN: "{{.QFN}}",
@@ -255,10 +255,14 @@ func {{ funcName .Service .Name}}(deviceAddress string, certificate tls.Certific
 
 		RPCs=rpcs{
 		{{- range .}}
-			{{ enumName .Service .Name}} : &{{ varName .Service .Name}},
+			{{ enumName .Service .Name}} : {{ varName .Service .Name}},
 		{{- end }}
 		}
-
+		RPCMAP=map[string]*RPC{
+			{{- range .}}
+				"{{.Path}}" : {{ varName .Service .Name}},
+			{{- end }}
+		}
 	)
 `
 )

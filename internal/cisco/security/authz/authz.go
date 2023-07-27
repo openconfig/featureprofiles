@@ -2,8 +2,7 @@ package authz
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
+
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -13,18 +12,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
+
 )
 
-type ExecRPCFunction func(deviceAddress string, certificate tls.Certificate, trustBundle *x509.CertPool, params ...any) error
 
-type RPC struct {
-	Service, Name, QFN, Path string
-	ExecFunc                 ExecRPCFunction
-}
-
-func (rpc *RPC) VerifyAccess(t testing.TB, dut *ondatra.DUTDevice, user User, expected, checkWithExec bool) {
-
-}
 
 type AuthorizationPolicy struct {
 	Name       string `json:"name"`
@@ -41,7 +33,7 @@ type Rule struct {
 		Paths []string `json:"paths"`
 	} `json:"request"`
 }
-func  createRule(users []User, rpcs... RPC) Rule {
+func  createRule(users []*User, rpcs []*gnxi.RPC) Rule {
 	rule:=Rule{}	
 	for _,rpc := range rpcs {
 		rule.Name=rule.Name+rpc.QFN
@@ -57,13 +49,13 @@ func  createRule(users []User, rpcs... RPC) Rule {
 	return rule
 }
 
-func (p *AuthorizationPolicy)  AddAllowRules(users []User, rpcs... RPC) {
-	rule:=createRule(users,rpcs...)
+func (p *AuthorizationPolicy)  AddAllowRules(users []*User, rpcs []*gnxi.RPC) {
+	rule:=createRule(users,rpcs)
 	p.AllowRules = append(p.AllowRules, rule)
 }
 
-func (p *AuthorizationPolicy)  AddDenyRules(users []User, rpcs... RPC) {
-	rule:=createRule(users,rpcs...)
+func (p *AuthorizationPolicy)  AddDenyRules(users []*User, rpcs []*gnxi.RPC) {
+	rule:=createRule(users,rpcs)
 	p.AllowRules = append(p.AllowRules, rule)}
 
 func (p *AuthorizationPolicy)  RestDenyRules() {
@@ -97,7 +89,7 @@ func (p *AuthorizationPolicy)  Rotate(t *testing.T, dut *ondatra.DUTDevice) {
 		},
 	}
 	t.Logf("Sending Authz.Rotate request on device: \n %s",prettyPrint(autzRotateReq))
-	err = rotateStream.Send(&authz.RotateAuthzRequest{RotateRequest: autzRotateReq,}) 	
+	err = rotateStream.Send(&authz.RotateAuthzRequest{RotateRequest: autzRotateReq,})
 	if err == nil {
 		t.Logf("Authz.Rotate upload was successful, receiving response ...")
 		_, err = rotateStream.Recv()

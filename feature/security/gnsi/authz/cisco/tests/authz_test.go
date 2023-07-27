@@ -17,16 +17,20 @@ package authz_test
 
 import (
 	//"context"
+	"strconv"
 	"testing"
+	"time"
+
 	//"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
+	//"github.com/openconfig/ondatra/gnmi/oc"
+	//"github.com/openconfig/ygot/ygot"
 
 	//"github.com/openconfig/gnsi/authz"
-	authz "github.com/openconfig/featureprofiles/internal/cisco/security/authz"
+	//authz "github.com/openconfig/featureprofiles/internal/cisco/security/authz"
+	//"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"github.com/openconfig/ondatra"
 )
 
@@ -35,37 +39,88 @@ func TestMain(m *testing.M) {
 }
 var (
 	sampleUser="user1"
+	usersCount=10
 )
 
+func TestGNMIUpdate(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	beforeTime:= time.Now()
+	for i:=0; i<=100; i++ {
+		gnmi.Update(t,dut, gnmi.OC().System().Hostname().Config(),"test"+strconv.Itoa(i))
+	}
+	t.Logf("time to do 100 gnmi update is %s", time.Since(beforeTime).String())
+	/*gnmi.Update(t,dut, gnmi.OC().System().Hostname().Config(),"test")
+	authzPolicy:= authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t,dut)
+	t.Logf("Authz Policy of the device %s is %s", dut.Name(),authzPolicy.PrettyPrint())*/
+}
+/*
 func TestSimpleAuthzGet(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	gnmi.Update(t,dut, gnmi.OC().System().Hostname().Config(),"test")
 	authzPolicy:= authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t,dut)
 	t.Logf("Authz Policy of the device %s is %s", dut.Name(),authzPolicy.PrettyPrint())
 }
 
-func createUsers(t *testing.T, dut *ondatra.DUTDevice,users ...authz.User) {
+func createUsersOnDevice(t *testing.T, dut *ondatra.DUTDevice,users []*authz.User) {
+	ocAuthentication:=  &oc.System_Aaa_Authentication{}
 	for _,user := range users {
 		ocUser := &oc.System_Aaa_Authentication_User{
 			Username: ygot.String(user.Name),
 			Role: oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
 			Password:ygot.String("123456"),
 		}
-		gnmi.Replace(t,dut, gnmi.OC().System().Aaa().Authentication().User(user.Name).Config(),ocUser)
-		gnmi.Get(t,dut,gnmi.OC().System().Aaa().Authentication().User(user.Name).State())
+		ocAuthentication.AppendUser(ocUser)
 	}
+	gnmi.Update(t,dut, gnmi.OC().System().Aaa().Authentication().Config(),ocAuthentication)
+	// TODO: check all users are created
+}
+
+func generateUsersCerts(t *testing.T, dut *ondatra.DUTDevice,users ...authz.User) {
+	// TODO generate certificate for all users and save them in testdata folder
 }
 
 func TestSimpleRotate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	policyBerfore:=authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t,dut)
+	defer policyBerfore.Rotate(t,dut)
+
 	authzPolicy:= authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t,dut)
 	authzPolicy.Get(t,dut)
-	users:=[]authz.User{}
-	users = append(users, authz.User{Name: "user1"})
-	createUsers(t,dut,users...)
-	authzPolicy.AddAllowRules(users,*authz.RPCs.GNMI_GET)
+	users:=[]*authz.User{}
+	users = append(users, &authz.User{Name: "user1"})
+	createUsersOnDevice(t,dut,users)
+	authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.GNMI_GET})
 	authzPolicy.Rotate(t,dut)
+
+}
+
+func TestSaclePolicy(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	policyBerfore:=authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t,dut)
+	defer policyBerfore.Rotate(t,dut)
+	// create n users
+	users:=[]*authz.User{}
+	for i:=1; i<=usersCount; i++ {
+		user:=&authz.User{
+			Name: "user"+strconv.Itoa(i),
+		}
+		users= append(users, user)
+	}
+	createUsersOnDevice(t,dut,users)
+	//TODO: create n intermediate CA per user
+	//TODO: create users certificate
+	// create m random rules for n users(no conflicting)
+	
+	// add a few conflicting rules per users
+	// add * rules 
+		// user *
+		// path * 
+		// both * *  (deny and allow)
 
 }
 
@@ -112,9 +167,7 @@ func TestFailOverDuringProb(t *testing.T) {
 
 }
 
-func TestSaclePolicy(t *testing.T) {
 
-}
 
 
 func TestSaclePolicyWithFailOver(t *testing.T) {
