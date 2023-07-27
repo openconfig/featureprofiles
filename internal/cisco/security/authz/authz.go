@@ -5,10 +5,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
 )
@@ -89,7 +91,7 @@ func (p *AuthorizationPolicy)  Rotate(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	autzRotateReq := &authz.RotateAuthzRequest_UploadRequest{
 		UploadRequest: &authz.UploadRequest{
-			Version: "1.0.0",
+			Version: fmt.Sprintf("v0.%v",(time.Now().UnixMilli())),
 			CreatedOn: uint64(time.Now().UnixMicro()),
 			Policy: string(policy),
 		},
@@ -100,9 +102,15 @@ func (p *AuthorizationPolicy)  Rotate(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Authz.Rotate upload was successful, receiving response ...")
 		_, err = rotateStream.Recv()
 		if err != nil {
-			t.Fatalf("Error while receiving prob request reply %v", err)
+			t.Fatalf("Error while receiving rotate request reply %v", err)
 		}
-		//TODO: validate Result
+		// validate Result
+		tempPolicy:=NewAuthorizationPolicy()
+		tempPolicy.Get(t,dut)
+		if !cmp.Equal(p,tempPolicy) {
+			t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p,tempPolicy))
+		}
+		p.Verify(t,dut, false)
 		finalizeRotateReq:=&authz.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authz.FinalizeRequest{}}
 		err = rotateStream.Send(&authz.RotateAuthzRequest{RotateRequest: finalizeRotateReq })
 		t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%s", prettyPrint(finalizeRotateReq))
@@ -112,7 +120,14 @@ func (p *AuthorizationPolicy)  Rotate(t *testing.T, dut *ondatra.DUTDevice) {
 	} else  {
 		t.Fatalf("Error while uploading prob request reply %v", err)
 	}
-	//TODO: validate Result
+	//validate Result
+	finalPolicy:=NewAuthorizationPolicy()
+	finalPolicy.Get(t,dut)
+	if !cmp.Equal(p,finalPolicy) {
+		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p,finalPolicy))
+	}
+	p.Verify(t,dut, false)
+
 }
 func NewAuthorizationPolicy() *AuthorizationPolicy{
 	return  &AuthorizationPolicy{}
@@ -168,7 +183,70 @@ func (p *AuthorizationPolicy)  PrettyPrint() string{
 	return string(prettyTex)
 }
 
-func (p *AuthorizationPolicy)  Verify(t *testing.T, dut *ondatra.DUTDevice, deepCheck bool, users ...User) {
+func (p *AuthorizationPolicy)  Verify(t *testing.T, dut *ondatra.DUTDevice, deepCheck bool) {
+	usersAccess:=map[string]map[string]bool{}
+	allAccess:=map[string]bool{}
+	allDeny:=map[string]bool{}
+	for _,rule := range p.AllowRules {
+		t.Logf("Processing Allow Rule %s",rule.Name)
+		for _,user := range  rule.Source.Principals{
+			if user == "*" {
+				for _,path:=range rule.Request.Paths {
+					allAccess[path]=true
+				}
+			} else {
+				for _,path:=range rule.Request.Paths {
+					_, ok := usersAccess["foo"]; if !ok {
+						usersAccess[user]=map[string]bool{}
+					}
+					usersAccess[user][path]=true
+				}
+			}
+		}
+	} 
+	// deny rules
+	for _,rule := range p.DenyRules {
+		t.Logf("Processing Deny Rule %s",rule.Name)
+		for _,user := range  rule.Source.Principals{
+			if user == "*" {
+				for _,path:=range rule.Request.Paths {
+					allDeny[path]=true
+					_,ok:=allAccess[path]; if ok {
+						allAccess[path]=false
+					}
+				}
+			} else {
+				for _,path:=range rule.Request.Paths {
+					_, ok := usersAccess["foo"]; if !ok {
+						usersAccess[user]=map[string]bool{}
+					}
+					usersAccess[user][path]=false
+				}
+			}
+		}
+	} 
+	gnsiCLient:=dut.RawAPIs().GNSI().Default(t)
+	for _,rule := range p.AllowRules {
+		t.Logf("Verifying Allow Rule %s",rule.Name)
+		for _,user := range  rule.Source.Principals{
+				for _,path:=range rule.Request.Paths {
+					resp,err:= gnsiCLient.Authz().Probe(context.Background(),&authz.ProbeRequest{User: user, Rpc: path}); if err!=nil {
+						t.Fatalf("Prob Request %s failed on dut %s", prettyPrint(&authz.ProbeRequest{User: user, Rpc: path}),dut.Name())
+					}
+					expectedResult:= authz.ProbeResponse_ACTION_UNSPECIFIED
+					ok:=allDeny[path]; if ok {
+						expectedResult= authz.ProbeResponse_ACTION_DENY
+					} else if !usersAccess[user][path] {
+						expectedResult= authz.ProbeResponse_ACTION_DENY
+					} else if  allAccess[path] || usersAccess[path][user] {
+						expectedResult= authz.ProbeResponse_ACTION_PERMIT
+					}
+					if resp.GetAction()!=expectedResult {
+						t.Fatalf("Prob response is wrong, want %v, got %v", expectedResult,resp.GetAction())
+					}
+				}
+		}
+	} 
 
 }
 
