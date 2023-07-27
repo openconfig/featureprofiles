@@ -335,8 +335,8 @@ tests:
     mustpass: true
     skip: false
     priority: 38
-  - name: gNOI-3.5 (Copying Debug Files)
-    path: feature/experimental/gnoi/copying_debug_files_test/
+  - name: gNOI-5.3 (Copying Debug Files)
+    path: feature/gnoi/system/tests/copying_debug_files_test
     owners:
       - agvarghe
     mustpass: false
