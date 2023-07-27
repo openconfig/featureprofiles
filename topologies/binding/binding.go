@@ -371,7 +371,7 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 	portmap := make(map[string]*binding.Port)
 	for _, tport := range tports {
 		portmap[tport.Id] = &binding.Port{
-		  Speed: tport.Speed,
+			Speed: tport.Speed,
 		}
 	}
 	for _, bport := range bports {
