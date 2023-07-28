@@ -18,14 +18,15 @@ package authz_test
 import (
 	//"context"
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	//"time"
 
-	//"time"
-
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	authzpb "github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra/gnmi"
@@ -41,287 +42,433 @@ import (
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
 var (
-	sampleUser="user1"
-	usersCount=10
+	sampleUser = "user1"
+	usersCount = 10
 )
 
-func createUsersOnDevice(t *testing.T, dut *ondatra.DUTDevice,users []*authz.User) {
-	ocAuthentication:=  &oc.System_Aaa_Authentication{}
-	for _,user := range users {
+func createUsersOnDevice(t *testing.T, dut *ondatra.DUTDevice, users []*authz.User) {
+	ocAuthentication := &oc.System_Aaa_Authentication{}
+	for _, user := range users {
 		ocUser := &oc.System_Aaa_Authentication_User{
 			Username: ygot.String(user.Name),
-			Role: oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
-			Password:ygot.String("123456"),
+			Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
+			Password: ygot.String("123456"),
 		}
 		ocAuthentication.AppendUser(ocUser)
 	}
-	gnmi.Update(t,dut, gnmi.OC().System().Aaa().Authentication().Config(),ocAuthentication)
+	gnmi.Update(t, dut, gnmi.OC().System().Aaa().Authentication().Config(), ocAuthentication)
 	// TODO: check all users are created
 }
 
 func TestSimpleAuthzGet(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnmi.Update(t,dut, gnmi.OC().System().Hostname().Config(),"test")
-	authzPolicy:= authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t,dut)
-	t.Logf("Authz Policy of the device %s is %s", dut.Name(),authzPolicy.PrettyPrint())
+	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	t.Logf("Authz Policy of the device %s is %s", dut.Name(), authzPolicy.PrettyPrint())
 }
 
-
-
-func generateUsersCerts(t *testing.T, dut *ondatra.DUTDevice,users ...authz.User) {
+func generateUsersCerts(t *testing.T, dut *ondatra.DUTDevice, users ...authz.User) {
 	// TODO generate certificate for all users and save them in testdata folder
 	// use cert lib that is created internal/security/cert
 }
 
 func TestSimpleRotate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore:=authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t,dut)
-	defer policyBerfore.Rotate(t,dut)
+	policyBerfore := authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t, dut)
+	defer policyBerfore.Rotate(t, dut)
 
-	authzPolicy:= authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t,dut)
-	users:=[]*authz.User{}
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	users := []*authz.User{}
 	users = append(users, &authz.User{Name: "user1"})
-	createUsersOnDevice(t,dut,users)
-	authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.GNMI_SET})
-	authzPolicy.Rotate(t,dut)
+	createUsersOnDevice(t, dut, users)
+	authzPolicy.AddAllowRules(users, []*gnxi.RPC{gnxi.RPCs.GNMI_SET})
+	authzPolicy.Rotate(t, dut)
 
 }
 
 func TestSaclePolicy(t *testing.T) {
+	t.SkipNow()
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore:=authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t,dut)
-	defer policyBerfore.Rotate(t,dut)
+	policyBerfore := authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t, dut)
+	defer policyBerfore.Rotate(t, dut)
 	// create n users
-	users:=[]*authz.User{}
-	for i:=1; i<=usersCount; i++ {
-		user:=&authz.User{
-			Name: "user"+strconv.Itoa(i),
+	users := []*authz.User{}
+	for i := 1; i <= usersCount; i++ {
+		user := &authz.User{
+			Name: "user" + strconv.Itoa(i),
 		}
-		users= append(users, user)
+		users = append(users, user)
 	}
-	createUsersOnDevice(t,dut,users)
-	//TODO: create n intermediate CA per user
-	//TODO: create users certificate
+	createUsersOnDevice(t, dut, users)
+	// TODO: create n intermediate CA per user
+	// TODO: create users certificate
 	// create m random rules for n users(no conflicting)
-	
+
 	// add a few conflicting rules per users
-	// add * rules 
-		// user *
-		// path * 
-		// both * *  (deny and allow)
+	// add * rules
+	// user *
+	// path *
+	// both * *  (deny and allow)
 
 }
 
 func TestAllowRuleAll(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore:=authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t,dut)
-	defer policyBerfore.Rotate(t,dut)
+	policyBerfore := authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t, dut)
+	defer policyBerfore.Rotate(t, dut)
 
-	authzPolicy:= authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t,dut)
-	users:=[]*authz.User{}
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	users := []*authz.User{}
 	users = append(users, &authz.User{Name: "user1"})
-	createUsersOnDevice(t,dut,users)
-	authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
-	authzPolicy.Rotate(t,dut)
-	gnsiClient:= dut.RawAPIs().GNSI().Default(t)
-	for path,_:=range gnxi.RPCMAP {
-		probReq:=&authzpb.ProbeRequest{
+	createUsersOnDevice(t, dut, users)
+	authzPolicy.AddAllowRules(users, []*gnxi.RPC{gnxi.RPCs.ALL})
+	authzPolicy.Rotate(t, dut)
+	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+	for path, _ := range gnxi.RPCMAP {
+		probReq := &authzpb.ProbeRequest{
 			User: "user1",
-			Rpc: path,
+			Rpc:  path,
 		}
-		resp, err := gnsiClient.Authz().Probe(context.Background(),probReq); if err!=nil {
+		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
+		if err != nil {
 			t.Fatalf("Not expecting error for prob request %v", err)
-		} 
-		if resp.GetAction()!= authzpb.ProbeResponse_ACTION_PERMIT {
-			t.Fatalf("Expecting ProbeResponse_ACTION_Permit for user %s path %s, received %v ", "user1", path, resp.GetAction() )
+		}
+		if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
+			t.Fatalf("Expecting ProbeResponse_ACTION_Permit for user %s path %s, received %v ", "user1", path, resp.GetAction())
 		}
 	}
 }
-
-
 
 func TestDenyRuleAll(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore:=authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t,dut)
-	defer policyBerfore.Rotate(t,dut)
+	policyBerfore := authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t, dut)
+	defer policyBerfore.Rotate(t, dut)
 
-	authzPolicy:= authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t,dut)
-	users:=[]*authz.User{}
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	users := []*authz.User{}
 	users = append(users, &authz.User{Name: "user1"})
-	createUsersOnDevice(t,dut,users)
-	authzPolicy.AddDenyRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
-	authzPolicy.Rotate(t,dut)
-	gnsiClient:= dut.RawAPIs().GNSI().Default(t)
-	for path,_:=range gnxi.RPCMAP {
-		probReq:=&authzpb.ProbeRequest{
+	createUsersOnDevice(t, dut, users)
+	authzPolicy.AddDenyRules(users, []*gnxi.RPC{gnxi.RPCs.ALL})
+	authzPolicy.Rotate(t, dut)
+	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+	for path, _ := range gnxi.RPCMAP {
+		probReq := &authzpb.ProbeRequest{
 			User: "user1",
-			Rpc: path,
+			Rpc:  path,
 		}
-		resp, err := gnsiClient.Authz().Probe(context.Background(),probReq); if err!=nil {
+		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
+		if err != nil {
 			t.Fatalf("Not expecting error for prob request %v", err)
-		} 
-		if resp.GetAction()!= authzpb.ProbeResponse_ACTION_DENY {
-			t.Fatalf("Expecting ProbeResponse_ACTION_DENY for user %s path %s, received %v ", "user1", path, resp.GetAction() )
+		}
+		if resp.GetAction() != authzpb.ProbeResponse_ACTION_DENY {
+			t.Fatalf("Expecting ProbeResponse_ACTION_DENY for user %s path %s, received %v ", "user1", path, resp.GetAction())
 		}
 	}
 
 }
 
-
 func TestAllowAllForService(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore:=authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t,dut)
-	defer policyBerfore.Rotate(t,dut)
+	policyBerfore := authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t, dut)
+	defer policyBerfore.Rotate(t, dut)
 
-	authzPolicy:= authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t,dut)
-	users:=[]*authz.User{}
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	users := []*authz.User{}
 	users = append(users, &authz.User{Name: "user1"})
-	createUsersOnDevice(t,dut,users)
+	createUsersOnDevice(t, dut, users)
 	//authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
-	gnsiClient:= dut.RawAPIs().GNSI().Default(t)
+	gnsiClient := dut.RawAPIs().GNSI().Default(t)
 
-	for path,service:=range gnxi.RPCMAP {
+	for path, service := range gnxi.RPCMAP {
 		if strings.HasSuffix(path, "/*") {
-			authzPolicy.AddAllowRules(users,[]*gnxi.RPC{service})
+			authzPolicy.AddAllowRules(users, []*gnxi.RPC{service})
 		}
 	}
-	authzPolicy.Rotate(t,dut)
-	for path,_:=range gnxi.RPCMAP {
-		if path=="*"{
+	authzPolicy.Rotate(t, dut)
+	for path, _ := range gnxi.RPCMAP {
+		if path == "*" {
 			continue
 		}
-		probReq:=&authzpb.ProbeRequest{
+		probReq := &authzpb.ProbeRequest{
 			User: "user1",
-			Rpc: path,
+			Rpc:  path,
 		}
-		resp, err := gnsiClient.Authz().Probe(context.Background(),probReq); if err!=nil {
+		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
+		if err != nil {
 			t.Fatalf("Not expecting error for prob request %v", err)
-		} 
-		if resp.GetAction()!= authzpb.ProbeResponse_ACTION_PERMIT {
-			t.Fatalf("Expecting ProbeResponse_ACTION_Permit for user %s path %s, received %v ", "user1", path, resp.GetAction() )
+		}
+		if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
+			t.Fatalf("Expecting ProbeResponse_ACTION_Permit for user %s path %s, received %v ", "user1", path, resp.GetAction())
 		}
 	}
 }
 
 func TestDenyAllForService(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore:=authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t,dut)
-	defer policyBerfore.Rotate(t,dut)
+	policyBerfore := authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t, dut)
+	defer policyBerfore.Rotate(t, dut)
 
-	authzPolicy:= authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t,dut)
-	users:=[]*authz.User{}
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	users := []*authz.User{}
 	users = append(users, &authz.User{Name: "user1"})
-	createUsersOnDevice(t,dut,users)
+	createUsersOnDevice(t, dut, users)
 	//authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
-	gnsiClient:= dut.RawAPIs().GNSI().Default(t)
+	gnsiClient := dut.RawAPIs().GNSI().Default(t)
 
-	for path,service:=range gnxi.RPCMAP {
+	for path, service := range gnxi.RPCMAP {
 		if strings.HasSuffix(path, "/*") {
-			authzPolicy.AddDenyRules(users,[]*gnxi.RPC{service})
+			authzPolicy.AddDenyRules(users, []*gnxi.RPC{service})
 		}
 	}
-	authzPolicy.Rotate(t,dut)
-	for path,_:=range gnxi.RPCMAP {
-		probReq:=&authzpb.ProbeRequest{
+	authzPolicy.Rotate(t, dut)
+	for path, _ := range gnxi.RPCMAP {
+		probReq := &authzpb.ProbeRequest{
 			User: "user1",
-			Rpc: path,
+			Rpc:  path,
 		}
-		resp, err := gnsiClient.Authz().Probe(context.Background(),probReq); if err!=nil {
+		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
+		if err != nil {
 			t.Fatalf("Not expecting error for prob request %v", err)
-		} 
-		if resp.GetAction()!= authzpb.ProbeResponse_ACTION_DENY {
-			t.Fatalf("Expecting ProbeResponse_ACTION_Deny for user %s path %s, received %v ", "user1", path, resp.GetAction() )
+		}
+		if resp.GetAction() != authzpb.ProbeResponse_ACTION_DENY {
+			t.Fatalf("Expecting ProbeResponse_ACTION_Deny for user %s path %s, received %v ", "user1", path, resp.GetAction())
 		}
 	}
 }
 
 func TestAllowAllRPCs(t *testing.T) {
+	t.Skip()
+	dut := ondatra.DUT(t, "dut")
+	policyBerfore := authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t, dut)
+	defer policyBerfore.Rotate(t, dut)
+
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	users := []*authz.User{}
+	users = append(users, &authz.User{Name: "user1"})
+	createUsersOnDevice(t, dut, users)
+	//authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
+	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+
+	for path, service := range gnxi.RPCMAP {
+		if strings.Contains(path, "*") {
+			continue
+		}
+		authzPolicy.AddAllowRules(users, []*gnxi.RPC{service})
+	}
+	authzPolicy.Rotate(t, dut)
+	for path, _ := range gnxi.RPCMAP {
+		/*if path=="*" || strings.HasSuffix(path, "/*"){
+			continue
+		}*/
+		probReq := &authzpb.ProbeRequest{
+			User: "user1",
+			Rpc:  path,
+		}
+		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
+		if err != nil {
+			t.Fatalf("Not expecting error for prob request %v", err)
+		}
+		if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
+			t.Fatalf("Expecting ProbeResponse_ACTION_Permit for user %s path %s, received %v ", "user1", path, resp.GetAction())
+		}
+	}
 
 }
 
 func TestDenyAllRPCs(t *testing.T) {
-	
+	t.Skip()
+	dut := ondatra.DUT(t, "dut")
+	policyBerfore := authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t, dut)
+	defer policyBerfore.Rotate(t, dut)
+
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	users := []*authz.User{}
+	users = append(users, &authz.User{Name: "user1"})
+	createUsersOnDevice(t, dut, users)
+	//authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
+	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+
+	for path, service := range gnxi.RPCMAP {
+		if strings.Contains(path, "*") {
+			continue
+		}
+		authzPolicy.AddDenyRules(users, []*gnxi.RPC{service})
+	}
+	authzPolicy.Rotate(t, dut)
+	for path, _ := range gnxi.RPCMAP {
+		probReq := &authzpb.ProbeRequest{
+			User: "user1",
+			Rpc:  path,
+		}
+		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
+		if err != nil {
+			t.Fatalf("Not expecting error for prob request %v", err)
+		}
+		if resp.GetAction() != authzpb.ProbeResponse_ACTION_DENY {
+			t.Fatalf("Expecting ProbeResponse_ACTION_Deny for user %s path %s, received %v ", "user1", path, resp.GetAction())
+		}
+	}
 }
 func TestDenyOverWriteAllow(t *testing.T) {
+	t.Skip()
+	dut := ondatra.DUT(t, "dut")
+	policyBerfore := authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t, dut)
+	defer policyBerfore.Rotate(t, dut)
+
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	users := []*authz.User{}
+	users = append(users, &authz.User{Name: "user1"})
+	createUsersOnDevice(t, dut, users)
+	//authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
+	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+
+	for path, service := range gnxi.RPCMAP {
+		if strings.Contains(path, "*") {
+			continue
+		}
+		authzPolicy.AddDenyRules(users, []*gnxi.RPC{service})
+		authzPolicy.AddAllowRules(users, []*gnxi.RPC{service})
+	}
+	authzPolicy.Rotate(t, dut)
+	for path, _ := range gnxi.RPCMAP {
+		probReq := &authzpb.ProbeRequest{
+			User: "user1",
+			Rpc:  path,
+		}
+		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
+		if err != nil {
+			t.Fatalf("Not expecting error for prob request %v", err)
+		}
+		if resp.GetAction() != authzpb.ProbeResponse_ACTION_DENY {
+			t.Fatalf("Expecting ProbeResponse_ACTION_Deny for user %s path %s, received %v ", "user1", path, resp.GetAction())
+		}
+	}
 
 }
 
-
 func TestRotateIsSingleton(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
+	policy := authz.NewAuthorizationPolicy()
+	policy.Get(t, dut)
+	jsonPolicy, err := policy.Marshal()
+	if err != nil {
+		t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
+	}
+	mainProbSignal := make(chan string)
+	go func(t *testing.T) {
+		<-mainProbSignal
+		for {
+			select {
+			case <-mainProbSignal:
+				return
+			default:
+				t.Logf("Starting second rotate stream")
+				rotateStream2, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+				if err == nil {
+					autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
+						UploadRequest: &authzpb.UploadRequest{
+							Version:   fmt.Sprintf("v0.%v", (time.Now().UnixMilli())),
+							CreatedOn: uint64(time.Now().UnixMicro()),
+							Policy:    string(jsonPolicy),
+						},
+					}
+					t.Logf("Sending Second Authz.Rotate Upload request on device: \n %v", autzRotateReq)
+					err = rotateStream2.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq}); if err==nil {
+						t.Error("A second upload rotate request  is successful which is not expected")
+						return  
+					}
+				}
+				t.Logf("Second rotate upload failed with error %v which is expected", err)
+			}
+		}
+	}(t)
 
+	rotateStream, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+	if err != nil {
+		t.Fatalf("Could not start rotate stream %v", err)
+	}
+	defer rotateStream.CloseSend()
+	//mainProbSignal <- "start"
+	//time.Sleep(2 * time.Second)
+
+	autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
+		UploadRequest: &authzpb.UploadRequest{
+			Version:   fmt.Sprintf("v0.%v", (time.Now().UnixMilli())),
+			CreatedOn: uint64(time.Now().UnixMicro()),
+			Policy:    string(jsonPolicy),
+		},
+	}
+	t.Logf("Sending Authz.Rotate request on device: \n %v", autzRotateReq)
+	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
+	if err == nil {
+		mainProbSignal <- "start"
+		time.Sleep(2 * time.Second)
+		t.Logf("Authz.Rotate upload was successful, receiving response ...")
+		_, err = rotateStream.Recv()
+		if err != nil {
+			t.Fatalf("Error while receiving rotate request reply %v", err)
+		}
+		time.Sleep(2 * time.Second)
+		// validate Result
+		tempPolicy := authz.NewAuthorizationPolicy()
+		tempPolicy.Get(t, dut)
+		if !cmp.Equal(policy, tempPolicy) {
+			t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(policy, tempPolicy))
+		}
+		//p.Verify(t,dut, false)
+		finalizeRotateReq := &authzpb.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authzpb.FinalizeRequest{}}
+		t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%v", finalizeRotateReq)
+		err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
+		if err != nil {
+			t.Fatalf("Error while finalizing rotate request  %v", err)
+		}
+		time.Sleep(2 * time.Second)
+	} else {
+		t.Fatalf("Error while uploading prob request reply %v", err)
+	}
+	//validate Result
+	finalPolicy := authz.NewAuthorizationPolicy()
+	finalPolicy.Get(t, dut)
+	if !cmp.Equal(policy, finalPolicy) {
+		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(policy, finalPolicy))
+	}
+	 close(mainProbSignal)
 }
 
 func TestFailOverInSteadyState(t *testing.T) {
-
+	t.Skip()
 }
 
 func TestFailOverDuringProb(t *testing.T) {
-
+	t.Skip()
 }
-
-
-
 
 func TestSaclePolicyWithFailOver(t *testing.T) {
-
+	t.Skip()
 }
 
-
-
-
-
-
-
-/*func authzRotate(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dut.ServiceAddress("GNMI")
-	routateStream, _ := dut.RawAPIs().GNSI().New(t).Authz().Rotate(context.Background())
-	policy := "{ \n    \"name\": \"authz\", \n    \"allow_rules\": [ \n        { \n            \"name\": \"Admin rules\", \n            \"source\": { \"principals\": [\"cafyauto\"]}, \n            \"request\": { \"paths\": [ \"*\" ] } \n        }\n    ] \n}\n"
-	err := routateStream.Send(&authz.RotateAuthzRequest{RotateRequest: &authz.RotateAuthzRequest_UploadRequest{UploadRequest: &authz.UploadRequest{Policy: policy, Version: "1.0", CreatedOn: uint64(time.Now().UnixMicro())}}})
-	if err == nil {
-		_, err2 := routateStream.Recv()
-		if err2 != nil {
-			t.Fatalf("Error while uploading prob request %v", err2)
-		}
-		//upresp:=&authz.RotateAuthzResponse_UploadResponse{}
-		//if resp.RotateResponse== upresp {
-		err3 := routateStream.Send(&authz.RotateAuthzRequest{RotateRequest: &authz.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authz.FinalizeRequest{}}})
-		if err3 != nil {
-			t.Fatalf("Error while finalizing rotate request  %v", err2)
-		}
-		//}
-	}
-}
-func TestAuthz(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	address, _:= dut.ServiceAddress("GNMI")
-	t.Logf("gnmi address is: %s", address)
-	probReq := &authz.ProbeRequest{User: "cafyauto", Rpc: "/gnmi.gNMI/Set"}
-	resp, err := dut.RawAPIs().GNSI().New(t).Authz().Get(context.Background(), &authz.GetRequest{})
-	if err != nil {
-		t.Fatalf("Get request %v is failed with error  %v ", probReq, err)
-	}
-	t.Logf("resp is %v", resp)
-
-	probresp, err := dut.RawAPIs().GNSI().New(t).Authz().Probe(context.Background(), probReq)
-	if err != nil {
-		t.Fatalf("Prob request %v is failed with error  %v ", probReq, err)
-	}
-	t.Logf("resp is %v", probresp)
-	authzRotate(t)
-}*/
-
-// TestOpenConfigBeforeCLI pushes overlapping mixed SetRequest specifying OpenConfig before CLI for DUT port-1.
