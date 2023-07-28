@@ -387,23 +387,26 @@ func TestRotateIsSingleton(t *testing.T) {
 			case <-mainProbSignal:
 				return
 			default:
-				t.Logf("Starting second rotate stream")
+				t.Logf("Starting second rotate stream (Client2)")
 				rotateStream2, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
 				if err == nil {
 					autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
 						UploadRequest: &authzpb.UploadRequest{
-							Version:   fmt.Sprintf("v0.%v", (time.Now().UnixMilli())),
+							Version:   fmt.Sprintf("v0.%v", (time.Now().UnixMilli()+1)), // same version makes things worse, will need to a seperate test for this
 							CreatedOn: uint64(time.Now().UnixMicro()),
 							Policy:    string(jsonPolicy),
 						},
 					}
-					t.Logf("Sending Second Authz.Rotate Upload request on device: \n %v", autzRotateReq)
+					t.Logf("Sending Second Authz.Rotate Upload request on device (Client2): \n %v", autzRotateReq)
 					err = rotateStream2.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq}); if err==nil {
-						t.Error("A second upload rotate request  is successful which is not expected")
-						return  
+						t.Log("A second upload rotate request  is sent successfully (Client2)")
+						_, err = rotateStream2.Recv()
+						if err == nil {
+							t.Error("The second rotate was successful, which is not expected (Client2)", err)
+						} 
 					}
 				}
-				t.Logf("Second rotate upload failed with error %v which is expected", err)
+				return 
 			}
 		}
 	}(t)
@@ -423,7 +426,7 @@ func TestRotateIsSingleton(t *testing.T) {
 			Policy:    string(jsonPolicy),
 		},
 	}
-	t.Logf("Sending Authz.Rotate request on device: \n %v", autzRotateReq)
+	t.Logf("Sending Authz.Rotate request on device (client 1): \n %v", autzRotateReq)
 	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
 	if err == nil {
 		mainProbSignal <- "start"
@@ -447,6 +450,7 @@ func TestRotateIsSingleton(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while finalizing rotate request  %v", err)
 		}
+		t.Logf("Authz.Rotate FinalizeRotation is successful (First Client)")
 		time.Sleep(2 * time.Second)
 	} else {
 		t.Fatalf("Error while uploading prob request reply %v", err)
@@ -472,3 +476,98 @@ func TestSaclePolicyWithFailOver(t *testing.T) {
 	t.Skip()
 }
 
+func TestRotatePolicySingletonSameVersion(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
+	policy := authz.NewAuthorizationPolicy()
+	policy.Get(t, dut)
+	jsonPolicy, err := policy.Marshal()
+	if err != nil {
+		t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
+	}
+	version:=fmt.Sprintf("v0.%v", (time.Now().UnixMilli()))
+	mainProbSignal := make(chan string)
+	go func(t *testing.T) {
+		<-mainProbSignal
+		for {
+			select {
+			case <-mainProbSignal:
+				return
+			default:
+				t.Logf("Starting second rotate stream (Client2)")
+				rotateStream2, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+				defer rotateStream2.CloseSend()
+				if err == nil {
+					autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
+						UploadRequest: &authzpb.UploadRequest{
+							Version:   version, // same version makes things worse, will need to a seperate test for this
+							CreatedOn: uint64(time.Now().UnixMicro()),
+							Policy:    string(jsonPolicy),
+						},
+					}
+					t.Logf("Sending Second Authz.Rotate Upload request on device (Client2): \n %v", autzRotateReq)
+					err = rotateStream2.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq}); if err==nil {
+						t.Log("A second upload rotate request  is sent successfully (Client2)")
+						_, err = rotateStream2.Recv()
+						if err == nil {
+							t.Error("The second rotate was successful, which is not expected (Client2)", err)
+						} 
+					}
+				}
+				return 
+			}
+		}
+	}(t)
+
+	rotateStream, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+	if err != nil {
+		t.Fatalf("Could not start rotate stream %v", err)
+	}
+	defer rotateStream.CloseSend()
+	//mainProbSignal <- "start"
+	//time.Sleep(2 * time.Second)
+
+	autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
+		UploadRequest: &authzpb.UploadRequest{
+			Version:   version,
+			CreatedOn: uint64(time.Now().UnixMicro()),
+			Policy:    string(jsonPolicy),
+		},
+	}
+	t.Logf("Sending Authz.Rotate request on device (client 1): \n %v", autzRotateReq)
+	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
+	if err == nil {
+		mainProbSignal <- "start"
+		time.Sleep(2 * time.Second)
+		t.Logf("Authz.Rotate upload was successful, receiving response ...")
+		_, err = rotateStream.Recv()
+		if err != nil {
+			t.Fatalf("Error while receiving rotate request reply %v", err)
+		}
+		time.Sleep(2 * time.Second)
+		// validate Result
+		tempPolicy := authz.NewAuthorizationPolicy()
+		tempPolicy.Get(t, dut)
+		if !cmp.Equal(policy, tempPolicy) {
+			t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(policy, tempPolicy))
+		}
+		//p.Verify(t,dut, false)
+		finalizeRotateReq := &authzpb.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authzpb.FinalizeRequest{}}
+		t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%v", finalizeRotateReq)
+		err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
+		if err != nil {
+			t.Fatalf("Error while finalizing rotate request (First Client) %v", err)
+		}
+		t.Logf("Authz.Rotate FinalizeRotation is successful (First Client)")
+		time.Sleep(2 * time.Second)
+	} else {
+		t.Fatalf("Error while uploading prob request reply %v", err)
+	}
+	//validate Result
+	finalPolicy := authz.NewAuthorizationPolicy()
+	finalPolicy.Get(t, dut)
+	if !cmp.Equal(policy, finalPolicy) {
+		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(policy, finalPolicy))
+	}
+		close(mainProbSignal)
+}
