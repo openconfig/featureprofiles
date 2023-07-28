@@ -607,6 +607,13 @@ tests:
       - wdolaast
     mustpass: false
     skip: true # requires 2 dut
+  - name: gNOI-6.1 (Factory Reset)
+    path: feature/gnoi/factory_reset/tests/factory_reset_test
+    owners:
+      - sahubbal
+    mustpass: true
+    timeout: 2400
+    skip: true # danger?
   - name: FP-1.1 (Power admin DOWN/UP Test)
     path: feature/platform/tests/power_admin_down_up_test
     owners:
