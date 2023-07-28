@@ -437,11 +437,11 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, co
 }
 
 // getLossPct returns the loss percentage for a given flow
-func getLossPct(t *testing.T, ate *ondatra.ATEDevice, flowName string) uint64 {
+func getLossPct(t *testing.T, ate *ondatra.ATEDevice, flowName string) float32 {
 	t.Helper()
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
+	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 	lostPackets := txPackets - rxPackets
 	if txPackets == 0 {
 		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)

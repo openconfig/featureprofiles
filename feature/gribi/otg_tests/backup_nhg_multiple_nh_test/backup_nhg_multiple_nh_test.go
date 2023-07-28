@@ -382,7 +382,6 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	}
 	time.Sleep(30 * time.Second)
 	a.ate.OTG().StopTraffic(t)
-	// otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
 	// Get send traffic
 	outgoing_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
