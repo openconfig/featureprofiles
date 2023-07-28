@@ -382,15 +382,15 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
 }
 
 // computeLossPct checks for traffic packet loss.
-func computeLossPct(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) int64 {
+func computeLossPct(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) float32 {
 	t.Helper()
 	flowMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("Flow").State())
-	txPackets := flowMetric.GetCounters().GetOutPkts()
+	txPackets := float32(flowMetric.GetCounters().GetOutPkts())
 	if txPackets == 0 {
 		t.Fatal("No tx packets")
 	}
-	rxPackets := flowMetric.GetCounters().GetInPkts()
-	lossPct := int64((txPackets - rxPackets) * 100 / txPackets)
+	rxPackets := float32(flowMetric.GetCounters().GetInPkts())
+	lossPct := (txPackets - rxPackets) * 100 / txPackets
 	return lossPct
 }
 
