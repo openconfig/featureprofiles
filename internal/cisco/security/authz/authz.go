@@ -178,6 +178,7 @@ func (p *AuthorizationPolicy)  PrettyPrint() string{
 }
 
 func (p *AuthorizationPolicy)  Verify(t *testing.T, dut *ondatra.DUTDevice, deepCheck bool) {
+	// TODO: only draft code, do not use this function for now
 	usersAccess:=map[string]map[string]bool{}
 	allAccess:=map[string]bool{}
 	allDeny:=map[string]bool{}
