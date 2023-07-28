@@ -515,13 +515,13 @@ func getLossPct(t *testing.T, flowName string) float32 {
 	t.Helper()
 	otg := ondatra.ATE(t, "ate").OTG()
 	flowStats := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
-	txPackets := flowStats.GetCounters().GetOutPkts()
-	rxPackets := flowStats.GetCounters().GetInPkts()
-	lostPackets := float32(txPackets - rxPackets)
+	txPackets := float32(flowStats.GetCounters().GetOutPkts())
+	rxPackets := float32(flowStats.GetCounters().GetInPkts())
+	lostPackets := txPackets - rxPackets
 	if txPackets == 0 {
 		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
 	}
-	lossPct := lostPackets * 100 / float32(txPackets)
+	lossPct := lostPackets * 100 / txPackets
 	return lossPct
 }
 
