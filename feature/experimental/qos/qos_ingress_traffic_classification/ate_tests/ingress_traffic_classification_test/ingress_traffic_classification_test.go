@@ -124,7 +124,7 @@ func TestQoSClassifier(t *testing.T) {
 		}
 	}
 
-	IPv4TrafficFlow1 := map[string]*trafficData{
+	ipv4TrafficFlow1 := map[string]*trafficData{
 		"flow-ipv4-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 6, queue: qos.nc1},
 		"flow-ipv4-af4": {frameSize: 400, trafficRate: 4, codePoint: 4, queue: qos.af4},
 		"flow-ipv4-af3": {frameSize: 300, trafficRate: 3, codePoint: 3, queue: qos.af3},
@@ -132,7 +132,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv4-af1": {frameSize: 1100, trafficRate: 1, codePoint: 1, queue: qos.af1},
 		"flow-ipv4-be1": {frameSize: 1200, trafficRate: 1, codePoint: 0, queue: qos.be1},
 	}
-	IPv4TrafficFlow2 := map[string]*trafficData{
+	ipv4TrafficFlow2 := map[string]*trafficData{
 		"flow-ipv4-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 7, queue: qos.nc1},
 		"flow-ipv4-af4": {frameSize: 400, trafficRate: 4, codePoint: 5, queue: qos.af4},
 		"flow-ipv4-af3": {frameSize: 300, trafficRate: 3, codePoint: 3, queue: qos.af3},
@@ -140,7 +140,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv4-af1": {frameSize: 1100, trafficRate: 1, codePoint: 1, queue: qos.af1},
 		"flow-ipv4-be1": {frameSize: 1200, trafficRate: 1, codePoint: 0, queue: qos.be1},
 	}
-	IPv6TrafficFlow1 := map[string]*trafficData{
+	ipv6TrafficFlow1 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 48, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 32, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 24, queue: qos.af3},
@@ -148,7 +148,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 8, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 0, queue: qos.be1},
 	}
-	IPv6TrafficFlow2 := map[string]*trafficData{
+	ipv6TrafficFlow2 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 49, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 33, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 25, queue: qos.af3},
@@ -156,7 +156,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 9, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 1, queue: qos.be1},
 	}
-	IPv6TrafficFlow3 := map[string]*trafficData{
+	ipv6TrafficFlow3 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 50, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 34, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 26, queue: qos.af3},
@@ -164,7 +164,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 10, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 2, queue: qos.be1},
 	}
-	IPv6TrafficFlow4 := map[string]*trafficData{
+	ipv6TrafficFlow4 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 51, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 35, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 27, queue: qos.af3},
@@ -172,7 +172,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 11, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 3, queue: qos.be1},
 	}
-	IPv6TrafficFlow5 := map[string]*trafficData{
+	ipv6TrafficFlow5 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 52, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 36, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 28, queue: qos.af3},
@@ -180,7 +180,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 12, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 4, queue: qos.be1},
 	}
-	IPv6TrafficFlow6 := map[string]*trafficData{
+	ipv6TrafficFlow6 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 53, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 37, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 29, queue: qos.af3},
@@ -188,7 +188,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 13, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 5, queue: qos.be1},
 	}
-	IPv6TrafficFlow7 := map[string]*trafficData{
+	ipv6TrafficFlow7 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 54, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 38, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 30, queue: qos.af3},
@@ -196,7 +196,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 14, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 6, queue: qos.be1},
 	}
-	IPv6TrafficFlow8 := map[string]*trafficData{
+	ipv6TrafficFlow8 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 55, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 39, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 31, queue: qos.af3},
@@ -204,7 +204,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 15, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 7, queue: qos.be1},
 	}
-	IPv6TrafficFlow9 := map[string]*trafficData{
+	ipv6TrafficFlow9 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 56, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 40, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 31, queue: qos.af3},
@@ -212,7 +212,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 15, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 7, queue: qos.be1},
 	}
-	IPv6TrafficFlow10 := map[string]*trafficData{
+	ipv6TrafficFlow10 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 57, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 41, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 31, queue: qos.af3},
@@ -220,7 +220,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 15, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 7, queue: qos.be1},
 	}
-	IPv6TrafficFlow11 := map[string]*trafficData{
+	ipv6TrafficFlow11 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 58, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 42, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 31, queue: qos.af3},
@@ -228,7 +228,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 15, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 7, queue: qos.be1},
 	}
-	IPv6TrafficFlow12 := map[string]*trafficData{
+	ipv6TrafficFlow12 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 59, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 43, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 31, queue: qos.af3},
@@ -236,7 +236,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 15, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 7, queue: qos.be1},
 	}
-	IPv6TrafficFlow13 := map[string]*trafficData{
+	ipv6TrafficFlow13 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 60, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 44, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 31, queue: qos.af3},
@@ -244,7 +244,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 15, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 7, queue: qos.be1},
 	}
-	IPv6TrafficFlow14 := map[string]*trafficData{
+	ipv6TrafficFlow14 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 61, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 45, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 31, queue: qos.af3},
@@ -252,7 +252,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 15, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 7, queue: qos.be1},
 	}
-	IPv6TrafficFlow15 := map[string]*trafficData{
+	ipv6TrafficFlow15 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 62, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 46, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 31, queue: qos.af3},
@@ -260,7 +260,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 15, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 7, queue: qos.be1},
 	}
-	IPv6TrafficFlow16 := map[string]*trafficData{
+	ipv6TrafficFlow16 := map[string]*trafficData{
 		"flow-ipv6-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 63, queue: qos.nc1},
 		"flow-ipv6-af4": {frameSize: 400, trafficRate: 4, codePoint: 47, queue: qos.af4},
 		"flow-ipv6-af3": {frameSize: 300, trafficRate: 3, codePoint: 31, queue: qos.af3},
@@ -268,7 +268,7 @@ func TestQoSClassifier(t *testing.T) {
 		"flow-ipv6-af1": {frameSize: 1100, trafficRate: 1, codePoint: 15, queue: qos.af1},
 		"flow-ipv6-be1": {frameSize: 1200, trafficRate: 1, codePoint: 7, queue: qos.be1},
 	}
-	MPLSTrafficFlow1 := map[string]*trafficData{
+	mplsTrafficFlow1 := map[string]*trafficData{
 		"flow-mpls-nc1": {frameSize: 1000, trafficRate: 1, codePoint: 6, queue: qos.nc1},
 		"flow-mpls-af4": {frameSize: 400, trafficRate: 4, codePoint: 4, queue: qos.af4},
 		"flow-mpls-af3": {frameSize: 300, trafficRate: 3, codePoint: 3, queue: qos.af3},
@@ -282,61 +282,61 @@ func TestQoSClassifier(t *testing.T) {
 		trafficFlows map[string]*trafficData
 	}{{
 		desc:         "IPv4 Traffic flow 1",
-		trafficFlows: IPv4TrafficFlow1,
+		trafficFlows: ipv4TrafficFlow1,
 	}, {
 		desc:         "IPv4 Traffic flow 2",
-		trafficFlows: IPv4TrafficFlow2,
+		trafficFlows: ipv4TrafficFlow2,
 	}, {
 		desc:         "IPv6 Traffic flow 1",
-		trafficFlows: IPv6TrafficFlow1,
+		trafficFlows: ipv6TrafficFlow1,
 	}, {
 		desc:         "IPv6 Traffic flow 2",
-		trafficFlows: IPv6TrafficFlow2,
+		trafficFlows: ipv6TrafficFlow2,
 	}, {
 		desc:         "IPv6 Traffic flow 3",
-		trafficFlows: IPv6TrafficFlow3,
+		trafficFlows: ipv6TrafficFlow3,
 	}, {
 		desc:         "IPv6 Traffic flow 4",
-		trafficFlows: IPv6TrafficFlow4,
+		trafficFlows: ipv6TrafficFlow4,
 	}, {
 		desc:         "IPv6 Traffic flow 5",
-		trafficFlows: IPv6TrafficFlow5,
+		trafficFlows: ipv6TrafficFlow5,
 	}, {
 		desc:         "IPv6 Traffic flow 6",
-		trafficFlows: IPv6TrafficFlow6,
+		trafficFlows: ipv6TrafficFlow6,
 	}, {
 		desc:         "IPv6 Traffic flow 7",
-		trafficFlows: IPv6TrafficFlow7,
+		trafficFlows: ipv6TrafficFlow7,
 	}, {
 		desc:         "IPv6 Traffic flow 8",
-		trafficFlows: IPv6TrafficFlow8,
+		trafficFlows: ipv6TrafficFlow8,
 	}, {
 		desc:         "IPv6 Traffic flow 9",
-		trafficFlows: IPv6TrafficFlow9,
+		trafficFlows: ipv6TrafficFlow9,
 	}, {
 		desc:         "IPv6 Traffic flow 10",
-		trafficFlows: IPv6TrafficFlow10,
+		trafficFlows: ipv6TrafficFlow10,
 	}, {
 		desc:         "IPv6 Traffic flow 11",
-		trafficFlows: IPv6TrafficFlow11,
+		trafficFlows: ipv6TrafficFlow11,
 	}, {
 		desc:         "IPv6 Traffic flow 12",
-		trafficFlows: IPv6TrafficFlow12,
+		trafficFlows: ipv6TrafficFlow12,
 	}, {
 		desc:         "IPv6 Traffic flow 13",
-		trafficFlows: IPv6TrafficFlow13,
+		trafficFlows: ipv6TrafficFlow13,
 	}, {
 		desc:         "IPv6 Traffic flow 14",
-		trafficFlows: IPv6TrafficFlow14,
+		trafficFlows: ipv6TrafficFlow14,
 	}, {
 		desc:         "IPv6 Traffic flow 15",
-		trafficFlows: IPv6TrafficFlow15,
+		trafficFlows: ipv6TrafficFlow15,
 	}, {
 		desc:         "IPv6 Traffic flow 16",
-		trafficFlows: IPv6TrafficFlow16,
+		trafficFlows: ipv6TrafficFlow16,
 	}, {
 		desc:         "MPLS Traffic flow 1",
-		trafficFlows: MPLSTrafficFlow1,
+		trafficFlows: mplsTrafficFlow1,
 	}}
 
 	for _, tc := range cases {
@@ -372,10 +372,9 @@ func TestQoSClassifier(t *testing.T) {
 				}
 			}
 
-			var counterNames []string
 			counters := make(map[string]map[string]uint64)
 
-			counterNames = []string{
+			counterNames := []string{
 				"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
 				"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
 				"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
@@ -456,7 +455,7 @@ func TestQoSClassifier(t *testing.T) {
 			}
 			if deviations.MatchedPacketsOctetsUnsupported(dut) {
 				t.Log("Validate Matched Packets and Octets")
-				validateMatchedStats(t, dut, counters, trafficFlows)
+				validateMatchedStats(t, dut, trafficFlows)
 			}
 		})
 	}
@@ -524,7 +523,7 @@ func configureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatalf("Cannot build a gNMI SetRequest: %v", err)
 		}
 		t.Log("gnmiClient Set CLI config")
-		if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		if _, err = gnmiClient.Get(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 		}
 	}
@@ -1043,7 +1042,7 @@ func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	return gpbSetRequest, nil
 }
 
-func validateMatchedStats(t *testing.T, dut *ondatra.DUTDevice, counters map[string]map[string]uint64, trafficFlows map[string]*trafficData) {
+func validateMatchedStats(t *testing.T, dut *ondatra.DUTDevice, trafficFlows map[string]*trafficData) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
 	ipv4TermRange := [6]string{"0", "1", "2", "3", "4", "5"}

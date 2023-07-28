@@ -285,6 +285,8 @@ message Metadata {
     bool skip_fabric_card_power_admin = 89;
     // Device returns component state inactive during power down.
     bool component_power_down_returns_inactive_state = 90;
+    // Device does not support matched-packets and matched-octets state paths
+    bool matched_packets_octets_unsupported = 91;
     
     // Reserved field numbers and identifiers.
     reserved 84;
