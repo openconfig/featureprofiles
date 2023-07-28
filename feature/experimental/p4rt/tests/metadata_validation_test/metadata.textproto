@@ -1,0 +1,31 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "c4f6b3eb-697e-4792-93c0-785c3fc61f67"
+plan_id: "P4RT-2.2"
+description: "P4RT Metadata Validation"
+testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    p4rt_modify_table_entry_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    p4rt_modify_table_entry_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    p4rt_modify_table_entry_unsupported: true
+  }
+}
