@@ -3,7 +3,7 @@
 
 uuid:  "8cab716c-70b4-4730-999d-b997fdf3e37d"
 plan_id:  "RT-2.9"
-description:  "IS-IS metric style wide enabled"
+description:  "IS-IS  metric style wide enabled"
 testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
