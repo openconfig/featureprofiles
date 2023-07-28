@@ -187,16 +187,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	got, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-	if !ok {
-		t.Fatalf("Did not receive OTG Neighbor entry, last got: %v", got)
-	}
-}
-
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
@@ -206,7 +196,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	otg := ate.OTG()
 	gwIP := gatewayMap[srcEndPoint].IPv4
 	otg.StartProtocols(t)
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
 	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(srcEndPoint.Name+".Eth").Ipv4Neighbor(gwIP).LinkLayerAddress().State())
 	config.Flows().Clear().Items()
 	flowipv4 := config.Flows().Add().SetName("Flow")
@@ -252,6 +242,19 @@ type testArgs struct {
 	top     gosnappi.Config
 }
 
+// checkAftIPv4Entry verifies that the prefix exists as an AFT IPv4 Entry.
+func checkAftIPv4Entry(t *testing.T, dut *ondatra.DUTDevice, instance string, prefix string) {
+	t.Helper()
+	ipv4Path := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix)
+	_, found := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == prefix
+	}).Await(t)
+	if !found {
+		t.Fatalf("Could not find prefix %s in AFT telemetry", prefix)
+	}
+}
+
 // testIPv4LeaderActiveChange first configures an IPV4 Entry through clientB
 // and ensures that the entry is active by checking AFT Telemetry and traffic.
 // It then configures an IPv4 entry through clientA without updating the election
@@ -269,8 +272,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
-	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), time.Minute, ateDstNetCIDR)
+	checkAftIPv4Entry(t, args.dut, deviations.DefaultNetworkInstance(args.dut), ateDstNetCIDR)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	testTraffic(t, args.ate, args.top, atePort1, atePort3)
@@ -293,8 +295,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
-	ipv4Path = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), time.Minute, ateDstNetCIDR)
+	checkAftIPv4Entry(t, args.dut, deviations.DefaultNetworkInstance(args.dut), ateDstNetCIDR)
 
 	// Verify with traffic that the entry for 198.51.100.0/24 is installed through the ATE port-2.
 	testTraffic(t, args.ate, args.top, atePort1, atePort2)
