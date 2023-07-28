@@ -590,8 +590,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
         check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ondatra_binding_path}")
-        check_output(f"sed -i 's|$CERT_FILE|{key_file}|g' {ondatra_binding_path}")
-        check_output(f"sed -i 's|$KEY_FILE|{cert_file}|g' {ondatra_binding_path}")
+        check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ondatra_binding_path}")
+        check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ondatra_binding_path}")
 
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
