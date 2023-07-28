@@ -17,20 +17,23 @@ package authz_test
 
 import (
 	//"context"
-	"strconv"
+	"context"
+	//"strconv"
 	"testing"
-	"time"
+	//"time"
 
 	//"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra/gnmi"
-	//"github.com/openconfig/ondatra/gnmi/oc"
-	//"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
+	authzpb "github.com/openconfig/gnsi/authz"
+
 
 	//"github.com/openconfig/gnsi/authz"
-	//authz "github.com/openconfig/featureprofiles/internal/cisco/security/authz"
-	//"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
+	authz "github.com/openconfig/featureprofiles/internal/cisco/security/authz"
+	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"github.com/openconfig/ondatra"
 )
 
@@ -41,27 +44,6 @@ var (
 	sampleUser="user1"
 	usersCount=10
 )
-
-func TestGNMIUpdate(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	beforeTime:= time.Now()
-	for i:=0; i<=100; i++ {
-		gnmi.Update(t,dut, gnmi.OC().System().Hostname().Config(),"test"+strconv.Itoa(i))
-	}
-	t.Logf("time to do 100 gnmi update is %s", time.Since(beforeTime).String())
-	/*gnmi.Update(t,dut, gnmi.OC().System().Hostname().Config(),"test")
-	authzPolicy:= authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t,dut)
-	t.Logf("Authz Policy of the device %s is %s", dut.Name(),authzPolicy.PrettyPrint())*/
-}
-/*
-func TestSimpleAuthzGet(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	gnmi.Update(t,dut, gnmi.OC().System().Hostname().Config(),"test")
-	authzPolicy:= authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t,dut)
-	t.Logf("Authz Policy of the device %s is %s", dut.Name(),authzPolicy.PrettyPrint())
-}
 
 func createUsersOnDevice(t *testing.T, dut *ondatra.DUTDevice,users []*authz.User) {
 	ocAuthentication:=  &oc.System_Aaa_Authentication{}
@@ -77,6 +59,29 @@ func createUsersOnDevice(t *testing.T, dut *ondatra.DUTDevice,users []*authz.Use
 	// TODO: check all users are created
 }
 
+/*func TestGNMIUpdate(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	beforeTime:= time.Now()
+	for i:=0; i<=100; i++ {
+		gnmi.Update(t,dut, gnmi.OC().System().Hostname().Config(),"test"+strconv.Itoa(i))
+	}
+	t.Logf("time to do 100 gnmi update is %s", time.Since(beforeTime).String())
+	/*gnmi.Update(t,dut, gnmi.OC().System().Hostname().Config(),"test")
+	authzPolicy:= authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t,dut)
+	t.Logf("Authz Policy of the device %s is %s", dut.Name(),authzPolicy.PrettyPrint())*/
+//}
+
+/*func TestSimpleAuthzGet(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	gnmi.Update(t,dut, gnmi.OC().System().Hostname().Config(),"test")
+	authzPolicy:= authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t,dut)
+	t.Logf("Authz Policy of the device %s is %s", dut.Name(),authzPolicy.PrettyPrint())
+}
+
+
+
 func generateUsersCerts(t *testing.T, dut *ondatra.DUTDevice,users ...authz.User) {
 	// TODO generate certificate for all users and save them in testdata folder
 }
@@ -89,11 +94,10 @@ func TestSimpleRotate(t *testing.T) {
 
 	authzPolicy:= authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t,dut)
-	authzPolicy.Get(t,dut)
 	users:=[]*authz.User{}
 	users = append(users, &authz.User{Name: "user1"})
 	createUsersOnDevice(t,dut,users)
-	authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.GNMI_GET})
+	authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.GNMI_SET})
 	authzPolicy.Rotate(t,dut)
 
 }
@@ -123,14 +127,63 @@ func TestSaclePolicy(t *testing.T) {
 		// both * *  (deny and allow)
 
 }
-
+*/
 func TestAllowRuleAll(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	policyBerfore:=authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t,dut)
+	defer policyBerfore.Rotate(t,dut)
 
+	authzPolicy:= authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t,dut)
+	users:=[]*authz.User{}
+	users = append(users, &authz.User{Name: "user1"})
+	createUsersOnDevice(t,dut,users)
+	authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
+	authzPolicy.Rotate(t,dut)
+	gnsiClient:= dut.RawAPIs().GNSI().Default(t)
+	for path,_:=range gnxi.RPCMAP {
+		probReq:=&authzpb.ProbeRequest{
+			User: "user1",
+			Rpc: path,
+		}
+		resp, err := gnsiClient.Authz().Probe(context.Background(),probReq); if err!=nil {
+			t.Fatalf("Not expecting error for prob request %v", err)
+		} 
+		if resp.GetAction()!= authzpb.ProbeResponse_ACTION_PERMIT {
+			t.Fatalf("Not expecting error for prob request %v", err)
+		}
+	}
 }
 
 
 
 func TestDenyRuleAll(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	policyBerfore:=authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t,dut)
+	defer policyBerfore.Rotate(t,dut)
+
+	authzPolicy:= authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t,dut)
+	users:=[]*authz.User{}
+	users = append(users, &authz.User{Name: "user1"})
+	createUsersOnDevice(t,dut,users)
+	authzPolicy.AddDenyRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
+	authzPolicy.Rotate(t,dut)
+	gnsiClient:= dut.RawAPIs().GNSI().Default(t)
+	for path,_:=range gnxi.RPCMAP {
+		probReq:=&authzpb.ProbeRequest{
+			User: "user1",
+			Rpc: path,
+		}
+		resp, err := gnsiClient.Authz().Probe(context.Background(),probReq); if err!=nil {
+			t.Fatalf("Not expecting error for prob request %v", err)
+		} 
+		if resp.GetAction()!= authzpb.ProbeResponse_ACTION_DENY {
+			t.Fatalf("Expecting ProbeResponse_ACTION_DENY for user %s path %s, received %v ", "user1", path, resp.GetAction() )
+		}
+	}
 
 }
 
