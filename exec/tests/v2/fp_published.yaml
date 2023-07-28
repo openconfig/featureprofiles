@@ -168,8 +168,8 @@ tests:
     timeout: 3600
     mustpass: true
     args:
-      - '-osfile="/auto/prod_weekly_archive1/bin/7.11.1.182G.DT_IMAGE/8000/8000-x64-7.11.1.182G.iso"'
-      - '-osver="7.11.1.182G"'
+      - '-osfile="/auto/prod_weekly_archive1/bin/7.11.1.191G.DT_IMAGE/8000/8000-x64-7.11.1.191G.iso"'
+      - '-osver="7.11.1.191G"'
     skip: true
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
@@ -193,6 +193,12 @@ tests:
     mustpass: true
   - name: P4RT-2.1 (P4RT Election)
     path: feature/experimental/p4rt/tests/p4rt_election
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: P4RT-2.2 (P4RT Metadata Validation)
+    path: feature/experimental/p4rt/tests/metadata_validation_test
     owners:
       - sprem
     priority: 5
@@ -329,8 +335,8 @@ tests:
     mustpass: true
     skip: false
     priority: 38
-  - name: gNOI-3.5 (Copying Debug Files)
-    path: feature/experimental/gnoi/copying_debug_files_test/
+  - name: gNOI-5.3 (Copying Debug Files)
+    path: feature/gnoi/system/tests/copying_debug_files_test
     owners:
       - agvarghe
     mustpass: false
@@ -465,6 +471,13 @@ tests:
     mustpass: false
     priority: 52
     timeout: 4200
+  - name: RT-1.20 (BGP 2-Byte and 4-Byte ASN support with policy)
+    path: feature/experimental/bgp/ate_tests/bgp_2byte_4byte_asn_policy_test
+    owners:
+      - sprem
+    mustpass: false
+    priority: 52
+    timeout: 4200
   - name: gNMI-1.4 (Telemetry Inventory)
     path: feature/platform/tests/telemetry_inventory_test
     owners:
@@ -594,6 +607,13 @@ tests:
       - wdolaast
     mustpass: false
     skip: true # requires 2 dut
+  - name: gNOI-6.1 (Factory Reset)
+    path: feature/gnoi/factory_reset/tests/factory_reset_test
+    owners:
+      - sahubbal
+    mustpass: true
+    timeout: 2400
+    skip: true # danger?
   - name: FP-1.1 (Power admin DOWN/UP Test)
     path: feature/platform/tests/power_admin_down_up_test
     owners:
