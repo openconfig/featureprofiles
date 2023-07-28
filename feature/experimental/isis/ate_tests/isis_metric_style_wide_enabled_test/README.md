@@ -7,8 +7,6 @@
 
 ## Procedure
 
-*   TestISISWideMetricEnabled
-
     *	Configure IS-IS for ATE port-1 and DUT port-1.
     *	Enable wide metric style on ATE and DUT.
     *	Advertise ISIS prefixes from ATE with wide metrics (value > 63).
