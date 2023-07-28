@@ -452,6 +452,7 @@ func testTraffic(t *testing.T, args testArgs, flow gosnappi.Flow) {
 	time.Sleep(2 * time.Minute)
 	args.ate.OTG().StopTraffic(t)
 
+	otgutils.LogFlowMetrics(t, args.ate.OTG(), args.top)
 	txPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
 	rxPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
 	if txPkts == 0 {
