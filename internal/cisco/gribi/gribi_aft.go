@@ -92,7 +92,7 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 		return present && nhgEntry.GetId() != nhgIndex
 	}).Await(t)
 	if !ok {
-		t.Fatalf("Could not find address %s in telemetry NH AFT", nhgIndex)
+		t.Fatalf("Could not find address %d in telemetry NH AFT", nhgIndex)
 	}
 	nhg, _ := aftNHGs.Val()
 	if nhg.GetProgrammedId() == nhgIndex {
