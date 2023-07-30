@@ -1,18 +1,16 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "f28e7a1a-7ce4-4ccc-810e-1d6cc4eac21e"
-plan_id: "gNMI-1.2"
-description: "Benchmarking: Full Configuration Replace"
+uuid:  "9f319fa6-d197-48fa-84fe-ea075c422190"
+plan_id:  "RT-1.14"
+description:  "BGP Long-Lived Graceful Restart"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
-    isis_protocol_enabled_not_required: true
-    isis_instance_enabled_not_required: true
-    missing_isis_interface_afi_safi_enable: true
+    ipv4_missing_enabled: true
   }
 }
 platform_exceptions: {
@@ -20,10 +18,7 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    isis_global_authentication_not_required: true
-    isis_instance_enabled_not_required: true
-    isis_explicit_level_authentication_config: true
-    missing_isis_interface_afi_safi_enable: true
+    use_vendor_native_acl_config: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     route_policy_under_afi_unsupported: true
@@ -44,9 +39,11 @@ platform_exceptions: {
   }
   deviations: {
     route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
     interface_enabled: true
-    missing_isis_interface_afi_safi_enable: true
-    isis_interface_afi_unsupported: true
     default_network_instance: "default"
+    deprecated_vlan_id: true
+    require_routed_subinterface_0: true
+    interface_config_vrf_before_address: true
   }
 }
