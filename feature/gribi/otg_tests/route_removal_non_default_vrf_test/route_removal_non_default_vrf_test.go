@@ -406,7 +406,7 @@ func injectEntries(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cl
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via gRIBI client", ateDstNetCIDR)
 	client.AddNH(t, nhIndex, atePort2.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 	client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
-	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	injectIPEntry(ctx, t, dut, client, networkInstanceName, ateDstNetCIDR)
 }
 
 // injectIPEntry adds only IPv4 entry to the specified network instance referencing to the nhgid, to the VRF.
