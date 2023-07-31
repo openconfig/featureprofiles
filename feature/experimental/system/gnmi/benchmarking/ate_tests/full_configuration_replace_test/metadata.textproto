@@ -36,7 +36,6 @@ platform_exceptions: {
   }
   deviations: {
     route_policy_under_afi_unsupported: true
-    isis_timers_lsp_refresh_interval_unsupported: true
   }
 }
 platform_exceptions: {

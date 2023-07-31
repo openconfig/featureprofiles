@@ -17,6 +17,7 @@ package binding
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -75,6 +76,27 @@ type dialer struct {
 	*bindpb.Options
 }
 
+// load trust bundle and client key and certificate
+func (d *dialer) loadCertificates() (*x509.CertPool, tls.Certificate, error) {
+	if d.CertFile == "" || d.KeyFile == "" || d.TrustBundleFile == "" {
+		return nil, tls.Certificate{}, fmt.Errorf("cert_file, key_file, and trust_bundle_file need to be set when mutual tls is set")
+	}
+	caCertBytes, err := os.ReadFile(d.TrustBundleFile)
+	if err != nil {
+		return nil, tls.Certificate{}, err
+	}
+	trusBundle := x509.NewCertPool()
+	if !trusBundle.AppendCertsFromPEM(caCertBytes) {
+		return nil, tls.Certificate{}, fmt.Errorf("error in loading ca trust bundle")
+	}
+	keyPair, err := tls.LoadX509KeyPair(d.CertFile, d.KeyFile)
+	if err != nil {
+		return nil, tls.Certificate{}, fmt.Errorf("could load the client keys")
+	}
+	return trusBundle, keyPair, nil
+
+}
+
 // dialGRPC dials a gRPC connection using the binding options.
 //
 //lint:ignore U1000 will be used by the binding.
@@ -86,6 +108,17 @@ func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.C
 	case d.SkipVerify:
 		tc := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 		opts = append(opts, grpc.WithTransportCredentials(tc))
+	case d.MutualTls:
+		trusBundle, keyPair, err := d.loadCertificates()
+		if err != nil {
+			return nil, err
+		}
+		tls := &tls.Config{
+			Certificates: []tls.Certificate{keyPair},
+			RootCAs:      trusBundle,
+		}
+		tlsConfig := credentials.NewTLS(tls)
+		opts = append(opts, grpc.WithTransportCredentials(tlsConfig))
 	}
 	if d.Username != "" {
 		c := &creds{d.Username, d.Password, !d.Insecure}
