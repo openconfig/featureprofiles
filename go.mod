@@ -22,14 +22,15 @@ require (
 	github.com/openconfig/goyang v1.4.0
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20230207233343-ef59db57c4fc
-	github.com/openconfig/kne v0.1.13
-	github.com/openconfig/ondatra v0.2.1
+	github.com/openconfig/kne v0.1.14
+	github.com/openconfig/ondatra v0.2.2
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.8.1
 	github.com/openconfig/ygot v0.29.0
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	golang.org/x/crypto v0.10.0
+	golang.org/x/exp v0.0.0-20221106115401-f9659909a136
 	golang.org/x/text v0.10.0
 	google.golang.org/api v0.122.0
 	google.golang.org/grpc v1.56.0
@@ -95,7 +96,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf // indirect
-	github.com/open-traffic-generator/ixia-c-operator v0.3.0 // indirect
+	github.com/open-traffic-generator/ixia-c-operator v0.3.4 // indirect
 	github.com/openconfig/entity-naming v0.0.0-20230629170241-8a23ae047882 // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
@@ -122,7 +123,6 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	golang.org/x/exp v0.0.0-20221106115401-f9659909a136 // indirect
 	golang.org/x/net v0.11.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.9.0 // indirect
