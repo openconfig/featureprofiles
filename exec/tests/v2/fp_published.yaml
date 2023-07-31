@@ -77,6 +77,7 @@ tests:
     owners:
       - mananpat
     mustpass: true
+    pr: 1855
     priority: 3
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/ate_tests/weighted_balancing_test
@@ -168,8 +169,8 @@ tests:
     timeout: 3600
     mustpass: true
     args:
-      - '-osfile="/auto/prod_weekly_archive1/bin/7.11.1.182G.DT_IMAGE/8000/8000-x64-7.11.1.182G.iso"'
-      - '-osver="7.11.1.182G"'
+      - '-osfile="/auto/prod_weekly_archive1/bin/7.11.1.191G.DT_IMAGE/8000/8000-x64-7.11.1.191G.iso"'
+      - '-osver="7.11.1.191G"'
     skip: true
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
@@ -202,7 +203,7 @@ tests:
     owners:
       - sprem
     priority: 5
-    mustpass: false
+    mustpass: true
   - name: P4RT-3.2 (Google Discovery Protocol PacketOut)
     path: feature/experimental/p4rt/ate_tests/google_discovery_protocol_packetout_test
     owners:
@@ -607,6 +608,13 @@ tests:
       - wdolaast
     mustpass: false
     skip: true # requires 2 dut
+  - name: gNOI-6.1 (Factory Reset)
+    path: feature/gnoi/factory_reset/tests/factory_reset_test
+    owners:
+      - sahubbal
+    mustpass: true
+    timeout: 2400
+    skip: true # danger?
   - name: FP-1.1 (Power admin DOWN/UP Test)
     path: feature/platform/tests/power_admin_down_up_test
     owners:
