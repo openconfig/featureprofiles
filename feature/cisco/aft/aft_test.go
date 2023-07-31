@@ -300,17 +300,17 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Run("Telemetry on NextHopGroup NextHop", func(t *testing.T) {
 		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup)
 		value := gnmi.Get(t, args.dut, path.State())
-		t.Logf("NextHopGroup NextHop Value: %d", value)
+		t.Logf("NextHopGroup NextHop Value: %d", value.GetNextHop(nexthop).GetIndex())
 	})
 	t.Run("Telemetry on NextHopGroup NextHop Index", func(t *testing.T) {
 		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup)
 		value := gnmi.Get(t, args.dut, path.State())
-		t.Logf("NextHopGroup NextHop Index Value: %d", value)
+		t.Logf("NextHopGroup NextHop Index Value: %d", value.GetNextHop(nexthop).GetIndex())
 	})
 	t.Run("Telemetry on NextHopGroup NextHop Weight", func(t *testing.T) {
 		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup)
 		value := gnmi.Get(t, args.dut, path.State())
-		t.Logf("NextHopGroup NextHop Weight Value: %d", value)
+		t.Logf("NextHopGroup NextHop Weight Value: %d", value.GetNextHop(nexthop).GetWeight())
 	})
 	t.Run("Telemetry on NextHopGroup BackupNextHopGroup", func(t *testing.T) {
 		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup_nondefault)

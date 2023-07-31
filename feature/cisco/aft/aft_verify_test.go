@@ -24,7 +24,7 @@ import (
 func getaftnh(t *testing.T, dut *ondatra.DUTDevice, ipv4prefix string, ipv4nwinstance string, nhgnwinstance string) (nh []uint64, nhg uint64) {
 
 	ipv4Entry := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ipv4nwinstance).Afts().Ipv4Entry(ipv4prefix).State())
-	t.Logf("ipv4Entry VALUE : %d", ipv4Entry)
+	t.Logf("NextHopGroup VALUE : %d", ipv4Entry.GetNextHopGroup())
 	nhgval := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(nhgnwinstance).Afts().NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
 
 	var nhlist []uint64
