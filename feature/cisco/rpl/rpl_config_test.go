@@ -61,7 +61,6 @@ func TestRPLConfig(t *testing.T) {
 				//gnmi.Replace(t, dut, path.Config(), 1)
 				t.Skip("Test requires a fix due to the new version of the model")
 
-
 			})
 
 			t.Run("Replace//routing-policy/policy-definitions/policy-definition[name=DENY1]/statements/statement[name=id-1]/actions/bgp-actions/set-as-path-prepend/config/repeat-n", func(t *testing.T) {
