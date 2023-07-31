@@ -118,11 +118,17 @@ func TestResetGRIBIServerFP(t *testing.T) {
 		return true
 	}).Await(t)
 
-	gnmi.Lookup(t, dut, ipv4Path.Prefix().State())
-	gnmi.Watch(t, dut, ipv4Path.Prefix().State(), 33*time.Second, func(val *ygnmi.Value[string]) bool {
+	got, present := gnmi.Lookup(t, dut, ipv4Path.State()).Val()
+	if !present && *got.Prefix != ateDstNetCIDR {
+		t.Errorf("ipv4-entry/state/prefix got %s, want %s", *got.Prefix, ateDstNetCIDR)
+	}
 
-		return true
-	}).Await(t)
+	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), 33*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
+	}).Await(t); !ok {
+		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, ateDstNetCIDR)
+	}
 
 	clientA.FlushAll(t)
 }

@@ -77,6 +77,7 @@ tests:
     owners:
       - mananpat
     mustpass: true
+    pr: 1855
     priority: 3
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/ate_tests/weighted_balancing_test

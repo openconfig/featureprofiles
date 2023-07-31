@@ -252,7 +252,7 @@ func configRP(t *testing.T, dut *ondatra.DUTDevice) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateRoutingPolicy()
 	pdef := inst.GetOrCreatePolicyDefinition("ALLOW")
-	stmt1 := pdef.GetOrCreateStatement("1")
+	stmt1, _ := pdef.AppendNewStatement("1")
 	stmt1.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	dutNode := gnmi.OC().RoutingPolicy()
