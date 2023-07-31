@@ -293,28 +293,28 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 	})
 	t.Run("Telemetry on NextHopGroup NextHopAny", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).NextHopAny()
-		gnmi.GetAll(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup)
+		gnmi.Get(t, args.dut, path.State())
 	})
 
 	t.Run("Telemetry on NextHopGroup NextHop", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).NextHop(nexthop)
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup)
 		value := gnmi.Get(t, args.dut, path.State())
 		t.Logf("NextHopGroup NextHop Value: %d", value)
 	})
 	t.Run("Telemetry on NextHopGroup NextHop Index", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).NextHop(nexthop).Index()
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup)
 		value := gnmi.Get(t, args.dut, path.State())
 		t.Logf("NextHopGroup NextHop Index Value: %d", value)
 	})
 	t.Run("Telemetry on NextHopGroup NextHop Weight", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).NextHop(nexthop).Weight()
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup)
 		value := gnmi.Get(t, args.dut, path.State())
 		t.Logf("NextHopGroup NextHop Weight Value: %d", value)
 	})
 	t.Run("Telemetry on NextHopGroup BackupNextHopGroup", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup_nondefault).BackupNextHopGroup()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup_nondefault)
+		value := gnmi.Get(t, args.dut, path.State()).GetBackupNextHopGroup()
 		t.Logf("Value %d", value)
 		nhg := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(value).State())
 		t.Logf("BackupNextHopGroup ProgrammedId VALUE: %d", nhg.GetProgrammedId())
@@ -333,8 +333,8 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("NextHop Value: %v", value)
 	})
 	t.Run("Telemetry on NextHop Index", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop).Index()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop)
+		value := gnmi.Get(t, args.dut, path.State()).GetIndex()
 		if value == 0 {
 			t.Errorf("Incorrect value for NextHop Index  got %d, want non zero value", value)
 		}
@@ -351,16 +351,16 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	p8 := args.dut.Port(t, "port8")
 	interfaceref_name := p8.Name()
 	t.Run("Telemetry on NextHop InterfaceRef(main interface)", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_interfaceref).InterfaceRef()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_interfaceref)
+		value := gnmi.Get(t, args.dut, path.State()).GetInterfaceRef()
 		if value.GetInterface() != interfaceref_name {
 			t.Errorf("Incorrect value for NextHop InterfaceRef  got %s, want %s", value.GetInterface(), interfaceref_name)
 		}
 	})
 
 	t.Run("Telemetry on NextHop InterfaceRef Interface", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_interfaceref).InterfaceRef().Interface()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_interfaceref)
+		value := gnmi.Get(t, args.dut, path.State()).GetInterfaceRef().GetInterface()
 		if value != interfaceref_name {
 			t.Errorf("Incorrect value for NextHop InterfaceRef  Interface got %s, want %s", value, interfaceref_name)
 		}
@@ -371,15 +371,15 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	nexthop_subinterfaceref := nhlist[0]
 
 	t.Run("Telemetry on NextHop InterfaceRef(subinterface)", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_subinterfaceref).InterfaceRef()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_subinterfaceref)
+		value := gnmi.Get(t, args.dut, path.State()).GetInterfaceRef()
 		if value.GetSubinterface() != 1 {
 			t.Errorf("Incorrect value for InterfaceRef Subinterface  got %d, want %d", value.GetSubinterface(), 1)
 		}
 	})
 	t.Run("Telemetry on NextHop InterfaceRef Subinterface", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_subinterfaceref).InterfaceRef().Subinterface()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_subinterfaceref)
+		value := gnmi.Get(t, args.dut, path.State()).GetInterfaceRef().GetSubinterface()
 		if value != 1 {
 			t.Errorf("Incorrect value for InterfaceRef Subinterface  got %d, want %d", value, 1)
 		}
@@ -396,8 +396,8 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	// 	t.Logf("NextHop DecapsulateHeader Value: %d", value)
 	// })
 	t.Run("Telemetry on NextHop IpAddress", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop).IpAddress()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop)
+		value := gnmi.Get(t, args.dut, path.State()).GetIpAddress()
 		if !strings.Contains(value, "192") {
 			t.Errorf("Incorrect value for NextHop IpAddress  got %s, want an ip address in range 192.x", value)
 		}
@@ -414,22 +414,22 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	// })
 
 	t.Run("Telemetry on NextHop ProgrammedIndex", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop).ProgrammedIndex()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop)
+		value := gnmi.Get(t, args.dut, path.State()).GetProgrammedIndex()
 		if value == 0 {
 			t.Errorf("Incorrect value for NextHop ProgrammedIndex  got %d, want non-zero", value)
 		}
 	})
 	t.Run("Telemetry on NextHopGroup ProgrammedId", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup).ProgrammedId()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nexthopgroup)
+		value := gnmi.Get(t, args.dut, path.State()).GetProgrammedId()
 		if value != 5002 {
 			t.Errorf("Incorrect value for NextHopGroup ProgrammedId  got %d, want %d", value, 5002)
 		}
 	})
 	t.Run("Telemetry on NextHop IpInIp", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_ipinip).IpInIp()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_ipinip)
+		value := gnmi.Get(t, args.dut, path.State()).GetIpInIp()
 		if value.GetDstIp() != "10.10.10.1" {
 			t.Errorf("Incorrect value for  NextHop IpInIp DstIp got %s, want %s", value.GetDstIp(), "10.10.10.1")
 		}
@@ -438,15 +438,15 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 	})
 	t.Run("Telemetry on NextHop IpInIp SrcIp", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_ipinip).IpInIp().SrcIp()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_ipinip)
+		value := gnmi.Get(t, args.dut, path.State()).GetIpInIp().GetSrcIp()
 		if value != "20.20.20.1" {
 			t.Errorf("Incorrect value for  NextHop IpInIp SrcIp  got %s, want %s", value, "20.20.20.1")
 		}
 	})
 	t.Run("Telemetry on NextHop IpInIp DstIp", func(t *testing.T) {
-		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_ipinip).IpInIp().DstIp()
-		value := gnmi.Get(t, args.dut, path.State())
+		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_ipinip)
+		value := gnmi.Get(t, args.dut, path.State()).GetIpInIp().GetDstIp()
 		if value != "10.10.10.1" {
 			t.Errorf("Incorrect value for  NextHop IpInIp DstIp got %s, want %s", value, "10.10.10.1")
 		}
