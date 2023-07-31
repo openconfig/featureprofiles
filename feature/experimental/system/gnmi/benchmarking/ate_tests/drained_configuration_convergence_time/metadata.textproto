@@ -12,7 +12,6 @@ platform_exceptions: {
   deviations: {
     isis_instance_enabled_not_required: true
     isis_protocol_enabled_not_required: true
-    isis_instance_enabled_not_required: true
     missing_isis_interface_afi_safi_enable: true
   }
 }
@@ -22,7 +21,6 @@ platform_exceptions: {
   }
   deviations: {
     isis_global_authentication_not_required: true
-    isis_instance_enabled_not_required: true
     isis_explicit_level_authentication_config: true
     isis_instance_enabled_not_required: true
     missing_isis_interface_afi_safi_enable: true
