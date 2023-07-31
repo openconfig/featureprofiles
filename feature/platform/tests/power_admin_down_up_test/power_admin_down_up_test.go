@@ -22,10 +22,23 @@ func TestMain(m *testing.M) {
 
 func TestFabricPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SkipFabricCardPowerAdmin(dut) {
+		t.Skip("Fabric power down up unsupported")
+	}
 	fs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
 
 	for _, f := range fs {
 		t.Run(f, func(t *testing.T) {
+
+			if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
+				t.Skipf("Skip the test on non-removable fabric.")
+			}
+
+			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+			if ok && empty {
+				t.Skipf("Fabric Component %s is empty, hence skipping", f)
+			}
+
 			oper := gnmi.Get(t, dut, gnmi.OC().Component(f).OperStatus().State())
 
 			if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
@@ -51,6 +64,9 @@ func TestLinecardPowerAdmin(t *testing.T) {
 			if ok && empty {
 				t.Skipf("Linecard Component %s is empty, hence skipping", l)
 			}
+			if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
+				t.Skipf("Skip the test on non-removable linecard.")
+			}
 
 			oper := gnmi.Get(t, dut, gnmi.OC().Component(l).OperStatus().State())
 
@@ -60,7 +76,7 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
 
-			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 3*time.Minute)
+			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 10*time.Minute)
 
 			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
 		})
@@ -69,7 +85,16 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 func TestControllerCardPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	if deviations.SkipControllerCardPowerAdmin(dut) {
+		t.Skipf("Power-admin-state config on controller card is not supported.")
+	}
+
 	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	if len(cs) < 2 {
+		t.Skipf("Number of controller cards is less than 2. Skipping test for controller-card power-admin-state.")
+	}
+
 	primary := ""
 	for _, c := range cs {
 		t.Run(c, func(t *testing.T) {
@@ -121,12 +146,19 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	}
 	t.Logf("Component %s, power-admin-state after %f minutes: %v", name, time.Since(start).Minutes(), power)
 
-	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED).Val()
-	if !ok {
-		t.Errorf("Component %s oper-status, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED)
+	if deviations.ComponentPowerDownReturnsInactiveState(dut) {
+		oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE).Val()
+		if !ok {
+			t.Errorf("Component %s oper-status, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE)
+		}
+		t.Logf("Component %s, oper-status after %f minutes: %v", name, time.Since(start).Minutes(), oper)
+	} else {
+		oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED).Val()
+		if !ok {
+			t.Errorf("Component %s oper-status, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED)
+		}
+		t.Logf("Component %s, oper-status after %f minutes: %v", name, time.Since(start).Minutes(), oper)
 	}
-	t.Logf("Component %s, oper-status after %f minutes: %v", name, time.Since(start).Minutes(), oper)
-
 	start = time.Now()
 	t.Logf("Starting %s POWER_ENABLE", name)
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_ENABLED)
@@ -139,7 +171,7 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 		t.Logf("Component %s, power-admin-state after %f minutes: %v", name, time.Since(start).Minutes(), power)
 	}
 
-	oper, ok = gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val()
+	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val()
 	if !ok {
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}

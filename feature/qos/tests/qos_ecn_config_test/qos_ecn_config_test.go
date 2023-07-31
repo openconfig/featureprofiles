@@ -20,6 +20,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -424,6 +425,7 @@ func testCiscoECNConfig(t *testing.T) {
 	}}
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 	t.Logf("qos output interface config cases: %v", cases)
 
 	for _, tc := range intcases {
@@ -434,10 +436,11 @@ func testCiscoECNConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.queueName)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
 		})
 
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	for _, tc := range cases {
 		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
@@ -505,6 +508,7 @@ func testJuniperECNConfig(t *testing.T) {
 	i.SetInterfaceId(dp.Name())
 	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 	i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	schedulers := []struct {
 		desc        string
@@ -522,7 +526,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   "6",
+		queueName:   queues.BE1,
 		targetGroup: "BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -531,7 +535,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(2),
-		queueName:   "0",
+		queueName:   queues.BE0,
 		targetGroup: "BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -540,7 +544,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
-		queueName:   "4",
+		queueName:   queues.AF1,
 		targetGroup: "AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -549,7 +553,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(8),
-		queueName:   "1",
+		queueName:   queues.AF2,
 		targetGroup: "AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -558,7 +562,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(16),
-		queueName:   "5",
+		queueName:   queues.AF3,
 		targetGroup: "AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -567,7 +571,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(99),
-		queueName:   "2",
+		queueName:   queues.AF4,
 		targetGroup: "AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -576,7 +580,7 @@ func testJuniperECNConfig(t *testing.T) {
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(100),
-		queueName:   "3",
+		queueName:   queues.NC1,
 		targetGroup: "NC1",
 	}}
 
@@ -585,9 +589,8 @@ func testJuniperECNConfig(t *testing.T) {
 	t.Logf("qos scheduler policies config cases: %v", schedulers)
 	for _, tc := range schedulers {
 		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-			fwdGroup.SetName(tc.targetGroup)
-			fwdGroup.SetOutputQueue(tc.queueName)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
+
 			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
 			s.SetSequence(tc.sequence)
 			s.SetPriority(tc.priority)
