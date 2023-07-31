@@ -16,6 +16,8 @@ package main
 
 import (
 	"encoding/base64"
+	"errors"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -232,5 +234,74 @@ func TestPopulateTestDetail(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, in, cmpopts.IgnoreUnexported(pullRequest{})); diff != "" {
 		t.Errorf("populateModifiedTests(%v): -want,+got:\n%s", modifiedTests, diff)
+	}
+}
+
+func TestWithRetry(t *testing.T) {
+	var retryCount int
+
+	cases := []struct {
+		desc         string
+		attempts     int
+		fn           func() error
+		wantErr      string
+		wantAttempts int
+	}{
+		{
+			desc:         "pass with no retries",
+			attempts:     3,
+			fn:           func() error { retryCount++; return nil },
+			wantAttempts: 1,
+		},
+		{
+			desc:     "pass with one retry",
+			attempts: 3,
+			fn: func() error {
+				retryCount++
+				if retryCount < 2 {
+					return errors.New("expected error")
+				}
+				return nil
+			},
+			wantAttempts: 2,
+		},
+		{
+			desc:     "fail on third retry",
+			attempts: 3,
+			fn: func() error {
+				retryCount++
+				if retryCount < 3 {
+					return errors.New("bad error")
+				}
+				return errors.New("expected error")
+			},
+			wantAttempts: 3,
+			wantErr:      "expected error",
+		},
+		{
+			desc:     "pass on third retry",
+			attempts: 3,
+			fn: func() error {
+				retryCount++
+				if retryCount < 3 {
+					return errors.New("bad error")
+				}
+				return nil
+			},
+			wantAttempts: 3,
+		},
+	}
+
+	for _, tc := range cases {
+		retryCount = 0 // Reset retry counter
+		t.Run(tc.desc, func(t *testing.T) {
+			err := withRetry(tc.attempts, tc.desc, tc.fn)
+			if (err == nil) != (tc.wantErr == "") || (err != nil && !strings.Contains(err.Error(), tc.wantErr)) {
+				t.Errorf("withRetry() got error %v, want error containing %q", err, tc.wantErr)
+			}
+			if retryCount != tc.wantAttempts {
+				t.Errorf("withRetry() took %d attempts, want %d", retryCount, tc.wantAttempts)
+			}
+		})
 	}
 }
