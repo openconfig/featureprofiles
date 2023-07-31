@@ -319,10 +319,10 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     if internal_test:
         test_repo_url = INTERNAL_FP_REPO_URL
 
-    use_patched_repo = test_branch == 'main' and not test_revision and not test_pr
-    if use_patched_repo:
-        test_repo_url = INTERNAL_FP_REPO_URL
-        test_branch = 'firex/run'
+#     use_patched_repo = test_branch == 'main' and not test_revision and not test_pr
+#     if use_patched_repo:
+#         test_repo_url = INTERNAL_FP_REPO_URL
+#         test_branch = 'firex/run'
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
