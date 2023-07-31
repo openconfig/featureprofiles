@@ -208,7 +208,7 @@ func testBatchADDReplaceDeleteIPV4(t *testing.T, events *monitor.CachedConsumer,
 out:
 	for {
 		for _, prefix := range prefixes {
-			path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
+			path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix)
 			strpath := gnmiutil.PathStructToString(path)
 			_, found := events.Cache.Get(strpath)
 			if found {
@@ -223,7 +223,7 @@ out:
 	}
 	// check to make sure we have update for all prefixes
 	for _, prefix := range prefixes {
-		path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
+		path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix)
 		strpath := gnmiutil.PathStructToString(path)
 		for {
 			_, found := events.Cache.Get(strpath)
