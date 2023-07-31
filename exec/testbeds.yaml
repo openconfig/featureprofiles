@@ -78,6 +78,10 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE/basefp-mgmt-vrf.conf
+  - id: 8202-1DUT-1ATE-vrf-mgmt
+    sim: true
+    topology: topologies/cisco/pyvxr/8202-1DUT-1ATE/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8202-1DUT-1ATE/basefp-mgmt-vrf.conf    
   - id: 8808-1DUT-1ATE
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
