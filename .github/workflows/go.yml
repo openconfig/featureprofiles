@@ -26,6 +26,8 @@ jobs:
         restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Build
       run: go build -v ./...
+    - name: Generate
+      run: go generate -v ./...
   test:
     runs-on: ubuntu-latest
     steps:

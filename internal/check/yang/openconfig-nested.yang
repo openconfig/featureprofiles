@@ -1,0 +1,46 @@
+module openconfig-nested {
+  prefix "ocn";
+  namespace "urn:ocn";
+  description
+    "A test module with deeply nested path to use for benchmarking";
+
+  import openconfig-extensions { prefix oc-ext; }
+
+  container a {
+    container b {
+      container c {
+        container d {
+          container e {
+            container f {
+              container g {
+                container h {
+                  container i {
+                    container j {
+                      container k {
+                        container l {
+                          container m {
+                            container state {
+                              config false;
+                              leaf foo { type string; }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  container container {
+    oc-ext:telemetry-atomic;
+    leaf enabled {
+      type boolean;
+    }
+  }
+}

@@ -21,10 +21,10 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/check"
+	"github.com/openconfig/featureprofiles/internal/check/exampleoc/exampleocpath"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmi/testing/fake/gnmi"
 	fpb "github.com/openconfig/gnmi/testing/fake/proto"
-	"github.com/openconfig/ygnmi/exampleoc/exampleocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
