@@ -523,7 +523,7 @@ func configureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatalf("Cannot build a gNMI SetRequest: %v", err)
 		}
 		t.Log("gnmiClient Set CLI config")
-		if _, err = gnmiClient.Get(context.Background(), gpbSetRequest); err != nil {
+		if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 		}
 	}
