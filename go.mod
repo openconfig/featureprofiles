@@ -2,7 +2,6 @@ module github.com/openconfig/featureprofiles
 
 go 1.19
 
-
 require (
 	cloud.google.com/go/pubsub v1.30.0
 	cloud.google.com/go/storage v1.28.1
@@ -34,6 +33,7 @@ require (
 	github.com/p4lang/p4runtime v1.4.0-rc.5
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
+	github.com/pkg/sftp v1.13.5
 	github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	golang.org/x/crypto v0.10.0
@@ -115,7 +115,6 @@ require (
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
-	github.com/pkg/sftp v1.13.5 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/scrapli/scrapligo v1.1.7 // indirect
 	github.com/scrapli/scrapligocfg v1.0.0 // indirect
