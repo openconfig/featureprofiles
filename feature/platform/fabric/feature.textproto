@@ -1,5 +1,5 @@
 id {
-  name: "fabric"
+  name: "platform_fabric"
   version: 1
 }
 
