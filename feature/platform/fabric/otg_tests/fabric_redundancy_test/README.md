@@ -66,3 +66,6 @@
 *   /components/component/state/type
 *   /components/component/state/location
 *   /components/component/state/last-reboot-time
+
+## Minimum DUT platform requirement
+*   MFF
