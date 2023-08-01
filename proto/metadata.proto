@@ -285,8 +285,7 @@ message Metadata {
     bool component_power_down_returns_inactive_state = 90;
     
     // Reserved field numbers and identifiers.
-    reserved 84;
-    reserved 9;
+    reserved 84, 9;
   }
 
   message PlatformExceptions {
