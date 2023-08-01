@@ -346,7 +346,7 @@ func (x *Device) GetVendor() proto.Device_Vendor {
 	if x != nil {
 		return x.Vendor
 	}
-	return proto.Device_VENDOR_UNSPECIFIED
+	return proto.Device_Vendor(0)
 }
 
 func (x *Device) GetHardwareModel() string {

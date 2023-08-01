@@ -125,25 +125,6 @@ func (d *staticDUT) reset(ctx context.Context) error {
 	return resetGRIBI(ctx, d.dev, d.r)
 }
 
-func (d *staticDUT) ServiceAddress(service string) (string, error) {
-	switch strings.ToLower(service) {
-	case "gnmi":
-		return d.dev.GetGnmi().Target,nil
-	case "gnoi":
-		return d.dev.GetGnoi().Target,nil
-	case "gribi":
-		return d.dev.GetGribi().Target,nil
-	case "gnsi":
-		return d.dev.GetGnsi().Target,nil
-	case "p4rt":
-		return d.dev.GetP4Rt().Target,nil
-	case "ssh":
-		return d.dev.GetSsh().Target,nil
-	default:
-		return "",fmt.Errorf("service % is unknown",service)
-	}
-}
-
 func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
 	dialer, err := d.r.gnmi(d.Name())
 	if err != nil {
@@ -347,7 +328,6 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 	}
 	return resv, nil
 }
-
 
 func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
 	portmap, err := ports(td.Ports, bd.Ports)
