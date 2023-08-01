@@ -920,6 +920,7 @@ github.com/openconfig/gribi v1.0.0 h1:xMwEg0mBD+21mOxuFOw0d9dBKuIPwJEhMUUeUulZdL
 github.com/openconfig/gribi v1.0.0/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/gribigo v0.0.0-20230207233343-ef59db57c4fc h1:N+aVXDlRwVLmI55woEs7wxzKwh7JafGc6xGtlucuBl4=
 github.com/openconfig/gribigo v0.0.0-20230207233343-ef59db57c4fc/go.mod h1:j27O3AtRvufyXzMJrgvzmPxwerhZc/2Luqtr2FgyY10=
+github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 h1:t6SvvdfWCMlw0XPlsdxO8EgO+q/fXnTevDjdYREKFwU=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
 github.com/openconfig/kne v0.1.14 h1:3xHy2bP+rr+2/2uFqliWXGjMPR7umO6mvFXh/TA2aJE=
 github.com/openconfig/kne v0.1.14/go.mod h1:gMhrUKk6aveDaLSo2yi/25tDm9pSlmgRkG8IP45CGqs=
