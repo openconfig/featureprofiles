@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
