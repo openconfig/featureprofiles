@@ -8,9 +8,9 @@ import (
 
 
 func main(){
-	// certUtil.GenCERT("ems",500,[]net.IP{net.IPv4(10,85,84,159),net.IPv4(10,85,84,38)}, "", "")
+	// add your router or proxy address to the array of ip
+	certUtil.GenCERT("ems",500,[]net.IP{net.IPv4(10,85,84,159),net.IPv4(10,85,84,38)}, "", "")
+	// add your users if you use any users other than the followings
 	certUtil.GenCERT("cisco", 100, []net.IP{}, "cisco","")
-	//genCERT("Moji_SFD", 100, []net.IP{net.IPv4(10,85,84,159)})
-	// in our lab env we add all ips for proxy routers here, this way we use the same certificate for all lab routers.
-	//GenCERT("ems", 100, []net.IP{net.IPv4(10,85,84,159)}, "")
+	certUtil.GenCERT("cafyauto", 100, []net.IP{}, "cafyauto","")
 }
