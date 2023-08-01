@@ -1,4 +1,4 @@
-# XX-Y.Y Fabric dedundnacy test
+# gNMI-1.10 Fabric dedundnacy test
 
 ## Summary
 - collect inventory data for each fabric card
