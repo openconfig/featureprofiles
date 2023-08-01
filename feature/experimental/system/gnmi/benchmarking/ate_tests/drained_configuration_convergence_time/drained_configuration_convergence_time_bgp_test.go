@@ -264,7 +264,7 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 				pref = append(pref, route.GetPrefix())
 				if ip.Mask(mask).Equal(masked) {
 					idx := route.GetAttrIndex()
-					if idx < 0 || idx >= uint64(len(attrs)) {
+					if idx >= uint64(len(attrs)) {
 						t.Errorf("Invalid attr-index %d for prefix: %s", idx, route.GetPrefix())
 						continue
 					}
