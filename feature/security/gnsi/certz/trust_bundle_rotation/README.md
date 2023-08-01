@@ -15,7 +15,7 @@ is added to the trust_bundles over time.
 ### DUT Service Setup
 
 Configure the DUT to enable the following services (that are using gRPC) are
-up and require user mTLS for authentication:
+up and require using mTLS for authentication:
 
    * gNMI
    * gNOI

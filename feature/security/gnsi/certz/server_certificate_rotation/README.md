@@ -16,7 +16,7 @@ safe operation practices.
 ### DIT Service Setup
 
 Configure the DUT to enable the following services (that are using gRPC) are up
-and required user mTLS for authentication:
+and require using mTLS for authentication:
 
    * gNMI
    * gNOI

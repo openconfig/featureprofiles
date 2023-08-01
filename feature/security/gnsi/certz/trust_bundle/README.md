@@ -41,7 +41,7 @@ CA keys in such a bundle.
 ### DUT service setup
 
 Configure the DUT to enable the following sevices (that are using gRPC) are
-up and using mTLS for authentication:
+up and require using mTLS for authentication:
 
   * gNMI
   * gNOI

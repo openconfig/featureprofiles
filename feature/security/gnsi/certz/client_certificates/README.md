@@ -18,7 +18,7 @@ the client to the server.
 ### DUT service setup
 
 Configure the DUT to enable the following services (that are using gRPC) are
-up and user mTLS for authentication:
+up and using mTLS for authentication:
 
 * gNMI
 * gNOI

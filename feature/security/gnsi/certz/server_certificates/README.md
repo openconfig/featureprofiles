@@ -15,7 +15,7 @@ and present a valid TLS certificate to the calling clients.
 ### DUT Service setup
 
 Configure the DUT to enable the following services (that are using gRPC) are
-up and require user mTLS for authentication:
+up and require using mTLS for authentication:
 
    * gNMI
    * gNOI
