@@ -8,9 +8,6 @@ testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
-    hardware_model: "PTX10008"
-    hardware_model: "PTX10001-36MR"
-    hardware_model: "cptx"
   }
   deviations: {
     gnoi_fabric_component_reboot_unsupported: true
@@ -19,10 +16,9 @@ platform_exceptions: {
 platform_exceptions: {
   platform: {
     vendor: ARISTA
-    hardware_model: "DCS-7280CR3K-32D4"
-    hardware_model: "ceos"
   }
   deviations: {
     gnoi_fabric_component_reboot_unsupported: true
+    gnoi_subcomponent_path: true
   }
 }

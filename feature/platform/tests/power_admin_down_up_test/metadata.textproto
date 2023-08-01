@@ -5,3 +5,38 @@ uuid: "7e1f1570-a141-4758-8aa5-228c932e3bee"
 plan_id: "FP-1.1"
 description: "Power admin DOWN/UP Test"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    skip_controller_card_power_admin: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    missing_value_for_defaults: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    missing_value_for_defaults: true
+    skip_controller_card_power_admin: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    component_power_down_returns_inactive_state: true
+    skip_fabric_card_power_admin: true
+    skip_controller_card_power_admin: true
+  }
+}
