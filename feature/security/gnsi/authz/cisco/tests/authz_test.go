@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mixed_oc_cli_origin_support_test implements GNMI 1.12 from go/wbb:vendor-testplan
+// Package authz_test performs functional tests for authz service
 package authz_test
 
 import (
-	//"context"
 	"context"
 	"fmt"
 	"strconv"
@@ -24,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	//"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -46,6 +44,7 @@ func TestMain(m *testing.M) {
 var (
 	sampleUser = "user1"
 	usersCount = 10
+	password = "123456"
 )
 
 func createUsersOnDevice(t *testing.T, dut *ondatra.DUTDevice, users []*authz.User) {
@@ -54,12 +53,11 @@ func createUsersOnDevice(t *testing.T, dut *ondatra.DUTDevice, users []*authz.Us
 		ocUser := &oc.System_Aaa_Authentication_User{
 			Username: ygot.String(user.Name),
 			Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
-			Password: ygot.String("123456"),
+			Password: ygot.String(password),
 		}
 		ocAuthentication.AppendUser(ocUser)
 	}
 	gnmi.Update(t, dut, gnmi.OC().System().Aaa().Authentication().Config(), ocAuthentication)
-	// TODO: check all users are created
 }
 
 func TestSimpleAuthzGet(t *testing.T) {
@@ -84,7 +82,7 @@ func TestSimpleRotate(t *testing.T) {
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
 	users := []*authz.User{}
-	users = append(users, &authz.User{Name: "user1"})
+	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
 	authzPolicy.AddAllowRules(users, []*gnxi.RPC{gnxi.RPCs.GNMI_SET})
 	authzPolicy.Rotate(t, dut)
@@ -128,7 +126,7 @@ func TestAllowRuleAll(t *testing.T) {
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
 	users := []*authz.User{}
-	users = append(users, &authz.User{Name: "user1"})
+	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
 	authzPolicy.AddAllowRules(users, []*gnxi.RPC{gnxi.RPCs.ALL})
 	authzPolicy.Rotate(t, dut)
@@ -158,7 +156,7 @@ func TestDenyRuleAll(t *testing.T) {
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
 	users := []*authz.User{}
-	users = append(users, &authz.User{Name: "user1"})
+	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
 	authzPolicy.AddDenyRules(users, []*gnxi.RPC{gnxi.RPCs.ALL})
 	authzPolicy.Rotate(t, dut)
@@ -189,9 +187,8 @@ func TestAllowAllForService(t *testing.T) {
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
 	users := []*authz.User{}
-	users = append(users, &authz.User{Name: "user1"})
+	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
-	//authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
 	gnsiClient := dut.RawAPIs().GNSI().Default(t)
 
 	for path, service := range gnxi.RPCMAP {
@@ -228,9 +225,8 @@ func TestDenyAllForService(t *testing.T) {
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
 	users := []*authz.User{}
-	users = append(users, &authz.User{Name: "user1"})
+	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
-	//authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
 	gnsiClient := dut.RawAPIs().GNSI().Default(t)
 
 	for path, service := range gnxi.RPCMAP {
@@ -264,9 +260,8 @@ func TestAllowAllRPCs(t *testing.T) {
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
 	users := []*authz.User{}
-	users = append(users, &authz.User{Name: "user1"})
+	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
-	//authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
 	gnsiClient := dut.RawAPIs().GNSI().Default(t)
 
 	for path, service := range gnxi.RPCMAP {
@@ -277,9 +272,6 @@ func TestAllowAllRPCs(t *testing.T) {
 	}
 	authzPolicy.Rotate(t, dut)
 	for path, _ := range gnxi.RPCMAP {
-		/*if path=="*" || strings.HasSuffix(path, "/*"){
-			continue
-		}*/
 		probReq := &authzpb.ProbeRequest{
 			User: "user1",
 			Rpc:  path,
@@ -305,9 +297,8 @@ func TestDenyAllRPCs(t *testing.T) {
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
 	users := []*authz.User{}
-	users = append(users, &authz.User{Name: "user1"})
+	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
-	//authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
 	gnsiClient := dut.RawAPIs().GNSI().Default(t)
 
 	for path, service := range gnxi.RPCMAP {
@@ -341,9 +332,8 @@ func TestDenyOverWriteAllow(t *testing.T) {
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
 	users := []*authz.User{}
-	users = append(users, &authz.User{Name: "user1"})
+	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
-	//authzPolicy.AddAllowRules(users,[]*gnxi.RPC{gnxi.RPCs.ALL})
 	gnsiClient := dut.RawAPIs().GNSI().Default(t)
 
 	for path, service := range gnxi.RPCMAP {
