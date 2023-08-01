@@ -4,7 +4,7 @@
 uuid:  "a01b6e65-3b45-4e0c-a71d-f451c07fec6b"
 plan_id:  "Health-1.1"
 description:  "Generic Health Check"
-testbed:  TESTBED_DUT
+testbed: TESTBED_DUT
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
