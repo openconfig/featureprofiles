@@ -238,27 +238,25 @@ func TestPopulateTestDetail(t *testing.T) {
 }
 
 func TestWithRetry(t *testing.T) {
-	var retryCount int
+	var attemptCount int
 
+	const attempts = 3
 	cases := []struct {
 		desc         string
-		attempts     int
 		fn           func() error
 		wantErr      string
 		wantAttempts int
 	}{
 		{
-			desc:         "pass with no retries",
-			attempts:     3,
-			fn:           func() error { retryCount++; return nil },
+			desc:         "pass with no retry attempts",
+			fn:           func() error { attemptCount++; return nil },
 			wantAttempts: 1,
 		},
 		{
-			desc:     "pass with one retry",
-			attempts: 3,
+			desc: "pass after one failed retry attempt",
 			fn: func() error {
-				retryCount++
-				if retryCount < 2 {
+				attemptCount++
+				if attemptCount < 2 {
 					return errors.New("expected error")
 				}
 				return nil
@@ -266,11 +264,10 @@ func TestWithRetry(t *testing.T) {
 			wantAttempts: 2,
 		},
 		{
-			desc:     "fail on third retry",
-			attempts: 3,
+			desc: "fail on all retry attempts",
 			fn: func() error {
-				retryCount++
-				if retryCount < 3 {
+				attemptCount++
+				if attemptCount < 3 {
 					return errors.New("bad error")
 				}
 				return errors.New("expected error")
@@ -279,11 +276,10 @@ func TestWithRetry(t *testing.T) {
 			wantErr:      "expected error",
 		},
 		{
-			desc:     "pass on third retry",
-			attempts: 3,
+			desc: "pass after two failed retry attempts",
 			fn: func() error {
-				retryCount++
-				if retryCount < 3 {
+				attemptCount++
+				if attemptCount < 3 {
 					return errors.New("bad error")
 				}
 				return nil
@@ -293,14 +289,14 @@ func TestWithRetry(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		retryCount = 0 // Reset retry counter
+		attemptCount = 0 // Reset attempt counter
 		t.Run(tc.desc, func(t *testing.T) {
-			err := withRetry(tc.attempts, tc.desc, tc.fn)
+			err := withRetry(attempts, tc.desc, tc.fn)
 			if (err == nil) != (tc.wantErr == "") || (err != nil && !strings.Contains(err.Error(), tc.wantErr)) {
 				t.Errorf("withRetry() got error %v, want error containing %q", err, tc.wantErr)
 			}
-			if retryCount != tc.wantAttempts {
-				t.Errorf("withRetry() took %d attempts, want %d", retryCount, tc.wantAttempts)
+			if attemptCount != tc.wantAttempts {
+				t.Errorf("withRetry() took %d attempts, want %d", attemptCount, tc.wantAttempts)
 			}
 		})
 	}
