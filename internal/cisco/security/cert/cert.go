@@ -1,3 +1,4 @@
+// Package cert provides functions to generate and load  certificates.
 package cert
 
 import (
@@ -7,12 +8,14 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"flag"
 	"fmt"
+	"strings"
 
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/url"
+	"os"
 
 	"time"
 )
@@ -20,7 +23,40 @@ import (
 var (
 	caPrivateKey *rsa.PrivateKey
 	CACert       *x509.Certificate
+	caPath = flag.String("ca_cert_path", "", "path to a directory for ca cert and key located")
+	clientKeysPath = flag.String("client_keys_path", "", "path to a directory where clinets keys will be saved")
+	caKeyFileName = "ca.key.pem"
+	caCertFileName = "ca.cert.pem"
 )
+
+
+func getCACertPath() (string, error){
+	if *caPath!="" {
+		return *caPath, nil
+	}
+	cwd, err := os.Getwd(); if err!=nil {
+		return "",err
+	}
+	if strings.Contains(cwd, "/featureprofiles/"){
+		rootSrc:=strings.Split(cwd, "featureprofiles")[0]
+		return rootSrc + "featureprofiles/internal/cisco/security/cert/keys/CA/", nil
+	}
+	return "",fmt.Errorf("ca_cert_path need to be passed as arg")
+}
+
+func getClientsKeysPath() (string, error){
+	if *clientKeysPath!="" {
+		return *clientKeysPath, nil
+	}
+	cwd, err := os.Getwd(); if err!=nil {
+		return "",err
+	}
+	if strings.Contains(cwd, "/featureprofiles/"){
+		rootSrc:=strings.Split(cwd, "featureprofiles")[0]
+		return rootSrc + "featureprofiles/internal/cisco/security/cert/keys/clients/", nil
+	}
+	return "",fmt.Errorf("ca_cert_path need to be passed as arg")
+}
 
 func init() {
 	// read the CA keys from keys/ca and generate it if not found
@@ -29,17 +65,15 @@ func init() {
 	if err != nil {
 		caPrivateKey, CACert, err = genRootCA()
 		if err != nil {
-			panic("Could load the CA keys")
+			panic(fmt.Sprintf("Could load the CA keys, Error: %v", err))
 		}
 		fmt.Println(caPrivateKey, CACert)
 	}
-	//GenCERT("cafyauto", 100, []net.IP{}, "cafyauto")
-	//genCERT("Moji_SFD", 100, []net.IP{net.IPv4(10,85,84,159)})
-	// in our lab env we add all ips for proxy routers here, this way we use the same certificate for all lab routers.
-	//GenCERT("ems", 100, []net.IP{net.IPv4(10,85,84,159)}, "")
+
 }
 
-func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string) (*rsa.PrivateKey, *x509.Certificate, error) {
+// GenCERT Generates RSA keys and sign the public key with root ca certificate
+func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string, path string) (*rsa.PrivateKey, *x509.Certificate, error) {
 	// set up our server certificate
 	uris := []*url.URL{}
 	if spiffe != "" {
@@ -72,15 +106,15 @@ func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string) (*rsa.Pri
 	if err != nil {
 		return nil, nil, err
 	}
-	//parsedCaCert, err := x509.ParseCertificate(caCert)
-	/*caTrusBundle := x509.NewCertPool()
-	if ! caTrusBundle.AppendCertsFromPEM(caCert) {
-		return  nil,nil, fmt.Errorf("error in loading ca cert")
-	}*/
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, certSpec, CACert, &privKey.PublicKey, caPrivateKey)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	keyPath := path
+	if keyPath ==""{
+		keyPath, _ = getClientsKeysPath()
 	}
 
 	certPEM := new(bytes.Buffer)
@@ -88,8 +122,9 @@ func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string) (*rsa.Pri
 		Type:  "CERTIFICATE",
 		Bytes: certBytes,
 	})
-	if err := ioutil.WriteFile("../keys/nodes/"+cn+".cert.pem", certPEM.Bytes(), 0444); err != nil {
-		return nil, nil, err
+
+	if keyPath!="" {
+		os.WriteFile(keyPath+"/"+cn+".cert.pem", certPEM.Bytes(), 0444)
 	}
 
 	privKeyPEM := new(bytes.Buffer)
@@ -97,8 +132,8 @@ func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string) (*rsa.Pri
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(privKey),
 	})
-	if err := ioutil.WriteFile("../keys/nodes/"+cn+".key.pem", privKeyPEM.Bytes(), 0400); err != nil {
-		return nil, nil, err
+	if keyPath!="" {
+		os.WriteFile(keyPath+"/"+cn+".key.pem", privKeyPEM.Bytes(), 0400)
 	}
 	// To ensure pem is correct.
 	cert, err := x509.ParseCertificate(certPEM.Bytes())
@@ -109,7 +144,10 @@ func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string) (*rsa.Pri
 }
 
 func loadRootCA() (*rsa.PrivateKey, *x509.Certificate, error) {
-	caPrivateKeyBytes, err := ioutil.ReadFile("/Users/mbagherz/git/test_ws/src/featureprofiles/internal/cisco/security/cert/keys/CA/ca.key.pem")
+	caCertPath, err := getCACertPath(); if err!=nil {
+		return nil, nil, err
+	}
+	caPrivateKeyBytes, err := os.ReadFile(caCertPath + "/"+caKeyFileName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -122,7 +160,7 @@ func loadRootCA() (*rsa.PrivateKey, *x509.Certificate, error) {
 		return nil, nil, err
 	}
 
-	caCertBytes, err := ioutil.ReadFile("/Users/mbagherz/git/test_ws/src/featureprofiles/internal/cisco/security/cert/keys/CA/ca.cert.pem")
+	caCertBytes, err := os.ReadFile(caCertPath + "/"+caCertFileName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,10 +168,6 @@ func loadRootCA() (*rsa.PrivateKey, *x509.Certificate, error) {
 	if caCertPem == nil {
 		return nil, nil, fmt.Errorf("error in loading ca cert")
 	}
-	/*trusBundle := x509.NewCertPool()
-	if ! trusBundle.AppendCertsFromPEM(caCertBytes) {
-		return  nil,nil, fmt.Errorf("error in loading ca cert")
-	}*/
 	caCert, err := x509.ParseCertificate(caCertPem.Bytes)
 	if err != nil {
 		return nil, nil, err
@@ -178,7 +212,10 @@ func genRootCA() (*rsa.PrivateKey, *x509.Certificate, error) {
 		Type:  "CERTIFICATE",
 		Bytes: caCertBytes,
 	})
-	if err := ioutil.WriteFile("keys/CA/ca.cert.pem", caCertPEM.Bytes(), 0444); err != nil {
+	caCertPath, err := getCACertPath(); if err!=nil {
+		return nil, nil, err
+	}
+	if err := os.WriteFile(caCertPath+"/"+caCertFileName, caCertPEM.Bytes(), 0444); err != nil {
 		return nil, nil, err
 	}
 
@@ -187,7 +224,7 @@ func genRootCA() (*rsa.PrivateKey, *x509.Certificate, error) {
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(caPrivKey),
 	})
-	if err := ioutil.WriteFile("keys/CA/ca.key.pem", caPrivKeyPEM.Bytes(), 0400); err != nil {
+	if err := os.WriteFile(caCertPath+"/"+caKeyFileName, caPrivKeyPEM.Bytes(), 0400); err != nil {
 		return nil, nil, err
 	}
 	// parsing it from pem to ensure the saved PEM is ok
