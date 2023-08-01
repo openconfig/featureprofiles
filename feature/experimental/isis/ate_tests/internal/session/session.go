@@ -111,7 +111,7 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.
 	}
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
-	if !deviations.ISISInstanceEnabledNotRequired(dut) {
+	if deviations.ISISInstanceEnabledRequired(dut) {
 		glob.Instance = ygot.String(ISISName)
 	}
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}

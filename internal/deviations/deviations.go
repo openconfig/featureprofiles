@@ -418,9 +418,9 @@ func ISISprotocolEnabledNotRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisProtocolEnabledNotRequired()
 }
 
-// ISISInstanceEnabledNotRequired returns if isis instance enable flag should not be on the device.
-func ISISInstanceEnabledNotRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisInstanceEnabledNotRequired()
+// ISISInstanceEnabledRequired returns if isis instance name string should be set on the device.
+func ISISInstanceEnabledRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisInstanceEnabledRequired()
 }
 
 // GNOISubcomponentPath returns if device currently uses component name instead of a full openconfig path.
