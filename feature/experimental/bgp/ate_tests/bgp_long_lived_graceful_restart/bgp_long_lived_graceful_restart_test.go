@@ -17,6 +17,7 @@ package bgp_long_lived_graceful_restart_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -192,6 +193,9 @@ var (
 	}
 	routingDaemon = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "rpd",
+		ondatra.ARISTA:  "Bgp-main",
+		ondatra.CISCO:   "emsd",
+		ondatra.NOKIA:   "sr_bgp_mgr",
 	}
 )
 
@@ -208,7 +212,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
-func configInterfaceDUT(t *testing.T, i *oc.Interface, me *attrs.Attributes, subIntfIndex uint32, vlan uint16, dut *ondatra.DUTDevice) *oc.Interface {
+func configInterfaceDUT(t *testing.T, i *oc.Interface, me *attrs.Attributes, subIntfIndex uint32, vlan uint16, dut *ondatra.DUTDevice) {
 	t.Helper()
 	i.Description = ygot.String(me.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -242,21 +246,30 @@ func configInterfaceDUT(t *testing.T, i *oc.Interface, me *attrs.Attributes, sub
 		s6.Enabled = ygot.Bool(true)
 	}
 	s6.GetOrCreateAddress(me.IPv6).PrefixLength = ygot.Uint8(plenIPv6)
-
-	return i
 }
 
 // configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dc := gnmi.OC()
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		t.Log("Configure/update Network Instance")
+		dutConfNIPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut))
+		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	}
 	i1 := &oc.Interface{Name: ygot.String(dut.Port(t, "port1").Name())}
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf1, 10, vlan10, dut))
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf2, 20, vlan20, dut))
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf3, 30, vlan30, dut))
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf4, 40, vlan40, dut))
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf5, 50, vlan50, dut))
-	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), configInterfaceDUT(t, i1, &dutPort1SubIntf6, 60, vlan60, dut))
+	configInterfaceDUT(t, i1, &dutPort1SubIntf1, 10, vlan10, dut)
+	configInterfaceDUT(t, i1, &dutPort1SubIntf2, 20, vlan20, dut)
+	configInterfaceDUT(t, i1, &dutPort1SubIntf3, 30, vlan30, dut)
+	configInterfaceDUT(t, i1, &dutPort1SubIntf4, 40, vlan40, dut)
+	configInterfaceDUT(t, i1, &dutPort1SubIntf5, 50, vlan50, dut)
+	configInterfaceDUT(t, i1, &dutPort1SubIntf6, 60, vlan60, dut)
+
+	if deviations.RequireRoutedSubinterface0(dut) {
+		s := i1.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+		s.Enabled = ygot.Bool(true)
+	}
+	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
 	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
@@ -264,6 +277,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configure/update Network Instance")
 	dutConfNIPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
+		gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
+		gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
+	}
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
@@ -801,19 +819,28 @@ func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string)
 	}
 }
 
-func juniperCLI() string {
-	return `
-	protocols {
-		bgp {
-			graceful-restart {
-				long-lived {
-					receiver {
-						disable;
+func disableLLGRConf(dut *ondatra.DUTDevice, as int) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		return fmt.Sprintf(`
+		router bgp %d
+		no graceful-restart-helper long-lived`, as)
+	case ondatra.JUNIPER:
+		return `
+		protocols {
+			bgp {
+				graceful-restart {
+					long-lived {
+						receiver {
+							disable;
+						}
 					}
 				}
 			}
-		}
-	}`
+		}`
+	default:
+		return ""
+	}
 }
 
 func removeATENewPeers(t *testing.T, topo *ondatra.ATETopology, bgpPeers []*ixnet.BGP) {
@@ -1249,12 +1276,8 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 
 	t.Run("Disable LLGR on dut.", func(t *testing.T) {
 		gnmiClient := dut.RawAPIs().GNMI().Default(t)
-		var config string
-		switch dut.Vendor() {
-		case ondatra.JUNIPER:
-			config = juniperCLI()
-			t.Logf("Push the CLI config:%s", dut.Vendor())
-		}
+		config := disableLLGRConf(dut, dutAS)
+		t.Logf("Push the CLI config:%s", dut.Vendor())
 		gpbSetRequest := buildCliConfigRequest(config)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
