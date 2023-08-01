@@ -105,7 +105,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("Initial number of packets: %d", counter0)
 
 		packetCounter := 100
-		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, true, uint8(ttl), packetCounter)
+		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, false, uint8(ttl), packetCounter)
 		if err != nil {
 			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
 		}
