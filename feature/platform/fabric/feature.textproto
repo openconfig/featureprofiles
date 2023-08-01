@@ -11,41 +11,41 @@ telemetry_path {
   path: "/components/component/fabric/state/power-admin-state"
 }
 telemetry_path {
-  path: "/components/component/fabric/state/power-admin-state
+  path: "/components/component/fabric/state/power-admin-state"
 }
 telemetry_path {
-  path: "/components/component/state/description             
+  path: "/components/component/state/description"
 }
 telemetry_path {
-  path: "/components/component/state/hardware-version
+  path: "/components/component/state/hardware-version"
 }
 telemetry_path {
-  path: "/components/component/state/id
+  path: "/components/component/state/id"
 }
 telemetry_path {
-  path: "/components/component/state/mfg-name
+  path: "/components/component/state/mfg-name"
 }
 telemetry_path {
-  path: "/components/component/state/name
+  path: "/components/component/state/name"
 }
 telemetry_path {
-  path: "/components/component/state/oper-status
+  path: "/components/component/state/oper-status"
 }
 telemetry_path {
-  path: "/components/component/state/parent
+  path: "/components/component/state/parent"
 }
 telemetry_path {
-  path: "/components/component/state/part-no
+  path: "/components/component/state/part-no"
 }
 telemetry_path {
-  path: "/components/component/state/serial-no
+  path: "/components/component/state/serial-no"
 }
 telemetry_path {
-  path: "/components/component/state/type
+  path: "/components/component/state/type"
 }
 telemetry_path {
-  path: "/components/component/state/location
+  path: "/components/component/state/location"
 }
 telemetry_path {
-  path: "/components/component/state/last-reboot-time
+  path: "/components/component/state/last-reboot-time"
 }
