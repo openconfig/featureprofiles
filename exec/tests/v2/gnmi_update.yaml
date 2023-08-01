@@ -1,0 +1,15 @@
+name:
+owners:
+  - harikri4
+priority: 4
+testbeds:
+  - 8808-1DUT-1ATE
+tests:
+- name: GNMI Scale Tests
+  path: feature/cisco/performance/
+  internal: true
+  branch: master
+  mustpass: true
+  timeout: 21000
+  owners:
+    - harikri4
