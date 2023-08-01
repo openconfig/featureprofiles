@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "9f319fa6-d197-48fa-84fe-ea075c422190"
-plan_id:  "RT-1.14"
-description:  "BGP Long-Lived Graceful Restart"
+uuid: "a993eb24-40f8-4b86-bc6b-02c19f6a0d53"
+plan_id: "RT-1.20"
+description: "BGP 2-Byte and 4-Byte ASN support with policy"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
@@ -30,7 +30,6 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
   }
 }
 platform_exceptions: {
@@ -42,8 +41,5 @@ platform_exceptions: {
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
-    deprecated_vlan_id: true
-    require_routed_subinterface_0: true
-    interface_config_vrf_before_address: true
   }
 }
