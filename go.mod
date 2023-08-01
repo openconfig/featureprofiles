@@ -2,7 +2,6 @@ module github.com/openconfig/featureprofiles
 
 go 1.19
 
-replace github.com/openconfig/ondatra => ../ondatra/
 
 require (
 	cloud.google.com/go/pubsub v1.30.0
