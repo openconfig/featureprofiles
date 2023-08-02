@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/google/go-github/v50/github"
@@ -220,11 +221,16 @@ func (p *pullRequest) updateGitHub(ctx context.Context, githubClient *github.Cli
 		return err
 	}
 	if firstComment == nil {
-		_, _, err = githubClient.Issues.CreateComment(ctx, githubProjectOwner, githubProjectRepo, p.ID, comment)
+		err = withRetry(3, "CreateIssueComment", func() error {
+			_, _, err = githubClient.Issues.CreateComment(ctx, githubProjectOwner, githubProjectRepo, p.ID, comment)
+			return err
+		})
 	} else {
-		_, _, err = githubClient.Issues.EditComment(ctx, githubProjectOwner, githubProjectRepo, firstComment.GetID(), comment)
+		err = withRetry(3, "EditIssueComment", func() error {
+			_, _, err = githubClient.Issues.EditComment(ctx, githubProjectOwner, githubProjectRepo, firstComment.GetID(), comment)
+			return err
+		})
 	}
-
 	return err
 }
 
@@ -321,4 +327,19 @@ func modifiedFunctionalTests(functionalTests []string, modifiedFiles []string) [
 		result = append(result, k)
 	}
 	return result
+}
+
+// withRetry will run func f up to attempts times, retrying if any error is
+// returned. This is intended to be used with the GitHub HTTP API, which can
+// occasionally return errors that deserve a retry.
+func withRetry(attempts int, name string, f func() error) error {
+	var err error
+	for i := 0; i < attempts; i++ {
+		if err = f(); err == nil {
+			return nil
+		}
+		glog.Infof("Retry %d of %q, error: %v", attempts, name, err)
+		time.Sleep(250 * time.Millisecond)
+	}
+	return err
 }
