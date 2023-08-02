@@ -138,7 +138,12 @@ testbeds:
   - id: moji_sfd
     owner: mbagherz
     testbed: topologies/cisco/hw/8808-36FH_FOX2506P5XE/testbed
-    binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE/binding-mtls
+    binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE/binding
+    baseconf: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
+  - id: moji_sfd_gnsi
+    owner: mbagherz
+    testbed: topologies/cisco/hw/8808-36FH_FOX2506P5XE/testbed-gnsi
+    binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE/binding-gnsi
     baseconf: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
   - id: 8808_FOX2643Q39J
     owner: arvbaska
