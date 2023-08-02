@@ -487,7 +487,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
-        elif test_show_skipped: 
+        elif not test_show_skipped: 
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
 
         # log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
