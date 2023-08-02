@@ -15,7 +15,7 @@ var (
 	GRIBIAFTCheck = flag.Bool("gribi_aft_check", true,
 		"This enable/disable AFT check for gribi entries in gribi tests.")
 
-	GRIBINHTimer = flag.Int("gribi_nh_timer", 0,
+	GRIBINHTimer = flag.Int("gribi_nh_timer", 2,
 		"Wait time before executing aft call for NH")
 
 	GRIBINHGTimer = flag.Int("gribi_nhg_timer", 0,

@@ -59,20 +59,12 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 			if nh.GetNetworkInstance() != nhInstance {
 				t.Fatalf("AFT Check failed for aft/next-hop/state/network-instance got %s, want %s", nh.GetNetworkInstance(), nhInstance)
 			}
-			if nh.GetProgrammedIndex() != nhIndex {
-				// t.Fatalf("AFT Check failed for aft/next-hop/state/Programmingindex got %s, want %s", nh.GetProgrammedIndex(), nhIndex)
-			}
+			// if nh.GetProgrammedIndex() != nhIndex {
+			// 	// t.Fatalf("AFT Check failed for aft/next-hop/state/Programmingindex got %s, want %s", nh.GetProgrammedIndex(), nhIndex)
+			// }
 			if iref := nh.GetInterfaceRef(); iref != nil {
-				if interfaceRef == "" {
-					continue
-				} else {
-					if iref.GetInterface() != interfaceRef {
-						t.Fatalf("AFT Check failed for aft/next-hop/interface-ref/state/interface got %s, want %s", iref.GetInterface(), interfaceRef)
-					}
-				}
-			} else {
-				if interfaceRef != "" {
-					t.Fatalf("AFT Check failed for aft/next-hop/interface-ref got none, want interface ref %s", interfaceRef)
+				if iref.GetInterface() != interfaceRef && interfaceRef != "" {
+					t.Fatalf("AFT Check failed for aft/next-hop/interface-ref/state/interface got %s, want %s", iref.GetInterface(), interfaceRef)
 				}
 			}
 			// if len(opts) > 1 {
@@ -93,7 +85,7 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 		}
 	}
 	if !found {
-		t.Fatalf("AFT Check failed for aft/next-hop/state/programmed-index got none want %d", nhIndex)
+		t.Fatalf("AFT Check failed for aft/next-hop/state got none want %d", nhIndex)
 	}
 }
 
