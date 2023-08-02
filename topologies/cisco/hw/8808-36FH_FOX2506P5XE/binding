@@ -109,6 +109,12 @@ duts {
      #target: "10.85.84.159:9559"
      target: "10.85.84.159:47402"
   }
+  
+  gnsi{
+     # default grpc mapping : 57777  target: "10.85.84.159:47402"
+     #target: "10.85.84.159:9559"
+     target: "10.85.84.159:47402"
+  }
 
 # Before this binding can be used with a topology, add ports mapping
 # from its topology ID to the actual port name on the device.
