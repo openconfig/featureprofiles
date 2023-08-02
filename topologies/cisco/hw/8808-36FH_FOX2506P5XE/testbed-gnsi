@@ -1,0 +1,22 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This testbed provides basics ti run gnsi tests.
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  #hardware_model: "CISCO-8808"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+}
