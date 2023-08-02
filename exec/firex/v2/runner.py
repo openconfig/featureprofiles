@@ -40,8 +40,8 @@ INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
 MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.pem'
-MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/nodes/cafyauto.cert.pem'
-MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/nodes/cafyauto.key.pem'
+MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.cert.pem'
+MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.pem'
 
 whitelist_arguments([
     'test_html_report',
