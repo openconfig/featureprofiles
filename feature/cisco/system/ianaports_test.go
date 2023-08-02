@@ -1,4 +1,5 @@
 package basetest
+
 import (
 	"context"
 	"strconv"
@@ -137,7 +138,7 @@ func TestIanaPorts(t *testing.T) {
 
 	})
 
-		t.Run("TLS Update Test", func(t *testing.T) {
+	t.Run("TLS Update Test", func(t *testing.T) {
 		t.Skip()
 		path := gnmi.OC().System().GrpcServer("DEFAULT").TransportSecurity()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -164,7 +165,7 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("GRPC Name Replace Test", func(t *testing.T) {
-        path := gnmi.OC().System().GrpcServer("TEST").Name()
+		path := gnmi.OC().System().GrpcServer("TEST").Name()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		gnmi.Replace(t, dut, path.Config(), "TEST")
 
