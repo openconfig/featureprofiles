@@ -461,9 +461,9 @@ func TestSingleRotateCompetingClients(t *testing.T) {
 		}
 		wg.Wait()
 		if successfulStream > 1 {
-			t.Fatal("More than one rotate stream can be started which is not expected")
+			t.Fatalf("More than one rotate stream can be started which is not expected, number of open streams is %v", successfulStream)
 		}
-		if successfulStream != 1 {
+		if successfulStream == 0 {
 			t.Fatal("One stream is expected to be successful")
 		}
 	}
