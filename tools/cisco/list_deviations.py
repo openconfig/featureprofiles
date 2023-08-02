@@ -9,10 +9,9 @@ deviations = []
 for f in metadata_files:
     with open(f, 'r') as fp:
         data = fp.read()
-        matches = re.search(rx, data)
-        if matches:
-            dev = matches.group(4)
-            for d in dev.split('\n'):
+        matches = re.findall(rx, data)
+        for m in matches:
+            for d in m[3].split('\n'):
                 if d.strip() != "":
                     deviations.append(d.strip())
 
