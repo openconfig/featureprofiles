@@ -56,7 +56,6 @@ func generateBaseScenario(t *testing.T, ate *ondatra.ATEDevice, topoobj *ondatra
 	if len(sortedAtePorts) < 2 {
 		t.Fatalf("At least two ports are required for the test")
 	}
-	sort.Strings(sortedAtePorts)
 	if len(strings.Split(sortedAtePorts[0], "/")) != 2 {
 		t.Fatalf("Ate port name expected to be in format int/int, e.g., 1/6")
 	}
