@@ -49,6 +49,7 @@ whitelist_arguments([
     'test_ignore_aborted',
     'test_skip',
     'test_fail_skipped',
+    'test_show_skipped',
 ])
 
 def _get_go_root_path():
@@ -405,7 +406,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
         test_debug=False, test_verbose=False, testbed_info_path=None, test_ignore_aborted=False,
-        test_skip=False, test_fail_skipped=False):
+        test_skip=False, test_fail_skipped=False, test_show_skipped=False):
 
     logger.print('Running Go test...')
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
@@ -486,7 +487,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
-        else: 
+        elif test_show_skipped: 
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
 
         # log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
