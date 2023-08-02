@@ -39,6 +39,10 @@ INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
 
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
+MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.pem'
+MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.cert.pem'
+MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.pem'
+
 whitelist_arguments([
     'test_html_report',
     'release_ixia_ports',
@@ -87,6 +91,28 @@ def _gnmi_set_file_template(conf):
   }
 }
     """
+
+# def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
+#     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
+#     key_file = MTLS_DEFAULT_KEY_FILE
+#     cert_file = MTLS_DEFAULT_CERT_FILE
+
+#     if 'trust_bundle_file' in testbed:
+#         tb_file = _resolve_path_if_needed(internal_fp_repo_dir, testbed['trust_bundle_file'])
+#     if 'cert_file' in testbed:
+#         cert_file = _resolve_path_if_needed(internal_fp_repo_dir, testbed['cert_file'])
+#     if 'key_file' in testbed:
+#         key_file = _resolve_path_if_needed(internal_fp_repo_dir, testbed['key_file'])
+        
+#     return f"""
+#     options {{
+#         insecure: false
+#         skip_verify: false
+#         trust_bundle_file: "{tb_file}"
+#         cert_file: "{cert_file}"
+#         key_file:  "{key_file}"
+#     }}
+# """
 
 def _sim_get_vrf(base_conf_file):
     intf_re = r'interface.*?MgmtEth0\/RP0\/CPU0/0(.|\n)*?(\bvrf(\b.*\b))(.|\n)*?!'
@@ -554,10 +580,18 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])
         hw_baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
         
+        tb_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
+        key_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
+        cert_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
+
         shutil.copyfile(hw_testbed_file_path, ondatra_testbed_path)
         shutil.copyfile(hw_binding_file_path, ondatra_binding_path)
         shutil.copyfile(hw_baseconf_file_path, ondatra_baseconf_path)
+
         check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
+        check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ondatra_binding_path}")
+        check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ondatra_binding_path}")
+        check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ondatra_binding_path}")
 
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
