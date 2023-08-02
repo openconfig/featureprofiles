@@ -310,7 +310,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	aftIpv4Entry.OriginProtocol = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI
 	aftIpv4Entry.NextHopGroup = &nhgIndex
 
-	if nhgInstance != "" && nhgInstance != instance {
+	if nhgInstance != "" {
 		ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
 		aftIpv4Entry.NextHopGroupNetworkInstance = &nhgInstance
 	}

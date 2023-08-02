@@ -373,14 +373,14 @@ func aftCheck(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Run("Telemetry on NextHop InterfaceRef(subinterface)", func(t *testing.T) {
 		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_subinterfaceref)
 		value := gnmi.Get(t, args.dut, path.State()).GetInterfaceRef()
-		if value.GetSubinterface() != 0 {
+		if value.GetSubinterface() != 1 {
 			t.Errorf("Incorrect value for InterfaceRef Subinterface  got %d, want %d", value.GetSubinterface(), 1)
 		}
 	})
 	t.Run("Telemetry on NextHop InterfaceRef Subinterface", func(t *testing.T) {
 		path := gnmi.OC().NetworkInstance(instance).Afts().NextHop(nexthop_subinterfaceref)
 		value := gnmi.Get(t, args.dut, path.State()).GetInterfaceRef().GetSubinterface()
-		if value != 0 {
+		if value != 1 {
 			t.Errorf("Incorrect value for InterfaceRef Subinterface  got %d, want %d", value, 1)
 		}
 	})
@@ -512,12 +512,12 @@ func testAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, "192.0.2.50/32", 5000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// NH WithIPinIP
-	args.client.AddNHWithIPinIP(t, 5001, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", 0, true, false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHWithIPinIP(t, 5001, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", true, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 5001, 0, map[uint64]uint64{5001: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.51/32", 5001, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	// NH WithSubinterfaceRef
-	args.client.AddNHWithIPinIP(t, 5002, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether127", 0, false, false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHWithIPinIP(t, 5002, atePort8.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "Bundle-Ether1", false, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 5002, 0, map[uint64]uint64{5002: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "192.0.2.52/32", 5002, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
