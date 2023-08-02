@@ -28,7 +28,11 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     isis_interface_level1_disable_required: true
     isis_single_topology_required: true
+<<<<<<< HEAD
     isis_protocol_enabled_not_required: true
+=======
+    isis_instance_enabled_not_required: true
+>>>>>>> main
     missing_isis_interface_afi_safi_enable: true
   }
 }

@@ -10,7 +10,11 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
+<<<<<<< HEAD
     isis_protocol_enabled_not_required: true
+=======
+    isis_instance_enabled_not_required: true
+>>>>>>> main
     missing_isis_interface_afi_safi_enable: true
   }
 }

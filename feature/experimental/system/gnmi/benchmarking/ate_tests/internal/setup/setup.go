@@ -150,9 +150,6 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	// ISIS configs.
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
 	prot.Enabled = ygot.Bool(true)
-	if deviations.ISISprotocolEnabledNotRequired(dut) {
-		prot.Enabled = nil
-	}
 	isis := prot.GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
