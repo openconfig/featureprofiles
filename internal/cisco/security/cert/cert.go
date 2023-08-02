@@ -21,41 +21,42 @@ import (
 )
 
 var (
-	caPrivateKey *rsa.PrivateKey
-	CACert       *x509.Certificate
-	caPath = flag.String("ca_cert_path", "", "path to a directory for ca cert and key located")
+	caPrivateKey   *rsa.PrivateKey
+	CACert         *x509.Certificate
+	caPath         = flag.String("ca_cert_path", "", "path to a directory for ca cert and key located")
 	clientKeysPath = flag.String("client_keys_path", "", "path to a directory where clinets keys will be saved")
-	caKeyFileName = "ca.key.pem"
+	caKeyFileName  = "ca.key.pem"
 	caCertFileName = "ca.cert.pem"
 )
 
-
-func getCACertPath() (string, error){
-	if *caPath!="" {
+func getCACertPath() (string, error) {
+	if *caPath != "" {
 		return *caPath, nil
 	}
-	cwd, err := os.Getwd(); if err!=nil {
-		return "",err
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
 	}
-	if strings.Contains(cwd, "/featureprofiles/"){
-		rootSrc:=strings.Split(cwd, "featureprofiles")[0]
+	if strings.Contains(cwd, "/featureprofiles/") {
+		rootSrc := strings.Split(cwd, "featureprofiles")[0]
 		return rootSrc + "featureprofiles/internal/cisco/security/cert/keys/CA/", nil
 	}
-	return "",fmt.Errorf("ca_cert_path need to be passed as arg")
+	return "", fmt.Errorf("ca_cert_path need to be passed as arg")
 }
 
-func getClientsKeysPath() (string, error){
-	if *clientKeysPath!="" {
+func getClientsKeysPath() (string, error) {
+	if *clientKeysPath != "" {
 		return *clientKeysPath, nil
 	}
-	cwd, err := os.Getwd(); if err!=nil {
-		return "",err
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
 	}
-	if strings.Contains(cwd, "/featureprofiles/"){
-		rootSrc:=strings.Split(cwd, "featureprofiles")[0]
+	if strings.Contains(cwd, "/featureprofiles/") {
+		rootSrc := strings.Split(cwd, "featureprofiles")[0]
 		return rootSrc + "featureprofiles/internal/cisco/security/cert/keys/clients/", nil
 	}
-	return "",fmt.Errorf("ca_cert_path need to be passed as arg")
+	return "", fmt.Errorf("ca_cert_path need to be passed as arg")
 }
 
 func init() {
@@ -113,7 +114,7 @@ func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string, path stri
 	}
 
 	keyPath := path
-	if keyPath ==""{
+	if keyPath == "" {
 		keyPath, _ = getClientsKeysPath()
 	}
 
@@ -123,7 +124,7 @@ func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string, path stri
 		Bytes: certBytes,
 	})
 
-	if keyPath!="" {
+	if keyPath != "" {
 		os.WriteFile(keyPath+"/"+cn+".cert.pem", certPEM.Bytes(), 0444)
 	}
 
@@ -132,7 +133,7 @@ func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string, path stri
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(privKey),
 	})
-	if keyPath!="" {
+	if keyPath != "" {
 		os.WriteFile(keyPath+"/"+cn+".key.pem", privKeyPEM.Bytes(), 0400)
 	}
 	// To ensure pem is correct.
@@ -144,10 +145,11 @@ func GenCERT(cn string, expireInDays int, ips []net.IP, spiffe string, path stri
 }
 
 func loadRootCA() (*rsa.PrivateKey, *x509.Certificate, error) {
-	caCertPath, err := getCACertPath(); if err!=nil {
+	caCertPath, err := getCACertPath()
+	if err != nil {
 		return nil, nil, err
 	}
-	caPrivateKeyBytes, err := os.ReadFile(caCertPath + "/"+caKeyFileName)
+	caPrivateKeyBytes, err := os.ReadFile(caCertPath + "/" + caKeyFileName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -160,7 +162,7 @@ func loadRootCA() (*rsa.PrivateKey, *x509.Certificate, error) {
 		return nil, nil, err
 	}
 
-	caCertBytes, err := os.ReadFile(caCertPath + "/"+caCertFileName)
+	caCertBytes, err := os.ReadFile(caCertPath + "/" + caCertFileName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -212,7 +214,8 @@ func genRootCA() (*rsa.PrivateKey, *x509.Certificate, error) {
 		Type:  "CERTIFICATE",
 		Bytes: caCertBytes,
 	})
-	caCertPath, err := getCACertPath(); if err!=nil {
+	caCertPath, err := getCACertPath()
+	if err != nil {
 		return nil, nil, err
 	}
 	if err := os.WriteFile(caCertPath+"/"+caCertFileName, caCertPEM.Bytes(), 0444); err != nil {

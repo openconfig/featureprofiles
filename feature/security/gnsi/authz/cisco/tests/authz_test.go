@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	authzpb "github.com/openconfig/gnsi/authz"
@@ -44,7 +43,7 @@ func TestMain(m *testing.M) {
 var (
 	sampleUser = "user1"
 	usersCount = 10
-	password = "123456"
+	password   = "123456"
 )
 
 func createUsersOnDevice(t *testing.T, dut *ondatra.DUTDevice, users []*authz.User) {
@@ -131,7 +130,7 @@ func TestAllowRuleAll(t *testing.T) {
 	authzPolicy.AddAllowRules(users, []*gnxi.RPC{gnxi.RPCs.ALL})
 	authzPolicy.Rotate(t, dut)
 	gnsiClient := dut.RawAPIs().GNSI().Default(t)
-	for path, _ := range gnxi.RPCMAP {
+	for path := range gnxi.RPCMAP {
 		probReq := &authzpb.ProbeRequest{
 			User: "user1",
 			Rpc:  path,
@@ -161,7 +160,7 @@ func TestDenyRuleAll(t *testing.T) {
 	authzPolicy.AddDenyRules(users, []*gnxi.RPC{gnxi.RPCs.ALL})
 	authzPolicy.Rotate(t, dut)
 	gnsiClient := dut.RawAPIs().GNSI().Default(t)
-	for path, _ := range gnxi.RPCMAP {
+	for path := range gnxi.RPCMAP {
 		probReq := &authzpb.ProbeRequest{
 			User: "user1",
 			Rpc:  path,
@@ -197,7 +196,7 @@ func TestAllowAllForService(t *testing.T) {
 		}
 	}
 	authzPolicy.Rotate(t, dut)
-	for path, _ := range gnxi.RPCMAP {
+	for path := range gnxi.RPCMAP {
 		if path == "*" {
 			continue
 		}
@@ -235,7 +234,7 @@ func TestDenyAllForService(t *testing.T) {
 		}
 	}
 	authzPolicy.Rotate(t, dut)
-	for path, _ := range gnxi.RPCMAP {
+	for path := range gnxi.RPCMAP {
 		probReq := &authzpb.ProbeRequest{
 			User: "user1",
 			Rpc:  path,
@@ -271,7 +270,7 @@ func TestAllowAllRPCs(t *testing.T) {
 		authzPolicy.AddAllowRules(users, []*gnxi.RPC{service})
 	}
 	authzPolicy.Rotate(t, dut)
-	for path, _ := range gnxi.RPCMAP {
+	for path := range gnxi.RPCMAP {
 		probReq := &authzpb.ProbeRequest{
 			User: "user1",
 			Rpc:  path,
@@ -308,7 +307,7 @@ func TestDenyAllRPCs(t *testing.T) {
 		authzPolicy.AddDenyRules(users, []*gnxi.RPC{service})
 	}
 	authzPolicy.Rotate(t, dut)
-	for path, _ := range gnxi.RPCMAP {
+	for path := range gnxi.RPCMAP {
 		probReq := &authzpb.ProbeRequest{
 			User: "user1",
 			Rpc:  path,
@@ -344,7 +343,7 @@ func TestDenyOverWriteAllow(t *testing.T) {
 		authzPolicy.AddAllowRules(users, []*gnxi.RPC{service})
 	}
 	authzPolicy.Rotate(t, dut)
-	for path, _ := range gnxi.RPCMAP {
+	for path := range gnxi.RPCMAP {
 		probReq := &authzpb.ProbeRequest{
 			User: "user1",
 			Rpc:  path,
@@ -382,21 +381,22 @@ func TestRotateIsSingleton(t *testing.T) {
 				if err == nil {
 					autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
 						UploadRequest: &authzpb.UploadRequest{
-							Version:   fmt.Sprintf("v0.%v", (time.Now().UnixMilli()+1)), // same version makes things worse, will need to a seperate test for this
+							Version:   fmt.Sprintf("v0.%v", (time.Now().UnixMilli() + 1)), // same version makes things worse, will need to a seperate test for this
 							CreatedOn: uint64(time.Now().UnixMicro()),
 							Policy:    string(jsonPolicy),
 						},
 					}
 					t.Logf("Sending Second Authz.Rotate Upload request on device (Client2): \n %v", autzRotateReq)
-					err = rotateStream2.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq}); if err==nil {
+					err = rotateStream2.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
+					if err == nil {
 						t.Log("A second upload rotate request  is sent successfully (Client2)")
 						_, err = rotateStream2.Recv()
 						if err == nil {
 							t.Error("The second rotate was successful, which is not expected (Client2)", err)
-						} 
+						}
 					}
 				}
-				return 
+				return
 			}
 		}
 	}(t)
@@ -451,7 +451,7 @@ func TestRotateIsSingleton(t *testing.T) {
 	if !cmp.Equal(policy, finalPolicy) {
 		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(policy, finalPolicy))
 	}
-	 close(mainProbSignal)
+	close(mainProbSignal)
 }
 
 func TestFailOverInSteadyState(t *testing.T) {
@@ -475,7 +475,7 @@ func TestRotatePolicySingletonSameVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
 	}
-	version:=fmt.Sprintf("v0.%v", (time.Now().UnixMilli()))
+	version := fmt.Sprintf("v0.%v", (time.Now().UnixMilli()))
 	mainProbSignal := make(chan string)
 	go func(t *testing.T) {
 		<-mainProbSignal
@@ -496,15 +496,16 @@ func TestRotatePolicySingletonSameVersion(t *testing.T) {
 						},
 					}
 					t.Logf("Sending Second Authz.Rotate Upload request on device (Client2): \n %v", autzRotateReq)
-					err = rotateStream2.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq}); if err==nil {
+					err = rotateStream2.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
+					if err == nil {
 						t.Log("A second upload rotate request  is sent successfully (Client2)")
 						_, err = rotateStream2.Recv()
 						if err == nil {
 							t.Error("The second rotate was successful, which is not expected (Client2)", err)
-						} 
+						}
 					}
 				}
-				return 
+				return
 			}
 		}
 	}(t)
@@ -559,5 +560,5 @@ func TestRotatePolicySingletonSameVersion(t *testing.T) {
 	if !cmp.Equal(policy, finalPolicy) {
 		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(policy, finalPolicy))
 	}
-		close(mainProbSignal)
+	close(mainProbSignal)
 }
