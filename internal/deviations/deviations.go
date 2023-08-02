@@ -413,11 +413,6 @@ func ExplicitIPv6EnableForGRIBI(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6EnableForGribiNhDmac()
 }
 
-// ISISprotocolEnabledNotRequired returns if isis protocol enable flag should be unset on the device.
-func ISISprotocolEnabledNotRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisProtocolEnabledNotRequired()
-}
-
 // ISISInstanceEnabledNotRequired returns if isis instance enable flag should not be on the device.
 func ISISInstanceEnabledNotRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInstanceEnabledNotRequired()
