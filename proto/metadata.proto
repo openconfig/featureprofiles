@@ -75,8 +75,6 @@ message Metadata {
     bool isis_interface_level1_disable_required = 7;
     // Set isis af ipv6 single topology on the device if value is true.
     bool isis_single_topology_required = 8;
-    // Unset isis protocol enable flag on the device if value is true.
-    bool isis_protocol_enabled_not_required = 9;
     // Don't set isis instance enable flag on the device if value is true.
     bool isis_instance_enabled_not_required = 10;
     // Set and validate isis interface address family enable on the device if
@@ -287,7 +285,7 @@ message Metadata {
     bool component_power_down_returns_inactive_state = 90;
     
     // Reserved field numbers and identifiers.
-    reserved 84;
+    reserved 84, 9;
   }
 
   message PlatformExceptions {
