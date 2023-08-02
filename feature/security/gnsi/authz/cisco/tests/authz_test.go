@@ -373,7 +373,7 @@ func rotate(t *testing.T, clientID string, dut *ondatra.DUTDevice, version, poli
 	}
 	return nil
 }
-func TestSingleRotate(t *testing.T) {
+func TestTwoInterLeavingRotates(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
 	policy := authz.NewAuthorizationPolicy()
