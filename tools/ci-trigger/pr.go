@@ -102,8 +102,9 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 				}
 				jobID, logURL, err := cb.submitBuild(ctx)
 				if err != nil {
-					return fmt.Errorf("error creating CloudBuild job for PR%d: %w", p.ID, err)
+					return fmt.Errorf("submitBuild device %q: %w", virtualDevice.Type.String(), err)
 				}
+				glog.Infof("Created CloudBuild Job %s for PR%d at commit %q for device %q", jobID, p.ID, p.HeadSHA, virtualDevice.Type.String())
 				p.Virtual[i].CloudBuildID = jobID
 				p.Virtual[i].CloudBuildLogURL = logURL
 				vendor := strings.ToLower(virtualDevice.Type.Vendor.String())
