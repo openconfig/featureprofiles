@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -390,19 +391,19 @@ func splitIntoSegments(str string, segmentSize int) []string {
 	return segments
 }
 
-func update_onboarding(t *testing.T, image string, hashValue string, bootz bool) string {
+func update_onboarding(t *testing.T, image string, hashValue string, bootz bool, dhcpServerIp string) string {
 	var jsonContent string
 	hashString := strings.Join(splitIntoSegments(hashValue, 2), ":")
 	if bootz == true {
-		jsonContent = fmt.Sprintf(bootzImageJson, image, dhcpServerIP, image, hashValue)
+		jsonContent = fmt.Sprintf(bootzImageJson, image, dhcpServerIp, image, hashValue)
 	} else {
-		jsonContent = fmt.Sprintf(sztpImageJson, image, dhcpServerIP, image, hashString)
+		jsonContent = fmt.Sprintf(sztpImageJson, image, dhcpServerIp, image, hashString)
 	}
 	if *sjcSetup == true {
 		if bootz == true {
-			jsonContent = fmt.Sprintf(bootzImageJson, image, dhcpServerIP, image, hashValue)
+			jsonContent = fmt.Sprintf(bootzImageJson, image, dhcpServerIp, image, hashValue)
 		} else {
-			jsonContent = fmt.Sprintf(sztpImageJson, image, dhcpServerIP, image, hashString)
+			jsonContent = fmt.Sprintf(sztpImageJson, image, dhcpServerIp, image, hashString)
 		}
 	}
 	t.Log(jsonContent)
@@ -420,25 +421,25 @@ func restore_backup_dhcpd_file(t *testing.T, dhcpServerConn *ssh.Client, backupF
 	defer ssh_session(t, dhcpServerConn, fmt.Sprintf("yes | cp -rf %s /etc/dhcp/dhcpd.conf", backupFile))
 }
 
-func create_dhcpEntry(t *testing.T, dut *ondatra.DUTDevice, bootz bool) string {
+func create_dhcpEntry(t *testing.T, dut *ondatra.DUTDevice, bootz bool, sztpServerIp string) string {
 	var dhcpEntry string
 	if *sjcSetup == true {
 		if bootz == true {
-			bootzUrl = fmt.Sprintf(bootzUrl, sjcSztpServerIP)
+			bootzUrl = fmt.Sprintf(bootzUrl, sztpServerIp)
 			dhcpEntry = fmt.Sprintf(sjcdhcpdEntry, bootzUrl, bootzUrl)
 			t.Log(dhcpEntry)
 		} else {
-			sztpUrl = fmt.Sprintf(sztpUrl, sjcSztpServerIP)
+			sztpUrl = fmt.Sprintf(sztpUrl, sztpServerIp)
 			dhcpEntry = fmt.Sprintf(sjcdhcpdEntry, sztpUrl, sztpUrl)
 			t.Log(dhcpEntry)
 		}
 	} else {
 		if bootz == true {
-			bootzUrl = fmt.Sprintf(bootzUrl, sztpServerIP)
+			bootzUrl = fmt.Sprintf(bootzUrl, sztpServerIp)
 			dhcpEntry = fmt.Sprintf(bgldhcpEntry, bootzUrl)
 			t.Log(dhcpEntry)
 		} else {
-			sztpUrl = fmt.Sprintf(sztpUrl, sztpServerIP)
+			sztpUrl = fmt.Sprintf(sztpUrl, sztpServerIp)
 			dhcpEntry = fmt.Sprintf(bgldhcpEntry, sztpUrl)
 			t.Log(dhcpEntry)
 		}
@@ -446,10 +447,10 @@ func create_dhcpEntry(t *testing.T, dut *ondatra.DUTDevice, bootz bool) string {
 	}
 	return dhcpEntry
 }
-func create_dhcpd_setup(t *testing.T, dhcpServerConn *ssh.Client, sztpServerIP string, dut *ondatra.DUTDevice, bootz bool) {
+func create_dhcpd_setup(t *testing.T, dhcpServerConn *ssh.Client, sztpServerIP string, dut *ondatra.DUTDevice, bootz bool, sztpServerIp string) {
 	t.Logf("Check if entry for host is present and modify the contents")
 
-	hostEntry := create_dhcpEntry(t, dut, bootz)
+	hostEntry := create_dhcpEntry(t, dut, bootz, sztpServerIp)
 	t.Log("HOST ENTRY DETAILS ")
 	t.Log(hostEntry)
 
@@ -606,12 +607,12 @@ func versionOnBox(t *testing.T, dut *ondatra.DUTDevice) string {
 	versiononbox := gnmi.Get(t, dut, state.State())
 	return versiononbox
 }
-func version_check(t *testing.T, dut *ondatra.DUTDevice, sztpServerConn *ssh.Client, dhcpServerConn *ssh.Client, upgradeImage bool, bootz bool) {
+func version_check(t *testing.T, dut *ondatra.DUTDevice, sztpServerConn *ssh.Client, dhcpServerConn *ssh.Client, upgradeImage bool, bootz bool, dhcpServerIP string) {
 	if upgradeImage == false {
 		bootVersion = versionOnBox(t, dut)
 		t.Logf("Version on the box %v ", bootVersion)
 		t.Logf("Not changing the image")
-		jsonContent := update_onboarding(t, bootVersion, "", bootz)
+		jsonContent := update_onboarding(t, bootVersion, "", bootz, dhcpServerIP)
 		if bootz == true {
 			scp_local_remote(t, sztpServerConn, "/root/bootz/sahubbal/bootz_server_exec/configuration/image/image_cfg_input.json", "", jsonContent)
 			stop_bootz_server(t, sztpServerConn)
@@ -626,7 +627,7 @@ func version_check(t *testing.T, dut *ondatra.DUTDevice, sztpServerConn *ssh.Cli
 		imageUpgradeVersionRequested, bootVersion = re.FindString(*imagePath), re.FindString(*imagePath)
 		bootVersion = re.FindString(*imagePath)
 		scp_local_remote(t, dhcpServerConn, fmt.Sprintf("/var/www/html/%v.iso", bootVersion), *imagePath, "")
-		jsonContent := update_onboarding(t, bootVersion, remoteHashAfter, bootz)
+		jsonContent := update_onboarding(t, bootVersion, remoteHashAfter, bootz, dhcpServerIP)
 		if bootz == true {
 			scp_local_remote(t, sztpServerConn, "/root/bootz/sahubbal/bootz_server_exec/configuration/image/image_cfg_input.json", "", jsonContent)
 			stop_bootz_server(t, sztpServerConn)
@@ -710,4 +711,13 @@ func verify_bootz(t *testing.T, dut *ondatra.DUTDevice) {
 	//check if gnmi is reachable post emsd restart
 	t.Log(gnmi.Get(t, dut, gnmi.OC().System().Hostname().State()))
 
+}
+func decodebase64(encodedbase64 string) string {
+	decodedBytes, err := base64.StdEncoding.DecodeString(encodedbase64)
+	if err != nil {
+		fmt.Println("Error decoding Base64 string:", err)
+	}
+	originalString := string(decodedBytes)
+	fmt.Println("Original String:", originalString)
+	return originalString
 }

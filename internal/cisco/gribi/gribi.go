@@ -80,8 +80,9 @@ type NHGOptions struct {
 // NHOptions are optional parameters to a GRIBI next-hop-group.
 type NHOptions struct {
 	// BackupNHG specifies the backup next-hop-group to be used when all next-hops are unavailable.
-	Src  string
-	Dest []string
+	Src     string
+	Dest    []string
+	VrfName string
 }
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
@@ -263,6 +264,15 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 				NH = NH.WithIPinIP(opt.Src, dst)
 			}
 		}
+	} else if address == "DecapEncapvrf" {
+		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
+		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			for _, dst := range opt.Dest {
+				NH = NH.WithIPinIP(opt.Src, dst)
+				NH = NH.WithNextHopNetworkInstance(opt.VrfName)
+			}
+		}
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)
 		aftNh.IpAddress = &address
@@ -291,7 +301,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 
 	if check.AFTCheck {
 		//if address is "decap", prefix will be 0.0.0.0, nhInstance is "", and InterfaceRef is Null0
-		if address == DECAP || address == ENCAP || address == DecapEncap {
+		if address == DECAP || address == ENCAP || address == DecapEncap || address == "DecapEncapvrf" {
 			c.checkNH(t, nhIndex, "0.0.0.0", instance, "", "Null0")
 		} else {
 			if address != "" {

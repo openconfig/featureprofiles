@@ -3,4 +3,6 @@ topologies/kne/testbed.kne.yml
 .vscode/
 # used by `make validate_paths`
 openconfig_public/
+# used by `make proto/...`
+protobuf-import/
 *.log
