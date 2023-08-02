@@ -428,11 +428,6 @@ func NoMixOfTaggedAndUntaggedSubinterfaces(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoMixOfTaggedAndUntaggedSubinterfaces()
 }
 
-// SecondaryBackupPathTrafficFailover returns if device does not support secondary backup path traffic failover
-func SecondaryBackupPathTrafficFailover(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSecondaryBackupPathTrafficFailover()
-}
-
 // DequeueDeleteNotCountedAsDrops returns if device dequeues and deletes the pkts after a while and those are not counted
 // as drops
 func DequeueDeleteNotCountedAsDrops(dut *ondatra.DUTDevice) bool {

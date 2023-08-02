@@ -128,10 +128,6 @@ message Metadata {
     // profile.
     // Juniper: partnerissuetracker.corp.google.com/279471405
     bool drop_weight_leaves_unsupported = 27;
-    // Device does not support traffic forward with secondary backup path
-    // failover.
-    // Juniper: partnerissuetracker.corp.google.com/279727552
-    bool secondary_backup_path_traffic_failover = 28;
     // Config pushed through origin CLI takes precedence over config pushed
     // through origin OC.
     bool cli_takes_precedence_over_oc = 29;
@@ -285,7 +281,7 @@ message Metadata {
     bool component_power_down_returns_inactive_state = 90;
     
     // Reserved field numbers and identifiers.
-    reserved 84, 9;
+    reserved 84, 9, 28;
   }
 
   message PlatformExceptions {
