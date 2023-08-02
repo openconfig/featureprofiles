@@ -30,8 +30,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 
-	//"github.com/openconfig/gnsi/authz"
-	authz "github.com/openconfig/featureprofiles/internal/cisco/security/authz"
+	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
 	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"github.com/openconfig/ondatra"
 )
@@ -65,11 +64,6 @@ func TestSimpleAuthzGet(t *testing.T) {
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
 	t.Logf("Authz Policy of the device %s is %s", dut.Name(), authzPolicy.PrettyPrint())
-}
-
-func generateUsersCerts(t *testing.T, dut *ondatra.DUTDevice, users ...authz.User) {
-	// TODO generate certificate for all users and save them in testdata folder
-	// use cert lib that is created internal/security/cert
 }
 
 func TestSimpleRotate(t *testing.T) {
