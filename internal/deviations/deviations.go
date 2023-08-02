@@ -413,20 +413,9 @@ func ExplicitIPv6EnableForGRIBI(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6EnableForGribiNhDmac()
 }
 
-<<<<<<< HEAD
-// ISISprotocolEnabledNotRequired returns if isis protocol enable flag should be unset on the device.
-func ISISprotocolEnabledNotRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisProtocolEnabledNotRequired()
-}
-
 // ISISInstanceEnabledRequired returns if isis instance name string should be set on the device.
 func ISISInstanceEnabledRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInstanceEnabledRequired()
-=======
-// ISISInstanceEnabledNotRequired returns if isis instance enable flag should not be on the device.
-func ISISInstanceEnabledNotRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisInstanceEnabledNotRequired()
->>>>>>> main
 }
 
 // GNOISubcomponentPath returns if device currently uses component name instead of a full openconfig path.
