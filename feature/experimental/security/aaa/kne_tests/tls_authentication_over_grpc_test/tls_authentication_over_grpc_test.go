@@ -58,12 +58,10 @@ func gnmiClient(ctx context.Context, sshIP string, dut *ondatra.DUTDevice) (gpb.
 	// TODO(greg-dennis): Remove hard-coded gNMI port.
 	var gnmiPort int
 	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		gnmiPort = 9339
-	case ondatra.NOKIA:
-		gnmiPort = 57400
-	default:
+	case ondatra.ARISTA:
 		gnmiPort = 6030
+	default:
+		gnmiPort = 9339
 	}
 
 	conn, err := grpc.DialContext(

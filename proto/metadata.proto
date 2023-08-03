@@ -285,7 +285,9 @@ message Metadata {
     // Devices require configuring the same OSPF setMetric when BGP
     // SetMED is configured.
     bool bgp_set_med_requires_equal_ospf_set_metric = 92;
-    
+    // Creates a user and assigns role/rbac to said user via native model.
+    bool set_native_user = 93;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
   }

@@ -518,3 +518,8 @@ func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
 func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
 }
+
+// SetNativeUser creates a user and assigns role/rbac to that user via native model.
+func SetNativeUser(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetNativeUser()
+}
