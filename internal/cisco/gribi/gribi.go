@@ -320,7 +320,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	aftIpv4Entry.OriginProtocol = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI
 	aftIpv4Entry.NextHopGroup = &nhgIndex
 
-	if nhgInstance != "" && nhgInstance != instance {
+	if nhgInstance != "" {
 		ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
 		aftIpv4Entry.NextHopGroupNetworkInstance = &nhgInstance
 	}
@@ -570,7 +570,7 @@ func (c *Client) FlushServer(t testing.TB) {
 }
 
 // AddNHWithIPinIP adds a NextHopEntry with IPinIP
-func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, subinterfaceRef string, ipinip bool, expecteFailure bool, check *flags.GRIBICheck) {
+func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, subinterface uint64, ipinip bool, expecteFailure bool, check *flags.GRIBICheck) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
@@ -587,8 +587,12 @@ func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance
 	if nhInstance != "" {
 		NH = NH.WithNextHopNetworkInstance(nhInstance)
 	}
-	if subinterfaceRef != "" {
-		NH = NH.WithSubinterfaceRef(subinterfaceRef, 1)
+	if interfaceRef != "" {
+		if subinterface != 0 {
+			NH = NH.WithSubinterfaceRef(interfaceRef, subinterface)
+		} else {
+			NH = NH.WithInterfaceRef(interfaceRef)
+		}
 	}
 	c.fluentC.Modify().AddEntry(t, NH)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
