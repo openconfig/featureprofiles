@@ -16,6 +16,7 @@ package base_hierarchical_nhg_update_test
 
 import (
 	"context"
+	"math/big"
 	"net"
 	"strconv"
 	"testing"
@@ -610,7 +611,8 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 		// Check if traffic restores with in expected time in milliseconds during modify NHG
 		if len(nonrx_ports) > 0 {
 			// Time took for traffic to restore in milliseconds after trigger
-			fpm := ((sentPkts - receivedPkts) / (fps / 1000))
+			diff := big.NewInt(0).Sub(big.NewInt(0).SetUint64(receivedPkts), big.NewInt(0).SetUint64(sentPkts))
+			fpm := (diff.Uint64() / (fps / 1000))
 			if fpm > *args.ConvergencePathChange {
 				t.Fatalf("Traffic loss %v msecs more than expected %v msecs", fpm, *args.ConvergencePathChange)
 			}
