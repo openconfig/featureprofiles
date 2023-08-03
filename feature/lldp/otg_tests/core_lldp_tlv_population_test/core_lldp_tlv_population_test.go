@@ -80,6 +80,7 @@ func TestLLDPEnabled(t *testing.T) {
 	// DUT configuration.
 	t.Log("Configure DUT.")
 	dut, dutConf := configureDUT(t, "dut", lldpEnabled)
+	disableP4RTLLDP(t, dut)
 	dutPort := dut.Port(t, portName)
 	verifyNodeConfig(t, dut, dutPort, dutConf, lldpEnabled)
 
@@ -118,6 +119,7 @@ func TestLLDPDisabled(t *testing.T) {
 	// DUT configuration.
 	t.Log("Configure DUT.")
 	dut, dutConf := configureDUT(t, "dut", lldpDisabled)
+	disableP4RTLLDP(t, dut)
 	dutPort := dut.Port(t, portName)
 	verifyNodeConfig(t, dut, dutPort, dutConf, lldpDisabled)
 
