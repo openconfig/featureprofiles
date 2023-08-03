@@ -83,6 +83,12 @@ tests:
     mustpass: true
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+  - name: P4RT-1.2 (P4RT Daemon Failure)
+    path: feature/experimental/p4rt/otg_tests/p4rt_daemon_failure_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
   - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
     path: feature/experimental/p4rt/otg_tests/google_discovery_protocol_packetin_test
     owners:
@@ -103,6 +109,12 @@ tests:
     mustpass: true
   - name: P4RT-5.2 (Traceroute Packetout)
     path: feature/experimental/p4rt/otg_tests/traceroute_packetout_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: P4RT-6.1 (Required Packet I/O rate Performance)
+    path: feature/experimental/p4rt/otg_tests/performance_test
     owners:
       - sprem
     priority: 5
@@ -143,6 +155,12 @@ tests:
       - sprem
     mustpass: true
     priority: 53
+    skip: false
+  - name: RT-1.10 (BGP keepalive and holdtime configuration)
+    path: feature/bgp/timers/otg_tests/bgp_keepalive_and_holdtimer_configuration_test
+    owners:
+      - mananpat
+   mustpass: true
     skip: false
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/experimental/isis/otg_tests/base_adjacencies_test
@@ -200,7 +218,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 51
-    skip: true # requires 2 dut
+    skip: false # requires 2 dut
 
 
 
