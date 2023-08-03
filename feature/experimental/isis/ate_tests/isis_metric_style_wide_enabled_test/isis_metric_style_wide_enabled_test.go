@@ -109,7 +109,7 @@ func configureDUT(t *testing.T) {
 }
 
 // configureISIS configures isis on DUT.
-func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAreaAddress, dutSysID string) {
+func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	t.Helper()
 	d := &oc.Root{}
 	configPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
@@ -258,7 +258,7 @@ func TestISISWideMetricEnabled(t *testing.T) {
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	// Configure isis on DUT.
-	configureISIS(t, dut, intfName, dutAreaAddress, dutSysID)
+	configureISIS(t, dut, intfName)
 
 	// Configure interface,isis and traffic on ATE.
 	ateTopo := configureATE(t, ate)
@@ -270,7 +270,6 @@ func TestISISWideMetricEnabled(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
 	t.Run("ISIS telemetry", func(t *testing.T) {
-
 		adjacencyPath := statePath.Interface(intfName).Level(2).AdjacencyAny().AdjacencyState().State()
 
 		_, ok := gnmi.WatchAll(t, dut, adjacencyPath, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
