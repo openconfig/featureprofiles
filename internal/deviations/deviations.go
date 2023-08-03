@@ -506,3 +506,15 @@ func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
 func ComponentPowerDownReturnsInactiveState(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetComponentPowerDownReturnsInactiveState()
 }
+
+// ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
+// the same ISIS Metrics for Level 1 when configuring Level 2 Metrics.
+func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisRequireSameL1MetricWithL2Metric()
+}
+
+// BGPSetMedRequiresEqualOspfSetMetric returns true for devices that require configuring
+// the same OSPF setMetric when BGP SetMED is configured.
+func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
+}
