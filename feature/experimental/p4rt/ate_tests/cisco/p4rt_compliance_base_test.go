@@ -14,7 +14,6 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	wbb "github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
@@ -79,7 +78,7 @@ func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) s
 // }
 
 func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	nodes := wbb.P4RTNodesByPort(t, dut)
 	ports := sortPorts(dut.Ports())
 	alreadyConfiguredNPUs := []string{}
 	deviceIDOffset := uint64(0)
@@ -105,7 +104,7 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 }
 
 func unconfigureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	nodes := wbb.P4RTNodesByPort(t, dut)
 	ports := sortPorts(dut.Ports())
 	for _, port := range ports {
 		p4rtNode, ok := nodes[port.ID()]
