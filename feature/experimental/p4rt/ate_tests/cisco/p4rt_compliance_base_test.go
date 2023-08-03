@@ -14,6 +14,7 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	wbb "github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
@@ -22,6 +23,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"google.golang.org/protobuf/testing/protocmp"
+	"k8s.io/utils/strings/slices"
 )
 
 var (
@@ -46,39 +48,78 @@ func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) s
 	return names[0]
 }
 
-func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	resp := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
-	component := oc.Component{}
-	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-	pattern, _ := regexp.Compile(`.*-NPU\d+$`)
+// Keeping for historical purpose. Its an alternate way to configure device ID
+// func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+// 	resp := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+// 	component := oc.Component{}
+// 	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+// 	pattern, _ := regexp.Compile(`.*-NPU\d+$`)
 
-	i := uint64(0)
-	for _, c := range resp {
-		name := c.GetName()
-		match := false
-		for _, lc := range exclude_LC {
-			if strings.Contains(name, lc) {
-				match = true
-				break
-			}
+// 	i := uint64(0)
+// 	for _, c := range resp {
+// 		name := c.GetName()
+// 		match := false
+// 		for _, lc := range exclude_LC {
+// 			if strings.Contains(name, lc) {
+// 				match = true
+// 				break
+// 			}
+// 		}
+// 		if match {
+// 			continue
+// 		}
+// 		if match := pattern.MatchString(name); match && !strings.Contains(name, "FC") {
+// 			component.Name = ygot.String(name)
+// 			component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID + i)
+// 			gnmi.Update(t, dut, gnmi.OC().Component(name).Config(), &component)
+// 			i += 1
+// 			identifiedNPUs += 1
+// 		}
+// 	}
+// }
+
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	ports := sortPorts(dut.Ports())
+	alreadyConfiguredNPUs := []string{}
+	deviceIDOffset := uint64(0)
+	for _, port := range ports {
+		p4rtNode, ok := nodes[port.ID()]
+		if !ok {
+			t.Fatalf("Couldn't find P4RT Node for port: %v", port.ID())
 		}
-		if match {
+		if slices.Contains(alreadyConfiguredNPUs, p4rtNode) {
 			continue
 		}
-		if match := pattern.MatchString(name); match && !strings.Contains(name, "FC") {
-			component.Name = ygot.String(name)
-			component.IntegratedCircuit.NodeId = ygot.Uint64(deviceID + i)
-			gnmi.Update(t, dut, gnmi.OC().Component(name).Config(), &component)
-			i += 1
-			identifiedNPUs += 1
+		alreadyConfiguredNPUs = append(alreadyConfiguredNPUs, p4rtNode)
+
+		t.Logf("Configuring P4RT Node: %s", p4rtNode)
+		c := oc.Component{}
+		c.Name = ygot.String(p4rtNode)
+		c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+		c.IntegratedCircuit.NodeId = ygot.Uint64(deviceID + deviceIDOffset)
+		gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
+		identifiedNPUs++
+		deviceIDOffset++
+	}
+}
+
+func unconfigureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	ports := sortPorts(dut.Ports())
+	for _, port := range ports {
+		p4rtNode, ok := nodes[port.ID()]
+		if !ok {
+			t.Fatalf("Couldn't find P4RT Node for port: %v", port.ID())
 		}
+		t.Logf("Configuring P4RT Node: %s", p4rtNode)
+		gnmi.Delete(t, dut, gnmi.OC().Component(p4rtNode).Config())
 	}
 }
 
 func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	ports := sortPorts(dut.Ports())
 	for index, port := range ports {
-		// dut.Config().Interface(port.Name()).Id().Update(t, uint32(index)+portID)
 		conf := &oc.Interface{
 			Name: ygot.String(port.Name()),
 			Id:   ygot.Uint32(uint32(index) + portID),
@@ -89,7 +130,13 @@ func configurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) 
 			conf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		}
 		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), conf)
-		// dut.Config().Interface(port.Name()).Update(t, conf)
+	}
+}
+
+func unconfigurePortID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	ports := sortPorts(dut.Ports())
+	for _, port := range ports {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Config())
 	}
 }
 
