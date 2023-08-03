@@ -1,0 +1,15 @@
+name:
+owners:
+  - harikri4,mbagherz
+priority: 4
+testbeds:
+  - moji_sfd_gnsi
+tests:
+- name: Authz P0 Tests
+  path: feature/security/gnsi/authz/cisco/tests
+  internal: true
+  branch: master
+  mustpass: true
+  timeout: 21000
+  owners:
+    - harikri4,mbagherz
