@@ -160,7 +160,7 @@ tests:
     path: feature/bgp/timers/otg_tests/bgp_keepalive_and_holdtimer_configuration_test
     owners:
       - mananpat
-   mustpass: true
+    mustpass: true
     skip: false
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/experimental/isis/otg_tests/base_adjacencies_test
