@@ -160,11 +160,15 @@ func TestP4RTPacketIO(t *testing.T) {
 	if !*ciscoFlags.PacketIOTests {
 		t.Skip()
 	}
-	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	// Dial gRIBI
 	ctx := context.Background()
+
+	dut := ondatra.DUT(t, "dut")
+	// Unconfigure previous p4rt configurations
+	unconfigureDeviceID(ctx, t, dut)
+	unconfigurePortID(ctx, t, dut)
+
+	configureDUT(t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
