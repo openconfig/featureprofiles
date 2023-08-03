@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"regexp"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -29,23 +27,23 @@ var (
 	identifiedNPUs = 0
 )
 
-func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) string {
-	resp := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
-	component := oc.Component{}
-	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-	names := []string{}
-	pattern, _ := regexp.Compile(`.*-NPU\d+`)
-	for _, c := range resp {
-		name := c.GetName()
-		if match := pattern.MatchString(name); match && !strings.Contains(name, "FC") {
-			names = append(names, name)
-		}
-	}
-	sort.Slice(names, func(i, j int) bool {
-		return names[i] < names[j]
-	})
-	return names[0]
-}
+// func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) string {
+// 	resp := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+// 	component := oc.Component{}
+// 	component.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+// 	names := []string{}
+// 	pattern, _ := regexp.Compile(`.*-NPU\d+`)
+// 	for _, c := range resp {
+// 		name := c.GetName()
+// 		if match := pattern.MatchString(name); match && !strings.Contains(name, "FC") {
+// 			names = append(names, name)
+// 		}
+// 	}
+// 	sort.Slice(names, func(i, j int) bool {
+// 		return names[i] < names[j]
+// 	})
+// 	return names[0]
+// }
 
 // Keeping for historical purpose. Its an alternate way to configure device ID
 // func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
@@ -76,6 +74,13 @@ func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) s
 // 		}
 // 	}
 // }
+
+// Get NPU-ID corresponding to first Port-ID
+func getComponentID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) string {
+	nodes := wbb.P4RTNodesByPort(t, dut)
+	ports := sortPorts(dut.Ports())
+	return nodes[ports[0].ID()]
+}
 
 func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 	nodes := wbb.P4RTNodesByPort(t, dut)
