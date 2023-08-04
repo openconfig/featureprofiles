@@ -52,7 +52,7 @@
 # ipv4 address 5.78.9.13
 
 options {
-  username: "cafyauto"
+  username: "cisco"
   password: "cisco"
   insecure: false 
   skip_verify: false
