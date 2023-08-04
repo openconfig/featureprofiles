@@ -24,7 +24,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -100,39 +99,36 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		badTelem   []string
 	)
 
-	d := gnmi.OC()
-
 	// TODO(liulk): configure breakout ports when Ondatra is able to
 	// specify them in the testbed for reservation.
 
 	sortedDutPorts := sortPorts(dut.Ports())
 	for i, dp := range sortedDutPorts {
-		di := d.Interface(dp.Name())
+		dc := gnmi.OC().Interface(dp.Name()).Config()
 		in := configInterface(dp.Name(), dp.String(), dutPortIP(i), plen, dut)
-		fptest.LogQuery(t, fmt.Sprintf("%s to Replace()", dp), di.Config(), in)
-		if ok := fptest.NonFatal(t, func(t testing.TB) { gnmi.Replace(t, dut, di.Config(), in) }); !ok {
+		fptest.LogQuery(t, fmt.Sprintf("%s to Replace()", dp), dc, in)
+		if ok := fptest.NonFatal(t, func(t testing.TB) { gnmi.Replace(t, dut, dc, in) }); !ok {
 			badReplace = append(badReplace, dp.Name())
 		}
 	}
 
 	for _, dp := range dut.Ports() {
-		di := d.Interface(dp.Name())
-		if val, present := gnmi.LookupConfig(t, dut, di.Config()).Val(); present {
-			fptest.LogQuery(t, fmt.Sprintf("%s from Get()", dp), di.Config(), val)
+		dc := gnmi.OC().Interface(dp.Name()).Config()
+		if val, present := gnmi.LookupConfig(t, dut, dc).Val(); present {
+			fptest.LogQuery(t, fmt.Sprintf("%s from Get()", dp), dc, val)
 		} else {
 			badConfig = append(badConfig, dp.Name())
-			t.Errorf("Config %v Get() failed", di)
+			t.Errorf("Config %v Get() failed", dc)
 		}
 	}
 
-	dt := gnmi.OC()
 	for _, dp := range dut.Ports() {
-		di := dt.Interface(dp.Name())
-		if val, present := gnmi.Lookup(t, dut, di.State()).Val(); present {
-			fptest.LogQuery(t, fmt.Sprintf("%s from Get()", dp), di.State(), val)
+		ds := gnmi.OC().Interface(dp.Name()).State()
+		if val, present := gnmi.Lookup(t, dut, ds).Val(); present {
+			fptest.LogQuery(t, fmt.Sprintf("%s from Get()", dp), ds, val)
 		} else {
 			badTelem = append(badTelem, dp.Name())
-			t.Errorf("Telemetry %v Get() failed", di)
+			t.Errorf("Telemetry %v Get() failed", ds)
 		}
 	}
 
@@ -173,13 +169,10 @@ func TestTopology(t *testing.T) {
 	configureATE(t, ate)
 
 	// Query Telemetry
-	dutPorts := sortPorts(dut.Ports())
 	t.Run("Telemetry", func(t *testing.T) {
 		const want = oc.Interface_OperStatus_UP
-
-		dt := gnmi.OC()
-		for _, dp := range dutPorts {
-			if got := gnmi.Get(t, dut, dt.Interface(dp.Name()).OperStatus().State()); got != want {
+		for _, dp := range dut.Ports() {
+			if got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State()); got != want {
 				t.Errorf("%s oper-status got %v, want %v", dp, got, want)
 			}
 		}
@@ -188,9 +181,11 @@ func TestTopology(t *testing.T) {
 
 	// Query ATE telemetry.
 	t.Run("ATE Telemetry", func(t *testing.T) {
-		want := []otgoc.E_Port_Link{otgoc.Port_Link_UP, otgoc.Port_Link_UP}
-		if got := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().PortAny().Link().State()); !cmp.Equal(got, want) {
-			t.Errorf("did not get expected ATE telemetry, got: %v, want: %v", got, want)
+		const want = otgoc.Port_Link_UP
+		for _, ap := range ate.Ports() {
+			if got := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ap.Name()).Link().State()); got != want {
+				t.Errorf("%s link-state got: %v, want: %v", ap, got, want)
+			}
 		}
 	})
 }
