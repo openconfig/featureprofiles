@@ -56,16 +56,17 @@ options {
   password: "cisco"
   insecure: false 
   skip_verify: false
-  trust_bundle_file: "/Users/harikri4/featureprofiles/internal/cisco/security/cert/keys/CA/ca.cert.pem"
-  cert_file: "/Users/harikri4/featureprofiles/internal/cisco/security/cert/keys/clients/cafyauto.cert.pem"
-  key_file:  "/Users/harikri4/featureprofiles/internal/cisco/security/cert/keys/clients/cafyauto.key.pem"
+  trust_bundle_file: "$TRUST_BUNDLE_FILE"
+  cert_file: "$CERT_FILE"
+  key_file:  "$KEY_FILE"
 }
 
 duts {
   id: "dut"
   name: "8808"  # Change this to the device hostname.
   config:{
-    gnmi_set_file: "/Users/harikri4/featureprofiles/topologies/cisco_local/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt.proto"
+    gnmi_set_file: "$BASE_CONF_PATH"
+    #gnmi_set_file: "/Users/harikri4/featureprofiles/topologies/cisco_local/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt.proto"
   }
   # telnet RP0: 10.85.84.38 2001
   # telnet RP1: 10.85.84.38 2002
