@@ -79,8 +79,7 @@ between 2 DUTs.
         *   Ensure that the num_corrupt_packets and num_packets_dropped_by_mmu
             are 0
         *   Ensure that RPC status code is 0 for succuss.
-        *   GetQualificationRateBytesPerSecond matches
-            GetExpectedRateBytesPerSecond in the result.
+        *   Packets sent count matches with packets received.
 
 ## Telemetry Parameter Coverage
 

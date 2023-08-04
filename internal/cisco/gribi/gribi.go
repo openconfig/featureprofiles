@@ -80,8 +80,9 @@ type NHGOptions struct {
 // NHOptions are optional parameters to a GRIBI next-hop-group.
 type NHOptions struct {
 	// BackupNHG specifies the backup next-hop-group to be used when all next-hops are unavailable.
-	Src  string
-	Dest []string
+	Src     string
+	Dest    []string
+	VrfName string
 }
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
@@ -263,6 +264,15 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 				NH = NH.WithIPinIP(opt.Src, dst)
 			}
 		}
+	} else if address == "DecapEncapvrf" {
+		NH = NH.WithDecapsulateHeader(fluent.IPinIP)
+		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			for _, dst := range opt.Dest {
+				NH = NH.WithIPinIP(opt.Src, dst)
+				NH = NH.WithNextHopNetworkInstance(opt.VrfName)
+			}
+		}
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)
 		aftNh.IpAddress = &address
@@ -291,7 +301,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 
 	if check.AFTCheck {
 		//if address is "decap", prefix will be 0.0.0.0, nhInstance is "", and InterfaceRef is Null0
-		if address == DECAP || address == ENCAP {
+		if address == DECAP || address == ENCAP || address == DecapEncap || address == "DecapEncapvrf" {
 			c.checkNH(t, nhIndex, "0.0.0.0", instance, "", "Null0")
 		} else if address == DecapEncap {
 			c.checkNH(t, nhIndex, opts[0].Dest[0], instance, nhInstance, "", opts[0])
@@ -312,7 +322,7 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	aftIpv4Entry.OriginProtocol = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_GRIBI
 	aftIpv4Entry.NextHopGroup = &nhgIndex
 
-	if nhgInstance != "" && nhgInstance != instance {
+	if nhgInstance != "" {
 		ipv4Entry.WithNextHopGroupNetworkInstance(nhgInstance)
 		aftIpv4Entry.NextHopGroupNetworkInstance = &nhgInstance
 	}
@@ -562,7 +572,7 @@ func (c *Client) FlushServer(t testing.TB) {
 }
 
 // AddNHWithIPinIP adds a NextHopEntry with IPinIP
-func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, subinterfaceRef string, ipinip bool, expecteFailure bool, check *flags.GRIBICheck) {
+func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance string, nhInstance string, interfaceRef string, subinterface uint64, ipinip bool, expecteFailure bool, check *flags.GRIBICheck) {
 	NH := fluent.NextHopEntry().
 		WithNetworkInstance(instance).
 		WithIndex(nhIndex)
@@ -579,8 +589,12 @@ func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance
 	if nhInstance != "" {
 		NH = NH.WithNextHopNetworkInstance(nhInstance)
 	}
-	if subinterfaceRef != "" {
-		NH = NH.WithSubinterfaceRef(subinterfaceRef, 1)
+	if interfaceRef != "" {
+		if subinterface != 0 {
+			NH = NH.WithSubinterfaceRef(interfaceRef, subinterface)
+		} else {
+			NH = NH.WithInterfaceRef(interfaceRef)
+		}
 	}
 	c.fluentC.Modify().AddEntry(t, NH)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {

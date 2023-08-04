@@ -50,11 +50,6 @@ tests:
 
   - name: gNMI-1.10 (Telemetry Basic Check)
     path: feature/gnmi/otg_tests/telemetry_basic_check_test
-    args:
-      - '-deviation_interface_counters_from_container="true"'
-      - '-deviation_ipv4_missing_enabled="true"'
-      - '-deviation_subinterface_packet_counters_missing="true"'
-      - '-deviation_missing_interface_physical_channel="true"'
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
     owners:
@@ -64,10 +59,6 @@ tests:
     priority: 34
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
-    args:
-      - '-deviation_interface_counters_from_container="true"'
-      - '-deviation_ipv4_missing_enabled="true"'
-      - '-deviation_subinterface_packet_counters_missing="true"'
     owners:
       - agvarghe
     priority: 35
@@ -92,6 +83,12 @@ tests:
     mustpass: true
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+  - name: P4RT-1.2 (P4RT Daemon Failure)
+    path: feature/experimental/p4rt/otg_tests/p4rt_daemon_failure_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
   - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
     path: feature/experimental/p4rt/otg_tests/google_discovery_protocol_packetin_test
     owners:
@@ -116,6 +113,12 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+  - name: P4RT-6.1 (Required Packet I/O rate Performance)
+    path: feature/experimental/p4rt/otg_tests/performance_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
   - name: P4RT-7.1 (LLDP PacketIn)
     path: feature/experimental/p4rt/otg_tests/lldp_packetin_test
     owners:
@@ -135,8 +138,6 @@ tests:
     path: feature/bgp/policybase/otg_tests/route_installation_test
     owners:
       - sprem
-    args:
-      - "-deviation_prepolicy_received_routes=true"
     mustpass: true
     skip: false
     priority: 6
@@ -155,16 +156,16 @@ tests:
     mustpass: true
     priority: 53
     skip: false
+  - name: RT-1.10 (BGP keepalive and holdtime configuration)
+    path: feature/bgp/timers/otg_tests/bgp_keepalive_and_holdtimer_configuration_test
+    owners:
+      - mananpat
+    mustpass: true
+    skip: false
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/experimental/isis/otg_tests/base_adjacencies_test
     owners:
       - mananpat
-    args:
-      - '-deviation_isis_interface_level1_disable_required="true"'
-      - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-      - '-deviation_isis_single_topology_required="true"'
-      - '-deviation_isis_protocol_enabled_not_required="true"'
-      - '-deviation_isis_instance_enabled_not_required="true"'
     mustpass: true
     priority: 49
     skip: false
@@ -172,10 +173,6 @@ tests:
     path: feature/experimental/isis/otg_tests/lsp_updates_test
     owners:
       - mananpat
-    args:
-      - '-deviation_missing_isis_interface_afi_safi_enable="true"'
-      - '-deviation_isis_protocol_enabled_not_required="true"'
-      - '-deviation_isis_instance_enabled_not_required="true"'
     mustpass: true
     priority: 48
     skip: false
@@ -183,8 +180,6 @@ tests:
     path: feature/experimental/policy/policy_vrf_selection/otg_tests/base_vrf_selection
     owners:
       - sprem
-    args:
-      - '-deviation_interface_ref_config_unsupported="true"'
     mustpass: true
     priority: 30
   - name: RT-3.2 (Multiple Protocol-DSCP Rules for VRF Selection)
@@ -200,8 +195,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 31
-    args:
-      - '-deviation_ip_neighbor_missing="true"'
   - name: RT-5.2 (Aggregate Interfaces)
     path: feature/interface/aggregate/otg_tests/aggregate_test
     owners:
@@ -223,11 +216,9 @@ tests:
     path: feature/lldp/otg_tests/core_lldp_tlv_population_test
     owners:
       - agvarghe
-    args:
-      - '-deviation_lldp_interface_config_override_global="true"'
     mustpass: true
     priority: 51
-    skip: true # requires 2 dut
+    skip: false # requires 2 dut
 
 
 
@@ -244,8 +235,6 @@ tests:
     mustpass: true
   - name: TE-2.1 (gRIBI IPv4 Entry)
     path: feature/gribi/otg_tests/ipv4_entry_test
-    args:
-      - '-deviation_gribi_mac_override_with_static_arp="true"'
     owners:
       - mananpat
     mustpass: true
@@ -278,8 +267,6 @@ tests:
     mustpass: true
   - name: TE-3.7 (Base Hierarchical NHG Update)
     path: feature/gribi/otg_tests/base_hierarchical_nhg_update
-    args:
-      - '-deviation_gribi_mac_override_with_static_arp="true"'
     owners:
       - mananpat
     mustpass: true
