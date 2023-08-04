@@ -150,7 +150,7 @@ testbeds:
     testbed: topologies/cisco/hw/8808_FOX2643Q39J/testbed
     binding: topologies/cisco/hw/8808_FOX2643Q39J/binding_gnmi_v6
     baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt.proto
- - id: 8808_FOX2643Q39J
+  - id: 8808_FOX2643Q39J
     owner: harikri4
     testbed: topologies/cisco/hw/8808-36FH_FOX2506P5XE/single_testbed
     binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE/single_binding_gnsi
