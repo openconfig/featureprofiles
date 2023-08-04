@@ -218,7 +218,7 @@ func TestCase_FixWithPlatformExceptions(t *testing.T) {
 		existing: &mpb.Metadata{
 			Testbed: mpb.Metadata_TESTBED_DUT,
 			PlatformExceptions: []*mpb.Metadata_PlatformExceptions{
-				&mpb.Metadata_PlatformExceptions{
+				{
 					Platform: &mpb.Metadata_Platform{
 						HardwareModelRegex: "8808",
 					},
@@ -239,7 +239,7 @@ func TestCase_FixWithPlatformExceptions(t *testing.T) {
 		Description: tc.markdown.Description,
 		Testbed:     mpb.Metadata_TESTBED_DUT,
 		PlatformExceptions: []*mpb.Metadata_PlatformExceptions{
-			&mpb.Metadata_PlatformExceptions{
+			{
 				Platform: &mpb.Metadata_Platform{
 					HardwareModelRegex: "8808",
 				},
