@@ -11,7 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    deviation_mac_address_missing: true
+    mac_address_missing: true
   }
 }
 platform_exceptions: {

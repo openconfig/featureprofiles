@@ -17,7 +17,6 @@ syntax = "proto3";
 package openconfig.testing;
 
 import "github.com/openconfig/ondatra/proto/testbed.proto";
-
 // Metadata about a Feature Profiles test.
 message Metadata {
   // UUID of the test.
@@ -273,12 +272,23 @@ message Metadata {
     bool bkup_arbitration_resp_code = 82;
     // Device requires IPOverIP decapsulation for backup NHG without interfaces.
     bool backup_nhg_requires_vrf_with_decap = 83;
-    // Devices don't support ISIS Timers lsp-refresh-interval leaf.
-    bool isis_timers_lsp_refresh_interval_unsupported = 84;
     // Devices don't support configuring ISIS /afi-safi/af/config container.
     bool isis_interface_afi_unsupported = 85;
     // Devices don't support modify table entry operation in P4 Runtime.
     bool p4rt_modify_table_entry_unsupported = 86;
+    // Parent of OS component is of type SUPERVISOR or LINECARD.
+    bool os_component_parent_is_supervisor_or_linecard = 87;
+    // Parent of OS component is of type CHASSIS.
+    bool os_component_parent_is_chassis = 88;
+    // Device does not support fabric power-admin-state leaf.
+    bool skip_fabric_card_power_admin = 89;
+    // Device returns component state inactive during power down.
+    bool component_power_down_returns_inactive_state = 90;
+    // MacAddressMissing returns whether device does not support /system/mac-address/state
+    bool mac_address_missing = 91;
+    
+    // Reserved field numbers and identifiers.
+    reserved 84;
   }
 
   message PlatformExceptions {

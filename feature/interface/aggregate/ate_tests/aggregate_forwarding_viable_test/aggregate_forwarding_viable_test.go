@@ -348,6 +348,8 @@ func (tc *testArgs) configureATE(t *testing.T) {
 	if is100gfr {
 		agg.Ethernet().FEC().WithEnabled(false)
 	}
+	// Start LACP before configuring IP addresses because ARP/ND does not always succeed
+	// when both LACP/IP protocols are started simultaneously.
 	tc.top.Push(t).StartProtocols(t)
 
 	agg.IPv4().
