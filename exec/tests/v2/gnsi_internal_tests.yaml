@@ -5,8 +5,30 @@ priority: 4
 testbeds:
   - moji_sfd_gnsi
 tests:
-- name: Authz P0 Tests
+- name: gNSI1.1 (Authz Functional Tests)
   path: feature/security/gnsi/authz/cisco/tests
+  args:
+    -testing.run='(?:Simple|All|Rotate)'
+  internal: true
+  branch: master
+  mustpass: true
+  timeout: 21000
+  owners:
+    - harikri4,mbagherz
+- name: gNSI1.2 (Authz HA Tests)
+  path: feature/security/gnsi/authz/cisco/tests
+  args:
+    -testing.run='((?:Fail)'
+  internal: true
+  branch: master
+  mustpass: true
+  timeout: 21000
+  owners:
+    - harikri4,mbagherz
+- name: gNSI1.3 (Authz Scale Tests)
+  path: feature/security/gnsi/authz/cisco/tests
+  args:
+    -testing.run='((?:(?:Scale))'
   internal: true
   branch: master
   mustpass: true
