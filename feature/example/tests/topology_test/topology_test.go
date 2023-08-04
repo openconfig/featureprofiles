@@ -183,7 +183,7 @@ func TestTopology(t *testing.T) {
 	t.Run("ATE Telemetry", func(t *testing.T) {
 		const want = otgoc.Port_Link_UP
 		for _, ap := range ate.Ports() {
-			if got := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ap.Name()).Link().State()); got != want {
+			if got := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ap.ID()).Link().State()); got != want {
 				t.Errorf("%s link-state got: %v, want: %v", ap, got, want)
 			}
 		}
