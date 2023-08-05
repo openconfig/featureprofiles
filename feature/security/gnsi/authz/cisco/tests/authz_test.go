@@ -26,15 +26,15 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
+	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	authzpb "github.com/openconfig/gnsi/authz"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-
-	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
-	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
-	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -64,6 +64,17 @@ func createUsersOnDevice(t *testing.T, dut *ondatra.DUTDevice, users []*authz.Us
 
 func TestSimpleAuthzGet(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	t.Logf("Authz Policy of the device %s is %s", dut.Name(), authzPolicy.PrettyPrint())
+}
+
+func TestHAEMSDProcessRestart(t *testing.T) {
+	//Process Restart
+	dut := ondatra.DUT(t, "dut")
+	config.CMDViaGNMI(context.Background(), t, dut, "process restart emsd")
+	time.Sleep(30 * time.Second)
 	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
