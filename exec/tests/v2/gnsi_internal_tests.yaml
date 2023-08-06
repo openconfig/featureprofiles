@@ -8,7 +8,7 @@ tests:
 - name: authz1.1 (Authz Functional Tests)
   path: feature/security/gnsi/authz/cisco/tests
   args:
-    - 'test.run="(?:Simple|All|Rotate)"'
+    - '-test.run="(?:Simple|All|Rotate)"'
   internal: true
   branch: master
   mustpass: true
@@ -18,7 +18,7 @@ tests:
 - name: authz1.2 (Authz HA Tests)
   path: feature/security/gnsi/authz/cisco/tests
   args:
-    - 'test.run="(?:Fail)"'
+    - '-test.run="(?:Fail)"'
   internal: true
   branch: master
   mustpass: true
@@ -28,7 +28,7 @@ tests:
 - name: authz1.3 (Authz Scale Tests)
   path: feature/security/gnsi/authz/cisco/tests
   args:
-    - 'test.run="(?:Scale)"'
+    - '-test.run="(?:Scale)"'
   internal: true
   branch: master
   mustpass: true
