@@ -350,10 +350,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	t.Logf("Pushing config to OTG and starting protocols...")
 	otg.PushConfig(t, config)
-	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
-
 	return config
 }
 
@@ -421,14 +418,16 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 }
 
 // verifySetMed is used to validate MED on received prefixes at OTG Port1.
-func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDValue uint32) {
+func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDValue uint32, expectedAggrRouteRxValue uint64) {
 	t.Helper()
-	_, ok := gnmi.WatchAll(t,
-		otg,
-		gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
-		2*time.Minute,
-		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			return v.IsPresent()
+
+	// First verify if expected count of routes are recived by the BGP peer on test port1 and
+	// then verify if all routeCount prefixes in RIB/Learend Information have expected Med val
+	_, ok := gnmi.Watch(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").Counters().InRoutes().State(),
+		2*time.Minute, func(v *ygnmi.Value[uint64]) bool {
+			val, _ := v.Val()
+			t.Logf("Total routes Received since start of test for BGP peer %s.BGP4.peer is %d.", ateSrc.Name, val)
+			return v.IsPresent() && val == expectedAggrRouteRxValue
 		}).Await(t)
 
 	if ok {
@@ -439,31 +438,15 @@ func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDVal
 		} else {
 			t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 		}
+
+		// compare Med val with expected for each of the recieved routes.
+		for _, prefix := range bgpPrefixes {
+			if prefix.GetMultiExitDiscriminator() != wantMEDValue {
+				t.Errorf("Received Prefix Med %d Expected Med %d for Prefix %v", prefix.GetMultiExitDiscriminator(), wantMEDValue, prefix.GetAddress())
+			}
+		}
+		t.Logf("Received Prefixes are verified for Proper MED value %d", wantMEDValue)
 	}
-
-	// TODO: Below code will be uncommented once MED retrieval is supported in OTG.
-	// https://github.com/openconfig/featureprofiles/issues/1837
-
-	/*
-		wantSetMED := []uint32{}
-		// Build wantSetMED to compare the diff.
-		for i := 0; i < routeCount; i++ {
-			wantSetMED = append(wantSetMED, uint32(wantMEDValue))
-		}
-
-		prefixPathAny := gnmi.OTG().BgpPeer(ateSrc.Name + ".BGP4.peer").UnicastIpv4PrefixAny()
-		gnmi.WatchAll(t, otg, prefixPathAny.State(), time.Minute, func(v *ygnmi.Value[string]) bool {
-			_, present := v.Val()
-			return present
-		}).Await(t)
-		_, ok := gnmi.WatchAll(t, otg, prefixPathAny.Med().State(), 3*time.Minute, func(v *ygnmi.Value[otgtelemetry.E_UnicastIpv4Prefix_Origin]) bool {
-			gotSetMED, present := v.Val()
-			return present && cmp.Diff(wantSetMED, gotSetMED) == ""
-		}).Await(t)
-		if !ok {
-			t.Errorf("obtained MED on OTG is not as expected")
-		}
-	*/
 }
 
 // verifyBGPCapabilities is used to Verify BGP capabilities like route refresh as32 and mpbgp.
@@ -538,6 +521,14 @@ func TestAlwaysCompareMED(t *testing.T) {
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	})
 
+	t.Run("Configure SET MED on DUT", func(t *testing.T) {
+		setMED(t, dut, d)
+	})
+
+	t.Run("Configure always compare med on DUT", func(t *testing.T) {
+		gnmi.Replace(t, dut, dutConfPath.Bgp().Global().RouteSelectionOptions().AlwaysCompareMed().Config(), true)
+	})
+
 	otg := ate.OTG()
 	var otgConfig gosnappi.Config
 	t.Run("Configure OTG", func(t *testing.T) {
@@ -554,19 +545,13 @@ func TestAlwaysCompareMED(t *testing.T) {
 		verifyBGPCapabilities(t, dut)
 	})
 
-	t.Run("Configure SET MED on DUT", func(t *testing.T) {
-		setMED(t, dut, d)
-	})
-
-	t.Run("Configure always compare med on DUT", func(t *testing.T) {
-		gnmi.Replace(t, dut, dutConfPath.Bgp().Global().RouteSelectionOptions().AlwaysCompareMed().Config(), true)
-	})
-
 	t.Run("Verify received BGP routes at OTG Port 1 have lowest MED", func(t *testing.T) {
 		verifyPrefixesTelemetry(t, dut, 0, routeCount)
 		t.Log("Verify best route advertised to atePort1 is Peer with lowest MED 50 - eBGP Peer2.")
-		verifySetMed(t, otg, otgConfig, bgpMED50)
+		/* Aggregate route count expected to be routeCount after which RIB/Learned Information shoud be fetched */
+		verifySetMed(t, otg, otgConfig, bgpMED50, routeCount)
 	})
+
 	t.Run("Send and validate traffic from OTG Port1", func(t *testing.T) {
 		t.Log("Validate traffic flowing to the prefixes received from eBGP neighbor #2 from DUT (lowest MED-50).")
 		sendTraffic(t, otg, otgConfig)
@@ -583,7 +568,8 @@ func TestAlwaysCompareMED(t *testing.T) {
 	t.Run("Verify MED on received routes at OTG Port1 after removing MED settings", func(t *testing.T) {
 		verifyPrefixesTelemetry(t, dut, 0, routeCount)
 		t.Log("Verify best route advertised to atePort1.")
-		verifySetMed(t, otg, otgConfig, uint32(0))
+		// Aggregate route count expected to be routeCount + routeCount ( set of updated routes after MED reset) after which RIB/Learned Information shoud be fetched
+		verifySetMed(t, otg, otgConfig, uint32(0), routeCount+routeCount)
 	})
 
 	t.Run("Send and verify traffic after removing MED settings on DUT", func(t *testing.T) {
