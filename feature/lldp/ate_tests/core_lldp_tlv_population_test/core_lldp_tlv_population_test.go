@@ -15,6 +15,7 @@
 package core_lldp_tlv_population_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -26,6 +27,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
@@ -61,6 +64,10 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			dut, dutConf := configureNode(t, "dut1", test.lldpEnabled)
 			ate, ateConf := configureNode(t, "dut2", true) // lldp is always enabled for the ATE
+
+			disableP4RTLLDP(t, dut)
+			disableP4RTLLDP(t, ate)
+
 			dutPort := dut.Port(t, portName)
 			atePort := ate.Port(t, portName)
 
@@ -198,4 +205,32 @@ func verifyNodeTelemetry(t *testing.T, node, peer *ondatra.DUTDevice, nodePort, 
 		SystemName:    peerState.SystemName,
 	}
 	confirm.State(t, wantNbrState, gotNbrState)
+}
+
+func disableP4RTLLDP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := `p4-runtime
+					shutdown`
+		if _, err := dut.RawAPIs().GNMI().Default(t).
+			Set(context.Background(), cliSetRequest(cli)); err != nil {
+			t.Fatalf("Failed to disable P4RTLLDP: %v", err)
+		}
+	}
+}
+
+func cliSetRequest(config string) *gpb.SetRequest {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
 }

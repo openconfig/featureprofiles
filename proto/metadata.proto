@@ -75,8 +75,6 @@ message Metadata {
     bool isis_interface_level1_disable_required = 7;
     // Set isis af ipv6 single topology on the device if value is true.
     bool isis_single_topology_required = 8;
-    // Unset isis protocol enable flag on the device if value is true.
-    bool isis_protocol_enabled_not_required = 9;
     // Don't set isis instance enable flag on the device if value is true.
     bool isis_instance_enabled_not_required = 10;
     // Set and validate isis interface address family enable on the device if
@@ -130,10 +128,6 @@ message Metadata {
     // profile.
     // Juniper: partnerissuetracker.corp.google.com/279471405
     bool drop_weight_leaves_unsupported = 27;
-    // Device does not support traffic forward with secondary backup path
-    // failover.
-    // Juniper: partnerissuetracker.corp.google.com/279727552
-    bool secondary_backup_path_traffic_failover = 28;
     // Config pushed through origin CLI takes precedence over config pushed
     // through origin OC.
     bool cli_takes_precedence_over_oc = 29;
@@ -285,20 +279,26 @@ message Metadata {
     bool skip_fabric_card_power_admin = 89;
     // Device returns component state inactive during power down.
     bool component_power_down_returns_inactive_state = 90;
+    // Devices require configuring the same ISIS Metrics for Level 1 when
+    // configuring Level 2 Metrics.
+    bool isis_require_same_l1_metric_with_l2_metric = 91;
+    // Devices require configuring the same OSPF setMetric when BGP
+    // SetMED is configured.
+    bool bgp_set_med_requires_equal_ospf_set_metric = 92;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for linecards' CPU card.
-    bool linecard_cpu_utilization_unsupported = 91;
+    bool linecard_cpu_utilization_unsupported = 93;
     // Device does not support consistent component names for GNOI and GNMI.
-    bool consistent_component_names_unsupported = 92;
+    bool consistent_component_names_unsupported = 94;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for controller cards'
     // CPU card.
-    bool controller_card_cpu_utilization_unsupported = 93;
+    bool controller_card_cpu_utilization_unsupported = 95;
     // Device does not support counter for fabric block lost packets.
-    bool fabric_drop_counter_unsupported = 94;
+    bool fabric_drop_counter_unsupported = 96;
     
     // Reserved field numbers and identifiers.
-    reserved 84;
+    reserved 84, 9, 28;
   }
 
   message PlatformExceptions {

@@ -413,11 +413,6 @@ func ExplicitIPv6EnableForGRIBI(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6EnableForGribiNhDmac()
 }
 
-// ISISprotocolEnabledNotRequired returns if isis protocol enable flag should be unset on the device.
-func ISISprotocolEnabledNotRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisProtocolEnabledNotRequired()
-}
-
 // ISISInstanceEnabledNotRequired returns if isis instance enable flag should not be on the device.
 func ISISInstanceEnabledNotRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInstanceEnabledNotRequired()
@@ -431,11 +426,6 @@ func GNOISubcomponentPath(dut *ondatra.DUTDevice) bool {
 // NoMixOfTaggedAndUntaggedSubinterfaces returns if device does not support a mix of tagged and untagged subinterfaces
 func NoMixOfTaggedAndUntaggedSubinterfaces(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoMixOfTaggedAndUntaggedSubinterfaces()
-}
-
-// SecondaryBackupPathTrafficFailover returns if device does not support secondary backup path traffic failover
-func SecondaryBackupPathTrafficFailover(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSecondaryBackupPathTrafficFailover()
 }
 
 // DequeueDeleteNotCountedAsDrops returns if device dequeues and deletes the pkts after a while and those are not counted
@@ -515,6 +505,18 @@ func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
 // Default value is false and expected component power down state is shutdown.
 func ComponentPowerDownReturnsInactiveState(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetComponentPowerDownReturnsInactiveState()
+}
+
+// ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
+// the same ISIS Metrics for Level 1 when configuring Level 2 Metrics.
+func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisRequireSameL1MetricWithL2Metric()
+}
+
+// BGPSetMedRequiresEqualOspfSetMetric returns true for devices that require configuring
+// the same OSPF setMetric when BGP SetMED is configured.
+func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
 }
 
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
