@@ -475,9 +475,9 @@ func (gdp *GDPPacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32,
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(*gdp.SrcMAC)
 	ethHeader.Dst().SetValue(*gdp.DstMAC)
-	ethHeader.EtherType().SetValue(int32(*gdp.EthernetType))
-	flow.Size().SetFixed(int32(frameSize))
-	flow.Rate().SetPps(int64(frameRate))
+	ethHeader.EtherType().SetValue(uint32(*gdp.EthernetType))
+	flow.Size().SetFixed(uint32(frameSize))
+	flow.Rate().SetPps(uint64(frameRate))
 	return []gosnappi.Flow{flow}
 
 }

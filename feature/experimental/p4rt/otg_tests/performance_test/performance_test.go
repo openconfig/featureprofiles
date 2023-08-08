@@ -871,9 +871,9 @@ func newTrafficFlow(ate *ondatra.ATEDevice, dstMac string) []gosnappi.Flow {
 	flow1EthHeader := flow1.Packet().Add().Ethernet()
 	flow1EthHeader.Src().SetValue(pktInSrcMAC)
 	flow1EthHeader.Dst().SetValue(lldpInDstMAC)
-	flow1EthHeader.EtherType().SetValue(int32(lldpEthType))
-	flow1.Size().SetFixed(int32(packetInPktsize))
-	flow1.Rate().SetBps(int64(lldpBitRate))
+	flow1EthHeader.EtherType().SetValue(uint32(lldpEthType))
+	flow1.Size().SetFixed(uint32(packetInPktsize))
+	flow1.Rate().SetBps(uint64(lldpBitRate))
 	flow1.Duration().FixedSeconds().SetSeconds(float32(duration))
 
 	// flow2 for GDP traffic.
@@ -882,9 +882,9 @@ func newTrafficFlow(ate *ondatra.ATEDevice, dstMac string) []gosnappi.Flow {
 	flow2EthHeader := flow2.Packet().Add().Ethernet()
 	flow2EthHeader.Src().SetValue(pktInSrcMAC)
 	flow2EthHeader.Dst().SetValue(gdpInDstMAC)
-	flow2EthHeader.EtherType().SetValue(int32(gdpEthType))
-	flow2.Size().SetFixed(int32(packetInPktsize))
-	flow2.Rate().SetBps(int64(gdpBitRate))
+	flow2EthHeader.EtherType().SetValue(uint32(gdpEthType))
+	flow2.Size().SetFixed(uint32(packetInPktsize))
+	flow2.Rate().SetBps(uint64(gdpBitRate))
 	flow2.Duration().FixedSeconds().SetSeconds(float32(duration))
 
 	//flow3 for Traceroute traffic.
@@ -896,9 +896,9 @@ func newTrafficFlow(ate *ondatra.ATEDevice, dstMac string) []gosnappi.Flow {
 	flow3IpHeader := flow3.Packet().Add().Ipv4()
 	flow3IpHeader.Src().SetValue(atePort1.IPv4)
 	flow3IpHeader.Dst().SetValue(atePort2.IPv4)
-	flow3IpHeader.TimeToLive().SetValue(int32(ttl1))
-	flow3.Size().SetFixed(int32(packetInPktsize))
-	flow3.Rate().SetPps(int64(trPacketRate))
+	flow3IpHeader.TimeToLive().SetValue(uint32(ttl1))
+	flow3.Size().SetFixed(uint32(packetInPktsize))
+	flow3.Rate().SetPps(uint64(trPacketRate))
 	flow3.Duration().FixedSeconds().SetSeconds(float32(duration))
 
 	return []gosnappi.Flow{flow1, flow2, flow3}

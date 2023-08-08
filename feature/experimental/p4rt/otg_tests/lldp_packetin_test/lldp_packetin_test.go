@@ -451,9 +451,9 @@ func (lldp *LLDPPacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint3
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(*lldp.SrcMAC)
 	ethHeader.Dst().SetValue(*lldp.DstMAC)
-	ethHeader.EtherType().SetValue(int32(*lldp.EthernetType))
-	flow.Size().SetFixed(int32(frameSize))
-	flow.Rate().SetPps(int64(frameRate))
+	ethHeader.EtherType().SetValue(uint32(*lldp.EthernetType))
+	flow.Size().SetFixed(uint32(frameSize))
+	flow.Rate().SetPps(uint64(frameRate))
 	return []gosnappi.Flow{flow}
 }
 
