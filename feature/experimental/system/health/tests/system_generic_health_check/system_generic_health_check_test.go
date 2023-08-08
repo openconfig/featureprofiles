@@ -314,6 +314,11 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 		timestamp := time.Now().Round(time.Second)
 		componentState := gnmi.Get(t, dut, query)
 		componentType := componentState.GetType()
+		if componentType == lineCardType && deviations.LinecardMemoryUtilizationUnsupported(dut) {
+			t.Logf("INFO: Skipping test for linecard component %s due to deviation linecard_memory_utilization_unsupported", component)
+			continue
+		}
+
 		memoryState := componentState.GetMemory()
 		if memoryState == nil {
 			t.Errorf("ERROR: %s - Device: %s - %s: %-40s - Type: %-20s - Memory data not available",
