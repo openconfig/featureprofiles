@@ -15,6 +15,7 @@
 package core_lldp_tlv_population_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +32,8 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 type lldpTestParameters struct {
@@ -77,6 +80,7 @@ func TestLLDPEnabled(t *testing.T) {
 	// DUT configuration.
 	t.Log("Configure DUT.")
 	dut, dutConf := configureDUT(t, "dut", lldpEnabled)
+	disableP4RTLLDP(t, dut)
 	dutPort := dut.Port(t, portName)
 	verifyNodeConfig(t, dut, dutPort, dutConf, lldpEnabled)
 
@@ -115,6 +119,7 @@ func TestLLDPDisabled(t *testing.T) {
 	// DUT configuration.
 	t.Log("Configure DUT.")
 	dut, dutConf := configureDUT(t, "dut", lldpDisabled)
+	disableP4RTLLDP(t, dut)
 	dutPort := dut.Port(t, portName)
 	verifyNodeConfig(t, dut, dutPort, dutConf, lldpDisabled)
 
@@ -294,4 +299,32 @@ func (expLldpNeighbor *lldpNeighbors) Equal(neighbour *otgtelemetry.LldpInterfac
 		neighbour.GetPortId() == expLldpNeighbor.portId &&
 		neighbour.GetPortIdType() == expLldpNeighbor.portIdType &&
 		neighbour.GetSystemName() == expLldpNeighbor.systemName
+}
+
+func disableP4RTLLDP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := `p4-runtime
+					shutdown`
+		if _, err := dut.RawAPIs().GNMI().Default(t).
+			Set(context.Background(), cliSetRequest(cli)); err != nil {
+			t.Fatalf("Failed to disable P4RTLLDP: %v", err)
+		}
+	}
+}
+
+func cliSetRequest(config string) *gpb.SetRequest {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
 }

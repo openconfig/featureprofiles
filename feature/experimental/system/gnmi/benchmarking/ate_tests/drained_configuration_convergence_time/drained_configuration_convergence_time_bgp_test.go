@@ -17,6 +17,7 @@
 package drained_configuration_convergence_time_test
 
 import (
+	"net"
 	"testing"
 	"time"
 
@@ -73,6 +74,10 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	actions5 := stmt.GetOrCreateActions()
 	setMedBGP := actions5.GetOrCreateBgpActions()
 	setMedBGP.SetMed = oc.UnionUint32(bgpMED)
+	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
+		actions5.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED)
+	}
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -246,10 +251,26 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			// Validate if all prefixes are received by ATE.
 			isConverged(t, dut, ate, ap)
 			rib := at.NetworkInstance(ap.Name()).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "0").Bgp().Rib()
-			prefixPath := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
-				NeighborAny().AdjRibInPre().RouteAny().WithPathId(0).Prefix()
-			pref := gnmi.GetAll(t, ate, prefixPath.State())
-			gotSetMED := gnmi.GetAll(t, ate, rib.AttrSetAny().Med().State())
+			routeP := rib.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().
+				NeighborAny().AdjRibInPre().RouteAny().WithPathId(0)
+			routes := gnmi.GetAll(t, ate, routeP.State())
+			attrs := gnmi.GetAll(t, ate, rib.AttrSetAny().State())
+			mask := net.IPv4Mask(255, 255, 255, 0)
+			masked := net.ParseIP(setup.AdvertiseBGPRoutesv4).Mask(mask)
+			var gotSetMED []uint32
+			var pref []string
+			for _, route := range routes {
+				ip, _, _ := net.ParseCIDR(route.GetPrefix())
+				pref = append(pref, route.GetPrefix())
+				if ip.Mask(mask).Equal(masked) {
+					idx := route.GetAttrIndex()
+					if idx >= uint64(len(attrs)) {
+						t.Errorf("Invalid attr-index %d for prefix: %s", idx, route.GetPrefix())
+						continue
+					}
+					gotSetMED = append(gotSetMED, attrs[idx].GetMed())
+				}
+			}
 			if diff := cmp.Diff(wantSetMED, gotSetMED); diff != "" {
 				t.Errorf("obtained MED on ATE is not as expected, got %v, want %v, Prefixes %v", gotSetMED, wantSetMED, pref)
 			}
