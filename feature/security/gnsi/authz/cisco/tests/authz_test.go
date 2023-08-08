@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
 	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -70,17 +69,6 @@ func TestSimpleAuthzGet(t *testing.T) {
 	t.Logf("Authz Policy of the device %s is %s", dut.Name(), authzPolicy.PrettyPrint())
 }
 
-func TestHAEMSDProcessRestart(t *testing.T) {
-	//Process Restart
-	dut := ondatra.DUT(t, "dut")
-	config.CMDViaGNMI(context.Background(), t, dut, "process restart emsd")
-	time.Sleep(30 * time.Second)
-	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
-	authzPolicy := authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t, dut)
-	t.Logf("Authz Policy of the device %s is %s", dut.Name(), authzPolicy.PrettyPrint())
-}
-
 func TestSimpleRotate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	policyBerfore := authz.NewAuthorizationPolicy()
@@ -94,33 +82,6 @@ func TestSimpleRotate(t *testing.T) {
 	createUsersOnDevice(t, dut, users)
 	authzPolicy.AddAllowRules(users, []*gnxi.RPC{gnxi.RPCs.GNMI_SET})
 	authzPolicy.Rotate(t, dut)
-
-}
-
-func TestSaclePolicy(t *testing.T) {
-	t.SkipNow()
-	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
-	// create n users
-	users := []*authz.User{}
-	for i := 1; i <= usersCount; i++ {
-		user := &authz.User{
-			Name: "user" + strconv.Itoa(i),
-		}
-		users = append(users, user)
-	}
-	createUsersOnDevice(t, dut, users)
-	// TODO: create n intermediate CA per user
-	// TODO: create users certificate
-	// create m random rules for n users(no conflicting)
-
-	// add a few conflicting rules per users
-	// add * rules
-	// user *
-	// path *
-	// both * *  (deny and allow)
 
 }
 
@@ -400,6 +361,9 @@ func TestTwoInterLeavingRotates(t *testing.T) {
 		if status.Code(err) != codes.Unavailable {
 			t.Fatalf("Expecting failure with error code Unavailable, received error %v", err)
 		}
+		if err != nil {
+			t.Fatalf("Expecting Success, Received an Errorr %v", err)
+		}
 	}
 
 	rotateStream, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
@@ -480,14 +444,32 @@ func TestSingleRotateCompetingClients(t *testing.T) {
 	}
 }
 
-func TestFailOverInSteadyState(t *testing.T) {
-	t.Skip()
+func TestScalePolicy(t *testing.T) {
+	t.SkipNow()
+	dut := ondatra.DUT(t, "dut")
+	policyBerfore := authz.NewAuthorizationPolicy()
+	policyBerfore.Get(t, dut)
+	defer policyBerfore.Rotate(t, dut)
+	// create n users
+	users := []*authz.User{}
+	for i := 1; i <= usersCount; i++ {
+		user := &authz.User{
+			Name: "user" + strconv.Itoa(i),
+		}
+		users = append(users, user)
+	}
+	createUsersOnDevice(t, dut, users)
+	// TODO: create n intermediate CA per user
+	// TODO: create users certificate
+	// create m random rules for n users(no conflicting)
+
+	// add a few conflicting rules per users
+	// add * rules
+	// user *
+	// path *
+	// both * *  (deny and allow)
 }
 
-func TestFailOverDuringProb(t *testing.T) {
-	t.Skip()
-}
-
-func TestSaclePolicyWithFailOver(t *testing.T) {
+func TestScalePolicyWithFailOver(t *testing.T) {
 	t.Skip()
 }
