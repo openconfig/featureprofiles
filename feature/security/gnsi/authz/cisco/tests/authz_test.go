@@ -86,7 +86,7 @@ func TestSimpleRotate(t *testing.T) {
 
 }
 
-func TestSaclePolicy(t *testing.T) {
+func TestScalePolicy(t *testing.T) {
 	t.SkipNow()
 	dut := ondatra.DUT(t, "dut")
 	policyBerfore := authz.NewAuthorizationPolicy()
@@ -477,6 +477,6 @@ func TestFailOverDuringProb(t *testing.T) {
 	t.Skip()
 }
 
-func TestSaclePolicyWithFailOver(t *testing.T) {
+func TestScalePolicyWithFailOver(t *testing.T) {
 	t.Skip()
 }
