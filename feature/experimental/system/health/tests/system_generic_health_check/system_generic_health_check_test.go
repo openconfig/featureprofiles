@@ -51,10 +51,6 @@ var (
 		ondatra.CISCO:   regexp.MustCompile("/misc/disk1/.*core.*"),
 		ondatra.NOKIA:   regexp.MustCompile("/var/core/coredump-.*"),
 	}
-	alarmSeverityCheckList = []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY{
-		oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MAJOR,
-		//oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MINOR,
-	}
 )
 
 const (
@@ -64,6 +60,7 @@ const (
 	controllerCardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	cpuHighUtilization    = 80
 	memoryHighUtilization = 80
+	threshold             = uint8(cpuHighUtilization)
 )
 
 // coreFileCheck function is used to check if cores are found on the DUT.
@@ -119,7 +116,8 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 	}
 }
 
-func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+func sortedInterfaces(ports []*ondatra.Port) []string {
+	var interfaces []string
 	sort.Slice(ports, func(i, j int) bool {
 		idi, idj := ports[i].ID(), ports[j].ID()
 		li, lj := len(idi), len(idj)
@@ -128,7 +126,10 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 		}
 		return li < lj // "port2" < "port10"
 	})
-	return ports
+	for _, port := range ports {
+		interfaces = append(interfaces, port.Name())
+	}
+	return interfaces
 }
 
 func contains(list []string, target string) bool {
@@ -217,7 +218,6 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 	}
 
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
-	cardList := controllerCards
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
 	for _, cpu := range cpuCards {
 		query := gnmi.OC().Component(cpu).State()
@@ -228,9 +228,9 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 			t.Errorf("ERROR: can't find parent information for CPU card %v", component)
 		}
 
-		if contains(cardList, cpuParent) {
+		if contains(controllerCards, cpuParent) {
 			// Remove parent from the list of check cards.
-			cardList = removeElement(cardList, cpuParent)
+			controllerCards = removeElement(controllerCards, cpuParent)
 			cpuUtilization := component.GetCpu().GetUtilization()
 			if cpuUtilization == nil {
 				t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
@@ -247,8 +247,8 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 			}
 		}
 	}
-	if len(cardList) > 0 {
-		t.Errorf("ERROR: Didn't find cpu card for checkCards %s", cardList)
+	if len(controllerCards) > 0 {
+		t.Errorf("ERROR: Didn't find cpu card for checkCards %s", controllerCards)
 	}
 }
 
@@ -261,7 +261,6 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 	}
 
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
-	cardList := lineCards
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
 	for _, cpu := range cpuCards {
 		timestamp := time.Now().Round(time.Second)
@@ -275,9 +274,9 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		}
 
 		// If cpu card's parent is line card, check cpu ultilization.
-		if contains(cardList, cpuParent) {
+		if contains(lineCards, cpuParent) {
 			// Remove parent from the list of check cards.
-			cardList = removeElement(cardList, cpuParent)
+			lineCards = removeElement(lineCards, cpuParent)
 			// Fetch CPU utilization data.
 			cpuUtilization := component.GetCpu().GetUtilization()
 			if cpuUtilization == nil {
@@ -296,8 +295,8 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		}
 	}
 
-	if len(cardList) > 0 {
-		t.Errorf("ERROR: Didn't find cpu card for checkCards %s", cardList)
+	if len(lineCards) > 0 {
+		t.Errorf("ERROR: Didn't find cpu card for checkCards %s", lineCards)
 	}
 }
 
@@ -345,7 +344,6 @@ func TestSystemProcessNoHighCPUSpike(t *testing.T) {
 
 	query := gnmi.OC().System().ProcessAny().State()
 	description := "System CPU Process"
-	threshold := uint8(cpuHighUtilization)
 
 	timestamp := time.Now().Round(time.Second)
 	results := gnmi.GetAll(t, dut, query)
@@ -395,12 +393,8 @@ func TestNoQueueDrop(t *testing.T) {
 		counters []*ygnmi.Value[uint64]
 	}
 
-	dutPorts := sortPorts(dut.Ports())
-	interfaces := []string{}
-	for _, port := range dutPorts {
-		interfaces = append(interfaces, port.Name())
-	}
-
+	interfaces := sortedInterfaces(dut.Ports())
+	t.Logf("Interfaces: %s", interfaces)
 	for _, intf := range interfaces {
 		qosInterface := gnmi.OC().Qos().Interface(intf)
 		cases := []testCase{
@@ -422,20 +416,17 @@ func TestNoQueueDrop(t *testing.T) {
 		}
 
 		for _, c := range cases {
-			desc := c.desc
-			counters := c.counters
-
-			t.Run(desc, func(t *testing.T) {
-				if len(counters) == 0 {
-					t.Skipf("%s Interface %s Telemetry Value is not present", desc, intf)
+			t.Run(c.desc, func(t *testing.T) {
+				if len(c.counters) == 0 {
+					t.Skipf("%s Interface %s Telemetry Value is not present", c.desc, intf)
 				}
-				for queueID, dropPkt := range counters {
+				for queueID, dropPkt := range c.counters {
 					dropCount, present := dropPkt.Val()
 					if !present {
-						t.Errorf("%s Interface %s %s Telemetry Value is not present", desc, intf, dropPkt.Path)
+						t.Errorf("%s Interface %s %s Telemetry Value is not present", c.desc, intf, dropPkt.Path)
 					} else {
 						if present && dropCount > 0 {
-							t.Errorf("%s Interface %s, Queue %d has %d drop(s)", desc, intf, queueID, dropCount)
+							t.Errorf("%s Interface %s, Queue %d has %d drop(s)", c.desc, intf, queueID, dropCount)
 						}
 					}
 				}
@@ -504,13 +495,8 @@ func TestNoAsicDrop(t *testing.T) {
 func TestInterfaceStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	dutPorts := sortPorts(dut.Ports())
-	interfaces := []string{}
-	for _, port := range dutPorts {
-		interfaces = append(interfaces, port.Name())
-	}
-	t.Logf("Interface: %s", interfaces)
-
+	interfaces := sortedInterfaces(dut.Ports())
+	t.Logf("Interfaces: %s", interfaces)
 	for _, intf := range interfaces {
 		query := gnmi.OC().Interface(intf).State()
 		root := gnmi.Get(t, dut, query)
@@ -581,12 +567,8 @@ func TestInterfaceStatus(t *testing.T) {
 func TestInterfacesubIntfs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	dutPorts := sortPorts(dut.Ports())
-	interfaces := []string{}
-	for _, port := range dutPorts {
-		interfaces = append(interfaces, port.Name())
-	}
-
+	interfaces := sortedInterfaces(dut.Ports())
+	t.Logf("Interfaces: %s", interfaces)
 	for _, intf := range interfaces {
 		subIntfIndexes := gnmi.LookupAll(t, dut, gnmi.OC().Interface(intf).SubinterfaceAny().Index().State())
 		for _, index := range subIntfIndexes {
@@ -678,12 +660,8 @@ func TestInterfacesubIntfs(t *testing.T) {
 func TestInterfaceEthernetNoDrop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	dutPorts := sortPorts(dut.Ports())
-	interfaces := []string{}
-	for _, port := range dutPorts {
-		interfaces = append(interfaces, port.Name())
-	}
-
+	interfaces := sortedInterfaces(dut.Ports())
+	t.Logf("Interfaces: %s", interfaces)
 	for _, intf := range interfaces {
 		counters := gnmi.OC().Interface(intf).Ethernet().Counters()
 		cases := []struct {
@@ -727,11 +705,10 @@ func TestSystemAlarms(t *testing.T) {
 	if len(alarms) > 0 {
 		for _, a := range alarms {
 			alarmSeverity := a.GetSeverity()
-			for _, alarmSeverityCheck := range alarmSeverityCheckList {
-				if alarmSeverity == alarmSeverityCheck {
-					t.Errorf("Error: System Alarms Severity: %s %s", alarmSeverity, a.GetText())
-					break
-				}
+			// Checking for major system alarms
+			if alarmSeverity == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MAJOR {
+				t.Errorf("Error: System Alarm with severity %s seen: %s", alarmSeverity, a.GetText())
+				break
 			}
 		}
 	}
