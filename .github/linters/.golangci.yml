@@ -16,8 +16,9 @@ issues:
         - dupl
         - gosec
         - goconst
+  new: true
 linters:
-  disable-all: true
+  # See here for linters enabled by default: https://golangci-lint.run/usage/linters/
   enable:
     - gosec
     - unconvert
