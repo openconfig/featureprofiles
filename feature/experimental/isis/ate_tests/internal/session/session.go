@@ -106,9 +106,7 @@ func ProtocolPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_Proto
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.DUTDevice) {
 	inst := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	if !deviations.ISISprotocolEnabledNotRequired(dut) {
-		prot.Enabled = ygot.Bool(true)
-	}
+	prot.Enabled = ygot.Bool(true)
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
 	if !deviations.ISISInstanceEnabledNotRequired(dut) {
