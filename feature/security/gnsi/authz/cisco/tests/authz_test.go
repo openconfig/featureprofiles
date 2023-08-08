@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
 	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -472,4 +473,27 @@ func TestScalePolicy(t *testing.T) {
 
 func TestScalePolicyWithFailOver(t *testing.T) {
 	t.Skip()
+}
+
+func TestHAEMSDProcessKill(t *testing.T) {
+	// Process Restart EMSD Test Case with Pre and Post Trigger Policy Verification
+
+	// Pre-Trigger Section
+	dut := ondatra.DUT(t, "dut")
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+
+	// Trigger Section
+	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
+	time.Sleep(30 * time.Second)
+	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
+
+	// Verification Section
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), authzPolicy.PrettyPrint())
+	if policyBefore.PrettyPrint() != authzPolicy.PrettyPrint() {
+		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
+	}
 }
