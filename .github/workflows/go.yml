@@ -10,5 +10,5 @@ on:
 
 jobs:
   common:
-    uses: openconfig/common-ci/.github/workflows/go.yml@714f77d94904c4f34176ecea9eb91898389d6080
-      tests-excludes-regex: /.*test.*
+    uses: openconfig/common-ci/.github/workflows/go.yml@dc5a6143149a74d43a61400ab0c8ba06014a9a4d
+      tests-excludes-regex: "/.*test.*"
