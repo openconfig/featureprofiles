@@ -209,6 +209,51 @@ func TestCase_FixUUID(t *testing.T) {
 	}
 }
 
+func TestCase_FixWithPlatformExceptions(t *testing.T) {
+	tc := testcase{
+		markdown: &mpb.Metadata{
+			PlanId:      "XX-1.1",
+			Description: "Foo Functional Test",
+		},
+		existing: &mpb.Metadata{
+			Testbed: mpb.Metadata_TESTBED_DUT,
+			PlatformExceptions: []*mpb.Metadata_PlatformExceptions{
+				{
+					Platform: &mpb.Metadata_Platform{
+						HardwareModelRegex: "8808",
+					},
+					Deviations: &mpb.Metadata_Deviations{
+						Ipv4MissingEnabled: true,
+					},
+				},
+			},
+		},
+	}
+	if err := tc.fix(); err != nil {
+		t.Fatal(err)
+	}
+	got := tc.fixed
+	want := &mpb.Metadata{
+		Uuid:        got.Uuid,
+		PlanId:      tc.markdown.PlanId,
+		Description: tc.markdown.Description,
+		Testbed:     mpb.Metadata_TESTBED_DUT,
+		PlatformExceptions: []*mpb.Metadata_PlatformExceptions{
+			{
+				Platform: &mpb.Metadata_Platform{
+					HardwareModelRegex: "8808",
+				},
+				Deviations: &mpb.Metadata_Deviations{
+					Ipv4MissingEnabled: true,
+				},
+			},
+		},
+	}
+	if diff := cmp.Diff(want, got, tcopts...); diff != "" {
+		t.Errorf("fixed -want,+got:\n%s", diff)
+	}
+}
+
 func TestCase_Write(t *testing.T) {
 	var want, got testcase
 
