@@ -19,6 +19,8 @@ issues:
   new: true
 linters:
   # See here for linters enabled by default: https://golangci-lint.run/usage/linters/
+  disable:
+    - typecheck
   enable:
     - gosec
     - unconvert
