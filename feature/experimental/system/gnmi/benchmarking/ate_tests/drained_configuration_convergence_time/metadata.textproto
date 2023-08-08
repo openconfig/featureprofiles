@@ -47,5 +47,7 @@ platform_exceptions: {
     default_network_instance: "default"
     missing_isis_interface_afi_safi_enable: true
     isis_interface_afi_unsupported: true
+    isis_require_same_l1_metric_with_l2_metric: true
+    bgp_set_med_requires_equal_ospf_set_metric: true
   }
 }

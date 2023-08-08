@@ -378,7 +378,7 @@ func TestSupFailure(t *testing.T) {
 	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(ateDstNetCIDR)
 	if _, found := gnmi.Watch(t, args.dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 		value, present := val.Val()
-		return present && value.GetPrefix() != ateDstNetCIDR
+		return present && value.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !found {
 		t.Fatalf("Could not find prefix %s in telemetry AFT", ateDstNetCIDR)
 	}
