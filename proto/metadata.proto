@@ -296,6 +296,8 @@ message Metadata {
     bool controller_card_cpu_utilization_unsupported = 95;
     // Device does not support counter for fabric block lost packets.
     bool fabric_drop_counter_unsupported = 96;
+    // Device does not support memory utilization related leaves for linecard components.
+    bool linecard_memory_utilization_unsupported = 97;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
