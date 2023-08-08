@@ -8,42 +8,5 @@ on:
     - cron: "0 0 * * *"
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Go
-      uses: actions/setup-go@v2.1.3
-      with:
-        go-version: 1.19.x
-    - name: Cache
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
-    - name: Build
-      run: go build -v ./...
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Go
-        uses: actions/setup-go@v2.1.3
-        with:
-          go-version: 1.19.x
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
-      - run: go test -v -coverprofile=profile.cov $(go list ./... | grep -v /.*test.*)
-      - name: Send coverage
-        uses: shogo82148/actions-goveralls@v1
-        with:
-          path-to-profile: profile.cov
+  common:
+    uses: openconfig/common-ci/.github/workflows/go.yml@6a79488e4abedcddca75fda8fb19ee61b7bc7be2
