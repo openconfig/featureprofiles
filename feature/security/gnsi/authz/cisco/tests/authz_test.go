@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gnoi/system"
+	gnps "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -496,4 +497,36 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	if policyBefore.PrettyPrint() != authzPolicy.PrettyPrint() {
 		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
 	}
+}
+
+func TestHAFailOverInSteadyState(t *testing.T) {
+	// RPFO Test Case with Pre and Post Trigger Policy Verification
+
+	// Pre-Trigger Section
+	dut := ondatra.DUT(t, "dut")
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+
+	// Trigger Section
+	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	rebootRequest := &gnps.RebootRequest{
+		Method: gnps.RebootMethod_COLD,
+		Force:  true,
+	}
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	t.Logf("Got Reboot response: %v, err: %v", rebootResponse, err)
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+	time.Sleep(time.Minute * 20)
+
+	// Verification Section
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), authzPolicy.PrettyPrint())
+	if policyBefore.PrettyPrint() != authzPolicy.PrettyPrint() {
+		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
+	}
+
 }
