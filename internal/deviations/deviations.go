@@ -544,3 +544,9 @@ func ControllerCardCPUUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
 func FabricDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFabricDropCounterUnsupported()
 }
+
+// LinecardMemoryUtilizationUnsupported returns if the device does not support memory utilization related leaves for linecard components.
+// Default value is false.
+func LinecardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinecardMemoryUtilizationUnsupported()
+}
