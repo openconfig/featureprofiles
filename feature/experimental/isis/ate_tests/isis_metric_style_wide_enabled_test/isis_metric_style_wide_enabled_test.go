@@ -116,7 +116,6 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	prot.Enabled = ygot.Bool(true)
-	
 	isis := prot.GetOrCreateIsis()
 	globalIsis := isis.GetOrCreateGlobal()
 
