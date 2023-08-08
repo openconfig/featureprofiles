@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"github.com/golang/glog"
 	"github.com/google/go-github/v50/github"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/cloudbuild/v1"
@@ -53,9 +54,10 @@ func (t *trigger) processIssueComment(ctx context.Context, e *github.IssueCommen
 		return nil
 	}
 
-	auth, err := t.authorizedUser(ctx, e.GetComment().GetUser().GetLogin())
+	requestingUser := e.GetComment().GetUser().GetLogin()
+	auth, err := t.authorizedUser(ctx, requestingUser)
 	if err != nil {
-		return fmt.Errorf("validating user auth: %w", err)
+		return fmt.Errorf("validate user %q auth: %w", requestingUser, err)
 	}
 	if !auth {
 		return nil
@@ -91,23 +93,24 @@ func (t *trigger) processIssueComment(ctx context.Context, e *github.IssueCommen
 		localPath: tmpDir,
 	}
 	if err := pr.identifyModifiedTests(); err != nil {
-		return fmt.Errorf("identify modified tests: %w", err)
+		return fmt.Errorf("identify modified tests for commit %q: %w", pr.HeadSHA, err)
 	}
 
 	pr.populateObjectMetadata(ctx, t.storClient)
 
 	for keyword, deviceTypes := range triggerKeywords {
 		if strings.Contains(strings.ToLower(e.GetComment().GetBody()), keyword) {
+			glog.Infof("User %q launching CloudBuild jobs for PR%d at commit %q", requestingUser, pr.ID, pr.HeadSHA)
 			if err := pr.createBuild(ctx, t.buildClient, t.storClient, deviceTypes); err != nil {
-				return fmt.Errorf("create build: %w", err)
+				return fmt.Errorf("create build for commit %q: %w", pr.HeadSHA, err)
 			}
 
 			if err := pr.updateBadges(ctx, t.storClient); err != nil {
-				return fmt.Errorf("update GCS badges: %w", err)
+				return fmt.Errorf("update GCS badges for commit %q: %w", pr.HeadSHA, err)
 			}
 
 			if err := pr.updateGitHub(ctx, t.githubClient); err != nil {
-				return fmt.Errorf("update GitHub PR: %w", err)
+				return fmt.Errorf("update GitHub PR for commit %q: %w", pr.HeadSHA, err)
 			}
 
 			break
@@ -133,25 +136,27 @@ func (t *trigger) processPullRequest(ctx context.Context, e *github.PullRequestE
 		localPath: tmpDir,
 	}
 	if err := pr.identifyModifiedTests(); err != nil {
-		return fmt.Errorf("identify modified tests: %w", err)
+		return fmt.Errorf("identify modified tests for commit %q: %w", pr.HeadSHA, err)
 	}
 
-	auth, err := t.authorizedUser(ctx, e.GetPullRequest().GetUser().GetLogin())
+	requestingUser := e.GetPullRequest().GetUser().GetLogin()
+	auth, err := t.authorizedUser(ctx, requestingUser)
 	if err != nil {
-		return fmt.Errorf("validating user auth: %w", err)
+		return fmt.Errorf("validate user %q auth: %w", requestingUser, err)
 	}
 	if auth {
+		glog.Infof("User %q launching jobs for PR%d at commit %q", requestingUser, pr.ID, pr.HeadSHA)
 		if err := pr.createBuild(ctx, t.buildClient, t.storClient, virtualDeviceTypes); err != nil {
-			return fmt.Errorf("create build: %w", err)
+			return fmt.Errorf("create build for commit %q: %w", pr.HeadSHA, err)
 		}
 	}
 
 	if err := pr.updateBadges(ctx, t.storClient); err != nil {
-		return fmt.Errorf("update GCS badges: %w", err)
+		return fmt.Errorf("update GCS badges for commit %q: %w", pr.HeadSHA, err)
 	}
 
 	if err := pr.updateGitHub(ctx, t.githubClient); err != nil {
-		return fmt.Errorf("update GitHub: %w", err)
+		return fmt.Errorf("update GitHub PR for commit %q: %w", pr.HeadSHA, err)
 	}
 
 	return nil
