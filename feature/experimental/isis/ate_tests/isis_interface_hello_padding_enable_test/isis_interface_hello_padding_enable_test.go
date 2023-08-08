@@ -113,10 +113,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	configPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
-
-	if !deviations.ISISprotocolEnabledNotRequired(dut) {
-		prot.Enabled = ygot.Bool(true)
-	}
+	prot.Enabled = ygot.Bool(true)
 	isis := prot.GetOrCreateIsis()
 	globalISIS := isis.GetOrCreateGlobal()
 
@@ -290,20 +287,21 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			if got := gnmi.Get(t, dut, statePath.Interface(intfName).HelloPadding().State()); got != oc.Isis_HelloPaddingType_ADAPTIVE {
 				t.Errorf("FAIL- Expected interface hello padding state not found, got %d, want %d", got, oc.Isis_HelloPaddingType_ADAPTIVE)
 			}
-
 			// Changing MTU at ATE side
 			ateTopo.Interfaces()[atePort1attr.Name].WithPort(port1).Ethernet().WithMTU(2000)
-			ateTopo.Push(t).StartProtocols(t)
+			ateTopo.Update(t)
 
 			// Adjacency check
-			time.Sleep(time.Second * 20)
-			if _, ok := gnmi.Lookup(t, dut, statePath.Interface(intfName).Level(2).Adjacency(ateSysID).AdjacencyState().State()).Val(); ok {
+			_, found := gnmi.Watch(t, dut, statePath.Interface(intfName).Level(2).Adjacency(ateSysID).AdjacencyState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+				state, present := val.Val()
+				return present && state == oc.Isis_IsisInterfaceAdjState_DOWN
+			}).Await(t)
+			if !found {
 				t.Errorf("Isis adjacency is not down on interface %v when MTU is changed", intfName)
 			}
-
 			// Reverting MTU at ATE side
 			ateTopo.Interfaces()[atePort1attr.Name].WithPort(port1).Ethernet().WithMTU(atePort1attr.MTU)
-			ateTopo.Push(t).StartProtocols(t)
+			ateTopo.Update(t)
 
 			// Adjacency check
 			_, ok := gnmi.Watch(t, dut, statePath.Interface(intfName).Level(2).Adjacency(ateSysID).AdjacencyState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
