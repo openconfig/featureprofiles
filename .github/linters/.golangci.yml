@@ -8,7 +8,7 @@
 # configure golangci-lint
 # see https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
 run:
-  timeout: 10m
+  timeout: 30m
 issues:
   exclude-rules:
     - path: _test\.go
@@ -16,12 +16,6 @@ issues:
         - dupl
         - gosec
         - goconst
-    - linters:
-      - revive
-      text: "var-naming: don't use leading k"
-    - linters:
-      - staticcheck
-      text: "SA1019:"
 linters:
   disable-all: true
   enable:
@@ -54,6 +48,3 @@ linters-settings:
     disabled-checks:
       - singleCaseSwitch
       - appendAssign
-  revive:
-    ignore-generated-header: true
-    severity: warning
