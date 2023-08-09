@@ -1,4 +1,4 @@
-# X.X: Trust Bundle Rotation
+# Trust Bundle Rotation
 
 ## Summary
 

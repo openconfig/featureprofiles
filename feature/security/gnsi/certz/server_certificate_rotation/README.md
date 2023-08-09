@@ -1,4 +1,4 @@
-# X.X: Server Certificate Rotation
+# Server Certificate Rotation
 
 ## Summary
 

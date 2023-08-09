@@ -1,4 +1,4 @@
-# X.X: Server Certificate
+# Server Certificate
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# X.X: Trust Bundle
+# Trust Bundle
 
 ## Summary
 
