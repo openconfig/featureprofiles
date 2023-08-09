@@ -17,6 +17,8 @@ Configure the DUT to enable the following services (that are using gRPC) are up,
 * gNSI
 * gRIBI
 
+NOTE: the support of SPIFFE-ID should NOT require explicitly pre-configured local users in the DUT config (for the purpose of 1:1 mapping of each SPIFFE-ID to a local user).
+
 ### Client certs
 
 Prepare the following certs with the specified SPIFFE ID. Cert format details can be found in https://github.com/openconfig/featureprofiles/pull/1563/files
