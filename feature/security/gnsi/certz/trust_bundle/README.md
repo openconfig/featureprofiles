@@ -47,6 +47,7 @@ up and require using mTLS for authentication:
   * gNOI
   * gNSI
   * gRIBI
+  * P4RT
 
 For each trust_bundle created by mk_cas.sh, configure the
 services to load the correct key-type certificate, key and
