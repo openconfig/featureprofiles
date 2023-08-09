@@ -74,9 +74,9 @@ func TestSimpleAuthzGet(t *testing.T) {
 
 func TestSimpleRotate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -90,9 +90,9 @@ func TestSimpleRotate(t *testing.T) {
 
 func TestAllowRuleAll(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -109,9 +109,11 @@ func TestAllowRuleAll(t *testing.T) {
 		}
 		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
 		if err != nil {
+			t.Logf("Error on the Device %s after the Trigger is %s", dut.Name(), err)
 			t.Fatalf("Not expecting error for prob request %v", err)
 		}
 		if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
+			t.Logf("Response on the Device %s after the Trigger is %s", dut.Name(), resp)
 			t.Fatalf("Expecting ProbeResponse_ACTION_Permit for user %s path %s, received %v ", "user1", path, resp.GetAction())
 		}
 	}
@@ -119,9 +121,9 @@ func TestAllowRuleAll(t *testing.T) {
 
 func TestDenyRuleAll(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -149,9 +151,9 @@ func TestDenyRuleAll(t *testing.T) {
 
 func TestAllowAllForService(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -186,9 +188,9 @@ func TestAllowAllForService(t *testing.T) {
 
 func TestDenyAllForService(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -220,9 +222,9 @@ func TestDenyAllForService(t *testing.T) {
 
 func TestAllowAllRPCs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -245,9 +247,11 @@ func TestAllowAllRPCs(t *testing.T) {
 		}
 		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
 		if err != nil {
+			t.Logf("Error on the Device %s after the Trigger is %v", dut.Name(), err)
 			t.Fatalf("Not expecting error for prob request %v", err)
 		}
 		if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
+			t.Logf("Response on the Device %s after the Trigger is %s", dut.Name(), resp)
 			t.Fatalf("Expecting ProbeResponse_ACTION_Permit for user %s path %s, received %v ", "user1", path, resp.GetAction())
 		}
 	}
@@ -256,9 +260,9 @@ func TestAllowAllRPCs(t *testing.T) {
 
 func TestDenyAllRPCs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -290,9 +294,9 @@ func TestDenyAllRPCs(t *testing.T) {
 }
 func TestDenyOverWriteAllow(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -450,9 +454,9 @@ func TestSingleRotateCompetingClients(t *testing.T) {
 func TestScalePolicy(t *testing.T) {
 	t.SkipNow()
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 	// create n users
 	users := []*authz.User{}
 	for i := 1; i <= usersCount; i++ {
