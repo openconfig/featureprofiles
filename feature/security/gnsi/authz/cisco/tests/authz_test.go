@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
 	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/gnoi/system"
 	gnps "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
@@ -488,7 +487,7 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
 
 	// Trigger Section
-	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
+	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: "emsd", Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
 	time.Sleep(30 * time.Second)
 	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
 
