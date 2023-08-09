@@ -15,11 +15,9 @@
 package qos_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -50,24 +48,10 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
-		IPv4:    "192.0.2.2",
-		IPv6:    "192:0:2::2",
-		IPv4Len: ipv4PrefixLen,
-	}
-
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
 		IPv6:    "192:0:2::5",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
-		IPv4:    "192.0.2.6",
-		IPv6:    "192:0:2::6",
 		IPv4Len: ipv4PrefixLen,
 	}
 
@@ -78,13 +62,6 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
-		IPv4:    "192.0.2.10",
-		IPv6:    "192:0:2::A",
-		IPv4Len: ipv4PrefixLen,
-	}
-
 	dutPort4 = attrs.Attributes{
 		Desc:    "dutPort4",
 		IPv4:    "192.0.2.13",
@@ -92,23 +69,10 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort4 = attrs.Attributes{
-		Name:    "atePort4",
-		IPv4:    "192.0.2.14",
-		IPv6:    "192:0:2::E",
-		IPv4Len: ipv4PrefixLen,
-	}
 	dutPort5 = attrs.Attributes{
 		Desc:    "dutPort5",
 		IPv4:    "192.0.2.17",
 		IPv6:    "192:0:2::11",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort5 = attrs.Attributes{
-		Name:    "atePort5",
-		IPv4:    "192.0.2.18",
-		IPv6:    "192:0:2::12",
 		IPv4Len: ipv4PrefixLen,
 	}
 
@@ -119,13 +83,6 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort6 = attrs.Attributes{
-		Name:    "atePort6",
-		IPv4:    "192.0.2.22",
-		IPv6:    "192:0:2::16",
-		IPv4Len: ipv4PrefixLen,
-	}
-
 	dutPort7 = attrs.Attributes{
 		Desc:    "dutPort7",
 		IPv4:    "192.0.2.25",
@@ -133,24 +90,10 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort7 = attrs.Attributes{
-		Name:    "atePort7",
-		IPv4:    "192.0.2.26",
-		IPv6:    "192:0:2::1A",
-		IPv4Len: ipv4PrefixLen,
-	}
-
 	dutPort8 = attrs.Attributes{
 		Desc:    "dutPort8",
 		IPv4:    "192.0.2.29",
 		IPv6:    "192:0:2::1D",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort8 = attrs.Attributes{
-		Name:    "atePort8",
-		IPv4:    "192.0.2.30",
-		IPv6:    "192:0:2::1E",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
@@ -175,19 +118,6 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 }
 
 // interfaceaction shuts/unshuts provided interface
-func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
-	// ateP := a.ate.Port(t, port)
-	dutP := a.dut.Port(t, port)
-	if action {
-		// a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(true).Operate(t)
-		gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
-		// a.dut.Telemetry().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
-	} else {
-		// a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(false).Operate(t)
-		gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
-		// a.dut.Telemetry().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
-	}
-}
 
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -252,71 +182,5 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *o
 }
 
 // configRP, configures route_policy for BGP
-func configRP(t *testing.T, dut *ondatra.DUTDevice) {
-	dev := &oc.Root{}
-	inst := dev.GetOrCreateRoutingPolicy()
-	pdef := inst.GetOrCreatePolicyDefinition("ALLOW")
-	stmt1 := pdef.GetOrCreateStatement("1")
-	stmt1.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-
-	dutNode := gnmi.OC().RoutingPolicy()
-	dutConf := dev.GetOrCreateRoutingPolicy()
-	gnmi.Update(t, dut, dutNode.Config(), dutConf)
-}
 
 // addISISOC, configures ISIS on DUT
-func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
-	dev := &oc.Root{}
-	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	isis := prot.GetOrCreateIsis()
-	glob := isis.GetOrCreateGlobal()
-	glob.Net = []string{fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)}
-	glob.LevelCapability = 2
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf := isis.GetOrCreateInterface(ifaceName)
-	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-	intf.Enabled = ygot.Bool(true)
-	intf.HelloPadding = 1
-	intf.Passive = ygot.Bool(false)
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	level := isis.GetOrCreateLevel(2)
-	level.MetricStyle = 2
-
-	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
-	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
-	gnmi.Update(t, dut, dutNode.Config(), dutConf)
-}
-
-// addBGPOC, configures ISIS on DUT
-func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
-	dev := &oc.Root{}
-	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-	prot := inst.GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
-	bgp := prot.GetOrCreateBgp()
-	glob := bgp.GetOrCreateGlobal()
-	glob.As = ygot.Uint32(BGPAS)
-	glob.RouterId = ygot.String("1.1.1.1")
-	glob.GetOrCreateGracefulRestart().Enabled = ygot.Bool(true)
-	glob.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-
-	pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP")
-	pg.PeerAs = ygot.Uint32(64001)
-	pg.LocalAs = ygot.Uint32(63001)
-	pg.PeerGroupName = ygot.String("BGP-PEER-GROUP")
-
-	peer := bgp.GetOrCreateNeighbor(neighbor)
-	peer.PeerGroup = ygot.String("BGP-PEER-GROUP")
-	peer.GetOrCreateEbgpMultihop().Enabled = ygot.Bool(true)
-	peer.GetOrCreateEbgpMultihop().MultihopTtl = ygot.Uint8(255)
-	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
-	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
-
-	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
-	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
-	gnmi.Update(t, dut, dutNode.Config(), dutConf)
-}

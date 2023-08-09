@@ -18,41 +18,6 @@ func TestMain(m *testing.M) {
 	ondatra.RunTests(m, binding.New)
 }
 
-type testArgs struct {
-	dut        *ondatra.DUTDevice
-	ate        *ondatra.ATEDevice
-	top        *ondatra.ATETopology
-	interfaces *interfaces
-	usecase    int
-	prefix     *gribiPrefix
-}
-
-type interfaces struct {
-	in  []string
-	out []string
-}
-
-type gribiPrefix struct {
-	scale int
-
-	host string
-
-	vrfName         string
-	vipPrefixLength string
-
-	vip1Ip string
-	vip2Ip string
-
-	vip1NhIndex  uint64
-	vip1NhgIndex uint64
-
-	vip2NhIndex  uint64
-	vip2NhgIndex uint64
-
-	vrfNhIndex  uint64
-	vrfNhgIndex uint64
-}
-
 func TestSchedReplaceSched(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
