@@ -138,11 +138,11 @@ var (
 var (
 	QosSPopGateTestcases = []Testcase{
 
-		// {
-		// 	name: "one priority queue and rest are wrr",
-		// 	desc: "create congestion on egress interface and test scheduling",
-		// 	fn:   testSchedulergoog1p,
-		// },
+		{
+			name: "one priority queue and rest are wrr",
+			desc: "create congestion on egress interface and test scheduling",
+			fn:   testSchedulergoog1p,
+		},
 		{
 			name: " two priority testing scheduling functionality with wrr and ecn",
 			desc: "create congestion on egress interface and test scheduling interfaces",

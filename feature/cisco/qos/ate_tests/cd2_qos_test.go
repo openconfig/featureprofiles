@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/feature/cisco/qos/setup"
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
@@ -23,62 +22,6 @@ const (
 	ipv6PrefixLen = 126
 	instance      = "default"
 	vlanMTU       = 1518
-)
-
-var (
-	dutPort2Vlan10 = attrs.Attributes{
-		Desc:    "dutPort2Vlan10",
-		IPv4:    "100.121.10.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:10:1",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
-
-	atePort2Vlan10 = attrs.Attributes{
-		Name:    "atePort2Vlan10",
-		IPv4:    "100.121.10.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:10:2",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
-
-	dutPort2Vlan20 = attrs.Attributes{
-		Desc:    "dutPort2Vlan20",
-		IPv4:    "100.121.20.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:20:1",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
-
-	atePort2Vlan20 = attrs.Attributes{
-		Name:    "atePort2Vlan20",
-		IPv4:    "100.121.20.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:20:2",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
-
-	dutPort2Vlan30 = attrs.Attributes{
-		Desc:    "dutPort2Vlan30",
-		IPv4:    "100.121.30.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:30:1",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
-
-	atePort2Vlan30 = attrs.Attributes{
-		Name:    "atePort2Vlan20",
-		IPv4:    "100.121.30.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:121:30:2",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
 )
 
 func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
@@ -380,136 +323,6 @@ func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 
 			}
 		}
-
-	}
-
-}
-
-func testScheduler(ctx context.Context, t *testing.T, args *testArgs) {
-	var baseConfigEgress *oc.Qos = setupQosEgressSche(t, args.dut)
-	println(baseConfigEgress)
-	var baseConfig *oc.Qos = setupQosSche(t, args.dut)
-	println(baseConfig)
-	time.Sleep(2 * time.Minute)
-
-	defer args.clientA.FlushServer(t)
-	//defer teardownQos(t, args.dut)
-	//configureBaseDoubleRecusionVip1Entry(ctx, t, args)
-	//configureBaseDoubleRecusionVip2Entry(ctx, t, args)
-	//configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-	//args.clientA.AddNHG(t, args.prefix.vrfNhgIndex+1, map[uint64]uint64{args.prefix.vip1NhIndex + 2: 100}, instance, fluent.InstalledInRIB)
-	args.clientA.BecomeLeader(t)
-	args.clientA.FlushServer(t)
-	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
-
-	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.clientA.AddNHG(t, 100, 0, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.clientA.AddIPv4(t, "11.11.11.0/32", 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	weights := []float64{100}
-	srcEndPoints := []*ondatra.Interface{args.top.Interfaces()[atePort3.Name], args.top.Interfaces()[atePort4.Name]}
-	DstEndpoint := args.top.Interfaces()[atePort2.Name]
-	testTrafficqos(t, true, args.ate, args.top, srcEndPoints, DstEndpoint, args.prefix.scale, args.prefix.host, args, 0, weights...)
-	//time.Sleep(3 * time.Hour)
-	tc7flows := []string{"flow1-tc7", "flow2-tc7"}
-	var TotalInPkts uint64
-	var TotalInOcts uint64
-	for _, tc7flow := range tc7flows {
-		flowcounters := gnmi.Get(t, args.ate, gnmi.OC().Flow(tc7flow).Counters().State())
-		TotalInPkts += *flowcounters.InPkts
-		TotalInOcts += *flowcounters.InOctets
-	}
-	got := gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue("tc7").State())
-	t.Run("Verify Transmit-Packets for queue 7", func(t *testing.T) {
-		if !(*got.TransmitPkts >= TotalInPkts) {
-			t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
-		}
-	})
-	t.Run("Verify Transmit-Octets for queue 7", func(t *testing.T) {
-		if !(*got.TransmitOctets >= TotalInOcts) {
-			t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
-		}
-	})
-
-	t.Run("Verify Drooped-Packets for queue 7", func(t *testing.T) {
-		if !(*got.DroppedPkts == 0) {
-			t.Errorf("There should be no dropped packets: got %+v", *got)
-		}
-	})
-	nontc7queues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6"}
-	for _, queues := range nontc7queues {
-		got := gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queues).State())
-		t.Run("Verify Drooped-Packets for other queues", func(t *testing.T) {
-			if !(*got.DroppedPkts != 0) {
-				t.Errorf("There should be  dropped packets for queues: got %+v", *got)
-			}
-		})
-
-	}
-
-}
-func testScheduler2(ctx context.Context, t *testing.T, args *testArgs) {
-	var baseConfigEgress *oc.Qos = setupQosEgressSche(t, args.dut)
-	println(baseConfigEgress)
-	var baseConfig *oc.Qos = setupQosSche(t, args.dut)
-	println(baseConfig)
-	time.Sleep(2 * time.Minute)
-
-	defer args.clientA.FlushServer(t)
-	defer teardownQos(t, args.dut)
-	args.clientA.BecomeLeader(t)
-	args.clientA.FlushServer(t)
-	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
-
-	weights := []float64{100}
-	args.clientA.AddNH(t, 100, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.clientA.AddNHG(t, 100, 0, map[uint64]uint64{100: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.clientA.AddIPv4(t, "11.11.11.0/32", 100, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-
-	args.clientA.AddNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.clientA.AddNHG(t, 1000, 0, map[uint64]uint64{1000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.clientA.AddIPv4(t, "192.0.2.40/32", 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	srcEndPoints := []*ondatra.Interface{args.top.Interfaces()[atePort3.Name], args.top.Interfaces()[atePort4.Name]}
-	DstEndpoint := args.top.Interfaces()[atePort2.Name]
-	testTrafficqos2(t, true, args.ate, args.top, srcEndPoints, DstEndpoint, args.prefix.scale, args.prefix.host, args, 0, weights...)
-	//time.Sleep(3 * time.Hour)
-	tc6flows := []string{"flow1-tc6", "flow2-tc6"}
-	var TotalInPkts uint64
-	var TotalInOcts uint64
-	for _, tc6flow := range tc6flows {
-		flowcounters := gnmi.Get(t, args.ate, gnmi.OC().Flow(tc6flow).Counters().State())
-		TotalInPkts += *flowcounters.InPkts
-		TotalInOcts += *flowcounters.InOctets
-	}
-	got := gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue("tc6").State())
-	t.Run("Verify Transmit-Packets for queue 6", func(t *testing.T) {
-		if !(*got.TransmitPkts >= TotalInPkts) {
-			t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
-		}
-	})
-	t.Run("Verify Transmit-Octets for queue 6", func(t *testing.T) {
-		if !(*got.TransmitOctets >= TotalInOcts) {
-			t.Errorf("Get Interface Output Queue Telemetry fail: got %+v", *got)
-		}
-	})
-
-	t.Run("Verify Drooped-Packets for queue 7", func(t *testing.T) {
-		if !(*got.DroppedPkts == 0) {
-			t.Errorf("There should be no dropped packets: got %+v", *got)
-		}
-	})
-	nontc6queues := []string{"tc1", "tc2", "tc3", "tc4", "tc5"}
-	for _, queues := range nontc6queues {
-		got := gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queues).State())
-		t.Run("Verify Drooped-Packets for other queues", func(t *testing.T) {
-			if !(*got.DroppedPkts != 0) {
-				t.Errorf("There should be  dropped packets for queues: got %+v", *got)
-			}
-		})
 
 	}
 
