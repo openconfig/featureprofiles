@@ -486,6 +486,7 @@ type Metadata_Deviations struct {
 	BgpSetMedRequiresEqualOspfSetMetric bool `protobuf:"varint,92,opt,name=bgp_set_med_requires_equal_ospf_set_metric,json=bgpSetMedRequiresEqualOspfSetMetric,proto3" json:"bgp_set_med_requires_equal_ospf_set_metric,omitempty"`
 	// Device does not support matched-packets and matched-octets state paths.
 	MatchedPacketsOctetsUnsupported bool `protobuf:"varint,93,opt,name=matched_packets_octets_unsupported,json=matchedPacketsOctetsUnsupported,proto3" json:"matched_packets_octets_unsupported,omitempty"`
+
 }
 
 func (x *Metadata_Deviations) Reset() {
