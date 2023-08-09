@@ -267,28 +267,44 @@ cert_read_only |deny |deny |allow |allow |deny |deny |deny |allow
 
 ## Tests
 
+NOTE: regarding gNMI OC validation:
+  * Everytime a gRPC call (including gNSI calls themselves) is allowed or denied, the following OC leaves should be validated:
+    * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc[name]/state/name` is the matched request path, e.g. "/gribi.GRIBI/Get"
+    * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-accepts` increments if the rpc call is allowed.
+    * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-rejects` increments if the rpc call is denied.
+    * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/last-access-accept` reflects the timestamp of the method call.
+    * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/last-access-reject` reflects the timestamp of the method call.
+  * Everytime a valid policy is pushed (even it's not finalized), the following OC leaves should be validated:
+    * `/system/grpc-servers/grpc-server/state/authz-policy-version` = `UploadRequest.version` in the API proto.
+    * `/system/grpc-servers/grpc-server/state/authz-policy-created-on` = `UploadRequest.created_on` (in terms of represented time).
+  * Everytime a valid policy is automatically rolled back, the following OC leaves should be validated:
+    * `/system/grpc-servers/grpc-server/state/authz-policy-version` = `UploadRequest.version` of the previous request (the one rollback to).
+    * `/system/grpc-servers/grpc-server/state/authz-policy-created-on` = `UploadRequest.created_on` of the previous request (the one rollback to).
+  * An invalid policy should not trigger the following OC leaf updates:
+    * `/system/grpc-servers/grpc-server/state/authz-policy-version`
+    * `/system/grpc-servers/grpc-server/state/authz-policy-created-on`
+
 ### Authz-1, test policy behaviors, and probe results matches actual client results.
 
-For each of the scenarios in this test, we need to exercise the following 3 actions to get the authorization results:
+For each of the scenarios in this section, we need to exercise the following 3 actions to get the authorization results:
   * `gNSI.Probe` after `UploadResponse` message but before the `FinalizeRequest` message.
   * `gNSI.Probe` after the `RotateAuthzRequest` call finished.
   * The actual corresponding service client calls, after the `RotateAuthzRequest` call finished.
 
-Tests:
 * Authz-1.1, "Test empty source"
-  1. Use `gNSI.Rotate` method to push policy `policy-everyone-can-gnmi-not-gribi`.
+  1. Use `gNSI.Rotate` method to push policy `policy-everyone-can-gnmi-not-gribi`, with `create_on` = `100` and `version` = `policy-everyone-can-gnmi-not-gribi_v1`.
   2. Ensure all results match per the following:
     * `cert_user_admin` is allowed to issue `gNMI.Get` method.
     * `cert_user_admin` is denied to issue `gRIBI.Get` method.
 
 * Authz-1.2, "Test empty request"
-  1. Use `gNSI.Rotate` method to push and finalize policy `policy-everyone-can-gribi-not-gnmi`.
+  1. Use `gNSI.Rotate` method to push and finalize policy `policy-everyone-can-gribi-not-gnmi`, with `create_on` = `100` and `version` = `policy-everyone-can-gribi-not-gnmi_v1`.
   2. Ensure all results match per the following:
     * `cert_user_fake` is denied to issue `gRIBI.Get` method.
     * `cert_user_admin` is allowed to issue `gRIBI.Get` method.
 
 * Authz-1.3, "Test that there can only be one policy"
-  1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`.
+  1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`, with `create_on` = `100` and `version` = `policy-gribi-get_v1`.
   2. Ensure all results match per the following:
       * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
       * `cert_ready_only` is denied to issue `gNMI.Get` method.
@@ -298,7 +314,7 @@ Tests:
       * `cert_ready_only` is allowed to issue `gNMI.Get` method.
 
 * Authz-1.4, "Test normal policy"
-  1. Use `gNSI.Rotate` method to push and finalize policy `policy-normal-1`.
+  1. Use `gNSI.Rotate` method to push and finalize policy `policy-normal-1`, with `create_on` = `100` and `version` = `policy-normal-1_v1`.
   2. Ensure all results match per the above table for policy `policy-normal-1`.
 
 ### Authz-2, test rotation behavior
@@ -355,7 +371,5 @@ Tests:
 
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-normal-1`.
   2. Reboot the device.
-  3. Reconnect to the device, issue `gNSI.Get` and validate the value of `version`, `created_on` and gRPC policy content does not change.
+  3. Reconnect to the device, issue `gNSI.Get` and `gNMI.Get` and validate the value of `version`, `created_on` and gRPC policy content does not change.
   4. Ensure actual corresponding clients are authorized per the the above table for policy `policy-normal-1`.
-
-TODO: add tests to validate streaming.
