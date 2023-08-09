@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
 	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -530,7 +531,7 @@ func TestHAFailOverInSteadyState(t *testing.T) {
 	}
 }
 
-func TestFailOverDuringProb(t *testing.T) {
+func TestHAFailOverDuringProb(t *testing.T) {
 	// RPFO Test Case during a On-Going Probe Request with Pre and Post Trigger Policy Verification
 	// Got Review Comment to move from Thread - Testing this Trigger In Progress and Skipping for now
 	t.Skip()
@@ -589,6 +590,29 @@ func TestFailOverDuringProb(t *testing.T) {
 	}()
 	// Wait for the two threads to finish.
 	wg.Wait()
+	// Verification Section
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), authzPolicy.PrettyPrint())
+	if policyBefore.PrettyPrint() != authzPolicy.PrettyPrint() {
+		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
+	}
+}
+
+func TestHALCReload(t *testing.T) {
+	// LC Reload Test Case with Pre and Post Trigger Policy Verification
+
+	// Pre-Trigger Section
+	dut := ondatra.DUT(t, "dut")
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+
+	// Trigger Section
+	config.CMDViaGNMI(context.Background(), t, dut, "reload location 0/0/CPU0 noprompt \n")
+	time.Sleep(30 * time.Second)
+	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
+
 	// Verification Section
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
