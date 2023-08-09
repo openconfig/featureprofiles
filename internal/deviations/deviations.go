@@ -518,3 +518,9 @@ func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
 func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
 }
+
+// P4RTGdpRequiresDot1QSubinterface returns true for devices that require configuring
+// subinterface with tagged vlan for p4rt packet in.
+func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
+}

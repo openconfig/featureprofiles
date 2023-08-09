@@ -17,13 +17,12 @@ package google_discovery_protocol_packetout_test
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"net"
 	"sort"
 	"testing"
 	"time"
-
-	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -38,7 +37,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	p4v1pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 const (
@@ -47,16 +46,12 @@ const (
 )
 
 var (
-	p4InfoFile                                = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	streamName                                = "p4rt"
-	gdpInLayers           layers.EthernetType = 0x6007
-	deviceID                                  = *ygot.Uint64(1)
-	portID                                    = *ygot.Uint32(10)
-	electionID                                = *ygot.Uint64(100)
-	METADATA_INGRESS_PORT                     = *ygot.Uint32(1)
-	METADATA_EGRESS_PORT                      = *ygot.Uint32(2)
-	SUBMIT_TO_INGRESS                         = *ygot.Uint32(1)
-	SUBMIT_TO_EGRESS                          = *ygot.Uint32(0)
+	p4InfoFile                      = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	streamName                      = "p4rt"
+	gdpInLayers layers.EthernetType = 0x6007
+	deviceID                        = uint64(1)
+	portID                          = uint32(10)
+	electionID                      = uint64(100)
 )
 
 var (
@@ -89,7 +84,7 @@ var (
 
 type PacketIO interface {
 	GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
-	GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut
+	GetPacketOut(portID uint32, submitIngress bool) []*p4v1pb.PacketOut
 }
 
 type testArgs struct {
@@ -105,13 +100,13 @@ type testArgs struct {
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
 func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool) error {
 	t.Helper()
-	err := client.Write(&p4_v1.WriteRequest{
+	err := client.Write(&p4v1pb.WriteRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+		ElectionId: &p4v1pb.Uint128{High: uint64(0), Low: electionID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
-		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+		Atomicity: p4v1pb.WriteRequest_CONTINUE_ON_ERROR,
 	})
 	if err != nil {
 		return err
@@ -120,13 +115,13 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 }
 
 // sendPackets sends out packets via PacketOut message in StreamChannel.
-func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.PacketOut, packetCount int) {
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1pb.PacketOut, packetCount int) {
 	count := packetCount / len(packets)
 	for _, packet := range packets {
 		for i := 0; i < count; i++ {
 			if err := client.StreamChannelSendMsg(
-				&streamName, &p4_v1.StreamMessageRequest{
-					Update: &p4_v1.StreamMessageRequest_Packet{
+				&streamName, &p4v1pb.StreamMessageRequest{
+					Update: &p4v1pb.StreamMessageRequest_Packet{
 						Packet: packet,
 					},
 				}); err != nil {
@@ -298,11 +293,11 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	for index, client := range clients {
 		if client != nil {
 			client.StreamChannelCreate(&streamParameter)
-			if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Arbitration{
-					Arbitration: &p4_v1.MasterArbitrationUpdate{
+			if err := client.StreamChannelSendMsg(&streamName, &p4v1pb.StreamMessageRequest{
+				Update: &p4v1pb.StreamMessageRequest_Arbitration{
+					Arbitration: &p4v1pb.MasterArbitrationUpdate{
 						DeviceId: streamParameter.DeviceId,
-						ElectionId: &p4_v1.Uint128{
+						ElectionId: &p4v1pb.Uint128{
 							High: streamParameter.ElectionIdH,
 							Low:  streamParameter.ElectionIdL - uint64(index),
 						},
@@ -323,22 +318,22 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Load p4info file.
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
-		return errors.New("Errors seen when loading p4info file.")
+		return errors.New("errors seen when loading p4info file")
 	}
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
-	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+	if err := args.leader.SetForwardingPipelineConfig(&p4v1pb.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
-		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
-		Config: &p4_v1.ForwardingPipelineConfig{
+		ElectionId: &p4v1pb.Uint128{High: uint64(0), Low: electionID},
+		Action:     p4v1pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+		Config: &p4v1pb.ForwardingPipelineConfig{
 			P4Info: p4Info,
-			Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
+			Cookie: &p4v1pb.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
 		},
 	}); err != nil {
-		return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
+		return errors.New("errors seen when sending SetForwardingPipelineConfig")
 	}
 	return nil
 }
@@ -408,7 +403,11 @@ func packetGDPRequestGet() []byte {
 		SrcMAC: net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
 		// GDP MAC is 00:0A:DA:F0:F0:F0
 		DstMAC:       net.HardwareAddr{0x00, 0x0A, 0xDA, 0xF0, 0xF0, 0xF0},
-		EthernetType: gdpInLayers,
+		EthernetType: layers.EthernetTypeDot1Q,
+	}
+	d1q := &layers.Dot1Q{
+		VLANIdentifier: 4000,
+		Type:           gdpInLayers,
 	}
 	payload := []byte{}
 	payLoadLen := 64
@@ -416,16 +415,16 @@ func packetGDPRequestGet() []byte {
 		payload = append(payload, byte(i))
 	}
 	gopacket.SerializeLayers(buf, opts,
-		pktEth, gopacket.Payload(payload),
+		pktEth, d1q, gopacket.Payload(payload),
 	)
 	return buf.Bytes()
 }
 
 // GetTableEntry creates wbb acl entry related to GDP.
 func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
-	actionType := p4_v1.Update_INSERT
+	actionType := p4v1pb.Update_INSERT
 	if delete {
-		actionType = p4_v1.Update_DELETE
+		actionType = p4v1pb.Update_DELETE
 	}
 	return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
@@ -436,11 +435,11 @@ func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTab
 }
 
 // GetPacketOut generates PacketOut message with payload as GDP.
-func (gdp *GDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
-	packets := []*p4_v1.PacketOut{}
-	packet := &p4_v1.PacketOut{
+func (gdp *GDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4v1pb.PacketOut {
+	packets := []*p4v1pb.PacketOut{}
+	packet := &p4v1pb.PacketOut{
 		Payload: packetGDPRequestGet(),
-		Metadata: []*p4_v1.PacketMetadata{
+		Metadata: []*p4v1pb.PacketMetadata{
 			{
 				MetadataId: uint32(1), // "egress_port"
 				Value:      []byte(fmt.Sprint(portID)),
@@ -449,7 +448,7 @@ func (gdp *GDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4_v1
 	}
 	if submitIngress {
 		packet.Metadata = append(packet.Metadata,
-			&p4_v1.PacketMetadata{
+			&p4v1pb.PacketMetadata{
 				MetadataId: uint32(2), // "submit_to_ingress"
 				Value:      []byte{1},
 			})

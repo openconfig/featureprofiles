@@ -11,6 +11,15 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    p4rt_gdp_requires_dot1q_subinterface: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    p4rt_gdp_requires_dot1q_subinterface: true
   }
 }
 platform_exceptions: {
@@ -21,6 +30,7 @@ platform_exceptions: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    p4rt_gdp_requires_dot1q_subinterface: true
   }
 }
 platform_exceptions: {

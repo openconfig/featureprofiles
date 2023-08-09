@@ -17,12 +17,11 @@ package google_discovery_protocol_packetin_test
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
-
-	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -37,7 +36,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+
+	p4v1pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 const (
@@ -55,6 +55,7 @@ var (
 	electionID          = uint64(100)
 	metadataIngressPort = uint32(1)
 	metadataEgressPort  = uint32(2)
+	vlanID              = uint16(4000)
 )
 
 var (
@@ -111,13 +112,13 @@ type testArgs struct {
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
 func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool) error {
 	t.Helper()
-	err := client.Write(&p4_v1.WriteRequest{
+	err := client.Write(&p4v1pb.WriteRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+		ElectionId: &p4v1pb.Uint128{High: uint64(0), Low: electionID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
-		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+		Atomicity: p4v1pb.WriteRequest_CONTINUE_ON_ERROR,
 	})
 	if err != nil {
 		return err
@@ -125,18 +126,34 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 	return nil
 }
 
-// decodePacket decodes L2 header in the packet and returns source and destination MAC and ethernet type.
-func decodePacket(t *testing.T, packetData []byte) (string, string, layers.EthernetType) {
+// decodePacket decodes L2 header in the packet and returns source and destination MAC
+// vlanID, and ethernet type.
+func decodePacket(t *testing.T, packetData []byte) (string, string, uint16, layers.EthernetType) {
 	t.Helper()
 	packet := gopacket.NewPacket(packetData, layers.LayerTypeEthernet, gopacket.Default)
 	etherHeader := packet.Layer(layers.LayerTypeEthernet)
+	d1qHeader := packet.Layer(layers.LayerTypeDot1Q)
+
+	srcMAC, dstMAC := "", ""
+	vlanID := uint16(0)
+	etherType := layers.EthernetType(0)
 	if etherHeader != nil {
 		header, decoded := etherHeader.(*layers.Ethernet)
 		if decoded {
-			return header.SrcMAC.String(), header.DstMAC.String(), header.EthernetType
+			srcMAC, dstMAC = header.SrcMAC.String(), header.DstMAC.String()
+			if header.EthernetType != layers.EthernetTypeDot1Q {
+				return srcMAC, dstMAC, vlanID, header.EthernetType
+			}
 		}
 	}
-	return "", "", layers.EthernetType(0)
+	if d1qHeader != nil {
+		header, decoded := d1qHeader.(*layers.Dot1Q)
+		if decoded {
+			vlanID = header.VLANIdentifier
+			etherType = header.Type
+		}
+	}
+	return srcMAC, dstMAC, vlanID, etherType
 }
 
 // testTraffic sends traffic flow for duration seconds and returns the
@@ -208,20 +225,25 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 
 			gotPkts := 0
+			gotVlanID := uint16(0)
 			t.Logf("Start to decode packet and compare with expected packets.")
 			wantPacket := args.packetIO.GetPacketTemplate()
 			for _, packet := range packets {
 				if packet != nil {
 					if wantPacket.DstMAC != nil && wantPacket.EthernetType != nil {
-						srcMAC, dstMac, etherType := decodePacket(t, packet.Pkt.GetPayload())
+						srcMAC, dstMac, vID, etherType := decodePacket(t, packet.Pkt.GetPayload())
 						if dstMac != *wantPacket.DstMAC || etherType != layers.EthernetType(*wantPacket.EthernetType) {
 							continue
 						}
 						if !strings.EqualFold(srcMAC, *gdpSrcMAC) {
 							continue
 						}
+						gotVlanID = vID
 					}
 
+					if got, want := gotVlanID, vlanID; got != want {
+						t.Errorf("VLAN ID mismatch, got: %d, want: %d", got, want)
+					}
 					metaData := packet.Pkt.GetMetadata()
 					for _, data := range metaData {
 						switch data.GetMetadataId() {
@@ -257,14 +279,19 @@ func TestMain(m *testing.M) {
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice, hasVlan bool) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
-
-	s := i.GetOrCreateSubinterface(0)
+	var s *oc.Interface_Subinterface
+	if hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
+		s = i.GetOrCreateSubinterface(1)
+		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = &vlanID
+	} else {
+		s = i.GetOrCreateSubinterface(0)
+	}
 	s4 := s.GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
@@ -281,14 +308,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portID)}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut, true /*hasVlan*/))
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portID + 1)}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut, false))
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
@@ -344,11 +371,11 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	for index, client := range clients {
 		if client != nil {
 			client.StreamChannelCreate(&streamParameter)
-			if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Arbitration{
-					Arbitration: &p4_v1.MasterArbitrationUpdate{
+			if err := client.StreamChannelSendMsg(&streamName, &p4v1pb.StreamMessageRequest{
+				Update: &p4v1pb.StreamMessageRequest_Arbitration{
+					Arbitration: &p4v1pb.MasterArbitrationUpdate{
 						DeviceId: streamParameter.DeviceId,
-						ElectionId: &p4_v1.Uint128{
+						ElectionId: &p4v1pb.Uint128{
 							High: streamParameter.ElectionIdH,
 							Low:  streamParameter.ElectionIdL - uint64(index),
 						},
@@ -369,22 +396,22 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Load p4info file.
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
-		return errors.New("Errors seen when loading p4info file.")
+		return errors.New("errors seen when loading p4info file")
 	}
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
-	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+	if err := args.leader.SetForwardingPipelineConfig(&p4v1pb.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
-		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
-		Config: &p4_v1.ForwardingPipelineConfig{
+		ElectionId: &p4v1pb.Uint128{High: uint64(0), Low: electionID},
+		Action:     p4v1pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+		Config: &p4v1pb.ForwardingPipelineConfig{
 			P4Info: p4Info,
-			Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
+			Cookie: &p4v1pb.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
 		},
 	}); err != nil {
-		return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
+		return errors.New("errors seen when sending SetForwardingPipelineConfig")
 	}
 	return nil
 }
@@ -450,9 +477,9 @@ type GDPPacketIO struct {
 
 // GetTableEntry creates wbb acl entry related to GDP.
 func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
-	actionType := p4_v1.Update_INSERT
+	actionType := p4v1pb.Update_INSERT
 	if delete {
-		actionType = p4_v1.Update_DELETE
+		actionType = p4v1pb.Update_DELETE
 	}
 	return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
@@ -475,11 +502,15 @@ func (gdp *GDPPacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32,
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(*gdp.SrcMAC)
 	ethHeader.Dst().SetValue(*gdp.DstMAC)
-	ethHeader.EtherType().SetValue(int32(*gdp.EthernetType))
+	ethHeader.EtherType().SetValue(int32(0x8100))
+
+	vlan := flow.Packet().Add().Vlan()
+	vlan.Id().SetValue(int32(vlanID))
+	vlan.Tpid().SetValue(int32(*gdp.EthernetType))
+
 	flow.Size().SetFixed(int32(frameSize))
 	flow.Rate().SetPps(int64(frameRate))
 	return []gosnappi.Flow{flow}
-
 }
 
 // GetEgressPort returns expected egress port info in PacketIn.
