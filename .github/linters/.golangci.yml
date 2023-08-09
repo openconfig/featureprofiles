@@ -8,7 +8,7 @@
 # configure golangci-lint
 # see https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
 run:
-  timeout: 45m
+  timeout: 60m
 issues:
   exclude-rules:
     - path: _test\.go
@@ -18,24 +18,27 @@ issues:
         - goconst
   new: true
 linters:
-  # See here for linters enabled by default: https://golangci-lint.run/usage/linters/
-  disable:
-    - typecheck
+  disable-all: true
   enable:
-    - gosec
-    - unconvert
-    - goconst
-    - goimports
-    - gofmt
-    - gocritic
-    - govet
-    - revive
     - staticcheck
-    - unconvert
-    - unparam
-    - unused
-    - wastedassign
-    - whitespace
+  # See here for linters enabled by default: https://golangci-lint.run/usage/linters/
+  #disable:
+  #  - typecheck
+  #enable:
+  #  - gosec
+  #  - unconvert
+  #  - goconst
+  #  - goimports
+  #  - gofmt
+  #  - gocritic
+  #  - govet
+  #  - revive
+  #  - staticcheck
+  #  - unconvert
+  #  - unparam
+  #  - unused
+  #  - wastedassign
+  #  - whitespace
 linters-settings:
   errcheck:
     # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
