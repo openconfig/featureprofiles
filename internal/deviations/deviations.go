@@ -78,7 +78,7 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 
 		// If software_version_regex is set and does not match, continue
 		if softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex(); softwareVersionRegex != "" {
-			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dut.Device.Model())
+			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dut.Device.Version())
 			if errSw != nil {
 				return nil, fmt.Errorf("error with regex match %v", errSw)
 			}
