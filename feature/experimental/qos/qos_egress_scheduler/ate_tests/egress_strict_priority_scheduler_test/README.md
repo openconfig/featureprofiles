@@ -2,7 +2,7 @@
 
 ## Summary
 
-Verify that packet drops in AF4, AF3, AF2, AF1, BE1, BE0 and NC1 according to the strict-priority test traffic table
+Verify that packet drops in AF4, AF3, AF2, AF1, BE1 and NC1 according to the strict-priority test traffic table
 
 ## QoS traffic test setup:
 
@@ -39,9 +39,7 @@ Verify that packet drops in AF4, AF3, AF2, AF1, BE1, BE0 and NC1 according to th
 
 *   Configuration
 
-    *   Configure strict priority scheduler queue for NC1.
-    *   Configure WRR for AF4, AF3, AF2, AF1, BE1 and BE0 with weight 48, 12, 8,
-        4, 2 and 1 respectively.
+    *   Configure strict priority scheduler mode for NC1, AF4, AF3, AF2
 
 *   Strict Priority Test traffic table
 
@@ -62,7 +60,7 @@ Verify that packet drops in AF4, AF3, AF2, AF1, BE1, BE0 and NC1 according to th
     *   /qos/classifiers/classifier/config/type
     *   /qos/classifiers/classifier/terms/term/actions/config/target-group
     *   /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set
-    *   qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set
+    *   /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set
     *   /qos/classifiers/classifier/terms/term/config/id
 
 *   Forwarding Groups
@@ -83,8 +81,7 @@ Verify that packet drops in AF4, AF3, AF2, AF1, BE1, BE0 and NC1 according to th
 *   Scheduler policy
 
     *   /qos/scheduler-policies/scheduler-policy/config/name
-    *   /qos/scheduler-policies/scheduler
-        -policy/schedulers/scheduler/config/priority
+    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority
     *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence
     *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type
 

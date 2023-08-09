@@ -1111,7 +1111,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		config = juniperCLI()
 		t.Logf("Push the CLI config:\n%s", dut.Vendor())
 	}
-	gpbSetRequest, err := buildCliConfigRequest(config)
+	gpbSetRequest, err := buildCLIConfigRequest(config)
 	if err != nil {
 		t.Fatalf("Cannot build a gNMI SetRequest: %v", err)
 	}
@@ -1132,7 +1132,7 @@ func juniperCLI() string {
 	}
   `
 }
-func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
+func buildCLIConfigRequest(config string) (*gpb.SetRequest, error) {
 	// Build config with Origin set to cli and Ascii encoded config.
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{{
