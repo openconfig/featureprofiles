@@ -74,8 +74,13 @@ trust_bundle configurations: (## indicates the 1, 2, 10, 1000 CA testdata)
 
 ### Certz-1.1
 
-Perform these negative tests, perform these tests with both RSA and ECDSA
-trust_bundles and certificates:
+Perform these negative tests:
+
+This test should show that the trust-bundle/CA-set being mis-matched
+between client and server results in failed connections.
+
+Perform these tests with both RSA and ECDSA trust_bundles and
+certificates:
 
    1) Load the correct key type trust_bundle from ca-02 on to the DUT:
        ca-02/trust_bundle_02_rsa.pem
