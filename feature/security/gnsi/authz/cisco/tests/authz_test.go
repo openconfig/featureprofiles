@@ -621,3 +621,26 @@ func TestHALCReload(t *testing.T) {
 		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
 	}
 }
+
+func TestHARedundancySwithOver(t *testing.T) {
+	// RP SwitchOver Reload Test Case with Pre and Post Trigger Policy Verification
+
+	// Pre-Trigger Section
+	dut := ondatra.DUT(t, "dut")
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+
+	// Trigger Section
+	config.CMDViaGNMI(context.Background(), t, dut, "redundancy switchover \n")
+	time.Sleep(30 * time.Second)
+	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
+
+	// Verification Section
+	authzPolicy := authz.NewAuthorizationPolicy()
+	authzPolicy.Get(t, dut)
+	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), authzPolicy.PrettyPrint())
+	if policyBefore.PrettyPrint() != authzPolicy.PrettyPrint() {
+		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
+	}
+}
