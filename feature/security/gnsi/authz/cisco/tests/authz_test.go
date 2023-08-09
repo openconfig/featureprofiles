@@ -368,9 +368,6 @@ func TestTwoInterLeavingRotates(t *testing.T) {
 		if status.Code(err) != codes.Unavailable {
 			t.Fatalf("Expecting failure with error code Unavailable, received error %v", err)
 		}
-		if err != nil {
-			t.Fatalf("Expecting Success, Received an Errorr %v", err)
-		}
 	}
 
 	rotateStream, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
