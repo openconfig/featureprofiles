@@ -13,7 +13,7 @@ safe operation practices.
    * the set of certificate testdata generated with the mk_cas.sh script
    in featureprofiles/feature/security/gnsi/certz/test_data
 
-### DIT Service Setup
+### DUT Service Setup
 
 Configure the DUT to enable the following services (that are using gRPC) are up
 and require using mTLS for authentication:
