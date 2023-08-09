@@ -453,7 +453,7 @@ func TestQoSClassifier(t *testing.T) {
 				}
 
 			}
-			if deviations.MatchedPacketsOctetsUnsupported(dut) {
+			if !deviations.MatchedPacketsOctetsUnsupported(dut) {
 				t.Log("Validate Matched Packets and Octets")
 				validateMatchedStats(t, dut, trafficFlows)
 			}
