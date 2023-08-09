@@ -65,7 +65,7 @@ jobs:
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
         restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Go vet
-      run: GOGC=30 go vet ./...
+      run: GOGC=30 go vet $(go list ./... | grep -v 'github.com/openconfig/featureprofiles/internal/check/exampleoc')
     - name: Gofmt
       run: |
         # gofmt always returns true, so we use grep '^' which returns
@@ -90,11 +90,11 @@ jobs:
     - name: Get revive
       run: go install github.com/mgechev/revive@latest
     - name: Run revive
-      run: revive ./...
+      run: revive $(go list ./... | grep -v 'github.com/openconfig/featureprofiles/internal/check/exampleoc')
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
-      run: GOGC=30 staticcheck ./...
+      run: GOGC=30 staticcheck $(go list ./... | grep -v 'github.com/openconfig/featureprofiles/internal/check/exampleoc')
 
   otg_changes:
     name: OTG Changes Required

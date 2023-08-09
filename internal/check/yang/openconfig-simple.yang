@@ -1,0 +1,64 @@
+module openconfig-simple {
+  prefix "ocs";
+  namespace "urn:ocs";
+  description
+    "A simple test module with the OpenConfig structure.";
+
+  import openconfig-remote { prefix "ocr"; }
+
+  typedef ieeefloat32 {
+    type binary {
+      length "4";
+    }
+    description
+      "An IEEE 32-bit floating point number. The format of this number
+      is of the form:
+        1-bit  sign
+        8-bit  exponent
+        23-bit fraction
+      The floating point value is calculated using:
+        (-1)**S * 2**(Exponent-127) * (1+Fraction)";
+  }
+
+  grouping parent-config {
+    leaf one { type string; }
+    leaf three {
+      type enumeration {
+        enum ONE;
+        enum TWO;
+      }
+    }
+    leaf four {
+      type binary;
+    }
+    leaf five {
+      type ieeefloat32;
+    }
+    leaf-list six {
+      type ieeefloat32;
+    }
+  }
+
+  container parent {
+    description
+      "I am a parent container
+       that has 4 children.";
+    container child {
+      container config {
+        uses parent-config;
+      }
+      container state {
+        config false;
+        uses parent-config;
+        leaf two { type string; }
+        leaf unsupported { type string; }
+      }
+    }
+  }
+
+  deviation '/parent/child/state/unsupported' {
+    deviate not-supported;
+  }
+
+  uses ocr:a-grouping;
+}
