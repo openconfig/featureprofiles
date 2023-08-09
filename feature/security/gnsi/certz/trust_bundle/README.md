@@ -55,7 +55,7 @@ trust_bundle.
 
 ## Tests
 
-### Test Certz-4.0
+### Test Certz-4.1
 
 Load the server certificate and key from each of the following CA sets:
    * ca-01

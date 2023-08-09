@@ -32,7 +32,7 @@ form, both must be tested.
 
 ## Tests
 
-### Certz-1.0
+### Certz-1.1
 
 Perform these positive tests:
 
@@ -72,7 +72,7 @@ trust_bundle configurations: (## indicates the 1, 2, 10, 1000 CA testdata)
    7) Validate that the connection's provided certificate is used for
       authentication of the connection to the service on the DUT.
 
-### Certz-1.1
+### Certz-1.2
 
 Perform these negative tests:
 

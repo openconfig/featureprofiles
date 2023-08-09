@@ -30,7 +30,7 @@ must be tested.
 
 ## Tests
 
-### Certz-3.0
+### Certz-3.1
 
 Perform these positive tests:
 
@@ -56,7 +56,7 @@ Perform this test with both the RSA and ECDSA types.
    5) Verify that the server is now serving the certifcate properly.
 
 
-### Certz-3.1
+### Certz-3.2
 
 Perform these negative tests:
 

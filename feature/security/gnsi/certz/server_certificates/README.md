@@ -29,7 +29,7 @@ form, both must be tested.
 
 ## Tests
 
-### Certz-2.0
+### Certz-2.1
 
 Perform these positive tests:
 
@@ -69,7 +69,7 @@ trust_bundle configurations (## indicates the 1, 2, 10, 1000 CA testdata)
     validated and trusted by the server.
 
 
-### Certz-2.1
+### Certz-2.2
 
 Perform these negative tests, perform these tests with both the RSA and ECDSA
 trust_bundles and certificates.
