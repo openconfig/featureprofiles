@@ -61,8 +61,12 @@
 
 options {
   username: "cafyauto"
-#  username: "cisco"
   password: "cisco123"
+  insecure: false 
+  skip_verify: false
+  trust_bundle_file: "$TRUST_BUNDLE_FILE"
+  cert_file: "$CERT_FILE"
+  key_file:  "$KEY_FILE"
 }
 
 duts {
@@ -75,7 +79,8 @@ duts {
  
   options {
     insecure: false 
-    skip_verify: true
+    skip_verify: false
+    mutual_tls: true
     username: "cafyauto"
     password: "cisco123"
   }
@@ -100,6 +105,12 @@ duts {
     target: "10.85.84.159:47403"
   }
   p4rt{
+     # default grpc mapping : 57777  target: "10.85.84.159:47402"
+     #target: "10.85.84.159:9559"
+     target: "10.85.84.159:47402"
+  }
+  
+  gnsi{
      # default grpc mapping : 57777  target: "10.85.84.159:47402"
      #target: "10.85.84.159:9559"
      target: "10.85.84.159:47402"

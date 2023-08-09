@@ -442,17 +442,18 @@ func (a *testArgs) flapinterface(t *testing.T, port string, action bool) {
 
 func (a *testArgs) aftCheck(t testing.TB, prefix string, instance string) {
 	// check prefix and get NHG ID
-	aftPfxNHG := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix).NextHopGroup()
-	aftPfxNHGVal, found := gnmi.Watch(t, a.dut, aftPfxNHG.State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
-		return val.IsPresent()
+	aftPfxPath := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix)
+	aftPfxVal, found := gnmi.Watch(t, a.dut, aftPfxPath.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.NextHopGroup != nil
 	}).Await(t)
 	if !found {
 		t.Fatalf("Could not find prefix %s in telemetry AFT", dstPfx)
 	}
-	nhg, _ := aftPfxNHGVal.Val()
+	aftPfx, _ := aftPfxVal.Val()
 
 	// using NHG ID validate NH
-	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(nhg).State())
+	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
 	if len(aftNHG.NextHop) == 0 && aftNHG.BackupNextHopGroup == nil {
 		t.Fatalf("Prefix %s references a NHG that has neither NH or backup NHG", prefix)
 	}

@@ -546,6 +546,11 @@ func main() {
 		for j := range suite[i].Tests {
 			suite[i].Tests[j].ShortName = strings.Split(suite[i].Tests[j].Name, " ")[0]
 			if len(testRepoRev) > 0 {
+				suite[i].Tests[j].Internal = false
+				suite[i].Tests[j].PrNum = 0
+				suite[i].Tests[j].Branch = ""
+				suite[i].Tests[j].Revision = ""
+
 				parts := strings.Split(testRepoRev, "#")
 				switch parts[0] {
 				case "I-PR":
@@ -556,7 +561,6 @@ func main() {
 						log.Fatalf("%v is not a valid integer pr number", parts[1])
 					}
 				case "PR":
-					suite[i].Tests[j].Internal = false
 					if pr, err := strconv.Atoi(parts[1]); err == nil {
 						suite[i].Tests[j].PrNum = pr
 					} else {
@@ -567,13 +571,11 @@ func main() {
 					suite[i].Tests[j].Internal = true
 				case "BR":
 					suite[i].Tests[j].Branch = parts[1]
-					suite[i].Tests[j].Internal = false
 				case "I-REV":
 					suite[i].Tests[j].Revision = parts[1]
 					suite[i].Tests[j].Internal = true
 				case "REV":
 					suite[i].Tests[j].Revision = parts[1]
-					suite[i].Tests[j].Internal = false
 				default:
 					suite[i].Tests[j].Revision = testRepoRev
 					suite[i].Tests[j].Internal = true
