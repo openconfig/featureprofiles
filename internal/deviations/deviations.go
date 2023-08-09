@@ -78,7 +78,7 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 
 		// If software_version_regex is set and does not match, continue
 		if softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex(); softwareVersionRegex != "" {
-			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dut.Device.Model())
+			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dut.Device.Version())
 			if errSw != nil {
 				return nil, fmt.Errorf("error with regex match %v", errSw)
 			}
@@ -428,11 +428,6 @@ func NoMixOfTaggedAndUntaggedSubinterfaces(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoMixOfTaggedAndUntaggedSubinterfaces()
 }
 
-// SecondaryBackupPathTrafficFailover returns if device does not support secondary backup path traffic failover
-func SecondaryBackupPathTrafficFailover(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSecondaryBackupPathTrafficFailover()
-}
-
 // DequeueDeleteNotCountedAsDrops returns if device dequeues and deletes the pkts after a while and those are not counted
 // as drops
 func DequeueDeleteNotCountedAsDrops(dut *ondatra.DUTDevice) bool {
@@ -510,4 +505,16 @@ func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
 // Default value is false and expected component power down state is shutdown.
 func ComponentPowerDownReturnsInactiveState(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetComponentPowerDownReturnsInactiveState()
+}
+
+// ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
+// the same ISIS Metrics for Level 1 when configuring Level 2 Metrics.
+func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisRequireSameL1MetricWithL2Metric()
+}
+
+// BGPSetMedRequiresEqualOspfSetMetric returns true for devices that require configuring
+// the same OSPF setMetric when BGP SetMED is configured.
+func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
 }
