@@ -41,6 +41,7 @@ import (
 var (
 	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName            = "p4rt"
+	tracerouteSrcMAC      = "00:01:00:02:00:03"
 	deviceID              = uint64(1)
 	portId                = uint32(10)
 	electionId            = uint64(100)
@@ -347,7 +348,7 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 		flow := gosnappi.NewFlow()
 		flow.SetName("IP4")
 		ethHeader := flow.Packet().Add().Ethernet()
-		ethHeader.Src().SetValue(atePort1.MAC)
+		ethHeader.Src().SetValue(tracerouteSrcMAC)
 		ethHeader.Dst().SetValue(dstMac)
 		ipHeader := flow.Packet().Add().Ipv4()
 		ipHeader.Src().SetValue(atePort1.IPv4)
@@ -361,7 +362,7 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 		flow := gosnappi.NewFlow()
 		flow.SetName("IP6")
 		ethHeader := flow.Packet().Add().Ethernet()
-		ethHeader.Src().SetValue(atePort1.MAC)
+		ethHeader.Src().SetValue(tracerouteSrcMAC)
 		ethHeader.Dst().SetValue(dstMac)
 		ipv6Header := flow.Packet().Add().Ipv6()
 		ipv6Header.Src().SetValue(atePort1.IPv6)
