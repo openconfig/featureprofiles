@@ -42,18 +42,29 @@ Perform this test with both the RSA and ECDSA types.
    0) Build the test data, configure the DUT to use the ca-0001 form
       key/certificate/trust_bundle, use the server-${TYPE}-a key/certificate.
 
-   1) With the server running, connect and note that the ceritficate loaded
-      is the appropriate one.
+   1) Connect a client to the service on the DUT. The client should maintain
+      it's connection to the service throughout the rotation process being
+      undertaken.
 
-   2) Use the gNSI Rotate RPC to load a server-${TYPE}-b key and certificate
+   2) With the server running, connect and note that the certificate loaded
+      is the appropriate one, that it is the 'a' certificate in the ca-0001
+      set of certificates, validate the SN/SAN are correct.
+
+   3) Use the gNSI Rotate RPC to load a server-${TYPE}-b key and certificate
       on to the server.
 
-   3) Test that the certificate is properly loaded, using the Probe RPC.
-      Note that the new certificate is properly served by the server.
+   4) Test that the certificate is properly loaded, using the Probe RPC.
+      Note that the new certificate is properly served by the server. Note
+      that the certificate's SN/SAN has changed to the 'b' certificate.
 
-   4) Send the Finalize RPC to the server.
+   5) Send the Finalize RPC to the server.
 
-   5) Verify that the server is now serving the certifcate properly.
+   6) Verify that the server is now serving the certifcate properly, that
+      the certificate is the 'b' certificate.
+
+   7) Verify that at no time during the rotation process were existing
+      connections to the service impaired / restarted / delayed due to
+      the rotation event.
 
 
 ### Certz-3.2
