@@ -10,8 +10,8 @@ on:
 
 jobs:
   common:
-    uses: openconfig/common-ci/.github/workflows/go.yml@acb3a87c3f412dda86c3458fa560c19c5e0f8c32
+    uses: openconfig/common-ci/.github/workflows/go.yml@76502bf561a6c37d85d93395f5fd1044f1afc994
     with:
       coverage-excludes-regex: "/.*test.*"
       tests-excludes-regex: "/.*test.*"
-      race-tests-excludes-regex: "/.*test.*"
+      skip-race-tests: true
