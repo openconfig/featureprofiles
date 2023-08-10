@@ -114,7 +114,6 @@ func TestAllowRuleAll(t *testing.T) {
 		}
 		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
 		if err != nil {
-			t.Logf("Error on the Device %s after the Trigger is %s", dut.Name(), err)
 			t.Fatalf("Not expecting error for prob request %v", err)
 		}
 		if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
@@ -503,9 +502,6 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
 
 	// Trigger Section
-	// proc := findProcessByName(ctx, t, dut, pName)
-	// pid := uint32(proc.GetPid())
-	// pName := proc.GetName()
 	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: "emsd", Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
 	time.Sleep(30 * time.Second)
 	ctx := context.Background()
