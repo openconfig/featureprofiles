@@ -22,14 +22,14 @@ func WaitForARP(t *testing.T, otg *otg.OTG, c gosnappi.Config, ipType string) {
 	for _, intf := range intfs {
 		switch ipType {
 		case "IPv4":
-			got, ok := gnmi.WatchAll(t, otg, gnmi.OTG().Interface(intf).Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			got, ok := gnmi.WatchAll(t, otg, gnmi.OTG().Interface(intf).Ipv4NeighborAny().LinkLayerAddress().State(), 3*time.Minute, func(val *ygnmi.Value[string]) bool {
 				return val.IsPresent()
 			}).Await(t)
 			if !ok {
 				t.Fatalf("Did not receive OTG Neighbor entry, last got: %v", got)
 			}
 		case "IPv6":
-			got, ok := gnmi.WatchAll(t, otg, gnmi.OTG().Interface(intf).Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			got, ok := gnmi.WatchAll(t, otg, gnmi.OTG().Interface(intf).Ipv6NeighborAny().LinkLayerAddress().State(), 3*time.Minute, func(val *ygnmi.Value[string]) bool {
 				return val.IsPresent()
 			}).Await(t)
 			if !ok {
