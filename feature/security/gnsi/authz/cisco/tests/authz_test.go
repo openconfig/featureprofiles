@@ -246,8 +246,7 @@ func TestAllowAllRPCs(t *testing.T) {
 		}
 		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
 		if err != nil {
-			t.Logf("Error on the Device %s after the Trigger is %v", dut.Name(), err)
-			t.Fatalf("Not expecting error for prob request %v", err)
+			t.Fatalf("Not expecting error %s for prob request %v", dut.Name(), err)
 		}
 		if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
 			t.Logf("Response on the Device %s after the Trigger is %s", dut.Name(), resp)
