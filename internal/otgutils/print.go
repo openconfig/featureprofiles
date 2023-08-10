@@ -31,6 +31,7 @@ import (
 // LogFlowMetrics displays the otg flow statistics.
 func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
+	// This short delay before printing will ensure that all the packets will be counted during the polling
 	time.Sleep(1 * time.Second)
 	var out strings.Builder
 	out.WriteString("\nOTG Flow Metrics\n")
@@ -53,6 +54,7 @@ func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 // LogPortMetrics displays otg port stats.
 func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
+	// This short delay before printing will ensure that all the packets will be counted during the polling
 	time.Sleep(1 * time.Second)
 	var link string
 	var out strings.Builder
