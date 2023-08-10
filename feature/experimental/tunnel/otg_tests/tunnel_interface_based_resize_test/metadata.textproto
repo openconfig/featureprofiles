@@ -1,0 +1,22 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "dd744f00-c8a7-4604-8c46-241ff934d6e2"
+plan_id: "TUN-1.6"
+description: "Tunnel End Point Resize - Interface Based GRE Tunnel"
+testbed: TESTBED_DUT_DUT_ATE_LINKS
+ platform_exceptions: {
+   platform: {
+     vendor: JUNIPER
+     hardware_model: "PTX10008"
+     hardware_model: "PTX10001-36MR"
+     hardware_model: "cptx"
+   }
+   deviations: {
+     tunnel_state_path_unsupported: true
+     tunnel_config_path_unsupported: true
+   }
+ }
+
+
+

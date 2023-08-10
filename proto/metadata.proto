@@ -284,8 +284,12 @@ message Metadata {
     bool isis_require_same_l1_metric_with_l2_metric = 91;
     // Devices require configuring the same OSPF setMetric when BGP
     // SetMED is configured.
-    bool bgp_set_med_requires_equal_ospf_set_metric = 92;
-    
+    bool bgp_set_med_requires_equal_ospf_set_metric = 92;   
+    // Device does not support tunnel interfaces state paths
+    bool tunnel_state_path_unsupported = 93;
+    // Device does not support tunnel interfaces source and destination address config paths
+    bool tunnel_config_path_unsupported =94;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
   }
