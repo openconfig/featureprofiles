@@ -10,11 +10,11 @@ on:
 
 jobs:
   go:
-    uses: openconfig/common-ci/.github/workflows/basic_go.yml@51f83b8c142120dcb2f1af7ef31d31df26e70e53
+    uses: openconfig/common-ci/.github/workflows/basic_go.yml@50c1d1be9dc4a910b89b1005130d23d7df6034a8
     with:
       coverage-excludes-regex: "/.*test.*"
       tests-excludes-regex: "/.*test.*"
       skip-race-tests: true
 
   linter:
-    uses: openconfig/common-ci/.github/workflows/linter.yml@51f83b8c142120dcb2f1af7ef31d31df26e70e53
+    uses: openconfig/common-ci/.github/workflows/linter.yml@50c1d1be9dc4a910b89b1005130d23d7df6034a8
