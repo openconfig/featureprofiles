@@ -26,11 +26,16 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
 	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	gnps "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 	authzpb "github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -628,6 +633,7 @@ func TestHAFailOverDuringProb(t *testing.T) {
 			break
 		}
 	}
+
 	// Verification Section
 	policyAfter := authz.NewAuthorizationPolicy()
 	policyAfter.Get(t, dut)
@@ -647,9 +653,92 @@ func TestHALCReload(t *testing.T) {
 	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
 
 	// Trigger Section
-	config.CMDViaGNMI(context.Background(), t, dut, "reload location 0/0/CPU0 noprompt \n")
-	time.Sleep(30 * time.Second)
-	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
+	const (
+		linecardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
+		linecardBoottime = 10 * time.Minute
+	)
+	// dut := ondatra.DUT(t, "dut")
+	lcs := components.FindComponentsByType(t, dut, linecardType)
+	t.Logf("Found linecard list: %v", lcs)
+
+	var validCards []string
+	// don't consider the empty linecard slots.
+	if len(lcs) > *args.NumLinecards {
+		for _, lc := range lcs {
+			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+			if !ok || (ok && !empty) {
+				validCards = append(validCards, lc)
+			}
+		}
+	} else {
+		validCards = lcs
+	}
+	if *args.NumLinecards >= 0 && len(validCards) != *args.NumLinecards {
+		t.Errorf("Incorrect number of linecards: got %v, want exactly %v (specified by flag)", len(validCards), *args.NumLinecards)
+	}
+
+	if got := len(validCards); got == 0 {
+		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
+	}
+
+	t.Logf("Find a removable line card to reboot.")
+	var removableLinecard string
+	for _, lc := range validCards {
+		t.Logf("Check if %s is removable", lc)
+		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
+			t.Logf("Detected non-removable line card: %v", lc)
+			continue
+		}
+		if got := gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()); got {
+			t.Logf("Found removable line card: %v", lc)
+			removableLinecard = lc
+		}
+	}
+	if removableLinecard == "" {
+		t.Fatalf("Component(lc).Removable().Get(t): got none, want non-empty")
+	}
+
+	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	rebootSubComponentRequest := &gnps.RebootRequest{
+		Method: gnps.RebootMethod_COLD,
+		Subcomponents: []*tpb.Path{
+			components.GetSubcomponentPath(removableLinecard, useNameOnly),
+		},
+	}
+
+	intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
+	t.Logf("OperStatusUP interfaces before reboot: %v", intfsOperStatusUPBeforeReboot)
+	t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+
+	rebootDeadline := time.Now().Add(linecardBoottime)
+	for retry := true; retry; {
+		t.Log("Waiting for 10 seconds before checking.")
+		time.Sleep(10 * time.Second)
+		if time.Now().After(rebootDeadline) {
+			retry = false
+			break
+		}
+		resp, err := gnoiClient.System().RebootStatus(context.Background(), &gnps.RebootStatusRequest{})
+		switch {
+		case status.Code(err) == codes.Unimplemented:
+			t.Fatalf("Unimplemented RebootStatus() is not fully compliant with the Reboot spec.")
+		case err == nil:
+			retry = resp.GetActive()
+		default:
+			// any other error just sleep.
+		}
+	}
+
+	t.Logf("Validate removable linecard %v status", removableLinecard)
+	gnmi.Await(t, dut, gnmi.OC().Component(removableLinecard).Removable().State(), linecardBoottime, true)
+
+	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeReboot, 10*time.Minute)
 
 	// Verification Section
 	authzPolicy := authz.NewAuthorizationPolicy()
