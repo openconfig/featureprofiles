@@ -476,6 +476,17 @@ func TestScalePolicyWithFailOver(t *testing.T) {
 	t.Skip()
 }
 
+// findProcessByName uses telemetry to collect and return the process information. It return nill if the process is not found.
+func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) *oc.System_Process {
+	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			t.Logf("Pid of daemon '%s' is '%d'", pName, proc.GetPid())
+			return proc
+		}
+	}
+	return nil
+}
 func TestHAEMSDProcessKill(t *testing.T) {
 	// Process Restart EMSD Test Case with Pre and Post Trigger Policy Verification
 
@@ -486,8 +497,24 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
 
 	// Trigger Section
+	// proc := findProcessByName(ctx, t, dut, pName)
+	// pid := uint32(proc.GetPid())
+	// pName := proc.GetName()
 	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: "emsd", Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
 	time.Sleep(30 * time.Second)
+	ctx := context.Background()
+	proc := findProcessByName(ctx, t, dut, "emsd")
+	newProc := findProcessByName(ctx, t, dut, "emsd")
+	if newProc == nil {
+		t.Logf("Retry to get the process emsd info after restart")
+		time.Sleep(30 * time.Second)
+		if newProc = findProcessByName(ctx, t, dut, "emsd"); newProc == nil {
+			t.Fatalf("Failed to start process emsd after failure")
+		}
+	}
+	if newProc.GetStartTime() <= proc.GetStartTime() {
+		t.Fatalf("The start time of process emsd is expected to be larger than %d, got %d ", proc.GetStartTime(), newProc.GetStartTime())
+	}
 	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
 
 	// Verification Section
