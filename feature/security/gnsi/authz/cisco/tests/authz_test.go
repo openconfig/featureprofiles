@@ -35,6 +35,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -546,7 +547,22 @@ func TestHAFailOverInSteadyState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 	}
-	time.Sleep(time.Minute * 20)
+	// time.Sleep(time.Minute * 20)
+	startReboot := time.Now()
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+	}
 
 	// Verification Section
 	authzPolicy := authz.NewAuthorizationPolicy()
