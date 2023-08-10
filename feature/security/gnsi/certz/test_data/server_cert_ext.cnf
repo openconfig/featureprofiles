@@ -1,0 +1,8 @@
+basicConstraints = CA:FALSE
+nsCertType = server
+nsComment = "Test Server Certificates - openconfig / featureprofiles"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName=DNS:role001.pop55.net.example.com,URI:spiffe://teamname.groupname.location.place.example.com/role/groupname-group
