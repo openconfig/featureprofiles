@@ -51,6 +51,8 @@ const (
 	ISISMetric = 100
 	// RouteCount for both BGP and ISIS
 	RouteCount = 200
+	// AdvertiseBGPRoutesv4 is the starting IPv4 address advertised by ATE Port 1.
+	AdvertiseBGPRoutesv4 = "203.0.113.1"
 
 	dutAreaAddress        = "49.0001"
 	dutSysID              = "1920.0000.2001"
@@ -58,7 +60,6 @@ const (
 	ateStartIPAddr        = "192.0.2.2"
 	plenIPv4              = 30
 	authPassword          = "ISISAuthPassword"
-	advertiseBGPRoutesv4  = "203.0.113.1"
 	advertiseISISRoutesv4 = "198.18.0.0"
 	setALLOWPolicy        = "ALLOW"
 )
@@ -149,15 +150,18 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 	// ISIS configs.
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
-	if !deviations.ISISprotocolEnabledNotRequired(dut) {
-		prot.Enabled = ygot.Bool(true)
-	}
+	prot.Enabled = ygot.Bool(true)
 	isis := prot.GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
+	globalISIS.Instance = ygot.String(ISISInstance)
+	if deviations.ISISInstanceEnabledNotRequired(dut) {
+		globalISIS.Instance = nil
+	}
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	if !deviations.ISISGlobalAuthenticationNotRequired(dut) {
-		globalISIS.AuthenticationCheck = ygot.Bool(true)
+	globalISIS.AuthenticationCheck = ygot.Bool(true)
+	if deviations.ISISGlobalAuthenticationNotRequired(dut) {
+		globalISIS.AuthenticationCheck = nil
 	}
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
@@ -165,6 +169,7 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	lspBit.SetBit = ygot.Bool(false)
 	isisTimers := globalISIS.GetOrCreateTimers()
 	isisTimers.LspLifetimeInterval = ygot.Uint16(600)
+	isisTimers.LspRefreshInterval = ygot.Uint16(250)
 	spfTimers := isisTimers.GetOrCreateSpf()
 	spfTimers.SpfHoldInterval = ygot.Uint64(5000)
 	spfTimers.SpfFirstInterval = ygot.Uint64(600)
@@ -224,15 +229,19 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-
-		isisIntfAuth := isisIntf.GetOrCreateAuthentication()
-		isisIntfAuth.Enabled = ygot.Bool(true)
-		isisIntfAuth.AuthPassword = ygot.String(authPassword)
-		isisIntfAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-		isisIntfAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+		isisIntfAfi := isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		isisIntfAfi.Enabled = ygot.Bool(true)
+		if deviations.ISISInterfaceAfiUnsupported(dut) {
+			isisIntf.Af = nil
+		}
 
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
+		isisIntfLevelAuth := isisIntfLevel.GetOrCreateHelloAuthentication()
+		isisIntfLevelAuth.Enabled = ygot.Bool(true)
+		isisIntfLevelAuth.AuthPassword = ygot.String(authPassword)
+		isisIntfLevelAuth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+		isisIntfLevelAuth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 
 		isisIntfLevelTimers := isisIntfLevel.GetOrCreateTimers()
 		isisIntfLevelTimers.HelloInterval = ygot.Uint32(1)
@@ -240,12 +249,11 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 
 		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
+		isisIntfLevelAfi.Enabled = ygot.Bool(true)
 
 		// Configure ISIS AfiSafi enable flag at the global level
 		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
-			isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-		} else {
-			isisIntfLevelAfi.Enabled = ygot.Bool(true)
+			isisIntfLevelAfi.Enabled = nil
 		}
 	}
 	p := gnmi.OC()
@@ -290,7 +298,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 			isisDut1 := iDut1.ISIS()
 			isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
 
-			netCIDR := fmt.Sprintf("%s/%d", advertiseBGPRoutesv4, 32)
+			netCIDR := fmt.Sprintf("%s/%d", AdvertiseBGPRoutesv4, 32)
 			bgpNeti1 := iDut1.AddNetwork("bgpNeti1")
 			bgpNeti1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
 			bgpNeti1.BGP().WithNextHopAddress(atePortAttr.IPv4)
