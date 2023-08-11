@@ -160,11 +160,15 @@ func TestP4RTPacketIO(t *testing.T) {
 	if !*ciscoFlags.PacketIOTests {
 		t.Skip()
 	}
-	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	// Dial gRIBI
 	ctx := context.Background()
+
+	dut := ondatra.DUT(t, "dut")
+	// Unconfigure previous p4rt configurations
+	unconfigureDeviceID(ctx, t, dut)
+	unconfigurePortID(ctx, t, dut)
+
+	configureDUT(t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
@@ -401,7 +405,7 @@ func setupP4RTClient(ctx context.Context, t *testing.T, args *testArgs) error {
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
 		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4_v1.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
@@ -467,7 +471,7 @@ func p4rtClientSetup(ctx context.Context, t *testing.T, client *p4rt_client.P4RT
 			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
 			Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 			Config: &p4_v1.ForwardingPipelineConfig{
-				P4Info: &p4Info,
+				P4Info: p4Info,
 				Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
 					Cookie: 159,
 				},

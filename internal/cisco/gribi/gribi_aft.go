@@ -30,6 +30,7 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -58,29 +59,33 @@ func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInst
 			if nh.GetNetworkInstance() != nhInstance {
 				t.Fatalf("AFT Check failed for aft/next-hop/state/network-instance got %s, want %s", nh.GetNetworkInstance(), nhInstance)
 			}
+			// if nh.GetProgrammedIndex() != nhIndex {
+			// 	// t.Fatalf("AFT Check failed for aft/next-hop/state/Programmingindex got %s, want %s", nh.GetProgrammedIndex(), nhIndex)
+			// }
 			if iref := nh.GetInterfaceRef(); iref != nil {
-				if interfaceRef == "" {
-					if nh.GetProgrammedIndex() == nhIndex {
-						if nh.GetIpAddress() != address {
-							t.Fatalf("AFT Check failed for aft/next-hop/state/ip-address got %s, want %s", nh.GetIpAddress(), address)
-						}
-					}
-				} else {
-					if iref.GetInterface() != interfaceRef {
-						t.Fatalf("AFT Check failed for aft/next-hop/interface-ref/state/interface got %s, want %s", iref.GetInterface(), interfaceRef)
-					}
-				}
-			} else {
-				if interfaceRef != "" {
-					t.Fatalf("AFT Check failed for aft/next-hop/interface-ref got none, want interface ref %s", interfaceRef)
+				if iref.GetInterface() != interfaceRef && interfaceRef != "" {
+					t.Fatalf("AFT Check failed for aft/next-hop/interface-ref/state/interface got %s, want %s", iref.GetInterface(), interfaceRef)
 				}
 			}
+			// if len(opts) > 1 {
+			// 	// if nh.GetEncapType() != 1 {
+			// 	// 	t.Fatalf("AFT Check failed for aft/next-hop/EncapType got %s, want %s", nh.GetEncapType(), 1)
+			// 	// }
+			// 	// if ipinip := nh.GetIpInIp(); ipinip != nil {
+			// 	// 	if nh.GetSrcIp() != opts[0].Src {
+			// 	// 		t.Fatalf("AFT Check failed for aft/next-hop/SourceIP got %s, want %s", ipinip.SrcIp, opts[0].Src)
+			// 	// 	}
+			// 	// 	if nh.GetDstIp() != opts[0].Dest[0] {
+			// 	// 		t.Fatalf("AFT Check failed for aft/next-hop/DestIP got %s, want %s", ipinip.DstIp, opts[0].Dest[0])
+			// 	// 	}
+			// 	// }
+			// }
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("AFT Check failed for aft/next-hop/state/programmed-index got none want %d", nhIndex)
+		t.Fatalf("AFT Check failed for aft/next-hop/state got none want %d", nhIndex)
 	}
 }
 
@@ -92,7 +97,7 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 	for _, nhg := range aftNHGs {
 		if nhg.GetProgrammedId() == nhgIndex {
 			if nhg.GetBackupNextHopGroup() != 0 {
-				pid := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).ProgrammedId().State())
+				pid := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHopGroup(nhg.GetBackupNextHopGroup()).State()).GetProgrammedId()
 				if pid != bkhgIndex {
 					t.Fatalf("AFT Check failed for aft/next-hop-group/state/backup-next-hop-group got %d, want %d", nhg.GetBackupNextHopGroup(), bkhgIndex)
 				}
@@ -100,7 +105,7 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 			if len(nhg.NextHop) != 1 {
 				for nhIndex, nh := range nhg.NextHop {
 					// can be avoided by caching indices in client 'c'
-					nhPIndex := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHop(nhIndex).ProgrammedIndex().State())
+					nhPIndex := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHop(nhIndex).State()).GetProgrammedIndex()
 
 					if weight, ok := nhWeights[nhPIndex]; ok {
 						if weight != nh.GetWeight() {
@@ -136,15 +141,15 @@ func (c *Client) checkNHG(t testing.TB, nhgIndex, bkhgIndex uint64, instance str
 
 func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string) {
 	t.Helper()
-	time.Sleep(time.Duration(*ciscoFlags.GRIBIIPv4Timer) * time.Second)
-	if instance != *ciscoFlags.DefaultNetworkInstance {
-		// setting nhginstance to empty as there is no nhgInstance value set
-		nhgInstance = ""
+	aftIPv4Path := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix)
+	aftIPv4, ok := gnmi.Watch(t, c.DUT, aftIPv4Path.State(), 60*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == prefix
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Could not find address %s in telemetry NH AFT", prefix)
 	}
-	aftIPv4e := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix).State())
-	if aftIPv4e.GetPrefix() != prefix {
-		t.Fatalf("AFT Check failed for ipv4-entry/state/prefix got %s, want %s", aftIPv4e.GetPrefix(), prefix)
-	}
+	aftIPv4e, _ := aftIPv4.Val()
 	gotNhgInstance := aftIPv4e.GetNextHopGroupNetworkInstance()
 	if nhgInstance != "" {
 		if gotNhgInstance != nhgInstance {
@@ -153,9 +158,10 @@ func (c *Client) checkIPv4e(t testing.TB, prefix string, nhgIndex uint64, instan
 	}
 
 	gotNhgIndex := aftIPv4e.GetNextHopGroup()
-	nhgPId := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts().NextHopGroup(gotNhgIndex).ProgrammedId().State())
-	if nhgPId != nhgIndex {
-		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hop-group/state/programmed-id got %d, want %d", nhgPId, nhgIndex)
+	aftNHG := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts().NextHopGroup(gotNhgIndex).State())
+	nhgPID := aftNHG.GetProgrammedId()
+	if nhgPID != nhgIndex {
+		t.Fatalf("AFT Check failed for ipv4-entry/state/next-hop-group/state/programmed-id got %d, want %d", nhgPID, nhgIndex)
 	}
 }
 

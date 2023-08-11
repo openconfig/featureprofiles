@@ -24,23 +24,20 @@ import (
 )
 
 var (
-	client_ssh_dir  = fmt.Sprintf("%s/.ssh/", os.Getenv("HOME"))
-	remote_dir      = fmt.Sprintf("%s/", os.Getenv("HOME"))
-	client_ca_dir   = client_ssh_dir
-	hostname, _     = os.Hostname()
-	sztpServer      = "dev-mgbl-lnx6"
-	dhcpServer      = "dev-mgbl-lnx2"
-	sztpServerIP    = "5.38.4.124"
-	dhcpServerIP    = "5.38.4.249"
-	sjcDhcpServer   = "sj21-pxe-01"
-	sjcSztpServer   = "sj21-lnx-03"
-	sjcSztpServerIP = "1.1.1.103"
-	sjcDhcpServerIP = "1.1.7.6"
-	usernameServer  = "root"
-	passwordServer  = "Bgl11lab@123"
-	sjcDhcpPassword = "C1sco123"
-	sjcSztpPassword = "roZes@123"
+	client_ssh_dir = fmt.Sprintf("%s/.ssh/", os.Getenv("HOME"))
+	remote_dir     = fmt.Sprintf("%s/", os.Getenv("HOME"))
+	client_ca_dir  = client_ssh_dir
+	hostname, _    = os.Hostname()
+	usernameServer = "root"
 )
+
+type ServerDetails struct {
+	dhcpServerIP, dhcpServer, sztpServerIP, sztpServer, dhcpPassword, sztpPassword string
+}
+
+var sjcServerDetails = ServerDetails{dhcpServerIP: "1.1.7.6", dhcpServer: "sj21-pxe-01", sztpServerIP: "1.1.1.103", sztpServer: "sj21-lnx-03", dhcpPassword: "QzFzY28xMjM=", sztpPassword: "cm9aZXNAMTIz"}
+var bglServerDetails = ServerDetails{dhcpServerIP: "5.38.4.249", dhcpServer: "dev-mgbl-lnx2", sztpServerIP: "5.38.4.124", sztpServer: "dev-mgbl-lnx6", dhcpPassword: "QmdsMTFsYWJAMTIz", sztpPassword: "QmdsMTFsYWJAMTIz"}
+
 var bootVersion string
 var (
 	sshIP     = flag.String("ssh_ip", "", "External IP address of management interface.")
@@ -293,8 +290,14 @@ func TestSZTP(t *testing.T) {
 		t.Skip()
 	}
 	remove_known_hosts(t)
-	dhcpServerConn := connect_remote_server(t, usernameServer, passwordServer, dhcpServer)
-	sztpServerConn := connect_remote_server(t, usernameServer, passwordServer, sztpServer)
+	serverDetails := bglServerDetails
+	if *sjcSetup == true {
+		serverDetails = sjcServerDetails
+	}
+	dhcpPassword := decodebase64(serverDetails.dhcpPassword)
+	sztpPassword := decodebase64(serverDetails.sztpPassword)
+	dhcpServerConn := connect_remote_server(t, usernameServer, dhcpPassword, serverDetails.dhcpServer)
+	sztpServerConn := connect_remote_server(t, usernameServer, sztpPassword, serverDetails.sztpServer)
 	defer dhcpServerConn.Close()
 	defer sztpServerConn.Close()
 
@@ -302,13 +305,13 @@ func TestSZTP(t *testing.T) {
 	create_backup_dhcpd_file(t, dhcpServerConn)
 
 	t.Logf("Create dhcp entry and start dhcp service")
-	create_dhcpd_setup(t, dhcpServerConn, sztpServerIP, dut, false)
+	create_dhcpd_setup(t, dhcpServerConn, serverDetails.sztpServerIP, dut, false, serverDetails.sztpServerIP)
 
 	t.Logf("Revert the dhcpd.conf back ")
 	defer restore_backup_dhcpd_file(t, dhcpServerConn, backupFile)
 	t.Run("ZTP initiate dhcp4 management noprompt", func(t *testing.T) {
 		t.Logf("Version Check ")
-		version_check(t, dut, sztpServerConn, dhcpServerConn, false, false)
+		version_check(t, dut, sztpServerConn, dhcpServerConn, false, false, serverDetails.dhcpServerIP)
 
 		t.Log("Start sztp server ")
 		start_sztp_server(t, sztpServerConn)
@@ -320,7 +323,7 @@ func TestSZTP(t *testing.T) {
 	t.Run("Image upgrade/downgrade ", func(t *testing.T) {
 		if *imagePath != "" {
 			t.Logf("Version Check ")
-			version_check(t, dut, sztpServerConn, dhcpServerConn, true, false)
+			version_check(t, dut, sztpServerConn, dhcpServerConn, true, false, serverDetails.dhcpServerIP)
 
 			t.Log("Start sztp server ")
 			start_sztp_server(t, sztpServerConn)
@@ -335,19 +338,19 @@ func TestSZTP(t *testing.T) {
 func TestBootz(t *testing.T) {
 	remove_known_hosts(t)
 	dut := ondatra.DUT(t, "dut")
-	dhcpPassword := passwordServer
-	sztpPassword := passwordServer
+
+	var serverDetails = bglServerDetails
 	if *sjcSetup == true {
-		dhcpServer = sjcDhcpServer
-		sztpServer = sjcSztpServer
-		dhcpPassword = sjcDhcpPassword
-		sztpPassword = sjcSztpPassword
-		dhcpServerIP = sjcDhcpServerIP
+		serverDetails = sjcServerDetails
 	}
+	dhcpPassword := decodebase64(serverDetails.dhcpPassword)
+	sztpPassword := decodebase64(serverDetails.sztpPassword)
+	t.Logf("dhcp password %v and sztp Password : %v ", dhcpPassword, sztpPassword)
+
 	t.Logf("Connect to dhcp server")
-	dhcpServerConn := connect_remote_server(t, usernameServer, dhcpPassword, dhcpServer)
+	dhcpServerConn := connect_remote_server(t, usernameServer, dhcpPassword, serverDetails.dhcpServer)
 	t.Logf("Connect to bootz server")
-	bootzServerConn := connect_remote_server(t, usernameServer, sztpPassword, sztpServer)
+	bootzServerConn := connect_remote_server(t, usernameServer, sztpPassword, serverDetails.sztpServer)
 
 	defer dhcpServerConn.Close()
 	defer bootzServerConn.Close()
@@ -356,7 +359,7 @@ func TestBootz(t *testing.T) {
 	create_backup_dhcpd_file(t, dhcpServerConn)
 
 	t.Logf("Create dhcp entry and start dhcp service")
-	create_dhcpd_setup(t, dhcpServerConn, dhcpServerIP, dut, true)
+	create_dhcpd_setup(t, dhcpServerConn, serverDetails.dhcpServerIP, dut, true, serverDetails.sztpServerIP)
 
 	t.Logf("Revert the dhcpd.conf back ")
 	defer restore_backup_dhcpd_file(t, dhcpServerConn, backupFile)
@@ -379,7 +382,7 @@ func TestBootz(t *testing.T) {
 		}
 		t.Logf("Show device encryption status: %v", encrypt)
 		t.Logf("Version Check ")
-		version_check(t, dut, bootzServerConn, dhcpServerConn, false, true)
+		version_check(t, dut, bootzServerConn, dhcpServerConn, false, true, serverDetails.dhcpServerIP)
 
 		start_bootz_server(t, bootzServerConn, dut)
 		defer stop_bootz_server(t, bootzServerConn)
@@ -406,7 +409,7 @@ func TestBootz(t *testing.T) {
 		}
 		t.Logf("Show device encryption status: %v", encrypt)
 		t.Logf("Version Check ")
-		version_check(t, dut, bootzServerConn, dhcpServerConn, false, true)
+		version_check(t, dut, bootzServerConn, dhcpServerConn, false, true, serverDetails.dhcpServerIP)
 		start_bootz_server(t, bootzServerConn, dut)
 		defer stop_bootz_server(t, bootzServerConn)
 		t.Logf("Version %v ", bootVersion)
@@ -419,7 +422,7 @@ func TestBootz(t *testing.T) {
 		if *sjcSetup == true {
 			t.Logf("Version Check ")
 			rpSwitchOver(t, dut)
-			version_check(t, dut, bootzServerConn, dhcpServerConn, false, true)
+			version_check(t, dut, bootzServerConn, dhcpServerConn, false, true, serverDetails.dhcpServerIP)
 
 			start_bootz_server(t, bootzServerConn, dut)
 			defer stop_bootz_server(t, bootzServerConn)
@@ -433,7 +436,7 @@ func TestBootz(t *testing.T) {
 	})
 	t.Run("ZTP initiate dhcp4 management noprompt with image upgrade", func(t *testing.T) {
 		t.Logf("Version Check ")
-		version_check(t, dut, bootzServerConn, dhcpServerConn, true, true)
+		version_check(t, dut, bootzServerConn, dhcpServerConn, true, true, serverDetails.dhcpServerIP)
 
 		start_bootz_server(t, bootzServerConn, dut)
 		defer stop_bootz_server(t, bootzServerConn)
