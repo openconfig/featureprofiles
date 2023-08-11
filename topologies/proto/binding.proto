@@ -146,4 +146,7 @@ message Port {
 
   // The actual port name to be used for the binding.
   string name = 2;
+
+  // Speed of the port.
+  ondatra.Port.Speed speed = 3;
 }
