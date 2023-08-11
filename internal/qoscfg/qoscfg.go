@@ -32,6 +32,16 @@ func SetForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, group
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 }
 
+func SetForwardingGroupWithFabricPriority(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, groupName, queueName string, fabricPriority uint8) {
+	t.Helper()
+
+	fwdGroup := qos.GetOrCreateForwardingGroup(groupName)
+	fwdGroup.SetOutputQueue(queueName)
+	fwdGroup.SetFabricPriority(uint8(fabricPriority))
+	qos.GetOrCreateQueue(queueName)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+}
+
 // SetInputClassifier sets an input classifier in the specified QoS config.
 func SetInputClassifier(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, intfID string, classType oc.E_Input_Classifier_Type, className string) {
 	t.Helper()
