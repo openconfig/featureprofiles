@@ -76,7 +76,7 @@ message Metadata {
     // Set isis af ipv6 single topology on the device if value is true.
     bool isis_single_topology_required = 8;
     // Don't set isis instance enable flag on the device if value is true.
-    bool isis_instance_enabled_not_required = 10;
+    bool isis_instance_enabled_required = 10;
     // Set and validate isis interface address family enable on the device if
     // value is true.
     bool missing_isis_interface_afi_safi_enable = 11;
@@ -287,7 +287,6 @@ message Metadata {
     bool bgp_set_med_requires_equal_ospf_set_metric = 92;
     // Creates a user and assigns role/rbac to said user via native model.
     bool set_native_user = 93;
-
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
   }

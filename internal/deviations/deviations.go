@@ -78,7 +78,7 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 
 		// If software_version_regex is set and does not match, continue
 		if softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex(); softwareVersionRegex != "" {
-			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dut.Device.Model())
+			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dut.Device.Version())
 			if errSw != nil {
 				return nil, fmt.Errorf("error with regex match %v", errSw)
 			}
@@ -413,9 +413,9 @@ func ExplicitIPv6EnableForGRIBI(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6EnableForGribiNhDmac()
 }
 
-// ISISInstanceEnabledNotRequired returns if isis instance enable flag should not be on the device.
-func ISISInstanceEnabledNotRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisInstanceEnabledNotRequired()
+// ISISInstanceEnabledRequired returns if isis instance name string should be set on the device.
+func ISISInstanceEnabledRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisInstanceEnabledRequired()
 }
 
 // GNOISubcomponentPath returns if device currently uses component name instead of a full openconfig path.
