@@ -5,23 +5,23 @@
 
  ## Summary
 
- *   Validate of interface based GRE tunnel end point reduction and increment test with load balaning.
+ *    Tunnel End Point Resize - Interface Based GRE Tunnel
 
  ## Procedure
 
- *   Configure DUT with 8 GRE encapsulation tunnels and configure another router with 8 GRE Decapsulation tunnel interfaces.
- *   Configure 4 tunnel as IPv4 tunnel source and destination address , 4 as IPv6 tunnel source and destination address
- *   Configure static router to point original destination to 8 tunnel interface to do overlay loadbalance
- *   Keep topology tunnel destination will be reachable via 2 underlay interface on both routers
+ *   Configure DUT with 16 GRE encapsulation tunnels and configure another router with 12 GRE Decapsulation tunnel interfaces.
+ *   Configure 8 tunnel as IPv4 tunnel source and destination address , 8 as IPv6 tunnel source and destination address
+ *   Configure static router to point original destination to 16 tunnel interface to do overlay loadbalance
+ *   Keep topology tunnel destination will be reachable via two underlay interface on both routers
  *   Send IPv4 flow and IPv6 flow and validate tunnel load balance and physical interface load balance
- *   resize the tunnel fro 8 to 4 and verify the load balance and traffic drop by removing static route to point tunnel interface.
- *   Again resize the tunnel fro 4 to 8 and verify the load balance and traffic drop
+ *   resize the tunnel fro 16 to 12 and verify the load balance and traffic drop by removing static route to point tunnel interface.
+ *   Again resize the tunnel fro 12 to 16 and verify the load balance and traffic drop
 
  ## Config Parameter coverage
 
- *   openconfig-interfaces:interfaces/interface[name='fti0']
- *   openconfig-interfaces:interfaces/interface[name='fti0']/tunnel/
- *   openconfig-interfaces:interfaces/interface[name='fti0']/tunnel/gre
+ *   openconfig-interfaces:interfaces/interface
+ *   openconfig-interfaces:interfaces/interface/tunnel/
+ *   openconfig-interfaces:interfaces/interface/tunnel/gre
 
  ## Telemetry Parameter coverage
 
