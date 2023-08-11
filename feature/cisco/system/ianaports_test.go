@@ -87,8 +87,8 @@ func TestIanaPorts(t *testing.T) {
 
 	t.Run("Assign a GNMI / GRIBI / P4RT Default Ports", func(t *testing.T) {
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gnmi port 9339 \n commit \n", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gnmi port 9340 \n commit \n", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gnmi port 9559 \n commit \n", 10*time.Second)
+		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gribi port 9340 \n commit \n", 10*time.Second)
+		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc p4rt port 9559 \n commit \n", 10*time.Second)
 
 		// Verifications
 		config.TextWithGNMI(context.Background(), t, dut, "vty-pool default 0 99 line-template default")
