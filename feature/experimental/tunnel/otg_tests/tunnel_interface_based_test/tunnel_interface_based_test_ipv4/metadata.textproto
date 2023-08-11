@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "279bd41d-dbe7-4b6c-8ec1-08fb12b7f7b0"
+plan_id: "TUN-1.3"
+description: "Interface based GRE Config validation"
+testbed: TESTBED_DUT_ATE_4LINKS
