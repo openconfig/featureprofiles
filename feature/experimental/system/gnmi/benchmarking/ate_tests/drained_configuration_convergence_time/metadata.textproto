@@ -10,7 +10,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    isis_instance_enabled_not_required: true
     missing_isis_interface_afi_safi_enable: true
   }
 }
@@ -21,7 +20,6 @@ platform_exceptions: {
   deviations: {
     isis_global_authentication_not_required: true
     isis_explicit_level_authentication_config: true
-    isis_instance_enabled_not_required: true
     missing_isis_interface_afi_safi_enable: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
@@ -49,5 +47,6 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true
     isis_require_same_l1_metric_with_l2_metric: true
     bgp_set_med_requires_equal_ospf_set_metric: true
+    isis_instance_enabled_required: true      
   }
 }
