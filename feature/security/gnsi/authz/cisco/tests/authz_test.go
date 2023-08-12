@@ -502,17 +502,26 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
 
 	// Trigger Section
-	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: "emsd", Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
-	time.Sleep(30 * time.Second)
+	pName := "emsd"
 	ctx := context.Background()
-	proc := findProcessByName(ctx, t, dut, "emsd")
-	newProc := findProcessByName(ctx, t, dut, "emsd")
+	proc := findProcessByName(ctx, t, dut, pName)
+	pid := uint32(proc.GetPid())
+	newProc := findProcessByName(ctx, t, dut, pName)
+	killResponse, err := dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: pName, Pid: pid, Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
+	t.Logf("Got kill process response: %v\n\n", killResponse)
+	if err == nil {
+		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
+	}
+	time.Sleep(30 * time.Second)
 	if newProc == nil {
 		t.Logf("Retry to get the process emsd info after restart")
 		time.Sleep(30 * time.Second)
 		if newProc = findProcessByName(ctx, t, dut, "emsd"); newProc == nil {
 			t.Fatalf("Failed to start process emsd after failure")
 		}
+	}
+	if newProc.GetPid() == proc.GetPid() {
+		t.Fatalf("The process id of %s is expected to be changed after the restart", pName)
 	}
 	if newProc.GetStartTime() <= proc.GetStartTime() {
 		t.Fatalf("The start time of process emsd is expected to be larger than %d, got %d ", proc.GetStartTime(), newProc.GetStartTime())
