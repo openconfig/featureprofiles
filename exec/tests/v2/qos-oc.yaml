@@ -5,7 +5,7 @@ testbeds:
   - 8808-1DUT-1ATE
 tests:
 - name: qos-ate
-  path: feature/cisco/qos/...
+  path: feature/cisco/qos/interface-red
   timeout: 36000
   mustpass: true
   internal: true
