@@ -13,8 +13,8 @@ Procedure:
     - ATE port 1 is used for IBGP connection between the Loopback address of the DUT and the IS-IS learnt address behind ATE:Port1. Please ensure that the ATE has BGP listening on a different TCP port than 179 (example: 1800) AND BGP session on ATE is configured as *passive*
     - The DUT has eBGP peering with ATE port 2 and is receiving IPv4/6 routes. Here too for EBGP, ensure that ATE is using a different transport than default 179 (example: 1800).
   - Validate session and transport states on ATE and DUT ports using telemetry.
-    - As part of the validation, we should ensure that the values for the leaves "neighbors/neighbor/state/neighbor-port" and "neighbors/neighbor/transport/state/remote-port" are as configured above
-    - Ensure that the remote address derived from the leaves, "neighbors/neighbor/state/neighbor-address" and "neighbor/transport/state/remote-address" are as configured for the neighbors
+    - As part of the validation, we should ensure that the values for the leaves "neighbors/neighbor/state/neighbor-port" and "neighbors/neighbor/transport/state/remote-port" are as configured above and none are "179"
+    - Ensure that the remote address derived from the leaves, "neighbors/neighbor/state/neighbor-address" and "neighbor/transport/state/remote-address" are as configured for the neighbors and not 179.
   - Validate session state and capabilities received on DUT using telemetry.
   - Validate the BGP route/path and corresponding attributes for v4 and v6 prefixes
     - NH
