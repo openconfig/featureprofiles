@@ -10,7 +10,7 @@ ATE (Port1) <-IBGP-> (Port1) DUT (Port2) <-EBGP-> (Port2) ATE
 Procedure:
   - Establish IS-IS adjacency between ATE Port1 and DUT Port1. 
   - Establish BGP sessions as follows between ATE and DUT . 
-    - ATE port 1 is used for IBGP connection between the Loopback address of the DUT and the IS-IS learnt address behind ATE:Port1. Please ensure that the ATE has BGP listening on a different TCP port than 179 (example: 1800)
+    - ATE port 1 is used for IBGP connection between the Loopback address of the DUT and the IS-IS learnt address behind ATE:Port1. Please ensure that the ATE has BGP listening on a different TCP port than 179 (example: 1800) AND BGP session on ATE is configured as *passive*
     - The DUT has eBGP peering with ATE port 2 and is receiving IPv4/6 routes. Here too for EBGP, ensure that ATE is using a different transport than default 179 (example: 1800).
   - Validate session and transport states on ATE and DUT ports using telemetry.
     - As part of the validation, we should ensure that the values for the leaves "neighbors/neighbor/state/neighbor-port" and "neighbors/neighbor/transport/state/remote-port" are as configured above
