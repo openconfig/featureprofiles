@@ -12,9 +12,7 @@ Procedure:
   - Establish IS-IS adjacency between ATE Port2 <-> DUT Port2, ATE Port3 <-> DUT Port3. 
   - Establish BGP sessions as follows between ATE and DUT . 
     - ATE port 2 and ATE port3 are emulating RR clients peered with the DUT acting as the RR server. DUT's loopback address should be used for the IBGP peering and 
-      "transport/config/local-address" OC path should be used on DUT to configure BGP transport address for IBGP peering. ATE addresses used for the IBGP peering (different from ATE Port1 and ATE Port2 addreses) and DUT 
-      loopback addresses should be reachable via IS-IS. Each of the IBGP peering should advertise 5M IPv4 and 2M IPv6 prefixes. Among these, 2M v4 and 1M v6 prefixes are unique. 
-      Among the 2M v4 prefixes as well, 1.5M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.
+      "transport/config/local-address" OC path should be used on DUT to configure BGP transport address for IBGP peering. ATE addresses used for the IBGP peering (different from ATE Port1 and ATE Port2 addreses) and DUT loopback addresses should be reachable via IS-IS. Each of the IBGP peering should advertise 5M IPv4 and 2M IPv6 prefixes. Among these, 2M v4 and 1M v6 prefixes are unique. Among the 2M v4 prefixes as well, 1.5M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.
     - The DUT Port1 has eBGP peering with ATE Port 1 and is receiving 10M IPv4 and 3M IPv6 routes. These simulate Internet routes. Out of these, only 1.5M v4 and 600k IPv6 prefixes are unique and will be programmed to the FIB. 
       The DUT should automatically determine the BGP transport source address based on the nearest interface. Hence, the OC path "transport/config/local-address" shouldnt be used.
   - Validate session state on ATE ports and DUT using telemetry.
