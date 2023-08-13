@@ -1,4 +1,4 @@
-# RT-1.8: BGP RouteReflector Test
+# RT-1.8: BGP Route Reflector Test
 ## Summary
 *   BGP route reflector capabilities check
 *   Ensure functionality of different OC paths for "supported-capabilities", "BGP peer-type", "BGP Neighbor details" and "BGP transport session parameters"
