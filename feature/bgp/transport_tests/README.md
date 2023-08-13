@@ -1,13 +1,15 @@
-Summary: 
+# RT-1.9: BGP Transport Parameters test
+
+## Summary
  - Validate the ability to configure a different TCP port than the default 179 for a remote peer. This should be tested for a EBGP as well as IBGP neighborship
  - Ensure that state information on configured transport parameters can be accurately derived.
 
-Topology:
+## Topology
 ATE (Port1) <-IBGP-> (Port1) DUT (Port2) <-EBGP-> (Port2) ATE
   - Connect ATE Port1 to DUT port1
   - Connect ATE Port2 to DUT port2
 
-Procedure:
+## Procedure
   - Establish IS-IS adjacency between ATE Port1 and DUT Port1. 
   - Establish BGP sessions as follows between ATE and DUT . 
     - ATE port 1 is used for IBGP connection between the Loopback address of the DUT and the IS-IS learnt address behind ATE:Port1. Please ensure that the ATE has BGP listening on a different TCP port than 179 (example: 1800) AND BGP session on ATE is configured as *passive*
@@ -28,11 +30,11 @@ Procedure:
     - last-notification-time, last-notification-error-code, last-notification-error-subcode in the received container
     - neighbors/neighbor/transport/state/remote-port, neighbors/neighbor/transport/state/remote-address, neighbors/neighbor/state/neighbor-address, neighbors/neighbor/state/neighbor-port
 
-Config Parameter coverage:
+## Config Parameter Coverage
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-port
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled
 
-Telemetry Parameter coverage
+## Telemetry Parameter Coverage
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-port
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-address
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/remote-port
