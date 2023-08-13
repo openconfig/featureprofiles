@@ -17,13 +17,13 @@ ATE (Port1) <-EBGP-> (Port1) DUT (Port2) <-IS-IS/IBGP-> (Port2) ATE, DUT (Port3)
 *   The DUT should automatically determine the BGP transport source address based on the nearest interface. Hence, the OC path "transport/config/local-address" shouldnt be used.
 *   Validate session state on ATE ports and DUT using telemetry.
   *   The check should also include accurately receiving values for the path "transport/state/local-address" for RRCs as well as for the EBGP peering.
- *   Validate accuracy of the peer-type leaf (neighbor/config/peer-type) for EBGP and IBGP peering.
- *   Validate session state and capabilities received on DUT using telemetry.
- *   Validate route receipt.
+  *   Validate accuracy of the peer-type leaf (neighbor/config/peer-type) for EBGP and IBGP peering.
+*   Validate session state and capabilities received on DUT using telemetry.
+*   Validate route receipt.
   *   Ensure that the DUT advertises all the IBGP learnt routes to the EBGP peer
   *   Ensure that the DUT advertises all the EBGP learnt routes to the IBGP peers
   *   Ensure that the DUT as RR server advertises routes learnt from each of the RRC to the other
- *   Validate BGP route/path attributes below for each of the EBGP and IBGP learnt routes
+*   Validate BGP route/path attributes below for each of the EBGP and IBGP learnt routes
    *   Next-Hop
    *   Local Pref
    *   Communities
