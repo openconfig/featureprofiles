@@ -299,7 +299,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 			lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(int32(i) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 		}
 	}
-	dstDev := tc.top.Devices().Add().SetName(agg.Name())
+	dstDev := tc.top.Devices().Add().SetName(agg.Name() + ".dev")
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
