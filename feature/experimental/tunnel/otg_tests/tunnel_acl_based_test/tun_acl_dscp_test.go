@@ -48,12 +48,12 @@ func TestMain(m *testing.M) {
 //	ate:port1 -> dut:port1 and
 //	dut:port2 -> ate:port2
 //
-//	* ate:port1 -> dut:port1 subnet 192.0.1.2/30
+//	* ate:port1 -> dut:port1 subnet 192.0.2.2/30
 //	* ate:port2 -> dut:port2 subnet 192.0.2.6/30
 //
 //	* Traffic is sent from 192.0.2.2(ate:port1) to 192.0.2.6(ate:port2).
 //	  Dut Interfaces are configured as mentioned below:
-//	  dut:port1 -> 192.0.1.1
+//	  dut:port1 -> 192.0.2.1
 //	  dut:port2 -> 192.0.2.5
 //	  Verify the DSCP value in the packet capture.
 //	  TOS Caluculation:
@@ -67,17 +67,17 @@ const (
 	FrameSize         = 512
 	aclName           = "f1"
 	termName          = "t1"
-	EncapSrcMatch     = "192.0.1.2"
+	EncapSrcMatch     = "192.0.2.2"
 	EncapDstMatch     = "192.0.2.6"
 	count             = "GreFilterCount"
 	greTunnelEndpoint = "TunnelEncapIpv4"
-	greSrcAddr        = "50.0.0.1"
-	greDstAddr        = "60.0.0.0/32"
+	greSrcAddr        = "198.51.100.1"
+	greDstAddr        = "203.0.113.1/32"
 	dscp              = 8
 	CorrespondingTOS  = 32
 	GreProtocol       = 47
 	Tunnelaction      = "TunnelEncapIpv4"
-	plenIPv4          = 24
+	plenIPv4          = 30
 	tolerance         = 50
 	lossTolerance     = 2
 	prefix            = "0.0.0.0/0"
@@ -87,13 +87,13 @@ const (
 var (
 	dutSrc = attrs.Attributes{
 		Desc:    "DUT to ATE source",
-		IPv4:    "192.0.1.1",
+		IPv4:    "192.0.2.1",
 		IPv4Len: plenIPv4,
 	}
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
 		MAC:     "02:00:01:01:01:01",
-		IPv4:    "192.0.1.2",
+		IPv4:    "192.0.2.2",
 		IPv4Len: plenIPv4,
 	}
 	dutDst = attrs.Attributes{
