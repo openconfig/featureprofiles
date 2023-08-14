@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/entity-naming/entname"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -146,17 +145,6 @@ func TestOneSPQueueTraffic(t *testing.T) {
 
 	queues := netutil.CommonTrafficQueues(t, dut)
 
-	if dut.Vendor() == ondatra.NOKIA {
-		queues = &entname.CommonTrafficQueueNames{
-			NC1: "NC1",
-			AF4: "AF4",
-			AF3: "AF3",
-			AF2: "AF2",
-			AF1: "AF1",
-			BE1: "BE1",
-			BE0: "BE0",
-		}
-	}
 	if dut.Vendor() == ondatra.JUNIPER {
 		queues.AF4 = "5"
 	}
@@ -820,17 +808,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
 
-	if dut.Vendor() == ondatra.NOKIA {
-		queues = &entname.CommonTrafficQueueNames{
-			NC1: "NC1",
-			AF4: "AF4",
-			AF3: "AF3",
-			AF2: "AF2",
-			AF1: "AF1",
-			BE1: "BE1",
-			BE0: "BE0",
-		}
-	}
 	if dut.Vendor() == ondatra.JUNIPER {
 		queues.AF4 = "5"
 	}
