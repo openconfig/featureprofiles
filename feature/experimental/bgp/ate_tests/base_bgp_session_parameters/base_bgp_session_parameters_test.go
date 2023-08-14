@@ -326,9 +326,13 @@ func TestEstablishAndDisconnect(t *testing.T) {
 
 	// Verify if Cease notification is received on DUT.
 	t.Log("Verify Error code received on DUT: BgpTypes_BGP_ERROR_CODE_CEASE")
-	code := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())
-	if code != oc.BgpTypes_BGP_ERROR_CODE_CEASE {
-		t.Errorf("On disconnect: expected error code %v, got %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE, code)
+	_, codeok := gnmi.Watch(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State(), 10*time.Second, func(val *ygnmi.Value[oc.E_BgpTypes_BGP_ERROR_CODE]) bool {
+		code, present := val.Val()
+		t.Logf("On disconnect, received code status %v", present)
+		return present && code == oc.BgpTypes_BGP_ERROR_CODE_CEASE
+	}).Await(t)
+	if !codeok {
+		t.Errorf("On disconnect: expected error code %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE)
 	}
 
 	// Clear config on DUT and ATE

@@ -253,7 +253,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 		port := sortPorts(args.ate.Ports())[0].ID()
 		counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 
-		packets, err := newPacketOut(portID, false)
+		packets, err := newPacketOut(portID)
 		if err != nil {
 			t.Fatalf("Unexpected error creating packet out packets: %v", err)
 		}
@@ -282,7 +282,7 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 				streamName, qSize, qSizeRead)
 		}
 		// Create the flows for Packetin.
-		flows := newTrafficFlow(args, args.ate, dstMac)
+		flows := newTrafficFlow(args.ate, dstMac)
 		pktIn := 0
 		// Run Packetin and packetout traffic in parallel.
 		var wg sync.WaitGroup
@@ -366,9 +366,11 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 									if string(data.GetValue()) != portData {
 										t.Fatalf("Egress Port Id is not matching expectation for GDP.")
 									}
-									gdpIncount++
+								default:
+									t.Fatalf("Missing packet metadata for GDP PacketIn")
 								}
 							}
+							gdpIncount++
 						}
 					}
 				}
@@ -386,9 +388,11 @@ func testPktInPktOut(t *testing.T, args *testArgs) {
 									if string(data.GetValue()) != portData {
 										t.Fatalf("Egress Port Id is not matching expectation for LLDP.")
 									}
-									lldpIncount++
+								default:
+									t.Fatalf("Missing Packet metadata for LLDP PacketIn")
 								}
 							}
+							lldpIncount++
 						}
 					}
 				}
@@ -723,19 +727,6 @@ func packetTracerouteRequestGet(ttl uint8, seq int) ([]byte, error) {
 		TypeCode: layers.CreateICMPv4TypeCode(layers.ICMPv4TypeEchoRequest, 0),
 		Seq:      uint16(seq),
 	}
-
-	pktIpv6 := &layers.IPv6{
-		Version:    6,
-		HopLimit:   ttl,
-		NextHeader: layers.IPProtocolICMPv6,
-		SrcIP:      net.ParseIP(dutPort1.IPv6).To16(),
-		DstIP:      net.ParseIP(atePort1.IPv6).To16(),
-	}
-	pktICMP6 := &layers.ICMPv6{
-		TypeCode: layers.CreateICMPv6TypeCode(layers.ICMPv6TypeEchoRequest, 0),
-	}
-	pktICMP6.SetNetworkLayerForChecksum(pktIpv6)
-
 	for i := 0; i < payLoadLen; i++ {
 		payload = append(payload, byte(i))
 	}
@@ -817,7 +808,7 @@ func newTableEntry(actionType p4v1pb.Update_Type) []*p4rtutils.ACLWbbIngressTabl
 }
 
 // newPacketOut generates 3 PacketOut messages with payload as GDP, LLDP and, traceroute.
-func newPacketOut(portID uint32, submitIngress bool) ([]*p4v1pb.PacketOut, error) {
+func newPacketOut(portID uint32) ([]*p4v1pb.PacketOut, error) {
 	p, err := packetGDPRequestGet()
 	if err != nil {
 		return nil, err
@@ -872,7 +863,7 @@ func newPacketOut(portID uint32, submitIngress bool) ([]*p4v1pb.PacketOut, error
 }
 
 // newTrafficFlow generates ATE traffic flows for LLDP.
-func newTrafficFlow(args *testArgs, ate *ondatra.ATEDevice, dstMac string) []gosnappi.Flow {
+func newTrafficFlow(ate *ondatra.ATEDevice, dstMac string) []gosnappi.Flow {
 
 	// flow1 for LLDP traffic.
 	flow1 := gosnappi.NewFlow()

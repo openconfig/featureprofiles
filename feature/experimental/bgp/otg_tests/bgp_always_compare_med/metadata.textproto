@@ -1,19 +1,16 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "58c13a5a-d3b3-4a2c-98a7-0404596ee8ea"
-plan_id: "gNMI-1.10"
-description: "Telemetry: Basic Check"
-testbed: TESTBED_DUT_ATE_2LINKS
+uuid:  "4e512503-5fec-4dcf-87f4-f510dede1cd0"
+plan_id:  "RT-1.12"
+description:  "BGP always compare MED"
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
     ipv4_missing_enabled: true
-    missing_interface_physical_channel: true
-    interface_counters_from_container: true
-    sw_version_unsupported: true
   }
 }
 platform_exceptions: {
@@ -21,10 +18,7 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    interface_counters_from_container: true
-    explicit_p4rt_node_component: true
-    explicit_port_speed: true
-    explicit_interface_in_default_vrf: true
+    route_policy_under_afi_unsupported: true
     interface_enabled: true
   }
 }
@@ -33,8 +27,7 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    sw_version_unsupported: true
-    qos_dropped_octets: true
+    route_policy_under_afi_unsupported: true
   }
 }
 platform_exceptions: {
@@ -42,6 +35,8 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    omit_l2_mtu: true
+    route_policy_under_afi_unsupported: true
     interface_enabled: true
     default_network_instance: "default"
   }

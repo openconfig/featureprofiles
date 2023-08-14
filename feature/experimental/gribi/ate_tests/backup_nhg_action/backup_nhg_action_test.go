@@ -412,9 +412,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	t.Run("ValidateDecapPath", func(t *testing.T) {
 		t.Log("Validate traffic after decap is recieved on port4 and no traffic on other flows/ate ports")
-		if !deviations.SecondaryBackupPathTrafficFailover(args.dut) {
-			validateTrafficFlows(t, args.ate, []*ondatra.Flow{decapFLow}, []*ondatra.Flow{baseFlow, encapFLow}, decapFlowFliter)
-		}
+		validateTrafficFlows(t, args.ate, []*ondatra.Flow{decapFLow}, []*ondatra.Flow{baseFlow, encapFLow}, decapFlowFliter)
 	})
 }
 
