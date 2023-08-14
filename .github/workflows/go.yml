@@ -42,6 +42,9 @@ jobs:
             ~/.cache/go-build
           key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
+      # Dependency for Go module github.com/google/gopacket
+      - name: Install libpcap-dev
+        run: sudo apt-get -y install libpcap-dev
       - run: go test -v -coverprofile=profile.cov $(go list ./... | grep -v /.*test.*)
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1
@@ -67,6 +70,9 @@ jobs:
           ~/.cache/staticcheck
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
         restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
+    # Dependency for Go module github.com/google/gopacket
+    - name: Install libpcap-dev
+      run: sudo apt-get -y install libpcap-dev
     - name: Go vet
       run: GOGC=30 go vet ./...
     - name: Gofmt
