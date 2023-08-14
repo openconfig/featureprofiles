@@ -33,7 +33,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -177,7 +176,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 		addVIPRoute(ctx, dut, t, gribic, p2NHID, dutP2)
 	}
 	addDestinationRoute(ctx, dut, t, gribic)
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	validateTrafficFlows(t, p2flow, p3flow)
 
 	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
@@ -462,7 +461,7 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, dsts ...*attr
 	e1.Src().SetValue(atePort1.MAC)
 	e1.Dst().SetChoice("value").SetValue(pMAC)
 	if len(dsts) > 1 {
-		flowipv4.TxRx().Port().SetTxName(atePort1.Name)
+		flowipv4.TxRx().Port().SetTxName("port1")
 	} else {
 		flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
 	}
@@ -472,6 +471,7 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, dsts ...*attr
 	innerIPHeader := flowipv4.Packet().Add().Ipv4()
 	innerIPHeader.Src().Increment().SetStart(innerSrcIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
 	innerIPHeader.Dst().Increment().SetStart(innerDstIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
+	flowipv4.Size().SetFixed(100)
 }
 
 func gribiClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*fluent.GRIBIClient, error) {
@@ -527,15 +527,6 @@ func getLossPct(t *testing.T, flowName string) uint64 {
 	}
 	lossPct := lostPackets * 100 / txPackets
 	return lossPct
-}
-
-// Waits for an ARP entry to be present for ATE Port1
-func waitOTGARPEntry(t *testing.T) {
-	t.Helper()
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
 }
 
 func configStaticArp(p *ondatra.Port, ipv4addr string, macAddr string) *oc.Interface {

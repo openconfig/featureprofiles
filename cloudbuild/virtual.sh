@@ -15,6 +15,33 @@
 
 set -x
 
+sudo tee /usr/bin/cleanup.sh >/dev/null <<'EOF'
+#!/bin/bash
+NAME="$(curl -X GET http://metadata.google.internal/computeMetadata/v1/instance/name -H 'Metadata-Flavor: Google')"
+ZONE="$(curl -X GET http://metadata.google.internal/computeMetadata/v1/instance/zone -H 'Metadata-Flavor: Google')"
+gcloud --quiet compute instances delete "${NAME}" --zone="${ZONE}"
+EOF
+sudo tee /etc/systemd/system/cleanup.service >/dev/null <<'EOF'
+[Unit]
+Description="Delete self after delay"
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cleanup.sh
+EOF
+sudo tee /etc/systemd/system/cleanup.timer >/dev/null <<'EOF'
+[Unit]
+Description="Delete self after delay"
+[Timer]
+OnBootSec=9h
+OnUnitActiveSec=9h
+[Install]
+WantedBy=default.target
+EOF
+sudo chmod 755 /usr/bin/cleanup.sh
+sudo systemctl daemon-reload
+sudo systemctl disable cleanup.service
+sudo systemctl enable cleanup.timer
+
 readonly platform="${1}"
 readonly dut_tests="${2}"
 
@@ -84,7 +111,7 @@ for dut_test in ${dut_tests}; do
   sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/xrd:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/xrd:ga/g" /tmp/kne/"${kne_topology}"
-  sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" /tmp/kne/"${kne_topology}"
+  sed -i "s/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" /tmp/kne/"${kne_topology}"
 
   gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"environment setup\"}"
   kne create /tmp/kne/"${kne_topology}"

@@ -8,12 +8,28 @@ testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
-    hardware_model: "CISCO-8808"
-    hardware_model: "CISCO-8202-32FH-M"
-    hardware_model: "8201"
-    hardware_model: "xrd"
   }
   deviations: {
     ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    static_protocol_name: "STATIC"
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    static_protocol_name: "static"
+    interface_enabled: true
   }
 }

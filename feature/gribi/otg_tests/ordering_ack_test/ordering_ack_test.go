@@ -34,7 +34,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -175,14 +174,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-// Waits for at least one ARP entry on any OTG interface
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-}
-
 // testTraffic generates traffic flow from source network to
 // destination network via ate:port1 to ate:port2 and checks for
 // packet loss.
@@ -194,7 +185,7 @@ func testTraffic(
 ) {
 	otg := ate.OTG()
 	flowName := "Flow"
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, otg, top, "IPv4")
 	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().State())
 	top.Flows().Clear().Items()
 	flowipv4 := top.Flows().Add().SetName("Flow")
@@ -284,11 +275,11 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 		if !*checkTelemetry {
 			t.Skip()
 		}
-		nhgNhPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHopGroup(nhgIndex).NextHop(nhIndex)
-		if got, want := gnmi.Get(t, args.dut, nhgNhPath.Index().State()), uint64(nhIndex); got != want {
+		nhgPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHopGroup(nhgIndex)
+		if got, want := gnmi.Get(t, args.dut, nhgPath.State()).GetNextHop(nhIndex).GetIndex(), uint64(nhIndex); got != want {
 			t.Errorf("next-hop-group/next-hop/state/index got %d, want %d", got, want)
 		}
-		if got, want := gnmi.Get(t, args.dut, nhgNhPath.Weight().State()), uint64(nhWeight); got != want {
+		if got, want := gnmi.Get(t, args.dut, nhgPath.State()).GetNextHop(nhIndex).GetWeight(), uint64(nhWeight); got != want {
 			t.Errorf("next-hop-group/next-hop/state/weight got %d, want %d", got, want)
 		}
 	})
@@ -376,19 +367,19 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 		if !*checkTelemetry {
 			t.Skip()
 		}
-		nhgNhPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHopGroup(nhgIndex).NextHop(nhIndex)
-		if got, want := gnmi.Get(t, args.dut, nhgNhPath.Index().State()), uint64(nhIndex); got != want {
+		nhgPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHopGroup(nhgIndex)
+		if got, want := gnmi.Get(t, args.dut, nhgPath.State()).GetNextHop(nhIndex).GetIndex(), uint64(nhIndex); got != want {
 			t.Errorf("next-hop-group/next-hop/state/index got %d, want %d", got, want)
 		}
-		if got, want := gnmi.Get(t, args.dut, nhgNhPath.Weight().State()), uint64(nhWeight); got != want {
+		if got, want := gnmi.Get(t, args.dut, nhgPath.State()).GetNextHop(nhIndex).GetWeight(), uint64(nhWeight); got != want {
 			t.Errorf("next-hop-group/next-hop/state/weight got %d, want %d", got, want)
 		}
 
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.NextHopGroup().State()), uint64(nhgIndex); got != want {
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetNextHopGroup(), uint64(nhgIndex); got != want {
 			t.Errorf("ipv4-entry/state/next-hop-group got %d, want %d", got, want)
 		}
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	})
@@ -447,10 +438,10 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 			t.Skip()
 		}
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.NextHopGroup().State()), uint64(nhgIndex); got != want {
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetNextHopGroup(), uint64(nhgIndex); got != want {
 			t.Errorf("ipv4-entry/state/next-hop-group got %d, want %d", got, want)
 		}
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	})

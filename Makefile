@@ -17,9 +17,11 @@ openconfig_public:
 .PHONY: validate_paths
 validate_paths: openconfig_public proto/feature_go_proto/feature.pb.go
 	go run -v tools/validate_paths.go \
+		-alsologtostderr \
 		--feature_root=$(CURDIR)/feature/ \
 		--yang_roots=$(CURDIR)/openconfig_public/release/models/,$(CURDIR)/openconfig_public/third_party/ \
-		--yang_skip_roots=$(CURDIR)/openconfig_public/release/models/wifi
+		--yang_skip_roots=$(CURDIR)/openconfig_public/release/models/wifi \
+		--feature_files=${FEATURE_FILES}
 
 proto/feature_go_proto/feature.pb.go: proto/feature.proto
 	mkdir -p proto/feature_go_proto
