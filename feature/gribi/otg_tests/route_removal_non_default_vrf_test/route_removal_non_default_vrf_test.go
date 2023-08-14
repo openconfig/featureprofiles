@@ -99,6 +99,11 @@ var (
 func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 	ctx := context.Background()
 
+	ate := ondatra.ATE(t, "ate")
+	ateTop := configureATE(t, ate)
+
+	ate.OTG().PushConfig(t, ateTop)
+
 	dut := ondatra.DUT(t, "dut")
 	// For interface configuration, Arista prefers config Vrf first then the IP address
 	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
@@ -109,10 +114,6 @@ func TestRouteRemovalNonDefaultVRFFlush(t *testing.T) {
 		configureNetworkInstance(t, dut)
 	}
 
-	ate := ondatra.ATE(t, "ate")
-	ateTop := configureATE(t, ate)
-
-	ate.OTG().PushConfig(t, ateTop)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), ateTop, "IPv4")
 
