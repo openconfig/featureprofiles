@@ -122,6 +122,28 @@ type IPv4ScaleOptions struct {
 	max int
 }
 
+type Programming struct {
+	prefix           string
+	v4_NI            string
+	nhg_NI           string
+	nhg_Pid          uint64
+	nhg_NHs          []string
+	nhg_NHs_Pid      []uint64
+	nhg_NHs_Int      []string
+	nhg_NHs_SubInt   []uint32
+	nh_IpinIp_Dst    []string
+	nh_IpinIp_Src    []string
+	nh_Encap         bool
+	bknhg_Pid        uint64
+	bknhg_NHs        []string
+	bknhg_NHs_Pid    []uint64
+	bknhg_NHs_Int    []string
+	bknhg_NHs_SubInt []uint32
+	bknh_IpinIp_Dst  []string
+	bknh_IpinIp_Src  []string
+	bknh_Encap       bool
+}
+
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	ctx     context.Context
@@ -700,6 +722,10 @@ func case4_decap_encap_recycle(ctx context.Context, t *testing.T, args *testArgs
 		args.client.AddNH(t, 3333333, "20.0.0.1", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.AddNHG(t, 333333, 222222, map[uint64]uint64{3333333: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.AddIPv4(t, "10.1.0.1/32", 333333, vrf2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		aftCheckaftercompleteprogramming(t, args, &Programming{prefix: "198.51.100.1/32", v4_NI: vrf1, nhg_NI: *ciscoFlags.DefaultNetworkInstance, nhg_Pid: 100, bknhg_Pid: 111111, nhg_NHs: []string{"192.0.2.40", "192.0.2.42"}, nhg_NHs_Pid: []uint64{100, 200}, nhg_NHs_Int: []string{"Null0", "Null0"}, nhg_NHs_SubInt: []uint32{0, 0}, bknhg_NHs_Pid: []uint64{1111111}, bknhg_NHs: []string{"10.1.0.1"}, bknhg_NHs_Int: []string{"Null0"}, bknhg_NHs_SubInt: []uint32{0}, bknh_IpinIp_Dst: []string{"10.1.0.1"}, bknh_IpinIp_Src: []string{"222.222.222.222"}, bknh_Encap: true})
+		aftCheckaftercompleteprogramming(t, args, &Programming{prefix: "198.51.100.1/32", v4_NI: vrf2, nhg_NI: *ciscoFlags.DefaultNetworkInstance, nhg_Pid: 200, bknhg_Pid: 222222, nhg_NHs: []string{"192.0.2.40", "192.0.2.42"}, nhg_NHs_Pid: []uint64{100, 200}, nhg_NHs_Int: []string{"Null0", "Null0"}, nhg_NHs_SubInt: []uint32{0, 0}, bknhg_NHs_Pid: []uint64{2222222}, bknhg_NHs: []string{"0.0.0.0"}, bknhg_NHs_Int: []string{"Null0"}, bknhg_NHs_SubInt: []uint32{0}, bknh_IpinIp_Dst: []string{"0.0.0.0"}, bknh_IpinIp_Src: []string{"0.0.0.0"}})
+		aftCheckaftercompleteprogramming(t, args, &Programming{prefix: "10.1.0.1/32", v4_NI: vrf2, nhg_NI: *ciscoFlags.DefaultNetworkInstance, nhg_Pid: 333333, bknhg_Pid: 222222, nhg_NHs: []string{"20.0.0.1"}, nhg_NHs_Pid: []uint64{3333333}, nhg_NHs_Int: []string{"Null0", "Null0"}, nhg_NHs_SubInt: []uint32{0, 0}, bknhg_NHs_Pid: []uint64{2222222}, bknhg_NHs: []string{"0.0.0.0"}, bknhg_NHs_Int: []string{"Null0"}, bknhg_NHs_SubInt: []uint32{0}, bknh_IpinIp_Dst: []string{"0.0.0.0"}, bknh_IpinIp_Src: []string{"0.0.0.0"}})
 	}
 }
 
@@ -1751,8 +1777,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 		}
 	}
 
-	// processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR", "viable"}
-	processes := []string{"shutdown"}
+	processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR", "viable"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			if processes[i] == "shutdown" {
@@ -2250,6 +2275,109 @@ func test_triggers(t *testing.T, args *testArgs) {
 	}
 }
 
+func aftCheckaftercompleteprogramming(t *testing.T, args *testArgs, opts ...*Programming) {
+
+	ipv4Entry := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(opts[0].v4_NI).Afts().Ipv4Entry(opts[0].prefix).State())
+	prefixvalue := ipv4Entry.GetPrefix()
+	if prefixvalue != opts[0].prefix {
+		t.Errorf("Incorrect value for AFT Ipv4Entry Prefix got %s, want %s", prefixvalue, opts[0].prefix)
+	}
+
+	v4nhgvalue := ipv4Entry.GetNextHopGroup()
+	nhgvalue := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(opts[0].nhg_NI).Afts().NextHopGroup(v4nhgvalue).State())
+	if nhgvalue.GetProgrammedId() != opts[0].nhg_Pid {
+		t.Errorf("Incorrect value for BackupNextHopGroup ProgrammedId  got %d, want 101", nhgvalue.GetProgrammedId())
+	}
+
+	bkNHG := nhgvalue.GetBackupNextHopGroup()
+	bknhgvalue := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(opts[0].nhg_NI).Afts().NextHopGroup(bkNHG).State())
+	if bknhgvalue.GetProgrammedId() != opts[0].bknhg_Pid {
+		t.Errorf("Incorrect value for BackupNextHopGroup ProgrammedId  got %d, want 101", bknhgvalue.GetProgrammedId())
+	}
+
+	var nhlist []uint64
+	j := 0
+	for i := range nhgvalue.NextHop {
+		nexthopval := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(opts[0].nhg_NI).Afts().NextHop(i).State())
+		if nexthopval.GetIpAddress() != opts[0].nhg_NHs[j] {
+			t.Errorf("Incorrect value for NH ip address got %s, want %s", nexthopval.GetIpAddress(), opts[0].nhg_NHs[j])
+		}
+		if nexthopval.GetProgrammedIndex() != opts[0].nhg_NHs_Pid[j] {
+			t.Errorf("Incorrect value for NH programming id got %d, want %d", nexthopval.GetProgrammedIndex(), opts[0].nhg_NHs_Pid[j])
+		}
+		if nhgvalue.GetNextHop(i).GetWeight() == 0 && len(nhgvalue.NextHop) != 1 {
+			t.Errorf("Got empty weight for the path")
+		}
+		if nexthopval.GetInterfaceRef().GetInterface() != opts[0].nhg_NHs_Int[j] {
+			t.Errorf("Incorrect value for NH interface got %s, want %s", nexthopval.GetInterfaceRef().GetInterface(), opts[0].nhg_NHs_Int[j])
+		}
+		if nexthopval.GetInterfaceRef().GetSubinterface() != opts[0].nhg_NHs_SubInt[j] {
+			t.Errorf("Incorrect value for NH interface got %d, want %d", nexthopval.GetInterfaceRef(), opts[0].nhg_NHs_SubInt[j])
+		}
+		if len(opts[0].nh_IpinIp_Dst) != 0 {
+			if nexthopval.GetIpInIp().GetDstIp() != opts[0].nh_IpinIp_Dst[j] {
+				t.Errorf("Incorrect value for  NextHop IpInIp DstIp got %s, want %s", nexthopval.GetIpInIp().GetDstIp(), opts[0].bknh_IpinIp_Dst[j])
+			}
+		}
+		if len(opts[0].nh_IpinIp_Src) != 0 {
+			if nexthopval.GetIpInIp().GetSrcIp() != opts[0].nh_IpinIp_Src[j] {
+				t.Errorf("Incorrect value for  NextHop IpInIp SrcIp  got %s, want %s", nexthopval.GetIpInIp().GetSrcIp(), opts[0].bknh_IpinIp_Src[j])
+			}
+		}
+		if opts[0].nh_Encap {
+			if nexthopval.GetEncapsulateHeader().String() != "IPV4" {
+				t.Errorf("Incorrect ENCAP value for  NextHop got %s, want IPV4", nexthopval.GetEncapsulateHeader())
+			}
+		}
+		nhlist = append(nhlist, i)
+		j = j + 1
+	}
+
+	if got := len(nhgvalue.NextHop); got != len(nhlist) {
+		t.Fatalf("Prefix %s next-hop entry count: got %d, want %d", opts[0].prefix, got, len(nhlist))
+	}
+
+	var bknhlist []uint64
+	j = 0
+	for i := range bknhgvalue.NextHop {
+		nexthopval := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(opts[0].nhg_NI).Afts().NextHop(i).State())
+		if nexthopval.GetIpAddress() != opts[0].bknhg_NHs[j] {
+			t.Errorf("Incorrect value for NH ip address got %s, want %s", nexthopval.GetIpAddress(), opts[0].bknhg_NHs[j])
+		}
+		if nexthopval.GetProgrammedIndex() != opts[0].bknhg_NHs_Pid[j] {
+			t.Errorf("Incorrect value for NH programming id got %d, want %d", nexthopval.GetProgrammedIndex(), opts[0].bknhg_NHs_Pid[j])
+		}
+		if nhgvalue.GetNextHop(i).GetWeight() == 0 && len(bknhgvalue.NextHop) != 1 {
+			t.Errorf("Got empty weight for the path")
+		}
+		if nexthopval.GetInterfaceRef().GetInterface() != opts[0].bknhg_NHs_Int[j] {
+			t.Errorf("Incorrect value for NH interface got %s, want %s", nexthopval.GetInterfaceRef().GetInterface(), opts[0].bknhg_NHs_Int[j])
+		}
+		if nexthopval.GetInterfaceRef().GetSubinterface() != opts[0].bknhg_NHs_SubInt[j] {
+			t.Errorf("Incorrect value for NH interface got %d, want %d", nexthopval.GetInterfaceRef(), opts[0].bknhg_NHs_SubInt[j])
+		}
+		if len(opts[0].bknh_IpinIp_Dst) != 0 {
+			if nexthopval.GetIpInIp().GetDstIp() != opts[0].bknh_IpinIp_Dst[j] {
+				t.Errorf("Incorrect value for  NextHop IpInIp DstIp got %s, want %s", nexthopval.GetIpInIp().GetDstIp(), opts[0].bknh_IpinIp_Dst[j])
+			}
+		}
+		if len(opts[0].bknh_IpinIp_Src) != 0 {
+			if nexthopval.GetIpInIp().GetSrcIp() != opts[0].bknh_IpinIp_Src[j] {
+				t.Errorf("Incorrect value for  NextHop IpInIp SrcIp  got %s, want %s", nexthopval.GetIpInIp().GetSrcIp(), opts[0].bknh_IpinIp_Src[j])
+			}
+		}
+		if opts[0].bknh_Encap {
+			if nexthopval.GetEncapsulateHeader().String() != "IPV4" {
+				t.Errorf("Incorrect ENCAP value for  NextHop got %s, want IPV4", nexthopval.GetEncapsulateHeader())
+			}
+		}
+		bknhlist = append(bknhlist, i)
+		j = j + 1
+	}
+	if got := len(bknhgvalue.NextHop); got != len(bknhlist) {
+		t.Fatalf("Prefix %s next-hop entry count: got %d, want %d", opts[0].prefix, got, len(bknhlist))
+	}
+}
 func TestHA(t *testing.T) {
 	t.Log("Name: HA")
 	t.Log("Description: Connect gRIBI client to DUT using SINGLE_PRIMARY client redundancy with persistance, RibACK and FibACK")

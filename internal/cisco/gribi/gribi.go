@@ -301,14 +301,11 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 
 	if check.AFTCheck {
 		//if address is "decap", prefix will be 0.0.0.0, nhInstance is "", and InterfaceRef is Null0
-		if address == DECAP || address == ENCAP || address == DecapEncap || address == "DecapEncapvrf" {
+		if address == DECAP || address == ENCAP {
 			c.checkNH(t, nhIndex, "0.0.0.0", instance, "", "Null0")
-		} else if address == DecapEncap {
-			c.checkNH(t, nhIndex, opts[0].Dest[0], instance, nhInstance, "", opts[0])
-		} else {
-			if address != "" {
-				c.checkNH(t, nhIndex, address, instance, nhInstance, interfaceRef)
-			}
+		}
+		if address != "" && address != DecapEncap {
+			c.checkNH(t, nhIndex, address, instance, nhInstance, interfaceRef)
 		}
 	}
 }

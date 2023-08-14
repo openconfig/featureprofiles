@@ -348,10 +348,10 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 		totalDstFinTraffic["ipv4"] = totalDstFinTraffic["ipv4"] + uint64(data)
 	}
 	for k := range dutDstFinTraffic {
-		if got, want := totalDstFinTraffic[k]-totalDstInitTraffic[k], ateRxFin[k]-ateRxInit[k]; got <= want {
+		if got, want := totalDstFinTraffic[k]-totalDstInitTraffic[k], ateRxFin[k]-ateRxInit[k]; got < want {
 			t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
 		}
-		if got, want := dutSrcFinTraffic[k]-dutSrcInitTraffic[k], ateTxFin[k]-ateTxInit[k]; got <= want {
+		if got, want := dutSrcFinTraffic[k]-dutSrcInitTraffic[k], ateTxFin[k]-ateTxInit[k]; got < want {
 			t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 		}
 	}
