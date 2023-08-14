@@ -8,8 +8,8 @@ Ensure Interface mode can be set to loopback mode and can be added as part of st
 
 ### TestCase-1:
 
-*   Configure DUT port-1 to ATE port-1.
-*   Admin down ATE port-1.
+*   Configure DUT port-1 to OTG port-1.
+*   Admin down OTG port-1.
 *   Verify DUT port-1 is down.
 *   On DUT, set LAG interface “loopback mode” to “FACILITY” on AE interface.
 *   Add port-1 as part of Static LAG (lacp mode static(on)).
