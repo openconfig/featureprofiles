@@ -300,10 +300,11 @@ message Metadata {
   repeated PlatformExceptions platform_exceptions = 5;
 
   enum Tags {
-    AGGREGATION = 0;
-    DATACENTER_EDGE = 1;
-    EDGE = 2;
-    TRANSIT = 3;
+    DEFAULT = 0;
+    AGGREGATION = 1;
+    DATACENTER_EDGE = 2;
+    EDGE = 3;
+    TRANSIT = 4;
   }
 
   // The `tags` used to identify the area(s) testcase applies to. An empty tag
