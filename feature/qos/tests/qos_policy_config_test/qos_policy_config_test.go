@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/entity-naming/entname"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
@@ -1777,16 +1776,7 @@ func testNokiaClassifierConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-
-	queues := entname.CommonTrafficQueueNames{
-		NC1: "NC1",
-		AF4: "AF4",
-		AF3: "AF3",
-		AF2: "AF2",
-		AF1: "AF1",
-		BE1: "BE1",
-		BE0: "BE0",
-	}
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
@@ -2071,15 +2061,7 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 	s.GetOrCreateIpv6().Enabled = ygot.Bool(true)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), ip)
 
-	queues := entname.CommonTrafficQueueNames{
-		NC1: "NC1",
-		AF4: "AF4",
-		AF3: "AF3",
-		AF2: "AF2",
-		AF1: "AF1",
-		BE1: "BE1",
-		BE0: "BE0",
-	}
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	schedulers := []struct {
 		desc           string
