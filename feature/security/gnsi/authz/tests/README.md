@@ -58,7 +58,7 @@ Prepare the following gRPC authorization policies.
       "source": {},
       "request": {
         "paths": [
-          "/gnmi.GNMI/Get"
+          "/gnmi.gNMI/Get"
         ]
       }
     }
@@ -68,7 +68,7 @@ Prepare the following gRPC authorization policies.
       "name": "no-one-can-gribi-get",
       "request": {
         "paths": [
-          "/gribi.GRIBI/Get"
+          "/gribi.gRIBI/Get"
         ]
       }
     }
@@ -111,7 +111,7 @@ Prepare the following gRPC authorization policies.
       "name": "no-one-can-gribi",
       "request": {
         "paths": [
-          "/gribi.GRIBI/Modify"
+          "/gribi.gRIBI/Modify"
         ]
       }
     }
@@ -131,7 +131,7 @@ Prepare the following gRPC authorization policies.
         ]
       },
       "request": {
-        "paths": ["/gribi.GRIBI/Get"]
+        "paths": ["/gribi.gRIBI/Get"]
       }
     }
   ]
@@ -150,7 +150,7 @@ Prepare the following gRPC authorization policies.
         ]
       },
       "request": {
-        "paths": ["/gnmi.GNMI/Get"]
+        "paths": ["/gnmi.gNMI/Get"]
       }
     }
   ]
@@ -159,16 +159,16 @@ Prepare the following gRPC authorization policies.
 
 The following table describes policy `policy-normal-1`:
 
-Cert | gRIBI.Modify | gRIBI.Get | gNMI.Set | gNMI.Get | gNOI.Time | gNOI.Ping | gNSI.Rotate | gNSI.Get
-:--- | :---  | :--- | :---  | :---  | :---  | :--- | :--- | :-----
-cert_user_admin | allow | allow |allow |allow |allow |allow |deny |deny
-cert_user_fake | deny |deny |deny |deny |deny |deny |deny |deny
-cert_gribi_modify | allow |allow |deny |deny |deny |deny |deny |deny
-cert_gnmi_set | deny |deny |allow |allow |deny |deny |deny |deny
-cert_gnoi_time |deny |deny |deny |deny |allow |deny |deny |deny
-cert_gnoi_ping |deny |deny |deny |deny |deny |allow |deny |deny
-cert_gnsi_probe |deny |deny |deny |deny |deny |deny |deny |deny
-cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow
+Cert | gRIBI.Modify | gRIBI.Get | gNMI.Set | gNMI.Get | gNOI.Time | gNOI.Ping | gNSI.Rotate | gNSI.Get | gNSI.Probe
+:--- | :---  | :--- | :---  | :---  | :---  | :--- | :--- | :----- | :-----
+cert_user_admin | allow | allow |allow |allow |allow |allow |allow |allow |allow
+cert_user_fake | deny |deny |deny |deny |deny |deny |deny |deny |deny
+cert_gribi_modify | allow |allow |deny |deny |deny |deny |deny |deny |deny
+cert_gnmi_set | deny |deny |allow |allow |deny |deny |deny |deny |deny
+cert_gnoi_time |deny |deny |deny |deny |allow |deny |deny |deny |deny
+cert_gnoi_ping |deny |deny |deny |deny |deny |allow |deny |deny |deny
+cert_gnsi_probe |deny |deny |deny |deny |deny |deny |deny |deny |allow
+cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow |deny
 
 ```json
 {
@@ -183,7 +183,7 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow
         ]
       },
       "request": {
-        "paths": ["/gribi.GRIBI/*"]
+        "paths": ["/gribi.gRIBI/*"]
       }
     },
     {
@@ -195,7 +195,7 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow
         ]
       },
       "request": {
-        "paths": ["/gnmi.GNMI/*"]
+        "paths": ["/gnmi.gNMI/*"]
       }
     },
     {
@@ -223,10 +223,20 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow
       }
     },
     {
+      "name": "gnsi-set",
+      "source": {
+        "principals": [
+          "spiffe://test-abc.foo.bar/xyz/admin"
+        ]
+      },
+      "request": {
+        "paths": ["/gnsi.authz.v1.Authz/*"]
+      }
+    },
+    {
       "name": "gnsi-probe",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/admin",
           "spiffe://test-abc.foo.bar/xyz/gnsi-probe"
         ]
       },
@@ -243,8 +253,8 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow
       },
       "request": {
         "paths": [
-          "/gnmi.GNMI/Get",
-          "/gribi.GRIBI/Get",
+          "/gnmi.gNMI/Get",
+          "/gribi.gRIBI/Get",
           "/gnsi.authz.v1.Authz/Get"
         ]
       }
@@ -271,7 +281,7 @@ cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow
 
 NOTE: regarding gNMI OC validation:
   * Everytime a gRPC call (including gNSI calls themselves) is allowed or denied, the following OC leaves should be validated:
-    * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc[name]/state/name` is the matched request path, e.g. "/gribi.GRIBI/Get"
+    * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc[name]/state/name` is the matched request path, e.g. "/gribi.gRIBI/Get"
     * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-accepts` increments if the rpc call is allowed.
     * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-rejects` increments if the rpc call is denied.
     * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/last-access-accept` reflects the timestamp of the method call.
