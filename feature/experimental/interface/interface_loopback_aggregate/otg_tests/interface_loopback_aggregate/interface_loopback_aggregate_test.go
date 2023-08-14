@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -26,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -53,6 +55,7 @@ var (
 		Name:    "ateSrc",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::192:0:2:2",
+		MAC:     "02:00:01:01:01:01",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -105,12 +108,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutOcRoot *oc.Root, aggI
 	gnmi.Replace(t, dut, aggPath.Config(), aggIntf)
 }
 
-// configureATE configures port1 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
-	topo := ate.Topology().New()
-	port1 := ate.Port(t, "port1")
-	topo.AddInterface(atePort1Attr.Name).WithPort(port1)
-	topo.Push(t).StartProtocols(t)
+func configureOTG(t *testing.T, otg *otg.OTG) {
+	config := otg.NewConfig(t)
+	port1 := config.Ports().Add().SetName("port1")
+	iDut1Dev := config.Devices().Add().SetName(atePort1Attr.Name)
+	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1Attr.Name + ".Eth").SetMac(atePort1Attr.MAC)
+	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	t.Logf("Pushing config to ATE and starting protocols...")
+	otg.PushConfig(t, config)
+	otg.StartProtocols(t)
 }
 
 // configSrcDUT configures AE interface.
@@ -135,6 +141,7 @@ func configSrcDUT(dut *ondatra.DUTDevice, i *oc.Interface, a *attrs.Attributes) 
 	s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(plenIPv6)
 }
 
+// createCeaseAction creates the BGP cease notification action in gosnappi
 // configAggregateIntf configures AE interface on DUT.
 func configAggregateIntf(dut *ondatra.DUTDevice, i *oc.Interface, a *attrs.Attributes) {
 	configSrcDUT(dut, i, a)
@@ -156,8 +163,9 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	})
 
 	ate := ondatra.ATE(t, "ate")
-	t.Run("Configure ATE port1", func(t *testing.T) {
-		configureATE(t, ate)
+	otg := ate.OTG()
+	t.Run("Configure OTG port1", func(t *testing.T) {
+		configureOTG(t, otg)
 	})
 
 	t.Run("Validate that DUT port-1 operational status is UP", func(t *testing.T) {
@@ -168,9 +176,10 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 		}
 	})
 
-	ateP := ate.Port(t, "port1")
-	t.Run("Admin down ATE port1", func(t *testing.T) {
-		ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(false).Send(t)
+	cs := gosnappi.NewControlState()
+	t.Run("Admin down OTG port1", func(t *testing.T) {
+		cs.Port().Link().SetState(gosnappi.StatePortLinkState.DOWN)
+		otg.SetControlState(t, cs)
 	})
 
 	t.Run("Verify DUT port-1 is down on DUT", func(t *testing.T) {
@@ -219,7 +228,8 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 		}
 	})
 
-	t.Run("Admin up ATE port1", func(t *testing.T) {
-		ate.Actions().NewSetPortState().WithPort(ateP).WithEnabled(true).Send(t)
+	t.Run("Admin up OTG port1", func(t *testing.T) {
+		cs.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
+		otg.SetControlState(t, cs)
 	})
 }
