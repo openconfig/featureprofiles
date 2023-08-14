@@ -67,7 +67,7 @@ const (
 	FrameSize         = 512
 	aclName           = "f1"
 	termName          = "t1"
-	EncapSrcMatch     = "192.0.1.2"
+	EncapSrcMatch     = "192.0.2.2"
 	EncapDstMatch     = "192.0.2.6"
 	count             = "GreFilterCount"
 	greTunnelEndpoint = "TunnelEncapIpv4"
