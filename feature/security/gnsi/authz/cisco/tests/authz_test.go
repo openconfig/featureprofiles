@@ -26,17 +26,17 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
+	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gnps "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
-
-	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
-	"github.com/openconfig/featureprofiles/internal/cisco/security/gnxi"
-	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -74,9 +74,9 @@ func TestSimpleAuthzGet(t *testing.T) {
 
 func TestSimpleRotate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -88,38 +88,11 @@ func TestSimpleRotate(t *testing.T) {
 
 }
 
-func TestScalePolicy(t *testing.T) {
-	t.SkipNow()
-	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
-	// create n users
-	users := []*authz.User{}
-	for i := 1; i <= usersCount; i++ {
-		user := &authz.User{
-			Name: "user" + strconv.Itoa(i),
-		}
-		users = append(users, user)
-	}
-	createUsersOnDevice(t, dut, users)
-	// TODO: create n intermediate CA per user
-	// TODO: create users certificate
-	// create m random rules for n users(no conflicting)
-
-	// add a few conflicting rules per users
-	// add * rules
-	// user *
-	// path *
-	// both * *  (deny and allow)
-
-}
-
 func TestAllowRuleAll(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -139,6 +112,7 @@ func TestAllowRuleAll(t *testing.T) {
 			t.Fatalf("Not expecting error for prob request %v", err)
 		}
 		if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
+			t.Logf("Response on the Device %s after the Trigger is %s", dut.Name(), resp)
 			t.Fatalf("Expecting ProbeResponse_ACTION_Permit for user %s path %s, received %v ", "user1", path, resp.GetAction())
 		}
 	}
@@ -146,9 +120,9 @@ func TestAllowRuleAll(t *testing.T) {
 
 func TestDenyRuleAll(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -176,9 +150,9 @@ func TestDenyRuleAll(t *testing.T) {
 
 func TestAllowAllForService(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -213,9 +187,9 @@ func TestAllowAllForService(t *testing.T) {
 
 func TestDenyAllForService(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -247,9 +221,9 @@ func TestDenyAllForService(t *testing.T) {
 
 func TestAllowAllRPCs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -272,9 +246,10 @@ func TestAllowAllRPCs(t *testing.T) {
 		}
 		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
 		if err != nil {
-			t.Fatalf("Not expecting error for prob request %v", err)
+			t.Fatalf("Not expecting error %s for prob request %v", dut.Name(), err)
 		}
 		if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
+			t.Logf("Response on the Device %s after the Trigger is %s", dut.Name(), resp)
 			t.Fatalf("Expecting ProbeResponse_ACTION_Permit for user %s path %s, received %v ", "user1", path, resp.GetAction())
 		}
 	}
@@ -283,9 +258,9 @@ func TestAllowAllRPCs(t *testing.T) {
 
 func TestDenyAllRPCs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -317,9 +292,9 @@ func TestDenyAllRPCs(t *testing.T) {
 }
 func TestDenyOverWriteAllow(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	policyBerfore := authz.NewAuthorizationPolicy()
-	policyBerfore.Get(t, dut)
-	defer policyBerfore.Rotate(t, dut)
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
 
 	authzPolicy := authz.NewAuthorizationPolicy()
 	authzPolicy.Get(t, dut)
@@ -375,6 +350,7 @@ func rotate(t *testing.T, clientID string, dut *ondatra.DUTDevice, version, poli
 	}
 	return nil
 }
+
 func TestTwoInterLeavingRotates(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
@@ -471,8 +447,128 @@ func TestSingleRotateCompetingClients(t *testing.T) {
 	}
 }
 
-func TestFailOverInSteadyState(t *testing.T) {
+func TestScalePolicy(t *testing.T) {
+	t.SkipNow()
+	dut := ondatra.DUT(t, "dut")
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	defer policyBefore.Rotate(t, dut)
+	// create n users
+	users := []*authz.User{}
+	for i := 1; i <= usersCount; i++ {
+		user := &authz.User{
+			Name: "user" + strconv.Itoa(i),
+		}
+		users = append(users, user)
+	}
+	createUsersOnDevice(t, dut, users)
+	// TODO: create n intermediate CA per user
+	// TODO: create users certificate
+	// create m random rules for n users(no conflicting)
+}
+
+func TestScalePolicyWithFailOver(t *testing.T) {
 	t.Skip()
+}
+
+// findProcessByName uses telemetry to collect and return the process information. It return nill if the process is not found.
+func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) *oc.System_Process {
+	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			t.Logf("Pid of daemon '%s' is '%d'", pName, proc.GetPid())
+			return proc
+		}
+	}
+	return nil
+}
+func TestHAEMSDProcessKill(t *testing.T) {
+	// Process Restart EMSD Test Case with Pre and Post Trigger Policy Verification
+
+	// Pre-Trigger Section
+	dut := ondatra.DUT(t, "dut")
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+
+	// Trigger Section
+	pName := "emsd"
+	ctx := context.Background()
+	proc := findProcessByName(ctx, t, dut, pName)
+	pid := uint32(proc.GetPid())
+	killResponse, err := dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: pName, Pid: pid, Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
+	t.Logf("Got kill process response: %v\n\n", killResponse)
+	if err != nil {
+		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
+	}
+	time.Sleep(30 * time.Second)
+	newProc := findProcessByName(ctx, t, dut, pName)
+	if newProc == nil {
+		t.Logf("Retry to get the process emsd info after restart")
+		time.Sleep(30 * time.Second)
+		if newProc = findProcessByName(ctx, t, dut, "emsd"); newProc == nil {
+			t.Fatalf("Failed to start process emsd after failure")
+		}
+	}
+	if newProc.GetPid() == proc.GetPid() {
+		t.Fatalf("The process id of %s is expected to be changed after the restart", pName)
+	}
+	if newProc.GetStartTime() <= proc.GetStartTime() {
+		t.Fatalf("The start time of process emsd is expected to be larger than %d, got %d ", proc.GetStartTime(), newProc.GetStartTime())
+	}
+
+	// Verification Section
+	policyAfter := authz.NewAuthorizationPolicy()
+	policyAfter.Get(t, dut)
+	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), policyAfter.PrettyPrint())
+	if !cmp.Equal(policyBefore, policyAfter) {
+		t.Fatalf("Not Expecting Policy Mismatch before and after the Trigger):\n%s", cmp.Diff(policyBefore, policyAfter))
+	}
+}
+
+func TestHAFailOverInSteadyState(t *testing.T) {
+	// RPFO Test Case with Pre and Post Trigger Policy Verification
+
+	// Pre-Trigger Section
+	dut := ondatra.DUT(t, "dut")
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+
+	// Trigger Section
+	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	rebootRequest := &gnps.RebootRequest{
+		Method: gnps.RebootMethod_COLD,
+		Force:  true,
+	}
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	t.Logf("Got Reboot response: %v, err: %v", rebootResponse, err)
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+	startReboot := time.Now()
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+	}
+
+	// Verification Section
+	policyAfter := authz.NewAuthorizationPolicy()
+	policyAfter.Get(t, dut)
+	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), policyAfter.PrettyPrint())
+	if !cmp.Equal(policyBefore, policyAfter) {
+		t.Fatalf("Not Expecting Policy Mismatch before and after the Trigger):\n%s", cmp.Diff(policyBefore, policyAfter))
+	}
 }
 
 func TestHAFailOverDuringRotate(t *testing.T) {
@@ -564,6 +660,25 @@ func TestHAFailOverDuringRotate(t *testing.T) {
 	}
 }
 
-func TestScalePolicyWithFailOver(t *testing.T) {
-	t.Skip()
+func TestHARedundancySwithOver(t *testing.T) {
+	// RP SwitchOver Reload Test Case with Pre and Post Trigger Policy Verification
+
+	// Pre-Trigger Section
+	dut := ondatra.DUT(t, "dut")
+	policyBefore := authz.NewAuthorizationPolicy()
+	policyBefore.Get(t, dut)
+	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+
+	// Trigger Section
+	config.CMDViaGNMI(context.Background(), t, dut, "redundancy switchover \n")
+	time.Sleep(30 * time.Second)
+	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
+
+	// Verification Section
+	policyAfter := authz.NewAuthorizationPolicy()
+	policyAfter.Get(t, dut)
+	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), policyAfter.PrettyPrint())
+	if !cmp.Equal(policyBefore, policyAfter) {
+		t.Fatalf("Not Expecting Policy Mismatch before and after the Trigger):\n%s", cmp.Diff(policyBefore, policyAfter))
+	}
 }
