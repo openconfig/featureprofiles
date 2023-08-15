@@ -528,15 +528,11 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	}
 
 	// Verification Section
-	authzPolicy := authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t, dut)
-	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), authzPolicy.PrettyPrint())
-	if policyBefore.PrettyPrint() != authzPolicy.PrettyPrint() {
-		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
-	}
-
-	if !cmp.Equal(policyBefore, authzPolicy) {
-		t.Fatalf("Not Expecting Policy Mismatch (-before +after):\n%s", cmp.Diff(policyBefore, authzPolicy))
+	policyAfter := authz.NewAuthorizationPolicy()
+	policyAfter.Get(t, dut)
+	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), policyAfter.PrettyPrint())
+	if !cmp.Equal(policyBefore, policyAfter) {
+		t.Fatalf("Not Expecting Policy Mismatch before and after the Trigger):\n%s", cmp.Diff(policyBefore, policyAfter))
 	}
 }
 
@@ -580,12 +576,8 @@ func TestHAFailOverInSteadyState(t *testing.T) {
 	policyAfter := authz.NewAuthorizationPolicy()
 	policyAfter.Get(t, dut)
 	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), policyAfter.PrettyPrint())
-	if policyBefore.PrettyPrint() != policyAfter.PrettyPrint() {
-		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
-	}
-
 	if !cmp.Equal(policyBefore, policyAfter) {
-		t.Fatalf("Not Expecting Policy Mismatch (-before +after):\n%s", cmp.Diff(policyBefore, policyAfter))
+		t.Fatalf("Not Expecting Policy Mismatch before and after the Trigger):\n%s", cmp.Diff(policyBefore, policyAfter))
 	}
 }
 
@@ -650,8 +642,8 @@ func TestHAFailOverDuringProb(t *testing.T) {
 	policyAfter := authz.NewAuthorizationPolicy()
 	policyAfter.Get(t, dut)
 	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), policyAfter.PrettyPrint())
-	if policyBefore.PrettyPrint() != policyAfter.PrettyPrint() {
-		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
+	if !cmp.Equal(policyBefore, policyAfter) {
+		t.Fatalf("Not Expecting Policy Mismatch before and after the Trigger):\n%s", cmp.Diff(policyBefore, policyAfter))
 	}
 }
 
@@ -753,11 +745,11 @@ func TestHALCReload(t *testing.T) {
 	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeReboot, 10*time.Minute)
 
 	// Verification Section
-	authzPolicy := authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t, dut)
-	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), authzPolicy.PrettyPrint())
-	if policyBefore.PrettyPrint() != authzPolicy.PrettyPrint() {
-		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
+	policyAfter := authz.NewAuthorizationPolicy()
+	policyAfter.Get(t, dut)
+	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), policyAfter.PrettyPrint())
+	if !cmp.Equal(policyBefore, policyAfter) {
+		t.Fatalf("Not Expecting Policy Mismatch before and after the Trigger):\n%s", cmp.Diff(policyBefore, policyAfter))
 	}
 }
 
@@ -776,10 +768,10 @@ func TestHARedundancySwithOver(t *testing.T) {
 	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
 
 	// Verification Section
-	authzPolicy := authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t, dut)
-	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), authzPolicy.PrettyPrint())
-	if policyBefore.PrettyPrint() != authzPolicy.PrettyPrint() {
-		t.Fatalf("Not Expecting Policy Mismatch - Policy has changed Before and After the Trigger")
+	policyAfter := authz.NewAuthorizationPolicy()
+	policyAfter.Get(t, dut)
+	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), policyAfter.PrettyPrint())
+	if !cmp.Equal(policyBefore, policyAfter) {
+		t.Fatalf("Not Expecting Policy Mismatch before and after the Trigger):\n%s", cmp.Diff(policyBefore, policyAfter))
 	}
 }
