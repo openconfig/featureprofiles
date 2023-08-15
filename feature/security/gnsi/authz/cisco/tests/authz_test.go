@@ -27,9 +27,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gnps "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/security/authz"
@@ -509,6 +511,31 @@ func TestHAFailOverDuringRotate(t *testing.T) {
 	// Trigger Section
 	// Simulate a RP failover by closing the stream.
 	rotateStream.CloseSend()
+	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	rebootRequest := &gnps.RebootRequest{
+		Method: gnps.RebootMethod_COLD,
+		Force:  true,
+	}
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	t.Logf("Got Reboot response: %v, err: %v", rebootResponse, err)
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+	startReboot := time.Now()
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+	}
 
 	// Wait for the timeout to expire.
 	time.Sleep(time.Second)
