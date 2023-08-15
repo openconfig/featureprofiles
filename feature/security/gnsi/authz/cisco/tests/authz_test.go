@@ -355,6 +355,7 @@ func rotate(t *testing.T, clientID string, dut *ondatra.DUTDevice, version, poli
 	}
 	return nil
 }
+
 func TestTwoInterLeavingRotates(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
@@ -555,72 +556,6 @@ func TestHAFailOverInSteadyState(t *testing.T) {
 	t.Logf("Got Reboot response: %v, err: %v", rebootResponse, err)
 	if err != nil {
 		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
-	}
-	startReboot := time.Now()
-	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
-		time.Sleep(30 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("Device rebooted successfully with received time: %v", currentTime)
-			break
-		}
-	}
-
-	// Verification Section
-	policyAfter := authz.NewAuthorizationPolicy()
-	policyAfter.Get(t, dut)
-	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), policyAfter.PrettyPrint())
-	if !cmp.Equal(policyBefore, policyAfter) {
-		t.Fatalf("Not Expecting Policy Mismatch before and after the Trigger):\n%s", cmp.Diff(policyBefore, policyAfter))
-	}
-}
-
-func TestHAFailOverDuringProb(t *testing.T) {
-	// RPFO Test Case during a On-Going Probe Request with Pre and Post Trigger Policy Verification
-	// Got Review Comment to move from Thread - Testing this Trigger In Progress and Skipping for now
-	// Pre-Trigger Section
-	dut := ondatra.DUT(t, "dut")
-	policyBefore := authz.NewAuthorizationPolicy()
-	policyBefore.Get(t, dut)
-	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-
-	// Trigger Section
-	authzPolicy := authz.NewAuthorizationPolicy()
-	authzPolicy.Get(t, dut)
-	users := []*authz.User{}
-	users = append(users, &authz.User{Name: sampleUser})
-	createUsersOnDevice(t, dut, users)
-	authzPolicy.AddAllowRules(users, []*gnxi.RPC{gnxi.RPCs.ALL})
-	authzPolicy.Rotate(t, dut)
-	gnsiClient := dut.RawAPIs().GNSI().Default(t)
-	for path := range gnxi.RPCMAP {
-		probReq := &authzpb.ProbeRequest{
-			User: "user1",
-			Rpc:  path,
-		}
-		resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
-		if err != nil {
-			t.Logf("Not expecting error for prob request %v", err)
-		}
-		if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
-			t.Logf("Expecting ProbeResponse_ACTION_Permit for user %s path %s, received %v ", "user1", path, resp.GetAction())
-		}
-	}
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
-	rebootRequest := &gnps.RebootRequest{
-		Method: gnps.RebootMethod_COLD,
-		Force:  true,
-	}
-	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
-	t.Logf("Got Reboot response: %v, err: %v", rebootResponse, err)
-	if err != nil {
-		t.Logf("Failed to reboot chassis with unexpected err: %v", err)
 	}
 	startReboot := time.Now()
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
