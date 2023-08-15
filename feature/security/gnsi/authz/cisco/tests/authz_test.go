@@ -465,12 +465,6 @@ func TestScalePolicy(t *testing.T) {
 	// TODO: create n intermediate CA per user
 	// TODO: create users certificate
 	// create m random rules for n users(no conflicting)
-
-	// add a few conflicting rules per users
-	// add * rules
-	// user *
-	// path *
-	// both * *  (deny and allow)
 }
 
 func TestScalePolicyWithFailOver(t *testing.T) {
@@ -574,6 +568,95 @@ func TestHAFailOverInSteadyState(t *testing.T) {
 	t.Logf("Authz Policy of the device %s after the Trigger is %s", dut.Name(), policyAfter.PrettyPrint())
 	if !cmp.Equal(policyBefore, policyAfter) {
 		t.Fatalf("Not Expecting Policy Mismatch before and after the Trigger):\n%s", cmp.Diff(policyBefore, policyAfter))
+	}
+}
+
+func TestHAFailOverDuringRotate(t *testing.T) {
+	// RPFO Test Case during a On-Going Rotate Request with Pre and Post Trigger Policy Verification
+	// Pre-Trigger Section
+
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
+	policy := authz.NewAuthorizationPolicy()
+	policy.Get(t, dut)
+	jsonPolicy, err := policy.Marshal()
+	if err != nil {
+		t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
+	}
+	version := fmt.Sprintf("v0.%v", (time.Now().UnixMilli()))
+
+	rotateStream, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+	if err != nil {
+		t.Fatalf("Could not start rotate stream %v", err)
+	}
+	defer rotateStream.CloseSend()
+	defer policy.Rotate(t, dut)
+	autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
+		UploadRequest: &authzpb.UploadRequest{
+			Version:   version,
+			CreatedOn: uint64(time.Now().UnixMicro()),
+			Policy:    string(jsonPolicy),
+		},
+	}
+	t.Logf("Sending Authz.Rotate request on device (client 1): \n %v", autzRotateReq)
+	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
+	if err != nil {
+		t.Fatalf("Error while uploading prob request reply %v", err)
+	}
+	// Get the temporary policy
+	tempPolicy := authz.NewAuthorizationPolicy()
+	tempPolicy.Get(t, dut)
+
+	// Check that the temporary policy is different from the original policy
+	if cmp.Equal(policy, tempPolicy) {
+		t.Fatalf("Temporary policy is the same as the original policy")
+	}
+
+	// Trigger Section
+	// Simulate a RP failover by closing the stream.
+	rotateStream.CloseSend()
+	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	rebootRequest := &gnps.RebootRequest{
+		Method: gnps.RebootMethod_COLD,
+		Force:  true,
+	}
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	t.Logf("Got Reboot response: %v, err: %v", rebootResponse, err)
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+	startReboot := time.Now()
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+	}
+
+	// Send a finalize rotate message.
+	finalizeRotateReq := &authzpb.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authzpb.FinalizeRequest{}}
+	t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%v", finalizeRotateReq)
+	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
+	if err == nil {
+		t.Fatalf("Finalize rotation request should have been rejected")
+	}
+
+	// Verification Section
+	// Check that the policy has not been rotated.
+	finalPolicy := authz.NewAuthorizationPolicy()
+	finalPolicy.Get(t, dut)
+	if cmp.Equal(policy, finalPolicy) {
+		t.Logf("Policy has not been rotated after RP failover")
+	} else {
+		t.Fatalf("Policy has been rotated after RP failover")
 	}
 }
 
