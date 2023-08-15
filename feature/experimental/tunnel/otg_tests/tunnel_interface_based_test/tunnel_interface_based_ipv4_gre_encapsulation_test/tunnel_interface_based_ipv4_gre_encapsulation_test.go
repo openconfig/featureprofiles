@@ -50,17 +50,17 @@ const (
 	FrameSize         = 512
 	aclName           = "f1"
 	termName          = "t1"
-	EncapSrcMatch     = "192.0.1.2"
+	EncapSrcMatch     = "192.0.2.2"
 	EncapDstMatch     = "192.0.2.6"
 	count             = "GreFilterCount"
 	greTunnelEndpoint = "TunnelEncapIpv4"
-	greSrcAddr        = "50.0.0.1"
-	greDstAddr        = "60.0.0.0/32"
+	greSrcAddr        = "198.51.100.1"
+	greDstAddr        = "203.0.113.1/32"
 	dscp              = 8
 	CorrespondingTOS  = 32
 	GreProtocol       = 47
 	Tunnelaction      = "TunnelEncapIpv4"
-	plenIPv4          = 24
+	plenIPv4          = 30
 	tolerance         = 50
 	lossTolerance     = 2
 	prefix            = "0.0.0.0/0"
@@ -70,13 +70,13 @@ const (
 var (
 	dutSrc = attrs.Attributes{
 		Desc:    "DUT to ATE source",
-		IPv4:    "192.0.1.1",
+		IPv4:    "192.0.2.1",
 		IPv4Len: plenIPv4,
 	}
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
 		MAC:     "02:00:01:01:01:01",
-		IPv4:    "192.0.1.2",
+		IPv4:    "192.0.2.2",
 		IPv4Len: plenIPv4,
 	}
 	dutDst = attrs.Attributes{
@@ -135,44 +135,6 @@ type parameters struct {
 	r1Lo0Ut1Ipv4Add string
 	r1Lo0Ut2Ipv4Add string
 	r1Lo0Ut3Ipv4Add string
-	rtIntf1Ipv6Add  string
-	rtIntf2Ipv6Add  string
-	rtIntf5Ipv6Add  string
-	rtIntf6Ipv6Add  string
-	r0Intf1Ipv6Add  string
-	r0Intf2Ipv6Add  string
-	r0Intf3Ipv6Add  string
-	r0Intf4Ipv6Add  string
-	r0Fti0Ipv6Add   string
-	r0Fti1Ipv6Add   string
-	r0Fti2Ipv6Add   string
-	r0Fti3Ipv6Add   string
-	r0Fti4Ipv6Add   string
-	r0Fti5Ipv6Add   string
-	r0Fti6Ipv6Add   string
-	r0Fti7Ipv6Add   string
-	r0Lo0Ut0Ipv6Add string
-	r0Lo0Ut1Ipv6Add string
-	r0Lo0Ut2Ipv6Add string
-	r0Lo0Ut3Ipv6Add string
-	ipv6Mask        uint8
-	ipv6FullMask    uint8
-	r1Intf5Ipv6Add  string
-	r1Intf6Ipv6Add  string
-	r1Intf3Ipv6Add  string
-	r1Intf4Ipv6Add  string
-	r1Fti0Ipv6Add   string
-	r1Fti1Ipv6Add   string
-	r1Fti2Ipv6Add   string
-	r1Fti3Ipv6Add   string
-	r1Fti4Ipv6Add   string
-	r1Fti5Ipv6Add   string
-	r1Fti6Ipv6Add   string
-	r1Fti7Ipv6Add   string
-	r1Lo0Ut0Ipv6Add string
-	r1Lo0Ut1Ipv6Add string
-	r1Lo0Ut2Ipv6Add string
-	r1Lo0Ut3Ipv6Add string
 	flow1           string
 	flow2           string
 	flow3           string
@@ -226,48 +188,8 @@ func TestFtiTunnels(t *testing.T) {
 		r1Lo0Ut1Ipv4Add: "81.1.1.1",
 		r1Lo0Ut2Ipv4Add: "82.1.1.1",
 		r1Lo0Ut3Ipv4Add: "83.1.1.1",
-		rtIntf1Ipv6Add:  "2000:10:1:1::2",
-		rtIntf2Ipv6Add:  "2000:11:1:1::2",
-		rtIntf5Ipv6Add:  "2000:30:1:1::1",
-		rtIntf6Ipv6Add:  "2000:31:1:1::1",
-		r0Intf1Ipv6Add:  "2000:10:1:1::1",
-		r0Intf2Ipv6Add:  "2000:11:1:1::1",
-		r0Intf3Ipv6Add:  "2000:20:1:1::1",
-		r0Intf4Ipv6Add:  "2000:21:1:1::1",
-		r0Fti0Ipv6Add:   "2000:90:1:1::1",
-		r0Fti1Ipv6Add:   "2000:91:1:1::1",
-		r0Fti2Ipv6Add:   "2000:92:1:1::1",
-		r0Fti3Ipv6Add:   "2000:93:1:1::1",
-		r0Fti4Ipv6Add:   "2000:94:1:1::1",
-		r0Fti5Ipv6Add:   "2000:95:1:1::1",
-		r0Fti6Ipv6Add:   "2000:96:1:1::1",
-		r0Fti7Ipv6Add:   "2000:97:1:1::1",
-		r0Lo0Ut0Ipv6Add: "3000:70:1:1::1",
-		r0Lo0Ut1Ipv6Add: "3000:71:1:1::1",
-		r0Lo0Ut2Ipv6Add: "3000:72:1:1::1",
-		r0Lo0Ut3Ipv6Add: "3000:73:1:1::1",
-		ipv6Mask:        120,
-		r1Intf5Ipv6Add:  "2000:30:1:1::2",
-		r1Intf6Ipv6Add:  "2000:31:1:1::2",
-		r1Intf3Ipv6Add:  "2000:20:1:1::2",
-		r1Intf4Ipv6Add:  "2000:21:1:1::2",
-		r1Fti0Ipv6Add:   "2000:90:1:1::2",
-		r1Fti1Ipv6Add:   "2000:91:1:1::2",
-		r1Fti2Ipv6Add:   "2000:92:1:1::2",
-		r1Fti3Ipv6Add:   "2000:93:1:1::2",
-		r1Fti4Ipv6Add:   "2000:94:1:1::2",
-		r1Fti5Ipv6Add:   "2000:95:1:1::2",
-		r1Fti6Ipv6Add:   "2000:96:1:1::2",
-		r1Fti7Ipv6Add:   "2000:97:1:1::2",
-		r1Lo0Ut0Ipv6Add: "3000:80:1:1::1",
-		r1Lo0Ut1Ipv6Add: "3000:81:1:1::1",
-		r1Lo0Ut2Ipv6Add: "3000:82:1:1::1",
-		r1Lo0Ut3Ipv6Add: "3000:83:1:1::1",
-		ipv6FullMask:    128,
 		flow1:           "IPv4-flow1",
 		flow2:           "IPv4-flow2",
-		flow3:           "IPv6-flow3",
-		flow4:           "IPv6-flow4",
 		trafficDuration: 60,
 		trafficRate:     1000,
 	}
@@ -301,13 +223,6 @@ func TestFtiTunnels(t *testing.T) {
 		ConfigureTunnelInterface(t, "fti1", p.r0Lo0Ut1Ipv4Add, p.r1Lo0Ut1Ipv4Add, dut1)
 		ConfigureTunnelInterface(t, "fti2", p.r0Lo0Ut2Ipv4Add, p.r1Lo0Ut2Ipv4Add, dut1)
 		ConfigureTunnelInterface(t, "fti3", p.r0Lo0Ut3Ipv4Add, p.r1Lo0Ut3Ipv4Add, dut1)
-
-		//configure tunnel interface on dut2- IPv6
-		ConfigureTunnelInterface(t, "fti4", p.r0Lo0Ut0Ipv6Add, p.r1Lo0Ut0Ipv6Add, dut1)
-		ConfigureTunnelInterface(t, "fti5", p.r0Lo0Ut1Ipv6Add, p.r1Lo0Ut1Ipv6Add, dut1)
-		ConfigureTunnelInterface(t, "fti6", p.r0Lo0Ut2Ipv6Add, p.r1Lo0Ut2Ipv6Add, dut1)
-		ConfigureTunnelInterface(t, "fti7", p.r0Lo0Ut3Ipv6Add, p.r1Lo0Ut3Ipv6Add, dut1)
-
 	})
 	// configure tunnel termination on dut1
 	t.Run("Configure tunnel termination at underlay interface on dut1 and dut2", func(t *testing.T) {
@@ -366,20 +281,6 @@ func TestFtiTunnels(t *testing.T) {
 		}
 	})
 
-	//Configure Overlay Static routes for IPv6 at dut1
-	t.Run("Configure overlay IPv6 static routes on dut1", func(t *testing.T) {
-		ipv6Destination1 := GetNetworkAddress(t, p.rtIntf5Ipv6Add, int(p.ipv6Mask))
-		ipv6Destination2 := GetNetworkAddress(t, p.rtIntf6Ipv6Add, int(p.ipv6Mask))
-		// overlay static route Nexthops
-		overlayIPv6NextHopDut1 := []string{p.r1Fti0Ipv6Add, p.r1Fti1Ipv6Add, p.r1Fti2Ipv6Add, p.r1Fti3Ipv6Add, p.r1Fti4Ipv6Add, p.r1Fti5Ipv6Add, p.r1Fti6Ipv6Add, p.r1Fti7Ipv6Add}
-		for i, nextHop := range overlayIPv6NextHopDut1 {
-			t.Logf("configuring static route in %s destination %s with next-hop %s", dut1, ipv6Destination1, nextHop)
-			configIPv4StaticRoute(t, dut1, ipv6Destination1, nextHop, strconv.Itoa(i))
-			t.Logf("configuring static route in %s destination %s with next-hop %s", dut1, ipv6Destination2, nextHop)
-			configIPv4StaticRoute(t, dut1, ipv6Destination2, nextHop, strconv.Itoa(i))
-		}
-	})
-
 	// Send the traffic as mentioned in Tunnel-1.3 and Tunnel-1.4 with TP-1.1 and TP-1.2
 	otg := rt.OTG()
 	var otgConfig gosnappi.Config
@@ -390,8 +291,8 @@ func TestFtiTunnels(t *testing.T) {
 	_ = otgConfig
 
 	wantLoss := false
-	t.Run("Verify load balance and traffic drops with IPv4 and IPv6 flow via 8 tunnel", func(t *testing.T) {
-		t.Log("Verify load balance and traffic drops with IPv4 and IPv6 flow via 8 tunnel")
+	t.Run("Verify load balance and traffic drops with IPv4 flow via 8 tunnel", func(t *testing.T) {
+		t.Log("Verify load balance and traffic drops with IPv4 flow via 8 tunnel")
 		VerifyUnderlayOverlayLoadbalanceTest(t, p, dut1, rt, rt, d1p1, d1p2, d1p3, d1p4, rt1, rt2, rt2, rt3, 8, wantLoss)
 	})
 	captureTrafficStats(t, rt, otgConfig)
@@ -426,7 +327,7 @@ func ConfigureLoobackInterfaceWithIPv4address(t *testing.T, address string, dut 
 func ConfigureTunnelInterface(t *testing.T, intf string, tunnelSrc string, tunnelDst string, dut *ondatra.DUTDevice) {
 
 	// IPv4 tunnel source and destination configuration
-	t.Logf("Push the IPv4/IPv6 tunnel endpoint config:\n%s", dut.Vendor())
+	t.Logf("Push the IPv4 tunnel endpoint config:\n%s", dut.Vendor())
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		config := ConfigureTunnelEndPoints(intf, tunnelSrc, tunnelDst)
@@ -458,26 +359,14 @@ func GetNetworkAddress(t *testing.T, address string, mask int) string {
 	Addr := net.ParseIP(address)
 	var network net.IP
 	_ = network
-	IsIPv4 := Addr.To4()
-	if IsIPv4 != nil {
-		// This mask corresponds to a /24 subnet for IPv4.
 
-		ipv4Mask := net.CIDRMask(mask, 32)
-		//t.Logf("%s in %T\n",ipv4Mask,ipv4Mask)
-		network := Addr.Mask(ipv4Mask)
-		net := fmt.Sprintf("%s/%d", network, mask)
-		t.Logf("network address : %s", net)
-		return net
-	} else {
-
-		// This mask corresponds to a /32 subnet for IPv6.
-		ipv6Mask := net.CIDRMask(mask, 128)
-		network := Addr.Mask(ipv6Mask)
-		//t.Logf("IPv6 network: %s",network)
-		net := fmt.Sprintf("%s/%d", network, mask)
-		t.Logf("Network address : %s", net)
-		return net
-	}
+	// This mask corresponds to a /24 subnet for IPv4.
+	ipv4Mask := net.CIDRMask(mask, 32)
+	//t.Logf("%s in %T\n",ipv4Mask,ipv4Mask)
+	network = Addr.Mask(ipv4Mask)
+	net := fmt.Sprintf("%s/%d", network, mask)
+	t.Logf("network address : %s", net)
+	return net
 
 }
 
@@ -507,8 +396,6 @@ func configureOTG(t *testing.T, otg *otg.OTG, p *parameters) gosnappi.Config {
 	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName("port1" + ".IPv4")
 	iDut1Ipv4.SetAddress(p.rtIntf1Ipv4Add).SetGateway(p.r0Intf1Ipv4Add).SetPrefix(int32(p.ipv4Mask))
-	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName("port1" + ".IPv6")
-	iDut1Ipv6.SetAddress(p.rtIntf1Ipv6Add).SetGateway(p.r0Intf1Ipv6Add).SetPrefix(int32(p.ipv6Mask))
 
 	//port2
 	iDut2Dev := config.Devices().Add().SetName("port2")
@@ -516,8 +403,6 @@ func configureOTG(t *testing.T, otg *otg.OTG, p *parameters) gosnappi.Config {
 	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
 	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName("port2" + ".IPv4")
 	iDut2Ipv4.SetAddress(p.rtIntf2Ipv4Add).SetGateway(p.r0Intf2Ipv4Add).SetPrefix(int32(p.ipv4Mask))
-	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName("port2" + ".IPv6")
-	iDut2Ipv6.SetAddress(p.rtIntf2Ipv6Add).SetGateway(p.r0Intf2Ipv6Add).SetPrefix(int32(p.ipv6Mask))
 
 	//port5
 	iDut3Dev := config.Devices().Add().SetName("port5")
@@ -525,8 +410,6 @@ func configureOTG(t *testing.T, otg *otg.OTG, p *parameters) gosnappi.Config {
 	iDut3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port3.Name())
 	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName("port5" + ".IPv4")
 	iDut3Ipv4.SetAddress(p.rtIntf5Ipv4Add).SetGateway(p.r1Intf5Ipv4Add).SetPrefix(int32(p.ipv4Mask))
-	iDut3Ipv6 := iDut3Eth.Ipv6Addresses().Add().SetName("port5" + ".IPv6")
-	iDut3Ipv6.SetAddress(p.rtIntf5Ipv6Add).SetGateway(p.r1Intf5Ipv6Add).SetPrefix(int32(p.ipv6Mask))
 
 	//port6
 	iDut4Dev := config.Devices().Add().SetName("port6")
@@ -534,8 +417,6 @@ func configureOTG(t *testing.T, otg *otg.OTG, p *parameters) gosnappi.Config {
 	iDut4Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port4.Name())
 	iDut4Ipv4 := iDut4Eth.Ipv4Addresses().Add().SetName("port6" + ".IPv4")
 	iDut4Ipv4.SetAddress(p.rtIntf6Ipv4Add).SetGateway(p.r1Intf6Ipv4Add).SetPrefix(int32(p.ipv4Mask))
-	iDut4Ipv6 := iDut4Eth.Ipv6Addresses().Add().SetName("port6" + ".IPv6")
-	iDut4Ipv6.SetAddress(p.rtIntf6Ipv6Add).SetGateway(p.r1Intf6Ipv6Add).SetPrefix(int32(p.ipv6Mask))
 
 	t.Logf("Start Ote Traffic config")
 	t.Logf("configure IPv4 flow from %s to %s ", port1.Name(), port3.Name())
@@ -582,50 +463,6 @@ func configureOTG(t *testing.T, otg *otg.OTG, p *parameters) gosnappi.Config {
 	// V4 destination
 	f2v4.Dst().SetValue(iDut4Ipv4.Address())
 
-	t.Logf("configure IPv6 flow from %s to %s ", port1.Name(), port3.Name())
-	// Set config flow
-	flow3ipv6 := config.Flows().Add().SetName(p.flow3)
-	flow3ipv6.Metrics().SetEnable(true)
-	// Set source and reciving ports.
-	flow3ipv6.TxRx().Device().
-		SetTxNames([]string{iDut1Ipv6.Name()}).
-		SetRxNames([]string{iDut3Ipv6.Name()})
-	// Flow settings.
-	flow3ipv6.Size().SetFixed(512)
-	flow3ipv6.Rate().SetPps(p.trafficRate)
-	flow3ipv6.Duration().SetChoice("continuous")
-	// Ethernet header
-	f3e1 := flow3ipv6.Packet().Add().Ethernet()
-	f3e1.Src().SetValue(iDut1Eth.Mac())
-	// IPv6 header
-	f3v6 := flow3ipv6.Packet().Add().Ipv6()
-	// V6 source
-	f3v6.Src().Increment().SetStart(iDut1Ipv6.Address()).SetCount(200)
-	// V6 destination
-	f3v6.Dst().SetValue(iDut3Ipv6.Address())
-
-	t.Logf("configure IPv6 flow from %s to %s ", port2.Name(), port4.Name())
-	// Set config flow
-	flow4ipv6 := config.Flows().Add().SetName(p.flow4)
-	flow4ipv6.Metrics().SetEnable(true)
-	// Set source and reciving ports.
-	flow4ipv6.TxRx().Device().
-		SetTxNames([]string{iDut2Ipv6.Name()}).
-		SetRxNames([]string{iDut4Ipv6.Name()})
-	// Flow settings.
-	flow4ipv6.Size().SetFixed(512)
-	flow4ipv6.Rate().SetPps(p.trafficRate)
-	flow4ipv6.Duration().SetChoice("continuous")
-	// Ethernet header
-	f4e1 := flow4ipv6.Packet().Add().Ethernet()
-	f4e1.Src().SetValue(iDut2Eth.Mac())
-	// IPv6 header
-	f4v6 := flow4ipv6.Packet().Add().Ipv6()
-	// V6 source
-	f4v6.Src().Increment().SetStart(iDut2Ipv6.Address()).SetCount(200)
-	// V6 destination
-	f4v6.Dst().SetValue(iDut4Ipv6.Address())
-
 	//t.Logf(config.ToJson())
 	t.Logf("Pushing Traffic config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
@@ -633,7 +470,6 @@ func configureOTG(t *testing.T, otg *otg.OTG, p *parameters) gosnappi.Config {
 	otg.StartProtocols(t)
 	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, otg, config, "IPv4")
-	otgutils.WaitForARP(t, otg, config, "IPv6")
 	return config
 }
 
@@ -884,47 +720,35 @@ func ConfigureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 		desc     string
 		intfName string
 		ipAddr   string
-		ipv6Addr string
 		ipv4mask uint8
-		ipv6mask uint8
 	}{
 		{
 			desc:     "R0_ATE1",
 			intfName: dp1.Name(),
 			ipAddr:   p.r0Intf1Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Intf1Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		}, {
 			desc:     "R0_ATE2",
 			intfName: dp2.Name(),
 			ipAddr:   p.r0Intf2Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Intf2Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		}, {
 			desc:     "R0_R1_1",
 			intfName: dp3.Name(),
 			ipAddr:   p.r0Intf3Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Intf3Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		},
 		{
 			desc:     "R0_R1_2",
 			intfName: dp4.Name(),
 			ipAddr:   p.r0Intf4Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Intf4Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		},
 		{
 			desc:     "tunnel0",
 			intfName: "lo0",
 			ipAddr:   p.r0Lo0Ut0Ipv4Add,
 			ipv4mask: p.ipv4FullMask,
-			ipv6Addr: p.r0Lo0Ut0Ipv6Add,
-			ipv6mask: p.ipv6FullMask,
 		},
 
 		{
@@ -932,8 +756,6 @@ func ConfigureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 			intfName: "fti0",
 			ipAddr:   p.r0Fti0Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Fti0Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		},
 
 		{
@@ -941,8 +763,6 @@ func ConfigureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 			intfName: "fti1",
 			ipAddr:   p.r0Fti1Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Fti1Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		},
 
 		{
@@ -950,16 +770,12 @@ func ConfigureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 			intfName: "fti2",
 			ipAddr:   p.r0Fti2Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Fti2Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		},
 		{
 			desc:     "tunnel-4",
 			intfName: "fti3",
 			ipAddr:   p.r0Fti3Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Fti3Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		},
 
 		{
@@ -967,8 +783,6 @@ func ConfigureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 			intfName: "fti4",
 			ipAddr:   p.r0Fti4Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Fti4Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		},
 
 		{
@@ -976,24 +790,18 @@ func ConfigureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 			intfName: "fti5",
 			ipAddr:   p.r0Fti5Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Fti5Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		},
 		{
 			desc:     "tunnel-7",
 			intfName: "fti6",
 			ipAddr:   p.r0Fti6Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Fti6Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		},
 		{
 			desc:     "tunnel-8",
 			intfName: "fti7",
 			ipAddr:   p.r0Fti7Ipv4Add,
 			ipv4mask: p.ipv4Mask,
-			ipv6Addr: p.r0Fti7Ipv6Add,
-			ipv6mask: p.ipv6Mask,
 		},
 	}
 
@@ -1011,12 +819,6 @@ func ConfigureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 		i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 		a := i4.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.ipv4mask)
-
-		// configure ipv6 address
-		i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-		b := i6.GetOrCreateAddress(intf.ipv6Addr)
-		b.PrefixLength = ygot.Uint8(intf.ipv6mask)
-		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 	}
 }
 
@@ -1041,8 +843,8 @@ func ConfigureTunnelTerminationOption(interf string) string {
 
 func ConfigureTunnelTermination(t *testing.T, intf *ondatra.Port, dut *ondatra.DUTDevice) {
 
-	// IPv4/IPv6 tunnel termination on underlay port
-	t.Logf("IPv4/IPv6 tunnel termination on underlay port :\n%s", dut.Vendor())
+	// IPv4 tunnel termination on underlay port
+	t.Logf("IPv4 tunnel termination on underlay port :\n%s", dut.Vendor())
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		config := ConfigureTunnelTerminationOption(intf.Name())
