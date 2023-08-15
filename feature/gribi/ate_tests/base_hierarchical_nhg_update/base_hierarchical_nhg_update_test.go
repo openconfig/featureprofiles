@@ -640,6 +640,10 @@ func configStaticArp(p string, ipv4addr string, macAddr string, trunk bool) *oc.
 
 // TE3.7 case2 - Drain Implementation test.
 func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
+	if !deviations.GRIBIMACOverrideStaticARP(args.dut) {
+		t.Skip()
+		//Testcase skipped as static arp and route config needed for other vendors
+	}
 	configDUTDrain(t, args.dut)
 	addStaticRoute(t, args.dut)
 
