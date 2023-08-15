@@ -537,9 +537,6 @@ func TestHAFailOverDuringRotate(t *testing.T) {
 		}
 	}
 
-	// Wait for the timeout to expire.
-	time.Sleep(time.Second)
-
 	// Send a finalize rotate message.
 	finalizeRotateReq := &authzpb.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authzpb.FinalizeRequest{}}
 	t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%v", finalizeRotateReq)
