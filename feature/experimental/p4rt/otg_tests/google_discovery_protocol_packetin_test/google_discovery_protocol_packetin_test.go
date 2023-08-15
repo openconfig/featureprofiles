@@ -89,7 +89,7 @@ var (
 type PacketIO interface {
 	GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
 	GetPacketTemplate() *PacketIOPacket
-	GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []gosnappi.Flow
+	GetTrafficFlows(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []gosnappi.Flow
 	GetEgressPort() []string
 	GetIngressPort() string
 }
@@ -158,7 +158,7 @@ func decodePacket(t *testing.T, packetData []byte) (string, string, uint16, laye
 
 // testTraffic sends traffic flow for duration seconds and returns the
 // number of packets sent out.
-func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) int {
+func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) map[string]uint64 {
 	t.Helper()
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
@@ -172,13 +172,23 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	time.Sleep(time.Duration(duration) * time.Second)
 
 	ate.OTG().StopTraffic(t)
-
-	outPkts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().FlowAny().Counters().OutPkts().State())
-	total := 0
-	for _, count := range outPkts {
-		total += int(count)
+	fNames := []string{"GDPWithVlan", "GDPWithoutVlan", "NonGDP"}
+	total := map[string]uint64{}
+	for _, fName := range fNames {
+		total[fName] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(fName).Counters().OutPkts().State())
 	}
+
 	return total
+}
+
+func validateTrafficAtATE(t *testing.T, ate *ondatra.ATEDevice, pktOut map[string]uint64) {
+	wantPkts := map[string]uint64{"GDPWithVlan": 0, "GDPWithoutVlan": 0, "NonGDP": pktOut["NonGDP"]}
+	for fName, want := range wantPkts {
+		got := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(fName).Counters().InPkts().State())
+		if got != want {
+			t.Errorf("Number of PacketIN at ATE-Port2 for flow: %s, got: %d, want: %d", fName, got, want)
+		}
+	}
 }
 
 // testPacketIn programs p4rt table entry and sends traffic related to GDP,
@@ -196,35 +206,34 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Send GDP traffic from ATE
 	srcEndPoint := ateInterface(t, args.top, "port1")
-	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlow(args.ate, 300, 2), srcEndPoint, 20)
+	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlows(args.ate, 300, 2), srcEndPoint, 20)
+	validateTrafficAtATE(t, args.ate, pktOut)
 
 	packetInTests := []struct {
 		desc     string
 		client   *p4rt_client.P4RTClient
-		wantPkts int
+		wantPkts bool
 	}{{
 		desc:     "PacketIn to Primary Controller",
 		client:   leader,
-		wantPkts: pktOut,
+		wantPkts: true,
 	}, {
 		desc:     "PacketIn to Secondary Controller",
 		client:   follower,
-		wantPkts: 0,
+		wantPkts: false,
 	}}
 
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
+			pktCount := pktOut["GDPWithVlan"] + pktOut["GDPWithoutVlan"]
 			// Extract packets from PacketIn message sent to p4rt client
-			_, packets, err := test.client.StreamChannelGetPackets(&streamName, uint64(test.wantPkts), 30*time.Second)
+			_, packets, err := test.client.StreamChannelGetPackets(&streamName, pktCount, 30*time.Second)
 			if err != nil {
 				t.Errorf("Unexpected error on StreamChannelGetPackets: %v", err)
 			}
 
-			if test.wantPkts == 0 {
-				return
-			}
-
-			gotPkts := 0
+			gdpWithoutVlanPkts := uint64(0)
+			gdpWithVlanPkts := uint64(0)
 			gotVlanID := uint16(0)
 			t.Logf("Start to decode packet and compare with expected packets.")
 			wantPacket := args.packetIO.GetPacketTemplate()
@@ -240,10 +249,15 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 						}
 						gotVlanID = vID
 					}
-
-					if got, want := gotVlanID, vlanID; got != want {
-						t.Errorf("VLAN ID mismatch, got: %d, want: %d", got, want)
+					if gotVlanID == 0 {
+						gdpWithoutVlanPkts++
+					} else {
+						if got, want := gotVlanID, vlanID; got != want {
+							t.Errorf("VLAN ID mismatch, got: %d, want: %d", got, want)
+						}
+						gdpWithVlanPkts++
 					}
+
 					metaData := packet.Pkt.GetMetadata()
 					for _, data := range metaData {
 						switch data.GetMetadataId() {
@@ -263,12 +277,14 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 							}
 						}
 					}
-					gotPkts++
 				}
 			}
 
-			if got, want := gotPkts, test.wantPkts; got != want {
-				t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
+			if got, want := gdpWithoutVlanPkts, pktOut["GDPWithoutVlan"]; got != want {
+				t.Errorf("Number of GDP without Vlan PacketIn, got: %d, want: %d", got, want)
+			}
+			if got, want := gdpWithVlanPkts, pktOut["GDPWithVlan"]; got != want {
+				t.Errorf("Number of GDP with Vlan PacketIn, got: %d, want: %d", got, want)
 			}
 		})
 	}
@@ -285,13 +301,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
-	var s *oc.Interface_Subinterface
-	if hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
-		s = i.GetOrCreateSubinterface(1)
-		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = &vlanID
-	} else {
-		s = i.GetOrCreateSubinterface(0)
-	}
+	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
@@ -299,6 +309,14 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
+	if hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
+		s1 := i.GetOrCreateSubinterface(1)
+		s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
+			i.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
+		}
+	}
 	return i
 }
 
@@ -390,6 +408,8 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 				}
 				return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
 			}
+
+			client.StreamChannelGet(&streamName).SetPacketQSize(10000)
 		}
 	}
 
@@ -494,23 +514,47 @@ func (gdp *GDPPacketIO) GetPacketTemplate() *PacketIOPacket {
 	return &gdp.PacketIOPacket
 }
 
-// GetTrafficFlow generates ATE traffic flows for GDP.
-func (gdp *GDPPacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []gosnappi.Flow {
+// GetTrafficFlows generates OTG traffic flows for GDP.
+func (gdp *GDPPacketIO) GetTrafficFlows(ate *ondatra.ATEDevice, frameSize uint32, frameRate uint64) []gosnappi.Flow {
 
-	flow := gosnappi.NewFlow()
-	flow.SetName("GDP")
-	ethHeader := flow.Packet().Add().Ethernet()
-	ethHeader.Src().SetValue(*gdp.SrcMAC)
-	ethHeader.Dst().SetValue(*gdp.DstMAC)
-	ethHeader.EtherType().SetValue(int32(0x8100))
+	f1 := gosnappi.NewFlow()
+	f1.SetName("GDPWithVlan")
+	eth1 := f1.Packet().Add().Ethernet()
+	eth1.Src().SetValue(*gdp.SrcMAC)
+	eth1.Dst().SetValue(*gdp.DstMAC)
+	eth1.EtherType().SetValue(int32(0x8100))
 
-	vlan := flow.Packet().Add().Vlan()
+	vlan := f1.Packet().Add().Vlan()
 	vlan.Id().SetValue(int32(vlanID))
 	vlan.Tpid().SetValue(int32(*gdp.EthernetType))
 
-	flow.Size().SetFixed(int32(frameSize))
-	flow.Rate().SetPps(int64(frameRate))
-	return []gosnappi.Flow{flow}
+	f1.Size().SetFixed(int32(frameSize))
+	f1.Rate().SetPps(int64(frameRate))
+
+	f2 := gosnappi.NewFlow()
+	f2.SetName("GDPWithoutVlan")
+	eth2 := f2.Packet().Add().Ethernet()
+	eth2.Src().SetValue(*gdp.SrcMAC)
+	eth2.Dst().SetValue(*gdp.DstMAC)
+	eth2.EtherType().SetValue(int32(*gdp.EthernetType))
+
+	f2.Size().SetFixed(int32(frameSize))
+	f2.Rate().SetPps(int64(frameRate))
+
+	f3 := gosnappi.NewFlow()
+	f3.SetName("NonGDP")
+	eth3 := f1.Packet().Add().Ethernet()
+	eth3.Src().SetValue(*gdp.SrcMAC)
+	eth3.Dst().SetValue(*gdp.DstMAC)
+	eth3.EtherType().SetValue(int32(0x0800))
+	ip3 := f3.Packet().Add().Ipv4()
+	ip3.Src().SetValue(atePort1.IPv4)
+	ip3.Dst().SetValue(atePort2.IPv4)
+	ip3.TimeToLive().SetValue(3)
+
+	f3.Size().SetFixed(int32(frameSize))
+	f3.Rate().SetPps(int64(frameRate))
+	return []gosnappi.Flow{f1, f2, f3}
 }
 
 // GetEgressPort returns expected egress port info in PacketIn.

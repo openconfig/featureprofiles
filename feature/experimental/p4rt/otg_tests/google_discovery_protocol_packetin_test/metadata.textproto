@@ -20,6 +20,7 @@ platform_exceptions: {
   }
   deviations: {
     p4rt_gdp_requires_dot1q_subinterface: true
+    no_mix_of_tagged_and_untagged_subinterfaces: true
   }
 }
 platform_exceptions: {
