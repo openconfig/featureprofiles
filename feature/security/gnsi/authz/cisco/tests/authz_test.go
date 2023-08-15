@@ -526,7 +526,6 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	if newProc.GetStartTime() <= proc.GetStartTime() {
 		t.Fatalf("The start time of process emsd is expected to be larger than %d, got %d ", proc.GetStartTime(), newProc.GetStartTime())
 	}
-	gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test")
 
 	// Verification Section
 	authzPolicy := authz.NewAuthorizationPolicy()
