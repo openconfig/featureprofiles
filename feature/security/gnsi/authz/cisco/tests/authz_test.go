@@ -473,8 +473,63 @@ func TestFailOverInSteadyState(t *testing.T) {
 	t.Skip()
 }
 
-func TestFailOverDuringProb(t *testing.T) {
-	t.Skip()
+func TestHAFailOverDuringRotate(t *testing.T) {
+	// RPFO Test Case during a On-Going Rotate Request with Pre and Post Trigger Policy Verification
+	// Pre-Trigger Section
+
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
+	policy := authz.NewAuthorizationPolicy()
+	policy.Get(t, dut)
+	jsonPolicy, err := policy.Marshal()
+	if err != nil {
+		t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
+	}
+	version := fmt.Sprintf("v0.%v", (time.Now().UnixMilli()))
+
+	rotateStream, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+	if err != nil {
+		t.Fatalf("Could not start rotate stream %v", err)
+	}
+	defer rotateStream.CloseSend()
+
+	autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
+		UploadRequest: &authzpb.UploadRequest{
+			Version:   version,
+			CreatedOn: uint64(time.Now().UnixMicro()),
+			Policy:    string(jsonPolicy),
+		},
+	}
+	t.Logf("Sending Authz.Rotate request on device (client 1): \n %v", autzRotateReq)
+	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
+	if err != nil {
+		t.Fatalf("Error while uploading prob request reply %v", err)
+	}
+
+	// Trigger Section
+	// Simulate a RP failover by closing the stream.
+	rotateStream.CloseSend()
+
+	// Wait for the timeout to expire.
+	time.Sleep(time.Second)
+
+	// Send a finalize rotate message.
+	finalizeRotateReq := &authzpb.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authzpb.FinalizeRequest{}}
+	t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%v", finalizeRotateReq)
+	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
+	if err == nil {
+		t.Fatalf("Finalize rotation request should have been rejected")
+	}
+
+	// Verification Section
+	// Check that the policy has not been rotated.
+	finalPolicy := authz.NewAuthorizationPolicy()
+	finalPolicy.Get(t, dut)
+	if cmp.Equal(policy, finalPolicy) {
+		t.Logf("Policy has not been rotated after RP failover")
+	} else {
+		t.Fatalf("Policy has been rotated after RP failover")
+	}
 }
 
 func TestScalePolicyWithFailOver(t *testing.T) {
