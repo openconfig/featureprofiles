@@ -494,7 +494,7 @@ func TestHAFailOverDuringRotate(t *testing.T) {
 		t.Fatalf("Could not start rotate stream %v", err)
 	}
 	defer rotateStream.CloseSend()
-
+	defer policy.Rotate(t, dut)
 	autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
 		UploadRequest: &authzpb.UploadRequest{
 			Version:   version,
@@ -506,6 +506,14 @@ func TestHAFailOverDuringRotate(t *testing.T) {
 	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
 	if err != nil {
 		t.Fatalf("Error while uploading prob request reply %v", err)
+	}
+	// Get the temporary policy
+	tempPolicy := authz.NewAuthorizationPolicy()
+	tempPolicy.Get(t, dut)
+
+	// Check that the temporary policy is different from the original policy
+	if cmp.Equal(policy, tempPolicy) {
+		t.Fatalf("Temporary policy is the same as the original policy")
 	}
 
 	// Trigger Section
