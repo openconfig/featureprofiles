@@ -16,7 +16,7 @@ ATE (Port1) <-IBGP-> (Port1) DUT (Port2) <-EBGP-> (Port2) ATE
     - The DUT has eBGP peering with ATE port 2 and is receiving IPv4/6 routes. Here too for EBGP, ensure that ATE is using a different transport than default 179 (example: 1800).
   - Validate session and transport states on ATE and DUT ports using telemetry.
     - As part of the validation, we should ensure that the values for the leaves "neighbors/neighbor/state/neighbor-port" and "neighbors/neighbor/transport/state/remote-port" are as configured above and none are "179"
-    - Ensure that the remote address derived from the leaves, "neighbors/neighbor/state/neighbor-address" and "neighbor/transport/state/remote-address" are as configured for the neighbors and not 179.
+    - Ensure that the remote address derived from the leaves, "neighbors/neighbor/state/neighbor-address" and "neighbor/transport/state/remote-address" are as configured for the neighbors.
   - Validate session state and capabilities received on DUT using telemetry.
   - Validate the BGP route/path and corresponding attributes for v4 and v6 prefixes
     - NH
