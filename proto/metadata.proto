@@ -285,7 +285,7 @@ message Metadata {
     // Devices require configuring the same OSPF setMetric when BGP
     // SetMED is configured.
     bool bgp_set_med_requires_equal_ospf_set_metric = 92;
-    
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
   }
@@ -298,4 +298,16 @@ message Metadata {
   // The `platform` field for each `platform_exceptions` should be mutually
   // exclusive. Duplicate matches will result in a test failure.
   repeated PlatformExceptions platform_exceptions = 5;
+
+  enum Tags {
+    TAGS_UNSPECIFIED = 0;
+    TAGS_AGGREGATION = 1;
+    TAGS_DATACENTER_EDGE = 2;
+    TAGS_EDGE = 3;
+    TAGS_TRANSIT = 4;
+  }
+
+  // The `tags` used to identify the area(s) testcase applies to. An empty tag
+  // is the default implying it applies to all areas.
+  repeated Tags tags = 6;
 }
