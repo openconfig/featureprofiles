@@ -29,3 +29,4 @@ platform_exceptions: {
     p4rt_modify_table_entry_unsupported: true
   }
 }
+tags: TAGS_EDGE
