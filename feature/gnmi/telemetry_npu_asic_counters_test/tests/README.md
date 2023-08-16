@@ -18,7 +18,7 @@ Note: New telemetry model is still being defined.
     NHG#1 --> NH#1 {next-hop: ATEPort2IP, network-instance:DEFAULT}
     OuterDstIP_1/32  --> NHG#1.
 
-*   Send IPinIP traffic to OuterDstIP_1. Validate that ATE port-2 receives the IPinIP traffic.
+*   Send IPinIP traffic to OuterDstIP_1 from ATE port-1. Validate that ATE port-2 receives the IPinIP traffic.
 
 *   Packet Counters - Interface-Block
 
@@ -41,10 +41,10 @@ Note: New telemetry model is still being defined.
         * /packet/host-interface-block/in-bytes (TBD)
         * /packet/host-interface-block/in-bytes (TBD)
     *   Define variance = 0.99
-    *   Send ping packets to ATEPort2IP with count 1000. Wait for 20 secs.
+    *   Send ICMP Echo traffic from  ATEPort1IP with destination DUTPort2IP. Wait for 30 secs and Stop traffic.
     *   Capture the in-pkts and out-pkts leaves(2).
     *   Calculation of step 2 - step 1 leaf values.
-        * Step 2 - Step 1 >= 1000
+        * Step 2 - Step 1 >= 30 * pps
         * Step 2/Step 1 >= variance
     *   Verify in-bytes and out-bytes (TBD)
 
