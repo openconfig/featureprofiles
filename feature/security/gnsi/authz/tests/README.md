@@ -41,7 +41,7 @@ NOTE: unless specifically mentioned, the rule `allow-test-infra` MUST be attache
   "name": "allow-test-infra",
   "source": {
     "principals": [
-      "<test_infra_id>",
+      "<test_infra_id>"
     ]
   },
   "request": {}
@@ -58,9 +58,9 @@ Prepare the following gRPC authorization policies.
       "source": {},
       "request": {
         "paths": [
-          "gnmi.GNMI/Get",
+          "/gnmi.gNMI/Get"
         ]
-      },
+      }
     }
   ],
   "deny_rules": [
@@ -68,7 +68,7 @@ Prepare the following gRPC authorization policies.
       "name": "no-one-can-gribi-get",
       "request": {
         "paths": [
-          "gribi.GRIBI/Get",
+          "/gribi.gRIBI/Get"
         ]
       }
     }
@@ -84,20 +84,20 @@ Prepare the following gRPC authorization policies.
       "name": "admin-can-do-everything",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/admin",
+          "spiffe://test-abc.foo.bar/xyz/admin"
         ]
       },
       "request": {}
-    },
+    }
   ],
   "deny_rules": [
     {
       "name": "fake-user-can-do-nothing",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/fake",
+          "spiffe://test-abc.foo.bar/xyz/fake"
         ]
-      },
+      }
     }
   ]
 }
@@ -111,7 +111,7 @@ Prepare the following gRPC authorization policies.
       "name": "no-one-can-gribi",
       "request": {
         "paths": [
-          "gribi.GRIBI/Modify"
+          "/gribi.gRIBI/Modify"
         ]
       }
     }
@@ -127,14 +127,14 @@ Prepare the following gRPC authorization policies.
       "name": "gribi-get",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/read-only",
+          "spiffe://test-abc.foo.bar/xyz/read-only"
         ]
       },
       "request": {
-        "paths": ["/gribi.GRIBI/Get"]
+        "paths": ["/gribi.gRIBI/Get"]
       }
-    },
-  ],
+    }
+  ]
 }
 ```
 
@@ -146,29 +146,29 @@ Prepare the following gRPC authorization policies.
       "name": "gnmi-get",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/read-only",
+          "spiffe://test-abc.foo.bar/xyz/read-only"
         ]
       },
       "request": {
-        "paths": ["/gnmi.GNMI/Get"]
+        "paths": ["/gnmi.gNMI/Get"]
       }
-    },
-  ],
+    }
+  ]
 }
 ```
 
 The following table describes policy `policy-normal-1`:
 
-Cert | gRIBI.Modify | gRIBI.Get | gNMI.Set | gRIBI.Get | gNOI.Time | gNOI.Ping | gNSI.Rotate | gNSI.Get
-:--- | :---  | :--- | :---  | :---  | :---  | :--- | :--- | :-----
-cert_user_admin | allow | allow |allow |allow |allow |allow |allow |allow
-cert_user_fake | deny |deny |deny |deny |deny |deny |deny |deny
-cert_gribi_modify | allow |allow |deny |deny |deny |deny |deny |deny
-cert_gnmi_set | deny |deny |deny |deny |deny |deny |allow |allow
-cert_gnoi_time |deny |deny |allow |allow |deny |deny |deny |deny
-cert_gnoi_ping |deny |deny |deny |deny |allow |deny |deny |deny
-cert_gnsi_probe |deny |deny |deny |deny |deny |allow |deny |deny
-cert_read_only |deny |deny |allow |allow |deny |deny |deny |allow
+Cert | gRIBI.Modify | gRIBI.Get | gNMI.Set | gNMI.Get | gNOI.Time | gNOI.Ping | gNSI.Rotate | gNSI.Get | gNSI.Probe
+:--- | :---  | :--- | :---  | :---  | :---  | :--- | :--- | :----- | :-----
+cert_user_admin | allow | allow |allow |allow |allow |allow |allow |allow |allow
+cert_user_fake | deny |deny |deny |deny |deny |deny |deny |deny |deny
+cert_gribi_modify | allow |allow |deny |deny |deny |deny |deny |deny |deny
+cert_gnmi_set | deny |deny |allow |allow |deny |deny |deny |deny |deny
+cert_gnoi_time |deny |deny |deny |deny |allow |deny |deny |deny |deny
+cert_gnoi_ping |deny |deny |deny |deny |deny |allow |deny |deny |deny
+cert_gnsi_probe |deny |deny |deny |deny |deny |deny |deny |deny |allow
+cert_read_only |deny |allow |deny |allow |deny |deny |deny |allow |deny
 
 ```json
 {
@@ -179,11 +179,11 @@ cert_read_only |deny |deny |allow |allow |deny |deny |deny |allow
       "source": {
         "principals": [
           "spiffe://test-abc.foo.bar/xyz/admin",
-          "spiffe://test-abc.foo.bar/xyz/gribi-modify",
+          "spiffe://test-abc.foo.bar/xyz/gribi-modify"
         ]
       },
       "request": {
-        "paths": ["/gribi.GRIBI/*"],
+        "paths": ["/gribi.gRIBI/*"]
       }
     },
     {
@@ -191,11 +191,11 @@ cert_read_only |deny |deny |allow |allow |deny |deny |deny |allow
       "source": {
         "principals": [
           "spiffe://test-abc.foo.bar/xyz/admin",
-          "spiffe://test-abc.foo.bar/xyz/gnmi-set",
+          "spiffe://test-abc.foo.bar/xyz/gnmi-set"
         ]
       },
       "request": {
-        "paths": ["/gnmi.GNMI/*"]
+        "paths": ["/gnmi.gNMI/*"]
       }
     },
     {
@@ -203,7 +203,7 @@ cert_read_only |deny |deny |allow |allow |deny |deny |deny |allow
       "source": {
         "principals": [
           "spiffe://test-abc.foo.bar/xyz/admin",
-          "spiffe://test-abc.foo.bar/xyz/gnoi-time",
+          "spiffe://test-abc.foo.bar/xyz/gnoi-time"
         ]
       },
       "request": {
@@ -215,7 +215,7 @@ cert_read_only |deny |deny |allow |allow |deny |deny |deny |allow
       "source": {
         "principals": [
           "spiffe://test-abc.foo.bar/xyz/admin",
-          "spiffe://test-abc.foo.bar/xyz/gnoi-ping",
+          "spiffe://test-abc.foo.bar/xyz/gnoi-ping"
         ]
       },
       "request": {
@@ -223,11 +223,21 @@ cert_read_only |deny |deny |allow |allow |deny |deny |deny |allow
       }
     },
     {
+      "name": "gnsi-set",
+      "source": {
+        "principals": [
+          "spiffe://test-abc.foo.bar/xyz/admin"
+        ]
+      },
+      "request": {
+        "paths": ["/gnsi.authz.v1.Authz/*"]
+      }
+    },
+    {
       "name": "gnsi-probe",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/admin",
-          "spiffe://test-abc.foo.bar/xyz/gnsi-probe",
+          "spiffe://test-abc.foo.bar/xyz/gnsi-probe"
         ]
       },
       "request": {
@@ -238,24 +248,24 @@ cert_read_only |deny |deny |allow |allow |deny |deny |deny |allow
       "name": "read-only",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/read-only",
+          "spiffe://test-abc.foo.bar/xyz/read-only"
         ]
       },
       "request": {
         "paths": [
-          "/gnmi.GNMI/Get",
-          "/gribi.GRIBI/Get",
-          "/gnsi.authz.v1.Authz/Get",
+          "/gnmi.gNMI/Get",
+          "/gribi.gRIBI/Get",
+          "/gnsi.authz.v1.Authz/Get"
         ]
       }
-    },
+    }
   ],
   "deny_rules": [
     {
       "name": "fake-user-can-do-nothing",
       "source": {
         "principals": [
-          "spiffe://test-abc.foo.bar/xyz/fake",
+          "spiffe://test-abc.foo.bar/xyz/fake"
         ]
       },
       "request": {
@@ -271,7 +281,7 @@ cert_read_only |deny |deny |allow |allow |deny |deny |deny |allow
 
 NOTE: regarding gNMI OC validation:
   * Everytime a gRPC call (including gNSI calls themselves) is allowed or denied, the following OC leaves should be validated:
-    * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc[name]/state/name` is the matched request path, e.g. "/gribi.GRIBI/Get"
+    * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc[name]/state/name` is the matched request path, e.g. "/gribi.gRIBI/Get"
     * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-accepts` increments if the rpc call is allowed.
     * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/access-rejects` increments if the rpc call is denied.
     * `/system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/rpc[name]/state/last-access-accept` reflects the timestamp of the method call.
@@ -308,12 +318,12 @@ For each of the scenarios in this section, we need to exercise the following 3 a
 * Authz-1.3, "Test that there can only be one policy"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`, with `create_on` = `100` and `version` = `policy-gribi-get_v1`.
   2. Ensure all results match per the following:
-      * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
-      * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * `cert_read_only` is allowed to issue `gRIBI.Get` method.
+      * `cert_read_only` is denied to issue `gNMI.Get` method.
   3. Use `gNSI.Rotate` method to push and finalize policy `policy-gnmi-get`.
   4. Ensure all results changed to the following:
-      * `cert_ready_only` is denied to issue `gRIBI.Get` method.
-      * `cert_ready_only` is allowed to issue `gNMI.Get` method.
+      * `cert_read_only` is denied to issue `gRIBI.Get` method.
+      * `cert_read_only` is allowed to issue `gNMI.Get` method.
 
 * Authz-1.4, "Test normal policy"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-normal-1`, with `create_on` = `100` and `version` = `policy-normal-1_v1`.
@@ -331,37 +341,37 @@ For each of the scenarios in this section, we need to exercise the following 3 a
 * Authz-2.2, "Test rollback when connection closed"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`.
   2. Ensure `gNSI.Probe` result matches the following:
-      * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
-      * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * `cert_read_only` is allowed to issue `gRIBI.Get` method.
+      * `cert_read_only` is denied to issue `gNMI.Get` method.
   3. Use `gNSI.Rotate` method to push policy `policy-gnmi-get`, but don't finalize it yet.
   4. Ensure `gNSI.Probe` result matches the following:
-      * `cert_ready_only` is denied to issue `gRIBI.Get` method.
-      * `cert_ready_only` is allowed to issue `gNMI.Get` method.
+      * `cert_read_only` is denied to issue `gRIBI.Get` method.
+      * `cert_read_only` is allowed to issue `gNMI.Get` method.
   5. Close the gRPC session.
   6. Ensure `gNSI.Probe` result changed back to the following:
-      * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
-      * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * `cert_read_only` is allowed to issue `gRIBI.Get` method.
+      * `cert_read_only` is denied to issue `gNMI.Get` method.
 
 * Authz-2.3, "Test rollback on invalid policy"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`.
   2. Ensure `gNSI.Probe` result matches the following:
-      * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
-      * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * `cert_read_only` is allowed to issue `gRIBI.Get` method.
+      * `cert_read_only` is denied to issue `gNMI.Get` method.
   3. Use `gNSI.Rotate` method to push policy `policy-invalid-no-allow-rules`, expect an error message and closed gRPC session.
   4. Ensure `gNSI.Probe` result remains as the following:
-      * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
-      * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * `cert_read_only` is allowed to issue `gRIBI.Get` method.
+      * `cert_read_only` is denied to issue `gNMI.Get` method.
 
 * Authz-2.4, "Test force_overwrite when the version does not change"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`.
   2. Use `gNSI.Rotate` method to try to push policy `policy-gnmi-get` with version value not changed. Expect error message and closed gRPC session.
   4. Validate that actual client authorization result stays as the following:
-      * `cert_ready_only` is allowed to issue `gRIBI.Get` method.
-      * `cert_ready_only` is denied to issue `gNMI.Get` method.
+      * `cert_read_only` is allowed to issue `gRIBI.Get` method.
+      * `cert_read_only` is denied to issue `gNMI.Get` method.
   3. Use `gNSI.Rotate` method to try to push policy `policy-gnmi-get` with version value, but `force_overwrite` set to true. Expect no error message, and the push can be finalized.
   4. Ensure actual client authorization results are changed to the following:
-      * `cert_ready_only` is denied to issue `gRIBI.Get` method.
-      * `cert_ready_only` is allowed to issue `gNMI.Get` method.
+      * `cert_read_only` is denied to issue `gRIBI.Get` method.
+      * `cert_read_only` is allowed to issue `gNMI.Get` method.
 
 
 ### Authz-3 Test Get behavior
