@@ -67,14 +67,14 @@ func ghWebhook(_ http.ResponseWriter, r *http.Request) {
 	case *github.PullRequestEvent:
 		if event.GetAction() == "opened" || event.GetAction() == "synchronize" {
 			if err := t.processPullRequest(r.Context(), event); err != nil {
-				glog.Errorf("ProcessPullRequest error: %s", err)
+				glog.Errorf("ProcessPullRequest PR%d user %q error: %s", event.GetPullRequest().GetNumber(), event.GetPullRequest().GetUser().GetLogin(), err)
 				return
 			}
 		}
 	case *github.IssueCommentEvent:
 		if event.GetAction() == "created" {
 			if err := t.processIssueComment(r.Context(), event); err != nil {
-				glog.Errorf("ProcessIssueComment error: %s", err)
+				glog.Errorf("ProcessIssueComment PR%d comment %d user %q error: %s", event.GetIssue().GetNumber(), event.GetComment().GetID(), event.GetComment().GetUser().GetLogin(), err)
 				return
 			}
 		}
