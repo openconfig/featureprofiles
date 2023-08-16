@@ -95,28 +95,24 @@ func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, er
 	return matchedPlatformException, nil
 }
 
-func mustLookupDeviations(dvc *ondatra.Device) *mpb.Metadata_PlatformExceptions {
+func mustLookupDeviations(dvc *ondatra.Device) *mpb.Metadata_Deviations {
 	platformExceptions, err := lookupDeviations(dvc)
 	if err != nil {
 		log.Exitf("Error looking up deviations: %v", err)
 	}
-	return platformExceptions
+	if platformExceptions == nil {
+		log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
+		return &mpb.Metadata_Deviations{}
+	}
+	return platformExceptions.GetDeviations()
 }
 
 func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
-	if platformExceptions := mustLookupDeviations(dut.Device); platformExceptions != nil {
-		return platformExceptions.GetDeviations()
-	}
-	log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
-	return &mpb.Metadata_Deviations{}
+	return mustLookupDeviations(dut.Device)
 }
 
 func lookupATEDeviations(ate *ondatra.ATEDevice) *mpb.Metadata_Deviations {
-	if platformExceptions := mustLookupDeviations(ate.Device); platformExceptions != nil {
-		return platformExceptions.GetDeviations()
-	}
-	log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
-	return &mpb.Metadata_Deviations{}
+	return mustLookupDeviations(ate.Device)
 }
 
 // BannerDelimiter returns if device requires the banner to have a delimiter character.
