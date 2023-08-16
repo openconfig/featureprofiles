@@ -2053,6 +2053,7 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 	dp := dut.Port(t, "port2")
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 
 	ip := &oc.Interface{Name: ygot.String(dp.Name())}
 	ip.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -2239,29 +2240,45 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 	}
 
 	cases := []struct {
-		desc        string
-		targetGroup string
+		desc       string
+		queueName  string
+		ecnProfile string
+		scheduler  string
 	}{{
-		desc:        "output-interface-BE1",
-		targetGroup: "BE1",
+		desc:       "output-interface-NC1",
+		queueName:  "NC1",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
 	}, {
-		desc:        "output-interface-BE0",
-		targetGroup: "BE0",
+		desc:       "output-interface-AF4",
+		queueName:  "AF4",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
 	}, {
-		desc:        "output-interface-AF1",
-		targetGroup: "AF1",
+		desc:       "output-interface-AF3",
+		queueName:  "AF3",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
 	}, {
-		desc:        "output-interface-AF2",
-		targetGroup: "AF2",
+		desc:       "output-interface-AF2",
+		queueName:  "AF2",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
 	}, {
-		desc:        "output-interface-AF3",
-		targetGroup: "AF3",
+		desc:       "output-interface-AF1",
+		queueName:  "AF1",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
 	}, {
-		desc:        "output-interface-AF4",
-		targetGroup: "AF4",
+		desc:       "output-interface-BE0",
+		queueName:  "BE0",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
 	}, {
-		desc:        "output-interface-NC1",
-		targetGroup: "NC1",
+		desc:       "output-interface-BE1",
+		queueName:  "BE1",
+		ecnProfile: "DropProfile",
+		scheduler:  "scheduler",
 	}}
 
 	t.Logf("qos output interface config cases: %v", cases)
@@ -2269,21 +2286,21 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			output := i.GetOrCreateOutput()
 			schedulerPolicy := output.GetOrCreateSchedulerPolicy()
-			schedulerPolicy.SetName("scheduler")
-			queue := output.GetOrCreateQueue("scheduler")
-			queue.SetQueueManagementProfile("DropProfile")
-			queue.SetName(tc.targetGroup)
+			schedulerPolicy.SetName(tc.scheduler)
+			queue := output.GetOrCreateQueue(tc.queueName)
+			queue.SetQueueManagementProfile(tc.ecnProfile)
+			queue.SetName(tc.queueName)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
 		// Verify the policy is applied by checking the telemetry path state values.
 		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
-		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.targetGroup)
+		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.queueName)
 
 		if got, want := gnmi.Get(t, dut, policy.Name().State()), "scheduler"; got != want {
 			t.Errorf("policy.Name().State(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.targetGroup; got != want {
+		if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.queueName; got != want {
 			t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
 		}
 		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), "DropProfile"; got != want {
