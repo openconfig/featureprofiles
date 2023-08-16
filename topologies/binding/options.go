@@ -87,7 +87,7 @@ func (d *dialer) loadCertificates() (*x509.CertPool, tls.Certificate, error) {
 	}
 	trusBundle := x509.NewCertPool()
 	if !trusBundle.AppendCertsFromPEM(caCertBytes) {
-		return nil, tls.Certificate{}, err
+		return nil, tls.Certificate{}, fmt.Errorf("error in loading ca trust bundle")
 	}
 	keyPair, err := tls.LoadX509KeyPair(d.CertFile, d.KeyFile)
 	if err != nil {
@@ -101,48 +101,45 @@ func (d *dialer) loadCertificates() (*x509.CertPool, tls.Certificate, error) {
 //
 //lint:ignore U1000 will be used by the binding.
 func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	if len(opts) == 0 {
-		switch {
-		case d.Insecure:
-			tc := insecure.NewCredentials()
-			opts = append(opts, grpc.WithTransportCredentials(tc))
-		case d.SkipVerify:
-			tc := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
-			opts = append(opts, grpc.WithTransportCredentials(tc))
-		case d.MutualTls:
-			trusBundle, keyPair, err := d.loadCertificates()
-			if err != nil {
-				return nil, err
-			}
-			tls := &tls.Config{
-				Certificates: []tls.Certificate{keyPair},
-				RootCAs:      trusBundle,
-			}
-			tlsConfig := credentials.NewTLS(tls)
-			opts = append(opts, grpc.WithTransportCredentials(tlsConfig))
+	var overrideOpts []grpc.DialOption
+	switch {
+	case d.Insecure:
+		tc := insecure.NewCredentials()
+		opts = append(opts, grpc.WithTransportCredentials(tc))
+	case d.SkipVerify:
+		tc := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
+		opts = append(opts, grpc.WithTransportCredentials(tc))
+	case d.MutualTls:
+		trusBundle, keyPair, err := d.loadCertificates()
+		if err != nil {
+			return nil, err
 		}
-		if d.Username != "" {
-			c := &creds{d.Username, d.Password, !d.Insecure}
-			opts = append(opts, grpc.WithPerRPCCredentials(c))
+		tls := &tls.Config{
+			Certificates: []tls.Certificate{keyPair},
+			RootCAs:      trusBundle,
 		}
-		if d.MaxRecvMsgSize != 0 {
-			opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(d.MaxRecvMsgSize))))
-		}
-		if d.Timeout == 0 {
-			retryOpt := grpc_retry.WithPerRetryTimeout(time.Duration(d.Timeout) * time.Second)
-			opts = append(opts,
-				grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
-				grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
-			)
-		}
+		tlsConfig := credentials.NewTLS(tls)
+		opts = append(opts, grpc.WithTransportCredentials(tlsConfig))
 	}
-	if d.Timeout == 0 {
-		return grpc.DialContext(ctx, d.Target, opts...)
-	} else {
-		ctx, cancelFunc := context.WithTimeout(ctx, time.Duration(d.Timeout)*time.Second)
+	if d.Username != "" {
+		c := &creds{d.Username, d.Password, !d.Insecure}
+		opts = append(opts, grpc.WithPerRPCCredentials(c))
+	}
+	if d.MaxRecvMsgSize != 0 {
+		opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(d.MaxRecvMsgSize))))
+	}
+	if d.Timeout != 0 {
+		retryOpt := grpc_retry.WithPerRetryTimeout(time.Duration(d.Timeout) * time.Second)
+		opts = append(opts,
+			grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
+			grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
+		)
+		var cancelFunc context.CancelFunc
+		ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(d.Timeout)*time.Second)
 		defer cancelFunc()
-		return grpc.DialContext(ctx, d.Target, opts...)
 	}
+	opts = append(opts, overrideOpts...)
+	return grpc.DialContext(ctx, d.Target, opts...)
 }
 
 var knownHostsFiles = []string{
