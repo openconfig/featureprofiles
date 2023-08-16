@@ -24,7 +24,7 @@ ATE (Port1) <-IBGP-> (Port1) DUT (Port2) <-EBGP-> (Port2) ATE
     - Metric
     - Communities
   - Initiate EBGP and IBGP session reset at the DUT end few times and ensure following are collected accurately each time on the DUT. Session reset can be initiated by toggling neighbors/neighbor/config/enabled
-    - last-notification-time, last-notification-error-code, last-notification-error-subcode in the sent container
+    - last-notification-time, last-notification-error-code, last-notification-error-subcode in the `neighbour/state/messages/sent` container
     - neighbors/neighbor/transport/state/remote-port, neighbors/neighbor/transport/state/remote-address, neighbors/neighbor/state/neighbor-address, neighbors/neighbor/state/neighbor-port
   - Initiate EBGP and IBGP session reset at both the ATE ends few times and ensure following are collected accurately each time on the DUT. Session reset can be initiated by toggling neighbors/neighbor/config/enabled
     - last-notification-time, last-notification-error-code, last-notification-error-subcode in the received container
