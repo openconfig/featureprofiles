@@ -31,7 +31,6 @@ import (
 // config_path:/system/config/hostname
 // telemetry_path:/system/state/hostname
 func TestHostname(t *testing.T) {
-	t.Log("Test Change")
 	testCases := []struct {
 		description string
 		hostname    string
