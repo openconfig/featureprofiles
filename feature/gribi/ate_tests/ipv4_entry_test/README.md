@@ -41,6 +41,11 @@ Validate IPv4 support in gRIBI.
             references (interface_ref) a down interface and override the
             destination MAC (mac_address), ensure that `FIB_PROGRAMMED` is
             returned.
+    *   Single IPv4Entry -> NHG -> multiple NH with one down interface
+        *   Install 198.51.100.0/24 to a NextHopGroup containing multiple
+            NextHops, of which one references (interface_ref) a down
+            interface and override the destination MAC (mac_address), ensure
+            that `FIB_PROGRAMMED` is returned.
 
 ## Config Parameter coverage
 
