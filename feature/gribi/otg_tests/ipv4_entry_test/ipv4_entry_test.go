@@ -401,7 +401,9 @@ func TestIPv4Entry(t *testing.T) {
 							portStateAction := gosnappi.NewControlState()
 							linkState := portStateAction.Port().Link().SetPortNames([]string{tc.downPort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 							ate.OTG().SetControlState(t, portStateAction)
-							defer linkState.SetState(gosnappi.StatePortLinkState.UP)
+							// Restore port state at end of test case.
+							linkState.SetState(gosnappi.StatePortLinkState.UP)
+							defer ate.OTG().SetControlState(t, portStateAction)
 						}
 					}
 
