@@ -291,7 +291,7 @@ message Metadata {
     // Device does not support tunnel interfaces state paths
     bool tunnel_state_path_unsupported = 94;
     // Device does not support tunnel interfaces source and destination address config paths
-    bool tunnel_config_path_unsupported =95;
+    bool tunnel_config_path_unsupported = 95;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
