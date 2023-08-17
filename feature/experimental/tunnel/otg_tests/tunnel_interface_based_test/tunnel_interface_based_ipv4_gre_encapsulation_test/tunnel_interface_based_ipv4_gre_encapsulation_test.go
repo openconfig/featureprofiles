@@ -146,64 +146,48 @@ type parameters struct {
 func TestFtiTunnels(t *testing.T) {
 
 	p := &parameters{
-		rtIntf1Ipv4Add:  "10.1.1.2",
-		rtIntf2Ipv4Add:  "11.1.1.2",
-		rtIntf5Ipv4Add:  "30.1.1.1",
-		rtIntf6Ipv4Add:  "31.1.1.1",
+		rtIntf1Ipv4Add:  "198.51.100.2",
+		rtIntf2Ipv4Add:  "198.51.100.3",
+		rtIntf5Ipv4Add:  "198.51.100.5",
+		rtIntf6Ipv4Add:  "198.51.100.6",
 		rtIntf1MacAdd:   "00:00:aa:aa:aa:aa",
 		rtIntf2MacAdd:   "00:00:bb:bb:bb:bb",
 		rtIntf5MacAdd:   "00:00:cc:cc:cc:cc",
 		rtIntf6MacAdd:   "00:00:dd:dd:dd:dd",
-		r0Intf1Ipv4Add:  "10.1.1.1",
-		r0Intf2Ipv4Add:  "11.1.1.1",
-		r0Intf3Ipv4Add:  "20.1.1.1",
-		r0Intf4Ipv4Add:  "21.1.1.1",
-		r0Fti0Ipv4Add:   "90.1.1.1",
-		r0Fti1Ipv4Add:   "91.1.1.1",
-		r0Fti2Ipv4Add:   "92.1.1.1",
-		r0Fti3Ipv4Add:   "93.1.1.1",
-		r0Fti4Ipv4Add:   "94.1.1.1",
-		r0Fti5Ipv4Add:   "95.1.1.1",
-		r0Fti6Ipv4Add:   "96.1.1.1",
-		r0Fti7Ipv4Add:   "97.1.1.1",
-		r0Lo0Ut0Ipv4Add: "70.1.1.1",
-		r0Lo0Ut1Ipv4Add: "71.1.1.1",
-		r0Lo0Ut2Ipv4Add: "72.1.1.1",
-		r0Lo0Ut3Ipv4Add: "73.1.1.1",
+		r0Intf1Ipv4Add:  "198.51.100.1",
+		r0Intf2Ipv4Add:  "198.51.100.4",
+		r0Intf3Ipv4Add:  "198.51.100.7",
+		r0Intf4Ipv4Add:  "198.51.100.8",
+		r0Fti0Ipv4Add:   "198.51.100.9",
+		r0Fti1Ipv4Add:   "198.51.100.10",
+		r0Fti2Ipv4Add:   "198.51.100.11",
+		r0Fti3Ipv4Add:   "198.51.100.12",
+		r0Fti4Ipv4Add:   "198.51.100.13",
+		r0Fti5Ipv4Add:   "198.51.100.14",
+		r0Fti6Ipv4Add:   "198.51.100.15",
+		r0Fti7Ipv4Add:   "198.51.100.16",
+		r0Lo0Ut0Ipv4Add: "198.51.100.17",
+		r0Lo0Ut1Ipv4Add: "198.51.100.18",
+		r0Lo0Ut2Ipv4Add: "198.51.100.19",
+		r0Lo0Ut3Ipv4Add: "198.51.100.20",
 		ipv4Mask:        24,
 		ipv4FullMask:    32,
-		r1Intf5Ipv4Add:  "30.1.1.2",
-		r1Intf6Ipv4Add:  "31.1.1.2",
-		r1Intf3Ipv4Add:  "20.1.1.2",
-		r1Intf4Ipv4Add:  "21.1.1.2",
-		r1Fti0Ipv4Add:   "90.1.1.2",
-		r1Fti1Ipv4Add:   "91.1.1.2",
-		r1Fti2Ipv4Add:   "92.1.1.2",
-		r1Fti3Ipv4Add:   "93.1.1.2",
-		r1Fti4Ipv4Add:   "94.1.1.2",
-		r1Fti5Ipv4Add:   "95.1.1.2",
-		r1Fti6Ipv4Add:   "96.1.1.2",
-		r1Fti7Ipv4Add:   "97.1.1.2",
-		r1Lo0Ut0Ipv4Add: "80.1.1.1",
-		r1Lo0Ut1Ipv4Add: "81.1.1.1",
-		r1Lo0Ut2Ipv4Add: "82.1.1.1",
-		r1Lo0Ut3Ipv4Add: "83.1.1.1",
 		flow1:           "IPv4-flow1",
 		flow2:           "IPv4-flow2",
 		trafficDuration: 60,
 		trafficRate:     1000,
 	}
 
-	dut1 := ondatra.DUT(t, "dut1")
+	dut1 := ondatra.DUT(t, "dut")
 	d1p1 := dut1.Port(t, "port1")
 	d1p2 := dut1.Port(t, "port2")
 	d1p3 := dut1.Port(t, "port3")
 	d1p4 := dut1.Port(t, "port4")
 
 	rt := ondatra.ATE(t, "ate")
-	rt1 := rt.Port(t, "port3")
-	rt2 := rt.Port(t, "port4")
-	rt3 := rt.Port(t, "port5")
+	rt1 := rt.Port(t, "port1")
+	rt2 := rt.Port(t, "port2")
+	rt3 := rt.Port(t, "port3")
 
 	t.Run("Configure DUT ", func(t *testing.T) {
 		ConfigureTunnelEncapDUT(t, p, dut1, d1p1, d1p2, d1p3, d1p4)
@@ -819,6 +803,8 @@ func ConfigureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 		i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 		a := i4.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.ipv4mask)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
+
 	}
 }
 
