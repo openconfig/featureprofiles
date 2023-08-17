@@ -285,10 +285,13 @@ message Metadata {
     // Devices require configuring the same OSPF setMetric when BGP
     // SetMED is configured.
     bool bgp_set_med_requires_equal_ospf_set_metric = 92;
+    // Devices require configuring subinterface with tagged vlan for p4rt
+    // packet in.
+    bool p4rt_gdp_requires_dot1q_subinterface = 93;
     // Device does not support tunnel interfaces state paths
-    bool tunnel_state_path_unsupported = 93;
+    bool tunnel_state_path_unsupported = 94;
     // Device does not support tunnel interfaces source and destination address config paths
-    bool tunnel_config_path_unsupported =94;
+    bool tunnel_config_path_unsupported =95;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
