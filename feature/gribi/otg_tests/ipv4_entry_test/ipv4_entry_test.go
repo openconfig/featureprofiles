@@ -297,7 +297,7 @@ func TestIPv4Entry(t *testing.T) {
 		},
 		{
 			// ate port link cannot be set to down in kne, therefore the downPort is a dut port
-			desc:     "Downed next-hop interface",
+			desc:     "All referenced next-hop interfaces are down",
 			downPort: dut.Port(t, "port2"),
 			entries: []fluent.GRIBIEntry{
 				fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -312,6 +312,44 @@ func TestIPv4Entry(t *testing.T) {
 			wantOperationResults: []*client.OpResult{
 				fluent.OperationResult().
 					WithNextHopOperation(nh1ID).
+					WithProgrammingResult(fluent.InstalledInFIB).
+					WithOperationType(constants.Add).
+					AsResult(),
+				fluent.OperationResult().
+					WithNextHopGroupOperation(nhgID).
+					WithProgrammingResult(fluent.InstalledInFIB).
+					WithOperationType(constants.Add).
+					AsResult(),
+				fluent.OperationResult().
+					WithIPv4Operation(dstPfx).
+					WithProgrammingResult(fluent.InstalledInFIB).
+					WithOperationType(constants.Add).
+					AsResult(),
+			},
+		},
+		{
+			desc:     "One of the referenced next-hop interfaces is down",
+			downPort: ate.Port(t, "port2"),
+			entries: []fluent.GRIBIEntry{
+				fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+					WithIndex(nh1ID).WithInterfaceRef(dut.Port(t, "port2").Name()).WithMacAddress(staticDstMAC),
+				fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+					WithIndex(nh2ID).WithInterfaceRef(dut.Port(t, "port3").Name()).WithMacAddress(staticDstMAC),
+				fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+					WithID(nhgID).AddNextHop(nh1ID, 1).AddNextHop(nh2ID, 1),
+				fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+					WithPrefix(dstPfx).WithNextHopGroup(nhgID),
+			},
+			wantBadFlows:  []*ondatra.Flow{port2Flow},
+			wantGoodFlows: []*ondatra.Flow{port3Flow},
+			wantOperationResults: []*client.OpResult{
+				fluent.OperationResult().
+					WithNextHopOperation(nh1ID).
+					WithProgrammingResult(fluent.InstalledInFIB).
+					WithOperationType(constants.Add).
+					AsResult(),
+				fluent.OperationResult().
+					WithNextHopOperation(nh2ID).
 					WithProgrammingResult(fluent.InstalledInFIB).
 					WithOperationType(constants.Add).
 					AsResult(),
