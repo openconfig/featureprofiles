@@ -4,7 +4,7 @@
 uuid: "fe01cad6-6775-45cd-a025-d960ca6c04af"
 plan_id: "gNMI-1.15"
 description: "Set Requests"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT
 platform_exceptions: {
   platform: {
     vendor: CISCO
