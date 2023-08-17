@@ -290,6 +290,8 @@ message Metadata {
     bool p4rt_gdp_requires_dot1q_subinterface = 93;
     // ATE port link state operations are a no-op in KNE/virtualized environments.
     bool ate_port_link_state_operations_unsupported = 94;
+    // Creates a user and assigns role/rbac to said user via native model.
+    bool set_native_user = 95;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;

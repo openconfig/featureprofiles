@@ -523,6 +523,11 @@ func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
 }
 
+// SetNativeUser creates a user and assigns role/rbac to that user via native model.
+func SetNativeUser(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetNativeUser()
+}
+
 // P4RTGdpRequiresDot1QSubinterface returns true for devices that require configuring
 // subinterface with tagged vlan for p4rt packet in.
 func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
