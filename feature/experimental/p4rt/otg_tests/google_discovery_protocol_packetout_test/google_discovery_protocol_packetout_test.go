@@ -17,13 +17,12 @@ package google_discovery_protocol_packetout_test
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"net"
 	"sort"
 	"testing"
 	"time"
-
-	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -38,25 +37,23 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	p4v1pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 const (
 	ipv4PrefixLen = 30
-	packetCount   = 100
+	packetCount   = 300
 )
 
 var (
-	p4InfoFile                                = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
-	streamName                                = "p4rt"
-	gdpInLayers           layers.EthernetType = 0x6007
-	deviceID                                  = *ygot.Uint64(1)
-	portID                                    = *ygot.Uint32(10)
-	electionID                                = *ygot.Uint64(100)
-	METADATA_INGRESS_PORT                     = *ygot.Uint32(1)
-	METADATA_EGRESS_PORT                      = *ygot.Uint32(2)
-	SUBMIT_TO_INGRESS                         = *ygot.Uint32(1)
-	SUBMIT_TO_EGRESS                          = *ygot.Uint32(0)
+	p4InfoFile                       = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	streamName                       = "p4rt"
+	gdpInLayers  layers.EthernetType = 0x6007
+	deviceID                         = uint64(1)
+	portID                           = uint32(10)
+	electionID                       = uint64(100)
+	vlanID                           = uint16(4000)
+	pktOutDstMAC                     = "02:F6:65:64:00:08"
 )
 
 var (
@@ -89,7 +86,7 @@ var (
 
 type PacketIO interface {
 	GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo
-	GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut
+	GetPacketOut(portID uint32) []*p4v1pb.PacketOut
 }
 
 type testArgs struct {
@@ -105,13 +102,13 @@ type testArgs struct {
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
 func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool) error {
 	t.Helper()
-	err := client.Write(&p4_v1.WriteRequest{
+	err := client.Write(&p4v1pb.WriteRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+		ElectionId: &p4v1pb.Uint128{High: uint64(0), Low: electionID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete),
 		),
-		Atomicity: p4_v1.WriteRequest_CONTINUE_ON_ERROR,
+		Atomicity: p4v1pb.WriteRequest_CONTINUE_ON_ERROR,
 	})
 	if err != nil {
 		return err
@@ -120,13 +117,13 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 }
 
 // sendPackets sends out packets via PacketOut message in StreamChannel.
-func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4_v1.PacketOut, packetCount int) {
+func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1pb.PacketOut, packetCount int) {
 	count := packetCount / len(packets)
 	for _, packet := range packets {
 		for i := 0; i < count; i++ {
 			if err := client.StreamChannelSendMsg(
-				&streamName, &p4_v1.StreamMessageRequest{
-					Update: &p4_v1.StreamMessageRequest_Packet{
+				&streamName, &p4v1pb.StreamMessageRequest{
+					Update: &p4v1pb.StreamMessageRequest_Packet{
 						Packet: packet,
 					},
 				}); err != nil {
@@ -169,11 +166,11 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			port := sortPorts(args.ate.Ports())[0].ID()
 			counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 
-			packets := args.packetIO.GetPacketOut(portID, false)
+			packets := args.packetIO.GetPacketOut(portID)
 			sendPackets(t, test.client, packets, packetCount)
 
 			// Wait for ate stats to be populated
-			time.Sleep(60 * time.Second)
+			time.Sleep(2 * time.Minute)
 
 			// Check packet counters after packet out
 			counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
@@ -182,11 +179,11 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
 
 			if test.expectPass {
-				if counter1-counter0 < uint64(float64(packetCount)*0.95) {
+				if counter1-counter0 < uint64(packetCount*0.95) {
 					t.Fatalf("Not all the packets are received.")
 				}
 			} else {
-				if counter1-counter0 > uint64(float64(packetCount)*0.10) {
+				if counter1-counter0 > uint64(packetCount*0.10) {
 					t.Fatalf("Unexpected packets are received.")
 				}
 			}
@@ -212,7 +209,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice, hasVlan bool) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	if deviations.InterfaceEnabled(dut) {
@@ -227,6 +224,15 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
+	if hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
+		s1 := i.GetOrCreateSubinterface(1)
+		s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
+			i.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
+		}
+	}
+
 	return i
 }
 
@@ -236,14 +242,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portID)}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut, true))
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portID + 1)}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut, false))
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
@@ -251,6 +257,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
+	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), pktOutDstMAC)
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -298,11 +305,11 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	for index, client := range clients {
 		if client != nil {
 			client.StreamChannelCreate(&streamParameter)
-			if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Arbitration{
-					Arbitration: &p4_v1.MasterArbitrationUpdate{
+			if err := client.StreamChannelSendMsg(&streamName, &p4v1pb.StreamMessageRequest{
+				Update: &p4v1pb.StreamMessageRequest_Arbitration{
+					Arbitration: &p4v1pb.MasterArbitrationUpdate{
 						DeviceId: streamParameter.DeviceId,
-						ElectionId: &p4_v1.Uint128{
+						ElectionId: &p4v1pb.Uint128{
 							High: streamParameter.ElectionIdH,
 							Low:  streamParameter.ElectionIdL - uint64(index),
 						},
@@ -323,30 +330,35 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 	// Load p4info file.
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
-		return errors.New("Errors seen when loading p4info file.")
+		return errors.New("errors seen when loading p4info file")
 	}
 
 	// Send SetForwardingPipelineConfig for p4rt leader client.
-	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+	if err := args.leader.SetForwardingPipelineConfig(&p4v1pb.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
-		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
-		Config: &p4_v1.ForwardingPipelineConfig{
+		ElectionId: &p4v1pb.Uint128{High: uint64(0), Low: electionID},
+		Action:     p4v1pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+		Config: &p4v1pb.ForwardingPipelineConfig{
 			P4Info: p4Info,
-			Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
+			Cookie: &p4v1pb.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
 		},
 	}); err != nil {
-		return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
+		return errors.New("errors seen when sending SetForwardingPipelineConfig")
 	}
 	return nil
 }
 
 // getGDPParameter returns GDP related parameters for testPacketOut testcase.
 func getGDPParameter(t *testing.T) PacketIO {
+	mac, err := net.ParseMAC(pktOutDstMAC)
+	if err != nil {
+		t.Fatalf("Could not parse MAC: %v", err)
+	}
 	return &GDPPacketIO{
 		IngressPort: fmt.Sprint(portID),
+		DstMAC:      mac,
 	}
 }
 
@@ -395,10 +407,11 @@ func TestPacketOut(t *testing.T) {
 type GDPPacketIO struct {
 	PacketIO
 	IngressPort string
+	DstMAC      net.HardwareAddr
 }
 
 // packetGDPRequestGet generates PacketOut payload for GDP packets.
-func packetGDPRequestGet() []byte {
+func packetGDPRequestGet(vlan bool) []byte {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
@@ -410,22 +423,73 @@ func packetGDPRequestGet() []byte {
 		DstMAC:       net.HardwareAddr{0x00, 0x0A, 0xDA, 0xF0, 0xF0, 0xF0},
 		EthernetType: gdpInLayers,
 	}
+
+	payload := []byte{}
+	payLoadLen := 64
+	for i := 0; i < payLoadLen; i++ {
+		payload = append(payload, byte(i))
+	}
+	if vlan {
+		pktEth.EthernetType = layers.EthernetTypeDot1Q
+		d1q := &layers.Dot1Q{
+			VLANIdentifier: vlanID,
+			Type:           gdpInLayers,
+		}
+		gopacket.SerializeLayers(buf, opts,
+			pktEth, d1q, gopacket.Payload(payload),
+		)
+	} else {
+		gopacket.SerializeLayers(buf, opts,
+			pktEth, gopacket.Payload(payload),
+		)
+	}
+	return buf.Bytes()
+}
+
+func ipPacketToATEPort1(dstMAC net.HardwareAddr) []byte {
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+	eth := &layers.Ethernet{
+		SrcMAC: net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
+		// GDP MAC is 00:0A:DA:F0:F0:F0
+		DstMAC:       dstMAC,
+		EthernetType: layers.EthernetTypeIPv4,
+	}
+	ip := &layers.IPv4{
+		SrcIP:    net.ParseIP(atePort2.IPv4),
+		DstIP:    net.ParseIP(atePort1.IPv4),
+		TTL:      2,
+		Version:  4,
+		Protocol: layers.IPProtocolIPv4,
+	}
+	tcp := &layers.TCP{
+		SrcPort: 10000,
+		DstPort: 20000,
+		Seq:     11050,
+	}
+
+	// Required for checksum computation.
+	tcp.SetNetworkLayerForChecksum(ip)
+
 	payload := []byte{}
 	payLoadLen := 64
 	for i := 0; i < payLoadLen; i++ {
 		payload = append(payload, byte(i))
 	}
 	gopacket.SerializeLayers(buf, opts,
-		pktEth, gopacket.Payload(payload),
+		eth, ip, tcp, gopacket.Payload(payload),
 	)
 	return buf.Bytes()
 }
 
 // GetTableEntry creates wbb acl entry related to GDP.
 func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTableEntryInfo {
-	actionType := p4_v1.Update_INSERT
+	actionType := p4v1pb.Update_INSERT
 	if delete {
-		actionType = p4_v1.Update_DELETE
+		actionType = p4v1pb.Update_DELETE
 	}
 	return []*p4rtutils.ACLWbbIngressTableEntryInfo{{
 		Type:          actionType,
@@ -436,24 +500,35 @@ func (gdp *GDPPacketIO) GetTableEntry(delete bool) []*p4rtutils.ACLWbbIngressTab
 }
 
 // GetPacketOut generates PacketOut message with payload as GDP.
-func (gdp *GDPPacketIO) GetPacketOut(portID uint32, submitIngress bool) []*p4_v1.PacketOut {
-	packets := []*p4_v1.PacketOut{}
-	packet := &p4_v1.PacketOut{
-		Payload: packetGDPRequestGet(),
-		Metadata: []*p4_v1.PacketMetadata{
+func (gdp *GDPPacketIO) GetPacketOut(portID uint32) []*p4v1pb.PacketOut {
+	gdpWithVlan := &p4v1pb.PacketOut{
+		Payload: packetGDPRequestGet(true),
+		Metadata: []*p4v1pb.PacketMetadata{
 			{
 				MetadataId: uint32(1), // "egress_port"
 				Value:      []byte(fmt.Sprint(portID)),
 			},
 		},
 	}
-	if submitIngress {
-		packet.Metadata = append(packet.Metadata,
-			&p4_v1.PacketMetadata{
+	gdpWithoutVlan := &p4v1pb.PacketOut{
+		Payload: packetGDPRequestGet(false),
+		Metadata: []*p4v1pb.PacketMetadata{
+			{
+				MetadataId: uint32(1), // "egress_port"
+				Value:      []byte(fmt.Sprint(portID)),
+			},
+		},
+	}
+
+	nonGDP := &p4v1pb.PacketOut{
+		Payload: ipPacketToATEPort1(gdp.DstMAC),
+		Metadata: []*p4v1pb.PacketMetadata{
+			{
 				MetadataId: uint32(2), // "submit_to_ingress"
 				Value:      []byte{1},
-			})
+			},
+		},
 	}
-	packets = append(packets, packet)
-	return packets
+
+	return []*p4v1pb.PacketOut{gdpWithoutVlan, gdpWithVlan, nonGDP}
 }
