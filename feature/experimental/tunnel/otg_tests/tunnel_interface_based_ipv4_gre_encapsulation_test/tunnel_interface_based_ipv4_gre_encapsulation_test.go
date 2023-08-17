@@ -28,7 +28,6 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -65,31 +64,6 @@ const (
 	lossTolerance     = 2
 	prefix            = "0.0.0.0/0"
 	nexthop           = "192.0.2.6"
-)
-
-var (
-	dutSrc = attrs.Attributes{
-		Desc:    "DUT to ATE source",
-		IPv4:    "192.0.2.1",
-		IPv4Len: plenIPv4,
-	}
-	ateSrc = attrs.Attributes{
-		Name:    "ateSrc",
-		MAC:     "02:00:01:01:01:01",
-		IPv4:    "192.0.2.2",
-		IPv4Len: plenIPv4,
-	}
-	dutDst = attrs.Attributes{
-		Desc:    "DUT to ATE destination",
-		IPv4:    "192.0.2.5",
-		IPv4Len: plenIPv4,
-	}
-	ateDst = attrs.Attributes{
-		Name:    "atedst",
-		MAC:     "02:00:02:01:01:01",
-		IPv4:    "192.0.2.6",
-		IPv4Len: plenIPv4,
-	}
 )
 
 type parameters struct {
