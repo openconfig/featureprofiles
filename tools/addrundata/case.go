@@ -85,6 +85,11 @@ func (tc *testcase) check() []error {
 				"metadata test description needs update: was %q, will be %q",
 				tc.existing.Description, tc.markdown.Description))
 		}
+		if tc.existing.Tags != tc.markdown.Tags {
+			errs = append(errs, fmt.Errorf(
+				"metadata testcase tags needs update: was %q, will be %q",
+				tc.existing.Tags, tc.markdown.Tags))
+		}
 	}
 
 	if tc.existing != nil {
@@ -115,6 +120,7 @@ func (tc *testcase) fix() error {
 	tc.fixed = &mpb.Metadata{
 		PlanId:      tc.markdown.PlanId,
 		Description: tc.markdown.Description,
+		Tags:        tc.markdown.Tags,
 	}
 
 	if tc.existing != nil {
