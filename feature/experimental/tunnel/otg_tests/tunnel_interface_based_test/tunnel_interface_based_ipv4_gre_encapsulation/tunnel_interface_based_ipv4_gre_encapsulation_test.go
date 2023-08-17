@@ -518,7 +518,7 @@ func VerifyUnderlayOverlayLoadbalanceTest(t *testing.T, p *parameters, dut1 *ond
 
 	// Incoming traffic flow should be equally distributed for Encapsulation(ECMP)
 	t.Logf("Verify Underlay loadbalancing 2 fti tunnel interface - Incoming traffic flow should be equally distributed for Encapsulation(ECMP) ")
-	for key, _ := range finalInfStats {
+	for key := range finalInfStats {
 		VerifyLoadbalance(t, 4, p.trafficRate, p.trafficDuration, 2, int64(initialInfStats[key]), int64(finalInfStats[key]))
 	}
 }
