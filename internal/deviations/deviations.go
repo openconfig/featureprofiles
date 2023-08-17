@@ -523,7 +523,6 @@ func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
 }
 
-
 // SetNativeUser creates a user and assigns role/rbac to that user via native model.
 func SetNativeUser(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSetNativeUser()
@@ -539,5 +538,4 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 // port link state control operations (such as port shutdown.)
 func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
 	return lookupATEDeviations(ate).GetAtePortLinkStateOperationsUnsupported()
->>>>>>> upstream/main
 }
