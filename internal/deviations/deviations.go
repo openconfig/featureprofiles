@@ -53,7 +53,7 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions, error) {
+func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
 	var matchedPlatformException *mpb.Metadata_PlatformExceptions
 
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
@@ -61,13 +61,13 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 		}
 
-		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
+		if dvc.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
 			continue
 		}
 
 		// If hardware_model_regex is set and does not match, continue
 		if hardwareModelRegex := platformExceptions.GetPlatform().GetHardwareModelRegex(); hardwareModelRegex != "" {
-			matchHw, errHw := regexp.MatchString(hardwareModelRegex, dut.Device.Model())
+			matchHw, errHw := regexp.MatchString(hardwareModelRegex, dvc.Model())
 			if errHw != nil {
 				return nil, fmt.Errorf("error with regex match %v", errHw)
 			}
@@ -78,7 +78,7 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 
 		// If software_version_regex is set and does not match, continue
 		if softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex(); softwareVersionRegex != "" {
-			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dut.Device.Version())
+			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dvc.Version())
 			if errSw != nil {
 				return nil, fmt.Errorf("error with regex match %v", errSw)
 			}
@@ -95,20 +95,24 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 	return matchedPlatformException, nil
 }
 
-func mustLookupDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_PlatformExceptions {
-	platformExceptions, err := lookupDeviations(dut)
+func mustLookupDeviations(dvc *ondatra.Device) *mpb.Metadata_Deviations {
+	platformExceptions, err := lookupDeviations(dvc)
 	if err != nil {
 		log.Exitf("Error looking up deviations: %v", err)
 	}
-	return platformExceptions
+	if platformExceptions == nil {
+		log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
+		return &mpb.Metadata_Deviations{}
+	}
+	return platformExceptions.GetDeviations()
 }
 
 func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
-	if platformExceptions := mustLookupDeviations(dut); platformExceptions != nil {
-		return platformExceptions.GetDeviations()
-	}
-	log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
-	return &mpb.Metadata_Deviations{}
+	return mustLookupDeviations(dut.Device)
+}
+
+func lookupATEDeviations(ate *ondatra.ATEDevice) *mpb.Metadata_Deviations {
+	return mustLookupDeviations(ate.Device)
 }
 
 // BannerDelimiter returns if device requires the banner to have a delimiter character.
@@ -523,4 +527,10 @@ func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
 // subinterface with tagged vlan for p4rt packet in.
 func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
+}
+
+// ATEPortLinkStateOperationsUnsupported returns true for traffic generators that do not support
+// port link state control operations (such as port shutdown.)
+func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
+	return lookupATEDeviations(ate).GetAtePortLinkStateOperationsUnsupported()
 }
