@@ -545,3 +545,15 @@ func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
 func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
 }
+
+// TunnelStatePathUnsupported returns true for devices that require configuring
+// /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
+func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelStatePathUnsupported()
+}
+
+// TunnelConfigPathUnsupported returns true for devices that require configuring
+// Tunnel source-address destination-address, encapsulation type are not supported in OC
+func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
+}
