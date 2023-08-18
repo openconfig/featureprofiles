@@ -297,8 +297,13 @@ func TestIPv4Entry(t *testing.T) {
 		},
 		{
 			// ate port link cannot be set to down in kne, therefore the downPort is a dut port
-			desc:     "Downed next-hop interface",
-			downPort: dut.Port(t, "port2"),
+			desc: "Downed next-hop interface",
+			downPort: func() *ondatra.Port {
+				if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+					return dut.Port(t, "port2")
+				}
+				return ate.Port(t, "port2")
+			}(),
 			entries: []fluent.GRIBIEntry{
 				fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 					WithIndex(nh1ID).WithIPAddress(atePort2.IPv4).
@@ -387,10 +392,19 @@ func TestIPv4Entry(t *testing.T) {
 					}
 
 					if tc.downPort != nil {
-						// Setting admin state down on the DUT interface.
-						// Setting the otg interface down has no effect on kne and is not yet supported in otg
-						setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, false)
-						defer setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, true)
+						if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+							// Setting admin state down on the DUT interface.
+							// Setting the OTG interface down has no effect in KNE environments.
+							setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, false)
+							defer setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, true)
+						} else {
+							portStateAction := gosnappi.NewControlState()
+							linkState := portStateAction.Port().Link().SetPortNames([]string{tc.downPort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+							ate.OTG().SetControlState(t, portStateAction)
+							// Restore port state at end of test case.
+							linkState.SetState(gosnappi.StatePortLinkState.UP)
+							defer ate.OTG().SetControlState(t, portStateAction)
+						}
 					}
 
 					c.Modify().AddEntry(t, tc.entries...)
