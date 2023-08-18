@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/netinstisis"
 	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ondatra/ixnet"
@@ -92,7 +93,7 @@ var (
 )
 
 // ISISPath is shorthand for ProtocolPath().Isis().
-func ISISPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_Protocol_IsisPath {
+func ISISPath(dut *ondatra.DUTDevice) *netinstisis.NetworkInstance_Protocol_IsisPath {
 	return ProtocolPath(dut).Isis()
 }
 
