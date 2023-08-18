@@ -120,14 +120,6 @@ func setupQosIpv6(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 
 }
 
-func setupQosSche(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bc := BaseConfigSche()
-	setup.ResetStruct(bc, []string{"Interface", "Classifier", "ForwardingGroup"})
-
-	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), bc)
-	return bc
-
-}
 func setupQosTele(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bc := BaseConfig()
 	setup.ResetStruct(bc, []string{"Interface", "Classifier"})
@@ -161,32 +153,7 @@ func setupQosEgress(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	return bce
 
 }
-func setupQosEgressSche(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
-	bce := BaseConfigEgressSche()
-	fmt.Printf("%+v\n", bce.Queue)
-	keys := make([]string, 0, len(bce.Queue))
-	for ke := range bce.Queue {
-		keys = append(keys, ke)
-	}
 
-	sort.Sort(sort.Reverse(sort.StringSlice(keys)))
-	fmt.Printf("key is %+v", keys)
-
-	for _, k := range keys {
-		fmt.Println("KEY: ", k, "VAL: ", bce.Queue[k])
-		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(k).Config(), bce.Queue[k])
-	}
-	setup.ResetStruct(bce, []string{"SchedulerPolicy"})
-	bcSchedulerPolicy := setup.GetAnyValue(bce.SchedulerPolicy)
-	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*bcSchedulerPolicy.Name).Config(), bcSchedulerPolicy)
-	bcee := BaseConfigEgress()
-	for inter, value := range bcee.Interface {
-		fmt.Printf("key :%+v and val:%+v", inter, *(value.Output.SchedulerPolicy))
-		gnmi.Update(t, dut, gnmi.OC().Qos().Interface(inter).Config(), value)
-	}
-	return bce
-
-}
 func setupQosEgressTel(t *testing.T, dut *ondatra.DUTDevice) *oc.Qos {
 	bce := BaseConfigEgress()
 	return bce
