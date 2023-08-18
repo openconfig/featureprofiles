@@ -13,3 +13,11 @@ platform_exceptions: {
     banner_delimiter: "c"
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+    deviations: {
+      set_native_user: true
+    }
+}
