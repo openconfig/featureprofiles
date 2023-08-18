@@ -540,6 +540,12 @@ func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
 	return lookupATEDeviations(ate).GetAtePortLinkStateOperationsUnsupported()
 }
 
+// ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
+// configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
+func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
+}
+
 // TunnelStatePathUnsupported returns true for devices that require configuring
 // /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
 func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
