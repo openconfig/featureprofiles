@@ -21,9 +21,6 @@ func main() {
 	if *bindingFileFlag == "" {
 		die("Missing binding arg")
 	}
-	if *outputFileFlag == "" {
-		die("Missing out arg")
-	}
 
 	in, err := os.ReadFile(*bindingFileFlag)
 	if err != nil {
@@ -45,7 +42,11 @@ func main() {
 		die("Unable to marshal binding: %v", err)
 	}
 
-	os.WriteFile(*outputFileFlag, j, 0644)
+	if *outputFileFlag == "" {
+		fmt.Println(string(j))
+	} else {
+		os.WriteFile(*outputFileFlag, j, 0644)
+	}
 }
 
 func die(format string, a ...any) {
