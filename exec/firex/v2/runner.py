@@ -101,7 +101,7 @@ services:
     image: ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-4306
     restart: always
     ports:
-      - "${control_port}:${control_port}"
+      - "{control_port}:{control_port}"
     depends_on:
       ixia-c-ixhw-server:
         condition: service_started
@@ -123,7 +123,7 @@ services:
     image: ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.11.17
     restart: always
     ports:
-      - "${gnmi_port}:${gnmi_port}"
+      - "{gnmi_port}:{gnmi_port}"
     depends_on:
       ixia-c-controller:
         condition: service_started
@@ -244,7 +244,7 @@ def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
         for t in tf['testbeds']:
             if t['id'] == testbed_id:
                 return t
-    raise Exception(f'Testbed ${testbed_id} not found')
+    raise Exception(f'Testbed {testbed_id} not found')
 
 def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     try:
@@ -891,13 +891,15 @@ def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def BringupIxiaController(self, reserved_testbed, otg_docker_compose_file):
-    cmd = f'/usr/local/bin/docker-compose -p ${reserved_testbed["id"]} --file ${otg_docker_compose_file} up -d'
+    pname = reserved_testbed["id"].lower()
+    cmd = f'/usr/local/bin/docker-compose -p {pname} --file {otg_docker_compose_file} up -d'
     remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def TeardownIxiaController(self, reserved_testbed, otg_docker_compose_file):
-    cmd = f'/usr/local/bin/docker-compose -p ${reserved_testbed["id"]} --file ${otg_docker_compose_file} down'
+    reserved_testbed["id"]
+    cmd = f'/usr/local/bin/docker-compose -p {pname} --file {otg_docker_compose_file} down'
     remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
 @register_testbed_file_generator('b4')
