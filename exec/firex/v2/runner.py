@@ -12,7 +12,7 @@ from microservices.runners.runner_base import FireXRunnerBase
 from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
-from helper import CommandFailed
+from helper import CommandFailed, remote_exec
 from getpass import getuser
 import xml.etree.ElementTree as ET
 from pathlib import Path
