@@ -353,14 +353,14 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 	for _, flow := range flows {
 		t.Run(flow.Name(), func(t *testing.T) {
 			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
-			outPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-			inPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
+			outPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
+			inPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
 
 			if outPkts == 0 {
 				t.Fatalf("OutPkts == 0, want >0.")
 			}
 
-			lossPct := ((outPkts - inPkts) * 100) / outPkts
+			lossPct := (outPkts - inPkts) * 100 / outPkts
 
 			// log stats
 			t.Log("Flow LossPct: ", lossPct)
