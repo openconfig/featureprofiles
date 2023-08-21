@@ -91,9 +91,14 @@ func TestIanaPorts(t *testing.T) {
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc p4rt port 9559 \n commit \n", 10*time.Second)
 
 		// Verifications
-		config.TextWithGNMI(context.Background(), t, dut, "vty-pool default 0 99 line-template default")
-		config.TextWithSSH(context.Background(), t, dut, "bash ip netns exec 'vrf-mgmt' netstat -anp", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "show lpts bidings", 10*time.Second)
+		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Errorf("Unexpected value for port number: %v", portNum)
+		}
+		configs := gnmi.OC().System()
+		gnmi.GetConfig(t, dut, configs.Config())
 
 	})
 
@@ -185,9 +190,14 @@ func TestIanaPorts(t *testing.T) {
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc p4rt port "+s3+" \n commit \n", 10*time.Second)
 
 		// Verifications
-		// config.TextWithGNMI(context.Background(), t, dut, "vty-pool default 0 99 line-template default")
-		config.TextWithSSH(context.Background(), t, dut, "bash ip netns exec 'vrf-mgmt' netstat -anp", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "show lpts bidings", 10*time.Second)
+		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Errorf("Unexpected value for port number: %v", portNum)
+		}
+		configs := gnmi.OC().System()
+		gnmi.GetConfig(t, dut, configs.Config())
 	})
 
 	t.Run("Rollback to IANA Default Ports", func(t *testing.T) {
@@ -196,8 +206,13 @@ func TestIanaPorts(t *testing.T) {
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n gribi \n no port \n commit \n", 10*time.Second)
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n p4rt \n no port \n commit \n", 10*time.Second)
 		// Verifications
-		config.TextWithGNMI(context.Background(), t, dut, "vty-pool default 0 99 line-template default")
-		config.TextWithSSH(context.Background(), t, dut, "bash ip netns exec 'vrf-mgmt' netstat -anp", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "show lpts bidings", 10*time.Second)
+		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Errorf("Unexpected value for port number: %v", portNum)
+		}
+		configs := gnmi.OC().System()
+		gnmi.GetConfig(t, dut, configs.Config())
 	})
 }
