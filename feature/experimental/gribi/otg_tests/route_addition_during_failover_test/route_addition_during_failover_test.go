@@ -390,6 +390,9 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(flowArgs.flowStartAddress).SetCount(int32(flowArgs.flowCount))
 
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+
 	return flow
 }
 
@@ -610,10 +613,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	// flows 100% and reaches ATE port-2.
 	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
 	dstMac := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
-	flow := createTrafficFlow(t, args.ate, args.top, ipBlock1FlowArgs, dstMac)
-	args.ate.OTG().PushConfig(t, top)
-	args.ate.OTG().StartProtocols(t)
-	testTraffic(t, *args, flow)
+	testTraffic(t, *args, createTrafficFlow(t, args.ate, args.top, ipBlock1FlowArgs, dstMac))
 
 	controllers := cmp.FindComponentsByType(t, dut, controllerCardType)
 	t.Logf("Found controller list: %v", controllers)
@@ -729,15 +729,9 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 
 	// Send traffic to ipBlock1, ipBlock2.
 	t.Log("Send and validate traffic to ipBlock1 ipv4 entries.")
-	flow = createTrafficFlow(t, args.ate, args.top, ipBlock1FlowArgs, dstMac)
-	args.ate.OTG().PushConfig(t, top)
-	args.ate.OTG().StartProtocols(t)
-	testTraffic(t, *args, flow)
+	testTraffic(t, *args, createTrafficFlow(t, args.ate, args.top, ipBlock1FlowArgs, dstMac))
 
 	t.Log("Send and validate traffic to ipBlock2 ipv4 entries.")
-	flow = createTrafficFlow(t, args.ate, args.top, ipBlock2FlowArgs, dstMac)
-	args.ate.OTG().PushConfig(t, top)
-	args.ate.OTG().StartProtocols(t)
-	testTraffic(t, *args, flow)
+	testTraffic(t, *args, createTrafficFlow(t, args.ate, args.top, ipBlock2FlowArgs, dstMac))
 	ate.OTG().StopProtocols(t)
 }
