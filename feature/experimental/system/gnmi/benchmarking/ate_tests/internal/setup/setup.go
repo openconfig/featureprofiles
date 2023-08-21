@@ -154,9 +154,8 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	isis := prot.GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
-	globalISIS.Instance = ygot.String(ISISInstance)
-	if deviations.ISISInstanceEnabledNotRequired(dut) {
-		globalISIS.Instance = nil
+	if deviations.ISISInstanceEnabledRequired(dut) {
+		globalISIS.Instance = ygot.String(ISISInstance)
 	}
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalISIS.AuthenticationCheck = ygot.Bool(true)

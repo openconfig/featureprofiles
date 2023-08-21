@@ -300,6 +300,7 @@ message Metadata {
     bool tunnel_state_path_unsupported = 97;
     // Device does not support tunnel interfaces source and destination address config paths
     bool tunnel_config_path_unsupported =98;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
   }
