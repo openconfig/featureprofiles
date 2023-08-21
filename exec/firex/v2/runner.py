@@ -268,7 +268,7 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_dir', 'reserved_testbed', 'ondatra_binding_path', 
-		'ondatra_testbed_path', 'testbed_info_path', 
+		'ondatra_otg_binding_path', 'otg_docker_compose_file', 'ondatra_testbed_path', 'testbed_info_path', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 
         'topo_path', 'testbed')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, 
@@ -339,7 +339,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     result = self.enqueue_child_and_get_results(c)
-    return (internal_fp_repo_dir, reserved_testbed, result["ondatra_binding_path"], 
+    return (internal_fp_repo_dir, reserved_testbed, result["ondatra_binding_path"],
+            result["ondatra_otg_binding_path"], result["otg_docker_compose_file"], 
             result["ondatra_testbed_path"], result["testbed_info_path"], 
             result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
             result.get("slurm_jobid", None), result.get("topo_path", None), result.get("testbed", None))
@@ -369,6 +370,8 @@ def decommission_testbed_after_tests():
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
                         internal_fp_repo_dir,
+                        ondatra_binding_path,
+                        ondatra_otg_binding_path,
                         test_name,
                         test_path,
                         test_branch='main',
@@ -401,6 +404,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
                     internal_fp_repo_dir=internal_fp_repo_dir,
+                    ondatra_binding_path=ondatra_binding_path,
+                    ondatra_otg_binding_path=ondatra_otg_binding_path,
                     test_repo_dir=test_repo_dir,
                     test_name=test_name,
                     test_path=test_path,
