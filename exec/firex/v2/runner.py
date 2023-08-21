@@ -891,13 +891,13 @@ def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def BringupIxiaController(self, reserved_testbed, otg_docker_compose_file):
-    cmd = f'/usr/local/bin/docker-compose -p ${reserved_testbed['id']} --file ${otg_docker_compose_file} up -d'
+    cmd = f'/usr/local/bin/docker-compose -p ${reserved_testbed["id"]} --file ${otg_docker_compose_file} up -d'
     remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def TeardownIxiaController(self, reserved_testbed, otg_docker_compose_file):
-    cmd = f'/usr/local/bin/docker-compose -p ${reserved_testbed['id']} --file ${otg_docker_compose_file} down'
+    cmd = f'/usr/local/bin/docker-compose -p ${reserved_testbed["id"]} --file ${otg_docker_compose_file} down'
     remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
 @register_testbed_file_generator('b4')
