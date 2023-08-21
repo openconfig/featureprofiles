@@ -169,8 +169,8 @@ tests:
     timeout: 3600
     mustpass: true
     args:
-      - '-osfile="/ws/mranegin-sjc/8000-x64.iso"'
-      - '-osver="24.1.1.07I"'
+      - '-osfile="/auto/ioxdepot6/GISO/giso_build_lindt/giso_custom_create/rmariapp_2023-08-19_02-04-28_UTC/output_gisobuild/giso/8000-golden-x86_64-7.11.1.192G-8.iso"'
+      - '-osver="7.11.1.192G"'
     skip: true
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
@@ -316,12 +316,14 @@ tests:
       - agvarghe
     mustpass: true
     priority: 34
+    skip: true # removed, OTG only
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
     owners:
       - agvarghe
     priority: 35
     mustpass: true
+    skip: true # removed, OTG only
   - name: gNMI-1.13 (Telemetry Optics Power and Bias Current)
     path: feature/platform/tests/optics_power_and_bias_current_test
     owners:
