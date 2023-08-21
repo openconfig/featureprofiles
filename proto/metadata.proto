@@ -76,7 +76,7 @@ message Metadata {
     // Set isis af ipv6 single topology on the device if value is true.
     bool isis_single_topology_required = 8;
     // Don't set isis instance enable flag on the device if value is true.
-    bool isis_instance_enabled_not_required = 10;
+    bool isis_instance_enabled_required = 10;
     // Set and validate isis interface address family enable on the device if
     // value is true.
     bool missing_isis_interface_afi_safi_enable = 11;
@@ -284,12 +284,22 @@ message Metadata {
     bool isis_require_same_l1_metric_with_l2_metric = 91;
     // Devices require configuring the same OSPF setMetric when BGP
     // SetMED is configured.
-    bool bgp_set_med_requires_equal_ospf_set_metric = 92;   
+    bool bgp_set_med_requires_equal_ospf_set_metric = 92;
+    // Devices require configuring subinterface with tagged vlan for p4rt
+    // packet in.
+    bool p4rt_gdp_requires_dot1q_subinterface = 93;
+    // ATE port link state operations are a no-op in KNE/virtualized environments.
+    bool ate_port_link_state_operations_unsupported = 94;
+    // Creates a user and assigns role/rbac to said user via native model.
+    bool set_native_user = 95;
+    // Devices require configuring lspRefreshInterval ISIS timer when
+    // lspLifetimeInterval is configured.
+    // Arista: partnerissuetracker.corp.google.com/293667850
+    bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
     // Device does not support tunnel interfaces state paths
-    bool tunnel_state_path_unsupported = 93;
+    bool tunnel_state_path_unsupported = 97;
     // Device does not support tunnel interfaces source and destination address config paths
-    bool tunnel_config_path_unsupported =94;
-
+    bool tunnel_config_path_unsupported =98;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
   }
@@ -302,4 +312,16 @@ message Metadata {
   // The `platform` field for each `platform_exceptions` should be mutually
   // exclusive. Duplicate matches will result in a test failure.
   repeated PlatformExceptions platform_exceptions = 5;
+
+  enum Tags {
+    TAGS_UNSPECIFIED = 0;
+    TAGS_AGGREGATION = 1;
+    TAGS_DATACENTER_EDGE = 2;
+    TAGS_EDGE = 3;
+    TAGS_TRANSIT = 4;
+  }
+
+  // The `tags` used to identify the area(s) testcase applies to. An empty tag
+  // is the default implying it applies to all areas.
+  repeated Tags tags = 6;
 }
