@@ -591,8 +591,7 @@ def _write_otg_binding(internal_fp_repo_dir, reserved_testbed, ondatra_binding_p
     # convert binding to json
     cmd = f'{GO_BIN} run ' \
         f'./exec/utils/binding/tojson ' \
-        f'-binding {ondatra_binding_path} ' \
-        f'-out "{tmp_binding_file}"'
+        f'-binding {ondatra_binding_path}'
 
     env = dict(os.environ)
     env.update(_get_go_env())
