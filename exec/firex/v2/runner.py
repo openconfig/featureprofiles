@@ -93,6 +93,53 @@ def _gnmi_set_file_template(conf):
 }
     """
 
+def _otg_docker_compose_template(control_port, gnmi_port):
+    return f"""
+version: "2"
+services:
+  ixia-c-controller:
+    image: ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-4306
+    restart: always
+    ports:
+      - "${control_port}:${control_port}"
+    depends_on:
+      ixia-c-ixhw-server:
+        condition: service_started
+    command:
+      - "--accept-eula"
+      - "--debug"
+      - "--ixia-c-ixhw-server"
+      - "ixia-c-ixhw-server:5001"
+  ixia-c-ixhw-server:
+    image: ghcr.io/open-traffic-generator/ixia-c-ixhw-server:0.11.11-2
+    restart: always
+    command:
+      - "dotnet"
+      - "otg-ixhw.dll"
+      - "--trace"
+      - "--log-level"
+      - "trace"
+  ixia-c-gnmi-server:
+    image: ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.11.17
+    restart: always
+    ports:
+      - "${gnmi_port}:${gnmi_port}"
+    depends_on:
+      ixia-c-controller:
+        condition: service_started
+    command:
+      - "-http-server"
+      - "https://ixia-c-controller:8443"
+      - "--debug"
+    """
+
+def _write_otg_docker_compose_file(docker_file, reserved_testbed):
+    if not 'otg' in reserved_testbed:
+        return
+    otg_info = reserved_testbed['otg']
+    with open(docker_file, 'w') as fp:
+        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
+
 # def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
 #     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
 #     key_file = MTLS_DEFAULT_KEY_FILE
@@ -322,6 +369,8 @@ def decommission_testbed_after_tests():
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
                         internal_fp_repo_dir,
+                        ondatra_binding_path,
+                        ondatra_otg_binding_path,
                         test_name,
                         test_path,
                         test_branch='main',
@@ -354,6 +403,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
                     internal_fp_repo_dir=internal_fp_repo_dir,
+                    ondatra_binding_path=ondatra_binding_path,
+                    ondatra_otg_binding_path=ondatra_otg_binding_path,
                     test_repo_dir=test_repo_dir,
                     test_name=test_name,
                     test_path=test_path,
@@ -375,23 +426,28 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     if test_debug:
         chain |= InstallGoDelve.s()
 
+    test_binding = ondatra_binding_path
+    if 'otg' in test_path:
+        test_binding = ondatra_otg_binding_path
+        chain |= BringupIxiaController.s()
+
     if release_ixia_ports:
-        chain |= ReleaseIxiaPorts.s()
+        chain |= ReleaseIxiaPorts.s(ondatra_binding_path=test_binding)
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
             for k, v in pt.items():
-                chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
+                chain |= RunGoTest.s(ondatra_binding_path=test_binding, test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    chain |= RunGoTest.s(test_repo_dir=test_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout)
+    chain |= RunGoTest.s(ondatra_binding_path=test_binding, test_repo_dir=test_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout)
 
     if fp_post_tests:
         for pt in fp_post_tests:
             for k, v in pt.items():
-                chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
+                chain |= RunGoTest.s(ondatra_binding_path=test_binding, test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    # if test_html_report:
-    #     chain |= GoReporting.s()
+    if 'otg' in test_path:
+        chain |= TeardownIxiaController.s()
 
     if cflow and testbed:
         chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
@@ -489,10 +545,6 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
-
-        # log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
-        # write_output_from_results_json(json_results_file, log_filepath)
-        # log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
 @app.task(bind=True, max_retries=5, autoretry_for=[git.GitCommandError])
@@ -530,13 +582,76 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'testbed'))
+def _write_otg_binding(internal_fp_repo_dir, reserved_testbed, ondatra_binding_path, ondatra_otg_binding_path):
+    if 'otg' not in reserved_testbed:
+        return
+
+    otg_info = reserved_testbed['otg']
+
+    # convert binding to json
+    cmd = f'{GO_BIN} run ' \
+        f'./exec/utils/binding/tojson ' \
+        f'-binding {ondatra_binding_path} ' \
+        f'-out "{tmp_binding_file}"'
+
+    env = dict(os.environ)
+    env.update(_get_go_env())
+    
+    output = check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+    j = json.loads(output)
+
+    #TODO: support multiple ates
+    for ate in j.get('ates', []):
+        for p in ate.get('ports', []):
+            parts = p['name'].split('/')
+            p['name'] = '{chassis};{card};{port}'.format(chassis=ate['name'], card=parts[0], port=parts[1]) 
+
+        ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port'])
+        ate['options'] = {
+            'username': 'admin',
+            'password': 'admin'
+        }
+
+        ate['otg'] = {
+            'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port']),
+            'insecure': True,
+            'timeout': 30
+        }
+
+        ate['gnmi'] = {
+            'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=otg_info['gnmi_port']),
+            'skip_verify': True,
+            'timeout': 30
+        }
+
+        if 'ixnetwork' in ate:
+            del ate['ixnetwork']
+
+        break
+
+    # convert binding to prototext
+    with tempfile.NamedTemporaryFile() as f:
+        tmp_binding_file = f.name
+        with open(tmp_binding_file, "w") as outfile:
+            outfile.write(json.dumps(j))
+            
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/fromjson ' \
+            f'-binding {tmp_binding_file} ' \
+            f'-out "{ondatra_otg_binding_path}"'
+
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+
+@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'ondatra_otg_binding_path', 
+                                            'otg_docker_compose_file', 'testbed_info_path', 'testbed'))
 def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed, test_name, **kwargs):
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
     ondatra_testbed_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.testbed')
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
+    ondatra_otg_binding_path = os.path.join(ws, f'ondatra_otg_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
+    otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
     
     if reserved_testbed.get('sim', False):
@@ -594,9 +709,14 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ondatra_binding_path}")
 
+    
+    _write_otg_binding(internal_fp_repo_dir, reserved_testbed, ondatra_binding_path, ondatra_otg_binding_path)
+    _write_otg_docker_compose_file(otg_docker_compose_file, reserved_testbed)
+
     logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
     logger.print(f'Ondatra binding file: {ondatra_binding_path}')
-    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, pyats_testbed
+    logger.print(f'Ondatra OTG binding file: {ondatra_otg_binding_path}')
+    return ondatra_testbed_path, ondatra_binding_path, ondatra_otg_binding_path, otg_docker_compose_file, testbed_info_path, pyats_testbed
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
@@ -768,16 +888,17 @@ def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
     except:
         logger.warning(f'Failed to release ixia ports. Ignoring...')
 
+# noinspection PyPep8Naming
 @app.task(bind=True)
-def GoReporting(self, internal_fp_repo_dir, test_log_directory_path):
-    logger.print("Generating HTML report...")
-    json_log_file = os.path.join(test_log_directory_path, f'go_logs.json')
-    html_report = os.path.join(test_log_directory_path, f'results.html')
-    try:
-        check_output(f'{PYTHON_BIN} {internal_fp_repo_dir}/exec/utils/reporting/gotest2html.py "{json_log_file}"', 
-            file=html_report) 
-    except:
-        logger.warning(f'Failed to generate HTML report. Ignoring...')
+def BringupIxiaController(self, reserved_testbed, otg_docker_compose_file):
+    cmd = f'/usr/local/bin/docker-compose -p ${reserved_testbed['id']} --file ${otg_docker_compose_file} up -d'
+    remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def TeardownIxiaController(self, reserved_testbed, otg_docker_compose_file):
+    cmd = f'/usr/local/bin/docker-compose -p ${reserved_testbed['id']} --file ${otg_docker_compose_file} down'
+    remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
 @register_testbed_file_generator('b4')
 @app.task(bind=True, returns=('testbed', 'tb_data', 'testbed_path'))

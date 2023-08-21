@@ -4,6 +4,10 @@ testbeds:
     testbed: topologies/cisco/hw/8808_FOX2506P2QT/testbed
     binding: topologies/cisco/hw/8808_FOX2506P2QT/binding
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
+    otg:
+      host: kne2-lnx
+      controller_port: 40055
+      gnmi_port: 50055
   - id: 8808_FOX2506P2QT_fury
     owner: kjahed
     testbed: topologies/cisco/hw/8808_FOX2506P2QT/testbed
