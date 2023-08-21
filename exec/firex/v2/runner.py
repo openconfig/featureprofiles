@@ -898,7 +898,7 @@ def BringupIxiaController(self, reserved_testbed, otg_docker_compose_file):
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def TeardownIxiaController(self, reserved_testbed, otg_docker_compose_file):
-    reserved_testbed["id"]
+    pname = reserved_testbed["id"].lower()
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {otg_docker_compose_file} down'
     remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
