@@ -646,7 +646,7 @@ func TestInterfacesubIntfs(t *testing.T) {
 					} else if pVal, pPresent := gnmi.Lookup(t, dut, c.parentCounter).Val(); pPresent {
 						t.Logf("INFO: %s: %d", c.parentCounter, pVal)
 					} else {
-						t.Errorf("ERROR: Neither %s nor %s are not present", c.counter, c.parentCounter)
+						t.Errorf("ERROR: Neither %s nor %s is present", c.counter, c.parentCounter)
 					}
 				})
 			}
