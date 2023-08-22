@@ -199,12 +199,13 @@ func TestWeightedBalancing(t *testing.T) {
 	ctx := context.Background()
 	gribic := dut.RawAPIs().GRIBI().Default(t)
 
-	// Configure the DUT
-	configureDUT(t, dut)
-
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
+
+	// Configure the DUT
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
