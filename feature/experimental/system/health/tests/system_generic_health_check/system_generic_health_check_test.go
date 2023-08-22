@@ -361,28 +361,63 @@ func TestNoQueueDrop(t *testing.T) {
 	t.Logf("Interfaces: %s", interfaces)
 	for _, intf := range interfaces {
 		qosInterface := gnmi.OC().Qos().Interface(intf)
-		cases := []testCase{
-			{
-				desc:     "Queue Input Dropped packets",
-				path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
-				counters: gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State()),
-			},
-			{
-				desc:     "Queue Output Dropped packets",
-				path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
-				counters: gnmi.LookupAll(t, dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
-			},
-			{
-				desc:     "Queue input voq-output-interface dropped packets",
-				path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
-				counters: gnmi.LookupAll(t, dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
-			},
+		var cases []testCase
+		switch dut.Vendor() {
+		case ondatra.JUNIPER:
+			cases = []testCase{
+				{
+					desc:     "Queue Output Dropped packets",
+					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
+				},
+				{
+					desc:     "Queue input voq-output-interface dropped packets",
+					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
+				},
+			}
+		case ondatra.ARISTA:
+			cases = []testCase{
+				{
+					desc:     "Queue Input Dropped packets",
+					path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State()),
+				},
+				{
+					desc:     "Queue Output Dropped packets",
+					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
+				},
+				{
+					desc:     "Queue input voq-output-interface dropped packets",
+					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
+				},
+			}
+		case ondatra.CISCO:
+			cases = []testCase{
+				{
+					desc:     "Queue Input Dropped packets",
+					path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State()),
+				},
+				{
+					desc:     "Queue Output Dropped packets",
+					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
+				},
+				{
+					desc:     "Queue input voq-output-interface dropped packets",
+					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
+				},
+			}
+		default:
+			t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
 		}
+
 		for _, c := range cases {
 			t.Run(c.desc, func(t *testing.T) {
-				if deviations.QOSInputDropCounterUnsupported(dut) && c.desc == "Queue Input Dropped packets" {
-					t.Skipf("INFO: Skipping test due to deviation qos_input_drop_counter_unsupported")
-				}
 				if deviations.QOSVoqDropCounterUnsupported(dut) && c.desc == "Queue input voq-output-interface dropped packets" {
 					t.Skipf("INFO: Skipping test due to deviation qos_voq_drop_counter_unsupported")
 				}
@@ -698,14 +733,14 @@ func TestInterfaceEthernetNoDrop(t *testing.T) {
 func TestSystemAlarms(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	query := gnmi.OC().System().AlarmAny().State()
-	alarms := gnmi.GetAll(t, dut, query)
+	alarms := gnmi.LookupAll(t, dut, query)
 	if len(alarms) > 0 {
 		for _, a := range alarms {
-			alarmSeverity := a.GetSeverity()
+			val, _ := a.Val()
+			alarmSeverity := val.GetSeverity()
 			// Checking for major system alarms.
 			if alarmSeverity == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MAJOR {
-				t.Logf("INFO: System Alarm with severity %s seen: %s", alarmSeverity, a.GetText())
-				break
+				t.Logf("INFO: System Alarm with severity %s seen: %s", alarmSeverity, val.GetText())
 			}
 		}
 	}

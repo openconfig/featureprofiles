@@ -15,7 +15,6 @@ platform_exceptions: {
     consistent_component_names_unsupported: true
     fabric_drop_counter_unsupported: true
     linecard_memory_utilization_unsupported: true
-    qos_input_drop_counter_unsupported: true
     qos_voq_drop_counter_unsupported: true
   }
 }

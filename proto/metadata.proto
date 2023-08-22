@@ -310,11 +310,8 @@ message Metadata {
     // Device does not support memory utilization related leaves for linecard components.
     bool linecard_memory_utilization_unsupported = 101;
     // Device does not support telemetry path
-    // /qos/interfaces/interface/input/queues/queue/state/dropped-pkts.
-    bool qos_input_drop_counter_unsupported = 102;
-    // Device does not support telemetry path
     // /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
-    bool qos_voq_drop_counter_unsupported = 103;
+    bool qos_voq_drop_counter_unsupported = 102;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
