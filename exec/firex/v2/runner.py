@@ -422,7 +422,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
         chain |= InstallGoDelve.s()
 
     if 'otg' in test_path:
-        reserved_testbed['binding_file'] = reserved_testbed['ondatra_otg_binding_path']
+        reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
         chain |= BringupIxiaController.s()
 
     if release_ixia_ports:
