@@ -101,7 +101,7 @@ services:
     image: ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-4306
     restart: always
     ports:
-      - "{control_port}:{control_port}"
+      - "{control_port}:40051"
     depends_on:
       ixia-c-ixhw-server:
         condition: service_started
@@ -123,7 +123,7 @@ services:
     image: ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.11.17
     restart: always
     ports:
-      - "{gnmi_port}:{gnmi_port}"
+      - "{gnmi_port}:50051"
     depends_on:
       ixia-c-controller:
         condition: service_started
