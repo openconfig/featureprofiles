@@ -206,7 +206,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+	if deviations.InterfaceRefConfigUnsupported(dut) {
 		pfCfg.InterfaceRef = nil
 	}
 	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
@@ -262,7 +262,7 @@ func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, f
 
 	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-	lossPct := (txPkts - rxPkts) * 100 / txPkts
+	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
 	if int(lossPct) == 0 && flowFilter != "" {
 		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
 		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())

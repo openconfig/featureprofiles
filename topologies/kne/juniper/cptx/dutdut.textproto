@@ -8,7 +8,7 @@ nodes: {
         image: "cptx:latest"
         config_path: "/home/evo/configdisk"
         config_file: "juniper.conf"
-        file: "juniper_cptx.config"
+        file: "config.cfg"
         cert: {
             self_signed: {
                 cert_name: "grpc-server-cert"
@@ -51,7 +51,7 @@ nodes: {
         image: "cptx:latest"
         config_path: "/home/evo/configdisk"
         config_file: "juniper.conf"
-        file: "juniper_cptx.config"
+        file: "config.cfg"
         cert: {
             self_signed: {
                 cert_name: "grpc-server-cert"

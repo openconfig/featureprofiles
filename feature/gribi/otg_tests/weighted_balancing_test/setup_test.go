@@ -38,7 +38,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -306,7 +305,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
-	waitOTGARPEntry(t, time.Minute)
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(ateSrcPort+".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().State())
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
@@ -440,13 +439,4 @@ func incrementMAC(mac string, i int) (string, error) {
 	}
 	newMac := net.HardwareAddr(buf.Bytes()[2:8])
 	return newMac.String(), nil
-}
-
-// waitOTGArpEntry ensures that ARP entries are present on the tx otg interface and traffic could be started
-func waitOTGARPEntry(t *testing.T, timeout time.Duration) {
-	t.Helper()
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(ateSrcPort+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), timeout, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
 }

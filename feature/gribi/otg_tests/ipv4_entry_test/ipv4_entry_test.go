@@ -35,7 +35,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -298,8 +297,13 @@ func TestIPv4Entry(t *testing.T) {
 		},
 		{
 			// ate port link cannot be set to down in kne, therefore the downPort is a dut port
-			desc:     "Downed next-hop interface",
-			downPort: dut.Port(t, "port2"),
+			desc: "Downed next-hop interface",
+			downPort: func() *ondatra.Port {
+				if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+					return dut.Port(t, "port2")
+				}
+				return ate.Port(t, "port2")
+			}(),
 			entries: []fluent.GRIBIEntry{
 				fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 					WithIndex(nh1ID).WithIPAddress(atePort2.IPv4).
@@ -388,10 +392,19 @@ func TestIPv4Entry(t *testing.T) {
 					}
 
 					if tc.downPort != nil {
-						// Setting admin state down on the DUT interface.
-						// Setting the otg interface down has no effect on kne and is not yet supported in otg
-						setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, false)
-						defer setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, true)
+						if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+							// Setting admin state down on the DUT interface.
+							// Setting the OTG interface down has no effect in KNE environments.
+							setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, false)
+							defer setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, true)
+						} else {
+							portStateAction := gosnappi.NewControlState()
+							linkState := portStateAction.Port().Link().SetPortNames([]string{tc.downPort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+							ate.OTG().SetControlState(t, portStateAction)
+							// Restore port state at end of test case.
+							linkState.SetState(gosnappi.StatePortLinkState.UP)
+							defer ate.OTG().SetControlState(t, portStateAction)
+						}
 					}
 
 					c.Modify().AddEntry(t, tc.entries...)
@@ -490,7 +503,7 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	e1.Src().SetValue(atePort1.MAC)
 	if len(dsts) > 1 {
 		flowipv4.TxRx().Port().SetTxName(atePort1.Name)
-		waitOTGARPEntry(t)
+		otgutils.WaitForARP(t, otg, ateTop, "IPv4")
 		dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 		e1.Dst().SetChoice("value").SetValue(dstMac)
 	} else {
@@ -590,17 +603,6 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return c.Await(subctx, t)
-}
-
-// Waits for at least one ARP entry on the tx OTG interface
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	got, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-	if !ok {
-		t.Fatalf("Did not receive OTG Neighbor entry, last got: %v", got)
-	}
 }
 
 // setDUTInterfaceState sets the admin state on the dut interface

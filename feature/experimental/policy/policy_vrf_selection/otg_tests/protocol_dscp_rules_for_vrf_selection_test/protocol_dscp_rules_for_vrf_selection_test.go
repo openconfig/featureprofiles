@@ -353,14 +353,14 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 	for _, flow := range flows {
 		t.Run(flow.Name(), func(t *testing.T) {
 			t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
-			outPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-			inPkts := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
+			outPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
+			inPkts := float32(gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
 
 			if outPkts == 0 {
 				t.Fatalf("OutPkts == 0, want >0.")
 			}
 
-			lossPct := ((outPkts - inPkts) * 100) / outPkts
+			lossPct := (outPkts - inPkts) * 100 / outPkts
 
 			// log stats
 			t.Log("Flow LossPct: ", lossPct)
@@ -546,7 +546,7 @@ func TestPBR(t *testing.T) {
 			pfIntfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(p1)
 			pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
 			pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-			if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+			if deviations.InterfaceRefConfigUnsupported(dut) {
 				pfIntf.InterfaceRef = nil
 			}
 			pfIntf.SetApplyVrfSelectionPolicy(args.policyName)
