@@ -229,13 +229,14 @@ func TestBackup(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
-	//configure DUT
-	configureDUT(t, dut)
-
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
+
+	//configure DUT
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
