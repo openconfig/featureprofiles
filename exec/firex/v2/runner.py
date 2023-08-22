@@ -579,6 +579,7 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
 
 def _write_otg_binding(internal_fp_repo_dir, reserved_testbed):
     if 'otg' not in reserved_testbed:
+        shutil.copyfile(reserved_testbed["ate_binding_file"], reserved_testbed["otg_binding_file"])
         return
 
     otg_info = reserved_testbed['otg']
