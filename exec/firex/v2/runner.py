@@ -882,7 +882,7 @@ def ReleaseIxiaPorts(self, ws, reserved_testbed):
 def BringupIxiaController(self, reserved_testbed):
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
-    cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d'
+    cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
     remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
 # noinspection PyPep8Naming

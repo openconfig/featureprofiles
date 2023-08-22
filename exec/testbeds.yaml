@@ -6,7 +6,7 @@ testbeds:
     binding: topologies/cisco/hw/8808_FOX2506P2QT/binding
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
     otg:
-      host: 10.85.17.225
+      host: kne2-lnx
       controller_port: 40055
       gnmi_port: 50055
   8808_FOX2506P2QT_fury:
@@ -23,7 +23,7 @@ testbeds:
     binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
     otg:
-      host: 10.85.17.225
+      host: kne2-lnx
       controller_port: 40057
       gnmi_port: 50057
 
@@ -34,7 +34,7 @@ testbeds:
     binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun
     baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
     otg:
-      host: 10.85.17.225
+      host: kne2-lnx
       controller_port: 40058
       gnmi_port: 50058
   8808-FOX2508P0JU-Fury:
@@ -52,7 +52,7 @@ testbeds:
     binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
     otg:
-      host: 10.85.17.225
+      host: kne2-lnx
       controller_port: 40051
       gnmi_port: 50051
   8808-36FH_FOX2504P3CE_fury:
@@ -71,7 +71,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
     otg:
-      host: 10.85.17.225
+      host: kne2-lnx
       controller_port: 40054
       gnmi_port: 50054
 
@@ -82,7 +82,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM253900HJ/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
     otg:
-      host: 10.85.17.225
+      host: kne2-lnx
       controller_port: 40053
       gnmi_port: 50053
 
@@ -93,7 +93,7 @@ testbeds:
     binding: topologies/cisco/hw/8808_FOX2625PLW8/binding
     baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig.proto
     otg:
-      host: 10.85.17.225
+      host: kne2-lnx
       controller_port: 40056
       gnmi_port: 50056
   8808_FOX2625PLW8_v6_gNMI:
@@ -112,7 +112,7 @@ testbeds:
     binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
     otg:
-      host: 10.85.17.225
+      host: kne2-lnx
       controller_port: 40052
       gnmi_port: 50052
   moji_sfd_gnsi:
@@ -127,7 +127,7 @@ testbeds:
     binding: topologies/cisco/hw/8808_FOX2643Q39J/binding_gnmi_v6
     baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt.proto
     otg:
-      host: 10.85.17.225
+      host: kne2-lnx
       controller_port: 40060
       gnmi_port: 50060
   8808_FOX2643Q39J_gnsi:
@@ -143,7 +143,7 @@ testbeds:
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
     otg:
-      host: 10.85.17.225
+      host: kne2-lnx
       controller_port: 40059
       gnmi_port: 50059
 
