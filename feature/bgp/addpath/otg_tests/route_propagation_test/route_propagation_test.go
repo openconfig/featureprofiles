@@ -561,13 +561,13 @@ func TestBGP(t *testing.T) {
 				t.Skip(tc.skipReason)
 			}
 
-			tc.dut.Configure(t, dut)
-
 			ate := ondatra.ATE(t, "ate")
 
 			otg := ate.OTG()
 			ateList := []string{"port1", "port2"}
 			otgConfig := tc.ate.ConfigureOTG(t, otg, ateList)
+
+			tc.dut.Configure(t, dut)
 
 			t.Logf("Verify DUT BGP sessions up")
 			tc.dut.AwaitBGPEstablished(t, dut)

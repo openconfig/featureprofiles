@@ -125,12 +125,11 @@ func syncElectionID(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func TestCompliance(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	configureATE(t, ate)
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 	syncElectionID(t, dut)
-
-	ate := ondatra.ATE(t, "ate")
-	configureATE(t, ate)
 
 	gribic := dut.RawAPIs().GRIBI().Default(t)
 

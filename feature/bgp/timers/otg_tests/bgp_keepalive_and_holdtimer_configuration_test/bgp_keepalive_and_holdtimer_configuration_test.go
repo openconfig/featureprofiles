@@ -480,6 +480,9 @@ func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 	}}
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	// ATE Configuration.
+	t.Log("Start ATE Config")
+	otgConfig := configureATE(t, ate)
 	// DUT Configuration
 	t.Log("Start DUT interface Config")
 	configureDUT(t, dut)
@@ -492,9 +495,6 @@ func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 	dutConf := bgpCreateNbr(dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
-	// ATE Configuration.
-	t.Log("Start ATE Config")
-	otgConfig := configureATE(t, ate)
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {

@@ -783,9 +783,6 @@ func TestIntfCounterUpdate(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 
-	// Configure DUT interfaces.
-	ConfigureDUTIntf(t, dut)
-
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
@@ -823,6 +820,9 @@ func TestIntfCounterUpdate(t *testing.T) {
 	v4.Priority().Dscp().Phb().SetValue(56)
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+
+	// Configure DUT interfaces.
+	ConfigureDUTIntf(t, dut)
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)

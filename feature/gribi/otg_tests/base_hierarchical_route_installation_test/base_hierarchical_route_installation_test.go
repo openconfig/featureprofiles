@@ -521,6 +521,11 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Configure ATE
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
+	ate.OTG().PushConfig(t, top)
+
 	// Configure DUT
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
@@ -532,10 +537,6 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 		}
 	}()
 
-	// Configure ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
-	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
 	tests := []struct {
