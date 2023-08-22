@@ -426,8 +426,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     if 'otg' in test_path:
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
         chain |= BringupIxiaController.s()
-
-    if release_ixia_ports:
+    elif release_ixia_ports:
         chain |= ReleaseIxiaPorts.s()
 
     if fp_pre_tests:
