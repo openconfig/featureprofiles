@@ -829,8 +829,8 @@ def CollectDebugFiles(self, internal_fp_repo_dir, reserved_testbed, test_log_dir
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed, testbed_info_path):
-    if os.path.exists(testbed_info_path):
+def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
+    if os.path.exists(reserved_testbed['testbed_info_file']):
         return
 
     logger.print("Collecting testbed info...")
@@ -840,7 +840,7 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed, testbed
             f'-args ' \
             f'-testbed {reserved_testbed["testbed_file"]} ' \
             f'-binding {reserved_testbed["binding_file"]} ' \
-            f'-outFile {testbed_info_path}'
+            f'-outFile {reserved_testbed["testbed_info_file"]}'
     try:
         env = dict(os.environ)
         env.update(_get_go_env())
