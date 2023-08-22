@@ -375,12 +375,16 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 		}
 	}
 	for _, bport := range bports {
-		p, ok := portmap[bport.Id]
-		if !ok {
-			errs = append(errs, fmt.Errorf("binding port %q not found in testbed", bport.Id))
-			continue
+		if p, ok := portmap[bport.Id]; ok {
+			p.Name = bport.Name
+			// If port speed is empty populate from testbed ports.
+			if bport.Speed != opb.Port_SPEED_UNSPECIFIED {
+				if p.Speed != opb.Port_SPEED_UNSPECIFIED && p.Speed != bport.Speed {
+					return nil, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, p.Speed)
+				}
+				p.Speed = bport.Speed
+			}
 		}
-		p.Name = bport.Name
 	}
 	for id, p := range portmap {
 		if p.Name == "" {
