@@ -98,7 +98,7 @@ def _otg_docker_compose_template(control_port, gnmi_port):
 version: "2"
 services:
   ixia-c-controller:
-    image: ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-4306
+    image: ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-4399
     restart: always
     ports:
       - "{control_port}:40051"
@@ -111,7 +111,7 @@ services:
       - "--ixia-c-ixhw-server"
       - "ixia-c-ixhw-server:5001"
   ixia-c-ixhw-server:
-    image: ghcr.io/open-traffic-generator/ixia-c-ixhw-server:0.11.11-2
+    image: ghcr.io/open-traffic-generator/ixia-c-ixhw-server:0.12.1-2
     restart: always
     command:
       - "dotnet"
@@ -120,7 +120,7 @@ services:
       - "--log-level"
       - "trace"
   ixia-c-gnmi-server:
-    image: ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.11.17
+    image: ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.12.2
     restart: always
     ports:
       - "{gnmi_port}:50051"
