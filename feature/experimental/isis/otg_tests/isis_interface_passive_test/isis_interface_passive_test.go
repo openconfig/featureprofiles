@@ -17,17 +17,20 @@ package isis_interface_passive_test
 import (
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -43,6 +46,7 @@ const (
 	dutAreaAddress = "49.0001"
 	ateAreaAddress = "49.0002"
 	dutSysID       = "1920.0000.2001"
+	ateSystemID    = "640000000001"
 	v4Metric       = 100
 	v6Metric       = 100
 	password       = "google"
@@ -60,6 +64,7 @@ var (
 		Name:    "ATE to DUT port1 ",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::192:0:2:2",
+		MAC:     "02:00:01:01:01:01",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -87,10 +92,8 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAre
 	configPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
+	prot.Enabled = ygot.Bool(true)
 
-	if !deviations.ISISprotocolEnabledNotRequired(dut) {
-		prot.Enabled = ygot.Bool(true)
-	}
 	isis := prot.GetOrCreateIsis()
 	globalIsis := isis.GetOrCreateGlobal()
 
@@ -150,30 +153,37 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAre
 	gnmi.Replace(t, dut, configPath.Config(), prot)
 }
 
-// configureATE configures the interfaces and isis protocol on ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+// configureOTG configures the interfaces and isis protocol on ATE.
+func configureOTG(t *testing.T, otg *otg.OTG) {
 	t.Helper()
-	topo := ate.Topology().New()
-	port1 := ate.Port(t, "port1")
-	i1Dut := topo.AddInterface(atePort1attr.Name).WithPort(port1)
-	i1Dut.IPv4().WithAddress(atePort1attr.IPv4CIDR()).WithDefaultGateway(dutPort1Attr.IPv4)
-	i1Dut.IPv6().WithAddress(atePort1attr.IPv6CIDR()).WithDefaultGateway(dutPort1Attr.IPv6)
+	config := otg.NewConfig(t)
+	port1 := config.Ports().Add().SetName("port1")
 
-	isisDut := i1Dut.ISIS()
-	isisDut.
-		WithAreaID(ateAreaAddress).
-		WithTERouterID(atePort1attr.IPv4).
-		WithNetworkTypePointToPoint().
-		WithLevelL2().
-		WithAuthMD5(password).
-		WithAreaAuthMD5(password).
-		WithDomainAuthMD5(password).
-		WithHelloPaddingEnabled(true)
+	iDut1Dev := config.Devices().Add().SetName(atePort1attr.Name)
+	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1attr.Name + ".Eth").SetMac(atePort1attr.MAC)
+	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1attr.Name + ".IPv4")
+	iDut1Ipv4.SetAddress(atePort1attr.IPv4).SetGateway(dutPort1Attr.IPv4).SetPrefix(int32(atePort1attr.IPv4Len))
+	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1attr.Name + ".IPv6")
+	iDut1Ipv6.SetAddress(atePort1attr.IPv6).SetGateway(dutPort1Attr.IPv6).SetPrefix(int32(atePort1attr.IPv6Len))
 
-	t.Log("Pushing config to ATE and starting protocols...")
-	topo.Push(t)
-	topo.StartProtocols(t)
-	return topo
+	iDut1Dev.Isis().SetSystemId(ateSystemID).SetName("devIsis").RouterAuth().AreaAuth().SetAuthType("md5").SetMd5(password)
+	iDut1Dev.Isis().RouterAuth().DomainAuth().SetAuthType("md5").SetMd5(password)
+	iDut1Dev.Isis().Basic().SetIpv4TeRouterId(atePort1attr.IPv4).SetEnableWideMetric(false)
+	iDut1Dev.Isis().Advanced().SetAreaAddresses([]string{strings.Replace(ateAreaAddress, ".", "", -1)}).SetEnableHelloPadding(true)
+
+	iDut1Dev.Isis().Interfaces().
+		Add().
+		SetEthName(iDut1Dev.Ethernets().Items()[0].Name()).
+		SetName("devIsisInt").
+		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
+		SetMetric(10).Authentication().SetAuthType("md5").SetMd5(password)
+
+	t.Logf("Pushing config to OTG and starting protocols...")
+	otg.PushConfig(t, config)
+	time.Sleep(30 * time.Second)
+	otg.StartProtocols(t)
 }
 
 // TestIsisInterfacePassive verifies passive isis interface.
@@ -194,7 +204,8 @@ func TestIsisInterfacePassive(t *testing.T) {
 	configureISIS(t, dut, intfName, dutAreaAddress, dutSysID)
 
 	// Configure interface,isis and traffic on ATE.
-	configureATE(t, ate)
+	otg := ate.OTG()
+	configureOTG(t, otg)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		intfName = intfName + ".0"
@@ -202,17 +213,16 @@ func TestIsisInterfacePassive(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance).Isis()
 
 	t.Run("Isis telemetry", func(t *testing.T) {
-		t.Run("Verifying adjacency", func(t *testing.T) {
-			adjacencyPath := statePath.Interface(intfName).Level(2).AdjacencyAny().AdjacencyState().State()
 
-			_, ok := gnmi.WatchAll(t, dut, adjacencyPath, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-				state, present := val.Val()
-				return present && state == oc.Isis_IsisInterfaceAdjState_UP
-			}).Await(t)
-			if !ok {
-				t.Fatalf("No isis adjacency reported on interface %v", intfName)
-			}
-		})
+		adjacencyPath := statePath.Interface(intfName).Level(2).AdjacencyAny().AdjacencyState().State()
+
+		_, ok := gnmi.WatchAll(t, dut, adjacencyPath, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+			state, present := val.Val()
+			return present && state == oc.Isis_IsisInterfaceAdjState_UP
+		}).Await(t)
+		if !ok {
+			t.Fatalf("No isis adjacency reported on interface %v", intfName)
+		}
 		// Getting neighbors sysid.
 		sysid := gnmi.GetAll(t, dut, statePath.Interface(intfName).Level(2).AdjacencyAny().SystemId().State())
 		ateSysID := sysid[0]
