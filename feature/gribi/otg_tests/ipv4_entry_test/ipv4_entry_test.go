@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -153,13 +152,13 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 func TestIPv4Entry(t *testing.T) {
 	ctx := context.Background()
 
+	ate := ondatra.ATE(t, "ate")
+	configureATE(t, ate)
+
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 
 	gribic := dut.RawAPIs().GRIBI().Default(t)
-
-	ate := ondatra.ATE(t, "ate")
-	configureATE(t, ate)
 
 	cases := []struct {
 		desc                                     string
@@ -502,14 +501,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
 func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, dsts ...*attrs.Attributes) string {
 
-	// Multiple devices is not supported on the OTG flows
-	modName := strings.Replace(name, " ", "_", -1)
 	var rxEndpoints []string
 	for _, dst := range dsts {
 		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
 	}
 	otg := ate.OTG()
-	flowipv4 := ateTop.Flows().Add().SetName(modName)
+	flowipv4 := ateTop.Flows().Add().SetName(name)
 	flowipv4.Metrics().SetEnable(true)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
@@ -519,7 +516,7 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
 	otg.PushConfig(t, ateTop)
 	otg.StartProtocols(t)
-	return modName
+	return name
 }
 
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
@@ -534,18 +531,18 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 	for _, flow := range allFlows {
 		if flow == "port2Flow" {
 			if elementInSlice(flow, good) {
-				newGoodFlows = append(newGoodFlows, createFlow(t, "Port 1 to Port 2", ate, ateTop, &atePort2))
+				newGoodFlows = append(newGoodFlows, createFlow(t, "Port1_to_Port2", ate, ateTop, &atePort2))
 			}
 			if elementInSlice(flow, bad) {
-				newBadFlows = append(newBadFlows, createFlow(t, "Port 1 to Port 2", ate, ateTop, &atePort2))
+				newBadFlows = append(newBadFlows, createFlow(t, "Port1_to_Port2", ate, ateTop, &atePort2))
 			}
 		}
 		if flow == "port3Flow" {
 			if elementInSlice(flow, good) {
-				newGoodFlows = append(newGoodFlows, createFlow(t, "Port 1 to Port 3", ate, ateTop, &atePort3))
+				newGoodFlows = append(newGoodFlows, createFlow(t, "Port1_to_Port3", ate, ateTop, &atePort3))
 			}
 			if elementInSlice(flow, bad) {
-				newBadFlows = append(newBadFlows, createFlow(t, "Port 1 to Port 3", ate, ateTop, &atePort3))
+				newBadFlows = append(newBadFlows, createFlow(t, "Port1_to_Port3", ate, ateTop, &atePort3))
 			}
 
 		}
