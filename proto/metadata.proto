@@ -292,6 +292,10 @@ message Metadata {
     bool ate_port_link_state_operations_unsupported = 94;
     // Creates a user and assigns role/rbac to said user via native model.
     bool set_native_user = 95;
+    // Devices require configuring lspRefreshInterval ISIS timer when
+    // lspLifetimeInterval is configured.
+    // Arista: partnerissuetracker.corp.google.com/293667850
+    bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
