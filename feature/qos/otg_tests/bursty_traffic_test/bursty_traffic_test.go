@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -398,12 +399,33 @@ func TestBurstyTraffic(t *testing.T) {
 			}
 
 			// Get QoS egress packet counters before the traffic.
+			const timeout = time.Minute
+			isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 			for _, data := range trafficFlows {
-				counters["dutQosPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				counters["dutQosOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
-				counters["dutQosDroppedPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosPktsBeforeTraffic"][data.queue], _ = count.Val()
+
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("TransmitOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosOctetsBeforeTraffic"][data.queue], _ = count.Val()
+
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
+
 				if !deviations.QOSDroppedOctets(dut) {
-					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+					if !ok {
+						t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					}
+					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
 				}
 			}
 
@@ -413,7 +435,7 @@ func TestBurstyTraffic(t *testing.T) {
 			ate.OTG().StartTraffic(t)
 			time.Sleep(30 * time.Second)
 			ate.OTG().StopTraffic(t)
-			time.Sleep(30 * time.Second)
+			time.Sleep(60 * time.Second)
 
 			for trafficID, data := range trafficFlows {
 				flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().State())

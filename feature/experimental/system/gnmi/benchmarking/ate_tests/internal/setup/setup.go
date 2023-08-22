@@ -51,6 +51,8 @@ const (
 	ISISMetric = 100
 	// RouteCount for both BGP and ISIS
 	RouteCount = 200
+	// AdvertiseBGPRoutesv4 is the starting IPv4 address advertised by ATE Port 1.
+	AdvertiseBGPRoutesv4 = "203.0.113.1"
 
 	dutAreaAddress        = "49.0001"
 	dutSysID              = "1920.0000.2001"
@@ -58,7 +60,6 @@ const (
 	ateStartIPAddr        = "192.0.2.2"
 	plenIPv4              = 30
 	authPassword          = "ISISAuthPassword"
-	advertiseBGPRoutesv4  = "203.0.113.1"
 	advertiseISISRoutesv4 = "198.18.0.0"
 	setALLOWPolicy        = "ALLOW"
 )
@@ -150,15 +151,11 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	// ISIS configs.
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISInstance)
 	prot.Enabled = ygot.Bool(true)
-	if deviations.ISISprotocolEnabledNotRequired(dut) {
-		prot.Enabled = nil
-	}
 	isis := prot.GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
-	globalISIS.Instance = ygot.String(ISISInstance)
-	if deviations.ISISInstanceEnabledNotRequired(dut) {
-		globalISIS.Instance = nil
+	if deviations.ISISInstanceEnabledRequired(dut) {
+		globalISIS.Instance = ygot.String(ISISInstance)
 	}
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalISIS.AuthenticationCheck = ygot.Bool(true)
@@ -300,7 +297,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 			isisDut1 := iDut1.ISIS()
 			isisDut1.WithLevelL2().WithNetworkTypePointToPoint().WithTERouterID(DUTIPList[dp.ID()].String()).WithAuthMD5(authPassword)
 
-			netCIDR := fmt.Sprintf("%s/%d", advertiseBGPRoutesv4, 32)
+			netCIDR := fmt.Sprintf("%s/%d", AdvertiseBGPRoutesv4, 32)
 			bgpNeti1 := iDut1.AddNetwork("bgpNeti1")
 			bgpNeti1.IPv4().WithAddress(netCIDR).WithCount(RouteCount)
 			bgpNeti1.BGP().WithNextHopAddress(atePortAttr.IPv4)

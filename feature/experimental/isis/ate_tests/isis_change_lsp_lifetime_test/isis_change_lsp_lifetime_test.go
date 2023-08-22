@@ -106,10 +106,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAre
 	configPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
-
-	if !deviations.ISISprotocolEnabledNotRequired(dut) {
-		prot.Enabled = ygot.Bool(true)
-	}
+	prot.Enabled = ygot.Bool(true)
 	isis := prot.GetOrCreateIsis()
 	globalIsis := isis.GetOrCreateGlobal()
 
@@ -120,6 +117,12 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAre
 	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
 
 	globalIsis.GetOrCreateTimers().LspLifetimeInterval = ygot.Uint16(lspLifetime)
+	if deviations.ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut) {
+		globalIsis.GetOrCreateTimers().LspRefreshInterval = ygot.Uint16(65535)
+	}
+	if deviations.ISISInstanceEnabledRequired(dut) {
+		globalIsis.Instance = ygot.String(isisInstance)
+	}
 
 	// Interface configs
 	intf := isis.GetOrCreateInterface(intfName)
