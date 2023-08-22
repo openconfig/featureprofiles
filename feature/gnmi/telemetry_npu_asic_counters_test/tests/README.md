@@ -55,7 +55,7 @@ Note: New telemetry model is still being defined.
         * /packet/queueing-block/in-bytes(TBD)
         * /packet/queueing-block/out-pkts,
         * /packet/queueing-block/out-bytes
-    *   Define variance = 0.98.
+    *   Define variance = 0.999.
     *   Start traffic.
     *   Wait for 30 secs.
     *   Capture the out-pkts and out-bytes leaf values (2).
