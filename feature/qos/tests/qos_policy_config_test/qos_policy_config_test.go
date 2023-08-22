@@ -2141,10 +2141,6 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 
 	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
 	schedulerPolicy.SetName("scheduler")
-	bufferAllocation, err := q.NewBufferAllocationProfile("ballocprofile")
-	if err != nil {
-		t.Errorf("Failed to configure bufferAllocation: %v", err)
-	}
 
 	t.Logf("qos scheduler policies config cases: %v", schedulers)
 	for _, tc := range schedulers {
@@ -2160,8 +2156,6 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 			if tc.priority != oc.Scheduler_Priority_STRICT {
 				input.SetWeight(tc.weight)
 			}
-			bq := bufferAllocation.GetOrCreateQueue(tc.queueName)
-			bq.SetStaticSharedBufferLimit(maxBurstSize)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
@@ -2289,6 +2283,10 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 		scheduler:  "scheduler",
 	}}
 
+	bufferAllocation, err := q.NewBufferAllocationProfile("ballocprofile")
+	if err != nil {
+		t.Errorf("Failed to configure bufferAllocation: %v", err)
+	}
 	t.Logf("qos output interface config cases: %v", cases)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -2298,6 +2296,8 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.queueName)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.queueName)
+			bq := bufferAllocation.GetOrCreateQueue(tc.queueName)
+			bq.SetStaticSharedBufferLimit(maxBurstSize)
 			output.SetBufferAllocationProfile("ballocprofile")
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
