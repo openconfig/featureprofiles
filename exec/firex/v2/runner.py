@@ -241,14 +241,17 @@ def _get_locks_dir(testbed_logs_dir):
 def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
     with open(_get_testbeds_file(internal_fp_repo_dir), 'r') as fp:
         tf = yaml.safe_load(fp)
-        for t in tf['testbeds']:
-            if t['id'] == testbed_id:
-                return t
+        if testbed_id in tf['testbeds']:
+            tb = tf['testbeds'][testbed_id]
+            tb['id'] = testbed_id
+            return tb
     raise Exception(f'Testbed {testbed_id} not found')
 
 def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     try:
-        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {testbed_id}')
+        testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
+        id = testbed.get('hw', testbed_id)
+        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {id}')
         if output['status'] == 'ok':
             return output['testbed']
         return None
@@ -256,14 +259,16 @@ def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         return None
 
 def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
-    logger.print(f'Releasing testbed {testbed_id}')
+    testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
+    id = testbed.get('hw', testbed_id)
+    logger.print(f'Releasing testbed {id}')
     try:
-        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {testbed_id}')
+        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {id}')
         if output['status'] != 'ok':
-            logger.warn(f'Cannot release testbed {testbed_id}: {output["status"]}')
+            logger.warn(f'Cannot release testbed {id}: {output["status"]}')
         return True
     except:
-        logger.warn(f'Cannot release testbed {testbed_id}')
+        logger.warn(f'Cannot release testbed {id}')
         return False
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
