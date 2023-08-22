@@ -58,6 +58,7 @@ const (
 	plenIPv6                 = 126
 	setMEDPolicy100          = "SET-MED-100"
 	setMEDPolicy50           = "SET-MED-50"
+	rplAllowPolicy           = "ALLOW"
 	aclStatement20           = "20"
 	aclStatement30           = "30"
 	bgpMED100                = 100
@@ -170,26 +171,41 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	pg3.PeerAs = ygot.Uint32(ateAS3)
 	pg3.PeerGroupName = ygot.String(peerGrpName3)
 
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		rp2 := pg2.GetOrCreateApplyPolicy()
+		rp2.SetImportPolicy([]string{rplAllowPolicy})
+
+		rp3 := pg3.GetOrCreateApplyPolicy()
+		rp3.SetImportPolicy([]string{rplAllowPolicy})
+
+	} else {
+
+		pg2af4 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		pg2af4.Enabled = ygot.Bool(true)
+
+		pg2rpl4 := pg2af4.GetOrCreateApplyPolicy()
+		pg2rpl4.SetImportPolicy([]string{rplAllowPolicy})
+
+		pg3af4 := pg3.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		pg3af4.Enabled = ygot.Bool(true)
+
+		pg3rpl4 := pg3af4.GetOrCreateApplyPolicy()
+		pg3rpl4.SetImportPolicy([]string{rplAllowPolicy})
+	}
+
 	for _, nbr := range nbrs {
-		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-		nv4.PeerGroup = ygot.String(nbr.peerGrp)
-		nv4.PeerAs = ygot.Uint32(nbr.as)
-		nv4.Enabled = ygot.Bool(true)
-		af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-		af4.Enabled = ygot.Bool(true)
-		af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-		af6.Enabled = ygot.Bool(false)
+		if nbr.isV4 {
+			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+			nv4.PeerGroup = ygot.String(nbr.peerGrp)
+			nv4.PeerAs = ygot.Uint32(nbr.as)
+			nv4.Enabled = ygot.Bool(true)
+			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(true)
+			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(false)
+		}
 	}
 	return ni_proto
-}
-
-func sendTraffic(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
-	t.Helper()
-	t.Logf("Starting traffic")
-	otg.StartTraffic(t)
-	time.Sleep(trafficDuration)
-	t.Logf("Stop traffic")
-	otg.StopTraffic(t)
 }
 
 func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state string) {
@@ -233,11 +249,13 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		nbrPath := bgpPath.Neighbor(nbr)
 		// Get BGP adjacency state.
 		t.Logf("Waiting for BGP neighbor to establish...")
+		var status *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]
 		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			state, ok := val.Val()
 			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 			t.Fatal("No BGP neighbor formed")
 		}
 		state, _ := status.Val()
@@ -381,40 +399,70 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flow
 	}
 }
 
+// sendTraffic is used to send traffic.
+func sendTraffic(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
+	t.Helper()
+	t.Logf("Starting traffic")
+	otg.StartTraffic(t)
+	time.Sleep(trafficDuration)
+	t.Logf("Stop traffic")
+	otg.StopTraffic(t)
+}
+
 // setMED is used to configure routing policy to set BGP MED on DUT.
 func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	t.Helper()
+	dutPolicyConfPath2 := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
+		PeerGroup(peerGrpName2)
+
+	dutPolicyConfPath3 := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
+		PeerGroup(peerGrpName3)
+
+	// Apply setMed import policy on eBGP Peer1 - ATE Port2 - with MED 100.
+	// Apply setMed Import policy on eBGP Peer2 - ATE Port3 -  with MED 50.
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		gnmi.Replace(t, dut, dutPolicyConfPath2.ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy100})
+		gnmi.Replace(t, dut, dutPolicyConfPath3.ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy50})
+	} else {
+		gnmi.Replace(t, dut, dutPolicyConfPath2.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
+			ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy100})
+		gnmi.Replace(t, dut, dutPolicyConfPath3.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
+			ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy50})
+	}
+}
+
+// configPolicy is used to configure routing policies on the DUT.
+func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
+
 	rp := d.GetOrCreateRoutingPolicy()
 
 	pdef1 := rp.GetOrCreatePolicyDefinition(setMEDPolicy100)
-	stmt1, err := pdef1.AppendNewStatement(aclStatement20)
+	st, err := pdef1.AppendNewStatement(aclStatement20)
 	if err != nil {
-		t.Errorf("Error while creating new statement %v", err)
+		t.Fatal(err)
 	}
-	actions1 := stmt1.GetOrCreateActions()
+	actions1 := st.GetOrCreateActions()
 	actions1.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED100)
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(setMEDPolicy50)
-	stmt2, err := pdef2.AppendNewStatement(aclStatement20)
+	st, err = pdef2.AppendNewStatement(aclStatement20)
 	if err != nil {
-		t.Errorf("Error while creating new statement %v", err)
+		t.Fatal(err)
 	}
-	actions2 := stmt2.GetOrCreateActions()
+	actions2 := st.GetOrCreateActions()
 	actions2.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED50)
 
+	pdef3 := rp.GetOrCreatePolicyDefinition(rplAllowPolicy)
+	st, err = pdef3.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	action3 := st.GetOrCreateActions()
+	action3.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-
-	// Apply setMed import policy on eBGP Peer1 - OTG Port2 - with MED 100.
-	dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
-		PeerGroup(peerGrpName2).ApplyPolicy().ImportPolicy()
-	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setMEDPolicy100})
-
-	// Apply setMed Import policy on eBGP Peer2 - OTG Port3 -  with MED 50.
-	dutPolicyConfPath = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
-		PeerGroup(peerGrpName3).ApplyPolicy().ImportPolicy()
-	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setMEDPolicy50})
 }
 
 // verifySetMed is used to validate MED on received prefixes at OTG Port1.
@@ -516,17 +564,10 @@ func TestAlwaysCompareMED(t *testing.T) {
 	t.Run("Configure BGP Neighbors", func(t *testing.T) {
 		t.Logf("Start DUT BGP Config.")
 		gnmi.Delete(t, dut, dutConfPath.Config())
+		configPolicy(t, dut, d)
 		dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
-	})
-
-	t.Run("Configure SET MED on DUT", func(t *testing.T) {
-		setMED(t, dut, d)
-	})
-
-	t.Run("Configure always compare med on DUT", func(t *testing.T) {
-		gnmi.Replace(t, dut, dutConfPath.Bgp().Global().RouteSelectionOptions().AlwaysCompareMed().Config(), true)
 	})
 
 	otg := ate.OTG()
@@ -536,23 +577,36 @@ func TestAlwaysCompareMED(t *testing.T) {
 	})
 
 	t.Run("Verify port status on DUT", func(t *testing.T) {
+		t.Log("Verifying port status.")
 		verifyPortsUp(t, dut.Device)
 	})
 
 	t.Run("Verify BGP telemetry", func(t *testing.T) {
+		t.Log("Check BGP parameters.")
 		verifyBgpTelemetry(t, dut)
 		verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
+		t.Log("Check BGP Capabilities")
 		verifyBGPCapabilities(t, dut)
 	})
 
-	t.Run("Verify received BGP routes at OTG Port 1 have lowest MED", func(t *testing.T) {
+	t.Run("Configure SET MED on DUT", func(t *testing.T) {
+		setMED(t, dut, d)
+	})
+
+	t.Run("Configure always compare med on DUT", func(t *testing.T) {
+		t.Log("Configure always compare med on DUT.")
+		gnmi.Replace(t, dut, dutConfPath.Bgp().Global().RouteSelectionOptions().AlwaysCompareMed().Config(), true)
+	})
+
+	t.Run("Verify received BGP routes at ATE Port 1 have lowest MED", func(t *testing.T) {
+		t.Log("Verify BGP prefix telemetry.")
 		verifyPrefixesTelemetry(t, dut, 0, routeCount)
 		t.Log("Verify best route advertised to atePort1 is Peer with lowest MED 50 - eBGP Peer2.")
 		/* Aggregate route count expected to be routeCount after which RIB/Learned Information shoud be fetched */
 		verifySetMed(t, otg, otgConfig, bgpMED50, routeCount)
 	})
 
-	t.Run("Send and validate traffic from OTG Port1", func(t *testing.T) {
+	t.Run("Send and validate traffic from ATE Port1", func(t *testing.T) {
 		t.Log("Validate traffic flowing to the prefixes received from eBGP neighbor #2 from DUT (lowest MED-50).")
 		sendTraffic(t, otg, otgConfig)
 		verifyTraffic(t, ate, otgConfig, flow1, wantLoss)
@@ -560,12 +614,20 @@ func TestAlwaysCompareMED(t *testing.T) {
 	})
 
 	t.Run("Remove MED settings on DUT", func(t *testing.T) {
+		t.Log("Disable MED settings on DUT.")
 		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		gnmi.Delete(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).ApplyPolicy().ImportPolicy().Config())
-		gnmi.Delete(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).ApplyPolicy().ImportPolicy().Config())
+		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
+			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
+		} else {
+			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
+			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
+		}
+
 	})
 
-	t.Run("Verify MED on received routes at OTG Port1 after removing MED settings", func(t *testing.T) {
+	t.Run("Verify MED on received routes at ATE Port1 after removing MED settings", func(t *testing.T) {
+		t.Log("Verify BGP prefix telemetry.")
 		verifyPrefixesTelemetry(t, dut, 0, routeCount)
 		t.Log("Verify best route advertised to atePort1.")
 		// Aggregate route count expected to be routeCount + routeCount ( set of updated routes after MED reset) after which RIB/Learned Information shoud be fetched
