@@ -307,9 +307,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
 
     using_sim = reserved_testbed and reserved_testbed.get('sim', False) 
     if using_sim:
-        overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
-        reserved_testbed.update(overrides)
-
         topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
         with open(topo_file, "r") as fp:
             topo_yaml = yaml.safe_load(fp)
@@ -684,9 +681,6 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
-
-        overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
-        reserved_testbed.update(overrides)
 
         hw_testbed_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['testbed'])
         hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])
