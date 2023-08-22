@@ -326,7 +326,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
     elif not reserved_testbed:
         c |= ReserveTestbed.s()
 
-    c |= GenerateOndatraTestbedFiles.s()
+    c |= GenerateOndatraTestbedFiles.s(reserved_testbed=reserved_testbed)
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s(force_install=force_install)
         force_reboot = False
@@ -634,7 +634,7 @@ def _write_otg_binding(internal_fp_repo_dir, reserved_testbed):
 
         check_output(cmd, env=env, cwd=internal_fp_repo_dir)
 
-@app.task(base=FireX, bind=True, returns=('reserved_testbed'))
+@app.task(base=FireX, bind=True)
 def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed, test_name, **kwargs):
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
@@ -710,7 +710,6 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     _write_otg_binding(internal_fp_repo_dir, reserved_testbed)
     _write_otg_docker_compose_file(otg_docker_compose_file, reserved_testbed)
-    return reserved_testbed
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
