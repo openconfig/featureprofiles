@@ -453,10 +453,10 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	for _, flow := range good {
-		outPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-		inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
+		outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
+		inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
 		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want >0.", flow)
+			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
 		}
 		if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
 			t.Fatalf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
@@ -464,10 +464,10 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 	}
 
 	for _, flow := range bad {
-		outPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-		inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
+		outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
+		inPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
 		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want >0.", flow)
+			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
 		}
 		if got := ((outPkts - inPkts) * 100) / outPkts; got < 100 {
 			t.Fatalf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
