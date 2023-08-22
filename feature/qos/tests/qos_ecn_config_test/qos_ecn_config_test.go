@@ -70,6 +70,7 @@ var (
 			fn:   testNokiaECNConfig,
 		},
 	}
+	maxBurstSize = uint32(268435456)
 )
 
 // QoS ecn OC config:
@@ -841,6 +842,11 @@ func testNokiaECNConfig(t *testing.T) {
 
 	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
 	schedulerPolicy.SetName("scheduler")
+	bufferAllocation, err := q.NewBufferAllocationProfile("ballocprofile")
+	if err != nil {
+		t.Errorf("Failed to configure bufferAllocation: %v", err)
+	}
+
 	t.Logf("qos scheduler policies config cases: %v", schedulers)
 	for _, tc := range schedulers {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -855,6 +861,8 @@ func testNokiaECNConfig(t *testing.T) {
 			if tc.priority != oc.Scheduler_Priority_STRICT {
 				input.SetWeight(tc.weight)
 			}
+			bq := bufferAllocation.GetOrCreateQueue(tc.queueName)
+			bq.SetStaticSharedBufferLimit(maxBurstSize)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 	}
@@ -959,6 +967,7 @@ func testNokiaECNConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.targetGroup)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.targetGroup)
+			output.SetBufferAllocationProfile("ballocprofile")
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
