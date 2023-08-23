@@ -211,8 +211,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// configure ISIS
 	configureISISDUT(t, dut, []string{agg2ID, agg3ID})
-
-	return
 }
 
 func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
