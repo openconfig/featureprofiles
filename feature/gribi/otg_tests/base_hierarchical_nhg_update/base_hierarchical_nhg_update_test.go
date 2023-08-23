@@ -167,12 +167,12 @@ var (
 	atePort2DummyIP = attrs.Attributes{
 		Desc:    "atePort2",
 		IPv4:    "192.0.2.22",
-		IPv4Len: 30,
+		IPv4Len: 32,
 	}
 	atePort3DummyIP = attrs.Attributes{
 		Desc:    "atePort3",
 		IPv4:    "192.0.2.42",
-		IPv4Len: 30,
+		IPv4Len: 32,
 	}
 	btrunk2, btrunk3, btrunk4 string
 )
