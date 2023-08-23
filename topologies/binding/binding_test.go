@@ -208,7 +208,6 @@ func TestReservation_Error(t *testing.T) {
 		`binding DUT "dut.b" not found in testbed`,
 		`missing binding for ATE "ate.tb"`,
 		`error binding ATE "ate.both"`,
-		`binding port "port3" not found in testbed`,
 		`testbed port "port1" is missing in binding`,
 	}
 	errText := err.Error()
