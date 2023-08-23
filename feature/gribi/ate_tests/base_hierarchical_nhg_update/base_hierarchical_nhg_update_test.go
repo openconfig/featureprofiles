@@ -771,15 +771,15 @@ func deleteinterfaceconfig(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
 
-	gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
-	gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
-	gnmi.Delete(t, dut, d.Interface(p4.Name()).Subinterface(0).Config())
-
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		ni := deviations.DefaultNetworkInstance(dut)
 		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p2.Name()+".").Subinterface().Config())
 		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p3.Name()+".").Subinterface().Config())
 		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p4.Name()+".").Subinterface().Config())
+	} else {
+        	gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
+        	gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
+        	gnmi.Delete(t, dut, d.Interface(p4.Name()).Subinterface(0).Config())
 	}
 }
 
