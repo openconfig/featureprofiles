@@ -17,17 +17,21 @@ package isis_interface_hello_padding_enable_test
 import (
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -43,13 +47,20 @@ const (
 	dutAreaAddress = "49.0001"
 	ateAreaAddress = "49.0002"
 	dutSysID       = "1920.0000.2001"
+	ateSystemID    = "640000000001"
 	password       = "google"
+	v4Route1       = "203.0.113.0"
+	v6Route1       = "2001:db8::203:0:113:0"
 	v4Route        = "203.0.113.0/30"
 	v6Route        = "2001:db8::203:0:113:0/126"
 	v4IP           = "203.0.113.1"
 	v6IP           = "2001:db8::203:0:113:1"
 	v4Metric       = 100
 	v6Metric       = 100
+	v4NetName      = "isisv4Net"
+	v6NetName      = "isisv6Net"
+	v4FlowName     = "v4Flow"
+	v6FlowName     = "v6Flow"
 )
 
 var (
@@ -65,6 +76,7 @@ var (
 		Name:    "ATE to DUT port1 ",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::192:0:2:2",
+		MAC:     "02:00:01:01:01:01",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 		MTU:     1500,
@@ -80,6 +92,7 @@ var (
 		Name:    "ATE to DUT port2",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::192:0:2:6",
+		MAC:     "02:00:02:01:01:01",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -174,67 +187,90 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	gnmi.Replace(t, dut, configPath.Config(), prot)
 }
 
-// configureATE configures the interfaces and isis on ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+// configureOTG configures the interfaces and isis on OTG.
+func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Helper()
-	topo := ate.Topology().New()
-	port1 := ate.Port(t, "port1")
-	port2 := ate.Port(t, "port2")
+	config := otg.NewConfig(t)
+	port1 := config.Ports().Add().SetName("port1")
+	port2 := config.Ports().Add().SetName("port2")
 
-	i1Dut := topo.AddInterface(atePort1attr.Name).WithPort(port1)
-	i1Dut.IPv4().WithAddress(atePort1attr.IPv4CIDR()).WithDefaultGateway(dutPort1Attr.IPv4)
-	i1Dut.IPv6().WithAddress(atePort1attr.IPv6CIDR()).WithDefaultGateway(dutPort1Attr.IPv6)
-	i1Dut.Ethernet().WithMTU(atePort1attr.MTU)
+	iDut1Dev := config.Devices().Add().SetName(atePort1attr.Name)
+	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1attr.Name + ".Eth").SetMac(atePort1attr.MAC).SetMtu(int32(atePort1attr.MTU))
+	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1attr.Name + ".IPv4")
+	iDut1Ipv4.SetAddress(atePort1attr.IPv4).SetGateway(dutPort1Attr.IPv4).SetPrefix(int32(atePort1attr.IPv4Len))
+	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1attr.Name + ".IPv6")
+	iDut1Ipv6.SetAddress(atePort1attr.IPv6).SetGateway(dutPort1Attr.IPv6).SetPrefix(int32(atePort1attr.IPv6Len))
 
-	i2Dut := topo.AddInterface(atePort2attr.Name).WithPort(port2)
-	i2Dut.IPv4().WithAddress(atePort2attr.IPv4CIDR()).WithDefaultGateway(dutPort2Attr.IPv4)
-	i2Dut.IPv6().WithAddress(atePort2attr.IPv6CIDR()).WithDefaultGateway(dutPort2Attr.IPv6)
+	iDut2Dev := config.Devices().Add().SetName(atePort2attr.Name)
+	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(atePort2attr.Name + ".Eth").SetMac(atePort2attr.MAC)
+	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
+	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName(atePort2attr.Name + ".IPv4")
+	iDut2Ipv4.SetAddress(atePort2attr.IPv4).SetGateway(dutPort2Attr.IPv4).SetPrefix(int32(atePort2attr.IPv4Len))
+	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName(atePort2attr.Name + ".IPv6")
+	iDut2Ipv6.SetAddress(atePort2attr.IPv6).SetGateway(dutPort2Attr.IPv6).SetPrefix(int32(atePort2attr.IPv6Len))
 
-	isisDut := i1Dut.ISIS()
-	isisDut.
-		WithAreaID(ateAreaAddress).
-		WithTERouterID(atePort1attr.IPv4).
-		WithNetworkTypePointToPoint().
-		WithHelloPaddingEnabled(true).
-		WithLevelL2().WithAuthMD5(password).
-		WithAreaAuthMD5(password).
-		WithDomainAuthMD5(password)
+	iDut1Dev.Isis().SetSystemId(ateSystemID).SetName("devIsis")
+	iDut1Dev.Isis().RouterAuth().AreaAuth().SetAuthType("md5").SetMd5(password)
+	iDut1Dev.Isis().RouterAuth().DomainAuth().SetAuthType("md5").SetMd5(password)
+	iDut1Dev.Isis().Basic().SetIpv4TeRouterId(atePort1attr.IPv4).SetEnableWideMetric(false)
+	iDut1Dev.Isis().Advanced().SetAreaAddresses([]string{strings.Replace(ateAreaAddress, ".", "", -1)})
 
-	netGrp := i1Dut.AddNetwork(fmt.Sprintf("isis-%d", 1))
-	netGrp.IPv4().WithAddress(v4Route)
-	netGrp.ISIS().WithActive(true)
-	netGrp.IPv6().WithAddress(v6Route)
-	netGrp.ISIS().WithActive(true)
+	iDut1Dev.Isis().Interfaces().
+		Add().
+		SetEthName(iDut1Dev.Ethernets().Items()[0].Name()).
+		SetName("devIsisInt").
+		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
+		SetMetric(10).Authentication().SetAuthType("md5").SetMd5(password)
 
-	t.Log("Pushing config to ATE and starting protocols...")
-	topo.Push(t)
-	topo.StartProtocols(t)
-	return topo
-}
+	// netv4 is a simulated network containing the ipv4 addresses specified by targetNetwork
+	netv4 := iDut1Dev.Isis().V4Routes().Add().SetName(v4NetName).SetLinkMetric(10)
+	netv4.Addresses().Add().SetAddress(v4Route1).SetPrefix(plenIPv4)
 
-// createFlows returns v4 and v6 flow from atePort2 to atePort1
-func createFlows(t *testing.T, ate *ondatra.ATEDevice, ateTopo *ondatra.ATETopology) []*ondatra.Flow {
-	t.Helper()
-	srcIntf := ateTopo.Interfaces()[atePort2attr.Name]
-	dstIntf := ateTopo.Interfaces()[atePort1attr.Name]
+	// netv6 is a simulated network containing the ipv6 addresses specified by targetNetwork
+	netv6 := iDut1Dev.Isis().V6Routes().Add().SetName(v6NetName).SetLinkMetric(10)
+	netv6.Addresses().Add().SetAddress(v6Route1).SetPrefix(plenIPv6)
 
 	t.Log("Configuring v4 traffic flow ")
-	v4Header := ondatra.NewIPv4Header()
-	v4Header.DstAddressRange().WithMin(v4IP).WithCount(1)
-
-	v4Flow := ate.Traffic().NewFlow("v4Flow").
-		WithSrcEndpoints(srcIntf).WithDstEndpoints(dstIntf).
-		WithHeaders(ondatra.NewEthernetHeader(), v4Header)
+	v4Flow := config.Flows().Add().SetName(v4FlowName)
+	v4Flow.Metrics().SetEnable(true)
+	v4Flow.TxRx().Device().
+		SetTxNames([]string{iDut2Ipv4.Name()}).
+		SetRxNames([]string{v4NetName})
+	v4Flow.Size().SetFixed(512)
+	v4Flow.Rate().SetPps(100)
+	v4Flow.Duration().SetChoice("continuous")
+	e1 := v4Flow.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort2attr.MAC)
+	v4 := v4Flow.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort2attr.IPv4)
+	v4.Dst().Increment().SetStart(v4IP).SetCount(1)
 
 	t.Log("Configuring v6 traffic flow ")
-	v6Header := ondatra.NewIPv6Header()
-	v6Header.DstAddressRange().WithMin(v6IP).WithCount(1)
+	v6Flow := config.Flows().Add().SetName(v6FlowName)
+	v6Flow.Metrics().SetEnable(true)
+	v6Flow.TxRx().Device().
+		SetTxNames([]string{iDut2Ipv6.Name()}).
+		SetRxNames([]string{v6NetName})
+	v6Flow.Size().SetFixed(512)
+	v6Flow.Rate().SetPps(100)
+	v6Flow.Duration().SetChoice("continuous")
+	e2 := v6Flow.Packet().Add().Ethernet()
+	e2.Src().SetValue(atePort2attr.MAC)
+	v6 := v6Flow.Packet().Add().Ipv6()
+	v6.Src().SetValue(atePort2attr.IPv6)
+	v6.Dst().Increment().SetStart(v6IP).SetCount(1)
 
-	v6Flow := ate.Traffic().NewFlow("v6Flow").
-		WithSrcEndpoints(srcIntf).WithDstEndpoints(dstIntf).
-		WithHeaders(ondatra.NewEthernetHeader(), v6Header)
+	t.Logf("Pushing config to OTG and starting protocols...")
+	otg.PushConfig(t, config)
+	time.Sleep(30 * time.Second)
+	otg.StartProtocols(t)
 
-	return []*ondatra.Flow{v4Flow, v6Flow}
+	otgutils.WaitForARP(t, otg, config, "IPv4")
+	otgutils.WaitForARP(t, otg, config, "IPv6")
+
+	return config
 }
 
 // TestIsisInterfaceHelloPaddingEnable verifies adjacency with hello padding enabled.
@@ -255,9 +291,8 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 	configureISIS(t, dut, intfName)
 
 	// Configure interface,isis and traffic on ATE.
-	ateTopo := configureATE(t, ate)
-	flows := createFlows(t, ate, ateTopo)
-	port1 := ate.Port(t, "port1")
+	otg := ate.OTG()
+	otgConfig := configureOTG(t, otg)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		intfName = intfName + ".0"
@@ -288,8 +323,14 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 				t.Errorf("FAIL- Expected interface hello padding state not found, got %d, want %d", got, oc.Isis_HelloPaddingType_ADAPTIVE)
 			}
 			// Changing MTU at ATE side
-			ateTopo.Interfaces()[atePort1attr.Name].WithPort(port1).Ethernet().WithMTU(2000)
-			ateTopo.Update(t)
+			for _, d := range otgConfig.Devices().Items() {
+				Eth := d.Ethernets().Items()[0]
+				if Eth.Name() == atePort1attr.Name+".Eth" {
+					Eth.SetMtu(int32(2000))
+				}
+			}
+			otg.PushConfig(t, otgConfig)
+			otg.StartProtocols(t)
 
 			// Adjacency check
 			_, found := gnmi.Watch(t, dut, statePath.Interface(intfName).Level(2).Adjacency(ateSysID).AdjacencyState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
@@ -299,9 +340,16 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			if !found {
 				t.Errorf("Isis adjacency is not down on interface %v when MTU is changed", intfName)
 			}
+
 			// Reverting MTU at ATE side
-			ateTopo.Interfaces()[atePort1attr.Name].WithPort(port1).Ethernet().WithMTU(atePort1attr.MTU)
-			ateTopo.Update(t)
+			for _, d := range otgConfig.Devices().Items() {
+				Eth := d.Ethernets().Items()[0]
+				if Eth.Name() == atePort1attr.Name+".Eth" {
+					Eth.SetMtu(int32(atePort1attr.MTU))
+				}
+			}
+			otg.PushConfig(t, otgConfig)
+			otg.StartProtocols(t)
 
 			// Adjacency check
 			_, ok := gnmi.Watch(t, dut, statePath.Interface(intfName).Level(2).Adjacency(ateSysID).AdjacencyState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
@@ -428,7 +476,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			}
 		})
 		t.Run("Route checks", func(t *testing.T) {
-			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV4_INTERNAL_REACHABILITY).Ipv4InternalReachability().Prefix(v4Route).Prefix().State()); got != v4Route {
+			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(v4Route).Prefix().State()); got != v4Route {
 				t.Errorf("FAIL- Expected v4 route not found in isis, got %v, want %v", got, v4Route)
 			}
 			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(v6Route).Prefix().State()); got != v6Route {
@@ -442,15 +490,25 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			}
 		})
 		t.Run("Traffic checks", func(t *testing.T) {
-			ate.Traffic().Start(t, flows...)
+			t.Logf("Starting traffic")
+			otg.StartTraffic(t)
 			time.Sleep(time.Second * 15)
-			ate.Traffic().Stop(t)
+			t.Logf("Stop traffic")
+			otg.StopTraffic(t)
 
-			for _, flow := range flows {
+			otgutils.LogFlowMetrics(t, otg, otgConfig)
+			otgutils.LogPortMetrics(t, otg, otgConfig)
+
+			for _, flow := range []string{v4FlowName, v6FlowName} {
 				t.Log("Checking flow telemetry...")
-				loss := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).LossPct().State())
-				if loss > 1 {
-					t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", loss, flow.Name())
+				recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
+				txPackets := recvMetric.GetCounters().GetOutPkts()
+				rxPackets := recvMetric.GetCounters().GetInPkts()
+				lostPackets := txPackets - rxPackets
+				lossPct := lostPackets * 100 / txPackets
+
+				if lossPct > 1 {
+					t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, flow)
 				}
 			}
 		})
