@@ -578,7 +578,7 @@ func LinecardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinecardMemoryUtilizationUnsupported()
 }
 
-// Device does not support telemetry path
+// QOSVoqDropCounterUnsupported returns if the device does not support telemetry path
 // /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
 // Default value is false.
 func QOSVoqDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
