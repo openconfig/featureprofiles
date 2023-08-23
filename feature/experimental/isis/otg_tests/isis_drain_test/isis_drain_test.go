@@ -270,7 +270,6 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 }
 
 func configureATE(t *testing.T, ate *otg.OTG) gosnappi.Config {
-	//func addISISTopo(dev gosnappi.Device, areaAddress, sysID string) {
 	cfg := gosnappi.NewConfig()
 	p1 := cfg.Ports().Add().SetName("port1")
 	p2 := cfg.Ports().Add().SetName("port2")
