@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "42f98081-8813-4512-b105-0a652a8542ef"
+plan_id: "RT-5.6"
+description: "Interface Loopback mode"
+testbed: TESTBED_DUT_ATE_2LINKS
