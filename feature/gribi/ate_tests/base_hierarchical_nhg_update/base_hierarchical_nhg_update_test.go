@@ -777,9 +777,9 @@ func deleteinterfaceconfig(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p3.Name()+".").Subinterface().Config())
 		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p4.Name()+".").Subinterface().Config())
 	} else {
-        	gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
-        	gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
-        	gnmi.Delete(t, dut, d.Interface(p4.Name()).Subinterface(0).Config())
+		gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
+		gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
+		gnmi.Delete(t, dut, d.Interface(p4.Name()).Subinterface(0).Config())
 	}
 }
 
