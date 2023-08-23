@@ -621,3 +621,5 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
+    branch: kjahed/FP-1.1
+    internal: true
