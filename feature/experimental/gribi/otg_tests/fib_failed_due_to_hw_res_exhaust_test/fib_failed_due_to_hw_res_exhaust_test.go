@@ -216,7 +216,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	var otgIPv4Device gosnappi.DeviceIpv4
 	otgBgpPeer, otgIPv4Device, otgConfig = configureOTG(t, otg)
 
-	//verifyBgpTelemetry(t, dut)
+	verifyBgpTelemetry(t, dut)
 
 	gribic := dut.RawAPIs().GRIBI().Default(t)
 
@@ -308,7 +308,7 @@ func sendTraffic(t *testing.T, args *testArgs) {
 
 	verifyTraffic(t, args, flow1ipv4.Name(), !wantLoss)
 	// https://github.com/open-traffic-generator/fp-testbed-juniper/issues/19
-	// verifyTraffic(t, args, flow2ipv4.Name(), wantLoss)
+	// TODO : verifyTraffic(t, args, flow2ipv4.Name(), wantLoss)
 }
 
 func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool) {
@@ -335,19 +335,6 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flowName, lossPct)
 		} else {
 			t.Logf("Traffic Test Passed!")
-		}
-	}
-}
-
-func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled, wantRx uint32) {
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	prefixesv4 := statePath.Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
-		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
-	}
-	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRx := gnmi.Get(t, dut, prefixesv4.ReceivedPrePolicy().State()); gotRx != wantRx {
-			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
 		}
 	}
 }
@@ -484,10 +471,7 @@ routeAddLoop:
 		if j == 1 {
 			fibPassedDstRoute = dstIPList[0]
 			injectBGPRoutes(t, args)
-			// Wait for BGP to learn all prefixes and install in FIB
 			time.Sleep(5 * time.Minute)
-			//verifyBgpTelemetry(t, args.dut)
-			//verifyPrefixesTelemetry(t, args.dut, routeCount, routeCount)
 		}
 	}
 }
