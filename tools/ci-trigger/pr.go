@@ -212,7 +212,7 @@ func (p *pullRequest) populateObjectMetadata(ctx context.Context, storClient *st
 			if cloudBuildLogURL, ok := objAttrs.Metadata["cloudBuildLogURL"]; ok {
 				p.Virtual[i].CloudBuildLogURL = cloudBuildLogURL
 			}
-			if cloudBuildRawLogURL, ok := objAttrs.Metadata["CloudBuildRawLogURL"]; ok {
+			if cloudBuildRawLogURL, ok := objAttrs.Metadata["cloudBuildRawLogURL"]; ok {
 				p.Virtual[i].CloudBuildRawLogURL = cloudBuildRawLogURL
 			}
 		}
