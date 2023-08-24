@@ -308,7 +308,7 @@ tests:
     mustpass: true
     priority: 33
   - name: gNMI-1.10 (Telemetry Basic Check)
-    path: feature/gnmi/ate_tests/telemetry_basic_check_test
+    path: feature/gnmi/otg_tests/telemetry_basic_check_test
     args:
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
@@ -316,14 +316,12 @@ tests:
       - agvarghe
     mustpass: true
     priority: 34
-    skip: true # removed, OTG only
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
-    path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
+    path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
     owners:
       - agvarghe
     priority: 35
     mustpass: true
-    skip: true # removed, OTG only
   - name: gNMI-1.13 (Telemetry Optics Power and Bias Current)
     path: feature/platform/tests/optics_power_and_bias_current_test
     owners:
@@ -623,3 +621,5 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
+    branch: kjahed/FP-1.1
+    internal: true
