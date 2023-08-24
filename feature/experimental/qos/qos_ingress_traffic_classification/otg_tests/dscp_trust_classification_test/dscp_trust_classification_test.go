@@ -19,7 +19,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -33,6 +35,18 @@ type trafficData struct {
 	codePoint   uint8
 	queue       string
 }
+
+const (
+	ateSrcName    = "dev1"
+	ateDstName    = "dev2"
+	ateSrcMac     = "02:00:01:01:01:01"
+	ateDstMac     = "02:00:01:01:01:02"
+	ateSrcIp      = "198.51.100.1"
+	ateDstIp      = "198.51.100.3"
+	ateSrcGateway = "198.51.100.0"
+	ateDstGateway = "198.51.100.2"
+	prefixLen     = 31
+)
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -80,21 +94,23 @@ func TestQoSClassifier(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	top := OTG.Topology().New()
-	intf1 := top.AddInterface("intf1").WithPort(ap1)
-	intf1.IPv4().
-		WithAddress("198.51.100.1/31").
-		WithDefaultGateway("198.51.100.0")
-	intf1.IPv6().
-		WithAddress("2001:db8::2/126").
-		WithDefaultGateway("2001:db8::1")
-	intf2 := top.AddInterface("intf2").WithPort(ap2)
-	intf2.IPv4().
-		WithAddress("198.51.100.3/31").
-		WithDefaultGateway("198.51.100.2")
-	intf2.IPv6().
-		WithAddress("2001:db8::6/126").
-		WithDefaultGateway("2001:db8::5")
+	top := ate.OTG().NewConfig(t)
+
+	top.Ports().Add().SetName(ap1.ID())
+	top.Ports().Add().SetName(ap2.ID())
+
+	dev1 := top.Devices().Add().SetName("dev1")
+	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac("02:00:01:01:01:01")
+	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
+	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress("198.51.100.1").SetGateway("198.51.100.0").SetPrefix(int32(31))
+	eth1.Ipv6Addresses().Add().SetName(dev1.Name() + ".ipv6").SetAddress("2001:db8::2").SetGateway("2001:db8::1").SetPrefix(int32(31))
+
+	dev2 := top.Devices().Add().SetName("dev2")
+	eth2 := dev2.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac("02:00:01:01:01:01")
+	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
+	eth2.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress("198.51.100.3").SetGateway("198.51.100.2").SetPrefix(int32(31))
+	eth2.Ipv6Addresses().Add().SetName(dev1.Name() + ".ipv6").SetAddress("2001:db8::6").SetGateway("2001:db8::5").SetPrefix(int32(126))
+
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
@@ -330,25 +346,35 @@ func TestQoSClassifier(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			trafficFlows := tc.trafficFlows
-			var flows []*ondatra.Flow
 			for trafficID, data := range trafficFlows {
 				t.Logf("Configuring flow %s", trafficID)
 				if strings.Contains(trafficID, "ipv4") {
-					flow := ate.Traffic().NewFlow(trafficID).
-						WithSrcEndpoints(intf1).
-						WithDstEndpoints(intf2).
-						WithHeaders(ondatra.NewEthernetHeader(), ondatra.NewIPv4Header().WithDSCP(data.codePoint)).
-						WithFrameRatePct(data.trafficRate).
-						WithFrameSize(data.frameSize)
-					flows = append(flows, flow)
+					flow := top.Flows().Add().SetName(trafficID)
+					flow.Metrics().SetEnable(true)
+					flow.TxRx().Device().SetTxNames([]string{dev1.Name() + ".ipv4"}).SetRxNames([]string{dev2.Name() + ".ipv4"})
+					ethHeader := flow.Packet().Add().Ethernet()
+					ethHeader.Src().SetValue(ateSrcMac)
+					ipHeader := flow.Packet().Add().Ipv4()
+					ipHeader.Src().SetValue(ateSrcIp)
+					ipHeader.Dst().SetValue(ateDstIp)
+					ipHeader.Priority().Dscp().Phb().SetValue(int32(data.codePoint))
+					flow.Size().SetFixed(int32(data.frameSize))
+					flow.Rate().SetPercentage(float32(data.trafficRate))
+					flow.Duration().FixedPackets().SetPackets(10000)
+
 				} else if strings.Contains(trafficID, "ipv6") {
-					flow := ate.Traffic().NewFlow(trafficID).
-						WithSrcEndpoints(intf1).
-						WithDstEndpoints(intf2).
-						WithHeaders(ondatra.NewEthernetHeader(), ondatra.NewIPv6Header().WithDSCP(data.codePoint)).
-						WithFrameRatePct(data.trafficRate).
-						WithFrameSize(data.frameSize)
-					flows = append(flows, flow)
+					flow := top.Flows().Add().SetName(trafficID)
+					flow.Metrics().SetEnable(true)
+					flow.TxRx().Device().SetTxNames([]string{dev1.Name() + ".ipv6"}).SetRxNames([]string{dev2.Name() + ".ipv6"})
+					ethHeader := flow.Packet().Add().Ethernet()
+					ethHeader.Src().SetValue(ateSrcMac)
+					ipHeader := flow.Packet().Add().Ipv6()
+					ipHeader.Src().SetValue(ateSrcIp)
+					ipHeader.Dst().SetValue(ateDstIp)
+					ipHeader.TrafficClass().SetValue(int32(data.codePoint))
+					flow.Size().SetFixed(int32(data.frameSize))
+					flow.Rate().SetPercentage(float32(data.trafficRate))
+					flow.Duration().FixedPackets().SetPackets(10000)
 				}
 			}
 
