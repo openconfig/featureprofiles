@@ -33,8 +33,9 @@
 
 ### test 2 redundancy
 * Power down all but one component
-* Run traffic between ATE por1 and port 2 for 16 millions of packets on 100kpps rate.
-* verify loss-lessness (with tolerance of ~500ms * traffic_rate packet loss)
+* Run traffic between ATE por1 and port 2 for 16 millions of packets on 100kpps rate and using 4000B packets.
+* verify loss-lessness (with 10E-6 tolerance); Since single fabric is not overloaded in any form
+  with above traffic pattern 0 losses is expected
 * Power up all components
 
 ### test 3 last reboot time
