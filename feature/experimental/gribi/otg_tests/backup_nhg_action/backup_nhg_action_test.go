@@ -217,6 +217,11 @@ func TestBackupNHGAction(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
+	// Configure ATE
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
+	ate.OTG().PushConfig(t, top)
+
 	// Configure DUT
 	if !deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		configureDUT(t, dut)
@@ -246,10 +251,6 @@ func TestBackupNHGAction(t *testing.T) {
 
 	addStaticRoute(t, dut)
 
-	// Configure ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
-	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
 	test := []struct {
@@ -331,8 +332,17 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 	t.Log("Shutdown Port2")
 	p2 := args.dut.Port(t, "port2")
-	setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, false)
-	defer setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, true)
+	if deviations.ATEPortLinkStateOperationsUnsupported(args.ate) {
+		setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, false)
+		defer setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		linkState := portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.DOWN)
+		args.ate.OTG().SetControlState(t, portStateAction)
+		// Restore port state at end of test case.
+		linkState.SetState(gosnappi.StatePortLinkState.UP)
+		defer args.ate.OTG().SetControlState(t, portStateAction)
+	}
 
 	t.Log("Capture port2 status if down")
 	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
@@ -421,9 +431,18 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 
 	t.Log("Shutdown Port2")
-	dutP2 := args.dut.Port(t, "port2")
-	setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, false)
-	defer setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, true)
+	if deviations.ATEPortLinkStateOperationsUnsupported(args.ate) {
+		dutP2 := args.dut.Port(t, "port2")
+		setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, false)
+		defer setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		linkState := portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.DOWN)
+		args.ate.OTG().SetControlState(t, portStateAction)
+		// Restore port state at end of test case.
+		linkState.SetState(gosnappi.StatePortLinkState.UP)
+		defer args.ate.OTG().SetControlState(t, portStateAction)
+	}
 
 	t.Log("Capture port2 status if down")
 	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
@@ -437,9 +456,18 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 
 	t.Log("Shutdown Port3")
-	dutP3 := args.dut.Port(t, "port3")
-	setDUTInterfaceWithState(t, args.dut, &dutPort3, dutP3, false)
-	defer setDUTInterfaceWithState(t, args.dut, &dutPort3, dutP3, true)
+	if deviations.ATEPortLinkStateOperationsUnsupported(args.ate) {
+		dutP3 := args.dut.Port(t, "port3")
+		setDUTInterfaceWithState(t, args.dut, &dutPort3, dutP3, false)
+		defer setDUTInterfaceWithState(t, args.dut, &dutPort3, dutP3, true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		linkState := portStateAction.Port().Link().SetPortNames([]string{"port3"}).SetState(gosnappi.StatePortLinkState.DOWN)
+		args.ate.OTG().SetControlState(t, portStateAction)
+		// Restore port state at end of test case.
+		linkState.SetState(gosnappi.StatePortLinkState.UP)
+		defer args.ate.OTG().SetControlState(t, portStateAction)
+	}
 
 	t.Log("Capture port3 status if down")
 	p3 := args.dut.Port(t, "port3")
