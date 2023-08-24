@@ -60,7 +60,7 @@
 
 *   Parameters:
 
-    *   TODO-interfaces/interface/state/passive
+    *   interfaces/interface/state/passive
     *   interfaces/interface/levels/level/state/passive
     *   interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state
     *   interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address
