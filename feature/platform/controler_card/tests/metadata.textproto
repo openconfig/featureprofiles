@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid: ""
-plan_id: "gNMI-1.XX"
+plan_id: "gNMI-1.15"
 description: "controller rcard redundancy test"
 testbed: TESTBED_DUT
