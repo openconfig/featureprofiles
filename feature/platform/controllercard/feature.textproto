@@ -3,7 +3,7 @@ id {
   version: 1
 }
 
-# Classifiers
+# Paths
 config_path {
   path: "/components/component/controller-card/config/power-admin-state"
 }
