@@ -839,7 +839,7 @@ func configDUTDrain(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(*i4.Name).Config(), configInterfaceDUT(i4, &dutPort4, dut))
 	T4 := configureBundle(t, p4.Name(), *i4.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p4.Name()).Config(), T4)
-	
+
 	if deviations.ExplicitIPv6EnableForGRIBI(dut) {
 		gnmi.Update(t, dut, d.Interface(*i2.Name).Subinterface(0).Ipv6().Enabled().Config(), true)
 		gnmi.Update(t, dut, d.Interface(*i3.Name).Subinterface(0).Ipv6().Enabled().Config(), true)
