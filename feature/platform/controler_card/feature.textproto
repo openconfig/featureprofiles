@@ -1,1 +1,12 @@
+id {
+  name: "platform_controller_card"
+  version: 1
+}
 
+# Classifiers
+config_path {
+  path: "/components/component/fabric/config/power-admin-state"
+}
+telemetry_path {
+  path: "/components/component/fabric/state/power-admin-state"
+}
