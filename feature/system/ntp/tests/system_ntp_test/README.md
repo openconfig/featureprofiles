@@ -21,7 +21,6 @@ Note:  [TODO]the source address of NTP need to be specified
 *   /system/ntp/config/enabled
 *   /system/ntp/servers/server/config/address
 *   [TODO]/system/ntp/servers/server/config/source-address
-*   [TODO]/system/ntp/servers/server/config/port
 *   /system/ntp/servers/server/config/network-instance
 
 ## Telemetry Parameter Coverage
