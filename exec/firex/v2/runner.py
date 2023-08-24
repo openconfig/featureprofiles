@@ -427,8 +427,9 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     if 'otg' in test_path:
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
         chain |= BringupIxiaController.s()
-    elif release_ixia_ports:
-            chain |= ReleaseIxiaPorts.s()
+
+    if release_ixia_ports:
+        chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
@@ -869,11 +870,11 @@ def InstallGoDelve(self, repo):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def ReleaseIxiaPorts(self, ws, reserved_testbed):
+def ReleaseIxiaPorts(self, ws, binding_file):
     logger.print("Releasing ixia ports...")
     try:
         logger.print(
-            check_output(f'{IXIA_RELEASE_BIN} {reserved_testbed["binding_file"]}')
+            check_output(f'{IXIA_RELEASE_BIN} {binding_file}')
         )
     except:
         logger.warning(f'Failed to release ixia ports. Ignoring...')
