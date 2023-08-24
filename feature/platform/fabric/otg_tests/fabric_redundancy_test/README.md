@@ -34,7 +34,7 @@
 ### test 2 redundancy
 * Power down all but one component
 * Run traffic between ATE por1 and port 2 for 16 millions of packets on 100kpps rate.
-* verify loss-lessness (10<sup>-6</sup> tolerance)
+* verify loss-lessness (with tolerance of ~500ms * traffic_rate packet loss)
 * Power up all components
 
 ### test 3 last reboot time
