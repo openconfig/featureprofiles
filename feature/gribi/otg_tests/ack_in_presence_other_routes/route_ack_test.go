@@ -215,8 +215,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	otg.StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, otg, top)
-	txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State())
-	rxPkts := gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State())
+	txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
+	rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
 	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
 		t.Errorf("LossPct for flow %s got %v, want 0", flowipv4.Name(), got)
 	}
@@ -241,8 +241,8 @@ func configureNetworkInstance(t *testing.T) {
 
 // configStaticRoute configures a static route.
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
-	ni1 := gnmi.GetConfig(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config())
-	static := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	sr := static.GetOrCreateStatic(prefix)
 	nh := sr.GetOrCreateNextHop("0")
 	nh.NextHop = oc.UnionString(nexthop)
