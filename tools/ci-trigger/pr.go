@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os/exec"
@@ -27,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/google/go-github/v50/github"
 	"github.com/google/uuid"
@@ -58,6 +60,7 @@ type device struct {
 	CloudBuildID        string
 	CloudBuildLogURL    string
 	CloudBuildRawLogURL string
+	ArchivePath         string
 	Tests               []functionalTest
 }
 
@@ -106,8 +109,11 @@ func (p *pullRequest) createArchive(ctx context.Context, storClient *storage.Cli
 	return objPath, obj.Close()
 }
 
-// createBuild creates a GCB build for each of the deviceTypes.
-func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.Service, storClient *storage.Client, devices []deviceType) error {
+// createBuild launches build executions for all deviceTypes.
+func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.Service, storClient *storage.Client, pubsubClient *pubsub.Client, devices []deviceType) error {
+	pubsubTopic := pubsubClient.Topic(gcpPhysicalTestTopic)
+	defer pubsubTopic.Stop()
+
 	err := p.fetchGoDeps()
 	if err != nil {
 		return err
@@ -141,6 +147,7 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 					return fmt.Errorf("submitBuild device %q: %w", virtualDevice.Type.String(), err)
 				}
 				glog.Infof("Created CloudBuild Job %s for PR%d at commit %q for device %q", jobID, p.ID, p.HeadSHA, virtualDevice.Type.String())
+				p.Virtual[i].ArchivePath = objPath
 				p.Virtual[i].CloudBuildID = jobID
 				p.Virtual[i].CloudBuildLogURL = logURL
 				vendor := strings.ToLower(virtualDevice.Type.Vendor.String())
@@ -148,6 +155,41 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 				p.Virtual[i].CloudBuildRawLogURL = fmt.Sprintf("https://storage.cloud.google.com/featureprofiles-ci-logs-%s/log-%s.txt", vendor, jobID)
 				for j := range virtualDevice.Tests {
 					p.Virtual[i].Tests[j].Status = "setup"
+				}
+			}
+		}
+	physicalDeviceLoop:
+		for i, physicalDevice := range p.Physical {
+			if physicalDevice.Type == d {
+				if len(physicalDevice.Tests) == 0 {
+					continue
+				}
+				for _, v := range physicalDevice.Tests {
+					if v.Status != "pending authorization" {
+						continue physicalDeviceLoop
+					}
+				}
+				jobID, err := uuid.NewRandom()
+				if err != nil {
+					return fmt.Errorf("uuid.NewRandom device %q: %w", physicalDevice.Type.String(), err)
+				}
+				p.Physical[i].ArchivePath = objPath
+				p.Physical[i].CloudBuildID = jobID.String()
+				vendor := strings.ToLower(physicalDevice.Type.Vendor.String())
+				vendor = strings.ReplaceAll(vendor, " ", "")
+				p.Physical[i].CloudBuildRawLogURL = fmt.Sprintf("https://storage.cloud.google.com/featureprofiles-ci-logs-%s/log-%s.txt", vendor, jobID)
+				jsonMsg, err := json.Marshal(p.Physical[i])
+				if err != nil {
+					return fmt.Errorf("json.Marshal device %q: %w", physicalDevice.Type.String(), err)
+				}
+				result := pubsubTopic.Publish(ctx, &pubsub.Message{Data: jsonMsg})
+				id, err := result.Get(ctx)
+				if err != nil {
+					return fmt.Errorf("pubsubTopic.Publish device %q: %w", physicalDevice.Type.String(), err)
+				}
+				glog.Infof("Sent Physical Test Job for PR%d at commit %q for device %q via %s", p.ID, p.HeadSHA, physicalDevice.Type.String(), id)
+				for j := range physicalDevice.Tests {
+					p.Physical[i].Tests[j].Status = "setup"
 				}
 			}
 		}
@@ -288,19 +330,20 @@ func (p *pullRequest) updateGitHub(ctx context.Context, githubClient *github.Cli
 func (p *pullRequest) populateTestDetail(functionalTests []string) error {
 	tests := make(map[deviceType][]functionalTest)
 	for _, ft := range functionalTests {
-		in, err := fs.ReadFile(p.localFS, ft+"/metadata.textproto")
+		// Skip supporting ATE tests on all device types.
+		if strings.Contains(ft, "ate_tests") {
+			continue
+		}
+		mdPath := ft + "/metadata.textproto"
+		in, err := fs.ReadFile(p.localFS, mdPath)
 		if err != nil {
 			return err
 		}
 		md := &mpb.Metadata{}
 		if err := (prototext.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(in, md); err != nil {
-			return err
+			return fmt.Errorf("unmarshal %s: %w", mdPath, err)
 		}
-		for _, d := range virtualDeviceTypes {
-			// We can't support virtual ATE tests - skip them.
-			if strings.Contains(ft, "ate_tests") {
-				continue
-			}
+		for _, d := range append(virtualDeviceTypes, physicalDeviceTypes...) {
 			badgeTestName := base64.RawURLEncoding.EncodeToString([]byte(ft))
 			deviceName := strings.ReplaceAll(d.String(), " ", "_")
 			badgePath := gcpBucketPrefix + "/" + strconv.Itoa(p.ID) + "/" + p.HeadSHA + "/" + badgeTestName + "." + deviceName + ".svg"
@@ -322,6 +365,15 @@ func (p *pullRequest) populateTestDetail(functionalTests []string) error {
 	for _, d := range virtualDeviceTypes {
 		if dt, ok := tests[d]; ok {
 			p.Virtual = append(p.Virtual, device{
+				Type:  d,
+				Tests: dt,
+			})
+		}
+	}
+
+	for _, d := range physicalDeviceTypes {
+		if dt, ok := tests[d]; ok {
+			p.Physical = append(p.Physical, device{
 				Type:  d,
 				Tests: dt,
 			})
