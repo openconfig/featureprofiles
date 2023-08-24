@@ -29,9 +29,6 @@ config_path {
 telemetry_path {
     path: "/system/ntp/servers/server/state/address"
 }
-config_path {
-    path: "/system/ntp/servers/server/config/port"
-}
 telemetry_path {
     path: "/system/ntp/servers/server/state/port"
 }
