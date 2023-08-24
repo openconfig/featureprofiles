@@ -526,7 +526,11 @@ func TestPBR(t *testing.T) {
 
 			//configure pbr policy-forwarding
 			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			gnmi.Update(t, dut, dutConfNIPath.Config(), &oc.NetworkInstance{
+				Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
+				Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+			})
+
 			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), tc.policy)
 			})
