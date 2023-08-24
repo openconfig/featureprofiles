@@ -1280,7 +1280,7 @@ func TestWithStatic(t *testing.T) {
 	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:                   dut,
-		FibACK:                *ciscoFlags.GRIBIRIBCheck,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
 		Persistence:           true,
 		InitialElectionIDLow:  10,
 		InitialElectionIDHigh: 0,
@@ -2278,7 +2278,7 @@ func TestWithStaticrpfo(t *testing.T) {
 	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:                   dut,
-		FibACK:                *ciscoFlags.GRIBIRIBCheck,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
 		Persistence:           true,
 		InitialElectionIDLow:  10,
 		InitialElectionIDHigh: 0,
