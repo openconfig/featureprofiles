@@ -310,7 +310,7 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 			nh, op3 = gribi.NHEntry(p3NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP3, Mac: pMAC})
 		}
 	} else {
-		nh, op3 = gribi.NHEntry(p3NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP3, Mac: pMAC})
+		args.client.AddNH(t, p3NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP3, Mac: pMAC})
 	}
 
 	t.Logf("Performing implicit in-place replace with two next-hops (NH IDs: %v and %v)", p2NHID, p3NHID)
