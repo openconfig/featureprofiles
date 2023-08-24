@@ -193,7 +193,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 
-	test := []struct {
+	tests := []struct {
 		name string
 		desc string
 		fn   func(ctx context.Context, t *testing.T, args *testArgs)
@@ -220,7 +220,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
-	for _, tt := range test {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			t.Logf("Description: %s", tt.desc)
