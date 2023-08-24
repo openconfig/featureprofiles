@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
@@ -29,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // nextHopsEvenly generates []nexthop that distributes weights evenly
@@ -156,12 +158,22 @@ func TestPortFlap(t *testing.T) {
 
 		t.Run(testName, func(t *testing.T) {
 			if i < len(atePorts) {
-				// Setting admin state down on the DUT interface.
-				// Setting the otg interface down has no effect on kne
 				dp := dut.Port(t, atePorts[i].ID())
-				t.Logf("Bringing down dut port: %v", dp.Name())
-				setDUTInterfaceState(t, dut, dp, false)
-
+				if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+					// Setting admin state down on the DUT interface.
+					// Setting the otg interface down has no effect on kne
+					t.Logf("Bringing down dut port: %v", dp.Name())
+					setDUTInterfaceState(t, dut, dp, false)
+					defer setDUTInterfaceState(t, dut, dp, true)
+				} else {
+					t.Logf("Bringing down ate port: %v", atePorts[i])
+					portStateAction := gosnappi.NewControlState()
+					linkState := portStateAction.Port().Link().SetPortNames([]string{atePorts[i].ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+					ate.OTG().SetControlState(t, portStateAction)
+					// Restore port state at end of test case.
+					linkState.SetState(gosnappi.StatePortLinkState.UP)
+					defer ate.OTG().SetControlState(t, portStateAction)
+				}
 				// ATE and DUT ports in the linked pair have the same ID(), but
 				// they are mapped to different Name().
 				t.Logf("Awaiting DUT port down: %v", dp)
@@ -173,4 +185,15 @@ func TestPortFlap(t *testing.T) {
 			debugGRIBI(t, dut)
 		})
 	}
+}
+
+// setDUTInterfaceState sets the admin state on the dut interface
+func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
+	t.Helper()
+	dc := gnmi.OC()
+	i := &oc.Interface{}
+	i.Enabled = ygot.Bool(state)
+	i.Type = ethernetCsmacd
+	i.Name = ygot.String(p.Name())
+	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }

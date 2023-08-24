@@ -202,17 +202,6 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	}
 }
 
-// setDUTInterfaceState sets the admin state on the dut interface
-func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
-	t.Helper()
-	dc := gnmi.OC()
-	i := &oc.Interface{}
-	i.Enabled = ygot.Bool(state)
-	i.Type = ethernetCsmacd
-	i.Name = ygot.String(p.Name())
-	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
-}
-
 // configureATE configures the topology of the ATE.
 func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
