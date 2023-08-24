@@ -4,4 +4,4 @@
 uuid: ""
 plan_id: "gNMI-1.XX"
 description: "controller rcard redundancy test"
-testbed: 
+testbed: TESTBED_DUT
