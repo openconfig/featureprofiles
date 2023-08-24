@@ -423,13 +423,13 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     if test_debug:
         chain |= InstallGoDelve.s()
 
+    if release_ixia_ports:
+        chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
+
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
     if 'otg' in test_path:
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
         chain |= BringupIxiaController.s()
-
-    if release_ixia_ports:
-        chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
