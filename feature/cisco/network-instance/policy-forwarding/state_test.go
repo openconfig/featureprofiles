@@ -141,62 +141,64 @@ func Test_Decap_Feature_Telemetry(t *testing.T) {
 	subscriptionDuration := 65 * time.Second
 	expectedSamples := 2
 
-	t.Run("NetworkInstance_PolicyForwarding_PolicyPath", func(t *testing.T) {
-		//t.Parallel()
-		statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName)
-		if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
-			t.Errorf("NetworkInstance_PolicyForwarding_PolicyPath samples: got %d, want %d", len(got), expectedSamples)
-		} else {
-			t.Logf("Collected samples for NetworkInstance_PolicyForwarding_PolicyPath :\n%v", got)
-		}
-	})
-	t.Run("NetworkInstance_PolicyForwarding_Policy_RulePath", func(t *testing.T) {
-		//t.Parallel()
-		statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1)
-		if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
-			t.Errorf("NetworkInstance_PolicyForwarding_Policy_RulePath samples: got %d, want %d", len(got), expectedSamples)
-		} else {
-			t.Logf("Collected samples for NetworkInstance_PolicyForwarding_Policy_RulePath :\n%v", got)
-		}
-	})
+	t.Run("Subscription", func(t *testing.T) {
+		t.Run("NetworkInstance_PolicyForwarding_PolicyPath", func(t *testing.T) {
+			t.Parallel()
+			statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName)
+			if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
+				t.Errorf("NetworkInstance_PolicyForwarding_PolicyPath samples: got %d, want %d", len(got), expectedSamples)
+			} else {
+				t.Logf("Collected samples for NetworkInstance_PolicyForwarding_PolicyPath :\n%v", got)
+			}
+		})
+		t.Run("NetworkInstance_PolicyForwarding_Policy_RulePath", func(t *testing.T) {
+			t.Parallel()
+			statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1)
+			if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
+				t.Errorf("NetworkInstance_PolicyForwarding_Policy_RulePath samples: got %d, want %d", len(got), expectedSamples)
+			} else {
+				t.Logf("Collected samples for NetworkInstance_PolicyForwarding_Policy_RulePath :\n%v", got)
+			}
+		})
 
-	t.Run("NetworkInstance_PolicyForwarding_Policy_Rule_ActionPath", func(t *testing.T) {
-		//t.Parallel()
-		statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action()
-		if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
-			t.Errorf("NetworkInstance_PolicyForwarding_Policy_Rule_ActionPath samples: got %d, want %d", len(got), expectedSamples)
-		} else {
-			t.Logf("Collected samples for NetworkInstance_PolicyForwarding_Policy_Rule_ActionPath :\n%v", got)
-		}
-	})
+		t.Run("NetworkInstance_PolicyForwarding_Policy_Rule_ActionPath", func(t *testing.T) {
+			t.Parallel()
+			statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action()
+			if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
+				t.Errorf("NetworkInstance_PolicyForwarding_Policy_Rule_ActionPath samples: got %d, want %d", len(got), expectedSamples)
+			} else {
+				t.Logf("Collected samples for NetworkInstance_PolicyForwarding_Policy_Rule_ActionPath :\n%v", got)
+			}
+		})
 
-	t.Run("NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapNetworkInstancePath", func(t *testing.T) {
-		//t.Parallel()
-		statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().DecapNetworkInstance()
-		if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
-			t.Errorf("NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapNetworkInstancePath samples: got %d, want %d", len(got), expectedSamples)
-		} else {
-			t.Logf("Collected samples for NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapNetworkInstancePath :\n%v", got)
-		}
-	})
+		t.Run("NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapNetworkInstancePath", func(t *testing.T) {
+			t.Parallel()
+			statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().DecapNetworkInstance()
+			if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
+				t.Errorf("NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapNetworkInstancePath samples: got %d, want %d", len(got), expectedSamples)
+			} else {
+				t.Logf("Collected samples for NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapNetworkInstancePath :\n%v", got)
+			}
+		})
 
-	t.Run("NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapFallbackNetworkInstancePath", func(t *testing.T) {
-		//t.Parallel()
-		statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().DecapFallbackNetworkInstance()
-		if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
-			t.Errorf("NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapFallbackNetworkInstancePath samples: got %d, want %d", len(got), expectedSamples)
-		} else {
-			t.Logf("Collected samples for NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapFallbackNetworkInstancePath :\n%v", got)
-		}
-	})
+		t.Run("NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapFallbackNetworkInstancePath", func(t *testing.T) {
+			t.Parallel()
+			statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().DecapFallbackNetworkInstance()
+			if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
+				t.Errorf("NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapFallbackNetworkInstancePath samples: got %d, want %d", len(got), expectedSamples)
+			} else {
+				t.Logf("Collected samples for NetworkInstance_PolicyForwarding_Policy_Rule_Action_DecapFallbackNetworkInstancePath :\n%v", got)
+			}
+		})
 
-	t.Run("NetworkInstance_PolicyForwarding_Policy_Rule_Action_PostDecapNetworkInstancePath", func(t *testing.T) {
-		//t.Parallel()
-		statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().PostDecapNetworkInstance()
-		if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
-			t.Errorf("NetworkInstance_PolicyForwarding_Policy_Rule_Action_PostDecapNetworkInstancePath samples: got %d, want %d", len(got), expectedSamples)
-		} else {
-			t.Logf("Collected samples for NetworkInstance_PolicyForwarding_Policy_Rule_Action_PostDecapNetworkInstancePath :\n%v", got)
-		}
+		t.Run("NetworkInstance_PolicyForwarding_Policy_Rule_Action_PostDecapNetworkInstancePath", func(t *testing.T) {
+			t.Parallel()
+			statePath := gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Policy(pbrName).Rule(SeqID1).Action().PostDecapNetworkInstance()
+			if got := gnmi.Collect(t, dut, statePath.State(), subscriptionDuration).Await(t); len(got) < expectedSamples {
+				t.Errorf("NetworkInstance_PolicyForwarding_Policy_Rule_Action_PostDecapNetworkInstancePath samples: got %d, want %d", len(got), expectedSamples)
+			} else {
+				t.Logf("Collected samples for NetworkInstance_PolicyForwarding_Policy_Rule_Action_PostDecapNetworkInstancePath :\n%v", got)
+			}
+		})
 	})
 }
