@@ -5,10 +5,10 @@ id {
 
 # Classifiers
 config_path {
-  path: "/components/component/controller_card/config/power-admin-state"
+  path: "/components/component/controller-card/config/power-admin-state"
 }
 telemetry_path {
-  path: "/components/component/controller_card/state/power-admin-state"
+  path: "/components/component/controller-card/state/power-admin-state"
 }
 telemetry_path {
   path: "/components/component/state/empty"
