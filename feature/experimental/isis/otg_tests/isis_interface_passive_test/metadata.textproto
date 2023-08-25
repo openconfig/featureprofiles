@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "7c80f692-478c-44c8-ba6e-d4d46bfebce1"
-plan_id: "RT-2.10"
-description: "IS-IS change LSP lifetime"
+uuid:  "e43009e1-2f75-4926-88f2-43ae1823249a"
+plan_id:  "RT-2.7"
+description:  "IS-IS Passive is enabled at interface level"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
@@ -41,4 +41,3 @@ platform_exceptions: {
     isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
   }
 }
-tags: TAGS_EDGE
