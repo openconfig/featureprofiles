@@ -136,7 +136,7 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 					storClient:  storClient,
 					f:           p.localFS,
 				}
-				jobID, logURL, err := cb.submitBuild(ctx, objPath)
+				jobID, logURL, err := cb.submitBuild(objPath)
 				if err != nil {
 					return fmt.Errorf("submitBuild device %q: %w", virtualDevice.Type.String(), err)
 				}

@@ -18,7 +18,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -40,7 +39,7 @@ type cloudBuild struct {
 
 // submitBuild creates a CB Build using the data from objPath in Cloud Storage
 // and returns the jobID and log URL created.
-func (c *cloudBuild) submitBuild(ctx context.Context, objPath string) (string, string, error) {
+func (c *cloudBuild) submitBuild(objPath string) (string, string, error) {
 	build, err := c.defaultBuild()
 	if err != nil {
 		return "", "", err
