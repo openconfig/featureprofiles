@@ -545,7 +545,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 		if got := ets[0].GetCounters().GetInPkts(); got != uint64(inPkts) {
 			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, uint64(inPkts))
 		} else {
-			t.Logf("Received %d packets with %s as the first 12 bits in the dst MAC", got, flowFilter)
+			t.Logf("Received %d packets with %s as the first 12 bits in the dst IP", got, flowFilter)
 		}
 	}
 
