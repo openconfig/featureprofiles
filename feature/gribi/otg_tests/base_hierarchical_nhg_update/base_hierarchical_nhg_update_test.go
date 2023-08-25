@@ -142,7 +142,6 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	ctx := context.Background()
 
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
@@ -151,6 +150,9 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	p3flow := createFlow(t, "Port 1 to Port 3", top, &atePort3)
 
 	ate.OTG().PushConfig(t, top)
+
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 
 	gribic, err := gribiClient(ctx, t, dut)
