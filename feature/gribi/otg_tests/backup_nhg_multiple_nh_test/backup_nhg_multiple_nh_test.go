@@ -341,11 +341,25 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	//shutdown port2
 	t.Logf("Shutdown port 2 and validate traffic switching over port3 primary path")
 	a.validateTrafficFlows(t, BaseFlow, []*ondatra.Port{a.ate.Port(t, "port3")}, "port2")
+	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
+		defer a.flapinterface(t, "port2", true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.UP)
+		defer a.ate.OTG().SetControlState(t, portStateAction)
+	}
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 
 	//shutdown port3
 	t.Logf("Shutdown port 3 and validate traffic switching over port4 backup path")
 	a.validateTrafficFlows(t, BaseFlow, []*ondatra.Port{a.ate.Port(t, "port4")}, "port3")
+	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
+		defer a.flapinterface(t, "port3", true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{"port3"}).SetState(gosnappi.StatePortLinkState.UP)
+		defer a.ate.OTG().SetControlState(t, portStateAction)
+	}
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 }
 
@@ -361,8 +375,8 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	flow.Rate().SetPps(fps)
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().Increment().SetStart(atePort1.IPv4).SetCount(250)
-	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(250)
+	v4.Src().Increment().SetStart(dutPort1.IPv4)
+	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(routeCount)
 	a.ate.OTG().PushConfig(t, a.top)
 	// StartProtocols required for running on hardware
 	a.ate.OTG().StartProtocols(t)
@@ -379,14 +393,10 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	for _, port := range shut_ports {
 		if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
 			a.flapinterface(t, port, false)
-			defer a.flapinterface(t, port, true)
 		} else {
 			portStateAction := gosnappi.NewControlState()
-			linkState := portStateAction.Port().Link().SetPortNames([]string{port}).SetState(gosnappi.StatePortLinkState.DOWN)
+			portStateAction.Port().Link().SetPortNames([]string{port}).SetState(gosnappi.StatePortLinkState.DOWN)
 			a.ate.OTG().SetControlState(t, portStateAction)
-			// Restore port state at end of test case.
-			linkState.SetState(gosnappi.StatePortLinkState.UP)
-			defer a.ate.OTG().SetControlState(t, portStateAction)
 		}
 		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
 	}
