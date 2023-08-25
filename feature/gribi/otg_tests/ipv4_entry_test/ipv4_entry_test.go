@@ -151,7 +151,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 // TestIPv4Entry tests a single IPv4Entry forwarding entry.
 func TestIPv4Entry(t *testing.T) {
 	ctx := context.Background()
-
+	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
 	configureATE(t, ate)
 
