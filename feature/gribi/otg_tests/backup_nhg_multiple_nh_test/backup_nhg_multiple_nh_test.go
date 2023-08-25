@@ -233,12 +233,13 @@ func TestBackup(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 
 	//configure DUT
 	configureDUT(t, dut)
 
-	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 	t.Run("IPv4BackUpSwitch", func(t *testing.T) {
 		t.Logf("Name: IPv4BackUpSwitch")
@@ -340,13 +341,11 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	//shutdown port2
 	t.Logf("Shutdown port 2 and validate traffic switching over port3 primary path")
 	a.validateTrafficFlows(t, BaseFlow, []*ondatra.Port{a.ate.Port(t, "port3")}, "port2")
-	defer a.flapinterface(t, "port2", true)
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 
 	//shutdown port3
 	t.Logf("Shutdown port 3 and validate traffic switching over port4 backup path")
 	a.validateTrafficFlows(t, BaseFlow, []*ondatra.Port{a.ate.Port(t, "port4")}, "port3")
-	defer a.flapinterface(t, "port3", true)
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 }
 
@@ -355,15 +354,15 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 
 	flow := a.top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
-	flow.Size().SetFixed(100)
+	flow.Size().SetFixed(300)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	flow.TxRx().Port().SetTxName("port1")
 	flow.Rate().SetPps(fps)
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().SetValue(dstPfxMin)
+	v4.Src().Increment().SetStart(atePort1.IPv4).SetCount(250)
+	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(250)
 	a.ate.OTG().PushConfig(t, a.top)
 	// StartProtocols required for running on hardware
 	a.ate.OTG().StartProtocols(t)
@@ -378,12 +377,24 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	//Shutdown interface if provided while traffic is flowing and validate traffic
 	time.Sleep(30 * time.Second)
 	for _, port := range shut_ports {
-		a.flapinterface(t, port, false)
+		if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
+			a.flapinterface(t, port, false)
+			defer a.flapinterface(t, port, true)
+		} else {
+			portStateAction := gosnappi.NewControlState()
+			linkState := portStateAction.Port().Link().SetPortNames([]string{port}).SetState(gosnappi.StatePortLinkState.DOWN)
+			a.ate.OTG().SetControlState(t, portStateAction)
+			// Restore port state at end of test case.
+			linkState.SetState(gosnappi.StatePortLinkState.UP)
+			defer a.ate.OTG().SetControlState(t, portStateAction)
+		}
 		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
 	}
 	time.Sleep(30 * time.Second)
 	a.ate.OTG().StopTraffic(t)
+	time.Sleep(10 * time.Second)
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
+
 	// Get send traffic
 	outgoing_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
 	sentPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_state).GetCounters().GetOutFrames()
