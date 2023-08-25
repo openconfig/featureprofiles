@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"regexp"
-	"sort"
 	"testing"
 	"time"
 
@@ -30,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/raw"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"golang.org/x/exp/slices"
 
 	fpb "github.com/openconfig/gnoi/file"
 	hpb "github.com/openconfig/gnoi/healthz"
@@ -116,27 +116,11 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sy
 
 func sortedInterfaces(ports []*ondatra.Port) []string {
 	var interfaces []string
-	sort.Slice(ports, func(i, j int) bool {
-		idi, idj := ports[i].ID(), ports[j].ID()
-		li, lj := len(idi), len(idj)
-		if li == lj {
-			return idi < idj
-		}
-		return li < lj // "port2" < "port10"
-	})
 	for _, port := range ports {
 		interfaces = append(interfaces, port.Name())
 	}
+	slices.Sort(interfaces)
 	return interfaces
-}
-
-func contains(list []string, target string) bool {
-	for _, item := range list {
-		if item == target {
-			return true
-		}
-	}
-	return false
 }
 
 func removeElement(list []string, element string) []string {
@@ -221,7 +205,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 			t.Errorf("ERROR: can't find parent information for CPU card %v", component)
 		}
 
-		if contains(controllerCards, cpuParent) {
+		if slices.Contains(controllerCards, cpuParent) {
 			// Remove parent from the list of check cards.
 			controllerCards = removeElement(controllerCards, cpuParent)
 			cpuUtilization := component.GetCpu().GetUtilization()
@@ -260,7 +244,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		}
 
 		// If cpu card's parent is line card, check cpu ultilization.
-		if contains(lineCards, cpuParent) {
+		if slices.Contains(lineCards, cpuParent) {
 			// Remove parent from the list of check cards.
 			lineCards = removeElement(lineCards, cpuParent)
 			// Fetch CPU utilization data.
