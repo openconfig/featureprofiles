@@ -198,7 +198,7 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	}{
 		{
 			name: "testBaseHierarchialNHG",
-			desc: "Usecase with 2 NHOP Groups - Backup Pointing to Decap",
+			desc: "Usecase for NHG update in hierarchical resolution scenario",
 			fn:   testBaseHierarchialNHG,
 		},
 		{
@@ -768,6 +768,13 @@ func deleteinterfaceconfig(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Delete(t, dut, d.Interface(p2.Name()).Config())
 	gnmi.Delete(t, dut, d.Interface(p3.Name()).Config())
 	gnmi.Delete(t, dut, d.Interface(p4.Name()).Config())
+
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		ni := deviations.DefaultNetworkInstance(dut)
+		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p2.Name()+".").Config())
+		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p3.Name()+".").Config())
+		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p4.Name()+".").Config())
+	}
 }
 
 // configDUTDrain configures ports for drain test.
@@ -783,17 +790,28 @@ func configDUTDrain(t *testing.T, dut *ondatra.DUTDevice) {
 	T2 := configureBundle(t, p2.Name(), *i2.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), T2)
 
-	btrunk3 := netutil.NextAggregateInterface(t, dut)
+	btrunk3 = netutil.NextAggregateInterface(t, dut)
 	i3 := &oc.Interface{Name: ygot.String(btrunk3)}
 	gnmi.Replace(t, dut, d.Interface(*i3.Name).Config(), configInterfaceDUT(i3, &dutPort3))
 	T3 := configureBundle(t, p3.Name(), *i3.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Config(), T3)
 
-	btrunk4 := netutil.NextAggregateInterface(t, dut)
+	btrunk4 = netutil.NextAggregateInterface(t, dut)
 	i4 := &oc.Interface{Name: ygot.String(btrunk4)}
 	gnmi.Replace(t, dut, d.Interface(*i4.Name).Config(), configInterfaceDUT(i4, &dutPort4))
 	T4 := configureBundle(t, p4.Name(), *i4.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p4.Name()).Config(), T4)
+
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, *i2.Name, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, *i3.Name, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, *i4.Name, deviations.DefaultNetworkInstance(dut), 0)
+	}
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, p2)
+		fptest.SetPortSpeed(t, p3)
+		fptest.SetPortSpeed(t, p4)
+	}
 
 	staticARPWithSecondaryIP(t, dut, true, &bundleName{trunk2: btrunk2, trunk3: btrunk3, trunk4: btrunk4})
 }
@@ -813,7 +831,7 @@ func configureBundle(t *testing.T, name, bundleID string) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(name)}
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	e := i.GetOrCreateEthernet()
-	e.AutoNegotiate = ygot.Bool(false)
+	//e.AutoNegotiate = ygot.Bool(false)
 	e.AggregateId = ygot.String(bundleID)
 	return i
 }
