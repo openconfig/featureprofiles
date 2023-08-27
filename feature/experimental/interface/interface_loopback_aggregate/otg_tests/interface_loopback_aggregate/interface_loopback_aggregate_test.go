@@ -213,6 +213,9 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 
 	t.Run("Configure interface loopback mode FACILITY on DUT AE interface", func(t *testing.T) {
 		gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
+		if deviations.AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut) {
+			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
+		}
 	})
 
 	t.Run("Validate that DUT AE and port-1 operational status are UP", func(t *testing.T) {
