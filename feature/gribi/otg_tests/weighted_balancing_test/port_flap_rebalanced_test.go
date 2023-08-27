@@ -155,6 +155,17 @@ func TestPortFlap(t *testing.T) {
 		numUps := i - 1
 		numDowns := len(atePorts) - i
 		testName := fmt.Sprintf("%d Up, %d Down", numUps, numDowns)
+		if i < len(atePorts) {
+			dp := dut.Port(t, atePorts[i].ID())
+			if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+				defer setDUTInterfaceState(t, dut, dp, true)
+			} else {
+				t.Logf("Bringing down ate port: %v", atePorts[i])
+				portStateAction := gosnappi.NewControlState()
+				portStateAction.Port().Link().SetPortNames([]string{atePorts[i].ID()}).SetState(gosnappi.StatePortLinkState.UP)
+				defer ate.OTG().SetControlState(t, portStateAction)
+			}
+		}
 
 		t.Run(testName, func(t *testing.T) {
 			if i < len(atePorts) {
@@ -164,15 +175,11 @@ func TestPortFlap(t *testing.T) {
 					// Setting the otg interface down has no effect on kne
 					t.Logf("Bringing down dut port: %v", dp.Name())
 					setDUTInterfaceState(t, dut, dp, false)
-					defer setDUTInterfaceState(t, dut, dp, true)
 				} else {
 					t.Logf("Bringing down ate port: %v", atePorts[i])
 					portStateAction := gosnappi.NewControlState()
-					linkState := portStateAction.Port().Link().SetPortNames([]string{atePorts[i].ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+					portStateAction.Port().Link().SetPortNames([]string{atePorts[i].ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 					ate.OTG().SetControlState(t, portStateAction)
-					// Restore port state at end of test case.
-					linkState.SetState(gosnappi.StatePortLinkState.UP)
-					defer ate.OTG().SetControlState(t, portStateAction)
 				}
 				// ATE and DUT ports in the linked pair have the same ID(), but
 				// they are mapped to different Name().

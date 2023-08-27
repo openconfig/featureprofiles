@@ -23,6 +23,7 @@ import (
 	"net"
 	"regexp"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,6 +39,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	netutil "github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -310,12 +312,12 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
-		t.Errorf("Random source IP not yet supported")
+		ipv4.Src().SetValues(generateRandomIpList(ateSrcNetFirstIP+"/32", ateSrcNetCount))
 	} else {
 		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(int32(ateSrcNetCount))
 	}
 	if *randomDstIP {
-		t.Errorf("Random destination IP not yet supported")
+		ipv4.Dst().SetValues(generateRandomIpList(ateDstNetFirstIP+"/32", ateDstNetCount))
 	} else {
 		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(int32(ateDstNetCount))
 	}
@@ -432,4 +434,27 @@ func incrementMAC(mac string, i int) (string, error) {
 	}
 	newMac := net.HardwareAddr(buf.Bytes()[2:8])
 	return newMac.String(), nil
+}
+
+func generateRandomIpList(cidr string, count uint32) []string {
+	netsCh, _ := netutil.CIDRs(cidr, count)
+	gotNets := make([]string, 0)
+	for net := range netsCh {
+		gotNets = append(gotNets, strings.ReplaceAll(net, "/32", ""))
+	}
+	// Seed the random number generator with the current time
+	rand.Seed(time.Now().UnixNano())
+
+	// Make a copy of the input slice to avoid modifying the original
+	randomized := make([]string, len(gotNets))
+	copy(randomized, gotNets)
+
+	// Shuffle the slice of elements
+	for i := len(randomized) - 1; i > 0; i-- {
+		j := rand.Intn(i + 1)
+		randomized[i], randomized[j] = randomized[j], randomized[i]
+	}
+
+	return randomized
+
 }
