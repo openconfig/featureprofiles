@@ -43,3 +43,4 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+tags: TAGS_EDGE
