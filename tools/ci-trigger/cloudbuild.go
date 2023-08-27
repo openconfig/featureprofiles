@@ -18,21 +18,15 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
-	"strconv"
 	"strings"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/cloudbuild/v1"
 	"gopkg.in/yaml.v2"
-
-	"github.com/google/uuid"
 )
 
 type cloudBuild struct {
@@ -43,8 +37,9 @@ type cloudBuild struct {
 	f           fs.FS
 }
 
-// submitBuild creates a CB Build and returns the jobID and log URL created.
-func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
+// submitBuild creates a CB Build using the data from objPath in Cloud Storage
+// and returns the jobID and log URL created.
+func (c *cloudBuild) submitBuild(objPath string) (string, string, error) {
 	build, err := c.defaultBuild()
 	if err != nil {
 		return "", "", err
@@ -70,11 +65,6 @@ func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
 	}
 	build.Substitutions["_DUT_TESTS"] = testPaths.String()
 
-	objPath, err := c.prepareBuild(ctx)
-	if err != nil {
-		return "", "", err
-	}
-
 	build.LogsBucket = "gs://featureprofiles-ci-logs-" + vendor
 	build.Source = &cloudbuild.Source{
 		StorageSource: &cloudbuild.StorageSource{
@@ -95,8 +85,20 @@ func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
 	return bom.Build.Id, bom.Build.LogUrl, nil
 }
 
+// defaultBuild returns the Cloud Build configuration stored in the repository.
+func (c *cloudBuild) defaultBuild() (*cloudbuild.Build, error) {
+	buildYAML, err := fs.ReadFile(c.f, "cloudbuild/virtual.yaml")
+	if err != nil {
+		return nil, err
+	}
+
+	var build *cloudbuild.Build
+	err = yaml.Unmarshal(buildYAML, &build)
+	return build, err
+}
+
 // createTGZArchive returns a tar.gz compressed archive of the cloudBuild fs.
-func (c *cloudBuild) createTGZArchive() (*bytes.Buffer, error) {
+func createTGZArchive(f fs.FS) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 
 	gzWriter := gzip.NewWriter(&buf)
@@ -105,7 +107,7 @@ func (c *cloudBuild) createTGZArchive() (*bytes.Buffer, error) {
 	tarWriter := tar.NewWriter(gzWriter)
 	defer tarWriter.Close()
 
-	err := fs.WalkDir(c.f, ".", func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(f, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -132,7 +134,7 @@ func (c *cloudBuild) createTGZArchive() (*bytes.Buffer, error) {
 			return nil
 		}
 
-		file, err := c.f.Open(path)
+		file, err := f.Open(path)
 		if err != nil {
 			return err
 		}
@@ -142,37 +144,4 @@ func (c *cloudBuild) createTGZArchive() (*bytes.Buffer, error) {
 		return err
 	})
 	return &buf, err
-}
-
-// prepareBuild uploads the compressed repository to Object Store and returns the path to the object.
-func (c *cloudBuild) prepareBuild(ctx context.Context) (string, error) {
-	data, err := c.createTGZArchive()
-	if err != nil {
-		return "", err
-	}
-
-	u, err := uuid.NewRandom()
-	if err != nil {
-		return "", err
-	}
-
-	objPath := "source/" + strconv.FormatInt(time.Now().UTC().Unix(), 10) + "-" + hex.EncodeToString(u[:]) + ".tgz"
-	obj := c.storClient.Bucket(gcpCloudBuildBucketName).Object(objPath).NewWriter(ctx)
-	obj.ContentType = "application/x-tar"
-	if _, err := data.WriteTo(obj); err != nil {
-		return "", err
-	}
-	return objPath, obj.Close()
-}
-
-// defaultBuild returns the Cloud Build configuration stored in the repository.
-func (c *cloudBuild) defaultBuild() (*cloudbuild.Build, error) {
-	buildYAML, err := fs.ReadFile(c.f, "cloudbuild/virtual.yaml")
-	if err != nil {
-		return nil, err
-	}
-
-	var build *cloudbuild.Build
-	err = yaml.Unmarshal(buildYAML, &build)
-	return build, err
 }
