@@ -52,8 +52,14 @@ whitelist_arguments([
     'test_show_skipped',
 ])
 
-def _get_go_root_path():
-    return os.path.join('/nobackup', getuser())
+def _get_go_root_path(ws=None):
+    p = os.path.join('/nobackup', getuser())
+    try:
+        os.makedirs(p, exist_ok=True)
+    except:
+        if ws: return ws
+        raise
+        
 
 def _get_go_path():
     return os.path.join(_get_go_root_path(), 'go')
@@ -61,12 +67,12 @@ def _get_go_path():
 def _get_go_bin_path():
     return os.path.join(_get_go_path(), 'bin')
 
-def _get_go_env():
+def _get_go_env(ws=None):
     PATH = "{}:{}".format(
         os.path.dirname(GO_BIN), os.environ["PATH"]
     )
 
-    gorootpath = _get_go_root_path()
+    gorootpath = _get_go_root_path(ws)
     return {
         'GOPATH': _get_go_path(),
         'GOCACHE': os.path.join(gorootpath, '.gocache'),
@@ -516,7 +522,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
             self.run_script(cmd,
                             inactivity_timeout=inactivity_timeout,
                             ok_nonzero_returncodes=(1,),
-                            extra_env_vars=_get_go_env(),
+                            extra_env_vars=_get_go_env(ws),
                             cwd=test_repo_dir)
         stop_time = self.get_current_time()
     finally:
@@ -578,7 +584,7 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-def _write_otg_binding(internal_fp_repo_dir, reserved_testbed):
+def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
     if 'otg' not in reserved_testbed:
         shutil.copyfile(reserved_testbed["ate_binding_file"], reserved_testbed["otg_binding_file"])
         return
@@ -591,7 +597,7 @@ def _write_otg_binding(internal_fp_repo_dir, reserved_testbed):
         f'-binding {reserved_testbed["ate_binding_file"]}'
 
     env = dict(os.environ)
-    env.update(_get_go_env())
+    env.update(_get_go_env(ws))
     
     output = check_output(cmd, env=env, cwd=internal_fp_repo_dir)
     j = json.loads(output)
@@ -709,7 +715,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     reserved_testbed['otg_docker_compose_file'] = otg_docker_compose_file
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
 
-    _write_otg_binding(internal_fp_repo_dir, reserved_testbed)
+    _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
     _write_otg_docker_compose_file(otg_docker_compose_file, reserved_testbed)
     return reserved_testbed
 
@@ -748,7 +754,7 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
         su_command += f'-force'
 
     env = dict(os.environ)
-    env.update(_get_go_env())
+    env.update(_get_go_env(ws))
     output = check_output(su_command, env=env, cwd=internal_fp_repo_dir)
     #TODO: find a better way?
     if not 'Image already installed' in output:
@@ -759,7 +765,7 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
-def ForceReboot(self, internal_fp_repo_dir, reserved_testbed):
+def ForceReboot(self, ws, internal_fp_repo_dir, reserved_testbed):
     logger.print("Rebooting...")
     reboot_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/reboot ' \
@@ -769,12 +775,12 @@ def ForceReboot(self, internal_fp_repo_dir, reserved_testbed):
             f'-binding {reserved_testbed["binding_file"]}'
 
     env = dict(os.environ)
-    env.update(_get_go_env())
+    env.update(_get_go_env(ws))
     check_output(reboot_command, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
-def InstallSMUs(self, internal_fp_repo_dir, reserved_testbed, smus):
+def InstallSMUs(self, ws, internal_fp_repo_dir, reserved_testbed, smus):
     logger.print("Installing SMUs...")
     smu_install_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/smu_install ' \
@@ -785,7 +791,7 @@ def InstallSMUs(self, internal_fp_repo_dir, reserved_testbed, smus):
             f'-smus {smus} '
 
     env = dict(os.environ)
-    env.update(_get_go_env())
+    env.update(_get_go_env(ws))
     check_output(smu_install_cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
@@ -803,7 +809,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp):
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp):
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -821,7 +827,7 @@ def CollectDebugFiles(self, internal_fp_repo_dir, reserved_testbed, test_log_dir
             f'-timestamp {str(timestamp)}'
     try:
         env = dict(os.environ)
-        env.update(_get_go_env())
+        env.update(_get_go_env(ws))
         check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
@@ -844,7 +850,7 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
             f'-outFile {reserved_testbed["testbed_info_file"]}'
     try:
         env = dict(os.environ)
-        env.update(_get_go_env())
+        env.update(_get_go_env(ws))
         check_output(testbed_info_cmd, env=env, cwd=internal_fp_repo_dir)
         logger.print(f'Testbed info file: {testbed_info_path}')
     except:
@@ -852,18 +858,18 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def GoTidy(self, repo):
+def GoTidy(self, ws, repo):
     env = dict(os.environ)
-    env.update(_get_go_env())
+    env.update(_get_go_env(ws))
     logger.print(
         check_output(f'{GO_BIN} mod tidy', env=env, cwd=repo)
     )
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def InstallGoDelve(self, repo):
+def InstallGoDelve(self, ws, repo):
     env = dict(os.environ)
-    env.update(_get_go_env())
+    env.update(_get_go_env(ws))
     logger.print(
         check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=repo)
     )
