@@ -95,7 +95,6 @@ var (
 			fn:   testNokiaSchedulerPoliciesConfig,
 		},
 	}
-	maxBurstSize = uint32(268435456)
 )
 
 func TestMain(m *testing.M) {
@@ -1778,54 +1777,53 @@ func testNokiaClassifierConfig(t *testing.T) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
+	queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
+	for i, queue := range queueNames {
+		q1 := q.GetOrCreateQueue(queue)
+		q1.Name = ygot.String(queue)
+		queueid := len(queueNames) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
+	}
 
 	t.Logf("Create qos forwarding groups config")
 	forwardingGroups := []struct {
-		desc           string
-		queueName      string
-		targetGroup    string
-		fabricPriority uint8
+		desc        string
+		queueName   string
+		targetGroup string
 	}{{
-		desc:           "forwarding-group-BE1",
-		queueName:      queues.BE1,
-		targetGroup:    "target-group-BE1",
-		fabricPriority: 1,
+		desc:        "forwarding-group-BE1",
+		queueName:   queues.BE1,
+		targetGroup: "target-group-BE1",
 	}, {
-		desc:           "forwarding-group-BE0",
-		queueName:      queues.BE0,
-		targetGroup:    "target-group-BE0",
-		fabricPriority: 2,
+		desc:        "forwarding-group-BE0",
+		queueName:   queues.BE0,
+		targetGroup: "target-group-BE0",
 	}, {
-		desc:           "forwarding-group-AF1",
-		queueName:      queues.AF1,
-		targetGroup:    "target-group-AF1",
-		fabricPriority: 3,
+		desc:        "forwarding-group-AF1",
+		queueName:   queues.AF1,
+		targetGroup: "target-group-AF1",
 	}, {
-		desc:           "forwarding-group-AF2",
-		queueName:      queues.AF2,
-		targetGroup:    "target-group-AF2",
-		fabricPriority: 4,
+		desc:        "forwarding-group-AF2",
+		queueName:   queues.AF2,
+		targetGroup: "target-group-AF2",
 	}, {
-		desc:           "forwarding-group-AF3",
-		queueName:      queues.AF3,
-		targetGroup:    "target-group-AF3",
-		fabricPriority: 5,
+		desc:        "forwarding-group-AF3",
+		queueName:   queues.AF3,
+		targetGroup: "target-group-AF3",
 	}, {
-		desc:           "forwarding-group-AF4",
-		queueName:      queues.AF4,
-		targetGroup:    "target-group-AF4",
-		fabricPriority: 6,
+		desc:        "forwarding-group-AF4",
+		queueName:   queues.AF4,
+		targetGroup: "target-group-AF4",
 	}, {
-		desc:           "forwarding-group-NC1",
-		queueName:      queues.NC1,
-		targetGroup:    "target-group-NC1",
-		fabricPriority: 7,
+		desc:        "forwarding-group-NC1",
+		queueName:   queues.NC1,
+		targetGroup: "target-group-NC1",
 	}}
 
 	t.Logf("qos forwarding groups config cases: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
 		t.Run(tc.desc, func(t *testing.T) {
-			qoscfg.SetForwardingGroupWithFabricPriority(t, dut, q, tc.targetGroup, tc.queueName, tc.fabricPriority)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 		})
 
 		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
@@ -1849,98 +1847,98 @@ func testNokiaClassifierConfig(t *testing.T) {
 		desc:        "classifier_ipv4_be1",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "1",
+		termID:      "0",
 		targetGroup: "target-group-BE1",
 		dscpSet:     []uint8{0, 1, 2, 3},
 	}, {
 		desc:        "classifier_ipv4_be0",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "2",
+		termID:      "1",
 		targetGroup: "target-group-BE0",
 		dscpSet:     []uint8{4, 5, 6, 7},
 	}, {
 		desc:        "classifier_ipv4_af1",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "3",
+		termID:      "2",
 		targetGroup: "target-group-AF1",
 		dscpSet:     []uint8{8, 9, 10, 11},
 	}, {
 		desc:        "classifier_ipv4_af2",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "4",
+		termID:      "3",
 		targetGroup: "target-group-AF2",
 		dscpSet:     []uint8{16, 17, 18, 19},
 	}, {
 		desc:        "classifier_ipv4_af3",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "5",
+		termID:      "4",
 		targetGroup: "target-group-AF3",
 		dscpSet:     []uint8{24, 25, 26, 27},
 	}, {
 		desc:        "classifier_ipv4_af4",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "6",
+		termID:      "5",
 		targetGroup: "target-group-AF4",
 		dscpSet:     []uint8{32, 33, 34, 35},
 	}, {
 		desc:        "classifier_ipv4_nc1",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "7",
+		termID:      "6",
 		targetGroup: "target-group-NC1",
 		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}, {
 		desc:        "classifier_ipv6_be1",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "1",
+		termID:      "0",
 		targetGroup: "target-group-BE1",
 		dscpSet:     []uint8{0, 1, 2, 3},
 	}, {
 		desc:        "classifier_ipv6_be0",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "2",
+		termID:      "1",
 		targetGroup: "target-group-BE0",
 		dscpSet:     []uint8{4, 5, 6, 7},
 	}, {
 		desc:        "classifier_ipv6_af1",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "3",
+		termID:      "2",
 		targetGroup: "target-group-AF1",
 		dscpSet:     []uint8{8, 9, 10, 11},
 	}, {
 		desc:        "classifier_ipv6_af2",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "4",
+		termID:      "3",
 		targetGroup: "target-group-AF2",
 		dscpSet:     []uint8{16, 17, 18, 19},
 	}, {
 		desc:        "classifier_ipv6_af3",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "5",
+		termID:      "4",
 		targetGroup: "target-group-AF3",
 		dscpSet:     []uint8{24, 25, 26, 27},
 	}, {
 		desc:        "classifier_ipv6_af4",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "6",
+		termID:      "5",
 		targetGroup: "target-group-AF4",
 		dscpSet:     []uint8{32, 33, 34, 35},
 	}, {
 		desc:        "classifier_ipv6_nc1",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "7",
+		termID:      "6",
 		targetGroup: "target-group-NC1",
 		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}}
@@ -2064,79 +2062,78 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), ip)
 
 	queues := netutil.CommonTrafficQueues(t, dut)
+	queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
+	for i, queue := range queueNames {
+		q1 := q.GetOrCreateQueue(queue)
+		q1.Name = ygot.String(queue)
+		queueid := len(queueNames) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
+	}
 
 	schedulers := []struct {
-		desc           string
-		sequence       uint32
-		priority       oc.E_Scheduler_Priority
-		inputID        string
-		weight         uint64
-		queueName      string
-		targetGroup    string
-		fabricPriority uint8
+		desc        string
+		sequence    uint32
+		priority    oc.E_Scheduler_Priority
+		inputID     string
+		weight      uint64
+		queueName   string
+		targetGroup string
 	}{{
-		desc:           "scheduler-policy-BE1",
-		sequence:       uint32(1),
-		priority:       oc.Scheduler_Priority_UNSET,
-		inputID:        "BE1",
-		weight:         uint64(1),
-		queueName:      queues.BE1,
-		targetGroup:    "BE1",
-		fabricPriority: 1,
+		desc:        "scheduler-policy-BE1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE1",
+		weight:      uint64(1),
+		queueName:   queues.BE1,
+		targetGroup: "BE1",
 	}, {
-		desc:           "scheduler-policy-BE0",
-		sequence:       uint32(1),
-		priority:       oc.Scheduler_Priority_UNSET,
-		inputID:        "BE0",
-		weight:         uint64(2),
-		queueName:      queues.BE0,
-		targetGroup:    "BE0",
-		fabricPriority: 2,
+		desc:        "scheduler-policy-BE0",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE0",
+		weight:      uint64(2),
+		queueName:   queues.BE0,
+		targetGroup: "BE0",
 	}, {
-		desc:           "scheduler-policy-AF1",
-		sequence:       uint32(1),
-		priority:       oc.Scheduler_Priority_UNSET,
-		inputID:        "AF1",
-		weight:         uint64(4),
-		queueName:      queues.AF1,
-		targetGroup:    "AF1",
-		fabricPriority: 3,
+		desc:        "scheduler-policy-AF1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF1",
+		weight:      uint64(4),
+		queueName:   queues.AF1,
+		targetGroup: "AF1",
 	}, {
-		desc:           "scheduler-policy-AF2",
-		sequence:       uint32(1),
-		priority:       oc.Scheduler_Priority_UNSET,
-		inputID:        "AF2",
-		weight:         uint64(8),
-		queueName:      queues.AF2,
-		targetGroup:    "AF2",
-		fabricPriority: 4,
+		desc:        "scheduler-policy-AF2",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF2",
+		weight:      uint64(8),
+		queueName:   queues.AF2,
+		targetGroup: "AF2",
 	}, {
-		desc:           "scheduler-policy-AF3",
-		sequence:       uint32(1),
-		priority:       oc.Scheduler_Priority_UNSET,
-		inputID:        "AF3",
-		weight:         uint64(16),
-		queueName:      queues.AF3,
-		targetGroup:    "AF3",
-		fabricPriority: 5,
+		desc:        "scheduler-policy-AF3",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF3",
+		weight:      uint64(16),
+		queueName:   queues.AF3,
+		targetGroup: "AF3",
 	}, {
-		desc:           "scheduler-policy-AF4",
-		sequence:       uint32(0),
-		priority:       oc.Scheduler_Priority_STRICT,
-		inputID:        queues.AF4,
-		weight:         uint64(99),
-		queueName:      queues.AF4,
-		targetGroup:    "AF4",
-		fabricPriority: 6,
+		desc:        "scheduler-policy-AF4",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     queues.AF4,
+		weight:      uint64(99),
+		queueName:   queues.AF4,
+		targetGroup: "AF4",
 	}, {
-		desc:           "scheduler-policy-NC1",
-		sequence:       uint32(0),
-		priority:       oc.Scheduler_Priority_STRICT,
-		inputID:        "NC1",
-		weight:         uint64(100),
-		queueName:      queues.NC1,
-		targetGroup:    "NC1",
-		fabricPriority: 7,
+		desc:        "scheduler-policy-NC1",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "NC1",
+		weight:      uint64(100),
+		queueName:   queues.NC1,
+		targetGroup: "NC1",
 	}}
 
 	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
@@ -2145,7 +2142,7 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 	t.Logf("qos scheduler policies config cases: %v", schedulers)
 	for _, tc := range schedulers {
 		t.Run(tc.desc, func(t *testing.T) {
-			qoscfg.SetForwardingGroupWithFabricPriority(t, dut, q, tc.targetGroup, tc.queueName, tc.fabricPriority)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
 			s.SetSequence(tc.sequence)
 			s.SetPriority(tc.priority)
@@ -2153,9 +2150,7 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 			input.SetId(tc.inputID)
 			input.SetInputType(oc.Input_InputType_QUEUE)
 			input.SetQueue(tc.queueName)
-			if tc.priority != oc.Scheduler_Priority_STRICT {
-				input.SetWeight(tc.weight)
-			}
+			input.SetWeight(tc.weight)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
@@ -2167,10 +2162,8 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 		if got, want := gnmi.Get(t, dut, scheduler.Sequence().State()), tc.sequence; got != want {
 			t.Errorf("scheduler.Sequence().State(): got %v, want %v", got, want)
 		}
-		if tc.priority == oc.Scheduler_Priority_STRICT {
-			if got, want := gnmi.Get(t, dut, scheduler.Priority().State()), tc.priority; got != want {
-				t.Errorf("scheduler.Priority().State(): got %v, want %v", got, want)
-			}
+		if got, want := gnmi.Get(t, dut, scheduler.Priority().State()), tc.priority; got != want {
+			t.Errorf("scheduler.Priority().State(): got %v, want %v", got, want)
 		}
 		if got, want := gnmi.Get(t, dut, input.Id().State()), tc.inputID; got != want {
 			t.Errorf("input.Id().State(): got %v, want %v", got, want)
@@ -2178,10 +2171,8 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 		if got, want := gnmi.Get(t, dut, input.InputType().State()), oc.Input_InputType_QUEUE; got != want {
 			t.Errorf("input.InputType().State(): got %v, want %v", got, want)
 		}
-		if tc.priority != oc.Scheduler_Priority_STRICT {
-			if got, want := gnmi.Get(t, dut, input.Weight().State()), tc.weight; got != want {
-				t.Errorf("input.Weight().State(): got %v, want %v", got, want)
-			}
+		if got, want := gnmi.Get(t, dut, input.Weight().State()), tc.weight; got != want {
+			t.Errorf("input.Weight().State(): got %v, want %v", got, want)
 		}
 		if got, want := gnmi.Get(t, dut, input.Queue().State()), tc.queueName; got != want {
 			t.Errorf("input.Queue().State(): got %v, want %v", got, want)
@@ -2283,10 +2274,8 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 		scheduler:  "scheduler",
 	}}
 
-	bufferAllocation, err := q.NewBufferAllocationProfile("ballocprofile")
-	if err != nil {
-		t.Errorf("Failed to configure bufferAllocation: %v", err)
-	}
+	maxBurstSize := uint32(268435456)
+	bufferAllocation := q.GetOrCreateBufferAllocationProfile("ballocprofile")
 	t.Logf("qos output interface config cases: %v", cases)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
