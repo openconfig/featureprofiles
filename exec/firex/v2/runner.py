@@ -71,10 +71,13 @@ def _get_go_env(ws=None):
     )
 
     gorootpath = _get_go_root_path(ws)
+    gocache = os.path.join(gorootpath, '.gocache')
+    os.makedirs(gocache, exist_ok=True)
+
     return {
         'GOPATH': _get_go_path(),
-        'GOCACHE': os.path.join(gorootpath, '.gocache'),
-        'GOTMPDIR': os.path.join(gorootpath, '.gocache'),
+        'GOCACHE': gocache,
+        'GOTMPDIR': gocache,
         'GOROOT': '/auto/firex/sw/go',
         'PATH': PATH
     }
