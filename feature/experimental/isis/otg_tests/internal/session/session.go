@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/netinstisis"
 	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -97,7 +98,7 @@ var (
 )
 
 // ISISPath is shorthand for ProtocolPath().Isis().
-func ISISPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_Protocol_IsisPath {
+func ISISPath(dut *ondatra.DUTDevice) *netinstisis.NetworkInstance_Protocol_IsisPath {
 	return ProtocolPath(dut).Isis()
 }
 
@@ -349,12 +350,12 @@ func (s *TestSession) MustATEInterface(t testing.TB, portID string) gosnappi.Dev
 }
 
 // GetPacketLoss returns the packet loss for a given flow
-func (s *TestSession) GetPacketLoss(t testing.TB, flow gosnappi.Flow) int64 {
+func (s *TestSession) GetPacketLoss(t testing.TB, flow gosnappi.Flow) float32 {
 	t.Helper()
 	flowMetric := gnmi.Get(t, s.ATE.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	txPackets := flowMetric.GetCounters().GetOutPkts()
-	rxPackets := flowMetric.GetCounters().GetInPkts()
-	lossPct := int64((txPackets - rxPackets) * 100 / txPackets)
+	txPackets := float32(flowMetric.GetCounters().GetOutPkts())
+	rxPackets := float32(flowMetric.GetCounters().GetInPkts())
+	lossPct := (txPackets - rxPackets) * 100 / txPackets
 
 	if txPackets == 0 {
 		return -1
