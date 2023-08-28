@@ -521,11 +521,6 @@ func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
 // the same OSPF setMetric when BGP SetMED is configured.
 func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
- 
-// MatchedPacketsOctetsUnsupported returns true if telemetry path /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets and matched-octets is not supported.
-func MatchedPacketsOctetsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMatchedPacketsOctetsUnsupported()
-
 }
 
 // SetNativeUser creates a user and assigns role/rbac to that user via native model.
@@ -555,4 +550,10 @@ func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) b
 // configuring LoopbackMode on member ports to enable LoopbackMode on aggregate interface.
 func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
+}
+
+// MatchedPacketsOctetsUnsupported returns true if telemetry path /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets and matched-octets is not supported.
+func MatchedPacketsOctetsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchedPacketsOctetsUnsupported()
+
 }
