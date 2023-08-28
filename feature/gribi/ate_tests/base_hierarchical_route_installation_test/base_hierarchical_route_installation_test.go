@@ -147,11 +147,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	})
 
 	// configure PBF in DEFAULT vrf
-	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Update(t, dut, defNIPath.Config(), &oc.NetworkInstance{
-		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
-		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-	})
+	gnmi.Replace(t, dut, dutConfNIPath.PolicyForwarding().Config(), configurePBF(dut))
 }
 
 // configureDUT configures port1 and port2 on the DUT.
