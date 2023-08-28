@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package isis_metric_style_wide_not_enabled_test
+package isis_metric_style_wide_enabled_test
 
 import (
 	"fmt"
@@ -129,21 +129,22 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	prot.Enabled = ygot.Bool(true)
-
 	isis := prot.GetOrCreateIsis()
-	globalISIS := isis.GetOrCreateGlobal()
+	globalIsis := isis.GetOrCreateGlobal()
 
 	// Global configs.
-	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
-	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	globalISIS.AuthenticationCheck = ygot.Bool(true)
+	globalIsis.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
+	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
+	globalIsis.AuthenticationCheck = ygot.Bool(true)
+	globalIsis.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 
 	// Level configs.
 	level := isis.GetOrCreateLevel(2)
 	level.Enabled = ygot.Bool(true)
 	level.LevelNumber = ygot.Uint8(2)
+	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
 	// Authentication configs.
 	auth := level.GetOrCreateAuthentication()
@@ -158,7 +159,6 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.InterfaceId = &intfName
 	intf.Passive = ygot.Bool(false)
-	intf.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 
 	// Interface timers.
 	isisIntfTimers := intf.GetOrCreateTimers()
@@ -191,7 +191,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	gnmi.Replace(t, dut, configPath.Config(), prot)
 }
 
-// configureOTG configures the interfaces and isis on OTG.
+// configureOTG configures the interfaces and isis on ATE.
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Helper()
 	config := otg.NewConfig(t)
@@ -277,8 +277,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	return config
 }
 
-// TestISISWideMetricNotEnabled verifies route metric with wide metric disabled on DUT.
-func TestISISWideMetricNotEnabled(t *testing.T) {
+// TestISISWideMetricEnabled verifies route metric with wide metric enabled on DUT.
+func TestISISWideMetricEnabled(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	intfName := dut.Port(t, "port1").Name()
@@ -303,8 +303,7 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 	}
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
-	t.Run("Isis telemetry", func(t *testing.T) {
-
+	t.Run("ISIS telemetry", func(t *testing.T) {
 		adjacencyPath := statePath.Interface(intfName).Level(2).AdjacencyAny().AdjacencyState().State()
 
 		_, ok := gnmi.WatchAll(t, dut, adjacencyPath, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
@@ -436,8 +435,8 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 			}
 		})
 		t.Run("Wide metric checks", func(t *testing.T) {
-			if got := gnmi.Get(t, dut, statePath.Level(2).MetricStyle().State()); got != oc.E_Isis_MetricStyle(1) {
-				t.Errorf("FAIL- Expected metric style not found, got %s, want %s", got, oc.E_Isis_MetricStyle(1))
+			if got := gnmi.Get(t, dut, statePath.Level(2).MetricStyle().State()); got != oc.E_Isis_MetricStyle(2) {
+				t.Errorf("FAIL- Expected metric style not found, got %s, want %s", got, oc.E_Isis_MetricStyle(2))
 			}
 			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(ateV4Route).Prefix().State()); got != ateV4Route {
 				t.Errorf("FAIL- Expected ate v4 route not found, got %v, want %v", got, ateV4Route)
@@ -457,17 +456,17 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 			if got := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(ateV6Route).State()).GetPrefix(); got != ateV6Route {
 				t.Errorf("FAIL- Expected ate v6 route not found in aft, got %v, want %v", got, ateV6Route)
 			}
-			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV4_INTERNAL_REACHABILITY).Ipv4InternalReachability().Prefix(dutV4Route).Prefix().State()); got != dutV4Route {
+			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(dutV4Route).Prefix().State()); got != dutV4Route {
 				t.Errorf("FAIL- Expected dut v4 route not found, got %v, want %v", got, dutV4Route)
 			}
-			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV4_INTERNAL_REACHABILITY).Ipv4InternalReachability().Prefix(dutV4Route).DefaultMetric().Metric().State()); got != 63 {
-				t.Errorf("FAIL- Expected metric for dut v4 route not found, got %v, want %v", got, 63)
+			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(dutV4Route).Metric().State()); got != dutV4Metric {
+				t.Errorf("FAIL- Expected metric for dut v4 route not found, got %v, want %v", got, dutV4Metric)
 			}
 			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(dutV6Route).Prefix().State()); got != dutV6Route {
 				t.Errorf("FAIL- Expected dut v6 route not found, got %v, want %v", got, dutV6Route)
 			}
-			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(dutV6Route).Metric().State()); got != 63 {
-				t.Errorf("FAIL- Expected metric for dut v6 route not found, got %v, want %v", got, 63)
+			if got := gnmi.Get(t, dut, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(dutV6Route).Metric().State()); got != dutV6Metric {
+				t.Errorf("FAIL- Expected metric for dut v6 route not found, got %v, want %v", got, dutV6Metric)
 			}
 		})
 		t.Run("Traffic checks", func(t *testing.T) {
