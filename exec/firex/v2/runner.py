@@ -535,6 +535,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
             shutil.copyfile(xml_results_file, xunit_results_filepath)
             if collect_debug_files and suite.attrib['failures'] != '0':
                 self.enqueue_child(CollectDebugFiles.s(
+                    ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     reserved_testbed=reserved_testbed, 
                     test_log_directory_path=test_log_directory_path,
@@ -764,6 +765,7 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
     #TODO: find a better way?
     if not 'Image already installed' in output:
         self.enqueue_child(ForceReboot.s(
+            ws=ws,
             internal_fp_repo_dir=internal_fp_repo_dir, 
             reserved_testbed=reserved_testbed,
         ))
