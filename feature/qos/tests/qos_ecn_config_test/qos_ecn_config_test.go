@@ -70,7 +70,6 @@ var (
 			fn:   testNokiaECNConfig,
 		},
 	}
-	maxBurstSize = uint32(268435456)
 )
 
 // QoS ecn OC config:
@@ -757,87 +756,86 @@ func testNokiaECNConfig(t *testing.T) {
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
 	queues := netutil.CommonTrafficQueues(t, dut)
+	queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
+	for i, queue := range queueNames {
+		q1 := q.GetOrCreateQueue(queue)
+		q1.Name = ygot.String(queue)
+		queueid := len(queueNames) - i
+		q1.QueueId = ygot.Uint8(uint8(queueid))
+	}
 
 	schedulers := []struct {
-		desc           string
-		sequence       uint32
-		priority       oc.E_Scheduler_Priority
-		inputID        string
-		inputType      oc.E_Input_InputType
-		weight         uint64
-		queueName      string
-		targetGroup    string
-		fabricPriority uint8
+		desc        string
+		sequence    uint32
+		priority    oc.E_Scheduler_Priority
+		inputID     string
+		inputType   oc.E_Input_InputType
+		weight      uint64
+		queueName   string
+		targetGroup string
 	}{{
-		desc:           "scheduler-policy-BE1",
-		sequence:       uint32(1),
-		priority:       oc.Scheduler_Priority_UNSET,
-		inputID:        "BE1",
-		inputType:      oc.Input_InputType_QUEUE,
-		weight:         uint64(1),
-		queueName:      queues.BE1,
-		targetGroup:    "BE1",
-		fabricPriority: 1,
+		desc:        "scheduler-policy-BE1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(1),
+		queueName:   queues.BE1,
+		targetGroup: "BE1",
 	}, {
-		desc:           "scheduler-policy-BE0",
-		sequence:       uint32(1),
-		priority:       oc.Scheduler_Priority_UNSET,
-		inputID:        "BE0",
-		inputType:      oc.Input_InputType_QUEUE,
-		weight:         uint64(2),
-		queueName:      queues.BE0,
-		targetGroup:    "BE0",
-		fabricPriority: 2,
+		desc:        "scheduler-policy-BE0",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE0",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(2),
+		queueName:   queues.BE0,
+		targetGroup: "BE0",
 	}, {
-		desc:           "scheduler-policy-AF1",
-		sequence:       uint32(1),
-		priority:       oc.Scheduler_Priority_UNSET,
-		inputID:        "AF1",
-		inputType:      oc.Input_InputType_QUEUE,
-		weight:         uint64(4),
-		queueName:      queues.AF1,
-		targetGroup:    "AF1",
-		fabricPriority: 3,
+		desc:        "scheduler-policy-AF1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(4),
+		queueName:   queues.AF1,
+		targetGroup: "AF1",
 	}, {
-		desc:           "scheduler-policy-AF2",
-		sequence:       uint32(1),
-		priority:       oc.Scheduler_Priority_UNSET,
-		inputID:        "AF2",
-		inputType:      oc.Input_InputType_QUEUE,
-		weight:         uint64(8),
-		queueName:      queues.AF2,
-		targetGroup:    "AF2",
-		fabricPriority: 4,
+		desc:        "scheduler-policy-AF2",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF2",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(8),
+		queueName:   queues.AF2,
+		targetGroup: "AF2",
 	}, {
-		desc:           "scheduler-policy-AF3",
-		sequence:       uint32(1),
-		priority:       oc.Scheduler_Priority_UNSET,
-		inputID:        "AF3",
-		inputType:      oc.Input_InputType_QUEUE,
-		weight:         uint64(16),
-		queueName:      queues.AF3,
-		targetGroup:    "AF3",
-		fabricPriority: 5,
+		desc:        "scheduler-policy-AF3",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF3",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(16),
+		queueName:   queues.AF3,
+		targetGroup: "AF3",
 	}, {
-		desc:           "scheduler-policy-AF4",
-		sequence:       uint32(0),
-		priority:       oc.Scheduler_Priority_STRICT,
-		inputID:        "AF4",
-		inputType:      oc.Input_InputType_QUEUE,
-		weight:         uint64(99),
-		queueName:      queues.AF4,
-		targetGroup:    "AF4",
-		fabricPriority: 6,
+		desc:        "scheduler-policy-AF4",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "AF4",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(99),
+		queueName:   queues.AF4,
+		targetGroup: "AF4",
 	}, {
-		desc:           "scheduler-policy-NC1",
-		sequence:       uint32(0),
-		priority:       oc.Scheduler_Priority_STRICT,
-		inputID:        "NC1",
-		inputType:      oc.Input_InputType_QUEUE,
-		weight:         uint64(100),
-		queueName:      queues.NC1,
-		targetGroup:    "NC1",
-		fabricPriority: 7,
+		desc:        "scheduler-policy-NC1",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "NC1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(100),
+		queueName:   queues.NC1,
+		targetGroup: "NC1",
 	}}
 
 	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
@@ -845,7 +843,7 @@ func testNokiaECNConfig(t *testing.T) {
 	t.Logf("qos scheduler policies config cases: %v", schedulers)
 	for _, tc := range schedulers {
 		t.Run(tc.desc, func(t *testing.T) {
-			qoscfg.SetForwardingGroupWithFabricPriority(t, dut, q, tc.targetGroup, tc.queueName, tc.fabricPriority)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
 			s.SetSequence(tc.sequence)
 			s.SetPriority(tc.priority)
@@ -853,9 +851,7 @@ func testNokiaECNConfig(t *testing.T) {
 			input.SetId(tc.inputID)
 			input.SetInputType(tc.inputType)
 			input.SetQueue(tc.queueName)
-			if tc.priority != oc.Scheduler_Priority_STRICT {
-				input.SetWeight(tc.weight)
-			}
+			input.SetWeight(tc.weight)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 	}
@@ -951,10 +947,8 @@ func testNokiaECNConfig(t *testing.T) {
 		scheduler:   "scheduler",
 	}}
 
-	bufferAllocation, err := q.NewBufferAllocationProfile("ballocprofile")
-	if err != nil {
-		t.Errorf("Failed to configure bufferAllocation: %v", err)
-	}
+	maxBurstSize := uint32(268435456)
+	bufferAllocation := q.GetOrCreateBufferAllocationProfile("ballocprofile")
 	t.Logf("qos output interface config cases: %v", cases)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
