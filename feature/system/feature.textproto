@@ -84,7 +84,6 @@ telemetry_path {
     path: "/system/cpus/cpu/state/wait/interval"
 }
 
-
 # Memory
 telemetry_path {
     path: "/system/memory/state/reserved"
@@ -96,23 +95,6 @@ config_path {
 }
 telemetry_path {
     path: "/system/clock/state/timezone-name"
-}
-
-# Admin user authentication
-config_path {
-    path: "/system/aaa/authentication/admin-user/config/admin-password"
-}
-telemetry_path {
-    path: "/system/aaa/authentication/admin-user/state/admin-password"
-}
-config_path {
-    path: "/system/aaa/authentication/admin-user/config/admin-password-hashed"
-}
-telemetry_path {
-    path: "/system/aaa/authentication/admin-user/state/admin-password-hashed"
-}
-telemetry_path {
-    path: "/system/aaa/authentication/admin-user/state/admin-username"
 }
 
 # Alarms

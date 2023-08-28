@@ -18,8 +18,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -27,6 +29,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/google/go-github/v50/github"
+	"github.com/google/uuid"
 	"google.golang.org/api/cloudbuild/v1"
 
 	"github.com/go-git/go-git/v5"
@@ -78,22 +81,54 @@ func (d *deviceType) String() string {
 	return d.Vendor.String() + " " + d.HardwareModel
 }
 
+// createArchive uploads the compressed repository to Object Store and returns the path to the object.
+func (p *pullRequest) createArchive(ctx context.Context, storClient *storage.Client) (string, error) {
+	data, err := createTGZArchive(p.localFS)
+	if err != nil {
+		return "", err
+	}
+
+	u, err := uuid.NewRandom()
+	if err != nil {
+		return "", err
+	}
+
+	objPath := "source/" + strconv.FormatInt(time.Now().UTC().Unix(), 10) + "-" + hex.EncodeToString(u[:]) + ".tgz"
+	obj := storClient.Bucket(gcpCloudBuildBucketName).Object(objPath).NewWriter(ctx)
+	obj.ContentType = "application/x-tar"
+	obj.Metadata = map[string]string{
+		"pr":      strconv.Itoa(p.ID),
+		"headSHA": p.HeadSHA,
+	}
+	if _, err := data.WriteTo(obj); err != nil {
+		return "", err
+	}
+	return objPath, obj.Close()
+}
+
 // createBuild creates a GCB build for each of the deviceTypes.
 func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.Service, storClient *storage.Client, devices []deviceType) error {
+	err := p.fetchGoDeps()
+	if err != nil {
+		return err
+	}
+
+	objPath, err := p.createArchive(ctx, storClient)
+	if err != nil {
+		return err
+	}
+
 	for _, d := range devices {
+	virtualDeviceLoop:
 		for i, virtualDevice := range p.Virtual {
 			if virtualDevice.Type == d {
 				if len(virtualDevice.Tests) == 0 {
 					continue
 				}
-				skip := false
 				for _, v := range virtualDevice.Tests {
 					if v.Status != "pending authorization" {
-						skip = true
+						continue virtualDeviceLoop
 					}
-				}
-				if skip {
-					continue
 				}
 				cb := &cloudBuild{
 					device:      virtualDevice,
@@ -101,7 +136,7 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 					storClient:  storClient,
 					f:           p.localFS,
 				}
-				jobID, logURL, err := cb.submitBuild(ctx)
+				jobID, logURL, err := cb.submitBuild(objPath)
 				if err != nil {
 					return fmt.Errorf("submitBuild device %q: %w", virtualDevice.Type.String(), err)
 				}
@@ -118,6 +153,20 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 		}
 	}
 
+	return nil
+}
+
+// fetchGoDeps downloads the Golang module dependencies into a local vendor cache.
+func (p *pullRequest) fetchGoDeps() error {
+	goBin, err := exec.LookPath("go")
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(goBin, "mod", "vendor")
+	cmd.Dir = p.localPath
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("vendoring dependencies: %v, output:\n%s", err, out)
+	}
 	return nil
 }
 
@@ -163,7 +212,7 @@ func (p *pullRequest) populateObjectMetadata(ctx context.Context, storClient *st
 			if cloudBuildLogURL, ok := objAttrs.Metadata["cloudBuildLogURL"]; ok {
 				p.Virtual[i].CloudBuildLogURL = cloudBuildLogURL
 			}
-			if cloudBuildRawLogURL, ok := objAttrs.Metadata["CloudBuildRawLogURL"]; ok {
+			if cloudBuildRawLogURL, ok := objAttrs.Metadata["cloudBuildRawLogURL"]; ok {
 				p.Virtual[i].CloudBuildRawLogURL = cloudBuildRawLogURL
 			}
 		}

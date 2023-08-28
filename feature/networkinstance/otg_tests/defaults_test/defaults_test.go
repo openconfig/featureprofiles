@@ -189,8 +189,11 @@ func TestDefaultAddressFamilies(t *testing.T) {
 			// Check that we did not lose any packets for the IPv4 and IPv6 flows.
 			for _, flow := range []string{"ipv4", "ipv6"} {
 				m := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
-				tx := m.GetCounters().GetOutPkts()
-				rx := m.GetCounters().GetInPkts()
+				tx := float32(m.GetCounters().GetOutPkts())
+				rx := float32(m.GetCounters().GetInPkts())
+				if tx == 0 {
+					t.Fatalf("TxPkts == 0, want > 0")
+				}
 				loss := tx - rx
 				lossPct := loss * 100 / tx
 				if got := lossPct; got > 0 {

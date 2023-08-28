@@ -302,10 +302,10 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	ate.OTG().StopTraffic(t)
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
+	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 	lostPackets := txPackets - rxPackets
-	lossPct := float32(lostPackets * 100 / txPackets)
+	lossPct := lostPackets * 100 / txPackets
 
 	if lossPct > lossTolerance {
 		t.Errorf("FAIL: LossPct for %s got: %f, want: 0", flow.Name(), lossPct)
