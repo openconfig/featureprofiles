@@ -56,6 +56,7 @@ def _get_go_root_path(ws=None):
     p = os.path.join('/nobackup', getuser())
     try:
         os.makedirs(p, exist_ok=True)
+        return p
     except:
         if ws: return ws
         raise
