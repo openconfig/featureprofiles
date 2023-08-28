@@ -17,6 +17,7 @@ package system_ntp_test
 import (
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -66,13 +67,16 @@ func TestNtpServerConfigurability(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	for _, testCase := range testCases {
-		if testCase.vrf != "" {
+		if testCase.vrf != "" && !deviations.NtpNonDefaultVrfUnsupported(dut) {
 			createVRF(t, dut, testCase.vrf)
 		}
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
+			if testCase.vrf != "" && deviations.NtpNonDefaultVrfUnsupported(dut) {
+				t.Skip("NTP non default vrf unsupported")
+			}
 			ntpPath := gnmi.OC().System().Ntp()
 
 			d := &oc.Root{}

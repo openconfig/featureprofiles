@@ -1,0 +1,11 @@
+name: "cisco-xrd-dut"
+nodes: {
+    name: "dut"
+    vendor: CISCO
+    model: "xrd"
+    os: "ios-xr"
+    config: {
+        image: "xrd:latest"
+        file: "config.cfg"
+    }
+}

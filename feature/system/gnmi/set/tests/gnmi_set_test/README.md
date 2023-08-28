@@ -55,29 +55,29 @@ default value using the delete operation.
 This test checks that the IP address of a deleted interface can be immediately
 reused by another interface.
 
-Allocate two bundle interface names using [netutil.NextBundleInterface]. We
-refer to them as `dut:bundle1` and `dut:bundle2` below.
+Allocate two aggregate interface names using [netutil.NextAggregateInterface].
+We refer to them as `dut:agg1` and `dut:agg2` below.
 
-[netutil.NextBundleInterface]: https://pkg.go.dev/github.com/openconfig/ondatra/netutil#NextBundleInterface
+[netutil.NextAggregateInterface]: https://pkg.go.dev/github.com/openconfig/ondatra/netutil#NextAggregateInterface
 
 1.  Initialize the interfaces in the same SetRequest.
 
-    *   Delete `dut:port1`, `dut:port2`, `dut:bundle1` and `dut:bundle2`.
-    *   Configure `dut:bundle1` with member `dut:port1` and IP address
+    *   Delete `dut:port1`, `dut:port2`, `dut:agg1` and `dut:agg2`.
+    *   Configure `dut:agg1` with member `dut:port1` and IP address
         192.0.2.1/30.
-    *   Configure `dut:bundle2` with member `dut:port2` and IP address
+    *   Configure `dut:agg2` with member `dut:port2` and IP address
         192.0.2.5/30.
 
     Verify through telemetry that these interfaces are configured correctly.
 
 2.  Modify the interfaces in the same SetRequest:
 
-    *   Delete `dut:bundle1`.
-    *   Configure `dut:bundle2` to have the IP address 192.0.2.1/30.
+    *   Delete `dut:agg1`.
+    *   Configure `dut:agg2` to have the IP address 192.0.2.1/30.
 
-    Verify through telemetry that `dut:bundle2` has the correct IP address.
+    Verify through telemetry that `dut:agg2` has the correct IP address.
 
-3.  Clean up by deleting `dut:bundle2`.
+3.  Clean up by deleting `dut:agg2`.
 
 ### Test: Swap IPs
 

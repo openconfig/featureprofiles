@@ -118,7 +118,10 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 	pd := rp.GetOrCreatePolicyDefinition(name)
-	st := pd.GetOrCreateStatement("id-1")
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	st.GetOrCreateActions().PolicyResult = pr
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -194,7 +197,15 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Netw
 	pgv6.PeerAs = ygot.Uint32(ateAS)
 	pgv6.PeerGroupName = ygot.String(peerv6GrpName)
 
-	if *deviations.RoutePolicyUnderPeerGroup {
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		rpl := pg.GetOrCreateApplyPolicy()
+		rpl.SetExportPolicy([]string{"ALLOW"})
+		rpl.SetImportPolicy([]string{"ALLOW"})
+		rplv6 := pgv6.GetOrCreateApplyPolicy()
+		rplv6.SetExportPolicy([]string{"ALLOW"})
+		rplv6.SetImportPolicy([]string{"ALLOW"})
+
+	} else {
 		pg1af4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pg1af4.Enabled = ygot.Bool(true)
 
@@ -207,13 +218,6 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Netw
 		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
 		pg1rpl6.SetExportPolicy([]string{"ALLOW"})
 		pg1rpl6.SetImportPolicy([]string{"ALLOW"})
-	} else {
-		rpl := pg.GetOrCreateApplyPolicy()
-		rpl.SetExportPolicy([]string{"ALLOW"})
-		rpl.SetImportPolicy([]string{"ALLOW"})
-		rplv6 := pgv6.GetOrCreateApplyPolicy()
-		rplv6.SetExportPolicy([]string{"ALLOW"})
-		rplv6.SetImportPolicy([]string{"ALLOW"})
 	}
 
 	for _, nbr := range nbrs {

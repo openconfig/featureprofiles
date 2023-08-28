@@ -16,6 +16,8 @@ package main
 
 import (
 	"encoding/base64"
+	"errors"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -105,9 +107,9 @@ func TestPopulateTestDetail(t *testing.T) {
 		ID:      100,
 		HeadSHA: "1a2b3",
 		localFS: fstest.MapFS{
-			"feature/a/a/metadata.textproto":                                {Data: []byte("uuid: \"uuid-A\"\nplan_id: \"plan_id-A\"\ndescription: \"description-A\"\n")},
-			"feature/bgp/addpath/otg_tests/example_test/metadata.textproto": {Data: []byte("uuid: \"uuid-B\"\nplan_id: \"plan_id-B\"\ndescription: \"description-B\"\n")},
-			"feature/bgp/addpath/ate_tests/example_test/metadata.textproto": {Data: []byte("uuid: \"uuid-C\"\nplan_id: \"plan_id-C\"\ndescription: \"description-C\"\n")},
+			"feature/a/a/metadata.textproto":                                {Data: []byte("uuid: \"uuid-A\"\nplan_id: \"plan_id-A\"\ndescription: \"description-A\"\nunknown_field: true\n")},
+			"feature/bgp/addpath/otg_tests/example_test/metadata.textproto": {Data: []byte("uuid: \"uuid-B\"\nplan_id: \"plan_id-B\"\ndescription: \"description-B\"\nunknown_field: true\n")},
+			"feature/bgp/addpath/ate_tests/example_test/metadata.textproto": {Data: []byte("uuid: \"uuid-C\"\nplan_id: \"plan_id-C\"\ndescription: \"description-C\"\nunknown_field: true\n")},
 		},
 	}
 	modifiedTests := []string{"feature/bgp/addpath/otg_tests/example_test", "feature/bgp/addpath/ate_tests/example_test"}
@@ -205,6 +207,24 @@ func TestPopulateTestDetail(t *testing.T) {
 					},
 				},
 			},
+			{
+				Type: deviceType{
+					Vendor:        opb.Device_OPENCONFIG,
+					HardwareModel: "Lemming",
+				},
+				Tests: []functionalTest{
+					{
+						Name:        "plan_id-B",
+						Description: "description-B",
+						Path:        "feature/bgp/addpath/otg_tests/example_test",
+						DocURL:      "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test/README.md",
+						TestURL:     "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test",
+						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".OPENCONFIG_Lemming.svg",
+						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".OPENCONFIG_Lemming.svg",
+						Status:      "pending authorization",
+					},
+				},
+			},
 		},
 	}
 
@@ -214,5 +234,70 @@ func TestPopulateTestDetail(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, in, cmpopts.IgnoreUnexported(pullRequest{})); diff != "" {
 		t.Errorf("populateModifiedTests(%v): -want,+got:\n%s", modifiedTests, diff)
+	}
+}
+
+func TestWithRetry(t *testing.T) {
+	var attemptCount int
+
+	const attempts = 3
+	cases := []struct {
+		desc         string
+		fn           func() error
+		wantErr      string
+		wantAttempts int
+	}{
+		{
+			desc:         "pass with no retry attempts",
+			fn:           func() error { attemptCount++; return nil },
+			wantAttempts: 1,
+		},
+		{
+			desc: "pass after one failed retry attempt",
+			fn: func() error {
+				attemptCount++
+				if attemptCount < 2 {
+					return errors.New("expected error")
+				}
+				return nil
+			},
+			wantAttempts: 2,
+		},
+		{
+			desc: "fail on all retry attempts",
+			fn: func() error {
+				attemptCount++
+				if attemptCount < 3 {
+					return errors.New("bad error")
+				}
+				return errors.New("expected error")
+			},
+			wantAttempts: 3,
+			wantErr:      "expected error",
+		},
+		{
+			desc: "pass after two failed retry attempts",
+			fn: func() error {
+				attemptCount++
+				if attemptCount < 3 {
+					return errors.New("bad error")
+				}
+				return nil
+			},
+			wantAttempts: 3,
+		},
+	}
+
+	for _, tc := range cases {
+		attemptCount = 0 // Reset attempt counter
+		t.Run(tc.desc, func(t *testing.T) {
+			err := withRetry(attempts, tc.desc, tc.fn)
+			if (err == nil) != (tc.wantErr == "") || (err != nil && !strings.Contains(err.Error(), tc.wantErr)) {
+				t.Errorf("withRetry() got error %v, want error containing %q", err, tc.wantErr)
+			}
+			if attemptCount != tc.wantAttempts {
+				t.Errorf("withRetry() took %d attempts, want %d", attemptCount, tc.wantAttempts)
+			}
+		})
 	}
 }

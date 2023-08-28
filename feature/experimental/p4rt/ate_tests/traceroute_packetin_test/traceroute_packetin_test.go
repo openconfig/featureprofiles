@@ -19,9 +19,10 @@ package traceroute_packetin_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"testing"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -229,7 +230,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4_v1.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},

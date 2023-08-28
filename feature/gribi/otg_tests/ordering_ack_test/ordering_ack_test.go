@@ -16,11 +16,12 @@ package ordering_ack_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -33,15 +34,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-)
-
-var (
-	// TE-3.5 specific deviation flags that are currently set to reduced compliance checking
-	// in order to establish a baseline to highlight the non-compliant behavior.  They
-	// should be set to the more strict setting.
-	checkTelemetry = flag.Bool("telemetry", false /* TODO: set to true */, "Check AFT telemetry.")
 )
 
 func TestMain(m *testing.M) {
@@ -174,14 +167,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-// Waits for at least one ARP entry on any OTG interface
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-}
-
 // testTraffic generates traffic flow from source network to
 // destination network via ate:port1 to ate:port2 and checks for
 // packet loss.
@@ -193,7 +178,7 @@ func testTraffic(
 ) {
 	otg := ate.OTG()
 	flowName := "Flow"
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, otg, top, "IPv4")
 	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().State())
 	top.Flows().Clear().Items()
 	flowipv4 := top.Flows().Add().SetName("Flow")
@@ -217,8 +202,11 @@ func testTraffic(
 	otg.StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, otg, top)
-	txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State())
-	rxPkts := gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State())
+	txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
+	rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
+	if txPkts == 0 {
+		t.Fatalf("TxPkts == 0, want > 0")
+	}
 
 	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
 		t.Errorf("LossPct for flow %s got %v, want 0", flowName, got)
@@ -280,15 +268,19 @@ func testModifyNHG(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		if !*checkTelemetry {
-			t.Skip()
-		}
-		nhgNhPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHopGroup(nhgIndex).NextHop(nhIndex)
-		if got, want := gnmi.Get(t, args.dut, nhgNhPath.Index().State()), uint64(nhIndex); got != want {
-			t.Errorf("next-hop-group/next-hop/state/index got %d, want %d", got, want)
-		}
-		if got, want := gnmi.Get(t, args.dut, nhgNhPath.Weight().State()), uint64(nhWeight); got != want {
-			t.Errorf("next-hop-group/next-hop/state/weight got %d, want %d", got, want)
+		got, err := aftNextHopWeights(t, args.dut, nhgIndex, deviations.DefaultNetworkInstance(args.dut))
+		if err != nil {
+			t.Errorf("Error getting weights for nhg %d : %v", nhIndex, err)
+		} else {
+			want := []uint64{nhWeight}
+			// when a next hop group (nhg) has only one next hop, some FIB implemenation map the nhg to a single path and ignore the weight.
+			// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than one nh.
+			if len(want) > 1 {
+				ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
+				if !ok {
+					t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
+				}
+			}
 		}
 	})
 }
@@ -372,29 +364,52 @@ func testModifyNHGIPv4(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		if !*checkTelemetry {
-			t.Skip()
-		}
-		nhgNhPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHopGroup(nhgIndex).NextHop(nhIndex)
-		if got, want := gnmi.Get(t, args.dut, nhgNhPath.Index().State()), uint64(nhIndex); got != want {
-			t.Errorf("next-hop-group/next-hop/state/index got %d, want %d", got, want)
-		}
-		if got, want := gnmi.Get(t, args.dut, nhgNhPath.Weight().State()), uint64(nhWeight); got != want {
-			t.Errorf("next-hop-group/next-hop/state/weight got %d, want %d", got, want)
-		}
-
-		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.NextHopGroup().State()), uint64(nhgIndex); got != want {
-			t.Errorf("ipv4-entry/state/next-hop-group got %d, want %d", got, want)
-		}
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
-			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+		got, err := aftNextHopWeights(t, args.dut, nhgIndex, deviations.DefaultNetworkInstance(args.dut))
+		if err != nil {
+			t.Errorf("Error getting weights for nhg %d : %v", nhIndex, err)
+		} else {
+			want := []uint64{nhWeight}
+			// if a next hop group (nhg) has only one next hop, most FIB implemenation map the nhg to a single path and ignore the weight.
+			// In this case, AFT may returns no value or zero as weight, so validate weights only for nhg with more than one nh.
+			if len(want) > 1 {
+				ok := cmp.Equal(want, got, cmpopts.SortSlices(func(a, b uint64) bool { return a < b }))
+				if !ok {
+					t.Errorf("next-hop-group/next-hop/state/weight got %v, want %v", got, want)
+				}
+			}
+			ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
+			if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR; got != want {
+				t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+			}
 		}
 	})
 
 	t.Run("Traffic", func(t *testing.T) {
 		testTraffic(t, args.ate, args.top)
 	})
+}
+
+// aftNextHopWeights queries AFT telemetry using Get() and returns
+// the weights. If not-found, an empty list is returned.
+func aftNextHopWeights(t *testing.T, dut *ondatra.DUTDevice, nhg uint64, networkInstance string) ([]uint64, error) {
+	aft := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(networkInstance).Afts().State())
+	var nhgD *oc.NetworkInstance_Afts_NextHopGroup
+	for _, nhgData := range aft.NextHopGroup {
+		if nhgData.GetProgrammedId() == nhg {
+			nhgD = nhgData
+			break
+		}
+	}
+	if nhgD == nil {
+		return []uint64{}, fmt.Errorf("next-hop-group with programing id %d is not found in AFT response", nhg)
+	}
+
+	got := []uint64{}
+	for _, nhD := range nhgD.NextHop {
+		got = append(got, nhD.GetWeight())
+	}
+
+	return got, nil
 }
 
 // testModifyIPv4AddDelAdd configures a ModifyRequest with AFT operations to add, delete,
@@ -442,14 +457,8 @@ func testModifyIPv4AddDelAdd(t *testing.T, args *testArgs) {
 	)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		if !*checkTelemetry {
-			t.Skip()
-		}
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.NextHopGroup().State()), uint64(nhgIndex); got != want {
-			t.Errorf("ipv4-entry/state/next-hop-group got %d, want %d", got, want)
-		}
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	})
@@ -493,13 +502,14 @@ func TestOrderingACK(t *testing.T) {
 	ctx := context.Background()
 	gribic := dut.RawAPIs().GRIBI().Default(t)
 
-	// Configure the DUT
-	configureDUT(t, dut)
-
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
+
+	// Configure the DUT
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 
 	const usePreserve = "PRESERVE"
