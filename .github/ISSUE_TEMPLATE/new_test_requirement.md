@@ -7,24 +7,32 @@ assignees: ''
 
 ---
 
+# Instructions for the template
+
+Below is the required template for writing test requirements.  Good examples of test
+requirements include :
+
+* [TE-3.7: Base Hierarchical NHG Update](/feature/gribi/otg_tests/base_hierarchical_nhg_update/README.md)
+* [gNMI-1.13: Telemetry: Optics Power and Bias Current](https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_power_and_bias_current_test/README.md)
+* [RT-5.1: Singleton Interface](https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/singleton_test/README.md)
+
 # TestID-x.y: Short name of test here
 
 ## Summary
 
-Write a few sentences or paragraphs describing the purpose and scope of the test. 
+Write a few sentences or paragraphs describing the purpose and scope of the test.
 
 ## Procedure
 
-*   Test #1 - Name of test
-    *   Step 1
-    *   Step 2
-    *   Step 3
+* Sub Test #1 - Name of test
+  * Step 1
+  * Step 2
+  * Validation and pass fail criteria
 
-*   Test #2 - New of test
-    *   Step 1
-    *   Step 2
-    *   Step 3
-
+* Sub Test #2 - New of test
+  * Step 1
+  * Step 2
+  * Validation and pass fail criteria
 
 ## Config Parameter Coverage
 
@@ -36,16 +44,17 @@ Add list of OpenConfig 'state' paths used in this test, if any.
 
 ## Protocol/RPC Parameter Coverage
 
-Add list of OpenConfig RPC's (gNMI, gNOI, gNSI, gRIBI) used in the list
+Add list of OpenConfig RPC's (gNMI, gNOI, gNSI, gRIBI) used in the list, if any.
 
 For example:
-*   gNMI
-    *   Set
-    *   Subscribe
-*   gNOI
-    *   System
-        *   KillProcess
-    *   Healthz
-        *   Get
-        *   Check
-        *   Artifact
+
+* gNMI
+  * Set
+  * Subscribe
+* gNOI
+  * System
+    * KillProcess
+  * Healthz
+    * Get
+    * Check
+    * Artifact
