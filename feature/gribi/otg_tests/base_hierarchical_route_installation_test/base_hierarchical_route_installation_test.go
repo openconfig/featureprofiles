@@ -151,7 +151,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	gnmi.Replace(t, dut, defNIPath.PolicyForwarding().Config(), configurePBF(dut))
 }
 
