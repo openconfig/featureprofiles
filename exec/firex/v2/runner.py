@@ -593,15 +593,19 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
     otg_info = reserved_testbed['otg']
 
     # convert binding to json
-    cmd = f'{GO_BIN} run ' \
-        f'./exec/utils/binding/tojson ' \
-        f'-binding {reserved_testbed["ate_binding_file"]}'
+    with tempfile.NamedTemporaryFile() as of:
+        outFile = of.name
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/tojson ' \
+            f'-binding {reserved_testbed["ate_binding_file"]} ' \
+            f'-out {outFile}'
 
-    env = dict(os.environ)
-    env.update(_get_go_env(ws))
-    
-    output = check_output(cmd, env=env, cwd=internal_fp_repo_dir)
-    j = json.loads(output)
+        env = dict(os.environ)
+        env.update(_get_go_env(ws))
+        
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+        with open(outFile, 'r') as fp:
+            j = json.load(fp)
 
     #TODO: support multiple ates
     for ate in j.get('ates', []):
