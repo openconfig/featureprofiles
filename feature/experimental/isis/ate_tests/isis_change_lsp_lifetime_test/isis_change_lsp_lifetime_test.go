@@ -117,6 +117,12 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string, dutAre
 	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
 
 	globalIsis.GetOrCreateTimers().LspLifetimeInterval = ygot.Uint16(lspLifetime)
+	if deviations.ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut) {
+		globalIsis.GetOrCreateTimers().LspRefreshInterval = ygot.Uint16(65535)
+	}
+	if deviations.ISISInstanceEnabledRequired(dut) {
+		globalIsis.Instance = ygot.String(isisInstance)
+	}
 
 	// Interface configs
 	intf := isis.GetOrCreateInterface(intfName)
