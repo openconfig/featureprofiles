@@ -37,20 +37,16 @@ The test validates that the device completes TPM enrollment and attestation duri
 
 1. Call `GetIakCert` for an active control card with correct `ControlCardSelection`.
 2. Verify that correct IDevID cert was used for establishing TLS session:
-
-  * Cert structure matches TCG specification [Section 8](https://trustedcomputinggroup.org/wp-content/uploads/TPM-2p0-Keys-for-Device-Identity-and-Attestation_v1_r12_pub10082021.pdf#page=55).
-  * Cert is not expired.
-  * Cert is signed by switch vendor CA.
-  * Cert is tied to the active control card.
-
+   * Cert structure matches TCG specification [Section 8](https://trustedcomputinggroup.org/wp-content/uploads/TPM-2p0-Keys-for-Device-Identity-and-Attestation_v1_r12_pub10082021.pdf#page=55).
+   * Cert is not expired.
+   * Cert is signed by switch vendor CA.
+   * Cert is tied to the active control card.
 3. Verify IAK cert:
-
-  * Cert structure matches TCG spec (similar to IDevID above).
-  * Cert is not expired.
-  * Cert is signed by switch vendor CA.
-  * Cert is tied to the active control card.
-  * IAK and IDevID cert contain the same device serial number field.
-
+   * Cert structure matches TCG spec (similar to IDevID above).
+   * Cert is not expired.
+   * Cert is signed by switch vendor CA.
+   * Cert is tied to the active control card.
+   * IAK and IDevID cert contain the same device serial number field.
 4. Verify that the device returned the correct `ControlCardVendorId` with all fields populated.
 5. Issue owner IAK (oIAK) and owner IDevID (oIDevID) certs, which are based on the same underlying public keys, have the same structure and fields, but are signed by a different - owner - CA.
 6. Call `RotateOIakCert` to store newly issued oIAK and oIDevID certs and verify successful response.
