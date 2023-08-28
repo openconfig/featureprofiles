@@ -54,12 +54,9 @@ whitelist_arguments([
 
 def _get_go_root_path(ws=None):
     p = os.path.join('/nobackup', getuser())
-    try:
-        os.makedirs(os.path.join(p, 'go'), exist_ok=True)
+    if os.access(p, os.W_OK | os.X_OK):
         return p
-    except:
-        if ws: return ws
-        raise
+    return ws
         
 
 def _get_go_path():
