@@ -1,60 +1,15 @@
 ---
 name: New featureprofiles test requirement
-about: Use this template to document the requirements for a new test to be implemented.
+about: Use this template to create an issue to assign and track implemenation of the code for a test.
 title: ''
 labels: enhancement
 assignees: ''
-
 ---
 
-# Instructions for the template
+# Request for New Test Code Implementation Instructions
 
-Below is the required template for writing test requirements.  Good examples of test
-requirements include :
+* The label 'enhancement' is automatically be set by this template.
+* Add a label for the test priority according to the test requirements.
+* Add a link in this issue description to the README.md for the test requirements.  For example:
 
-* [TE-3.7: Base Hierarchical NHG Update](/feature/gribi/otg_tests/base_hierarchical_nhg_update/README.md)
-* [gNMI-1.13: Telemetry: Optics Power and Bias Current](https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_power_and_bias_current_test/README.md)
-* [RT-5.1: Singleton Interface](https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/singleton_test/README.md)
-
-# TestID-x.y: Short name of test here
-
-## Summary
-
-Write a few sentences or paragraphs describing the purpose and scope of the test.
-
-## Procedure
-
-* Sub Test #1 - Name of test
-  * Step 1
-  * Step 2
-  * Validation and pass fail criteria
-
-* Sub Test #2 - New of test
-  * Step 1
-  * Step 2
-  * Validation and pass fail criteria
-
-## Config Parameter Coverage
-
-Add list of OpenConfig 'config' paths used in this test, if any.
-
-## Telemetry Parameter Coverage
-
-Add list of OpenConfig 'state' paths used in this test, if any.
-
-## Protocol/RPC Parameter Coverage
-
-Add list of OpenConfig RPC's (gNMI, gNOI, gNSI, gRIBI) used in the list, if any.
-
-For example:
-
-* gNMI
-  * Set
-  * Subscribe
-* gNOI
-  * System
-    * KillProcess
-  * Healthz
-    * Get
-    * Check
-    * Artifact
+Implement code for [Test name here](<https://github.com/openconfig/featureprofiles/><insert link to the README.md file here>)
