@@ -471,9 +471,17 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 
 				}
 				if tc.lagType == oc.IfAggregate_AggregationType_STATIC {
-					// Setting admin state down on the DUT interface. Setting the otg interface down has no effect in kne
 					dp := tc.dut.Port(t, port.ID())
-					tc.setDutInterfaceWithState(t, dp, false)
+					if deviations.ATEPortLinkStateOperationsUnsupported(tc.ate) {
+						tc.setDutInterfaceWithState(t, dp, false)
+						defer tc.setDutInterfaceWithState(t, dp, true)
+					} else {
+						portStateAction := gosnappi.NewControlState()
+						portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+						tc.ate.OTG().SetControlState(t, portStateAction)
+						portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+						defer tc.ate.OTG().SetControlState(t, portStateAction)
+					}
 				}
 			}
 			opStatus, statusCheckResult := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).OperStatus().State(), 1*time.Minute, func(y *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
