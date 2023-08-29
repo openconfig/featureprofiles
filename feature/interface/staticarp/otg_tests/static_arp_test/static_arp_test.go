@@ -29,7 +29,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -68,14 +67,14 @@ const (
 	plen6 = 126
 
 	poisonedMAC = "12:34:56:78:7a:69" // 0xa69 = 2665
-	macFilter   = "0xa69"             // Hex equalent last 12 bits
 	noStaticMAC = ""
+	macFilter   = ""
 )
 
 var (
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
-		MAC:     "02:11:01:00:00:01",
+		MAC:     "02:11:01:00:01:01",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: plen4,
@@ -102,7 +101,7 @@ var (
 
 	ateDst = attrs.Attributes{
 		Name:    "ateDst",
-		MAC:     "02:12:01:00:00:01",
+		MAC:     "02:12:01:00:02:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: plen4,
@@ -189,20 +188,11 @@ func configureATE(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 	return ate, config
 }
 
-func waitOTGARPEntry(t *testing.T, ipType string) {
-	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
-
-	switch ipType {
-	case "IPv4":
-		gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-			return val.IsPresent()
-		}).Await(t)
-	case "IPv6":
-		gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-			return val.IsPresent()
-		}).Await(t)
-	}
+// Extract the hex equivalent last 12 bits
+func getMacFilter(mac string) string {
+	newMac := strings.Replace(mac, ":", "", -1)
+	macFilter := "0x" + newMac[9:]
+	return macFilter
 }
 
 func testFlow(
@@ -247,7 +237,7 @@ func testFlow(
 		ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
 		otg.PushConfig(t, config)
 		otg.StartProtocols(t)
-		waitOTGARPEntry(t, "IPv4")
+		otgutils.WaitForARP(t, otg, config, "IPv4")
 	case "IPv6":
 		flowipv6 := config.Flows().Add().SetName("FlowIPv6")
 		flowipv6.Metrics().SetEnable(true)
@@ -267,7 +257,7 @@ func testFlow(
 		ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
 		otg.PushConfig(t, config)
 		otg.StartProtocols(t)
-		waitOTGARPEntry(t, "IPv6")
+		otgutils.WaitForARP(t, otg, config, "IPv6")
 	}
 
 	// Starting the traffic
@@ -288,40 +278,39 @@ func testFlow(
 		if lossPct > 0 {
 			t.Errorf("LossPct for flow %s detected, expected 0", f.Name())
 		} else {
-			// Check the egress packets
+			var macFilter string
 			if poisoned {
-				etPath := gnmi.OTG().Flow(f.Name()).TaggedMetricAny()
-				ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
-				if got := len(ets); got != 1 {
-					t.Errorf("EgressTracking got %d items, want %d", got, 1)
-				}
-				etTagspath := gnmi.OTG().Flow(f.Name()).TaggedMetricAny().TagsAny()
-				etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
-				if got := etTags[0].GetTagValue().GetValueAsHex(); !strings.EqualFold(got, macFilter) {
-					t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
-				}
-				if got := ets[0].GetCounters().GetInPkts(); got != rxPkts {
-					t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, rxPkts)
-				} else {
-					t.Logf("Received %d packets with %s as the last 12 bits in the dst MAC", got, macFilter)
-				}
+				macFilter = getMacFilter(poisonedMAC)
+			} else {
+				macFilter = getMacFilter(ateDst.MAC)
+			}
+			// Check the egress packets
+			etPath := gnmi.OTG().Flow(f.Name()).TaggedMetricAny()
+			ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
+			if got := len(ets); got != 1 {
+				t.Errorf("EgressTracking got %d items, want %d", got, 1)
+			}
+			etTagspath := gnmi.OTG().Flow(f.Name()).TaggedMetricAny().TagsAny()
+			etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
+			if got := etTags[0].GetTagValue().GetValueAsHex(); !strings.EqualFold(got, macFilter) {
+				t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
+			}
+			if got := ets[0].GetCounters().GetInPkts(); got != rxPkts {
+				t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, rxPkts)
+			} else {
+				t.Logf("Received %d packets with %s as the last 12 bits in the dst MAC", got, macFilter)
 			}
 		}
 	}
 }
 
 func TestStaticARP(t *testing.T) {
-	// First configure the DUT with dynamic ARP.
-
-	configureDUT(t, noStaticMAC)
-	// var ate *ondatra.ATEDevice
+	// Configure the ATE
 	ate, config := configureATE(t)
 
-	// Default MAC addresses on Ixia are assigned incrementally as:
-	//   - 02:11:01:00:00:01
-	//   - 02:12:01:00:00:01
-	// etc.
-	//
+	// Configure the DUT with dynamic ARP.
+	configureDUT(t, noStaticMAC)
+
 	t.Run("NotPoisoned", func(t *testing.T) {
 		t.Run("IPv4", func(t *testing.T) {
 			testFlow(t, ate, config, "IPv4", false)
