@@ -35,3 +35,45 @@ links: {
     z_node: "otg"
     z_int: "eth2"
 }
+links: {
+    a_node: "dut"
+    a_int: "eth3"
+    z_node: "otg"
+    z_int: "eth3"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth4"
+    z_node: "otg"
+    z_int: "eth4"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth5"
+    z_node: "otg"
+    z_int: "eth5"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth6"
+    z_node: "otg"
+    z_int: "eth6"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth7"
+    z_node: "otg"
+    z_int: "eth7"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth8"
+    z_node: "otg"
+    z_int: "eth8"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth9"
+    z_node: "otg"
+    z_int: "eth9"
+}
