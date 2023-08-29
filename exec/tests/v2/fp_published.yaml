@@ -169,8 +169,8 @@ tests:
     timeout: 3600
     mustpass: true
     args:
-      - '-osfile="/auto/ioxdepot6/GISO/giso_build_lindt/giso_custom_create/rmariapp_2023-08-19_02-04-28_UTC/output_gisobuild/giso/8000-golden-x86_64-7.11.1.192G-8.iso"'
-      - '-osver="7.11.1.192G"'
+      - '-osfile="/auto/prod_weekly_archive1/bin/24.1.1.201G.DT_IMAGE/8000/8000-x64-24.1.1.201G.iso"'
+      - '-osver="24.1.1.201G"'
     skip: true
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
