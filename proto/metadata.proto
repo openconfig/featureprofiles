@@ -296,6 +296,10 @@ message Metadata {
     // lspLifetimeInterval is configured.
     // Arista: partnerissuetracker.corp.google.com/293667850
     bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
+    // Devices require configuring LoopbackMode on member ports to enable
+    // LoopbackMode on aggregate interface.
+    // Arista: partnerissuetracker.corp.google.com/297391260
+    bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
