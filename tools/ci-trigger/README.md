@@ -123,7 +123,7 @@ export GITHUB_WEBHOOK_SECRET=shared_secret
 export GITHUB_API_SECRET=api_secret
 
 umask 0022
-go run github.com/openconfig/featureprofiles/tools/ci-trigger
+go run github.com/openconfig/featureprofiles/tools/ci-trigger -alsologtostderr
 ```
 
 You may need to customize the config.go files based on your environment.  You will also need to have some form of [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) available.

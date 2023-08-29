@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "7c80f692-478c-44c8-ba6e-d4d46bfebce1"
-plan_id: "RT-2.10"
-description: "IS-IS change LSP lifetime"
-testbed: TESTBED_DUT_ATE_2LINKS
+uuid:  "d472b5af-70fa-4259-ae6d-29c921820419"
+plan_id:  "RT-2.8"
+description:  "IS-IS  metric style wide not enabled"
+testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: NOKIA
@@ -41,4 +41,3 @@ platform_exceptions: {
     isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
   }
 }
-tags: TAGS_EDGE
