@@ -163,7 +163,7 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 		t.Logf("Component %s, power-admin-state after %f minutes: %v", name, time.Since(start).Minutes(), power)
 	}
 
-	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val()
+	oper, ok = gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val()
 	if !ok {
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}
