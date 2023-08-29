@@ -834,9 +834,9 @@ func TestWrrTraffic(t *testing.T) {
 				ipHeader := flow.Packet().Add().Ipv4()
 				ipHeader.Src().SetValue(data.inputIntf.IPv4)
 				ipHeader.Dst().SetValue(intf3.IPv4)
-				ipHeader.Priority().Dscp().Phb().SetValue(int32(data.dscp))
+				ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
 
-				flow.Size().SetFixed(int32(data.frameSize))
+				flow.Size().SetFixed(uint32(data.frameSize))
 				flow.Rate().SetPercentage(float32(data.trafficRate))
 			}
 
