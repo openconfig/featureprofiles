@@ -234,12 +234,7 @@ type testArgs struct {
 // Configure network instance
 func configureNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Update(t, dut, dutConfPath.Config(), &oc.NetworkInstance{
-		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
-		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-	})
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 }
 
 // configStaticRoute configures a static route.

@@ -134,10 +134,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	// Configure default NI and forwarding policy
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Update(t, dut, dutConfPath.Config(), &oc.NetworkInstance{
-		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
-		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-	})
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)

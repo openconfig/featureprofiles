@@ -61,11 +61,7 @@ func TestGnmiFullConfigReplace(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	t.Log("Configure network instance on DUT")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Update(t, dut, dutConfNIPath.Config(), &oc.NetworkInstance{
-		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
-		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-	})
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	t.Log("Cleanup exisitng BGP and ISIS configs on DUT before configuring test configs")
 	dutBGPPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")

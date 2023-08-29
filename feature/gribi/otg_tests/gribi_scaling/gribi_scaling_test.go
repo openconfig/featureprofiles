@@ -329,11 +329,7 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 		} else {
 			// configure DEFAULT vrf
-			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-			gnmi.Update(t, dut, dutConfNIPath.Config(), &oc.NetworkInstance{
-				Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
-				Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-			})
+			fptest.ConfigureDefaultNetworkInstance(t, dut)
 		}
 		if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
 			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)

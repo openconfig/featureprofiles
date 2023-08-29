@@ -289,11 +289,7 @@ func TestEstablish(t *testing.T) {
 	dutConfigPath := gnmi.OC()
 
 	t.Log("Configure Network Instance type to DEFAULT on DUT.")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Update(t, dut, dutConfNIPath.Config(), &oc.NetworkInstance{
-		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
-		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-	})
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	t.Log("Build Benchmarking BGP and ISIS test configs.")
 	dutBenchmarkConfig := setup.BuildBenchmarkingConfig(t)

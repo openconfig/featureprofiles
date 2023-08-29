@@ -92,18 +92,11 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 }
 
 func configureNIType(t *testing.T) {
-	dut := ondatra.DUT(t, "dut1")
-	ate := ondatra.DUT(t, "dut2")
+	dut1 := ondatra.DUT(t, "dut1")
+	dut2 := ondatra.DUT(t, "dut2")
 	// Configure Network instance type on DUT
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Update(t, dut, dutConfNIPath.Config(), &oc.NetworkInstance{
-		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
-		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-	})
-	gnmi.Update(t, ate, dutConfNIPath.Config(), &oc.NetworkInstance{
-		Name: ygot.String(deviations.DefaultNetworkInstance(ate)),
-		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-	})
+	fptest.ConfigureDefaultNetworkInstance(t, dut1)
+	fptest.ConfigureDefaultNetworkInstance(t, dut2)
 }
 
 // configreRoutePolicy adds route-policy config
