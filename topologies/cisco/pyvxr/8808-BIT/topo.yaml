@@ -80,13 +80,13 @@ devices:
 connections: 
   hubs: 
     port1: 
-      - dut.FourHundredGigE0/0/0/27 
+      - dut.FourHundredGigE0/0/0/26 
       - ate.1/1
     port2: 
-      - dut.FourHundredGigE0/0/0/28
+      - dut.FourHundredGigE0/0/0/27
       - ate.1/2
     port3: 
-      - dut.FourHundredGigE0/0/0/26
+      - dut.FourHundredGigE0/0/0/28
       - ate.1/3
     port4: 
       - peer.FourHundredGigE0/0/0/16
