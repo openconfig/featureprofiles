@@ -546,7 +546,7 @@ replace: {
 "interface FourHundredGigE0/7/0/18\n"
 " description interface\n"
 "!\n"
-"interface FourHundredGigE0/7/0/19\n"
+"interface FortyGigE0/7/0/19\n"
 " description interface\n"
 "!\n"
 "interface FourHundredGigE0/7/0/20\n"
