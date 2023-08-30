@@ -163,9 +163,9 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1attr.Name + ".Eth").SetMac(atePort1attr.MAC)
 	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1attr.Name + ".IPv4")
-	iDut1Ipv4.SetAddress(atePort1attr.IPv4).SetGateway(dutPort1Attr.IPv4).SetPrefix(int32(atePort1attr.IPv4Len))
+	iDut1Ipv4.SetAddress(atePort1attr.IPv4).SetGateway(dutPort1Attr.IPv4).SetPrefix(uint32(atePort1attr.IPv4Len))
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1attr.Name + ".IPv6")
-	iDut1Ipv6.SetAddress(atePort1attr.IPv6).SetGateway(dutPort1Attr.IPv6).SetPrefix(int32(atePort1attr.IPv6Len))
+	iDut1Ipv6.SetAddress(atePort1attr.IPv6).SetGateway(dutPort1Attr.IPv6).SetPrefix(uint32(atePort1attr.IPv6Len))
 
 	iDut1Dev.Isis().SetSystemId(ateSystemID).SetName("devIsis").RouterAuth().AreaAuth().SetAuthType("md5").SetMd5(password)
 	iDut1Dev.Isis().RouterAuth().DomainAuth().SetAuthType("md5").SetMd5(password)
