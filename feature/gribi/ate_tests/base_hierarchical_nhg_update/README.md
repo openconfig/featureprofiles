@@ -93,3 +93,34 @@ Parameters:
 ## Minimum DUT platform requirement
 
 vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
+
+# TE-3.7: Drain Implementation Test.
+
+## Summary
+
+Validate NHG update in Drain Implementation Test.
+
+## Procedure
+
+*   Steps:
+*   Topology
+*   [ATE port-1] — [port-1 DUT port-2] — [port-2 ATE]
+                                             Port-3]—-[port-3 ATE]
+                                             Port-4]—-[port-4 ATE]
+*   DUT port-2, port-3 and port-4 are each making a one-member trunk port (trunk-2 and trunk-3, trunk-4).
+*   Configure a destination network-a connected to trunk-2, trunk-3 and trunk-4.
+*   gRIBI installs the following routing structure (700 IPv4 prefix, NHG and NH numbers stays the same as the             illustration), and expect FIB ACKs:
+*   In the DEFAULT VRF:
+    VIP1 -> NHG#1 -> [NH#1 {mac: MagicMAC, interface: DUTPort2Trunk}, NH#2 {mac: MagicMAC, interface: DUTPort3Trunk}]
+    NHG#10 -> NH#10 {decap, network-instance: DEFAULT VRF}
+    NHG#20 -> [ NH#20{ip: VIP1}, backupNH: NHG#10]
+
+*   In a non-defualt VRF, VRF-1:
+    IPv4Entries(1000 /32 IPv4 entries) -> NHG#20
+
+*   Send 10K IPinIP traffic flows from ATE port-1 to network-a. 
+*   Validate that traffic is going via trunk-2 and trunk-3 and  there is no traffic loss.
+*   Send one gRIBI NHG#1 update to replace NH#1 and NH#2 with NH#3 pointing to trunk#4. 
+*   Expect FIB ACKs, and validate that all traffic are moved to trunk#4 with no traffic loss.
+*   Send one gRIBI NHG#1 update to revert back the changes above. 
+*   Expect FIB ACKs and validate that the traffic is moved back to trunk-2 and trunk-3 with less than <xx> ms traffic loss.
