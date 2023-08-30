@@ -244,9 +244,9 @@ func configOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
 	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
-	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dut1Port1.IPv4).SetPrefix(int32(atePort1.IPv4Len))
+	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dut1Port1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
-	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dut1Port1.IPv6).SetPrefix(int32(atePort1.IPv6Len))
+	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dut1Port1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
 	isisDut1 := iDut1Dev.Isis().SetName("ISIS").SetSystemId(ATESysID)
 
