@@ -30,21 +30,9 @@ import (
 
 // trigger contains the functions used to process a GitHub Webhook event
 type trigger struct {
-	webhookSecret []byte
-
 	githubClient *github.Client
 	storClient   *storage.Client
 	buildClient  *cloudbuild.Service
-}
-
-// githubEvent returns the validated Github event from an HTTP request.
-func (t *trigger) githubEvent(r *http.Request) (any, error) {
-	payload, err := github.ValidatePayload(r, t.webhookSecret)
-	if err != nil {
-		return nil, err
-	}
-
-	return github.ParseWebHook(github.WebHookType(r), payload)
 }
 
 // processIssueComment handles a GitHub issue event.
@@ -184,12 +172,11 @@ func (t *trigger) authorizedUser(ctx context.Context, username string) (bool, er
 func newTrigger(ctx context.Context) (*trigger, error) {
 	t := &trigger{}
 
-	webhookSecret, apiSecret, err := fetchSecrets()
+	apiSecret, err := fetchAPISecret()
 	if err != nil {
 		return nil, err
 	}
 
-	t.webhookSecret = webhookSecret
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: string(apiSecret)},
 	)
