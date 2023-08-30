@@ -356,12 +356,12 @@ func TestBurstyTraffic(t *testing.T) {
 				ipHeader := flow.Packet().Add().Ipv4()
 				ipHeader.Src().SetValue(data.inputIntf.IPv4)
 				ipHeader.Dst().SetValue(intf3.IPv4)
-				ipHeader.Priority().Dscp().Phb().SetValue(int32(data.dscp))
+				ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
 
-				flow.Size().SetFixed(int32(data.frameSize))
+				flow.Size().SetFixed(uint32(data.frameSize))
 				flow.Rate().SetPercentage(float32(data.trafficRate))
 				flow.Duration().SetChoice("burst")
-				flow.Duration().Burst().SetPackets(int32(data.burstPackets)).SetGap(int32(data.burstMinGap))
+				flow.Duration().Burst().SetPackets(uint32(data.burstPackets)).SetGap(uint32(data.burstMinGap))
 				flow.Duration().Burst().InterBurstGap().SetBytes(float64(data.burstGap))
 
 			}
