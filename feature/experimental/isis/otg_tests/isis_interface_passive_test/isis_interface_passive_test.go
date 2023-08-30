@@ -382,11 +382,11 @@ func TestIsisInterfacePassive(t *testing.T) {
 			gnmi.Update(t, dut, statePath.Interface(intfName).Level(2).Passive().Config(), false)
 
 			// Checking passive telemetry.
-			if got := gnmi.Get(t, dut, statePath.Interface(intfName).Passive().State()); got != true {
-				t.Errorf("FAIL- Expected value for passive not found on isis interface, got %t, want %t", got, true)
+			if got, want := gnmi.Get(t, dut, statePath.Interface(intfName).Passive().State()), true; got != want {
+				t.Errorf("FAIL- Expected value for passive not found on isis interface, got %t, want %t", got, want)
 			}
-			if got := gnmi.Get(t, dut, statePath.Interface(intfName).Level(2).Passive().State()); got != true {
-				t.Errorf("FAIL- Expected value for passive not found on isis interface level, got %t, want %t", got, true)
+			if got, want := gnmi.Get(t, dut, statePath.Interface(intfName).Level(2).Passive().State()), false; got != want {
+				t.Errorf("FAIL- Expected value for passive not found on isis interface level, got %t, want %t", got, want)
 			}
 			// Checking adjacency after configuring interface as passive.
 			adjacencyPath := statePath.Interface(intfName).Level(2).AdjacencyAny().AdjacencyState().State()
