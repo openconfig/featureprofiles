@@ -56,6 +56,24 @@ var (
 	cannotDeleteVRF = flag.Bool("cannot_delete_vrf", true, "Device cannot delete VRF.") // See "Note about cannotDeleteVRF" below.
 )
 
+var (
+	dutPort1 = attrs.Attributes{
+		Desc:    "dutPort1",
+		IPv4:    "192.0.2.1",
+		IPv4Len: 30,
+		IPv6:    "2001:0db8::192:0:2:1",
+		IPv6Len: 126,
+	}
+
+	dutPort2 = attrs.Attributes{
+		Desc:    "dutPort2",
+		IPv4:    "192.0.2.5",
+		IPv4Len: 30,
+		IPv6:    "2001:0db8::192:0:2:5",
+		IPv6Len: 126,
+	}
+)
+
 // Implementation Note
 //
 // Tests have three push variants: ItemOp, ContainerOp, and RootOp.
@@ -84,6 +102,15 @@ func TestMain(m *testing.M) {
 
 func TestGetSet(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+
+	// Configuring basic interface and network instance as some devices only populate OC after configuration.
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Type().Config(),
+		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
 	scope := defaultPushScope(dut)
 
 	forEachPushOp(t, dut, func(t *testing.T, op pushOp, config *oc.Root) {
@@ -665,11 +692,6 @@ func forEachPushOp(
 	dut *ondatra.DUTDevice,
 	f func(t *testing.T, op pushOp, config *oc.Root),
 ) {
-	if v := dut.Vendor(); v != ondatra.ARISTA {
-		// TODO: add coverage for other vendors.
-		t.Skipf("We have not vetted the test plan against %v.  Please ignore the results for now.", v)
-	}
-
 	baselineConfigOnce.Do(func() {
 		baselineConfig = getDeviceConfig(t, dut)
 	})
@@ -738,8 +760,16 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 		config.Qos = nil
 	}
 
+	pruneUnsupportedPaths(config)
+
 	fptest.WriteQuery(t, "Touched", gnmi.OC().Config(), config)
 	return config
+}
+
+func pruneUnsupportedPaths(config *oc.Root) {
+	for _, ni := range config.NetworkInstance {
+		ni.Fdb = nil
+	}
 }
 
 // pushScope describe the config scope that the test case wants to modify.  This is for
