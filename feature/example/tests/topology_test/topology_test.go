@@ -150,7 +150,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		ipv4Addr := strings.Split(atePortCIDR(i), "/")[0]
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".ipv4").
 			SetAddress(ipv4Addr).SetGateway(dutPortIP(i)).
-			SetPrefix(int32(plen))
+			SetPrefix(uint32(plen))
 	}
 
 	otg.PushConfig(t, top)
