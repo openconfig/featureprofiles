@@ -64,7 +64,7 @@ const (
 )
 
 var (
-	vendorSpecRoutecount = map[ondatra.Vendor]int32{
+	vendorSpecRoutecount = map[ondatra.Vendor]uint32{
 		ondatra.JUNIPER: 2500000,
 	}
 	dutPort1 = attrs.Attributes{
