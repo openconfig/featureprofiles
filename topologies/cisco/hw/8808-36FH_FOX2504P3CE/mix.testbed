@@ -35,27 +35,6 @@ duts {
   ports {
     id: "port9"
   }
-  ports {
-    id: "port10"
-  }
-  ports {
-    id: "port11"
-  }
-  ports {
-    id: "port12"
-  }
-  ports {
-    id: "port13"
-  }
-  ports {
-    id: "port14"
-  }
-  ports {
-    id: "port15"
-  }
-  ports {
-    id: "port16"
-  }
 }
 
 ates {
@@ -86,27 +65,6 @@ ates {
   }
   ports {
     id: "port9"
-  }
-  ports {
-    id: "port10"
-  }
-  ports {
-    id: "port11"
-  }
-  ports {
-    id: "port12"
-  }
-  ports {
-    id: "port13"
-  }
-  ports {
-    id: "port14"
-  }
-  ports {
-    id: "port15"
-  }
-  ports {
-    id: "port16"
   }
 }
 
@@ -152,36 +110,3 @@ links {
   a: "dut:port9"
   b: "ate:port9"
 }
-
-links {
-  a: "dut:port10"
-  b: "ate:port10"
-}
-links {
-  a: "dut:port11"
-  b: "ate:port11"
-}
-
-links {
-  a: "dut:port12"
-  b: "ate:port12"
-}
-links {
-  a: "dut:port13"
-  b: "ate:port13"
-}
-
-links {
-  a: "dut:port14"
-  b: "ate:port14"
-}
-links {
-  a: "dut:port15"
-  b: "ate:port15"
-}
-
-links {
-  a: "dut:port16"
-  b: "ate:port16"
-}
-
