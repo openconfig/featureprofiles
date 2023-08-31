@@ -63,6 +63,7 @@ type ACLWbbIngressTableEntryInfo struct {
 	OuterVlanID     uint16 // lower 12 bits
 	OuterVlanIDMask uint16 // lower 12 bits
 	Priority        uint32
+	Metadata        string
 }
 
 // Filling up P4RT Structs is a bit cumbersome, wrap things to simplify
@@ -164,6 +165,7 @@ func aclWbbIngressTableEntryGet(info *ACLWbbIngressTableEntryInfo) *p4_v1.Update
 						}
 						return int32(info.Priority)
 					}(),
+					Metadata: []byte(info.Metadata),
 				},
 			},
 		},

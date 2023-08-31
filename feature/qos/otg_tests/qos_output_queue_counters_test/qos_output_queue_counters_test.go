@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -101,12 +102,12 @@ func TestQoSCounters(t *testing.T) {
 	dev1 := top.Devices().Add().SetName(ateSrcName)
 	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac(ateSrcMac)
 	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
-	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(ateSrcIp).SetGateway(ateSrcGateway).SetPrefix(int32(prefixLen))
+	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(ateSrcIp).SetGateway(ateSrcGateway).SetPrefix(uint32(prefixLen))
 
 	dev2 := top.Devices().Add().SetName(ateDstName)
 	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth").SetMac(ateDstMac)
 	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
-	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(ateDstIp).SetGateway(ateDstGateway).SetPrefix(int32(prefixLen))
+	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(ateDstIp).SetGateway(ateDstGateway).SetPrefix(uint32(prefixLen))
 
 	queues := netutil.CommonTrafficQueues(t, dut)
 	var trafficFlows map[string]*trafficData
@@ -157,9 +158,9 @@ func TestQoSCounters(t *testing.T) {
 		ipHeader := flow.Packet().Add().Ipv4()
 		ipHeader.Src().SetValue(ateSrcIp)
 		ipHeader.Dst().SetValue(ateDstIp)
-		ipHeader.Priority().Dscp().Phb().SetValue(int32(data.dscp))
+		ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
 
-		flow.Size().SetFixed(int32(data.frameSize))
+		flow.Size().SetFixed(uint32(data.frameSize))
 		flow.Rate().SetPercentage(float32(data.trafficRate))
 		flow.Duration().FixedPackets().SetPackets(10000)
 	}
@@ -194,13 +195,33 @@ func TestQoSCounters(t *testing.T) {
 	}
 
 	// Get QoS egress packet counters before the traffic.
+	const timeout = time.Minute
+	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 	for _, data := range trafficFlows {
-		counters["dutQosPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
-		counters["dutQosOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitOctets().State())
-		counters["dutQosDroppedPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedPkts().State())
+		count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+		if !ok {
+			t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", dp2.Name(), data.queue, timeout)
+		}
+		counters["dutQosPktsBeforeTraffic"][data.queue], _ = count.Val()
+
+		count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitOctets().State(), timeout, isPresent).Await(t)
+		if !ok {
+			t.Errorf("TransmitOctets count for queue %q on interface %q not available within %v", dp2.Name(), data.queue, timeout)
+		}
+		counters["dutQosOctetsBeforeTraffic"][data.queue], _ = count.Val()
+
+		count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+		if !ok {
+			t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp2.Name(), data.queue, timeout)
+		}
+		counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
 
 		if !deviations.QOSDroppedOctets(dut) {
-			counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
+			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp2.Name(), data.queue, timeout)
+			}
+			counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
 		}
 	}
 

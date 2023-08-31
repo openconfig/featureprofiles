@@ -18,14 +18,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/google/go-github/v50/github"
+	"github.com/google/uuid"
 	"google.golang.org/api/cloudbuild/v1"
 
 	"github.com/go-git/go-git/v5"
@@ -77,22 +81,54 @@ func (d *deviceType) String() string {
 	return d.Vendor.String() + " " + d.HardwareModel
 }
 
+// createArchive uploads the compressed repository to Object Store and returns the path to the object.
+func (p *pullRequest) createArchive(ctx context.Context, storClient *storage.Client) (string, error) {
+	data, err := createTGZArchive(p.localFS)
+	if err != nil {
+		return "", err
+	}
+
+	u, err := uuid.NewRandom()
+	if err != nil {
+		return "", err
+	}
+
+	objPath := "source/" + strconv.FormatInt(time.Now().UTC().Unix(), 10) + "-" + hex.EncodeToString(u[:]) + ".tgz"
+	obj := storClient.Bucket(gcpCloudBuildBucketName).Object(objPath).NewWriter(ctx)
+	obj.ContentType = "application/x-tar"
+	obj.Metadata = map[string]string{
+		"pr":      strconv.Itoa(p.ID),
+		"headSHA": p.HeadSHA,
+	}
+	if _, err := data.WriteTo(obj); err != nil {
+		return "", err
+	}
+	return objPath, obj.Close()
+}
+
 // createBuild creates a GCB build for each of the deviceTypes.
 func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.Service, storClient *storage.Client, devices []deviceType) error {
+	err := p.fetchGoDeps()
+	if err != nil {
+		return err
+	}
+
+	objPath, err := p.createArchive(ctx, storClient)
+	if err != nil {
+		return err
+	}
+
 	for _, d := range devices {
+	virtualDeviceLoop:
 		for i, virtualDevice := range p.Virtual {
 			if virtualDevice.Type == d {
 				if len(virtualDevice.Tests) == 0 {
 					continue
 				}
-				skip := false
 				for _, v := range virtualDevice.Tests {
 					if v.Status != "pending authorization" {
-						skip = true
+						continue virtualDeviceLoop
 					}
-				}
-				if skip {
-					continue
 				}
 				cb := &cloudBuild{
 					device:      virtualDevice,
@@ -100,10 +136,11 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 					storClient:  storClient,
 					f:           p.localFS,
 				}
-				jobID, logURL, err := cb.submitBuild(ctx)
+				jobID, logURL, err := cb.submitBuild(objPath)
 				if err != nil {
-					return fmt.Errorf("error creating CloudBuild job for PR%d: %w", p.ID, err)
+					return fmt.Errorf("submitBuild device %q: %w", virtualDevice.Type.String(), err)
 				}
+				glog.Infof("Created CloudBuild Job %s for PR%d at commit %q for device %q", jobID, p.ID, p.HeadSHA, virtualDevice.Type.String())
 				p.Virtual[i].CloudBuildID = jobID
 				p.Virtual[i].CloudBuildLogURL = logURL
 				vendor := strings.ToLower(virtualDevice.Type.Vendor.String())
@@ -116,6 +153,20 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 		}
 	}
 
+	return nil
+}
+
+// fetchGoDeps downloads the Golang module dependencies into a local vendor cache.
+func (p *pullRequest) fetchGoDeps() error {
+	goBin, err := exec.LookPath("go")
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(goBin, "mod", "vendor")
+	cmd.Dir = p.localPath
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("vendoring dependencies: %v, output:\n%s", err, out)
+	}
 	return nil
 }
 
@@ -161,7 +212,7 @@ func (p *pullRequest) populateObjectMetadata(ctx context.Context, storClient *st
 			if cloudBuildLogURL, ok := objAttrs.Metadata["cloudBuildLogURL"]; ok {
 				p.Virtual[i].CloudBuildLogURL = cloudBuildLogURL
 			}
-			if cloudBuildRawLogURL, ok := objAttrs.Metadata["CloudBuildRawLogURL"]; ok {
+			if cloudBuildRawLogURL, ok := objAttrs.Metadata["cloudBuildRawLogURL"]; ok {
 				p.Virtual[i].CloudBuildRawLogURL = cloudBuildRawLogURL
 			}
 		}
@@ -219,11 +270,16 @@ func (p *pullRequest) updateGitHub(ctx context.Context, githubClient *github.Cli
 		return err
 	}
 	if firstComment == nil {
-		_, _, err = githubClient.Issues.CreateComment(ctx, githubProjectOwner, githubProjectRepo, p.ID, comment)
+		err = withRetry(3, "CreateIssueComment", func() error {
+			_, _, err = githubClient.Issues.CreateComment(ctx, githubProjectOwner, githubProjectRepo, p.ID, comment)
+			return err
+		})
 	} else {
-		_, _, err = githubClient.Issues.EditComment(ctx, githubProjectOwner, githubProjectRepo, firstComment.GetID(), comment)
+		err = withRetry(3, "EditIssueComment", func() error {
+			_, _, err = githubClient.Issues.EditComment(ctx, githubProjectOwner, githubProjectRepo, firstComment.GetID(), comment)
+			return err
+		})
 	}
-
 	return err
 }
 
@@ -320,4 +376,19 @@ func modifiedFunctionalTests(functionalTests []string, modifiedFiles []string) [
 		result = append(result, k)
 	}
 	return result
+}
+
+// withRetry will run func f up to attempts times, retrying if any error is
+// returned. This is intended to be used with the GitHub HTTP API, which can
+// occasionally return errors that deserve a retry.
+func withRetry(attempts int, name string, f func() error) error {
+	var err error
+	for i := 0; i < attempts; i++ {
+		if err = f(); err == nil {
+			return nil
+		}
+		glog.Infof("Retry %d of %q, error: %v", attempts, name, err)
+		time.Sleep(250 * time.Millisecond)
+	}
+	return err
 }
