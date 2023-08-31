@@ -4,10 +4,30 @@ owners:
 testbeds:
   - 8808-1DUT-1ATE
 tests:
-- name: qos-ate
+- name: qos-interface-red
   path: feature/cisco/qos/interface-red
   timeout: 36000
   mustpass: true
   internal: true
   branch: master
+- name: qos-wrr
+  path: feature/cisco/qos/wrr
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master
+- name: qos-classifier
+  path: feature/cisco/qos/classifier
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master
+- name: qos-queue-management
+  path: feature/cisco/qos/queue-management
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master 
+
+   
   
