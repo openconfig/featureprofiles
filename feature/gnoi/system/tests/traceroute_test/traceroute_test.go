@@ -46,7 +46,6 @@ func TestMain(m *testing.M) {
 //     - initial_ttl: Initial TTL. (default=1).
 //     - max_ttl: Maximum number of hops. (default=30).
 //     - wait: Nanoseconds to wait for a response.
-//     - do_not_fragment: Set the do not fragment bit. It only applied to IPv4 destinations.
 //     - do_not_resolve: Do not try resolve the address returned.
 //     - l3protocol: Layer3 protocol IPv4 or IPv6 for the ping.
 //     - l4protocol: Layer4 protocol ICMP, TCP or UDP.
@@ -124,15 +123,6 @@ func TestGNOITraceroute(t *testing.T) {
 			traceRequest: &spb.TracerouteRequest{
 				Destination:    ipv6Addrs[0].GetIp(),
 				L3Protocol:     tpb.L3Protocol_IPV6,
-				DoNotLookupAsn: true,
-			}},
-		{
-			desc:              "Check traceroute with IPv4 DF bit",
-			defaultL4Protocol: true,
-			traceRequest: &spb.TracerouteRequest{
-				Destination:    ipv4Addrs[0].GetIp(),
-				L3Protocol:     tpb.L3Protocol_IPV4,
-				DoNotFragment:  true,
 				DoNotLookupAsn: true,
 			}},
 		{
@@ -250,11 +240,6 @@ func TestGNOITraceroute(t *testing.T) {
 				}
 				if tc.traceRequest.L4Protocol != spb.TracerouteRequest_UDP {
 					t.Skip("Test is skiped due to the TraceRouteL4ProtocolUDP deviation")
-				}
-			}
-			if deviations.TraceRouteFragmentation(dut) {
-				if tc.traceRequest.DoNotFragment {
-					t.Skip("Test is skiped due to the TraceRouteFragmentation deviation")
 				}
 			}
 			t.Logf("Sent traceroute request: %v\n\n", tc.traceRequest)

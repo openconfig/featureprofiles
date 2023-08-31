@@ -348,6 +348,8 @@ func (tc *testArgs) configureATE(t *testing.T) {
 	if is100gfr {
 		agg.Ethernet().FEC().WithEnabled(false)
 	}
+	// Start LACP before configuring IP addresses because ARP/ND does not always succeed
+	// when both LACP/IP protocols are started simultaneously.
 	tc.top.Push(t).StartProtocols(t)
 
 	agg.IPv4().
@@ -545,7 +547,7 @@ func (tc *testArgs) getCounters(t *testing.T, when string) []*oc.Interface_Count
 func TestAggregateForwardingViable(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	aggID := netutil.NextBundleInterface(t, dut)
+	aggID := netutil.NextAggregateInterface(t, dut)
 
 	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 	for _, lagType := range lagTypes {

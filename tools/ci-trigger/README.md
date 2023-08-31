@@ -84,7 +84,7 @@ docker push us-west1-docker.pkg.dev/disco-idea-817/featureprofiles-ci/featurepro
 To deploy the container into the project:
 
 ```
-gcloud run deploy featureprofiles-ci-trigger --region us-west1 --image us-west1-docker.pkg.dev/disco-idea-817/featureprofiles-ci/featureprofiles-ci-trigger:latest
+gcloud run deploy featureprofiles-ci-trigger --memory 1G --region us-west1 --image us-west1-docker.pkg.dev/disco-idea-817/featureprofiles-ci/featureprofiles-ci-trigger:latest
 ```
 
 Allow for background CPU and a minimum instance count for pubsub pull to continue processing.
@@ -123,7 +123,7 @@ export GITHUB_WEBHOOK_SECRET=shared_secret
 export GITHUB_API_SECRET=api_secret
 
 umask 0022
-go run github.com/openconfig/featureprofiles/tools/ci-trigger
+go run github.com/openconfig/featureprofiles/tools/ci-trigger -alsologtostderr
 ```
 
 You may need to customize the config.go files based on your environment.  You will also need to have some form of [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) available.

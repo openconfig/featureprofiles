@@ -114,7 +114,8 @@ For example:
 *   `feature/interface/singleton/tests/` contains the singleton interfaces test
     suite without traffic generation.
 *   `internal/deviations` contains code which overrides test behavior where
-    there are known issues in a DUT.
+    there are known issues in a DUT. Follow the guidelines posted at
+    `internal/deviations/README.md` to add new deviations.
 
 Within each test directory, `README.md` should document the test plan. The test
 name directory and the `*.go` files should be named after the test name as shown

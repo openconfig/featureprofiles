@@ -19,9 +19,10 @@ package traceroute_packetin_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"testing"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -40,6 +41,7 @@ import (
 var (
 	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName            = "p4rt"
+	tracerouteSrcMAC      = "00:01:00:02:00:03"
 	deviceID              = uint64(1)
 	portId                = uint32(10)
 	electionId            = uint64(100)
@@ -220,7 +222,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4_v1.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
@@ -346,28 +348,28 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 		flow := gosnappi.NewFlow()
 		flow.SetName("IP4")
 		ethHeader := flow.Packet().Add().Ethernet()
-		ethHeader.Src().SetValue(atePort1.MAC)
+		ethHeader.Src().SetValue(tracerouteSrcMAC)
 		ethHeader.Dst().SetValue(dstMac)
 		ipHeader := flow.Packet().Add().Ipv4()
 		ipHeader.Src().SetValue(atePort1.IPv4)
 		ipHeader.Dst().SetValue(atePort2.IPv4)
-		ipHeader.TimeToLive().SetValue(int32(TTL))
-		flow.Size().SetFixed(int32(frameSize))
-		flow.Rate().SetPps(int64(frameRate))
+		ipHeader.TimeToLive().SetValue(uint32(TTL))
+		flow.Size().SetFixed(uint32(frameSize))
+		flow.Rate().SetPps(uint64(frameRate))
 		return []gosnappi.Flow{flow}
 
 	} else {
 		flow := gosnappi.NewFlow()
 		flow.SetName("IP6")
 		ethHeader := flow.Packet().Add().Ethernet()
-		ethHeader.Src().SetValue(atePort1.MAC)
+		ethHeader.Src().SetValue(tracerouteSrcMAC)
 		ethHeader.Dst().SetValue(dstMac)
 		ipv6Header := flow.Packet().Add().Ipv6()
 		ipv6Header.Src().SetValue(atePort1.IPv6)
 		ipv6Header.Dst().SetValue(atePort2.IPv6)
-		ipv6Header.HopLimit().SetValue(int32(TTL))
-		flow.Size().SetFixed(int32(frameSize))
-		flow.Rate().SetPps(int64(frameRate))
+		ipv6Header.HopLimit().SetValue(uint32(TTL))
+		flow.Size().SetFixed(uint32(frameSize))
+		flow.Rate().SetPps(uint64(frameRate))
 		return []gosnappi.Flow{flow}
 	}
 }

@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"flag"
 	"fmt"
 	"math/rand"
 	"net"
@@ -26,6 +25,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"flag"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -37,7 +38,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -305,7 +305,7 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
-	waitOTGARPEntry(t, time.Minute)
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(ateSrcPort+".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().State())
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
@@ -319,16 +319,16 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	if *randomSrcIP {
 		t.Errorf("Random source IP not yet supported")
 	} else {
-		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(int32(ateSrcNetCount))
+		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
 	}
 	if *randomDstIP {
 		t.Errorf("Random destination IP not yet supported")
 	} else {
-		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(int32(ateDstNetCount))
+		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
 	}
 	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
-		tcp.SrcPort().SetValues(generateRandomPortList(65534))
+		tcp.SrcPort().SetValues((generateRandomPortList(65534)))
 	} else {
 		tcp.SrcPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
 	}
@@ -388,10 +388,10 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 }
 
 // generates a list of random tcp ports values
-func generateRandomPortList(count int) []int32 {
-	a := make([]int32, count)
+func generateRandomPortList(count uint) []uint32 {
+	a := make([]uint32, count)
 	for index := range a {
-		a[index] = int32(rand.Intn(65536-1) + 1)
+		a[index] = uint32(rand.Intn(65536-1) + 1)
 	}
 	return a
 }
@@ -439,13 +439,4 @@ func incrementMAC(mac string, i int) (string, error) {
 	}
 	newMac := net.HardwareAddr(buf.Bytes()[2:8])
 	return newMac.String(), nil
-}
-
-// waitOTGArpEntry ensures that ARP entries are present on the tx otg interface and traffic could be started
-func waitOTGARPEntry(t *testing.T, timeout time.Duration) {
-	t.Helper()
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(ateSrcPort+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), timeout, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
 }

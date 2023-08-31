@@ -15,29 +15,55 @@
 
 set -x
 
+sudo tee /usr/bin/cleanup.sh >/dev/null <<'EOF'
+#!/bin/bash
+NAME="$(curl -X GET http://metadata.google.internal/computeMetadata/v1/instance/name -H 'Metadata-Flavor: Google')"
+ZONE="$(curl -X GET http://metadata.google.internal/computeMetadata/v1/instance/zone -H 'Metadata-Flavor: Google')"
+gcloud --quiet compute instances delete "${NAME}" --zone="${ZONE}"
+EOF
+sudo tee /etc/systemd/system/cleanup.service >/dev/null <<'EOF'
+[Unit]
+Description="Delete self after delay"
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cleanup.sh
+EOF
+sudo tee /etc/systemd/system/cleanup.timer >/dev/null <<'EOF'
+[Unit]
+Description="Delete self after delay"
+[Timer]
+OnBootSec=9h
+OnUnitActiveSec=9h
+[Install]
+WantedBy=default.target
+EOF
+sudo chmod 755 /usr/bin/cleanup.sh
+sudo systemctl daemon-reload
+sudo systemctl disable cleanup.service
+sudo systemctl enable cleanup.timer
+sudo systemctl start cleanup.timer
+
 readonly platform="${1}"
 readonly dut_tests="${2}"
 
 case ${platform} in
   arista_ceos)
     vendor_creds=ARISTA/admin/admin
-    deviations=
     ;;
   juniper_cptx)
     vendor_creds=JUNIPER/root/Google123
-    deviations="-deviation_cli_takes_precedence_over_oc=true"
     ;;
   cisco_8000e)
     vendor_creds=CISCO/cisco/cisco123
-    deviations=
     ;;
   cisco_xrd)
     vendor_creds=CISCO/cisco/cisco123
-    deviations=
     ;;
   nokia_srlinux)
     vendor_creds=NOKIA/admin/NokiaSrl1!
-    deviations=
+    ;;
+  openconfig_lemming)
+    vendor_creds=OPENCONFIG/admin/admin
     ;;
   :)
     echo "Model ${platform} not valid"
@@ -48,11 +74,14 @@ esac
 function metadata_kne_topology() {
   local metadata_test_path
   metadata_test_path="${1}"
+  local topo_prefix
+  topo_prefix=$(echo "${platform}" | tr "_" "/")
   declare -A kne_topology_file
-  kne_topology_file["TESTBED_DUT"]="${platform}.textproto"
-  kne_topology_file["TESTBED_DUT_DUT_4LINKS"]="${platform}_dutdut.textproto"
-  kne_topology_file["TESTBED_DUT_ATE_2LINKS"]="${platform}_lag.textproto"
-  kne_topology_file["TESTBED_DUT_ATE_4LINKS"]="${platform}_lag.textproto"
+  kne_topology_file["TESTBED_DUT"]="${topo_prefix}/dut.textproto"
+  kne_topology_file["TESTBED_DUT_DUT_4LINKS"]="${topo_prefix}/dutdut.textproto"
+  kne_topology_file["TESTBED_DUT_ATE_2LINKS"]="${topo_prefix}/dutate.textproto"
+  kne_topology_file["TESTBED_DUT_ATE_4LINKS"]="${topo_prefix}/dutate.textproto"
+  kne_topology_file["TESTBED_DUT_ATE_9LINKS_LAG"]="${topo_prefix}/dutate_lag.textproto"
   for p in "${!kne_topology_file[@]}"; do
     if grep -q "testbed.*${p}$" "${metadata_test_path}"/metadata.textproto; then
       echo "${kne_topology_file[${p}]}"
@@ -71,7 +100,7 @@ done
 
 kne deploy kne-internal/deploy/kne/kind-bridge.yaml
 
-pushd /tmp/workspace
+pushd /tmp/featureprofiles
 
 cp -r "${PWD}"/topologies/kne /tmp
 
@@ -83,7 +112,7 @@ for dut_test in ${dut_tests}; do
   sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/xrd:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/xrd:ga/g" /tmp/kne/"${kne_topology}"
-  sed -i "s/ghcr.io\/nokia\/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" /tmp/kne/"${kne_topology}"
+  sed -i "s/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" /tmp/kne/"${kne_topology}"
 
   gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"environment setup\"}"
   kne create /tmp/kne/"${kne_topology}"
@@ -92,7 +121,7 @@ for dut_test in ${dut_tests}; do
   -kne-topo /tmp/kne/"${kne_topology}" \
   -kne-skip-reset \
   -vendor_creds "${vendor_creds}" \
-  "${deviations}"
+  -alsologtostderr
   if [[ $? -eq 0 ]]; then
     gcloud pubsub topics publish featureprofiles-badge-status --message "{\"path\":\"${test_badge}\",\"status\":\"success\"}"
   else
