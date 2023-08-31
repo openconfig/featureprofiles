@@ -41,6 +41,7 @@ sudo chmod 755 /usr/bin/cleanup.sh
 sudo systemctl daemon-reload
 sudo systemctl disable cleanup.service
 sudo systemctl enable cleanup.timer
+sudo systemctl start cleanup.timer
 
 readonly platform="${1}"
 readonly dut_tests="${2}"

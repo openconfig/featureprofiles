@@ -523,6 +523,11 @@ func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
 }
 
+// SetNativeUser creates a user and assigns role/rbac to that user via native model.
+func SetNativeUser(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetNativeUser()
+}
+
 // P4RTGdpRequiresDot1QSubinterface returns true for devices that require configuring
 // subinterface with tagged vlan for p4rt packet in.
 func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
@@ -533,4 +538,16 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 // port link state control operations (such as port shutdown.)
 func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
 	return lookupATEDeviations(ate).GetAtePortLinkStateOperationsUnsupported()
+}
+
+// ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
+// configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
+func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
+}
+
+// AggregateLoopbackModeRequiresMemberPortLoopbackMode returns true for devices that require
+// configuring LoopbackMode on member ports to enable LoopbackMode on aggregate interface.
+func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
 }
