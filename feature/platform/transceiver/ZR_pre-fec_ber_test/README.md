@@ -8,12 +8,12 @@ Validate 400ZR optics module reports pre-FEC bit error rate performance data.
 
 *   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
     output power of one is the RX input power of the other module.
-* To establish a point to point ZR link ensure the following:
-    * Both transceivers state is enabled
-    * Both transceivers are set to a valid target TX output power
-      example -10 dBm
-    * Both transceivers are tuned to a valid centre frequency
-      example 193.1 THz
+*   To establish a point to point ZR link ensure the following:
+      * Both transceivers state is enabled
+      * Both transceivers are set to a valid target TX output power
+        example -10 dBm
+      * Both transceivers are tuned to a valid centre frequency
+        example 193.1 THz
 *   With the link ZR link established as explained above, verify that the
     following ZR transceiver telemetry paths exist and are streamed for both
     the ZR optics
