@@ -242,48 +242,7 @@ func TestPacketOut(t *testing.T) {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
-	combinations := [][]*p4v1.PacketMetadata{}
-
-	// all binary combinations
-	for _, pId := range []string{fmt.Sprint(portId), "invalid"} {
-		for _, submitIngress := range []string{"0", "1"} {
-			combinations = append(combinations, []*p4v1.PacketMetadata{
-				{
-					MetadataId: uint32(1), // "egress_port"
-					Value:      []byte(pId),
-				},
-				{
-					MetadataId: uint32(2), // "submit_to_ingress"
-					Value:      []byte(submitIngress),
-				},
-			})
-		}
-	}
-
-	// Singletons
-	for i := len(combinations) - 1; i >= 0; i-- {
-		combinations = append(combinations, []*p4v1.PacketMetadata{combinations[i][0]})
-		combinations = append(combinations, []*p4v1.PacketMetadata{combinations[i][1]})
-	}
-
-	// add terniray combinations with padding
-	for i := len(combinations) - 1; i >= 0; i-- {
-		combinations = append(combinations, append([]*p4v1.PacketMetadata{{
-			MetadataId: uint32(2), // "unused padding"
-			Value:      []byte("0"),
-		}}, combinations[i]...))
-	}
-
-	// add another combination with just padding
-	combinations = append(combinations, []*p4v1.PacketMetadata{{
-		MetadataId: uint32(2), // "unused padding"
-		Value:      []byte("0"),
-	}})
-
-	sort.Slice(combinations, func(i, j int) bool {
-		return len(combinations[i]) < len(combinations[j])
-	})
-
+	combinations := generteCombinations()
 	t.Logf("Generated %v combinations", len(combinations))
 
 	for _, c := range combinations {
@@ -305,6 +264,58 @@ func TestPacketOut(t *testing.T) {
 			testPacketOut(ctx, t, args)
 		})
 	}
+}
+
+func generteCombinations() [][]*p4v1.PacketMetadata {
+	combinations := [][]*p4v1.PacketMetadata{{}} // no metadata
+
+	egressOptions := []string{fmt.Sprint(portId), "invalid"}
+	submitToIngressOpts := []string{"0", "1"}
+
+	// singletons
+	for _, pId := range egressOptions {
+		combinations = append(combinations, []*p4v1.PacketMetadata{{
+			MetadataId: uint32(1), // "egress_port"
+			Value:      []byte(pId),
+		}})
+	}
+
+	for _, submitIngress := submitToIngressOpts {
+		combinations = append(combinations, []*p4v1.PacketMetadata{{
+			MetadataId: uint32(2), // "submit_to_ingress"
+			Value:      []byte(submitIngress),
+		}})
+	}
+ 
+	// binary combinations
+	for _, pId := range egressOptions {
+		for _, submitIngress := submitToIngressOpts {
+			combinations = append(combinations, []*p4v1.PacketMetadata{
+				{
+					MetadataId: uint32(1), // "egress_port"
+					Value:      []byte(pId),
+				},
+				{
+					MetadataId: uint32(2), // "submit_to_ingress"
+					Value:      []byte(submitIngress),
+				},
+			})
+		}
+	}
+
+	// add terniray combinations with padding
+	for i := len(combinations) - 1; i >= 0; i-- {
+		combinations = append(combinations, append([]*p4v1.PacketMetadata{{
+			MetadataId: uint32(2), // "unused padding"
+			Value:      []byte("0"),
+		}}, combinations[i]...))
+	}
+
+	sort.Slice(combinations, func(i, j int) bool {
+		return len(combinations[i]) < len(combinations[j])
+	})
+
+	return combinations
 }
 
 func shouldPass(meta []*p4v1.PacketMetadata) bool {
