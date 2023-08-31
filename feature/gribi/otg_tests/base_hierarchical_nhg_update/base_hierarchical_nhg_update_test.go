@@ -154,6 +154,7 @@ var (
 	}
 	atePort4 = attrs.Attributes{
 		Name:    "atePort4",
+		MAC:     "02:00:04:01:01:01",
 		IPv4:    "192.0.2.14",
 		IPv4Len: 30,
 	}
