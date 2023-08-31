@@ -22,40 +22,45 @@ import (
 )
 
 const (
-	ipv4PrefixLen    = 30
-	ipv6PrefixLen    = 126
-	mask             = "32"
-	outerDstIP1      = "198.51.100.1"
-	outerSrcIP1      = "198.51.100.2"
-	outerDstIP2      = "203.0.113.1"
-	outerSrcIP2      = "203.0.113.2"
-	innerDstIP1      = "198.18.0.1"
-	innerSrcIP1      = "198.18.0.255"
-	vip1             = "198.18.1.1"
-	vip2             = "198.18.1.2"
-	vrfA             = "VRF-A"
-	vrfB             = "VRF-B"
-	vrfC             = "VRF-C"
-	nh1ID            = 1
-	nhg1ID           = 1
-	nh2ID            = 2
-	nhg2ID           = 2
-	nh100ID          = 100
-	nhg100ID         = 100
-	nh101ID          = 101
-	nhg101ID         = 101
-	nh102ID          = 102
-	nhg102ID         = 102
-	nh103ID          = 103
-	nhg103ID         = 103
-	nh104ID          = 104
-	nhg104ID         = 104
-	baseFlowFilter   = "0xc63" // hexadecimal value of first 12 bits of dst 198.51.100.1
-	encapFlowFilter  = "0xcb0" // hexadecimal value of first 12 bits of dst 203.0.113.1
-	decapFlowFliter  = "0xc61" // hexadecimal value of first 12 bits of dst 198.18.0.1
-	ethernetCsmacd   = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	policyID         = "match-ipip"
-	ipOverIPProtocol = 4
+	ipv4PrefixLen      = 30
+	ipv6PrefixLen      = 126
+	mask               = "32"
+	outerDstIP1        = "198.51.100.1"
+	outerSrcIP1        = "198.51.100.2"
+	outerDstIP2        = "203.0.113.1"
+	outerSrcIP2        = "203.0.113.2"
+	innerDstIP1        = "198.18.0.1"
+	innerSrcIP1        = "198.18.0.255"
+	vip1               = "198.18.1.1"
+	vip2               = "198.18.1.2"
+	vrfA               = "VRF-A"
+	vrfB               = "VRF-B"
+	vrfC               = "VRF-C"
+	nh1ID              = 1
+	nhg1ID             = 1
+	nh2ID              = 2
+	nhg2ID             = 2
+	nh100ID            = 100
+	nhg100ID           = 100
+	nh101ID            = 101
+	nhg101ID           = 101
+	nh102ID            = 102
+	nhg102ID           = 102
+	nh103ID            = 103
+	nhg103ID           = 103
+	nh104ID            = 104
+	nhg104ID           = 104
+	baseSrcFlowFilter  = "0x02" // hexadecimal value of last 6 bits of src 198.51.100.2
+	baseDstFlowFilter  = "0x31" // hexadecimal value of first 6 bits of dst 198.51.100.1
+	encapSrcFlowFilter = "0x02" // hexadecimal value of last 6 bits of src 203.0.113.2
+	encapDstFlowFilter = "0x32" // hexadecimal value of first 6 bits of dst 203.0.113.1
+	decapSrcFlowFliter = "0x3f" // hexadecimal value of last 6 bits of src 198.18.0.255
+	decapDstFlowFliter = "0x31" // hexadecimal value of first 6 bits of dst 198.18.0.1
+	ethernetCsmacd     = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	policyID           = "match-ipip"
+	ipOverIPProtocol   = 4
+	srcTrackingName    = "ipSrcTracking"
+	dstTrackingName    = "ipDstTracking"
 )
 
 // testArgs holds the objects needed by a test case.
@@ -329,7 +334,7 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	decapFlow := createFlow(t, args.ate, args.top, "DecapFlow", &atePort4)
 	t.Run("ValidatePrimaryPath", func(t *testing.T) {
 		t.Log("Validate primary path traffic recieved ate port2 and no traffic on decap flow/port4")
-		validateTrafficFlows(t, args.ate, []gosnappi.Flow{baseFlow}, []gosnappi.Flow{decapFlow}, baseFlowFilter)
+		validateTrafficFlows(t, args.ate, []gosnappi.Flow{baseFlow}, []gosnappi.Flow{decapFlow}, baseSrcFlowFilter, baseDstFlowFilter)
 	})
 	t.Log("Shutdown Port2")
 	p2 := args.dut.Port(t, "port2")
@@ -353,7 +358,7 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	t.Run("ValidateDecapPath", func(t *testing.T) {
 		t.Log("Validate Decap traffic recieved port 4 and no traffic on primary flow/port 2")
-		validateTrafficFlows(t, args.ate, []gosnappi.Flow{decapFlow}, []gosnappi.Flow{baseFlow}, decapFlowFliter)
+		validateTrafficFlows(t, args.ate, []gosnappi.Flow{decapFlow}, []gosnappi.Flow{baseFlow}, decapSrcFlowFliter, decapDstFlowFliter)
 	})
 }
 
@@ -428,7 +433,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Run("ValidatePrimaryPath", func(t *testing.T) {
 		t.Logf("Validate Primary path traffic recieved on port 2 and no traffic on other flows/ate ports")
-		validateTrafficFlows(t, args.ate, []gosnappi.Flow{baseFlow}, []gosnappi.Flow{encapFLow, decapFLow}, baseFlowFilter)
+		validateTrafficFlows(t, args.ate, []gosnappi.Flow{baseFlow}, []gosnappi.Flow{encapFLow, decapFLow}, baseSrcFlowFilter, baseDstFlowFilter)
 	})
 
 	t.Log("Shutdown Port2")
@@ -453,7 +458,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	t.Run("ValidateDecapEncapPath", func(t *testing.T) {
 		t.Log("Validate traffic with encap header recieved on port 3 and no traffic on other flows/ate ports")
-		validateTrafficFlows(t, args.ate, []gosnappi.Flow{encapFLow}, []gosnappi.Flow{baseFlow, decapFLow}, encapFlowFilter)
+		validateTrafficFlows(t, args.ate, []gosnappi.Flow{encapFLow}, []gosnappi.Flow{baseFlow, decapFLow}, encapSrcFlowFilter, encapDstFlowFilter)
 	})
 
 	t.Log("Shutdown Port3")
@@ -479,7 +484,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	t.Run("ValidateDecapPath", func(t *testing.T) {
 		t.Log("Validate traffic after decap is recieved on port4 and no traffic on other flows/ate ports")
-		validateTrafficFlows(t, args.ate, []gosnappi.Flow{decapFLow}, []gosnappi.Flow{baseFlow, encapFLow}, decapFlowFliter)
+		validateTrafficFlows(t, args.ate, []gosnappi.Flow{decapFLow}, []gosnappi.Flow{baseFlow, encapFLow}, decapSrcFlowFliter, decapDstFlowFliter)
 	})
 }
 
@@ -498,15 +503,17 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 	innerIPHeader.Dst().Increment().SetStart(innerDstIP1).SetCount(1)
 	flow.EgressPacket().Add().Ethernet()
 	ipTracking := flow.EgressPacket().Add().Ipv4()
-	ipDst := ipTracking.Dst().MetricTags().Add()
-	ipDst.SetName("ipDstTracking").SetOffset(0).SetLength(12)
+	ipSrcTracking := ipTracking.Src().MetricTags().Add()
+	ipSrcTracking.SetName(srcTrackingName).SetOffset(26).SetLength(6)
+	ipDstTracking := ipTracking.Dst().MetricTags().Add()
+	ipDstTracking.SetName(dstTrackingName).SetOffset(0).SetLength(6)
 
 	return flow
 }
 
 // TODO: Egress Tracking to verify the correctness of packet after decap or encap needs to be added
 // validateTrafficFlows verifies that the flow on ATE, traffic should pass for good flow and fail for bad flow.
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.Flow, bad []gosnappi.Flow, flowFilter string) {
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.Flow, bad []gosnappi.Flow, srcFlowFilter string, dstFlowFilter string) {
 	top := ate.OTG().FetchConfig(t)
 	top.Flows().Clear()
 	for _, flow := range append(good, bad...) {
@@ -537,15 +544,25 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 			t.Errorf("EgressTracking got %d items, want %d", got, 1)
 			return
 		}
-		etTagspath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny().TagsAny()
-		etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
-		if got := etTags[0].GetTagValue().GetValueAsHex(); !strings.EqualFold(got, flowFilter) {
-			t.Errorf("EgressTracking filter got %q, want %q", got, flowFilter)
+		for _, et := range ets {
+			tags := et.Tags
+			for _, tag := range tags {
+				if tag.GetTagName() == srcTrackingName {
+					if got := tag.GetTagValue().GetValueAsHex(); !strings.EqualFold(got, srcFlowFilter) {
+						t.Errorf("EgressTracking filter got %q, want %q", got, srcFlowFilter)
+					}
+				}
+				if tag.GetTagName() == dstTrackingName {
+					if got := tag.GetTagValue().GetValueAsHex(); !strings.EqualFold(got, dstFlowFilter) {
+						t.Errorf("EgressTracking filter got %q, want %q", got, dstFlowFilter)
+					}
+				}
+			}
 		}
 		if got := ets[0].GetCounters().GetInPkts(); got != uint64(inPkts) {
 			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, uint64(inPkts))
 		} else {
-			t.Logf("Received %d packets with %s as the first 12 bits in the dst IP", got, flowFilter)
+			t.Logf("Received %d packets with %s as the last 6 bits of the src IP and %s as first 6 bits of dst IP ", got, srcFlowFilter, dstFlowFilter)
 		}
 	}
 
