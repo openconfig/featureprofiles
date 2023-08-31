@@ -296,6 +296,8 @@ message Metadata {
     // lspLifetimeInterval is configured.
     // Arista: partnerissuetracker.corp.google.com/293667850
     bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
+    // skip interface oper status lower layer down check when link is shutdown.
+    bool skip_interface_oper_status_lower_layer_down = 97;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;

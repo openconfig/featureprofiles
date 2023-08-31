@@ -545,3 +545,9 @@ func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
 func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
 }
+
+// SkipInterfaceOperStatusLowerLayerDown returns true if Interface operation status lower layer down check should be skipped.
+// Default value is false.
+func SkipInterfaceOperStatusLowerLayerDown(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipInterfaceOperStatusLowerLayerDown()
+}

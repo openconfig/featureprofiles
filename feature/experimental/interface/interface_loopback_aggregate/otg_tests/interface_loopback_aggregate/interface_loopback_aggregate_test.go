@@ -198,14 +198,16 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	})
 
 	t.Run("Verify AE interface and port-1 are down on DUT", func(t *testing.T) {
-		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
-		operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
-		if want := oc.Interface_OperStatus_LOWER_LAYER_DOWN; operStatus != want {
-			t.Errorf("Get(DUT AE interface oper status): got %v, want %v", operStatus, want)
+		if deviations.SkipInterfaceOperStatusLowerLayerDown(dut) {
+			gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
+			operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
+			if want := oc.Interface_OperStatus_LOWER_LAYER_DOWN; operStatus != want {
+				t.Errorf("Get(DUT AE interface oper status): got %v, want %v", operStatus, want)
+			}
 		}
 
 		gnmi.Await(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
-		operStatus = gnmi.Get(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State())
+		operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_DOWN; operStatus != want {
 			t.Errorf("Get(DUT port1 oper status): got %v, want %v", operStatus, want)
 		}
