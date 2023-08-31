@@ -1,5 +1,4 @@
 // Copyright 2023 Google LLC
-r
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +15,7 @@ r
 package interface_loopback_aggregate_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -243,9 +243,9 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 				}},
 			}
 			gnmiClient := dut.RawAPIs().GNMI().Default(t)
-			response, err := gnmiClient.Set(ctx, gpbSetRequest)
+			_, err := gnmiClient.Set(context.Background(), gpbSetRequest)
 			if err != nil {
-				t.Errorf("Failed to update interface loopback mode")	
+				t.Errorf("Failed to update interface loopback mode")
 			}
 		} else {
 			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
