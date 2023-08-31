@@ -247,6 +247,8 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to update interface loopback mode")
 			}
+		} else if deviations.AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut) {
+			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
 		} else {
 			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
 		}

@@ -546,6 +546,12 @@ func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) b
 	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
 }
 
+// AggregateLoopbackModeRequiresMemberPortLoopbackMode returns true for devices that require
+// configuring LoopbackMode on member ports to enable LoopbackMode on aggregate interface.
+func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
+}
+
 // SkipInterfaceOperStatusLowerLayerDown returns true if Interface operation status lower layer down check should be skipped.
 // Default value is false.
 func SkipInterfaceOperStatusLowerLayerDown(dut *ondatra.DUTDevice) bool {

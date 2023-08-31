@@ -7,6 +7,15 @@ description: "Interface Loopback mode"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    aggregate_loopback_mode_requires_member_port_loopback_mode: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: CISCO
   }
   deviations: {
