@@ -17,11 +17,12 @@ package lldp_packetin_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -354,7 +355,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		ElectionId: &p4pb.Uint128{High: uint64(0), Low: electionID},
 		Action:     p4pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4pb.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4pb.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
@@ -450,9 +451,9 @@ func (lldp *LLDPPacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint3
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(*lldp.SrcMAC)
 	ethHeader.Dst().SetValue(*lldp.DstMAC)
-	ethHeader.EtherType().SetValue(int32(*lldp.EthernetType))
-	flow.Size().SetFixed(int32(frameSize))
-	flow.Rate().SetPps(int64(frameRate))
+	ethHeader.EtherType().SetValue(uint32(*lldp.EthernetType))
+	flow.Size().SetFixed(uint32(frameSize))
+	flow.Rate().SetPps(uint64(frameRate))
 	return []gosnappi.Flow{flow}
 }
 

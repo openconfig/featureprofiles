@@ -15,7 +15,6 @@
 package fptest
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -24,6 +23,8 @@ import (
 	"testing"
 	"time"
 	"unicode"
+
+	"flag"
 
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/ondatra"

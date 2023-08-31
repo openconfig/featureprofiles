@@ -1,0 +1,11 @@
+name: "cisco-8000e-dut"
+nodes: {
+    name: "dut"
+    vendor: CISCO
+    model: "8201"
+    os: "ios-xr"
+    config: {
+        image: "8000e:latest"
+        file: "config.cfg"
+    }
+}

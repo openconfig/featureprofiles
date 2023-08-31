@@ -15,11 +15,12 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"flag"
 
 	"github.com/golang/glog"
 )

@@ -94,6 +94,14 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 			if len(biasCurrents) == 0 {
 				t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
 			}
+			// TODO(ankursaikia): Validate the values for each leaf.
+			ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
+			for _, th := range ths {
+				t.Logf("Transceiver: %s, Threshold Severity: %s", transceiver, th.GetSeverity().String())
+				t.Logf("Laser Temperature: lower %v, upper %v", th.GetLaserTemperatureLower(), th.GetLaserTemperatureUpper())
+				t.Logf("Output Power: lower: %v, upper: %v", th.GetOutputPowerLower(), th.GetOutputPowerUpper())
+				t.Logf("Input Power: lower: %v, upper: %v", th.GetInputPowerLower(), th.GetInputPowerUpper())
+			}
 		})
 	}
 }
@@ -177,6 +185,13 @@ func TestOpticsPowerUpdate(t *testing.T) {
 				if tc.checkMinOutPower && outPower < minOpticsPower {
 					t.Errorf("Get outPower for port %q): got %.2f, want > %f", dp.Name(), outPower, minOpticsPower)
 				}
+			}
+			ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
+			for _, th := range ths {
+				t.Logf("Transceiver: %s, Threshold Severity: %s", transceiverName, th.GetSeverity().String())
+				t.Logf("Laser Temperature: lower %v, upper %v", th.GetLaserTemperatureLower(), th.GetLaserTemperatureUpper())
+				t.Logf("Output Power: lower: %v, upper: %v", th.GetOutputPowerLower(), th.GetOutputPowerUpper())
+				t.Logf("Input Power: lower: %v, upper: %v", th.GetInputPowerLower(), th.GetInputPowerUpper())
 			}
 		})
 	}

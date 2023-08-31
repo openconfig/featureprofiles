@@ -16,11 +16,12 @@ package weighted_balancing_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"sort"
 	"testing"
 	"time"
+
+	"flag"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
