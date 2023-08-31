@@ -280,16 +280,16 @@ func generteCombinations() [][]*p4v1.PacketMetadata {
 		}})
 	}
 
-	for _, submitIngress := submitToIngressOpts {
+	for _, submitIngress := range submitToIngressOpts {
 		combinations = append(combinations, []*p4v1.PacketMetadata{{
 			MetadataId: uint32(2), // "submit_to_ingress"
 			Value:      []byte(submitIngress),
 		}})
 	}
- 
+
 	// binary combinations
 	for _, pId := range egressOptions {
-		for _, submitIngress := submitToIngressOpts {
+		for _, submitIngress := range submitToIngressOpts {
 			combinations = append(combinations, []*p4v1.PacketMetadata{
 				{
 					MetadataId: uint32(1), // "egress_port"
