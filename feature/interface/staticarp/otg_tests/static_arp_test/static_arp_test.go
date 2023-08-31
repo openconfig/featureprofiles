@@ -163,11 +163,9 @@ func configureDUT(t *testing.T, peermac string) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	if peermac == "" {
-		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(t, p1, &dutSrc, &ateSrc, peermac, dut))
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(t, p1, &dutSrc, &ateSrc, peermac, dut))
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 	p2 := dut.Port(t, "port2")
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(t, p2, &dutDst, &ateDst, peermac, dut))
@@ -301,7 +299,7 @@ func testFlow(
 			t.Fatalf("TxPkts == 0, want > 0.")
 		}
 		if lossPct > 0 {
-			t.Errorf("LossPct for flow %s detected, expected 0", f.Name())
+			t.Errorf("LossPct for flow %s detected - got %v expected 0", f.Name(), lossPct)
 		} else {
 			var macFilter string
 			if poisoned {
