@@ -279,7 +279,7 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         return False
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
-@returns('internal_fp_repo_dir', 'reserved_testbed', 
+@returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, 
                         lineup, efr, test_name,
@@ -346,7 +346,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     result = self.enqueue_child_and_get_results(c)
-    return (internal_fp_repo_dir, result.get("reserved_testbed"),
+    return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
             result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
             result.get("slurm_jobid", None), result.get("topo_path", None), result.get("testbed", None))
 
@@ -374,6 +374,7 @@ def decommission_testbed_after_tests():
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
+                        internal_fp_repo_url,
                         internal_fp_repo_dir,
                         reserved_testbed,
                         test_name,
@@ -398,12 +399,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 
     test_repo_url = PUBLIC_FP_REPO_URL
     if internal_test:
-        test_repo_url = INTERNAL_FP_REPO_URL
-
-#     use_patched_repo = test_branch == 'main' and not test_revision and not test_pr
-#     if use_patched_repo:
-#         test_repo_url = INTERNAL_FP_REPO_URL
-#         test_branch = 'firex/run'
+        test_repo_url = internal_fp_repo_url
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
