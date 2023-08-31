@@ -123,7 +123,14 @@ export GITHUB_WEBHOOK_SECRET=shared_secret
 export GITHUB_API_SECRET=api_secret
 
 umask 0022
-go run github.com/openconfig/featureprofiles/tools/ci-trigger -alsologtostderr
+go run github.com/openconfig/featureprofiles/tools/ci-trigger -alsologtostderr -badge_pubsub=false
+```
+
+Alternatively, the docker image can be run locally with the following:
+
+```
+docker build -t ci-trigger:latest -f tools/ci-trigger/Dockerfile .
+docker run -v ~/.config:/root/.config -e GITHUB_WEBHOOK_SECRET -e GITHUB_API_SECRET -p 8080:8080  ci-trigger:latest -alsologtostderr -badge_pubsub=false
 ```
 
 You may need to customize the config.go files based on your environment.  You will also need to have some form of [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) available.

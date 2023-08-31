@@ -125,13 +125,13 @@ func TestPopulateTestDetail(t *testing.T) {
 	want := pullRequest{
 		ID:      100,
 		HeadSHA: "1a2b3",
-		Virtual: []device{
+		Virtual: []*device{
 			{
 				Type: deviceType{
 					Vendor:        opb.Device_ARISTA,
 					HardwareModel: "Device Model With Spaces 1000",
 				},
-				Tests: []functionalTest{
+				Tests: []*functionalTest{
 					{
 						Name:        "plan_id-B",
 						Description: "description-B",
@@ -149,7 +149,7 @@ func TestPopulateTestDetail(t *testing.T) {
 					Vendor:        opb.Device_CISCO,
 					HardwareModel: "simple",
 				},
-				Tests: []functionalTest{
+				Tests: []*functionalTest{
 					{
 						Name:        "plan_id-B",
 						Description: "description-B",
@@ -163,13 +163,13 @@ func TestPopulateTestDetail(t *testing.T) {
 				},
 			},
 		},
-		Physical: []device{
+		Physical: []*device{
 			{
 				Type: deviceType{
 					Vendor:        opb.Device_JUNIPER,
 					HardwareModel: "1000",
 				},
-				Tests: []functionalTest{
+				Tests: []*functionalTest{
 					{
 						Name:        "plan_id-B",
 						Description: "description-B",
@@ -187,7 +187,7 @@ func TestPopulateTestDetail(t *testing.T) {
 					Vendor:        opb.Device_NOKIA,
 					HardwareModel: "a b c",
 				},
-				Tests: []functionalTest{
+				Tests: []*functionalTest{
 					{
 						Name:        "plan_id-B",
 						Description: "description-B",

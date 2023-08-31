@@ -135,7 +135,7 @@ func (t *trigger) processPullRequest(ctx context.Context, e *github.PullRequestE
 		return fmt.Errorf("validate user %q auth: %w", requestingUser, err)
 	}
 	if auth {
-		glog.Infof("User %q launching jobs for PR%d at commit %q", requestingUser, pr.ID, pr.HeadSHA)
+		glog.Infof("User %q launching test jobs for PR%d at commit %q", requestingUser, pr.ID, pr.HeadSHA)
 		if err := pr.createBuild(ctx, t.buildClient, t.storClient, t.pubsubClient, virtualDeviceTypes); err != nil {
 			return fmt.Errorf("create build for commit %q: %w", pr.HeadSHA, err)
 		}

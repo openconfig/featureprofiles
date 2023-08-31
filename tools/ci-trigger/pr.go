@@ -45,8 +45,8 @@ import (
 type pullRequest struct {
 	ID       int
 	HeadSHA  string
-	Virtual  []device
-	Physical []device
+	Virtual  []*device
+	Physical []*device
 
 	cloneURL string
 
@@ -61,7 +61,7 @@ type device struct {
 	CloudBuildLogURL    string
 	CloudBuildRawLogURL string
 	ArchivePath         string
-	Tests               []functionalTest
+	Tests               []*functionalTest
 }
 
 type deviceType struct {
@@ -126,13 +126,13 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 
 	for _, d := range devices {
 	virtualDeviceLoop:
-		for i, virtualDevice := range p.Virtual {
+		for _, virtualDevice := range p.Virtual {
 			if virtualDevice.Type == d {
 				if len(virtualDevice.Tests) == 0 {
 					continue
 				}
-				for _, v := range virtualDevice.Tests {
-					if v.Status != "pending authorization" {
+				for _, t := range virtualDevice.Tests {
+					if t.Status != "pending authorization" {
 						continue virtualDeviceLoop
 					}
 				}
@@ -147,25 +147,25 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 					return fmt.Errorf("submitBuild device %q: %w", virtualDevice.Type.String(), err)
 				}
 				glog.Infof("Created CloudBuild Job %s for PR%d at commit %q for device %q", jobID, p.ID, p.HeadSHA, virtualDevice.Type.String())
-				p.Virtual[i].ArchivePath = objPath
-				p.Virtual[i].CloudBuildID = jobID
-				p.Virtual[i].CloudBuildLogURL = logURL
+				virtualDevice.ArchivePath = objPath
+				virtualDevice.CloudBuildID = jobID
+				virtualDevice.CloudBuildLogURL = logURL
 				vendor := strings.ToLower(virtualDevice.Type.Vendor.String())
 				vendor = strings.ReplaceAll(vendor, " ", "")
-				p.Virtual[i].CloudBuildRawLogURL = fmt.Sprintf("https://storage.cloud.google.com/featureprofiles-ci-logs-%s/log-%s.txt", vendor, jobID)
-				for j := range virtualDevice.Tests {
-					p.Virtual[i].Tests[j].Status = "setup"
+				virtualDevice.CloudBuildRawLogURL = fmt.Sprintf("https://storage.cloud.google.com/featureprofiles-ci-logs-%s/log-%s.txt", vendor, jobID)
+				for _, t := range virtualDevice.Tests {
+					t.Status = "setup"
 				}
 			}
 		}
 	physicalDeviceLoop:
-		for i, physicalDevice := range p.Physical {
+		for _, physicalDevice := range p.Physical {
 			if physicalDevice.Type == d {
 				if len(physicalDevice.Tests) == 0 {
 					continue
 				}
-				for _, v := range physicalDevice.Tests {
-					if v.Status != "pending authorization" {
+				for _, t := range physicalDevice.Tests {
+					if t.Status != "pending authorization" {
 						continue physicalDeviceLoop
 					}
 				}
@@ -173,12 +173,12 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 				if err != nil {
 					return fmt.Errorf("uuid.NewRandom device %q: %w", physicalDevice.Type.String(), err)
 				}
-				p.Physical[i].ArchivePath = objPath
-				p.Physical[i].CloudBuildID = jobID.String()
+				physicalDevice.ArchivePath = objPath
+				physicalDevice.CloudBuildID = jobID.String()
 				vendor := strings.ToLower(physicalDevice.Type.Vendor.String())
 				vendor = strings.ReplaceAll(vendor, " ", "")
-				p.Physical[i].CloudBuildRawLogURL = fmt.Sprintf("https://storage.cloud.google.com/featureprofiles-ci-logs-%s/log-%s.txt", vendor, jobID)
-				jsonMsg, err := json.Marshal(p.Physical[i])
+				physicalDevice.CloudBuildRawLogURL = fmt.Sprintf("https://storage.cloud.google.com/featureprofiles-ci-logs-%s/log-%s.txt", vendor, jobID)
+				jsonMsg, err := json.Marshal(physicalDevice)
 				if err != nil {
 					return fmt.Errorf("json.Marshal device %q: %w", physicalDevice.Type.String(), err)
 				}
@@ -188,8 +188,8 @@ func (p *pullRequest) createBuild(ctx context.Context, buildClient *cloudbuild.S
 					return fmt.Errorf("pubsubTopic.Publish device %q: %w", physicalDevice.Type.String(), err)
 				}
 				glog.Infof("Sent Physical Test Job for PR%d at commit %q for device %q via %s", p.ID, p.HeadSHA, physicalDevice.Type.String(), id)
-				for j := range physicalDevice.Tests {
-					p.Physical[i].Tests[j].Status = "setup"
+				for _, t := range physicalDevice.Tests {
+					t.Status = "setup"
 				}
 			}
 		}
@@ -238,24 +238,24 @@ func (p *pullRequest) identifyModifiedTests() error {
 
 // populateObjectMetadata gathers the metadata from Object Store for any tests that exist.
 func (p *pullRequest) populateObjectMetadata(ctx context.Context, storClient *storage.Client) {
-	for i, virtualDevice := range p.Virtual {
-		for j, test := range virtualDevice.Tests {
+	for _, device := range append(p.Virtual, p.Physical...) {
+		for _, test := range device.Tests {
 			objAttrs, err := storClient.Bucket(gcpBucket).Object(test.BadgePath).Attrs(ctx)
 			if err != nil {
 				glog.Infof("Failed to fetch object %s attrs: %s", test.BadgePath, err)
 				continue
 			}
 			if status, ok := objAttrs.Metadata["status"]; ok {
-				p.Virtual[i].Tests[j].Status = status
+				test.Status = status
 			}
 			if cloudBuildID, ok := objAttrs.Metadata["cloudBuild"]; ok {
-				p.Virtual[i].CloudBuildID = cloudBuildID
+				device.CloudBuildID = cloudBuildID
 			}
 			if cloudBuildLogURL, ok := objAttrs.Metadata["cloudBuildLogURL"]; ok {
-				p.Virtual[i].CloudBuildLogURL = cloudBuildLogURL
+				device.CloudBuildLogURL = cloudBuildLogURL
 			}
 			if cloudBuildRawLogURL, ok := objAttrs.Metadata["cloudBuildRawLogURL"]; ok {
-				p.Virtual[i].CloudBuildRawLogURL = cloudBuildRawLogURL
+				device.CloudBuildRawLogURL = cloudBuildRawLogURL
 			}
 		}
 	}
@@ -264,7 +264,7 @@ func (p *pullRequest) populateObjectMetadata(ctx context.Context, storClient *st
 // updateBadges creates or updates the status of all badges in Google
 // Cloud Storage to reflect the current status of the pullRequest.
 func (p *pullRequest) updateBadges(ctx context.Context, storClient *storage.Client) error {
-	var allDevices []device
+	var allDevices []*device
 	allDevices = append(allDevices, p.Physical...)
 	allDevices = append(allDevices, p.Virtual...)
 	for _, device := range allDevices {
@@ -328,7 +328,7 @@ func (p *pullRequest) updateGitHub(ctx context.Context, githubClient *github.Cli
 // populateTestDetail reads the metadata.textproto from each test in
 // functionalTests and populates the pullRequest with test details.
 func (p *pullRequest) populateTestDetail(functionalTests []string) error {
-	tests := make(map[deviceType][]functionalTest)
+	tests := make(map[deviceType][]*functionalTest)
 	for _, ft := range functionalTests {
 		// Skip supporting ATE tests on all device types.
 		if strings.Contains(ft, "ate_tests") {
@@ -348,7 +348,7 @@ func (p *pullRequest) populateTestDetail(functionalTests []string) error {
 			deviceName := strings.ReplaceAll(d.String(), " ", "_")
 			badgePath := gcpBucketPrefix + "/" + strconv.Itoa(p.ID) + "/" + p.HeadSHA + "/" + badgeTestName + "." + deviceName + ".svg"
 			badgeURL := "https://storage.googleapis.com/" + gcpBucket + "/" + badgePath
-			newTest := functionalTest{
+			newTest := &functionalTest{
 				Name:        md.PlanId,
 				Description: md.Description,
 				Path:        ft,
@@ -364,7 +364,7 @@ func (p *pullRequest) populateTestDetail(functionalTests []string) error {
 
 	for _, d := range virtualDeviceTypes {
 		if dt, ok := tests[d]; ok {
-			p.Virtual = append(p.Virtual, device{
+			p.Virtual = append(p.Virtual, &device{
 				Type:  d,
 				Tests: dt,
 			})
@@ -373,7 +373,7 @@ func (p *pullRequest) populateTestDetail(functionalTests []string) error {
 
 	for _, d := range physicalDeviceTypes {
 		if dt, ok := tests[d]; ok {
-			p.Physical = append(p.Physical, device{
+			p.Physical = append(p.Physical, &device{
 				Type:  d,
 				Tests: dt,
 			})
