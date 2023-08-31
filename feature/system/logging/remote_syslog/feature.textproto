@@ -17,7 +17,7 @@ id {
     version: 1
 }
 
-# remoet syslog
+# remote syslog
 config_path {
     path: "/system/logging/remote-servers/remote-server/config/host"
 }
