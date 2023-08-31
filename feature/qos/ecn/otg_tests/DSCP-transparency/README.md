@@ -48,33 +48,57 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
     * attach queue-management profile to queues NC1, AF4, AF3, AF2, AF1, BE0, BE1;
     * attach scheduler-map to DUTPort3 egress
     * attach classifier to DUTPort1 nad DUTPort2 ingress
+
 * Sub Test #1 - No-Congestion 
   * Generate 64 flows of traffic form ATEPort1  toward ATEPort3
     * each flow has distinct DSCP value
     * every packet has ECT(0) set
     * all flows of equal bps rate.
     * total load - 60% (60Gbps)
-  * Verify using DUT telemetry that:
-    * no drops is seen in any of queues on DUTPort3
+  * wait 1 minutes; stop traffic generation.
+  * Verify using DUTPort3 telemetry that:
+    * no drops are seen in any of queues on DUTPort3
     * all queues reports non-zero transmit packets, octets.
   * Verify on ATEPort3 that all flows are recived w/o DSCP modification -all 64 values are observed
-  * verify on ATEPort3 that all recived packet has ECT(0) value
+  * verify on ATEPort3 that all recived packet has ECT(0) ECN value
 
 * Sub Test #2 - Congestion
   * Generate 64 flows of traffic form ATEPort1 and  64 flows of traffic form ATEPort2 toward ATEPort3
     * each flow form ATEPort1 has distinct DSCP value 
     * each flow form ATEPort2 has distinct DSCP value 
     * every packet has ECT(0) set
-    * all flows of equal bps rate.
+    * all flows are of equal bps rate.
     * Offered load:
       * ATEPort1 - 60% (60Gbps)
       * ATEPort2 - 60% (60Gbps)
-      * Note: egress port is congested.
-  * Verify using DUT telemetry that:
-    * no drops is seen in any of queues on DUTPort3
+      * Note: egress port is congested, so do all queues but NC1 (SP)
+  * wait 1 minutes; stop traffic generation.
+  * Verify using DUTPort3 telemetry that:
+    * Drops are seen in all queues byt NC1 on DUTPort3
     * all queues reports non-zero transmit packets, octets.
-  * Verify on ATEPort3 that all flows are recived w/o DSCP modification -all 64 values are observed
-  * verify on ATEPort3 that all recived packet has ECT(0) value
+  * Verify on ATEPort3 that all flows are recived w/o DSCP modification - all 64 values are observed
+  * verify on ATEPort3 that:
+    * all recived packets with DSCP 48-63 has ECT(0) value
+    * vast majority (almost all) packets with DSCP 0-47 has CE ECN value.
+
+* Sub Test #3 - NC congestion
+  * Generate 16 flows of traffic form ATEPort1 and  16 flows of traffic form ATEPort2 toward ATEPort3
+    * each flow form ATEPort1 has distinct DSCP value from 48-63 range
+    * each flow form ATEPort2 has distinct DSCP value from 48-63 range
+    * every packet has ECT(0) set
+    * all flows are of equal bps rate.
+    * Offered load:
+      * ATEPort1 - 60% (60Gbps)
+      * ATEPort2 - 60% (60Gbps)
+      * Note: egress port is congested, so do NC1 (SP) queue
+  * wait 1 minutes; stop traffic generation.
+  * Verify using DUTPort3 telemetry that:
+    * Drops are seen in NC1 queue on DUTPort3
+    * all queues but NC1 reports nzero transmit packets, octets.
+    * NC1 queue reports non-zero transmit packets, octets.
+  * Verify on ATEPort3 that all flows are recived w/o DSCP modification - all 16 values are observed.
+  * verify on ATEPort3 that:
+    * all recived packets with DSCP has ECT(0) value
 
 ## Config Parameter Coverage
 
@@ -86,21 +110,8 @@ Add list of OpenConfig 'state' paths used in this test, if any.
 
 ## Protocol/RPC Parameter Coverage
 
-Add list of OpenConfig RPC's (gNMI, gNOI, gNSI, gRIBI) used in the list, if any.
-
-For example:
-
-* gNMI
-  * Set
-  * Subscribe
-* gNOI
-  * System
-    * KillProcess
-  * Healthz
-    * Get
-    * Check
-    * Artifact
+NONE.
 
 ## Required DUT platform
 
-* Specify the minimum DUT-type: {MFF, FFF, vRX}
+* FFF
