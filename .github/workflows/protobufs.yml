@@ -90,6 +90,8 @@ jobs:
         go-version: '1.19'
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - name: Cache
       uses: actions/cache@v2
       with:
@@ -101,5 +103,19 @@ jobs:
     - name: Fetch Openconfig Models
       run: make openconfig_public
     - name: Validate Paths
-      run: make validate_paths
+      run: |
+        # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
+        if [ ! -z "${GITHUB_BASE_REF}" ]; then
+          readonly HEAD=${{ github.event.pull_request.head.sha }}
+          readonly BASE="$(git merge-base origin/main "${HEAD}")"
+          if ! git diff --diff-filter=D --name-only "${BASE}" | grep -E 'feature.textproto$'; then
+            # If it is a pull request AND if no feature.textproto files were
+            # deleted, then we can skip checking all but the added/modified
+            # feature.textproto files.
+            export FEATURE_FILES=changed-feature-textprotos.githubactions.txt
+            # grep: don't error out on no match.
+            git diff --diff-filter=d --name-only "${BASE}" | { grep -E 'feature.textproto$' || true; } > "${FEATURE_FILES}"
+          fi
+        fi
+        make validate_paths
 

@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -204,6 +205,19 @@ type testArgs struct {
 	top     *ondatra.ATETopology
 }
 
+// checkAftIPv4Entry verifies that the prefix exists as an AFT IPv4 Entry.
+func checkAftIPv4Entry(t *testing.T, dut *ondatra.DUTDevice, instance string, prefix string) {
+	t.Helper()
+	ipv4Path := gnmi.OC().NetworkInstance(instance).Afts().Ipv4Entry(prefix)
+	_, found := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == prefix
+	}).Await(t)
+	if !found {
+		t.Fatalf("Could not find prefix %s in AFT telemetry", prefix)
+	}
+}
+
 // testIPv4LeaderActiveChange first configures an IPV4 Entry through clientB
 // and ensures that the entry is active by checking AFT Telemetry and traffic.
 // It then configures an IPv4 entry through clientA without updating the election
@@ -221,8 +235,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
-	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), time.Minute, ateDstNetCIDR)
+	checkAftIPv4Entry(t, args.dut, deviations.DefaultNetworkInstance(args.dut), ateDstNetCIDR)
 
 	// Verify the entry for 198.51.100.0/24 is active through Traffic.
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -247,8 +260,7 @@ func testIPv4LeaderActiveChange(ctx context.Context, t *testing.T, args *testArg
 
 	// Verify the entry for 198.51.100.0/24 is active through AFT Telemetry.
 	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
-	ipv4Path = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	gnmi.Await(t, args.dut, ipv4Path.Prefix().State(), time.Minute, ateDstNetCIDR)
+	checkAftIPv4Entry(t, args.dut, deviations.DefaultNetworkInstance(args.dut), ateDstNetCIDR)
 
 	// Verify with traffic that the entry for 198.51.100.0/24 is installed through the ATE port-2.
 	srcEndPoint = args.top.Interfaces()[atePort1.Name]

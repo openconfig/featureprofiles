@@ -221,9 +221,9 @@ func installRoutes(t *testing.T, dut *ondatra.DUTDevice) error {
 
 	t.Logf("Verify through AFT Telemetry that %s is active", ateDstNetCIDR)
 	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		prefix, present := val.Val()
-		return present && prefix == ateDstNetCIDR
+	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !ok {
 		return fmt.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	}
@@ -302,10 +302,10 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	ate.OTG().StopTraffic(t)
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	txPackets := recvMetric.GetCounters().GetOutPkts()
-	rxPackets := recvMetric.GetCounters().GetInPkts()
+	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+	rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 	lostPackets := txPackets - rxPackets
-	lossPct := float32(lostPackets * 100 / txPackets)
+	lossPct := lostPackets * 100 / txPackets
 
 	if lossPct > lossTolerance {
 		t.Errorf("FAIL: LossPct for %s got: %f, want: 0", flow.Name(), lossPct)
