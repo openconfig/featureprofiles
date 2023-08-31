@@ -28,13 +28,13 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
         |0-73|BE1|
     * 7 queues and 7 corresponding forwarding group
     * Scheduler policy with
-    * one scheduler of STRICT priority type serving NC1 queue
-    * one scheduler of WRR type serving 6 queues AF4, AF3, AF2, AF1, BE0, BE1 with equal weights 10:10:10:10:10:10 respectivly
+       * one scheduler of STRICT priority type serving NC1 queue
+       * one scheduler of WRR type serving 6 queues AF4, AF3, AF2, AF1, BE0, BE1 with equal weights 10:10:10:10:10:10 respectivly
     * queue-management profile of WRED type with:
-    * min-treshold: 80KB
-    * max-treshold: 3MB
-    * max-drop-percentage: 100 
-    * ecn: enabled
+       * min-treshold: 80KB
+       * max-treshold: 3MB
+       * max-drop-percentage: 100 
+       * ecn: enabled
     * attach queue-management profile to queues NC1, AF4, AF3, AF2, AF1, BE0, BE1;
     * attach scheduler-map to DUTPort3 egress
     * attach classifier to DUTPort1 nad DUTPort2 ingress
@@ -63,7 +63,7 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
     * Note: egress port is congested, so do all queues but NC1 (SP)
 * wait 1 minutes; stop traffic generation.
 * Verify using DUTPort3 telemetry that:
-    * Drops are seen in all queues byt NC1 on DUTPort3
+    * Drops are seen in all queues except NC1 on DUTPort3
     * all queues reports non-zero transmit packets, octets.
 * Verify on ATEPort3 that all flows are recived w/o DSCP modification - all 64 values are observed
 * verify on ATEPort3 that:
