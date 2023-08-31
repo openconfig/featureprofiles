@@ -29,13 +29,13 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
       |DSCP (dec)|Traffic-group|
       |--|--|
       |48-63|NC1|
-      |40-47||
-      |32-40|AF4|
+      |40-47|AF4|
+      |32-39|AF4|
       |24-31|AF3|
       |16-23|AF2|
-      |12-17|AF1|
-      |8-11|BE0|
-      |0-7|BE1|
+      |8-15|AF1|
+      |4-7|BE0|
+      |0-73|BE1|
     * 7 queues and 7 corresponding forwarding group
     * Scheduler policy with
       * one scheduler of STRICT priority type serving NC1 queue
@@ -102,11 +102,21 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
 
 ## Config Parameter Coverage
 
-Add list of OpenConfig 'config' paths used in this test, if any.
+  *  qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set
+  *  qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set
+  *  qos/classifiers/classifier/terms/term/actions/config/target-group
+  * qos/queues/queue/config/name
+  *  qos/forwarding-groups/forwarding-group/config/name
+  *  qos/forwarding-groups/forwarding-group/config/output-queue
+  
 
 ## Telemetry Parameter Coverage
 
-Add list of OpenConfig 'state' paths used in this test, if any.
+  *  qos/interfaces/interface/output/queues/queue/state/dropped-octets
+  *  qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+  *  qos/interfaces/interface/output/queues/queue/state/name
+  *  qos/interfaces/interface/output/queues/queue/state/transmit-octets
+  *  qos/interfaces/interface/output/queues/queue/state/transmit-pkts
 
 ## Protocol/RPC Parameter Coverage
 
