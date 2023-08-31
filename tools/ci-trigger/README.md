@@ -10,9 +10,9 @@ CI Trigger responds to 3 types of events:
 * GitHub WebHook - Issue Comments
 * Cloud PubSub - Badge Updates
 
-On a [Pull Request](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request) `opened` (new) or `synchronize` (updated) event, CI Trigger will fetch the git branch and inspect changes between the base and head branches.  If there are any changed files in an Ondatra test directory, the test is marked as modified.  Badge icons are initialized for the commit ID into Cloud Storage and a comment is posted to the pull request containing a summary of all the changes.
+On a [Pull Request](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request) `opened` (new) or `synchronize` (updated) event, CI Trigger will fetch the git branch and inspect changes between the base and head branches. If there are any changed files in an Ondatra test directory, the test is marked as modified. Badge icons are initialized for the commit ID into Cloud Storage and a comment is posted to the pull request containing a summary of all the changes. Virtual tests are automatically launched if the PR author is authorized to run tests.
 
-On an [Issue Comment](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#issue_comment) `created` event, CI Trigger will check if the comment was made by an authorized user and contains a keyword to launch tests in a pull request.  If the conditions are met, CI trigger will create a Cloud Build task for each virtual device type requested and provide a list of tests to run to the Cloud Build task.  Badge status icons will be updated to mark that the test has been launched.
+On an [Issue Comment](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#issue_comment) `created` event, CI Trigger will check if the comment was made by an authorized user and contains a keyword to launch tests in a pull request. A job will be created for each device type requested to launch tests. Virtual tests are executed using Cloud Build, while physical tests are sent via pubsub message to another execution system. Badge status icons will be updated to mark that the test has been launched.
 
 On a PubSub topic, CI Trigger listens for test status updates coming from Cloud Build tests.  Badge icons are updated based on the messages received.
 
@@ -84,7 +84,7 @@ docker push us-west1-docker.pkg.dev/disco-idea-817/featureprofiles-ci/featurepro
 To deploy the container into the project:
 
 ```
-gcloud run deploy featureprofiles-ci-trigger --memory 1G --region us-west1 --image us-west1-docker.pkg.dev/disco-idea-817/featureprofiles-ci/featureprofiles-ci-trigger:latest
+gcloud run deploy featureprofiles-ci-trigger --cpu 2000m --memory 2Gi --region us-west1 --image us-west1-docker.pkg.dev/disco-idea-817/featureprofiles-ci/featureprofiles-ci-trigger:latest
 ```
 
 Allow for background CPU and a minimum instance count for pubsub pull to continue processing.
@@ -123,7 +123,14 @@ export GITHUB_WEBHOOK_SECRET=shared_secret
 export GITHUB_API_SECRET=api_secret
 
 umask 0022
-go run github.com/openconfig/featureprofiles/tools/ci-trigger -alsologtostderr
+go run github.com/openconfig/featureprofiles/tools/ci-trigger -alsologtostderr -badge_pubsub=false
+```
+
+Alternatively, the docker image can be run locally with the following:
+
+```
+docker build -t ci-trigger:latest -f tools/ci-trigger/Dockerfile .
+docker run -v ~/.config:/root/.config -e GITHUB_WEBHOOK_SECRET -e GITHUB_API_SECRET -p 8080:8080  ci-trigger:latest -alsologtostderr -badge_pubsub=false
 ```
 
 You may need to customize the config.go files based on your environment.  You will also need to have some form of [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) available.
