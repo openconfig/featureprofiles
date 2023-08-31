@@ -1,4 +1,5 @@
 // Copyright 2023 Google LLC
+r
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -198,7 +200,7 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	})
 
 	t.Run("Verify AE interface and port-1 are down on DUT", func(t *testing.T) {
-		if deviations.SkipInterfaceOperStatusLowerLayerDown(dut) {
+		if !deviations.SkipInterfaceOperStatusLowerLayerDown(dut) {
 			gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
 			operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
 			if want := oc.Interface_OperStatus_LOWER_LAYER_DOWN; operStatus != want {
@@ -214,7 +216,40 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	})
 
 	t.Run("Configure interface loopback mode FACILITY on DUT AE interface", func(t *testing.T) {
-		gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
+		if deviations.InterfaceLoopbackModeRawGnmi(dut) {
+			gpbSetRequest := &gpb.SetRequest{
+				Update: []*gpb.Update{{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{
+								Name: "interface",
+							},
+							{
+								Name: "name",
+								Key: map[string]string{
+									"name": aggID,
+								},
+							},
+							{
+								Name: "loopbackmode",
+							},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_StringVal{
+							StringVal: "true",
+						},
+					},
+				}},
+			}
+			gnmiClient := dut.RawAPIs().GNMI().Default(t)
+			response, err := gnmiClient.Set(ctx, gpbSetRequest)
+			if err != nil {
+				t.Errorf("Failed to update interface loopback mode")	
+			}
+		} else {
+			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
+		}
 	})
 
 	t.Run("Validate that DUT AE and port-1 operational status are UP", func(t *testing.T) {

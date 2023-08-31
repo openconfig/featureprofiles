@@ -298,6 +298,8 @@ message Metadata {
     bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
     // skip interface oper status lower layer down check when link is shutdown.
     bool skip_interface_oper_status_lower_layer_down = 97;
+    // Update interface loopback mode using raw gnmi API due to server version.
+    bool interface_loopback_mode_raw_gnmi = 98;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
