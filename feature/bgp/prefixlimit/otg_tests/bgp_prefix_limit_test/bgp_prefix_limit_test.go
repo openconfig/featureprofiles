@@ -170,18 +170,18 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
 	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
 	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
-	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	srcIpv6 := srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
-	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
+	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
 	dstPort := topo.Ports().Add().SetName("port2")
 	dstDev := topo.Devices().Add().SetName(ateDst.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dstPort.Name())
 	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
-	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
-	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
+	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
 
 	// Setup ATE BGP route v4 advertisement
 	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
@@ -537,17 +537,17 @@ func configureBGPRoutes(t *testing.T, configElement *config, routeCount uint32) 
 	configElement.bgpv4RR.Addresses().Add().
 		SetAddress(advertisedRoutesv4Net).
 		SetPrefix(advertisedRoutesv4Prefix).
-		SetCount(int32(routeCount))
+		SetCount(uint32(routeCount))
 
 	configElement.bgpv6RR.Addresses().Clear()
 	configElement.bgpv6RR.Addresses().Add().
 		SetAddress(advertisedRoutesv6Net).
 		SetPrefix(advertisedRoutesv6Prefix).
-		SetCount(int32(routeCount))
+		SetCount(uint32(routeCount))
 
 	// Modifying the OTG flows
-	configElement.flowV4Incr.SetCount(int32(routeCount))
-	configElement.flowV6Incr.SetCount(int32(routeCount))
+	configElement.flowV4Incr.SetCount(uint32(routeCount))
+	configElement.flowV6Incr.SetCount(uint32(routeCount))
 
 	otg.PushConfig(t, configElement.topo)
 	otg.StartProtocols(t)
