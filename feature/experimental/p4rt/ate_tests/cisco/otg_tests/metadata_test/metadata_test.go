@@ -306,7 +306,7 @@ func generteCombinations() [][]*p4v1.PacketMetadata {
 	// add terniray combinations with padding
 	for i := len(combinations) - 1; i >= 0; i-- {
 		combinations = append(combinations, append([]*p4v1.PacketMetadata{{
-			MetadataId: uint32(2), // "unused padding"
+			MetadataId: uint32(3), // "unused padding"
 			Value:      []byte("0"),
 		}}, combinations[i]...))
 	}
