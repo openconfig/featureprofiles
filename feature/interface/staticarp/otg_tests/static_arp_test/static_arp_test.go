@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/ondatra"
@@ -195,6 +196,30 @@ func getMacFilter(mac string) string {
 	return macFilter
 }
 
+// waitForOTGNeighborEntry waits for the neighbor to be ready on the Tx side
+func waitForOTGNeighborEntry(t *testing.T, ipType string) {
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+
+	switch ipType {
+	case "IPv4":
+		got, ok := gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t)
+		if !ok {
+			t.Fatalf("Did not receive OTG Neighbor entry for tx interface, last got: %v", got)
+		}
+
+	case "IPv6":
+		got, ok := gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t)
+		if !ok {
+			t.Fatalf("Did not receive OTG Neighbor entry for tx interface, last got: %v", got)
+		}
+	}
+}
+
 func testFlow(
 	t *testing.T,
 	ate *ondatra.ATEDevice,
@@ -237,7 +262,7 @@ func testFlow(
 		ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
 		otg.PushConfig(t, config)
 		otg.StartProtocols(t)
-		otgutils.WaitForARP(t, otg, config, "IPv4")
+		waitForOTGNeighborEntry(t, "IPv4")
 	case "IPv6":
 		flowipv6 := config.Flows().Add().SetName("FlowIPv6")
 		flowipv6.Metrics().SetEnable(true)
@@ -257,7 +282,7 @@ func testFlow(
 		ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
 		otg.PushConfig(t, config)
 		otg.StartProtocols(t)
-		otgutils.WaitForARP(t, otg, config, "IPv6")
+		waitForOTGNeighborEntry(t, "IPv6")
 	}
 
 	// Starting the traffic
