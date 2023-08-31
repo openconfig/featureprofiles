@@ -136,16 +136,19 @@ var (
 	}
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
 	}
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: 30,
 	}
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: 30,
 	}
