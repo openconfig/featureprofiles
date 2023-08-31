@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 // user needed inputs
 const (
 	with_scale            = true                        // run entire script with or without scale (Support not yet coded)
-	with_RPFO             = false                       // run entire script with or without RFPO
+	with_RPFO             = true                        // run entire script with or without RFPO
 	base_config           = "case4_decap_encap_recycle" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
