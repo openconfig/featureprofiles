@@ -220,24 +220,28 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 			gpbSetRequest := &gpb.SetRequest{
 				Update: []*gpb.Update{{
 					Path: &gpb.Path{
+						Origin: "openconfig",
 						Elem: []*gpb.PathElem{
 							{
-								Name: "interface",
+								Name: "interfaces",
 							},
 							{
-								Name: "name",
+								Name: "interface",
 								Key: map[string]string{
-									"name": aggID,
+									"name": dut.Port(t, "port1").Name(),
 								},
 							},
 							{
-								Name: "loopbackmode",
+								Name: "config",
+							},
+							{
+								Name: "loopback-mode",
 							},
 						},
 					},
 					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_StringVal{
-							StringVal: "true",
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: []byte("true"),
 						},
 					},
 				}},
