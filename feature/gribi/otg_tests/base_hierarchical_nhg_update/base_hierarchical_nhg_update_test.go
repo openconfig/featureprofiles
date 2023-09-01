@@ -201,9 +201,6 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-
 	tests := []struct {
 		name string
 		desc string
@@ -258,6 +255,9 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	p3flow := "Port 1 to Port 3"
 	p2Flow := createFlow(t, p2flow, args.top, &atePort2)
 	p3Flow := createFlow(t, p3flow, args.top, &atePort3)
+
+	args.ate.OTG().PushConfig(t, args.top)
+	args.ate.OTG().StartProtocols(t)
 
 	defer func() {
 
@@ -594,6 +594,9 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 	p2Flow := createFlow(t, p2flow, args.top, &atePort2)
 	p3Flow := createFlow(t, p3flow, args.top, &atePort3)
 	p4Flow := createFlow(t, p4flow, args.top, &atePort4)
+
+	args.ate.OTG().PushConfig(t, args.top)
+	args.ate.OTG().StartProtocols(t)
 
 	t.Log("Validate primary path traffic received at ate port2, ate port3 and no traffic on ate port4")
 	waitOTGARPEntry(t)
