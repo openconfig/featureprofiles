@@ -32,16 +32,16 @@ type PacketIO interface {
 }
 
 type testArgs struct {
-	ctx        context.Context
-	client     *p4rt_client.P4RTClient
-	dut        *ondatra.DUTDevice
-	ate        *ondatra.ATEDevice
-	top        gosnappi.Config
-	srcMAC     net.HardwareAddr
-	dstMAC     net.HardwareAddr
-	metadata   []*p4v1.PacketMetadata
-	shouldPass bool
-	packetIO   PacketIO
+	ctx      context.Context
+	client   *p4rt_client.P4RTClient
+	dut      *ondatra.DUTDevice
+	ate      *ondatra.ATEDevice
+	top      gosnappi.Config
+	srcMAC   net.HardwareAddr
+	dstMAC   net.HardwareAddr
+	metadata []*p4v1.PacketMetadata
+	atePort  string
+	packetIO PacketIO
 }
 
 // sendPackets sends out packets via PacketOut message in StreamChannel.
@@ -66,8 +66,10 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	ttl := 2
 
 	t.Logf("Sending ipv4 pakcets with ttl %d", ttl)
-	counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State())
-	t.Logf("Initial number of packets: %d", counter0)
+	counter0p1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State())
+	t.Logf("Initial number of packets on ATE port %s: %d", "port1", counter0p1)
+	counter0p2 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
+	t.Logf("Initial number of packets on ATE port %s: %d", "port2", counter0p2)
 
 	packetCounter := 100
 	packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, true, uint8(ttl), packetCounter, args.metadata)
@@ -82,17 +84,40 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	time.Sleep(60 * time.Second)
 
 	// Check packet counters after packet out
-	counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State())
-	t.Logf("Final number of packets: %d", counter1)
+	counter1p1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State())
+	t.Logf("Final number of packets on ATE port %s: %d", "port1", counter1p1)
+	counter1p2 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
+	t.Logf("Final number of packets on ATE port %s: %d", "port2", counter1p2)
 
 	// Verify InPkts stats to check P4RT stream
-	t.Logf("Received %v packets on ATE port %s", counter1-counter0, "port1")
+	t.Logf("Received %v packets on ATE port %s", counter1p1-counter0p1, "port1")
+	t.Logf("Received %v packets on ATE port %s", counter1p2-counter0p2, "port2")
 
-	if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
-		if args.shouldPass {
-			t.Fatalf("Not all the packets are received.")
+	switch args.atePort {
+	case "port1":
+		if !packetsReceived(counter1p1, counter0p1, packetCounter) {
+			t.Fatalf("Not all the packets are received on ATE port %s", "port1")
 		}
-	} else if !args.shouldPass {
-		t.Fatalf("All the packets are received.")
+		if packetsReceived(counter1p2, counter0p2, packetCounter) {
+			t.Fatalf("Unexpected packets received on ATE port %s", "port2")
+		}
+	case "port2":
+		if !packetsReceived(counter1p2, counter0p2, packetCounter) {
+			t.Fatalf("Not all the packets are received on ATE port %s", "port2")
+		}
+		if packetsReceived(counter1p1, counter0p1, packetCounter) {
+			t.Fatalf("Unexpected packets received on ATE port %s", "port1")
+		}
+	default:
+		if packetsReceived(counter1p1, counter0p1, packetCounter) {
+			t.Fatalf("Unexpected packets received on ATE port %s", "port1")
+		}
+		if packetsReceived(counter1p2, counter0p2, packetCounter) {
+			t.Fatalf("Unexpected packets received on ATE port %s", "port2")
+		}
 	}
+}
+
+func packetsReceived(counter1, counter0 uint64, expected int) bool {
+	return counter1-counter0 >= uint64(float64(expected)*0.95)
 }

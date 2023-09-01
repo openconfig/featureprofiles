@@ -45,7 +45,8 @@ const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
 	deviceID      = uint64(100)
-	portId        = uint32(2100)
+	ingressPortId = uint32(2100)
+	egressPortId  = ingressPortId + 1
 	electionId    = uint64(100)
 	dstMAC        = "00:1A:11:00:00:01"
 )
@@ -109,12 +110,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1").Name()
 	i1 := dutPort1.NewOCInterface(p1, dut)
-	i1.Id = ygot.Uint32(portId)
+	i1.Id = ygot.Uint32(ingressPortId)
 	gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
 
 	p2 := dut.Port(t, "port2").Name()
 	i2 := dutPort2.NewOCInterface(p2, dut)
-	i2.Id = ygot.Uint32(portId + 1)
+	i2.Id = ygot.Uint32(egressPortId)
 	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
 }
 
@@ -204,7 +205,7 @@ func setupP4RTClient(ctx context.Context, client *p4rt_client.P4RTClient) error 
 // getTracerouteParameter returns Traceroute related parameters for testPacketOut testcase.
 func getTracerouteParameter(t *testing.T) PacketIO {
 	return &TraceroutePacketIO{
-		IngressPort: fmt.Sprint(portId),
+		IngressPort: fmt.Sprint(ingressPortId),
 	}
 }
 
@@ -247,16 +248,16 @@ func TestPacketOut(t *testing.T) {
 
 	for _, c := range combinations {
 		args := &testArgs{
-			ctx:        ctx,
-			client:     leader,
-			dut:        dut,
-			ate:        ate,
-			top:        top,
-			srcMAC:     srcMAC,
-			dstMAC:     dstMAC,
-			metadata:   c,
-			shouldPass: shouldPass(c),
-			packetIO:   getTracerouteParameter(t),
+			ctx:      ctx,
+			client:   leader,
+			dut:      dut,
+			ate:      ate,
+			top:      top,
+			srcMAC:   srcMAC,
+			dstMAC:   dstMAC,
+			metadata: c,
+			atePort:  getAtePort(c),
+			packetIO: getTracerouteParameter(t),
 		}
 
 		t.Run(testName(c), func(t *testing.T) {
@@ -269,7 +270,7 @@ func TestPacketOut(t *testing.T) {
 func generateCombinations() [][]*p4v1.PacketMetadata {
 	combinations := [][]*p4v1.PacketMetadata{{}} // no metadata
 
-	egressOptions := []string{fmt.Sprint(portId), "invalid"}
+	egressOptions := []string{fmt.Sprint(egressPortId), "invalid"}
 	submitToIngressOpts := []byte{0, 1}
 
 	// singletons
@@ -318,16 +319,20 @@ func generateCombinations() [][]*p4v1.PacketMetadata {
 	return combinations
 }
 
-func shouldPass(meta []*p4v1.PacketMetadata) bool {
+func getAtePort(meta []*p4v1.PacketMetadata) string {
 	for _, m := range meta {
-		if m.MetadataId == 1 && string(m.Value) != "invalid" {
-			return true
-		}
 		if m.MetadataId == 2 && m.Value[0] == 1 {
-			return true
+			return "port1"
 		}
 	}
-	return false
+
+	for _, m := range meta {
+		if m.MetadataId == 1 && string(m.Value) == fmt.Sprint(egressPortId) {
+			return "port2"
+		}
+	}
+
+	return ""
 }
 
 func testName(meta []*p4v1.PacketMetadata) string {
