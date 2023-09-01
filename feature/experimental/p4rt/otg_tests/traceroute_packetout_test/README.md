@@ -7,7 +7,7 @@ Verify that traceroute packets can be sent by the controller.
 ### Submit to ingress specific behavior
 
 The egress port value must be set to a non empty value but will not be used. The
-setting must not interpreted as the actaul egress port id.
+setting must not be interpreted as the actual egress port id.
 
 ## Procedure
 
