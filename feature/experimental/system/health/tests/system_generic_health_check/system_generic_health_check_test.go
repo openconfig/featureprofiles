@@ -148,41 +148,43 @@ func TestComponentStatus(t *testing.T) {
 	fabricCards := components.FindComponentsByType(t, dut, fabricCardType)
 	checkComponents := append(controllerCards, lineCards...)
 	checkComponents = append(checkComponents, fabricCards...)
+	if len(checkComponents) == 0 {
+		t.Errorf("ERROR: No component has been found.")
+	}
+	gnoiClient := dut.RawAPIs().GNOI().New(t)
 	// check oper-status of the components is Active.
 	for _, component := range checkComponents {
-		val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(component).OperStatus().State()).Val()
-		if !present {
-			t.Errorf("ERROR: Get component %s oper-status failed", component)
-		} else {
-			t.Logf("INFO: Component %s oper-status: %s", component, val)
-		}
-	}
+		t.Run(component, func(t *testing.T) {
+			val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(component).OperStatus().State()).Val()
+			if !present {
+				t.Errorf("ERROR: Get component %s oper-status failed", component)
+			} else {
+				t.Logf("INFO: Component %s oper-status: %s", component, val)
+			}
+			// use gNOI to check components health status is not "unhealthy".
+			if deviations.ConsistentComponentNamesUnsupported(dut) {
+				t.Skipf("Skipping test due to deviation consistent_component_names_unsupported")
+			}
 
-	if deviations.ConsistentComponentNamesUnsupported(dut) {
-		t.Skipf("Skipping test due to deviation consistent_component_names_unsupported")
-	}
-
-	// use gNOI to check components health status is not "unhealthy".
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
-	for _, component := range checkComponents {
-		componentName := map[string]string{"name": component}
-		req := &hpb.GetRequest{
-			Path: &tpb.Path{
-				Elem: []*tpb.PathElem{
-					{Name: "components"},
-					{
-						Name: "component",
-						Key:  componentName,
+			componentName := map[string]string{"name": component}
+			req := &hpb.GetRequest{
+				Path: &tpb.Path{
+					Elem: []*tpb.PathElem{
+						{Name: "components"},
+						{
+							Name: "component",
+							Key:  componentName,
+						},
 					},
 				},
-			},
-		}
-		validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
-		if err != nil {
-			t.Errorf("Error: %v", err)
-			continue
-		}
-		t.Logf("INFO: Component %s Healthz Status: %s", component, validResponse.GetComponent().Status)
+			}
+			validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
+			if err != nil {
+				t.Errorf("ERROR: %v", err)
+			} else {
+				t.Logf("INFO: Component %s Healthz Status: %s", component, validResponse.GetComponent().Status)
+			}
+		})
 	}
 }
 
@@ -196,26 +198,32 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
+	if len(controllerCards) == 0 || len(cpuCards) == 0 {
+		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
+	}
 	for _, cpu := range cpuCards {
-		query := gnmi.OC().Component(cpu).State()
-		timestamp := time.Now().Round(time.Second)
-		component := gnmi.Get(t, dut, query)
-		cpuParent := component.GetParent()
-		if cpuParent == "" {
-			t.Errorf("ERROR: can't find parent information for CPU card %v", component)
-		}
-
-		if slices.Contains(controllerCards, cpuParent) {
-			// Remove parent from the list of check cards.
-			controllerCards = removeElement(controllerCards, cpuParent)
-			cpuUtilization := component.GetCpu().GetUtilization()
-			if cpuUtilization.Avg == nil {
-				t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
-					timestamp, deviceName, cpu, cpuParent)
-				continue
+		t.Run(cpu, func(t *testing.T) {
+			query := gnmi.OC().Component(cpu).State()
+			timestamp := time.Now().Round(time.Second)
+			component := gnmi.Get(t, dut, query)
+			cpuParent := component.GetParent()
+			if cpuParent == "" {
+				t.Errorf("ERROR: can't find parent information for CPU card %v", component)
 			}
-			t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
-		}
+
+			if slices.Contains(controllerCards, cpuParent) {
+				// Remove parent from the list of check cards.
+				controllerCards = removeElement(controllerCards, cpuParent)
+				cpuUtilization := component.GetCpu().GetUtilization()
+				if cpuUtilization.Avg == nil {
+					t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
+						timestamp, deviceName, cpu, cpuParent)
+				} else {
+					t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
+				}
+			}
+		})
+
 	}
 	if len(controllerCards) > 0 {
 		t.Errorf("ERROR: Didn't find cpu card for checkCards %s", controllerCards)
@@ -232,30 +240,34 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
+	if len(lineCards) == 0 || len(cpuCards) == 0 {
+		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
+	}
 	for _, cpu := range cpuCards {
-		timestamp := time.Now().Round(time.Second)
+		t.Run(cpu, func(t *testing.T) {
+			timestamp := time.Now().Round(time.Second)
+			query := gnmi.OC().Component(cpu).State()
+			component := gnmi.Get(t, dut, query)
 
-		query := gnmi.OC().Component(cpu).State()
-		component := gnmi.Get(t, dut, query)
-
-		cpuParent := component.GetParent()
-		if cpuParent == "" {
-			t.Errorf("ERROR: can't find parent information for CPU card %v", component)
-		}
-
-		// If cpu card's parent is line card, check cpu ultilization.
-		if slices.Contains(lineCards, cpuParent) {
-			// Remove parent from the list of check cards.
-			lineCards = removeElement(lineCards, cpuParent)
-			// Fetch CPU utilization data.
-			cpuUtilization := component.GetCpu().GetUtilization()
-			if cpuUtilization.Avg == nil {
-				t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
-					timestamp, deviceName, cpu, cpuParent)
-				continue
+			cpuParent := component.GetParent()
+			if cpuParent == "" {
+				t.Errorf("ERROR: can't find parent information for CPU card %v", component)
 			}
-			t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
-		}
+
+			// If cpu card's parent is line card, check cpu ultilization.
+			if slices.Contains(lineCards, cpuParent) {
+				// Remove parent from the list of check cards.
+				lineCards = removeElement(lineCards, cpuParent)
+				// Fetch CPU utilization data.
+				cpuUtilization := component.GetCpu().GetUtilization()
+				if cpuUtilization.Avg == nil {
+					t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
+						timestamp, deviceName, cpu, cpuParent)
+				} else {
+					t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
+				}
+			}
+		})
 	}
 
 	if len(lineCards) > 0 {
@@ -271,27 +283,30 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	cardList := append(controllerCards, lineCards...)
+	if len(cardList) == 0 {
+		t.Errorf("ERROR: No card has been found.")
+	}
 	for _, component := range cardList {
-		query := gnmi.OC().Component(component).State()
-		timestamp := time.Now().Round(time.Second)
-		componentState := gnmi.Get(t, dut, query)
-		componentType := componentState.GetType()
-		if componentType == lineCardType && deviations.LinecardMemoryUtilizationUnsupported(dut) {
-			t.Logf("INFO: Skipping test for linecard component %s due to deviation linecard_memory_utilization_unsupported", component)
-			continue
-		}
+		t.Run(component, func(t *testing.T) {
+			query := gnmi.OC().Component(component).State()
+			timestamp := time.Now().Round(time.Second)
+			componentState := gnmi.Get(t, dut, query)
+			componentType := componentState.GetType()
+			if componentType == lineCardType && deviations.LinecardMemoryUtilizationUnsupported(dut) {
+				t.Skipf("INFO: Skipping test for linecard component %s due to deviation linecard_memory_utilization_unsupported", component)
+			}
 
-		memoryState := componentState.GetMemory()
-		if memoryState == nil {
-			t.Errorf("ERROR: %s - Device: %s - %s: %-40s - Type: %-20s - Memory data not available",
-				timestamp, deviceName, description, component, componentType)
-			continue
-		}
-
-		memoryAvailable := memoryState.GetAvailable()
-		memoryUtilized := memoryState.GetUtilized()
-		memoryUtilization := uint8((memoryUtilized * 100) / (memoryAvailable + memoryUtilized))
-		t.Logf("INFO: %s - Device: %s - %s: %-40s - Type: %-20s - Utilization: %3d%%", timestamp, deviceName, description, component, componentType, memoryUtilization)
+			memoryState := componentState.GetMemory()
+			if memoryState == nil {
+				t.Errorf("ERROR: %s - Device: %s - %s: %-40s - Type: %-20s - Memory data not available",
+					timestamp, deviceName, description, component, componentType)
+			} else {
+				memoryAvailable := memoryState.GetAvailable()
+				memoryUtilized := memoryState.GetUtilized()
+				memoryUtilization := uint8((memoryUtilized * 100) / (memoryAvailable + memoryUtilized))
+				t.Logf("INFO: %s - Device: %s - %s: %-40s - Type: %-20s - Utilization: %3d%%", timestamp, deviceName, description, component, componentType, memoryUtilization)
+			}
+		})
 	}
 }
 
@@ -306,12 +321,13 @@ func TestSystemProcessNoHighCPUSpike(t *testing.T) {
 	results := gnmi.GetAll(t, dut, query)
 	for _, result := range results {
 		processName := result.GetName()
-
-		if result.CpuUtilization == nil {
-			t.Errorf("%s %s ERROR: %s process %-40s utilization not available", timestamp, deviceName, description, processName)
-		} else {
-			t.Logf("%s %s INFO: %s process %-40s utilization: %3d%%", timestamp, deviceName, description, processName, result.GetCpuUtilization())
-		}
+		t.Run(processName, func(t *testing.T) {
+			if result.CpuUtilization == nil {
+				t.Errorf("%s %s ERROR: %s process %-40s utilization not available", timestamp, deviceName, description, processName)
+			} else {
+				t.Logf("%s %s INFO: %s process %-40s utilization: %3d%%", timestamp, deviceName, description, processName, result.GetCpuUtilization())
+			}
+		})
 	}
 }
 
@@ -326,11 +342,13 @@ func TestSystemProcessNoHighMemorySpike(t *testing.T) {
 	processes := gnmi.GetAll(t, dut, query)
 	for _, process := range processes {
 		processName := process.GetName()
-		if process.MemoryUtilization != nil {
-			t.Logf("%s %s INFO:  %s - Process: %-40s - Utilization: %3d%%", currentTime, deviceName, description, processName, process.GetMemoryUtilization())
-		} else {
-			t.Errorf("%s %s ERROR:  %s - Process: %-40s - Utilization data not available", currentTime, deviceName, description, processName)
-		}
+		t.Run(processName, func(t *testing.T) {
+			if process.MemoryUtilization != nil {
+				t.Logf("%s %s INFO:  %s - Process: %-40s - Utilization: %3d%%", currentTime, deviceName, description, processName, process.GetMemoryUtilization())
+			} else {
+				t.Errorf("%s %s ERROR:  %s - Process: %-40s - Utilization data not available", currentTime, deviceName, description, processName)
+			}
+		})
 	}
 }
 
@@ -344,24 +362,9 @@ func TestNoQueueDrop(t *testing.T) {
 	interfaces := sortedInterfaces(dut.Ports())
 	t.Logf("Interfaces: %s", interfaces)
 	for _, intf := range interfaces {
-		qosInterface := gnmi.OC().Qos().Interface(intf)
-		var cases []testCase
-		switch dut.Vendor() {
-		case ondatra.JUNIPER:
-			cases = []testCase{
-				{
-					desc:     "Queue Output Dropped packets",
-					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
-				},
-				{
-					desc:     "Queue input voq-output-interface dropped packets",
-					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
-				},
-			}
-		case ondatra.ARISTA:
-			cases = []testCase{
+		t.Run(intf, func(t *testing.T) {
+			qosInterface := gnmi.OC().Qos().Interface(intf)
+			cases := []testCase{
 				{
 					desc:     "Queue Input Dropped packets",
 					path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
@@ -378,126 +381,114 @@ func TestNoQueueDrop(t *testing.T) {
 					counters: gnmi.LookupAll(t, dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
 				},
 			}
-		case ondatra.CISCO:
-			cases = []testCase{
-				{
-					desc:     "Queue Input Dropped packets",
-					path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State()),
-				},
-				{
-					desc:     "Queue Output Dropped packets",
-					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
-				},
-				{
-					desc:     "Queue input voq-output-interface dropped packets",
-					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
-				},
-			}
-		default:
-			t.Fatalf("Output queue mapping is missing for %v", dut.Vendor().String())
-		}
-
-		for _, c := range cases {
-			t.Run(c.desc, func(t *testing.T) {
-				if deviations.QOSVoqDropCounterUnsupported(dut) && c.desc == "Queue input voq-output-interface dropped packets" {
-					t.Skipf("INFO: Skipping test due to deviation qos_voq_drop_counter_unsupported")
-				}
-				if len(c.counters) == 0 {
-					t.Errorf("%s Interface %s Telemetry Value is not present", c.desc, intf)
-				}
-				for queueID, dropPkt := range c.counters {
-					dropCount, present := dropPkt.Val()
-					if !present {
-						t.Errorf("%s Interface %s %s Telemetry Value is not present", c.desc, intf, dropPkt.Path)
-					} else {
-						t.Logf("%s Interface %s, Queue %d has %d drop(s)", dropPkt.Path.GetOrigin(), intf, queueID, dropCount)
+			for _, c := range cases {
+				t.Run(c.desc, func(t *testing.T) {
+					if dut.Vendor() == ondatra.JUNIPER && c.desc == "Queue Input Dropped packets" {
+						t.Skipf("INFO: Skipping test due to %s does not support %s", dut.Vendor(), c.path)
 					}
-				}
-			})
-		}
+					if deviations.QOSVoqDropCounterUnsupported(dut) && c.desc == "Queue input voq-output-interface dropped packets" {
+						t.Skipf("INFO: Skipping test due to deviation qos_voq_drop_counter_unsupported")
+					}
+					if len(c.counters) == 0 {
+						t.Errorf("%s Interface %s Telemetry Value is not present", c.desc, intf)
+					}
+					for queueID, dropPkt := range c.counters {
+						dropCount, present := dropPkt.Val()
+						if !present {
+							t.Errorf("%s Interface %s %s Telemetry Value is not present", c.desc, intf, dropPkt.Path)
+						} else {
+							t.Logf("%s Interface %s, Queue %d has %d drop(s)", dropPkt.Path.GetOrigin(), intf, queueID, dropCount)
+						}
+					}
+				})
+			}
+		})
 	}
 }
 
 func TestNoAsicDrop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
 	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().State()
-	asicDrops := gnmi.GetAll(t, dut, query)
+	asicDrops := gnmi.LookupAll(t, dut, query)
 	if len(asicDrops) == 0 {
-		t.Fatalf("ERROR: %s is not present", query)
+		t.Fatalf("ERROR: No asic drop path exist")
 	}
-	for _, drop := range asicDrops {
-		if drop.InterfaceBlock != nil {
-			if drop.InterfaceBlock.InDrops == nil {
-				t.Errorf("ERROR: InDrops counter is not present")
-			} else {
-				t.Logf("INFO: InDrops counter: %d", drop.InterfaceBlock.GetInDrops())
+
+	for _, asicDrop := range asicDrops {
+		component := asicDrop.Path.GetElem()[1].GetKey()["name"]
+		t.Run("Component "+component, func(t *testing.T) {
+			drop, _ := asicDrop.Val()
+			if drop.InterfaceBlock != nil {
+				if drop.InterfaceBlock.InDrops == nil {
+					t.Errorf("ERROR: InDrops counter is not present")
+				} else {
+					t.Logf("INFO: InDrops counter: %d", drop.InterfaceBlock.GetInDrops())
+				}
+				if drop.InterfaceBlock.OutDrops == nil {
+					t.Errorf("ERROR: OutDrops counter is not present")
+				} else {
+					t.Logf("INFO: OutDrops counter: %d", drop.InterfaceBlock.GetInDrops())
+				}
+				if drop.InterfaceBlock.Oversubscription == nil {
+					t.Errorf("ERROR: Oversubscription counter is not present")
+				} else {
+					t.Logf("INFO: Oversubscription counter: %d", drop.InterfaceBlock.GetInDrops())
+				}
 			}
-			if drop.InterfaceBlock.OutDrops == nil {
-				t.Errorf("ERROR: OutDrops counter is not present")
-			} else {
-				t.Logf("INFO: OutDrops counter: %d", drop.InterfaceBlock.GetInDrops())
+			if drop.LookupBlock != nil {
+				if drop.LookupBlock.AclDrops == nil {
+					t.Errorf("ERROR: AclDrops counter is not present")
+				} else {
+					t.Logf("INFO: AclDrops counter: %d", drop.LookupBlock.GetAclDrops())
+				}
+				if drop.LookupBlock.ForwardingPolicy == nil {
+					t.Errorf("ERROR: ForwardingPolicy is not present")
+				} else {
+					t.Logf("INFO: GetForwardingPolicy counter: %d", drop.LookupBlock.GetForwardingPolicy())
+				}
+				if drop.LookupBlock.FragmentTotalDrops == nil {
+					t.Errorf("ERROR: FragmentTotalDrops is not present")
+				} else {
+					t.Logf("INFO: FragmentTotalDrops: %d", drop.LookupBlock.GetFragmentTotalDrops())
+				}
+				if drop.LookupBlock.IncorrectSoftwareState == nil {
+					t.Errorf("ERROR: IncorrectSoftwareState counter is not present")
+				} else {
+					t.Logf("INFO: IncorrectSoftwareState counter: %d", drop.LookupBlock.GetIncorrectSoftwareState())
+				}
+				if drop.LookupBlock.InvalidPacket == nil {
+					t.Errorf("ERROR: InvalidPacket counter is not present")
+				} else {
+					t.Logf("INFO: InvalidPacket counter: %d", drop.LookupBlock.GetInvalidPacket())
+				}
+				if drop.LookupBlock.LookupAggregate == nil {
+					t.Errorf("ERROR: LookupAggregate counter is not present")
+				} else {
+					t.Logf("INFO: LookupAggregate counter: %d", drop.LookupBlock.GetLookupAggregate())
+				}
+				if drop.LookupBlock.NoLabel == nil {
+					t.Errorf("ERROR: NoLabel counter is not present")
+				} else {
+					t.Logf("INFO: NoLabel counter: %d", drop.LookupBlock.GetNoLabel())
+				}
+				if drop.LookupBlock.NoNexthop == nil {
+					t.Errorf("ERROR: NoNexthop counter is not present")
+				} else {
+					t.Logf("INFO: NoNexthop counter: %d", drop.LookupBlock.GetNoNexthop())
+				}
+				if drop.LookupBlock.NoRoute == nil {
+					t.Errorf("ERROR: NoRoute counter is not present")
+				} else {
+					t.Logf("INFO: NoRoute counter: %d", drop.LookupBlock.GetNoNexthop())
+				}
+				if drop.LookupBlock.RateLimit == nil {
+					t.Errorf("ERROR: RateLimit counter is not present")
+				} else {
+					t.Logf("INFO: RateLimit counter: %d", drop.LookupBlock.GetRateLimit())
+				}
 			}
-			if drop.InterfaceBlock.Oversubscription == nil {
-				t.Errorf("ERROR: Oversubscription counter is not present")
-			} else {
-				t.Logf("INFO: Oversubscription counter: %d", drop.InterfaceBlock.GetInDrops())
-			}
-		}
-		if drop.LookupBlock != nil {
-			if drop.LookupBlock.AclDrops == nil {
-				t.Errorf("ERROR: AclDrops counter is not present")
-			} else {
-				t.Logf("INFO: AclDrops counter: %d", drop.LookupBlock.GetAclDrops())
-			}
-			if drop.LookupBlock.ForwardingPolicy == nil {
-				t.Errorf("ERROR: ForwardingPolicy is not present")
-			} else {
-				t.Logf("INFO: GetForwardingPolicy counter: %d", drop.LookupBlock.GetForwardingPolicy())
-			}
-			if drop.LookupBlock.FragmentTotalDrops == nil {
-				t.Errorf("ERROR: FragmentTotalDrops is not present")
-			} else {
-				t.Logf("INFO: FragmentTotalDrops: %d", drop.LookupBlock.GetFragmentTotalDrops())
-			}
-			if drop.LookupBlock.IncorrectSoftwareState == nil {
-				t.Errorf("ERROR: IncorrectSoftwareState counter is not present")
-			} else {
-				t.Logf("INFO: IncorrectSoftwareState counter: %d", drop.LookupBlock.GetIncorrectSoftwareState())
-			}
-			if drop.LookupBlock.InvalidPacket == nil {
-				t.Errorf("ERROR: InvalidPacket counter is not present")
-			} else {
-				t.Logf("INFO: InvalidPacket counter: %d", drop.LookupBlock.GetInvalidPacket())
-			}
-			if drop.LookupBlock.LookupAggregate == nil {
-				t.Errorf("ERROR: LookupAggregate counter is not present")
-			} else {
-				t.Logf("INFO: LookupAggregate counter: %d", drop.LookupBlock.GetLookupAggregate())
-			}
-			if drop.LookupBlock.NoLabel == nil {
-				t.Errorf("ERROR: NoLabel counter is not present")
-			} else {
-				t.Logf("INFO: NoLabel counter: %d", drop.LookupBlock.GetNoLabel())
-			}
-			if drop.LookupBlock.NoNexthop == nil {
-				t.Errorf("ERROR: NoNexthop counter is not present")
-			} else {
-				t.Logf("INFO: NoNexthop counter: %d", drop.LookupBlock.GetNoNexthop())
-			}
-			if drop.LookupBlock.NoRoute == nil {
-				t.Errorf("ERROR: NoRoute counter is not present")
-			} else {
-				t.Logf("INFO: NoRoute counter: %d", drop.LookupBlock.GetNoNexthop())
-			}
-			if drop.LookupBlock.RateLimit == nil {
-				t.Errorf("ERROR: RateLimit counter is not present")
-			} else {
-				t.Logf("INFO: RateLimit counter: %d", drop.LookupBlock.GetRateLimit())
-			}
-		}
+		})
 	}
 }
 
@@ -507,69 +498,71 @@ func TestInterfaceStatus(t *testing.T) {
 	interfaces := sortedInterfaces(dut.Ports())
 	t.Logf("Interfaces: %s", interfaces)
 	for _, intf := range interfaces {
-		query := gnmi.OC().Interface(intf).State()
-		root := gnmi.Get(t, dut, query)
-		t.Logf("INFO: Interface %s: \n", intf)
-		if root.OperStatus == oc.Interface_OperStatus_NOT_PRESENT {
-			t.Errorf("ERROR: Oper status is not present")
-		} else {
-			t.Logf("INFO: Oper status: %s", root.GetOperStatus())
-		}
-		if root.AdminStatus == oc.Interface_AdminStatus_UNSET {
-			t.Errorf("ERROR: Admin status is not set")
-		} else {
-			t.Logf("INFO: Admin status: %s", root.GetAdminStatus())
-		}
-		if root.Type == oc.IETFInterfaces_InterfaceType_UNSET {
-			t.Errorf("ERROR: Type is not present")
-		} else {
-			t.Logf("INFO: Type: %s", root.GetType())
-		}
-		if root.Description == nil {
-			t.Errorf("ERROR: Description is not present")
-		} else {
-			t.Logf("INFO: Description: %s", root.GetType())
-		}
-		if root.GetCounters().OutOctets == nil {
-			t.Errorf("ERROR: Counter OutOctets is not present")
-		} else {
-			t.Logf("INFO: Counter OutOctets: %d", root.GetCounters().GetOutOctets())
-		}
-		if root.GetCounters().InMulticastPkts == nil {
-			t.Errorf("ERROR: Counter InMulticastPkts is not present")
-		} else {
-			t.Logf("INFO: Counter InMulticastPkts: %d", root.GetCounters().GetInMulticastPkts())
-		}
-		if root.GetCounters().InDiscards == nil {
-			t.Errorf("ERROR: Counter InDiscards is not present")
-		} else {
-			t.Logf("INFO: Counter InDiscards: %d", root.GetCounters().GetInDiscards())
-		}
-		if root.GetCounters().InErrors == nil {
-			t.Errorf("ERROR: Counter InErrors is not present")
-		} else {
-			t.Logf("INFO: Counter InErrors: %d", root.GetCounters().GetInErrors())
-		}
-		if root.GetCounters().InUnknownProtos == nil {
-			t.Errorf("ERROR: Counter InUnknownProtos is not present")
-		} else {
-			t.Logf("INFO: Counter InUnknownProtos: %d", root.GetCounters().GetInUnknownProtos())
-		}
-		if root.GetCounters().OutDiscards == nil {
-			t.Errorf("ERROR: Counter OutDiscards is not present")
-		} else {
-			t.Logf("INFO: Counter OutDiscards: %d", root.GetCounters().GetOutDiscards())
-		}
-		if root.GetCounters().OutErrors == nil {
-			t.Errorf("ERROR: Counter OutErrors is not present")
-		} else {
-			t.Logf("INFO: Counter OutErrors: %d", root.GetCounters().GetOutErrors())
-		}
-		if root.GetCounters().InFcsErrors == nil {
-			t.Errorf("ERROR: Counter InFcsErrors is not present")
-		} else {
-			t.Logf("INFO: Counter InFcsErrors: %d", root.GetCounters().GetInFcsErrors())
-		}
+		t.Run(intf, func(t *testing.T) {
+			query := gnmi.OC().Interface(intf).State()
+			root := gnmi.Get(t, dut, query)
+			t.Logf("INFO: Interface %s: \n", intf)
+			if root.OperStatus == oc.Interface_OperStatus_NOT_PRESENT {
+				t.Errorf("ERROR: Oper status is not present")
+			} else {
+				t.Logf("INFO: Oper status: %s", root.GetOperStatus())
+			}
+			if root.AdminStatus == oc.Interface_AdminStatus_UNSET {
+				t.Errorf("ERROR: Admin status is not set")
+			} else {
+				t.Logf("INFO: Admin status: %s", root.GetAdminStatus())
+			}
+			if root.Type == oc.IETFInterfaces_InterfaceType_UNSET {
+				t.Errorf("ERROR: Type is not present")
+			} else {
+				t.Logf("INFO: Type: %s", root.GetType())
+			}
+			if root.Description == nil {
+				t.Errorf("ERROR: Description is not present")
+			} else {
+				t.Logf("INFO: Description: %s", root.GetType())
+			}
+			if root.GetCounters().OutOctets == nil {
+				t.Errorf("ERROR: Counter OutOctets is not present")
+			} else {
+				t.Logf("INFO: Counter OutOctets: %d", root.GetCounters().GetOutOctets())
+			}
+			if root.GetCounters().InMulticastPkts == nil {
+				t.Errorf("ERROR: Counter InMulticastPkts is not present")
+			} else {
+				t.Logf("INFO: Counter InMulticastPkts: %d", root.GetCounters().GetInMulticastPkts())
+			}
+			if root.GetCounters().InDiscards == nil {
+				t.Errorf("ERROR: Counter InDiscards is not present")
+			} else {
+				t.Logf("INFO: Counter InDiscards: %d", root.GetCounters().GetInDiscards())
+			}
+			if root.GetCounters().InErrors == nil {
+				t.Errorf("ERROR: Counter InErrors is not present")
+			} else {
+				t.Logf("INFO: Counter InErrors: %d", root.GetCounters().GetInErrors())
+			}
+			if root.GetCounters().InUnknownProtos == nil {
+				t.Errorf("ERROR: Counter InUnknownProtos is not present")
+			} else {
+				t.Logf("INFO: Counter InUnknownProtos: %d", root.GetCounters().GetInUnknownProtos())
+			}
+			if root.GetCounters().OutDiscards == nil {
+				t.Errorf("ERROR: Counter OutDiscards is not present")
+			} else {
+				t.Logf("INFO: Counter OutDiscards: %d", root.GetCounters().GetOutDiscards())
+			}
+			if root.GetCounters().OutErrors == nil {
+				t.Errorf("ERROR: Counter OutErrors is not present")
+			} else {
+				t.Logf("INFO: Counter OutErrors: %d", root.GetCounters().GetOutErrors())
+			}
+			if root.GetCounters().InFcsErrors == nil {
+				t.Errorf("ERROR: Counter InFcsErrors is not present")
+			} else {
+				t.Logf("INFO: Counter InFcsErrors: %d", root.GetCounters().GetInFcsErrors())
+			}
+		})
 	}
 }
 
@@ -579,97 +572,99 @@ func TestInterfacesubIntfs(t *testing.T) {
 	interfaces := sortedInterfaces(dut.Ports())
 	t.Logf("Interfaces: %s", interfaces)
 	for _, intf := range interfaces {
-		subIntfIndexes := gnmi.LookupAll(t, dut, gnmi.OC().Interface(intf).SubinterfaceAny().Index().State())
-		for _, index := range subIntfIndexes {
-			subIntfIndex, present := index.Val()
-			if !present {
-				t.Errorf("ERROR: subIntf index value doesn't exist")
-				continue
-			}
+		t.Run(intf, func(t *testing.T) {
+			subIntfIndexes := gnmi.LookupAll(t, dut, gnmi.OC().Interface(intf).SubinterfaceAny().Index().State())
+			for _, index := range subIntfIndexes {
+				subIntfIndex, present := index.Val()
+				if !present {
+					t.Fatalf("ERROR: subIntf index value doesn't exist")
+				}
+				subIntfPath := gnmi.OC().Interface(intf).Subinterface(subIntfIndex)
+				subIntfState := gnmi.Get(t, dut, subIntfPath.State())
+				subIntf := subIntfState.GetName()
 
-			subIntfPath := gnmi.OC().Interface(intf).Subinterface(subIntfIndex)
-			subIntfState := gnmi.Get(t, dut, subIntfPath.State())
-			subIntf := subIntfState.GetName()
-			t.Logf("Sub Interfaces: %s", subIntf)
-			intfState := gnmi.Get(t, dut, gnmi.OC().Interface(intf).State())
-			if subIntfState.OperStatus == oc.Interface_OperStatus_NOT_PRESENT {
-				t.Errorf("ERROR: Oper status is not up")
-			} else {
-				t.Logf("INFO: Oper status: %s", subIntfState.GetOperStatus())
-			}
-
-			if subIntfState.AdminStatus == oc.Interface_AdminStatus_UNSET {
-				t.Errorf("ERROR: Admin status is not up")
-			} else {
-				t.Logf("INFO: Admin status: %s", subIntfState.GetAdminStatus())
-			}
-
-			if subIntfState.Description == nil {
-				t.Errorf("ERROR: Description is not present")
-			} else {
-				t.Logf("INFO: Description: %s", subIntfState.GetDescription())
-			}
-
-			if subIntfState.GetCounters().OutOctets == nil && intfState.GetCounters().OutOctets == nil {
-				t.Errorf("ERROR: Counter OutOctets is not present on interface %s, %s", subIntf, intf)
-			}
-
-			if subIntfState.GetCounters().InMulticastPkts == nil && intfState.GetCounters().InMulticastPkts == nil {
-				t.Errorf("ERROR: Counter InMulticastPkts is not present on interface %s, %s", subIntf, intf)
-			}
-
-			counters := subIntfPath.Counters()
-			parentCounters := gnmi.OC().Interface(intf).Counters()
-
-			cases := []struct {
-				desc          string
-				counter       ygnmi.SingletonQuery[uint64]
-				parentCounter ygnmi.SingletonQuery[uint64]
-			}{
-				{
-					desc:          "InDiscards",
-					counter:       counters.InDiscards().State(),
-					parentCounter: parentCounters.InDiscards().State(),
-				},
-				{
-					desc:          "InErrors",
-					counter:       counters.InErrors().State(),
-					parentCounter: parentCounters.InErrors().State(),
-				},
-				{
-					desc:          "InUnknownProtos",
-					counter:       counters.InUnknownProtos().State(),
-					parentCounter: parentCounters.InUnknownProtos().State(),
-				},
-				{
-					desc:          "OutDiscards",
-					counter:       counters.OutDiscards().State(),
-					parentCounter: parentCounters.OutDiscards().State(),
-				},
-				{
-					desc:          "OutErrors",
-					counter:       counters.OutErrors().State(),
-					parentCounter: parentCounters.OutErrors().State(),
-				},
-				{
-					desc:          "InFcsErrors",
-					counter:       counters.InFcsErrors().State(),
-					parentCounter: parentCounters.InFcsErrors().State(),
-				},
-			}
-
-			for _, c := range cases {
-				t.Run(c.desc, func(t *testing.T) {
-					if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
-						t.Logf("INFO: %s: %d", c.counter, val)
-					} else if pVal, pPresent := gnmi.Lookup(t, dut, c.parentCounter).Val(); pPresent {
-						t.Logf("INFO: %s: %d", c.parentCounter, pVal)
+				t.Run(subIntf, func(t *testing.T) {
+					intfState := gnmi.Get(t, dut, gnmi.OC().Interface(intf).State())
+					if subIntfState.OperStatus == oc.Interface_OperStatus_NOT_PRESENT {
+						t.Errorf("ERROR: Oper status is not up")
 					} else {
-						t.Errorf("ERROR: Neither %s nor %s is present", c.counter, c.parentCounter)
+						t.Logf("INFO: Oper status: %s", subIntfState.GetOperStatus())
+					}
+
+					if subIntfState.AdminStatus == oc.Interface_AdminStatus_UNSET {
+						t.Errorf("ERROR: Admin status is not up")
+					} else {
+						t.Logf("INFO: Admin status: %s", subIntfState.GetAdminStatus())
+					}
+
+					if subIntfState.Description == nil {
+						t.Errorf("ERROR: Description is not present")
+					} else {
+						t.Logf("INFO: Description: %s", subIntfState.GetDescription())
+					}
+
+					if subIntfState.GetCounters().OutOctets == nil && intfState.GetCounters().OutOctets == nil {
+						t.Errorf("ERROR: Counter OutOctets is not present on interface %s, %s", subIntf, intf)
+					}
+
+					if subIntfState.GetCounters().InMulticastPkts == nil && intfState.GetCounters().InMulticastPkts == nil {
+						t.Errorf("ERROR: Counter InMulticastPkts is not present on interface %s, %s", subIntf, intf)
+					}
+
+					counters := subIntfPath.Counters()
+					parentCounters := gnmi.OC().Interface(intf).Counters()
+
+					cases := []struct {
+						desc          string
+						counter       ygnmi.SingletonQuery[uint64]
+						parentCounter ygnmi.SingletonQuery[uint64]
+					}{
+						{
+							desc:          "InDiscards",
+							counter:       counters.InDiscards().State(),
+							parentCounter: parentCounters.InDiscards().State(),
+						},
+						{
+							desc:          "InErrors",
+							counter:       counters.InErrors().State(),
+							parentCounter: parentCounters.InErrors().State(),
+						},
+						{
+							desc:          "InUnknownProtos",
+							counter:       counters.InUnknownProtos().State(),
+							parentCounter: parentCounters.InUnknownProtos().State(),
+						},
+						{
+							desc:          "OutDiscards",
+							counter:       counters.OutDiscards().State(),
+							parentCounter: parentCounters.OutDiscards().State(),
+						},
+						{
+							desc:          "OutErrors",
+							counter:       counters.OutErrors().State(),
+							parentCounter: parentCounters.OutErrors().State(),
+						},
+						{
+							desc:          "InFcsErrors",
+							counter:       counters.InFcsErrors().State(),
+							parentCounter: parentCounters.InFcsErrors().State(),
+						},
+					}
+
+					for _, c := range cases {
+						t.Run(c.desc, func(t *testing.T) {
+							if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
+								t.Logf("INFO: %s: %d", c.counter, val)
+							} else if pVal, pPresent := gnmi.Lookup(t, dut, c.parentCounter).Val(); pPresent {
+								t.Logf("INFO: %s: %d", c.parentCounter, pVal)
+							} else {
+								t.Errorf("ERROR: Neither %s nor %s is present", c.counter, c.parentCounter)
+							}
+						})
 					}
 				})
 			}
-		}
+		})
 	}
 }
 
@@ -679,38 +674,40 @@ func TestInterfaceEthernetNoDrop(t *testing.T) {
 	interfaces := sortedInterfaces(dut.Ports())
 	t.Logf("Interfaces: %s", interfaces)
 	for _, intf := range interfaces {
-		counters := gnmi.OC().Interface(intf).Ethernet().Counters()
-		cases := []struct {
-			desc    string
-			counter ygnmi.SingletonQuery[uint64]
-		}{
-			{
-				desc:    "InCrcErrors",
-				counter: counters.InCrcErrors().State(),
-			},
-			{
-				desc:    "InMacPauseFrames",
-				counter: counters.InMacPauseFrames().State(),
-			},
-			{
-				desc:    "OutMacPauseFrames",
-				counter: counters.OutMacPauseFrames().State(),
-			},
-			{
-				desc:    "InBlockErrors",
-				counter: counters.InBlockErrors().State(),
-			},
-		}
+		t.Run(intf, func(t *testing.T) {
+			counters := gnmi.OC().Interface(intf).Ethernet().Counters()
+			cases := []struct {
+				desc    string
+				counter ygnmi.SingletonQuery[uint64]
+			}{
+				{
+					desc:    "InCrcErrors",
+					counter: counters.InCrcErrors().State(),
+				},
+				{
+					desc:    "InMacPauseFrames",
+					counter: counters.InMacPauseFrames().State(),
+				},
+				{
+					desc:    "OutMacPauseFrames",
+					counter: counters.OutMacPauseFrames().State(),
+				},
+				{
+					desc:    "InBlockErrors",
+					counter: counters.InBlockErrors().State(),
+				},
+			}
 
-		for _, c := range cases {
-			t.Run(c.desc, func(t *testing.T) {
-				if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
-					t.Logf("INFO: %s: %d", c.counter, val)
-				} else {
-					t.Errorf("ERROR: %s is not present", c.counter)
-				}
-			})
-		}
+			for _, c := range cases {
+				t.Run(c.desc, func(t *testing.T) {
+					if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
+						t.Logf("INFO: %s: %d", c.counter, val)
+					} else {
+						t.Errorf("ERROR: %s is not present", c.counter)
+					}
+				})
+			}
+		})
 	}
 }
 
