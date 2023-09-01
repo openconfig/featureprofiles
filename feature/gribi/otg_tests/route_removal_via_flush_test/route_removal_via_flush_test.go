@@ -247,7 +247,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
-		SetPrefix(int32(atePort1.IPv4Len))
+		SetPrefix(uint32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
@@ -255,7 +255,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
-		SetPrefix(int32(atePort2.IPv4Len))
+		SetPrefix(uint32(atePort2.IPv4Len))
 
 	return top
 }
@@ -315,7 +315,7 @@ func injectEntry(ctx context.Context, t *testing.T, client *fluent.GRIBIClient, 
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) int {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) float32 {
 	// Ensure that traffic can be forwarded between ATE port-1 and ATE port-2.
 	t.Helper()
 	otg := ate.OTG()
@@ -343,8 +343,11 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) int 
 
 	otgutils.LogFlowMetrics(t, otg, top)
 	time.Sleep(time.Minute)
-	txPkts := int(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
-	rxPkts := int(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
+	txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
+	rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
+	if txPkts == 0 {
+		t.Fatalf("TxPkts == 0, want > 0")
+	}
 	lossPct := (txPkts - rxPkts) * 100 / txPkts
 	return lossPct
 }
