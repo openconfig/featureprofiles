@@ -300,10 +300,8 @@ message Metadata {
     // LoopbackMode on aggregate interface.
     // Arista: partnerissuetracker.corp.google.com/297391260
     bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
-    // skip interface oper status lower layer down check when link is shutdown.
-    bool skip_interface_oper_status_lower_layer_down = 98;
     // Update interface loopback mode using raw gnmi API due to server version.
-    bool interface_loopback_mode_raw_gnmi = 99;
+    bool interface_loopback_mode_raw_gnmi = 98;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;

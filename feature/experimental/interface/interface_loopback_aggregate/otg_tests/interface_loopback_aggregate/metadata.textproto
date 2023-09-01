@@ -19,7 +19,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    skip_interface_oper_status_lower_layer_down: true
     interface_loopback_mode_raw_gnmi: true
   }
 }
