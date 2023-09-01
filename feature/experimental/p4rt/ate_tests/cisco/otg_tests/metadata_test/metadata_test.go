@@ -242,7 +242,7 @@ func TestPacketOut(t *testing.T) {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
-	combinations := generteCombinations()
+	combinations := generateCombinations()
 	t.Logf("Generated %v combinations", len(combinations))
 
 	for _, c := range combinations {
@@ -266,11 +266,11 @@ func TestPacketOut(t *testing.T) {
 	}
 }
 
-func generteCombinations() [][]*p4v1.PacketMetadata {
+func generateCombinations() [][]*p4v1.PacketMetadata {
 	combinations := [][]*p4v1.PacketMetadata{{}} // no metadata
 
 	egressOptions := []string{fmt.Sprint(portId), "invalid"}
-	submitToIngressOpts := []string{"0", "1"}
+	submitToIngressOpts := []byte{0, 1}
 
 	// singletons
 	for _, pId := range egressOptions {
@@ -283,7 +283,7 @@ func generteCombinations() [][]*p4v1.PacketMetadata {
 	for _, submitIngress := range submitToIngressOpts {
 		combinations = append(combinations, []*p4v1.PacketMetadata{{
 			MetadataId: uint32(2), // "submit_to_ingress"
-			Value:      []byte(submitIngress),
+			Value:      []byte{submitIngress},
 		}})
 	}
 
@@ -297,7 +297,7 @@ func generteCombinations() [][]*p4v1.PacketMetadata {
 				},
 				{
 					MetadataId: uint32(2), // "submit_to_ingress"
-					Value:      []byte(submitIngress),
+					Value:      []byte{submitIngress},
 				},
 			})
 		}
@@ -323,7 +323,7 @@ func shouldPass(meta []*p4v1.PacketMetadata) bool {
 		if m.MetadataId == 1 && string(m.Value) != "invalid" {
 			return true
 		}
-		if m.MetadataId == 2 && string(m.Value) != "0" {
+		if m.MetadataId == 2 && m.Value[0] == 1 {
 			return true
 		}
 	}
