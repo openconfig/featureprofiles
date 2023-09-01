@@ -129,8 +129,8 @@ func testECNConfig(t *testing.T) {
 	}{
 		ecnEnabled:                true,
 		dropEnabled:               false,
-		minThreshold:              uint64(7950000),
-		maxThreshold:              uint64(8000000),
+		minThreshold:              uint64(80000),
+		maxThreshold:              uint64(80000),
 		maxDropProbabilityPercent: uint8(100),
 		weight:                    uint32(0),
 	}
@@ -363,8 +363,8 @@ func testCiscoECNConfig(t *testing.T) {
 	}{
 		ecnEnabled:                true,
 		dropEnabled:               false,
-		minThreshold:              uint64(8005632),
-		maxThreshold:              uint64(8011776),
+		minThreshold:              uint64(80000),
+		maxThreshold:              uint64(80000),
 		maxDropProbabilityPercent: uint8(100),
 		weight:                    uint32(0),
 	}
