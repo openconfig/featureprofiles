@@ -219,6 +219,12 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 			val, _ := opStatus.Val()
 			t.Errorf("Get(DUT AE interface oper status): got %v, want %v", val.String(), want)
 		}
+
+		gnmi.Await(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
+		operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State())
+		if want := oc.Interface_OperStatus_DOWN; operStatus != want {
+			t.Errorf("Get(DUT port1 oper status): got %v, want %v", operStatus, want)
+		}
 	})
 
 	t.Run("Configure interface loopback mode FACILITY on DUT AE interface", func(t *testing.T) {
