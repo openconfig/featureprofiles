@@ -90,16 +90,16 @@ for  d in ${DIRS[@]}; do
 
       # Create the client and server complete certificates.
       openssl x509 -req -in ca-${d}/client-${t}-${g}-req.pem \
-        -CA ca-${d}/ca-${OFFSET}-${t}-${g}-cert.pem \
-        -CAkey ca-${d}/ca-${OFFSET}-${t}-${g}-key.pem \
+        -CA ca-${d}/ca-${OFFSET}-${t}-cert.pem \
+        -CAkey ca-${d}/ca-${OFFSET}-${t}-key.pem \
         -out ca-${d}/client-${t}-${g}-cert.pem \
         -CAcreateserial \
         -days ${LIFETIME} \
         -sha256 \
         -extfile client_cert_ext.cnf
       openssl x509 -req -in ca-${d}/server-${t}-${g}-req.pem \
-        -CA ca-${d}/ca-${OFFSET}-${t}-${g}-cert.pem \
-        -CAkey ca-${d}/ca-${OFFSET}-${t}-${g}-key.pem \
+        -CA ca-${d}/ca-${OFFSET}-${t}-cert.pem \
+        -CAkey ca-${d}/ca-${OFFSET}-${t}-key.pem \
         -out ca-${d}/server-${t}-${g}-cert.pem \
         -CAcreateserial \
         -days ${LIFETIME} \
