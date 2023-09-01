@@ -59,8 +59,8 @@ Verify QoS ECN feature configuration.
 ## Config parameter coverage
 
 *   ECN
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold-percent
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold-percent    
+    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold-percent
+    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold-percent    
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn
@@ -78,8 +78,8 @@ Verify QoS ECN feature configuration.
 
 *   ECN
 
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold-percent
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold-percent  
+    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold-percent
+    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold-percent  
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/enable-ecn
