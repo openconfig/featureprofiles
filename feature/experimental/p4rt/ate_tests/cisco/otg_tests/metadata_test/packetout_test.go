@@ -32,16 +32,16 @@ type PacketIO interface {
 }
 
 type testArgs struct {
-	ctx      context.Context
-	client   *p4rt_client.P4RTClient
-	dut      *ondatra.DUTDevice
-	ate      *ondatra.ATEDevice
-	top      gosnappi.Config
-	srcMAC   net.HardwareAddr
-	dstMAC   net.HardwareAddr
-	metadata []*p4v1.PacketMetadata
-	atePort  string
-	packetIO PacketIO
+	ctx         context.Context
+	client      *p4rt_client.P4RTClient
+	dut         *ondatra.DUTDevice
+	ate         *ondatra.ATEDevice
+	top         gosnappi.Config
+	srcMAC      net.HardwareAddr
+	dstMAC      net.HardwareAddr
+	metadata    []*p4v1.PacketMetadata
+	trafficPort string
+	packetIO    PacketIO
 }
 
 // sendPackets sends out packets via PacketOut message in StreamChannel.
@@ -65,7 +65,6 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	leader := args.client
 	ttl := 2
 
-	t.Logf("Sending ipv4 pakcets with ttl %d", ttl)
 	counter0p1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State())
 	t.Logf("Initial number of packets on ATE port %s: %d", "port1", counter0p1)
 	counter0p2 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
@@ -76,8 +75,8 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	if err != nil {
 		t.Fatalf("GetPacketOut returned unexpected error: %v", err)
 	}
-	t.Logf("Sending packets now")
 
+	t.Logf("Sending %d ipv4 packets with ttl %d", packetCounter, ttl)
 	sendPackets(t, leader, packets)
 
 	// Wait for ate stats to be populated
@@ -93,7 +92,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Received %v packets on ATE port %s", counter1p1-counter0p1, "port1")
 	t.Logf("Received %v packets on ATE port %s", counter1p2-counter0p2, "port2")
 
-	switch args.atePort {
+	switch args.trafficPort {
 	case "port1":
 		if !packetsReceived(counter1p1, counter0p1, packetCounter) {
 			t.Fatalf("Not all the packets are received on ATE port %s", "port1")

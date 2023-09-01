@@ -248,16 +248,16 @@ func TestPacketOut(t *testing.T) {
 
 	for _, c := range combinations {
 		args := &testArgs{
-			ctx:      ctx,
-			client:   leader,
-			dut:      dut,
-			ate:      ate,
-			top:      top,
-			srcMAC:   srcMAC,
-			dstMAC:   dstMAC,
-			metadata: c,
-			atePort:  getAtePort(c),
-			packetIO: getTracerouteParameter(t),
+			ctx:         ctx,
+			client:      leader,
+			dut:         dut,
+			ate:         ate,
+			top:         top,
+			srcMAC:      srcMAC,
+			dstMAC:      dstMAC,
+			metadata:    c,
+			trafficPort: getExpectedTrafficPort(c),
+			packetIO:    getTracerouteParameter(t),
 		}
 
 		t.Run(testName(c), func(t *testing.T) {
@@ -319,19 +319,17 @@ func generateCombinations() [][]*p4v1.PacketMetadata {
 	return combinations
 }
 
-func getAtePort(meta []*p4v1.PacketMetadata) string {
+func getExpectedTrafficPort(meta []*p4v1.PacketMetadata) string {
 	for _, m := range meta {
 		if m.MetadataId == 2 && m.Value[0] == 1 {
 			return "port1"
 		}
 	}
-
 	for _, m := range meta {
 		if m.MetadataId == 1 && string(m.Value) == fmt.Sprint(egressPortId) {
 			return "port2"
 		}
 	}
-
 	return ""
 }
 
@@ -339,7 +337,6 @@ func testName(meta []*p4v1.PacketMetadata) string {
 	egressPort := ""
 	submitIngress := ""
 	padding := ""
-
 	for _, m := range meta {
 		if m.MetadataId == 1 {
 			egressPort = string(m.Value)
@@ -351,7 +348,6 @@ func testName(meta []*p4v1.PacketMetadata) string {
 			padding = string(m.Value)
 		}
 	}
-
 	return fmt.Sprintf("egressPort:%s,submitToIngress:%s,padding:%s", egressPort, submitIngress, padding)
 }
 
