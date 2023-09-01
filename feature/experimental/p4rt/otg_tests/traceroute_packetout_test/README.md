@@ -1,10 +1,13 @@
 # P4RT-5.2: Traceroute Packetout
 
-
 ## Summary
 
 Verify that traceroute packets can be sent by the controller.
 
+### Submit to ingress specific behavior
+
+The egress port value must be set to a non empty value but will not be used. The
+setting must not interpreted as the actaul egress port id.
 
 ## Procedure
 
