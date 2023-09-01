@@ -5,7 +5,7 @@ testbeds:
   - 8201-1DUT-1ATE
 tests:
   - name: P4RTMetadata
-    path: feature/experimental/p4rt/ate_tests/cisco/otg_tests/metadata_test
+    path: feature/experimental/p4rt/otg_tests/cisco/metadata_test
     timeout: 3600
     internal: true
     branch: master
