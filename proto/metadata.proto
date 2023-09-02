@@ -100,9 +100,6 @@ message Metadata {
     // Skip BGP TestPassword mismatch subtest if value is true.
     // Cisco: partnerissuetracker.corp.google.com/273285907
     bool skip_bgp_test_password_mismatch = 19;
-    // Device does not support interface/physicalchannel leaf.
-    // Cisco: partnerissuetracker.corp.google.com/273287821
-    bool missing_interface_physical_channel = 20;
     // Skip check for
     // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
     // leaf missing case.
@@ -302,7 +299,7 @@ message Metadata {
     bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28;
+    reserved 84, 9, 28, 20;
   }
 
   message PlatformExceptions {
