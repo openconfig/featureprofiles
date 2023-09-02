@@ -315,6 +315,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+    pr: 2087
     priority: 34
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
@@ -621,5 +622,5 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
-    branch: kjahed/FP-1.1
+    pr: 2071
     internal: true
