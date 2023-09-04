@@ -100,8 +100,8 @@ func (d *dialer) loadCertificates() (*x509.CertPool, tls.Certificate, error) {
 // dialGRPC dials a gRPC connection using the binding options.
 //
 //lint:ignore U1000 will be used by the binding.
-func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	var overrideOpts []grpc.DialOption
+func (d *dialer) dialGRPC(ctx context.Context, overrideOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	var opts []grpc.DialOption
 	switch {
 	case d.Insecure:
 		tc := insecure.NewCredentials()
