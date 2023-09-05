@@ -67,7 +67,7 @@ const (
 	FrameSize         = 512
 	aclName           = "f1"
 	termName          = "t1"
-	EncapSrcMatch     = "192.0.2.2"
+	EncapSrcMatch     = "192.0.1.2"
 	EncapDstMatch     = "192.0.2.6"
 	count             = "GreFilterCount"
 	greTunnelEndpoint = "TunnelEncapIpv4"
@@ -87,13 +87,13 @@ const (
 var (
 	dutSrc = attrs.Attributes{
 		Desc:    "DUT to ATE source",
-		IPv4:    "192.0.2.1",
+		IPv4:    "192.0.1.1",
 		IPv4Len: plenIPv4,
 	}
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
 		MAC:     "02:00:01:01:01:01",
-		IPv4:    "192.0.2.2",
+		IPv4:    "192.0.1.2",
 		IPv4Len: plenIPv4,
 	}
 	dutDst = attrs.Attributes{
@@ -229,6 +229,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	v4.Priority().Dscp().Phb().SetValue(uint32(dscp))
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
+	t.Logf("starting protocols...")
 	otg.StartProtocols(t)
 	time.Sleep(30 * time.Second)
 	//	otgutils.WaitForARP(t, otg, topo, "IPv4")
