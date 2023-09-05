@@ -62,12 +62,12 @@ func TestMain(m *testing.M) {
 //          which is equivalet to 32 in decimal.
 
 const (
-	ipv4PrefixLen     = 24
+	ipv4PrefixLen     = 30
 	pps               = 100
 	FrameSize         = 512
 	aclName           = "f1"
 	termName          = "t1"
-	EncapSrcMatch     = "192.0.1.2"
+	EncapSrcMatch     = "192.0.2.2"
 	EncapDstMatch     = "192.0.2.6"
 	count             = "GreFilterCount"
 	greTunnelEndpoint = "TunnelEncapIpv4"
@@ -87,13 +87,13 @@ const (
 var (
 	dutSrc = attrs.Attributes{
 		Desc:    "DUT to ATE source",
-		IPv4:    "192.0.1.1",
+		IPv4:    "192.0.2.1",
 		IPv4Len: plenIPv4,
 	}
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
 		MAC:     "02:00:01:01:01:01",
-		IPv4:    "192.0.1.2",
+		IPv4:    "192.0.2.2",
 		IPv4Len: plenIPv4,
 	}
 	dutDst = attrs.Attributes{
