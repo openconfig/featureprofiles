@@ -350,9 +350,9 @@ func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, vlan
 	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(MAC)
 	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(atePort.ID())
 	if vlanID != 0 {
-		eth.Vlans().Add().SetName(Name).SetId(int32(vlanID))
+		eth.Vlans().Add().SetName(Name).SetId(uint32(vlanID))
 	}
-	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(int32(atePort1.IPv4Len))
+	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(uint32(atePort1.IPv4Len))
 
 }
 
@@ -388,7 +388,7 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(flowArgs.flowStartAddress).SetCount(int32(flowArgs.flowCount))
+	v4.Dst().Increment().SetStart(flowArgs.flowStartAddress).SetCount(flowArgs.flowCount)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
