@@ -353,28 +353,28 @@ func configureOTG(t *testing.T, otg *otg.OTG, p *parameters) gosnappi.Config {
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName("port1" + ".Eth").SetMac(p.rtIntf1MacAdd)
 	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName("port1" + ".IPv4")
-	iDut1Ipv4.SetAddress(p.rtIntf1Ipv4Add).SetGateway(p.r0Intf1Ipv4Add).SetPrefix(int32(p.ipv4Mask))
+	iDut1Ipv4.SetAddress(p.rtIntf1Ipv4Add).SetGateway(p.r0Intf1Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
 
 	//port2
 	iDut2Dev := config.Devices().Add().SetName("port2")
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName("port2" + ".Eth").SetMac(p.rtIntf2MacAdd)
 	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
 	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName("port2" + ".IPv4")
-	iDut2Ipv4.SetAddress(p.rtIntf2Ipv4Add).SetGateway(p.r0Intf2Ipv4Add).SetPrefix(int32(p.ipv4Mask))
+	iDut2Ipv4.SetAddress(p.rtIntf2Ipv4Add).SetGateway(p.r0Intf2Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
 
 	//port5
 	iDut3Dev := config.Devices().Add().SetName("port5")
 	iDut3Eth := iDut3Dev.Ethernets().Add().SetName("port5" + ".Eth").SetMac(p.rtIntf5MacAdd)
 	iDut3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port3.Name())
 	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName("port5" + ".IPv4")
-	iDut3Ipv4.SetAddress(p.rtIntf5Ipv4Add).SetGateway(p.r1Intf5Ipv4Add).SetPrefix(int32(p.ipv4Mask))
+	iDut3Ipv4.SetAddress(p.rtIntf5Ipv4Add).SetGateway(p.r1Intf5Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
 
 	//port6
 	iDut4Dev := config.Devices().Add().SetName("port6")
 	iDut4Eth := iDut4Dev.Ethernets().Add().SetName("port6" + ".Eth").SetMac(p.rtIntf6MacAdd)
 	iDut4Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port4.Name())
 	iDut4Ipv4 := iDut4Eth.Ipv4Addresses().Add().SetName("port6" + ".IPv4")
-	iDut4Ipv4.SetAddress(p.rtIntf6Ipv4Add).SetGateway(p.r1Intf6Ipv4Add).SetPrefix(int32(p.ipv4Mask))
+	iDut4Ipv4.SetAddress(p.rtIntf6Ipv4Add).SetGateway(p.r1Intf6Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
 
 	t.Logf("Start Ote Traffic config")
 	t.Logf("configure IPv4 flow from %s to %s ", port1.Name(), port3.Name())
