@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"os"
 	"sort"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -166,11 +168,16 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			port := sortPorts(args.ate.Ports())[0].ID()
 			counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
 
+			// start otg capture
+			startCapture(t, args.ate)
+
 			packets := args.packetIO.GetPacketOut(portID)
 			sendPackets(t, test.client, packets, packetCount)
 
 			// Wait for ate stats to be populated
-			time.Sleep(2 * time.Minute)
+			time.Sleep(1 * time.Minute)
+			// start otg capture
+			stopCapture(t, args.ate)
 
 			// Check packet counters after packet out
 			counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
@@ -179,8 +186,12 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 			t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
 
 			if test.expectPass {
+				rxVlanPackets := processCapture(t, args.ate, port)
 				if counter1-counter0 < uint64(packetCount*0.95) {
 					t.Fatalf("Not all the packets are received.")
+				}
+				if counter1 != uint64(rxVlanPackets) {
+					t.Errorf("Only %v received packets include vlan %v. Expected all %v", rxVlanPackets, vlanID, counter1)
 				}
 			} else {
 				if counter1-counter0 > uint64(packetCount*0.10) {
@@ -267,11 +278,70 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	p1 := ate.Port(t, "port1")
 	atePort1.AddToOTG(top, p1, &dutPort1)
+	top.Captures().Add().
+		SetName("port1_cap").
+		SetPortNames([]string{p1.ID()}).
+		SetFormat(gosnappi.CaptureFormat.PCAP)
 
 	p2 := ate.Port(t, "port2")
 	atePort2.AddToOTG(top, p2, &dutPort2)
+	top.Captures().Add().
+		SetName("port2_cap").
+		SetPortNames([]string{p2.ID()}).
+		SetFormat(gosnappi.CaptureFormat.PCAP)
 
 	return top
+}
+
+// startCapture starts the capture on the otg ports
+func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
+	otg := ate.OTG()
+	cs := gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+	otg.SetControlState(t, cs)
+}
+
+// stopCapture starts the capture on the otg ports
+func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
+	otg := ate.OTG()
+	cs := gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	otg.SetControlState(t, cs)
+}
+
+// processCapture saves the capture and returns the number of received packets which match the provided vlan id
+func processCapture(t *testing.T, ate *ondatra.ATEDevice, portName string) uint32 {
+	// save capture
+	bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(portName))
+	time.Sleep(10 * time.Second)
+	f, err := os.CreateTemp(".", "pcap")
+	if err != nil {
+		t.Fatalf("Could not create temporary pcap file: %v\n", err)
+	}
+	defer os.Remove(f.Name())
+	if _, err := f.Write(bytes); err != nil {
+		t.Fatalf("Could not write bytes to pcap file: %v\n", err)
+	}
+	f.Close()
+
+	// process capture
+	packetCount := uint32(0)
+	if handle, err := pcap.OpenOffline(f.Name()); err != nil {
+		t.Errorf("Could not open offline pcap %s: %v", f.Name(), err)
+	} else {
+		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+		for packet := range packetSource.Packets() {
+			if vlanLayer := packet.Layer(layers.LayerTypeDot1Q); vlanLayer != nil {
+				vlan, _ := vlanLayer.(*layers.Dot1Q)
+				// t.Logf("Packet: %v - vlan Id: %v", packetCount, vlan.VLANIdentifier)
+				if vlan.VLANIdentifier == vlanID {
+					packetCount += 1
+				}
+			}
+		}
+	}
+
+	return packetCount
 }
 
 // configureDeviceIDs configures p4rt device-id on the DUT.
