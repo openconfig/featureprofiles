@@ -20,19 +20,31 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/google/go-github/v50/github"
 
 	"github.com/golang/glog"
 )
 
+var badgePubsub = flag.Bool("badge_pubsub", true, "Process badge pubsub events")
+
 func main() {
 	flag.Parse()
 	glog.Info("Starting server...")
-	http.HandleFunc("/", ghWebhook)
+	http.HandleFunc("/", func(_ http.ResponseWriter, r *http.Request) {
+		event, err := parseEvent(r)
+		if err != nil {
+			glog.Errorf("parseEvent error: %s", err)
+			return
+		}
+
+		go processEvent(event)
+	})
 
 	// Determine port for HTTP service.
 	port := os.Getenv("PORT")
@@ -41,7 +53,9 @@ func main() {
 		glog.Infof("Defaulting to port %s", port)
 	}
 
-	go pullSubscription()
+	if *badgePubsub {
+		go pullSubscription()
+	}
 
 	// Start HTTP server.
 	glog.Infof("Listening on port %s", port)
@@ -50,30 +64,28 @@ func main() {
 	}
 }
 
-func ghWebhook(_ http.ResponseWriter, r *http.Request) {
-	t, err := newTrigger(r.Context())
+// processEvent handles a GitHub Webhook event.
+func processEvent(event any) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	t, err := newTrigger(ctx)
 	if err != nil {
 		glog.Errorf("Setup error: %s", err)
-		return
-	}
-
-	event, err := t.githubEvent(r)
-	if err != nil {
-		glog.Errorf("GithubEvent error: %s", err)
 		return
 	}
 
 	switch event := event.(type) {
 	case *github.PullRequestEvent:
 		if event.GetAction() == "opened" || event.GetAction() == "synchronize" {
-			if err := t.processPullRequest(r.Context(), event); err != nil {
+			if err := t.processPullRequest(ctx, event); err != nil {
 				glog.Errorf("ProcessPullRequest PR%d user %q error: %s", event.GetPullRequest().GetNumber(), event.GetPullRequest().GetUser().GetLogin(), err)
 				return
 			}
 		}
 	case *github.IssueCommentEvent:
 		if event.GetAction() == "created" {
-			if err := t.processIssueComment(r.Context(), event); err != nil {
+			if err := t.processIssueComment(ctx, event); err != nil {
 				glog.Errorf("ProcessIssueComment PR%d comment %d user %q error: %s", event.GetIssue().GetNumber(), event.GetComment().GetID(), event.GetComment().GetUser().GetLogin(), err)
 				return
 			}
@@ -81,28 +93,48 @@ func ghWebhook(_ http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// fetchSecrets returns the webhookSecret and apiSecret for the
-// running environment.
-func fetchSecrets() ([]byte, []byte, error) {
-	var err error
-	var webhookSecret, apiSecret []byte
+// parseEvent returns the validated Github event from an HTTP request.
+func parseEvent(r *http.Request) (any, error) {
+	webhookSecret, err := fetchWebhookSecret()
+	if err != nil {
+		return nil, err
+	}
+
+	payload, err := github.ValidatePayload(r, webhookSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	return github.ParseWebHook(github.WebHookType(r), payload)
+}
+
+// fetchWebhookSecret returns the webhookSecret for the running environment.
+func fetchWebhookSecret() ([]byte, error) {
+	var webhookSecret []byte
 	if envWebhookSecret := os.Getenv("GITHUB_WEBHOOK_SECRET"); envWebhookSecret != "" {
 		webhookSecret = []byte(envWebhookSecret)
 	} else {
+		var err error
 		webhookSecret, err = os.ReadFile("/etc/secrets/github-webhook-secret/github-webhook-secret")
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
+	return webhookSecret, nil
+}
+
+// fetchAPISecret returns the apiSecret for the running environment.
+func fetchAPISecret() ([]byte, error) {
+	var apiSecret []byte
 	if envAPISecret := os.Getenv("GITHUB_API_SECRET"); envAPISecret != "" {
 		apiSecret = []byte(envAPISecret)
 	} else {
+		var err error
 		apiSecret, err = os.ReadFile("/etc/secrets/github-api-secret/github-api-secret")
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
-
-	return webhookSecret, apiSecret, nil
+	return apiSecret, nil
 }
