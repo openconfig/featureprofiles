@@ -224,7 +224,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 		eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".IPv4").
 			SetAddress(ap.IPv4).SetGateway(dp.IPv4).
-			SetPrefix(int32(ap.IPv4Len))
+			SetPrefix(uint32(ap.IPv4Len))
 	}
 	return top
 }
@@ -262,7 +262,7 @@ func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, f
 
 	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-	lossPct := (txPkts - rxPkts) * 100 / txPkts
+	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
 	if int(lossPct) == 0 && flowFilter != "" {
 		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
 		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
