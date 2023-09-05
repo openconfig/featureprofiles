@@ -15,7 +15,6 @@
 package qos_ecn_config_test
 
 import (
-        // "math"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
