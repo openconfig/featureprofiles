@@ -169,8 +169,8 @@ tests:
     timeout: 3600
     mustpass: true
     args:
-      - '-osfile="/auto/ioxdepot6/GISO/giso_build_lindt/giso_custom_create/rmariapp_2023-07-29_18-03-05_UTC/output_gisobuild/giso/8000-golden-x86_64-7.11.1.191G-192G.iso"'
-      - '-osver="7.11.1.191G-192G"'
+      - '-osfile="/auto/prod_weekly_archive1/bin/24.1.1.201G.DT_IMAGE/8000/8000-x64-24.1.1.201G.iso"'
+      - '-osver="24.1.1.201G"'
     skip: true
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
@@ -308,16 +308,17 @@ tests:
     mustpass: true
     priority: 33
   - name: gNMI-1.10 (Telemetry Basic Check)
-    path: feature/gnmi/ate_tests/telemetry_basic_check_test
+    path: feature/gnmi/otg_tests/telemetry_basic_check_test
     args:
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
     owners:
       - agvarghe
     mustpass: true
+    pr: 2087
     priority: 34
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
-    path: feature/gnmi/ate_tests/telemetry_interface_packet_counters_test
+    path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
     owners:
       - agvarghe
     priority: 35
@@ -621,3 +622,4 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
+    pr: 2071
