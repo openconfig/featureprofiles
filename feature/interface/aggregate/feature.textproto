@@ -31,7 +31,7 @@ telemetry_path {
   path: "/interfaces/interface/aggregation/state/min-links"
 }
 telemetry_path {
-  path: "/interfaces/interface/config/id"
+  path: "/interfaces/interface/state/id"
 }
 
 
