@@ -190,8 +190,8 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 				if counter1-counter0 < uint64(packetCount*0.95) {
 					t.Fatalf("Not all the packets are received.")
 				}
-				if counter1 != uint64(rxVlanPackets) {
-					t.Errorf("Only %v received packets include vlan %v. Expected all %v", rxVlanPackets, vlanID, counter1)
+				if count := packetCount / len(packets); count != int(rxVlanPackets) {
+					t.Errorf("Only %v received packets include vlan %v. Expected all %v", rxVlanPackets, vlanID, count)
 				}
 			} else {
 				if counter1-counter0 > uint64(packetCount*0.10) {
