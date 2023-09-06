@@ -536,24 +536,24 @@ func (gdp *GDPPacketIO) GetTrafficFlows(ate *ondatra.ATEDevice, frameSize uint32
 	eth1 := f1.Packet().Add().Ethernet()
 	eth1.Src().SetValue(*gdp.SrcMAC)
 	eth1.Dst().SetValue(*gdp.DstMAC)
-	eth1.EtherType().SetValue(int32(0x8100))
+	eth1.EtherType().SetValue(uint32(0x8100))
 
 	vlan := f1.Packet().Add().Vlan()
-	vlan.Id().SetValue(int32(vlanID))
-	vlan.Tpid().SetValue(int32(*gdp.EthernetType))
+	vlan.Id().SetValue(uint32(vlanID))
+	vlan.Tpid().SetValue(uint32(*gdp.EthernetType))
 
-	f1.Size().SetFixed(int32(frameSize))
-	f1.Rate().SetPps(int64(frameRate))
+	f1.Size().SetFixed(uint32(frameSize))
+	f1.Rate().SetPps(uint64(frameRate))
 
 	f2 := gosnappi.NewFlow()
 	f2.SetName("GDPWithoutVlan")
 	eth2 := f2.Packet().Add().Ethernet()
 	eth2.Src().SetValue(*gdp.SrcMAC)
 	eth2.Dst().SetValue(*gdp.DstMAC)
-	eth2.EtherType().SetValue(int32(*gdp.EthernetType))
+	eth2.EtherType().SetValue(uint32(*gdp.EthernetType))
 
-	f2.Size().SetFixed(int32(frameSize))
-	f2.Rate().SetPps(int64(frameRate))
+	f2.Size().SetFixed(uint32(frameSize))
+	f2.Rate().SetPps(uint64(frameRate))
 
 	f3 := gosnappi.NewFlow()
 	f3.SetName("NonGDP")
@@ -565,8 +565,8 @@ func (gdp *GDPPacketIO) GetTrafficFlows(ate *ondatra.ATEDevice, frameSize uint32
 	ip3.Dst().SetValue(atePort2.IPv4)
 	ip3.TimeToLive().SetValue(3)
 
-	f3.Size().SetFixed(int32(frameSize))
-	f3.Rate().SetPps(int64(frameRate))
+	f3.Size().SetFixed(uint32(frameSize))
+	f3.Rate().SetPps(uint64(frameRate))
 	return []gosnappi.Flow{f1, f2, f3}
 }
 
