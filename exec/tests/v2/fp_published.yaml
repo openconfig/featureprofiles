@@ -169,8 +169,8 @@ tests:
     timeout: 3600
     mustpass: true
     args:
-      - '-osfile="/auto/prod_weekly_archive1/bin/24.1.1.201G.DT_IMAGE/8000/8000-x64-24.1.1.201G.iso"'
-      - '-osver="24.1.1.201G"'
+      - '-osfile="/auto/ced-ottawa/arvbaska/b4/8000-golden-x86_64-24.1.1.202G-203G.iso"'
+      - '-osver="24.1.1.202G-203G"'
     skip: true
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
