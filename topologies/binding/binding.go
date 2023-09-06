@@ -375,18 +375,22 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 		}
 	}
 	for _, bport := range bports {
-		p, ok := portmap[bport.Id]
-		if !ok {
-			errs = append(errs, fmt.Errorf("binding port %q not found in testbed", bport.Id))
-			continue
-		}
-		p.Name = bport.Name
-		// If port speed is empty populate from testbed ports.
-		if bport.Speed != opb.Port_SPEED_UNSPECIFIED {
-			if p.Speed != opb.Port_SPEED_UNSPECIFIED && p.Speed != bport.Speed {
-				return nil, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, p.Speed)
+		if p, ok := portmap[bport.Id]; ok {
+			p.Name = bport.Name
+			// If port speed is empty populate from testbed ports.
+			if bport.Speed != opb.Port_SPEED_UNSPECIFIED {
+				if p.Speed != opb.Port_SPEED_UNSPECIFIED && p.Speed != bport.Speed {
+					return nil, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, p.Speed)
+				}
+				p.Speed = bport.Speed
 			}
-			p.Speed = bport.Speed
+			// Populate the PMD type if configured.
+			if bport.Pmd != opb.Port_PMD_UNSPECIFIED {
+				if p.PMD != opb.Port_PMD_UNSPECIFIED && p.PMD != bport.Pmd {
+					return nil, fmt.Errorf("binding port PMD type %v and testbed port PMD type %v do not match", bport.Pmd, p.PMD)
+				}
+				p.PMD = bport.Pmd
+			}
 		}
 	}
 	for id, p := range portmap {
