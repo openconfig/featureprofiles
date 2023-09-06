@@ -22,13 +22,12 @@ Validate 400ZR optics module reports pre-FEC bit error rate performance data.
     *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min
     *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max
 
-**Note:** For min max avg values, performance monitoring bin of 10 sec is
-          preferred. These values should be retrieved using a gNMI.Subscribe
-          with a SAMPLE subscription.
+**Note:** For min, max, and avg values, 10 second sampling is preferred. If 
+          10 seconds is not supported, the sampling interval used must be
+          communicated.
 
 
-*   Verify that the optics pre-FEC BER is updated after the interface is
-    flapped.
+*   Verify that the optics pre-FEC BER is updated after the interface flaps.
 
     *   Enable a pair of ZR interfaces on the DUT as explained above.
     *   Verify the ZR optics pre FEC BER PMs are in the normal range.
