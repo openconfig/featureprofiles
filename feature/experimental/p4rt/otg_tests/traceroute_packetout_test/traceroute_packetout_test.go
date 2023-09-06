@@ -235,14 +235,16 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 func TestPacketOut(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
-	// Configure the DUT
-	configureDUT(t, dut)
+
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 
 	otg := ate.OTG()
 	otg.PushConfig(t, top)
+	// Configure the DUT
+	configureDUT(t, dut)
+
 	otg.StartProtocols(t)
 
 	// Configure P4RT device-id and port-id on the DUT

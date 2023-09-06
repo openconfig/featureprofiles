@@ -155,7 +155,7 @@ func testTraffic(
 ) {
 	top.Flows().Clear()
 	flow := top.Flows().Add().SetName("Flow")
-	flow.TxRx().Port().SetTxName("port1").SetRxName("port2")
+	flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2"})
 	flow.Metrics().SetEnable(true)
 	eth := flow.Packet().Add().Ethernet()
 	flow.Size().SetFixed(100)
@@ -196,13 +196,14 @@ func testTraffic(
 func TestMyStationMAC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	t.Logf("Configure DUT")
-	configureDUT(t)
-
 	t.Logf("Configure ATE")
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
+
+	t.Logf("Configure DUT")
+	configureDUT(t)
+
 	ate.OTG().StartProtocols(t)
 
 	t.Logf("Configure MyStationMAC")

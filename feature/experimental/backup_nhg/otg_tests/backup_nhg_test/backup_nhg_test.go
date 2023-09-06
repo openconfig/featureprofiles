@@ -133,6 +133,11 @@ func TestMain(m *testing.M) {
 func TestDirectBackupNexthopGroup(t *testing.T) {
 	ctx := context.Background()
 
+	// Clear otg config
+	ate := ondatra.ATE(t, "ate")
+	top := ate.OTG().NewConfig(t)
+	ate.OTG().PushConfig(t, top)
+
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 	configureNetworkInstance(t, dut)
@@ -155,7 +160,6 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfA).PolicyForwarding().Config(), pf)
 	}
 
-	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
 
 	client := gribi.Client{

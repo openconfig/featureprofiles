@@ -256,14 +256,14 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	if !ok {
 		t.Fatalf("Please add support for vendor %v in var p4rtDaemons", dut.Vendor())
 	}
-
-	t.Logf("Configure DUT")
-	configureDUT(t, dut)
-
 	t.Logf("Configure ATE")
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
+
+	t.Logf("Configure DUT")
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 
 	if err := installRoutes(t, dut); err != nil {
