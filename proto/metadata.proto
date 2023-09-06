@@ -300,6 +300,16 @@ message Metadata {
     // LoopbackMode on aggregate interface.
     // Arista: partnerissuetracker.corp.google.com/297391260
     bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
+    // Devices do not support configuring isis csnp-interval timer.
+    // Arista: partnerissuetracker.corp.google.com/299283216
+    bool isis_timers_csnp_interval_unsupported = 98;
+    // Devices do not support telemetry for isis counter:
+    // manual-address-drop-from-areas.
+    // Arista: partnerissuetracker.corp.google.com/299285115
+    bool isis_counter_manual_address_drop_from_areas_unsupported = 99;
+    // Devices do not support telemetry for isis counter: part-changes.
+    // Arista: partnerissuetracker.corp.google.com/299285991
+    bool isis_counter_part_changes_unsupported = 100;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;

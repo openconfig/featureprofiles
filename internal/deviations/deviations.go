@@ -551,3 +551,21 @@ func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) b
 func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
 }
+
+// ISISTimersCsnpIntervalUnsupported returns true for devices that do not support
+// configuring csnp-interval timer for ISIS.
+func ISISTimersCsnpIntervalUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisTimersCsnpIntervalUnsupported()
+}
+
+// ISISCounterManualAddressDropFromAreasUnsupported returns true for devices that do not
+// support telemetry for isis system-level-counter manual-address-drop-from-areas.
+func ISISCounterManualAddressDropFromAreasUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisCounterManualAddressDropFromAreasUnsupported()
+}
+
+// ISISCounterPartChangesUnsupported returns true for devices that do not
+// support telemetry for isis system-level-counter part-changes.
+func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
+}
