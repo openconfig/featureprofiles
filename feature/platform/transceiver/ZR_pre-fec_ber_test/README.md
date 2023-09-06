@@ -17,14 +17,14 @@ Validate 400ZR optics module reports pre-FEC bit error rate performance data.
 *   With the link ZR link established as explained above, verify that the
     following ZR transceiver telemetry paths exist and are streamed for both
     the ZR optics
-    *   /terminal-device/logical-channels/channel/<name>/otn/state/pre-fec-ber:instant
-    *   /terminal-device/logical-channels/channel/<name>/otn/state/pre-fec-ber:avg
-    *   /terminal-device/logical-channels/channel/<name>/otn/state/pre-fec-ber:min
-    *   /terminal-device/logical-channels/channel/<name>/otn/state/pre-fec-ber:max
+    *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/instant
+    *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/avg
+    *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min
+    *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max
 
 **Note:** For min max avg values, performance monitoring bin of 10 sec is
           preferred. These values should be retrieved using a gNMI.Subscribe
-        with a SAMPLE subscription.
+          with a SAMPLE subscription.
 
 
 *   Verify that the optics pre-FEC BER is updated after the interface is
@@ -35,7 +35,7 @@ Validate 400ZR optics module reports pre-FEC bit error rate performance data.
     *   Disable or shut down the interface on the DUT.
     *   Re-enable the interfaces on the DUT.
     *   Verify the ZR optics pre FEC PM is updated to the value in the normal
-        range again.
+        range again. Typical expected value should be less than 1.2E-2
 
 ## Config Parameter coverage
 
