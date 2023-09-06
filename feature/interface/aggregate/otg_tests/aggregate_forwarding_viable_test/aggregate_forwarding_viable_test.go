@@ -373,7 +373,7 @@ func (tc *testArgs) configureATE(t *testing.T) {
 		}
 	}
 
-	if len(p100gbasefr) > 1 {
+	if len(p100gbasefr) > 0 {
 		l1Settings := tc.top.Layer1().Add().SetName("L1").SetPortNames(p100gbasefr)
 		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
 		autoNegotiate := l1Settings.AutoNegotiation()
