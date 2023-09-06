@@ -164,32 +164,32 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.top.Ports().Add().SetName(ap1.ID())
 	i1 := tc.top.Devices().Add().SetName(ap1.ID())
 	eth1 := i1.Ethernets().Add().SetName(ateSrc.Name + ".Eth").
-		SetMac(ateSrc.MAC).SetMtu(int32(ateMTU))
+		SetMac(ateSrc.MAC).SetMtu(uint32(ateMTU))
 	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	if ateSrc.IPv4 != "" {
 		eth1.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").
 			SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).
-			SetPrefix(int32(ateSrc.IPv4Len))
+			SetPrefix(uint32(ateSrc.IPv4Len))
 	}
 	if ateSrc.IPv6 != "" {
 		eth1.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").
 			SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).
-			SetPrefix(int32(ateSrc.IPv6Len))
+			SetPrefix(uint32(ateSrc.IPv6Len))
 	}
 	tc.top.Ports().Add().SetName(ap2.ID())
 	i2 := tc.top.Devices().Add().SetName(ap2.ID())
 	eth2 := i2.Ethernets().Add().SetName(ateDst.Name + ".Eth").
-		SetMac(ateDst.MAC).SetMtu(int32(ateMTU))
+		SetMac(ateDst.MAC).SetMtu(uint32(ateMTU))
 	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	if ateDst.IPv4 != "" {
 		eth2.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").
 			SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).
-			SetPrefix(int32(ateDst.IPv4Len))
+			SetPrefix(uint32(ateDst.IPv4Len))
 	}
 	if ateDst.IPv6 != "" {
 		eth2.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").
 			SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).
-			SetPrefix(int32(ateDst.IPv6Len))
+			SetPrefix(uint32(ateDst.IPv6Len))
 	}
 
 	tc.ate.OTG().PushConfig(t, tc.top)
@@ -294,7 +294,7 @@ func (tc *testCase) verifyATE(t *testing.T) {
 func (tc *testCase) configureIPv4FlowHeader(t *testing.T, packetSize uint16) {
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv4"}).SetRxNames([]string{ateDst.Name + ".IPv4"})
-	flow.Size().SetFixed(int32(packetSize))
+	flow.Size().SetFixed(uint32(packetSize))
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().SetValue(ateDst.IPv4)
@@ -303,7 +303,7 @@ func (tc *testCase) configureIPv4FlowHeader(t *testing.T, packetSize uint16) {
 func (tc *testCase) configureIPv4DfFlowHeader(t *testing.T, packetSize uint16) {
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv4"}).SetRxNames([]string{ateDst.Name + ".IPv4"})
-	flow.Size().SetFixed(int32(packetSize))
+	flow.Size().SetFixed(uint32(packetSize))
 	v4 := flow.Packet().Add().Ipv4()
 	v4.DontFragment().SetValue(1)
 	v4.Src().SetValue(ateSrc.IPv4)
@@ -313,7 +313,7 @@ func (tc *testCase) configureIPv4DfFlowHeader(t *testing.T, packetSize uint16) {
 func (tc *testCase) configureIPv6FlowHeader(t *testing.T, packetSize uint16) {
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
-	flow.Size().SetFixed(int32(packetSize))
+	flow.Size().SetFixed(uint32(packetSize))
 	v6 := flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(ateSrc.IPv6)
 	v6.Dst().SetValue(ateDst.IPv6)

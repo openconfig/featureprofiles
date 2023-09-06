@@ -261,7 +261,7 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+	if deviations.InterfaceRefConfigUnsupported(dut) {
 		intf.InterfaceRef = nil
 	}
 	// Configure default NI and forwarding policy.

@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/compliance"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -35,11 +36,12 @@ import (
 )
 
 var (
-	skipFIBACK          = flag.Bool("skip_fiback", false, "skip tests that rely on FIB ACK")
-	skipSrvReorder      = flag.Bool("skip_reordering", true, "skip tests that rely on server side transaction reordering")
-	skipImplicitReplace = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
-	skipNonDefaultNINHG = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
-	skipMPLS            = flag.Bool("skip_mpls", true, "skip tests that add mpls entries")
+	skipFIBACK           = flag.Bool("skip_fiback", false, "skip tests that rely on FIB ACK")
+	skipSrvReorder       = flag.Bool("skip_reordering", true, "skip tests that rely on server side transaction reordering")
+	skipImplicitReplace  = flag.Bool("skip_implicit_replace", true, "skip tests for ADD operations that perform implicit replacement of existing entries")
+	skipIdempotentDelete = flag.Bool("skip_idempotent_delete", true, "Skip tests for idempotent DELETE operations")
+	skipNonDefaultNINHG  = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
+	skipMPLS             = flag.Bool("skip_mpls", true, "skip tests that add mpls entries")
 
 	nonDefaultNI = flag.String("non_default_ni", "non-default-vrf", "non-default network-instance name")
 
@@ -99,6 +101,8 @@ func shouldSkip(tt *compliance.TestSpec) string {
 		return "This RequiresImplicitReplace test is skipped by --skip_implicit_replace"
 	case *skipNonDefaultNINHG && tt.In.RequiresNonDefaultNINHG:
 		return "This RequiresNonDefaultNINHG test is skipped by --skip_non_default_ni_nhg"
+	case *skipIdempotentDelete && tt.In.RequiresIdempotentDelete:
+		return "This RequiresIdempotentDelete test is skipped by --skip_idempotent_delete"
 	case *skipMPLS && tt.In.RequiresMPLS:
 		return "This RequiresMPLS test is skipped by --skip_mpls"
 	}
@@ -135,7 +139,6 @@ func TestCompliance(t *testing.T) {
 			if reason := shouldSkip(tt); reason != "" {
 				t.Skip(reason)
 			}
-
 			compliance.SetDefaultNetworkInstanceName(deviations.DefaultNetworkInstance(dut))
 			compliance.SetNonDefaultVRFName(*nonDefaultNI)
 
@@ -201,7 +204,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
 		fptest.EnableGRIBIUnderNetworkInstance(t, dut, *nonDefaultNI)
 	}
-
 	nip := gnmi.OC().NetworkInstance(*nonDefaultNI)
 	fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
 }
@@ -220,6 +222,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	return top
 }
