@@ -255,7 +255,7 @@ func (f *validationError[T]) Error() string {
 
 var _ error = (*validationError[any])(nil)
 
-// isTimeout returns true if and only if err is a status.DeadlineExceeded.
+// isTimeout returns true if err is a status.DeadlineExceeded or context.DeadlineExceeded.
 func isTimeout(err error) bool {
 	if err == nil {
 		return false
@@ -265,6 +265,9 @@ func isTimeout(err error) bool {
 	}
 	if errors.As(err, &stat) {
 		return stat.GRPCStatus().Code() == codes.DeadlineExceeded
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
 	}
 	return false
 }
