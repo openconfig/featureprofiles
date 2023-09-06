@@ -384,6 +384,13 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 				}
 				p.Speed = bport.Speed
 			}
+			// Populate the PMD type if configured.
+			if bport.Pmd != opb.Port_PMD_UNSPECIFIED {
+				if p.PMD != opb.Port_PMD_UNSPECIFIED && p.PMD != bport.Pmd {
+					return nil, fmt.Errorf("binding port PMD type %v and testbed port PMD type %v do not match", bport.Pmd, p.PMD)
+				}
+				p.PMD = bport.Pmd
+			}
 		}
 	}
 	for id, p := range portmap {
