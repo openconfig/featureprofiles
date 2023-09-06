@@ -43,7 +43,7 @@ Validate 400ZR optics module reports pre-FEC bit error rate performance data.
 
 ## Telemetry Parameter coverage
 
-    *  /terminal-device/logical-channels/channel/<name>/otn/state/pre-fec-ber:instant
-    *  /terminal-device/logical-channels/channel/<name>/otn/state/pre-fec-ber:avg
-    *  /terminal-device/logical-channels/channel/<name>/otn/state/pre-fec-ber:min
-    *  /terminal-device/logical-channels/channel/<name>/otn/state/pre-fec-ber:max
+    *  /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/instant
+    *  /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/avg
+    *  /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min
+    *  /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max
