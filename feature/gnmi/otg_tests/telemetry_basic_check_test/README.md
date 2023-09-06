@@ -12,9 +12,10 @@ following features:
 *   Ethernet interface
 
     *   Check the telemetry port-speed exists with correct speed.
-        *   /interfaces/interfaces/interface/ethernet/state/mac-address
+        *   /interfaces/interfaces/interface/ethernet/state/port-speed 
     *   Check the telemetry mac-address with correct format.
-        *   /interfaces/interfaces/interface/ethernet/state/port-speed
+        *   /interfaces/interfaces/interface/ethernet/state/mac-address
+    
 
 *   Interface status
 
