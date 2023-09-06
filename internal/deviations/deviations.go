@@ -539,3 +539,15 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
 	return lookupATEDeviations(ate).GetAtePortLinkStateOperationsUnsupported()
 }
+
+// ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
+// configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
+func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
+}
+
+// AggregateLoopbackModeRequiresMemberPortLoopbackMode returns true for devices that require
+// configuring LoopbackMode on member ports to enable LoopbackMode on aggregate interface.
+func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
+}
