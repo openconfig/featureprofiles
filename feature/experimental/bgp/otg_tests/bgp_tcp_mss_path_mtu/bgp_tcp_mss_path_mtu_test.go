@@ -62,7 +62,7 @@ const (
 	dut1SysID          = "1920.0000.2001"
 	dut2AreaAddress    = "49.0001"
 	dut2SysID          = "1920.0000.3001"
-	ATESysID           = "640000000001"
+	ateSysID           = "640000000001"
 )
 
 var (
@@ -212,7 +212,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
 	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dut1Port1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
-	isisDut1 := iDut1Dev.Isis().SetName("ISIS").SetSystemId(ATESysID)
+	isisDut1 := iDut1Dev.Isis().SetName("ISIS").SetSystemId(ateSysID)
 
 	isisDut1.Basic().SetIpv4TeRouterId(atePort1.IPv4).SetHostname(isisDut1.Name()).SetLearnedLspFilter(true)
 	isisDut1.Interfaces().Add().SetEthName(iDut1Dev.Ethernets().Items()[0].Name()).
@@ -248,7 +248,7 @@ func configOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
 	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dut1Port1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
-	isisDut1 := iDut1Dev.Isis().SetName("ISIS").SetSystemId(ATESysID)
+	isisDut1 := iDut1Dev.Isis().SetName("ISIS").SetSystemId(ateSysID)
 
 	isisDut1.Basic().SetIpv4TeRouterId(atePort1.IPv4).SetHostname(isisDut1.Name()).SetLearnedLspFilter(true)
 	isisDut1.Interfaces().Add().SetEthName(iDut1Dev.Ethernets().Items()[0].Name()).
