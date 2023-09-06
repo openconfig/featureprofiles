@@ -14,6 +14,7 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/h-fam/errdiff v1.0.2
 	github.com/open-traffic-generator/snappi/gosnappi v0.11.17
 	github.com/openconfig/gnmi v0.10.0
 	github.com/openconfig/gnoi v0.1.0
