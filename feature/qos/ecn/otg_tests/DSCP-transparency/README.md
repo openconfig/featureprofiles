@@ -86,7 +86,7 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
     * NC1 queue reports non-zero transmit packets, octets.
 * Verify on ATEPort3 that all flows are recived w/o DSCP modification - all 16 values are observed.
 * verify on ATEPort3 that:
-    * all recived packets with DSCP has ECT(0) value
+    * all recived packets with DSCP has CE value
 
 ## Config Parameter Coverage
 
