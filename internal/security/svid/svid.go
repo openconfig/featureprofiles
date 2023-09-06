@@ -19,9 +19,10 @@ import (
 	"time"
 )
 
-// GenRSASVID Generates SVID for user and signs it based on given rsa cert/key 
+// GenRSASVID Generates SVID for user and signs it based on given rsa cert/key
 func GenRSASVID(id string, expireInDays int, signingCert *x509.Certificate, signingKey any) (*rsa.PrivateKey, *x509.Certificate, error) {
-	certSpec, err:=populateCertTemplate(id, expireInDays); if err!=nil {
+	certSpec, err := populateCertTemplate(id, expireInDays)
+	if err != nil {
 		return nil, nil, err
 	}
 	privKey, err := rsa.GenerateKey(rand.Reader, 4096)
@@ -40,14 +41,14 @@ func GenRSASVID(id string, expireInDays int, signingCert *x509.Certificate, sign
 	return privKey, cert, nil
 }
 
-
-// GenECDSASVID Generates SVID for user and signs it based on given ECDSA cert/key 
+// GenECDSASVID Generates SVID for user and signs it based on given ECDSA cert/key
 func GenECDSASVID(id string, expireInDays int, signingCert *x509.Certificate, signingKey any) (*ecdsa.PrivateKey, *x509.Certificate, error) {
-	certSpec, err:=populateCertTemplate(id, expireInDays); if err!=nil {
+	certSpec, err := populateCertTemplate(id, expireInDays)
+	if err != nil {
 		return nil, nil, err
 	}
 	curve := elliptic.P256()
-	privKey, err := ecdsa.GenerateKey(curve,rand.Reader)
+	privKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -64,13 +65,15 @@ func GenECDSASVID(id string, expireInDays int, signingCert *x509.Certificate, si
 }
 
 func populateCertTemplate(id string, expireInDays int) (*x509.Certificate, error) {
-	uri, err := url.Parse(id); if err != nil {
+	uri, err := url.Parse(id)
+	if err != nil {
 		return nil, err
 	}
-	serial, err := rand.Int(rand.Reader, big.NewInt(big.MaxBase)); if err != nil {
+	serial, err := rand.Int(rand.Reader, big.NewInt(big.MaxBase))
+	if err != nil {
 		return nil, err
 	}
-	// follows https://github.com/spiffe/spiffe/blob/main/standards/X509-SVID.md#appendix-a-x509-field-reference 
+	// follows https://github.com/spiffe/spiffe/blob/main/standards/X509-SVID.md#appendix-a-x509-field-reference
 	certSpec := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
@@ -87,14 +90,14 @@ func populateCertTemplate(id string, expireInDays int) (*x509.Certificate, error
 	return certSpec, nil
 }
 
-// loadKeyPair load a pair of RSA/ECDSA private key and certificate 
+// loadKeyPair load a pair of RSA/ECDSA private key and certificate
 func loadKeyPair(keyPath, certPath string) (any, *x509.Certificate, error) {
 	caPrivateKeyBytes, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, nil, err
 	}
 	caKeyPem, _ := pem.Decode(caPrivateKeyBytes)
-	var caPrivateKey any 
+	var caPrivateKey any
 	if caKeyPem == nil {
 		return nil, nil, fmt.Errorf("error in loading private key")
 	}
