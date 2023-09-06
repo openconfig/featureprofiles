@@ -236,7 +236,7 @@ func TestHardwareCards(t *testing.T) {
 				mfgDateValidation:     false,
 				swVerValidation:       false,
 				hwVerValidation:       true,
-				fwVerValidation:       false,
+				fwVerValidation:       true,
 				rrValidation:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 				parentValidation:      false,

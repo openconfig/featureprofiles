@@ -192,10 +192,10 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 			nv4.PeerGroup = ygot.String(peerGrpNamev4)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
-			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(true)
+			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(false)
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pgv4.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{policy}
@@ -210,10 +210,10 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 			nv6.PeerGroup = ygot.String(peerGrpNamev6)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
-			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(true)
+			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(false)
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pgv6.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{policy}
@@ -478,7 +478,6 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{srcIpv4.Name()}).
 		SetRxNames([]string{dstBgp4PeerRoutes.Name()})
 	flowipv4.Size().SetFixed(512)
-	flowipv4.Rate().SetPps(100)
 	flowipv4.Duration().SetChoice("continuous")
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(srcEth.Mac())
@@ -492,11 +491,11 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{srcIpv6.Name()}).
 		SetRxNames([]string{dstBgp6PeerRoutes.Name()})
 	flowipv6.Size().SetFixed(512)
-	flowipv6.Rate().SetPps(100)
 	flowipv6.Duration().SetChoice("continuous")
 	e2 := flowipv6.Packet().Add().Ethernet()
 	e2.Src().SetValue(srcEth.Mac())
 	v6 := flowipv6.Packet().Add().Ipv6()
+	v6.TrafficClass().SetValue(0)
 	v6.Src().SetValue(srcIpv6.Address())
 	v6.Dst().Increment().SetStart(advertisedRoutesv6Net).SetCount(routeCount)
 
