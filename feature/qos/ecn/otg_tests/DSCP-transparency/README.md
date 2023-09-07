@@ -19,13 +19,12 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
         |DSCP (dec)|Traffic-group|
         |--|--|
         |48-63|NC1|
-        |40-47|AF4|
-        |32-39|AF4|
+        |32-47|AF4|
         |24-31|AF3|
         |16-23|AF2|
         |8-15|AF1|
         |4-7|BE0|
-        |0-73|BE1|
+        |0-3|BE1|
     * 7 queues and 7 corresponding forwarding group
     * Scheduler policy with
        * one scheduler of STRICT priority type serving NC1 queue
