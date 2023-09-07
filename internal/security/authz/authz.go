@@ -203,7 +203,7 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, user string, rpc *gnxi.RPC, tl
 		err := rpc.Exec(context.Background(), dut, opts)
 		if status.Code(err) != expectedExecErr {
 			if status.Code(err) == codes.Unimplemented {
-				t.Fatalf("The execution of rpc %s is failed due to error %s, please add implementation for exec function.")
+				t.Fatalf("The execution of rpc %s is failed due to error %v, please add implementation for exec function", rpc.Path, err )
 			}
 			t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, user, dut.Name(), expectedExecErr, err)
 		}
