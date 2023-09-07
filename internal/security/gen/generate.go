@@ -99,10 +99,10 @@ func main() {
 	}
 	for serviceName, service := range services {
 		if service.Len() == 0 {
-			log.Warningf("servie %s has no rpc methds\n", serviceName)
+			log.Warningf("service %s has no rpc methds\n", serviceName)
 		}
 		for i := 0; i < service.Len(); i++ {
-			log.Infof("Service %s RPCes are: \n", serviceName)
+			log.Infof("Service %s RPCs are: \n", serviceName)
 			for j := 0; j < service.Get(i).Methods().Len(); j++ {
 				rpcName := fmt.Sprintf("%v", service.Get(i).Methods().Get(j).Name())
 				enumName := fmt.Sprintf("%s_%s", strings.ToUpper(serviceName), strings.ToUpper(rpcName))
@@ -208,7 +208,7 @@ var (
 			if name != "*" {
 				funcName += name
 			} else {
-				funcName += "AllRPc"
+				funcName += "AllRPC"
 			}
 			return funcName
 		},
@@ -237,17 +237,18 @@ var (
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 
 {{- range .}}
 // function {{funcName .Service .Name}} implements a sample request for service {{.Path}} to validate if authz works as expected.
-func {{ funcName .Service .Name}}(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params... any)  error  {
-	return fmt.Errorf("exec function for RPC {{.Path}} is not implemented")
+func {{ funcName .Service .Name}}(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any)  error  {
+	return status.Errorf(codes.Unimplemented, "exec function for RPC {{.Path}} is not implemented")
 }
 {{ end }}
 `

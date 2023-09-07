@@ -15,12 +15,12 @@
 // Package authz provides helper APIs to simplify writing authz test cases.
 // It also packs authz rotate and get operations with the corresponding verifications to
 // prevent code duplications and increase the test code readability.
-
 package authz
 
 import (
 	"context"
 
+	"crypto/tls"
 	"encoding/json"
 	"testing"
 	"time"
@@ -30,6 +30,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/security/gnxi"
 	"github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 // AuthorizationPolicy is an struct to save an authz policy
@@ -42,6 +46,7 @@ type AuthorizationPolicy struct {
 	DenyRules []Rule `json:"deny_rules,omitempty"`
 }
 
+// Rule represent the structure for an authz rule
 type Rule struct {
 	// name of the rule
 	Name string `json:"name"`
@@ -174,4 +179,33 @@ func (p *AuthorizationPolicy) PrettyPrint() string {
 		return ""
 	}
 	return string(prettyTex)
+}
+
+// Verify uses prob to validate if the user access for a certain rpc is expected.
+// It also execute the rpc when hardVerif is set to true and verifies if it matches the expectation.
+func Verify(t testing.TB, dut *ondatra.DUTDevice, user string, rpc *gnxi.RPC, tlsCfg *tls.Config, expectDeny, hardVerify bool) {
+	gnsiC := dut.RawAPIs().GNSI().Default(t)
+	resp, err := gnsiC.Authz().Probe(context.Background(), &authz.ProbeRequest{User: user, Rpc: rpc.Path})
+	if err != nil {
+		t.Fatalf("Prob Request %s failed on dut %s", prettyPrint(&authz.ProbeRequest{User: user, Rpc: rpc.Path}), dut.Name())
+	}
+	expectedRes := authz.ProbeResponse_ACTION_PERMIT
+	expectedExecErr := codes.OK
+	if expectDeny {
+		expectedRes = authz.ProbeResponse_ACTION_DENY
+		expectedExecErr = codes.PermissionDenied
+	}
+	if resp.GetAction() != expectedRes {
+		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", user, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
+	}
+	if hardVerify {
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg))}
+		err := rpc.Exec(context.Background(), dut, opts)
+		if status.Code(err) != expectedExecErr {
+			if status.Code(err) == codes.Unimplemented {
+				t.Fatalf("The execution of rpc %s is failed due to error %s, please add implementation for exec function.")
+			}
+			t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, user, dut.Name(), expectedExecErr, err)
+		}
+	}
 }

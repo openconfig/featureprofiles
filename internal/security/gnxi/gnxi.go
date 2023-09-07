@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gnxi populate a list of all RPCs related for featuresprofile tests. It also
+// Package gnxi populates a list of all RPCs related for featuresprofile tests. It also
 // add additional data (such as paths for each rpc) to simplify security testing.
 // Having all rpc in a list also allow us to  write tests that cover all RPCs.
 // Package also contains function skeleton for all  RPCs.
 // By adding an implementation here, all tests can use the code. This can prevent the duplication and unify the testing.
-
 package gnxi
 
 import (
@@ -41,6 +40,6 @@ type RPC struct {
 	FQN string
 	// Path of the rpc that is used by authz to refer to the rpc
 	Path string
-	// a function that takes an mtls config and dut and execute the RPC against the dut.
+	// a function that takes an grpc config (must include mtls cfg) and dut and executes the RPC against the dut.
 	Exec ExecRPCFunction
 }

@@ -118,14 +118,14 @@ var (
 		Service: "*",
 		FQN:     "*",
 		Path:    "*",
-		Exec:    AllRPc,
+		Exec:    AllRPC,
 	}
 	gnmiALL = &RPC{
 		Name:    "*",
 		Service: "gnmi.gNMI",
 		FQN:     "gnmi.gNMI.*",
 		Path:    "/gnmi.gNMI/*",
-		Exec:    GnmiAllRPc,
+		Exec:    GnmiAllRPC,
 	}
 	gnmiGet = &RPC{
 		Name:    "Get",
@@ -160,7 +160,7 @@ var (
 		Service: "gnoi.bgp.BGP",
 		FQN:     "gnoi.bgp.BGP.*",
 		Path:    "/gnoi.bgp.BGP/*",
-		Exec:    GnoiBgpAllRPc,
+		Exec:    GnoiBgpAllRPC,
 	}
 	gnoibgpClearBGPNeighbor = &RPC{
 		Name:    "ClearBGPNeighbor",
@@ -174,7 +174,7 @@ var (
 		Service: "gnoi.certificate.CertificateManagement",
 		FQN:     "gnoi.certificate.CertificateManagement.*",
 		Path:    "/gnoi.certificate.CertificateManagement/*",
-		Exec:    GnoiCertificatemanagementAllRPc,
+		Exec:    GnoiCertificatemanagementAllRPC,
 	}
 	gnoicertificateCertificateManagementCanGenerateCSR = &RPC{
 		Name:    "CanGenerateCSR",
@@ -237,7 +237,7 @@ var (
 		Service: "gnoi.diag.Diag",
 		FQN:     "gnoi.diag.Diag.*",
 		Path:    "/gnoi.diag.Diag/*",
-		Exec:    GnoiDiagAllRPc,
+		Exec:    GnoiDiagAllRPC,
 	}
 	gnoidiagGetBERTResult = &RPC{
 		Name:    "GetBERTResult",
@@ -265,7 +265,7 @@ var (
 		Service: "gnoi.factory_reset.FactoryReset",
 		FQN:     "gnoi.factory_reset.FactoryReset.*",
 		Path:    "/gnoi.factory_reset.FactoryReset/*",
-		Exec:    GnoiFactoryresetAllRPc,
+		Exec:    GnoiFactoryresetAllRPC,
 	}
 	gnoifactory_resetFactoryResetStart = &RPC{
 		Name:    "Start",
@@ -279,7 +279,7 @@ var (
 		Service: "gnoi.file.File",
 		FQN:     "gnoi.file.File.*",
 		Path:    "/gnoi.file.File/*",
-		Exec:    GnoiFileAllRPc,
+		Exec:    GnoiFileAllRPC,
 	}
 	gnoifilePut = &RPC{
 		Name:    "Put",
@@ -328,7 +328,7 @@ var (
 		Service: "gnoi.healthz.Healthz",
 		FQN:     "gnoi.healthz.Healthz.*",
 		Path:    "/gnoi.healthz.Healthz/*",
-		Exec:    GnoiHealthzAllRPc,
+		Exec:    GnoiHealthzAllRPC,
 	}
 	gnoihealthzArtifact = &RPC{
 		Name:    "Artifact",
@@ -363,7 +363,7 @@ var (
 		Service: "gnoi.layer2.Layer2",
 		FQN:     "gnoi.layer2.Layer2.*",
 		Path:    "/gnoi.layer2.Layer2/*",
-		Exec:    GnoiLayer2AllRPc,
+		Exec:    GnoiLayer2AllRPC,
 	}
 	gnoilayer2ClearLLDPInterface = &RPC{
 		Name:    "ClearLLDPInterface",
@@ -412,7 +412,7 @@ var (
 		Service: "gnoi.mpls.MPLS",
 		FQN:     "gnoi.mpls.MPLS.*",
 		Path:    "/gnoi.mpls.MPLS/*",
-		Exec:    GnoiMplsAllRPc,
+		Exec:    GnoiMplsAllRPC,
 	}
 	gnoimplsClearLSPCounters = &RPC{
 		Name:    "ClearLSPCounters",
@@ -440,7 +440,7 @@ var (
 		Service: "gnoi.optical.OTDR",
 		FQN:     "gnoi.optical.OTDR.*",
 		Path:    "/gnoi.optical.OTDR/*",
-		Exec:    GnoiOtdrAllRPc,
+		Exec:    GnoiOtdrAllRPC,
 	}
 	gnoiopticalWavelengthRouterAdjustSpectrum = &RPC{
 		Name:    "AdjustSpectrum",
@@ -454,7 +454,7 @@ var (
 		Service: "gnoi.optical.WavelengthRouter",
 		FQN:     "gnoi.optical.WavelengthRouter.*",
 		Path:    "/gnoi.optical.WavelengthRouter/*",
-		Exec:    GnoiWavelengthrouterAllRPc,
+		Exec:    GnoiWavelengthrouterAllRPC,
 	}
 	gnoiopticalWavelengthRouterCancelAdjustPSD = &RPC{
 		Name:    "CancelAdjustPSD",
@@ -482,7 +482,7 @@ var (
 		Service: "gnoi.os.OS",
 		FQN:     "gnoi.os.OS.*",
 		Path:    "/gnoi.os.OS/*",
-		Exec:    GnoiOsAllRPc,
+		Exec:    GnoiOsAllRPC,
 	}
 	gnoiosVerify = &RPC{
 		Name:    "Verify",
@@ -510,7 +510,7 @@ var (
 		Service: "gnoi.packet_link_qualification.LinkQualification",
 		FQN:     "gnoi.packet_link_qualification.LinkQualification.*",
 		Path:    "/gnoi.packet_link_qualification.LinkQualification/*",
-		Exec:    GnoiLinkqualificationAllRPc,
+		Exec:    GnoiLinkqualificationAllRPC,
 	}
 	gnoipacket_link_qualificationLinkQualificationCapabilities = &RPC{
 		Name:    "Capabilities",
@@ -545,7 +545,7 @@ var (
 		Service: "gnoi.system.System",
 		FQN:     "gnoi.system.System.*",
 		Path:    "/gnoi.system.System/*",
-		Exec:    GnoiSystemAllRPc,
+		Exec:    GnoiSystemAllRPC,
 	}
 	gnoisystemCancelReboot = &RPC{
 		Name:    "CancelReboot",
@@ -622,7 +622,7 @@ var (
 		Service: "gnsi.accounting.v1.AccountingPull",
 		FQN:     "gnsi.accounting.v1.AccountingPull.*",
 		Path:    "/gnsi.accounting.v1.AccountingPull/*",
-		Exec:    GnsiAccountingpullAllRPc,
+		Exec:    GnsiAccountingpullAllRPC,
 	}
 	gnsiaccountingv1AccountingPushRecordStream = &RPC{
 		Name:    "RecordStream",
@@ -636,7 +636,7 @@ var (
 		Service: "gnsi.accounting.v1.AccountingPush",
 		FQN:     "gnsi.accounting.v1.AccountingPush.*",
 		Path:    "/gnsi.accounting.v1.AccountingPush/*",
-		Exec:    GnsiAccountingpushAllRPc,
+		Exec:    GnsiAccountingpushAllRPC,
 	}
 	gnsiaccountingv1AccountingPullRecordStream = &RPC{
 		Name:    "RecordStream",
@@ -650,7 +650,7 @@ var (
 		Service: "gnsi.authz.v1.Authz",
 		FQN:     "gnsi.authz.v1.Authz.*",
 		Path:    "/gnsi.authz.v1.Authz/*",
-		Exec:    GnsiAuthzAllRPc,
+		Exec:    GnsiAuthzAllRPC,
 	}
 	gnsiauthzv1AuthzGet = &RPC{
 		Name:    "Get",
@@ -685,7 +685,7 @@ var (
 		Service: "gnsi.certz.v1.Certz",
 		FQN:     "gnsi.certz.v1.Certz.*",
 		Path:    "/gnsi.certz.v1.Certz/*",
-		Exec:    GnsiCertzAllRPc,
+		Exec:    GnsiCertzAllRPC,
 	}
 	gnsicertzv1CertzCanGenerateCSR = &RPC{
 		Name:    "CanGenerateCSR",
@@ -720,7 +720,7 @@ var (
 		Service: "gnsi.credentialz.v1.Credentialz",
 		FQN:     "gnsi.credentialz.v1.Credentialz.*",
 		Path:    "/gnsi.credentialz.v1.Credentialz/*",
-		Exec:    GnsiCredentialzAllRPc,
+		Exec:    GnsiCredentialzAllRPC,
 	}
 	gnsicredentialzv1CredentialzCanGenerateKey = &RPC{
 		Name:    "CanGenerateKey",
@@ -755,7 +755,7 @@ var (
 		Service: "gnsi.pathz.v1.Pathz",
 		FQN:     "gnsi.pathz.v1.Pathz.*",
 		Path:    "/gnsi.pathz.v1.Pathz/*",
-		Exec:    GnsiPathzAllRPc,
+		Exec:    GnsiPathzAllRPC,
 	}
 	gnsipathzv1PathzGet = &RPC{
 		Name:    "Get",
@@ -783,7 +783,7 @@ var (
 		Service: "gribi.gRIBI",
 		FQN:     "gribi.gRIBI.*",
 		Path:    "/gribi.gRIBI/*",
-		Exec:    GribiAllRPc,
+		Exec:    GribiAllRPC,
 	}
 	gribiFlush = &RPC{
 		Name:    "Flush",
@@ -811,7 +811,7 @@ var (
 		Service: "p4.v1.P4Runtime",
 		FQN:     "p4.v1.P4Runtime.*",
 		Path:    "/p4.v1.P4Runtime/*",
-		Exec:    P4P4runtimeAllRPc,
+		Exec:    P4P4runtimeAllRPC,
 	}
 	p4v1P4RuntimeCapabilities = &RPC{
 		Name:    "Capabilities",
