@@ -464,12 +464,18 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 	for _, tf := range tests {
 		t.Run(tf.desc, func(t *testing.T) {
 			for _, port := range tc.atePorts[1 : 1+tf.downCount] {
+				dp := tc.dut.Port(t, port.ID())
+				if deviations.ATEPortLinkStateOperationsUnsupported(tc.ate) {
+					tc.setDutInterfaceWithState(t, dp, false)
+					defer tc.setDutInterfaceWithState(t, dp, true)
+				} else {
+					portStateAction := gosnappi.NewControlState()
+					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+					tc.ate.OTG().SetControlState(t, portStateAction)
+					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+					defer tc.ate.OTG().SetControlState(t, portStateAction)
+				}
 				if tc.lagType == oc.IfAggregate_AggregationType_LACP {
-
-					// Linked DUT and ATE ports have the same ID.
-					dp := tc.dut.Port(t, port.ID())
-					t.Logf("Taking otg port %s down in the LAG", port.ID())
-					tc.ate.OTG().DisableLACPMembers(t, port.ID())
 					time.Sleep(3 * time.Second)
 					otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
 					otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
@@ -485,19 +491,6 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 						return present && !dist
 					}).Await(t)
 
-				}
-				if tc.lagType == oc.IfAggregate_AggregationType_STATIC {
-					dp := tc.dut.Port(t, port.ID())
-					if deviations.ATEPortLinkStateOperationsUnsupported(tc.ate) {
-						tc.setDutInterfaceWithState(t, dp, false)
-						defer tc.setDutInterfaceWithState(t, dp, true)
-					} else {
-						portStateAction := gosnappi.NewControlState()
-						portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-						tc.ate.OTG().SetControlState(t, portStateAction)
-						portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.UP)
-						defer tc.ate.OTG().SetControlState(t, portStateAction)
-					}
 				}
 			}
 			opStatus, statusCheckResult := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).OperStatus().State(), 1*time.Minute, func(y *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
@@ -529,6 +522,8 @@ func TestNegotiation(t *testing.T) {
 
 	for _, lagType := range lagTypes {
 		top := ate.OTG().NewConfig(t)
+		// Clean otg with an empty config
+		ate.OTG().PushConfig(t, top)
 
 		tc := &testCase{
 			dut:     dut,
