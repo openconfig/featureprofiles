@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package main generate  data structure and skeleton function for all rpc related to fp. 
+// package main generate  data structure and skeleton function for all rpc related to fp.
 package main
 
 import (
