@@ -300,6 +300,22 @@ message Metadata {
     // LoopbackMode on aggregate interface.
     // Arista: partnerissuetracker.corp.google.com/297391260
     bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for linecards' CPU card.
+    bool linecard_cpu_utilization_unsupported = 98;
+    // Device does not support consistent component names for GNOI and GNMI.
+    bool consistent_component_names_unsupported = 99;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for controller cards'
+    // CPU card.
+    bool controller_card_cpu_utilization_unsupported = 100;
+    // Device does not support counter for fabric block lost packets.
+    bool fabric_drop_counter_unsupported = 101;
+    // Device does not support memory utilization related leaves for linecard components.
+    bool linecard_memory_utilization_unsupported = 102;
+    // Device does not support telemetry path
+    // /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
+    bool qos_voq_drop_counter_unsupported = 103;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
