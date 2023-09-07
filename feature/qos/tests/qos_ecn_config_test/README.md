@@ -17,8 +17,8 @@ Verify QoS ECN feature configuration.
 
         Test case|min-threshold | max-threshold | enable-ecn | drop  | weight  | max-drop-probability-percent
         |--------|------------- | ------------- | ---------- | ----- | ------- | ----------------------------
-        |#1      |80KB          |80KB*          | true       | false | not set | 100
-        |[TODO]#2      |3.125MB       | 6.250MB       | true       | false | not set | 100
+        |#1      |80KB          |80KB          | true       | false | not set | 100
+        |[TODO]#2      |3.125MB       | 6.250MB*      | true       | false | not set | 100
         |[TODO]#3      |1%            | 2%            | true       | false | not set | 100
 
     * 6.25MB max-treshhold is selected as it represents ~500 mico-seconds of Delay bandwidth Buffer on 100GE interfaces. What is O(2%) of buffer depth, hence allows for micro-burst absorbtion without beackpressing senders and at same time leaves enough DBB for accomodate RTT ECN signaling loop delay in global network for longer burst/congestion.
