@@ -58,7 +58,7 @@ type Rule struct {
 func createRule(users []string, rpcs []*gnxi.RPC) Rule {
 	rule := Rule{}
 	for _, rpc := range rpcs {
-		rule.Name = rule.Name + rpc.QFN
+		rule.Name = rule.Name + rpc.FQN
 		rule.Request.Paths = append(rule.Request.Paths, rpc.Path)
 	}
 	rule.Source.Principals = append(rule.Source.Principals, users...)
