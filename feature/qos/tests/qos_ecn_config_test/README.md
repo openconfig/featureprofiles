@@ -92,3 +92,7 @@ Verify QoS ECN feature configuration.
     *   /qos/interfaces/interface/input/classifiers/classifier/state/name
     *   /qos/interfaces/interface/output/queues/queue/state/name
     *   /qos/interfaces/interface/output/queues/queue/state/queue-management-profile
+
+## platform
+
+ * vRX
