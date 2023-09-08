@@ -17,58 +17,19 @@ package binding
 import (
 	"context"
 	"fmt"
-	"io"
 
 	"github.com/openconfig/ondatra/binding"
 	"golang.org/x/crypto/ssh"
 )
 
-// cli implements the binding.StreamClient interface using an SSH
-// client (see also the ondatra.StreamClient returned by
-// dut.RawAPIS().CLI()).  It creates a default session with pty and
-// shell to service stdin, stdout, and stderr; each SendCommand will
-// run in its own session but without shell or pty.
+// cli implements the binding.ClientClient interface using an SSH client.
 type cli struct {
 	*binding.AbstractCLIClient
-
-	ssh    *ssh.Client
-	sess   *ssh.Session
-	stdin  io.WriteCloser
-	stdout io.Reader
-	stderr io.Reader
+	ssh *ssh.Client
 }
 
 func newCLI(sc *ssh.Client) (*cli, error) {
-	sess, err := sc.NewSession()
-	if err != nil {
-		return nil, fmt.Errorf("could not create session: %w", err)
-	}
-	if err := sess.RequestPty("ansi", 24, 80, nil); err != nil {
-		return nil, fmt.Errorf("could not request pty: %w", err)
-	}
-	stdin, err := sess.StdinPipe()
-	if err != nil {
-		return nil, fmt.Errorf("could not get stdin: %w", err)
-	}
-	stdout, err := sess.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("could not get stdout: %w", err)
-	}
-	stderr, err := sess.StderrPipe()
-	if err != nil {
-		return nil, fmt.Errorf("could not get stderr: %w", err)
-	}
-	if err := sess.Shell(); err != nil {
-		return nil, fmt.Errorf("could not start shell: %w", err)
-	}
-	c := &cli{
-		ssh:    sc,
-		sess:   sess,
-		stdin:  stdin,
-		stdout: stdout,
-		stderr: stderr,
-	}
-	return c, nil
+	return &cli{ssh: sc}, nil
 }
 
 func (c *cli) SendCommand(_ context.Context, cmd string) (string, error) {
