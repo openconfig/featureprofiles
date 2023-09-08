@@ -75,8 +75,8 @@ type parameters struct {
 	flow2           string
 	flow3           string
 	flow4           string
-	trafficDuration int64
-	trafficRate     int64
+	trafficDuration uint64
+	trafficRate     uint64
 	rtIntf1Ipv6Add  string
 	rtIntf2Ipv6Add  string
 	rtIntf5Ipv6Add  string
@@ -446,7 +446,7 @@ func configureOTG(t *testing.T, otg *otg.OTG, p *parameters) gosnappi.Config {
 	return config
 }
 
-func VerifyUnderlayOverlayLoadbalanceTest(t *testing.T, p *parameters, dut1 *ondatra.DUTDevice, dut2 *ondatra.ATEDevice, rt *ondatra.ATEDevice, d1p1 *ondatra.Port, d1p2 *ondatra.Port, d1p3 *ondatra.Port, d1p4 *ondatra.Port, d2p1 *ondatra.Port, d2p2 *ondatra.Port, d2p3 *ondatra.Port, d2p4 *ondatra.Port, FtiIntfCount int64, wantLoss bool) {
+func VerifyUnderlayOverlayLoadbalanceTest(t *testing.T, p *parameters, dut1 *ondatra.DUTDevice, dut2 *ondatra.ATEDevice, rt *ondatra.ATEDevice, d1p1 *ondatra.Port, d1p2 *ondatra.Port, d1p3 *ondatra.Port, d1p4 *ondatra.Port, d2p1 *ondatra.Port, d2p2 *ondatra.Port, d2p3 *ondatra.Port, d2p4 *ondatra.Port, FtiIntfCount uint64, wantLoss bool) {
 
 	// dut1 interface statistics
 	initialInfStats := map[string]uint64{}
@@ -508,7 +508,7 @@ func VerifyUnderlayOverlayLoadbalanceTest(t *testing.T, p *parameters, dut1 *ond
 	// Incoming traffic flow should be equally distributed for Encapsulation(ECMP)
 	t.Logf("Verify Underlay loadbalancing 2 fti tunnel interface - Incoming traffic flow should be equally distributed for Encapsulation(ECMP) ")
 	for key := range finalInfStats {
-		VerifyLoadbalance(t, 4, p.trafficRate, p.trafficDuration, 2, int64(initialInfStats[key]), int64(finalInfStats[key]))
+		VerifyLoadbalance(t, 4, p.trafficRate, p.trafficDuration, 2, uint64(initialInfStats[key]), uint64(finalInfStats[key]))
 	}
 }
 
@@ -521,7 +521,7 @@ func SendTraffic(t *testing.T, ate *ondatra.ATEDevice, p *parameters) {
 	otg.StopTraffic(t)
 }
 
-func VerifyLoadbalance(t *testing.T, flowCount int64, rate int64, duration int64, sharingIntfCont int64, initialStats int64, finalStats int64) {
+func VerifyLoadbalance(t *testing.T, flowCount uint64, rate uint64, duration uint64, sharingIntfCont uint64, initialStats uint64, finalStats uint64) {
 
 	tolerance := 5
 	// colculate correct stats on interface
@@ -530,8 +530,8 @@ func VerifyLoadbalance(t *testing.T, flowCount int64, rate int64, duration int64
 	expectedPerLinkPkts := expectedTotalPkts / sharingIntfCont
 	t.Logf("Total packets %d flow through the %d links", expectedTotalPkts, sharingIntfCont)
 	t.Logf("Expected per link packets %d ", expectedPerLinkPkts)
-	min := expectedPerLinkPkts - (expectedPerLinkPkts * int64(tolerance) / 100)
-	max := expectedPerLinkPkts + (expectedPerLinkPkts * int64(tolerance) / 100)
+	min := expectedPerLinkPkts - (expectedPerLinkPkts * uint64(tolerance) / 100)
+	max := expectedPerLinkPkts + (expectedPerLinkPkts * uint64(tolerance) / 100)
 
 	if min < stats && stats < max {
 		t.Logf("Traffic  %d is in expected range: %d - %d", stats, min, max)
