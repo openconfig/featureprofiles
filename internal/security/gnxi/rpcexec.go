@@ -411,7 +411,7 @@ func GnoiSystemPing(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Dia
 	if err != nil {
 		return err
 	}
-	_, err = gnoiC.System().Ping(ctx, &system.PingRequest{Destination: "127.0.0.1"})
+	_, err = gnoiC.System().Ping(ctx, &system.PingRequest{Destination: "192.0.2.1"})
 	return err
 }
 
