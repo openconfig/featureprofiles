@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
@@ -29,7 +30,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
@@ -101,10 +101,10 @@ var (
 type testCase struct {
 	mtu uint16 // This is the L3 MTU, i.e. the payload portion of an Ethernet frame.
 
-	dut *ondatra.DUTDevice
-	ate *ondatra.ATEDevice
-	top gosnappi.Config
-
+	dut           *ondatra.DUTDevice
+	ate           *ondatra.ATEDevice
+	top           gosnappi.Config
+	breakoutPorts map[string][]string
 	// Initialized by configureDUT.
 	duti1, duti2 *oc.Interface
 }
@@ -127,6 +127,33 @@ func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *att
 
 	s6 := s.GetOrCreateIpv6()
 	s6.Mtu = ygot.Uint32(uint32(tc.mtu))
+}
+
+func (tc *testCase) configureDUTBreakout(t *testing.T) *oc.Component_Port_BreakoutMode_Group {
+	t.Helper()
+	d := gnmi.OC()
+	tc.breakoutPorts = make(map[string][]string)
+
+	for _, dp := range tc.dut.Ports() {
+		// TODO(liulk): figure out a better way to detect breakout port.
+		if dp.PMD() != ondatra.PMD100GBASEFR {
+			continue
+		}
+		parent := gnmi.Get(t, tc.dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
+		tc.breakoutPorts[parent] = append(tc.breakoutPorts[parent], dp.Name())
+	}
+	var group *oc.Component_Port_BreakoutMode_Group
+	for physical := range tc.breakoutPorts {
+		bmode := &oc.Component_Port_BreakoutMode{}
+		bmp := d.Component(physical).Port().BreakoutMode()
+		group = bmode.GetOrCreateGroup(0)
+		// TODO(liulk): use one of the logical port.Speed().
+		group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+		group.NumBreakouts = ygot.Uint8(4)
+		gnmi.Replace(t, tc.dut, bmp.Config(), bmode)
+	}
+	return group
+
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
@@ -260,12 +287,24 @@ func (tc *testCase) verifyInterfaceDUT(
 
 // verifyDUT checks the telemetry against the parameters set by
 // configureDUT().
-func (tc *testCase) verifyDUT(t *testing.T) {
+func (tc *testCase) verifyDUT(t *testing.T, breakoutGroup *oc.Component_Port_BreakoutMode_Group) {
 	t.Run("Port1", func(t *testing.T) {
 		tc.verifyInterfaceDUT(t, tc.dut.Port(t, "port1"), tc.duti1, &ateSrc)
 	})
 	t.Run("Port2", func(t *testing.T) {
 		tc.verifyInterfaceDUT(t, tc.dut.Port(t, "port2"), tc.duti2, &ateDst)
+	})
+	t.Run("Breakout", func(t *testing.T) {
+		for physical := range tc.breakoutPorts {
+			if physical == "" {
+				continue // Not a breakout.
+			}
+			const want = 4
+			got := breakoutGroup.GetNumBreakouts()
+			if !cmp.Equal(got, want) {
+				t.Errorf("number of brekaoutports  = %v, want = %v", got, want)
+			}
+		}
 	})
 }
 
@@ -320,15 +359,11 @@ func (tc *testCase) configureIPv6FlowHeader(t *testing.T, packetSize uint16) {
 }
 
 func (tc *testCase) waitOTGIPv4NeighborEntry(t *testing.T) {
-	gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv4")
 }
 
 func (tc *testCase) waitOTGIPv6NeighborEntry(t *testing.T) {
-	gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv6")
 }
 
 type counters struct {
@@ -454,8 +489,9 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 func (tc *testCase) testMTU(t *testing.T) {
 	tc.configureDUT(t)
 	tc.configureATE(t)
+	breakoutGroup := tc.configureDUTBreakout(t)
 
-	t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t) })
+	t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t, breakoutGroup) })
 	t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
 
 	for _, c := range []struct {
@@ -491,7 +527,7 @@ func (tc *testCase) testMTU(t *testing.T) {
 	}
 }
 
-func TestSingleton(t *testing.T) {
+func TestMTUs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
