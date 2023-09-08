@@ -21,9 +21,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -121,44 +124,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 	intf3.AddToOTG(top, ap3, &dutPort3)
 	ate.OTG().PushConfig(t, top)
 
-	queueMap := map[ondatra.Vendor]map[string]string{
-		ondatra.JUNIPER: {
-			"NC1": "3",
-			"AF4": "2",
-			"AF3": "5",
-			"AF2": "1",
-			"AF1": "4",
-			"BE1": "0",
-			"BE0": "6",
-		},
-		ondatra.ARISTA: {
-			"NC1": "NC1",
-			"AF4": "AF4",
-			"AF3": "AF3",
-			"AF2": "AF2",
-			"AF1": "AF1",
-			"BE1": "BE1",
-			"BE0": "BE0",
-		},
-		ondatra.CISCO: {
-			"NC1": "NC1",
-			"AF4": "AF4",
-			"AF3": "AF3",
-			"AF2": "AF2",
-			"AF1": "AF1",
-			"BE0": "BE0",
-			"BE1": "BE1",
-		},
-		ondatra.NOKIA: {
-			"NC1": "7",
-			"AF4": "4",
-			"AF3": "3",
-			"AF2": "2",
-			"AF1": "0",
-			"BE1": "1",
-			"BE0": "1",
-		},
-	}
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	// Test case 1: Non-oversubscription traffic with 80% of linerate.
 	//   - There should be no packet drop for all traffic classes.
@@ -168,7 +134,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           3,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-af4": {
@@ -176,7 +142,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           24,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-af3": {
@@ -184,7 +150,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           6,
 			expectedThroughputPct: 100.0,
 			dscp:                  24,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf1,
 		},
 		"intf1-af2": {
@@ -192,7 +158,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           4,
 			expectedThroughputPct: 100.0,
 			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf1,
 		},
 		"intf1-af1": {
@@ -200,7 +166,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           2,
 			expectedThroughputPct: 100.0,
 			dscp:                  8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
@@ -208,7 +174,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           0.5,
 			expectedThroughputPct: 100.0,
 			dscp:                  4,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf1,
 		},
 		"intf1-be1": {
@@ -216,7 +182,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           0.5,
 			dscp:                  0,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -224,7 +190,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           3,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-af4": {
@@ -232,7 +198,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           24,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-af3": {
@@ -240,7 +206,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           6,
 			expectedThroughputPct: 100.0,
 			dscp:                  24,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf2,
 		},
 		"intf2-af2": {
@@ -248,7 +214,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           4,
 			expectedThroughputPct: 100.0,
 			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf2,
 		},
 		"intf2-af1": {
@@ -256,7 +222,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           2,
 			expectedThroughputPct: 100.0,
 			dscp:                  8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
@@ -264,7 +230,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           0.5,
 			dscp:                  4,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf2,
 		},
 		"intf2-be1": {
@@ -272,7 +238,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           0.5,
 			expectedThroughputPct: 100.0,
 			dscp:                  0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf2,
 		},
 	}
@@ -285,7 +251,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           5,
 			expectedThroughputPct: 100.0,
 			dscp:                  56,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf1,
 		},
 		"intf1-af4": {
@@ -293,7 +259,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           30,
 			expectedThroughputPct: 100.0,
 			dscp:                  32,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf1,
 		},
 		"intf1-af3": {
@@ -301,7 +267,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           7.5,
 			expectedThroughputPct: 100.0,
 			dscp:                  24,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf1,
 		},
 		"intf1-af2": {
@@ -309,7 +275,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           4,
 			expectedThroughputPct: 100.0,
 			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf1,
 		},
 		"intf1-af1": {
@@ -317,7 +283,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           2,
 			expectedThroughputPct: 100.0,
 			dscp:                  8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf1,
 		},
 		"intf1-be0": {
@@ -325,7 +291,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           0.5,
 			expectedThroughputPct: 100.0,
 			dscp:                  4,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf1,
 		},
 		"intf1-be1": {
@@ -333,7 +299,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           0.5,
 			dscp:                  0,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf1,
 		},
 		"intf2-nc1": {
@@ -341,7 +307,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           4,
 			dscp:                  56,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["NC1"],
+			queue:                 queues.NC1,
 			inputIntf:             intf2,
 		},
 		"intf2-af4": {
@@ -349,7 +315,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           30,
 			dscp:                  32,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["AF4"],
+			queue:                 queues.AF4,
 			inputIntf:             intf2,
 		},
 		"intf2-af3": {
@@ -357,7 +323,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           7.5,
 			expectedThroughputPct: 100.0,
 			dscp:                  24,
-			queue:                 queueMap[dut.Vendor()]["AF3"],
+			queue:                 queues.AF3,
 			inputIntf:             intf2,
 		},
 		"intf2-af2": {
@@ -365,7 +331,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           4,
 			expectedThroughputPct: 100.0,
 			dscp:                  16,
-			queue:                 queueMap[dut.Vendor()]["AF2"],
+			queue:                 queues.AF2,
 			inputIntf:             intf2,
 		},
 		"intf2-af1": {
@@ -373,7 +339,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           2,
 			expectedThroughputPct: 100.0,
 			dscp:                  8,
-			queue:                 queueMap[dut.Vendor()]["AF1"],
+			queue:                 queues.AF1,
 			inputIntf:             intf2,
 		},
 		"intf2-be0": {
@@ -381,7 +347,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           0.5,
 			dscp:                  4,
 			expectedThroughputPct: 100.0,
-			queue:                 queueMap[dut.Vendor()]["BE0"],
+			queue:                 queues.BE0,
 			inputIntf:             intf2,
 		},
 		"intf2-be1": {
@@ -389,7 +355,7 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			trafficRate:           0.5,
 			expectedThroughputPct: 100.0,
 			dscp:                  0,
-			queue:                 queueMap[dut.Vendor()]["BE1"],
+			queue:                 queues.BE1,
 			inputIntf:             intf2,
 		},
 	}
@@ -421,9 +387,9 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				ipHeader := flow.Packet().Add().Ipv4()
 				ipHeader.Src().SetValue(data.inputIntf.IPv4)
 				ipHeader.Dst().SetValue(intf3.IPv4)
-				ipHeader.Priority().Dscp().Phb().SetValue(int32(data.dscp))
+				ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
 
-				flow.Size().SetFixed(int32(data.frameSize))
+				flow.Size().SetFixed(uint32(data.frameSize))
 				flow.Rate().SetPercentage(float32(data.trafficRate))
 
 			}
@@ -461,12 +427,33 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			}
 
 			// Get QoS egress packet counters before the traffic.
+			const timeout = time.Minute
+			isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 			for _, data := range trafficFlows {
-				counters["dutQosPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				counters["dutQosOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
-				counters["dutQosDroppedPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosPktsBeforeTraffic"][data.queue], _ = count.Val()
+
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("TransmitOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosOctetsBeforeTraffic"][data.queue], _ = count.Val()
+
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
+
 				if !deviations.QOSDroppedOctets(dut) {
-					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+					if !ok {
+						t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					}
+					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
 				}
 			}
 
@@ -524,8 +511,10 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				dutOctetCounterDiff := counters["dutQosOctetsAfterTraffic"][data.queue] - counters["dutQosOctetsBeforeTraffic"][data.queue]
 				ateOctetCounterDiff := counters["ateInPkts"][data.queue] * uint64(data.frameSize)
 				t.Logf("Queue %q: ateOctetCounterDiff: %v dutOctetCounterDiff: %v", data.queue, ateOctetCounterDiff, dutOctetCounterDiff)
-				if dutOctetCounterDiff < ateOctetCounterDiff {
-					t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+				if !deviations.QOSOctets(dut) {
+					if dutOctetCounterDiff < ateOctetCounterDiff {
+						t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+					}
 				}
 
 				if !deviations.QOSDroppedOctets(dut) {
@@ -596,6 +585,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	t.Logf("Create qos forwarding groups and queue name config")
 	forwardingGroups := []struct {
@@ -604,42 +594,37 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   "BE1",
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   "BE0",
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   "AF1",
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   "AF2",
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   "AF3",
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   "AF4",
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   "NC1",
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
 	t.Logf("qos forwarding groups config: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
-		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-		fwdGroup.SetName(tc.targetGroup)
-		fwdGroup.SetOutputQueue(tc.queueName)
-		queue := q.GetOrCreateQueue(tc.queueName)
-		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 	}
 
 	t.Logf("Create qos queue management profile config")
@@ -821,12 +806,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		i := q.GetOrCreateInterface(tc.intf)
-		i.SetInterfaceId(tc.intf)
-		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-		c.SetType(tc.inputClassifierType)
-		c.SetName(tc.classifier)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -849,7 +829,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   "BE1",
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -859,7 +839,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(1),
-		queueName:   "BE0",
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -869,7 +849,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF1",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(4),
-		queueName:   "AF1",
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -879,7 +859,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF2",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(8),
-		queueName:   "AF2",
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -889,7 +869,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF3",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(12),
-		queueName:   "AF3",
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -899,7 +879,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputID:     "AF4",
 		inputType:   oc.Input_InputType_QUEUE,
 		weight:      uint64(48),
-		queueName:   "AF4",
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -909,7 +889,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
 		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   "NC1",
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -940,37 +920,37 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		ecnProfile string
 	}{{
 		desc:       "output-interface-BE1",
-		queueName:  "BE1",
+		queueName:  queues.BE1,
 		scheduler:  "scheduler",
 		ecnProfile: "ECNProfile",
 	}, {
 		desc:       "output-interface-BE0",
-		queueName:  "BE0",
+		queueName:  queues.BE0,
 		scheduler:  "scheduler",
 		ecnProfile: "ECNProfile",
 	}, {
 		desc:       "output-interface-AF1",
-		queueName:  "AF1",
+		queueName:  queues.AF1,
 		scheduler:  "scheduler",
 		ecnProfile: "ECNProfile",
 	}, {
 		desc:       "output-interface-AF2",
-		queueName:  "AF2",
+		queueName:  queues.AF2,
 		scheduler:  "scheduler",
 		ecnProfile: "ECNProfile",
 	}, {
 		desc:       "output-interface-AF3",
-		queueName:  "AF3",
+		queueName:  queues.AF3,
 		scheduler:  "scheduler",
 		ecnProfile: "ECNProfile",
 	}, {
 		desc:       "output-interface-AF4",
-		queueName:  "AF4",
+		queueName:  queues.AF4,
 		scheduler:  "scheduler",
 		ecnProfile: "ECNProfile",
 	}, {
 		desc:       "output-interface-NC1",
-		queueName:  "NC1",
+		queueName:  queues.NC1,
 		scheduler:  "scheduler",
 		ecnProfile: "ECNProfile",
 	}}
@@ -1042,12 +1022,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("qos forwarding groups config cases: %v", casesfwdgrp)
 	for _, tc := range casesfwdgrp {
 		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-			fwdGroup.SetName(tc.targetGroup)
-			fwdGroup.SetOutputQueue(tc.queueName)
-			queue := q.GetOrCreateQueue(tc.queueName)
-			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 		})
 	}
 
@@ -1214,12 +1189,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		i := q.GetOrCreateInterface(tc.intf)
-		i.SetInterfaceId(tc.intf)
-		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-		c.SetType(tc.inputClassifierType)
-		c.SetName(tc.classifier)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -1351,13 +1321,15 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 }
 func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
@@ -1366,6 +1338,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
+	queues := netutil.CommonTrafficQueues(t, dut)
 
 	forwardingGroups := []struct {
 		desc        string
@@ -1373,42 +1346,37 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "forwarding-group-BE1",
-		queueName:   "6",
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "forwarding-group-BE0",
-		queueName:   "0",
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "forwarding-group-AF1",
-		queueName:   "4",
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "forwarding-group-AF2",
-		queueName:   "1",
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "forwarding-group-AF3",
-		queueName:   "5",
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "forwarding-group-AF4",
-		queueName:   "2",
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "forwarding-group-NC1",
-		queueName:   "3",
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
 	t.Logf("qos forwarding groups config: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
-		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-		fwdGroup.SetName(tc.targetGroup)
-		fwdGroup.SetOutputQueue(tc.queueName)
-		queue := q.GetOrCreateQueue(tc.queueName)
-		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 	}
 
 	if deviations.ECNProfileRequiredDefinition(dut) {
@@ -1590,16 +1558,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		i := q.GetOrCreateInterface(tc.intf)
-		i.SetInterfaceId(tc.intf)
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
-			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		}
-		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-		c.SetType(tc.inputClassifierType)
-		c.SetName(tc.classifier)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -1620,7 +1579,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "BE1",
 		weight:      uint64(1),
-		queueName:   "6",
+		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-BE0",
@@ -1629,7 +1588,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "BE0",
 		weight:      uint64(1),
-		queueName:   "0",
+		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
@@ -1638,7 +1597,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF1",
 		weight:      uint64(4),
-		queueName:   "4",
+		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
@@ -1647,7 +1606,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF2",
 		weight:      uint64(8),
-		queueName:   "1",
+		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
@@ -1656,7 +1615,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF3",
 		weight:      uint64(12),
-		queueName:   "5",
+		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
@@ -1665,7 +1624,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   true,
 		inputID:     "AF4",
 		weight:      uint64(48),
-		queueName:   "2",
+		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
@@ -1674,7 +1633,7 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
 		inputID:     "NC1",
-		queueName:   "3",
+		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
 	}}
 
@@ -1703,34 +1662,32 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		queueName string
 	}{{
 		desc:      "output-interface-BE1",
-		queueName: "6",
+		queueName: queues.BE1,
 	}, {
 		desc:      "output-interface-BE0",
-		queueName: "0",
+		queueName: queues.BE0,
 	}, {
 		desc:      "output-interface-AF1",
-		queueName: "4",
+		queueName: queues.AF1,
 	}, {
 		desc:      "output-interface-AF2",
-		queueName: "1",
+		queueName: queues.AF2,
 	}, {
 		desc:      "output-interface-AF3",
-		queueName: "5",
+		queueName: queues.AF3,
 	}, {
 		desc:      "output-interface-AF4",
-		queueName: "2",
+		queueName: queues.AF4,
 	}, {
 		desc:      "output-interface-NC1",
-		queueName: "3",
+		queueName: queues.NC1,
 	}}
 
 	t.Logf("qos output interface config: %v", schedulerIntfs)
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
-		}
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName("scheduler")

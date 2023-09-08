@@ -203,7 +203,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4v1.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4v1.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
@@ -359,7 +359,7 @@ func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAd
 			Metadata: []*p4v1.PacketMetadata{
 				{
 					MetadataId: uint32(1), // "egress_port"
-					Value:      []byte("0"),
+					Value:      []byte("submit_to_ingress"),
 				},
 				{
 					MetadataId: uint32(2), // "submit_to_ingress"

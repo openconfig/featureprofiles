@@ -236,7 +236,7 @@ func TestHardwareCards(t *testing.T) {
 				mfgDateValidation:     false,
 				swVerValidation:       false,
 				hwVerValidation:       true,
-				fwVerValidation:       false,
+				fwVerValidation:       true,
 				rrValidation:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 				parentValidation:      false,
@@ -380,9 +380,12 @@ func TestSwitchChip(t *testing.T) {
 
 		cName := card.GetName()
 		t.Run(fmt.Sprintf("Backplane:%s", cName), func(t *testing.T) {
-			if deviations.BackplaneFacingCapacityUnsupported(dut) && regexp.MustCompile("NPU[0-9]$").Match([]byte(card.GetName())) {
-				// Vendor does not support backplane-facing-capacity for nodes named 'NPU'.
-				t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")
+			if deviations.BackplaneFacingCapacityUnsupported(dut) {
+				v := dut.Vendor()
+				// Vendor does not support backplane-facing-capacity
+				if v != ondatra.JUNIPER || (v == ondatra.JUNIPER && regexp.MustCompile("NPU[0-9]$").Match([]byte(card.GetName()))) {
+					t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")
+				}
 			}
 			// For SwitchChip, check OC integrated-circuit paths.
 			if card.GetIntegratedCircuit() == nil {
@@ -545,6 +548,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					case componentType["Storage"]:
 						fallthrough
 					case componentType["Cpu"]:
+						if deviations.CPUMissingAncestor(dut) {
+							break
+						}
 						parent := card.GetParent()
 						for {
 							cp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).State()).Val()
@@ -580,6 +586,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					case componentType["Storage"]:
 						fallthrough
 					case componentType["Cpu"]:
+						if deviations.CPUMissingAncestor(dut) {
+							break
+						}
 						parent := card.GetParent()
 						for {
 							cp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).State()).Val()
@@ -666,6 +675,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			if p.parentValidation {
 				cur := cName
 				for {
+					if p.pType == componentType["Cpu"] && deviations.CPUMissingAncestor(dut) {
+						break
+					}
 					val := gnmi.Lookup(t, dut, gnmi.OC().Component(cur).Parent().State())
 					parent, ok := val.Val()
 					if !ok {
@@ -693,26 +705,6 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 				}
 			}
 		})
-	}
-}
-
-func TestSoftwareModule(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	if deviations.ComponentsSoftwareModuleUnsupported(dut) {
-		t.Logf("Skipping check for components software module unsupport")
-	} else {
-		moduleTypes := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().SoftwareModule().ModuleType().State())
-		if len(moduleTypes) == 0 {
-			t.Errorf("Get moduleType list for %q: got 0, want > 0", dut.Model())
-		}
-
-		for i, moduleType := range moduleTypes {
-			modVal, present := moduleType.Val()
-			if !present {
-				t.Fatalf("moduleType.IsPresent() item %d: got false, want true", i)
-			}
-			t.Logf("Telemetry moduleType path/value %d: %v=>%v.", i, moduleType.Path.String(), modVal)
-		}
 	}
 }
 

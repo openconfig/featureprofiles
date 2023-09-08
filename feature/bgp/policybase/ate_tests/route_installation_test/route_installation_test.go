@@ -224,36 +224,58 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
 // Additonally, it configures LocalPreference and ASPathprepend as part of the BGP policy
-func configureBGPPolicy(d *oc.Root) *oc.RoutingPolicy {
+func configureBGPPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
 	rp := d.GetOrCreateRoutingPolicy()
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
 	pset.GetOrCreatePrefix(ipPrefixSet, prefixSubnetRange)
 	pdef := rp.GetOrCreatePolicyDefinition(allowConnected)
-	stmt5 := pdef.GetOrCreateStatement(aclStatement1)
+	stmt5, err := pdef.AppendNewStatement(aclStatement1)
+	if err != nil {
+		return nil, err
+	}
 	stmt5.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 	stmt5.GetOrCreateConditions().GetOrCreateMatchPrefixSet().PrefixSet = ygot.String(prefixSet)
-	stmt10 := pdef.GetOrCreateStatement(aclStatement2)
+	stmt10, err := pdef.AppendNewStatement(aclStatement2)
+	if err != nil {
+		return nil, err
+	}
 	stmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(acceptPolicy)
-	pdef2.GetOrCreateStatement(aclStatement2).GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	stmt, err := pdef2.AppendNewStatement(aclStatement2)
+	if err != nil {
+		return nil, err
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	pdef3 := rp.GetOrCreatePolicyDefinition(denyPolicy)
-	pdef3.GetOrCreateStatement(aclStatement2).GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+	stmt, err = pdef3.AppendNewStatement(aclStatement2)
+	if err != nil {
+		return nil, err
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 
 	pdef4 := rp.GetOrCreatePolicyDefinition(setLocalPrefPolicy)
-	actions := pdef4.GetOrCreateStatement(aclStatement2).GetOrCreateActions()
+	stmt, err = pdef4.AppendNewStatement(aclStatement2)
+	if err != nil {
+		return nil, err
+	}
+	actions := stmt.GetOrCreateActions()
 	actions.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(localPrefValue)
 	actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	pdef5 := rp.GetOrCreatePolicyDefinition(setAspathPrependPolicy)
-	actions5 := pdef5.GetOrCreateStatement(aclStatement2).GetOrCreateActions()
+	stmt, err = pdef5.AppendNewStatement(aclStatement2)
+	if err != nil {
+		return nil, err
+	}
+	actions5 := stmt.GetOrCreateActions()
 	aspend := actions5.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
 	aspend.Asn = ygot.Uint32(ateAS)
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
 	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
-	return rp
+	return rp, nil
 }
 
 // verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings
@@ -534,7 +556,10 @@ func TestEstablish(t *testing.T) {
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	d := &oc.Root{}
-	rpl := configureBGPPolicy(d)
+	rpl, err := configureBGPPolicy(d)
+	if err != nil {
+		t.Fatalf("Failed to configure BGP policy: %v", err)
+	}
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 	dutConf := bgpCreateNbr(dutAS, ateAS, defaultPolicy, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
@@ -631,7 +656,10 @@ func TestBGPPolicy(t *testing.T) {
 			fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 			d := &oc.Root{}
 			t.Log("Configure BGP Policy with BGP actions on the neighbor")
-			rpl := configureBGPPolicy(d)
+			rpl, err := configureBGPPolicy(d)
+			if err != nil {
+				t.Fatalf("Failed to configure BGP policy: %v", err)
+			}
 			gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 			bgp := bgpCreateNbr(dutAS, ateAS, tc.policy, dut)
 			// Configure ATE to setup traffic.
