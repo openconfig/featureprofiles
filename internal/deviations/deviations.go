@@ -534,12 +534,6 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
 }
 
-// ATEPortLinkStateOperationsUnsupported returns true for traffic generators that do not support
-// port link state control operations (such as port shutdown.)
-func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
-	return lookupATEDeviations(ate).GetAtePortLinkStateOperationsUnsupported()
-}
-
 // ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
 // configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
 func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
