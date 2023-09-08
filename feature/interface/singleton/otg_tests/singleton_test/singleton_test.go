@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
@@ -360,15 +359,11 @@ func (tc *testCase) configureIPv6FlowHeader(t *testing.T, packetSize uint16) {
 }
 
 func (tc *testCase) waitOTGIPv4NeighborEntry(t *testing.T) {
-	gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv4")
 }
 
 func (tc *testCase) waitOTGIPv6NeighborEntry(t *testing.T) {
-	gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv6")
 }
 
 type counters struct {
