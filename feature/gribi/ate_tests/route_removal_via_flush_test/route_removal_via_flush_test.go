@@ -99,7 +99,7 @@ func TestRouteRemovelViaFlush(t *testing.T) {
 	ateTop := configureATE(t, ate)
 	ateTop.Push(t).StartProtocols(t)
 
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the gRIBI client clientA with election ID of 10.
 	clientA := fluent.NewClient()

@@ -149,7 +149,7 @@ func TestIPv4Entry(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
