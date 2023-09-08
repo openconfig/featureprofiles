@@ -3,10 +3,16 @@ package gnxi
 import (
 	"context"
 
+	"github.com/openconfig/gnoi/system"
+	gribi "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // function AllRPC implements a sample request for service * to validate if authz works as expected.
@@ -21,22 +27,62 @@ func GnmiAllRPC(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOpt
 
 // function GnmiGet implements a sample request for service /gnmi.gNMI/Get to validate if authz works as expected.
 func GnmiGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnmi.gNMI/Get is not implemented")
+	gnmiC, err := dut.RawAPI().DialGNMI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	ygnmiC, err := ygnmi.NewClient(gnmiC)
+	if err != nil {
+		return err
+	}
+	yopts := []ygnmi.Option{
+		ygnmi.WithUseGet(),
+		ygnmi.WithEncoding(gpb.Encoding_JSON_IETF),
+	}
+	_, err = ygnmi.Get[string](ctx, ygnmiC, gnmi.OC().System().Hostname().Config(), yopts...)
+	return err
 }
 
 // function GnmiSet implements a sample request for service /gnmi.gNMI/Set to validate if authz works as expected.
 func GnmiSet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnmi.gNMI/Set is not implemented")
+	gnmiC, err := dut.RawAPI().DialGNMI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	ygnmiC, err := ygnmi.NewClient(gnmiC)
+	if err != nil {
+		return err
+	}
+	yopts := []ygnmi.Option{
+		ygnmi.WithUseGet(),
+		ygnmi.WithEncoding(gpb.Encoding_JSON_IETF),
+	}
+	_, err = ygnmi.Replace[string](ctx, ygnmiC, gnmi.OC().System().Hostname().Config(), "test", yopts...)
+	return err
 }
 
 // function GnmiSubscribe implements a sample request for service /gnmi.gNMI/Subscribe to validate if authz works as expected.
 func GnmiSubscribe(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnmi.gNMI/Subscribe is not implemented")
+	gnmiC, err := dut.RawAPI().DialGNMI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	ygnmiC, err := ygnmi.NewClient(gnmiC)
+	if err != nil {
+		return err
+	}
+	_, err = ygnmi.Get(ctx, ygnmiC, gnmi.OC().System().Hostname().State())
+	return err
 }
 
 // function GnmiCapabilities implements a sample request for service /gnmi.gNMI/Capabilities to validate if authz works as expected.
 func GnmiCapabilities(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnmi.gNMI/Capabilities is not implemented")
+	gnmiC, err := dut.RawAPI().DialGNMI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	_, err = gnmiC.Capabilities(ctx, &gpb.CapabilityRequest{})
+	return err
 }
 
 // function GnoiBgpAllRPC implements a sample request for service /gnoi.bgp.BGP/* to validate if authz works as expected.
@@ -361,7 +407,12 @@ func GnoiSystemTraceroute(ctx context.Context, dut *ondatra.DUTDevice, opts []gr
 
 // function GnoiSystemPing implements a sample request for service /gnoi.system.System/Ping to validate if authz works as expected.
 func GnoiSystemPing(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.system.System/Ping is not implemented")
+	gnoiC, err := dut.RawAPI().DialGNOI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	_, err = gnoiC.System().Ping(ctx, &system.PingRequest{Destination: "127.0.0.1"})
+	return err
 }
 
 // function GnoiWavelengthrouterAdjustPSD implements a sample request for service /gnoi.optical.WavelengthRouter/AdjustPSD to validate if authz works as expected.
@@ -491,17 +542,32 @@ func GribiAllRPC(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOp
 
 // function GribiFlush implements a sample request for service /gribi.gRIBI/Flush to validate if authz works as expected.
 func GribiFlush(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gribi.gRIBI/Flush is not implemented")
+	gribiC, err := dut.RawAPI().DialGRIBI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	_, err = gribiC.Flush(ctx, &gribi.FlushRequest{Election: &gribi.FlushRequest_Id{Id: &gribi.Uint128{Low: 1}}})
+	return err
 }
 
 // function GribiGet implements a sample request for service /gribi.gRIBI/Get to validate if authz works as expected.
 func GribiGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gribi.gRIBI/Get is not implemented")
+	gribiC, err := dut.RawAPI().DialGRIBI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	_, err = gribiC.Get(ctx, &gribi.GetRequest{})
+	return err
 }
 
 // function GribiModify implements a sample request for service /gribi.gRIBI/Modify to validate if authz works as expected.
 func GribiModify(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gribi.gRIBI/Modify is not implemented")
+	gribiC, err := dut.RawAPI().DialGRIBI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	_, err = gribiC.Modify(ctx)
+	return err
 }
 
 // function P4P4runtimeAllRPC implements a sample request for service /p4.v1.P4Runtime/* to validate if authz works as expected.
