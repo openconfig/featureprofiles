@@ -7,25 +7,38 @@ Validate Interface based Ipv4 GRE Tunnel Config.
 ## Procedure
 
 Validate the GRE configuration
-Tunnel endpoint configuration options
+GRE Tunnel interfaces configuration options
 Tunnel source
 Tunnel source should be able to configure with unnumbered interface address
 Tunnel Destination
-Filter match and action to divert traffic for GRE Encap/Decap
+Directly on Tunnel interface or Tunnel Group
+Configure such 32 tunnel interfaces
+Filter match and action
 Filter is able to match the source and destination IP ranges or prefix lists
-Filter is able to divert traffic to IPv4 and IPv6 Next HOP(NH) or GRE Encap/Decap instruction/action
+Filter is able to divert traffic to IPv4 Next HOP
 Filter is able to count the packet
-Filter application to specific interface address family
-Apply filter on IPv4 and IPv6 AF on DUT-PORT1
-Validate the applied config did not report any errors
+Filter diverting traffic to IPv4 NH
+Configure static route with IPv4 NH pointing to Tunnel interfaces
+Filter application to specific interface
+Apply filter on IPv4 AF on DUT-PORT1
+Send 1000 IPv4 flows from tester on ATE-PORT1 connected to DUT-PORT1 where GRE Encap filter is applied with the traffic profile documented
+IPv4 flows are made of 5 tuples
+Source IP address
+Source port
+Destination IP address
+Destination port
+Payload protocol
+Enable the packet capture on ATE ingress port to verify the GRE header of uncapped traffic
+Verify the filter counters for packet being diverted or sent for encapsulation
+Verify the tunnel interfaces counters to confirm the traffic encapsulation
+After encapsulation, traffic should be load balanced/hash to all available L3 ECMP or LAG or combination of both features
 Validate system for:
 Health-1.1
-With traffic running end to end, no feature related error or drop counters incrementing, discussion with vendors required to highlight additional fields to monitor based on implementation and architecture
+No feature related error or drop counters incrementing, discussion with vendors required to highlight additional fields to monitor based on implementation and architecture
 
 ## Config Parameter coverage
 
-Prefix:
-wbb://software/interfaces/tunnel/
+Prefix: wbb://software/interfaces/tunnel/
 Parameters:
 gre/
 gre/decap-group/
@@ -39,18 +52,27 @@ gre/source/address/
 gre/source/address/ipv4/
 gre/source/address/ipv6/
 gre/source/interface/
-
+Prefix:
+wbb://software/routing/nexthop-group/
+wbb://software/routing/nexthop-group/gre/
 Prefix:
 wbb://software/forwarding/policy/acl/rule/
+
 Parameters:
 action/
 action/count/
 action/nexthop/
 Prefix:
-wbb://software/forwarding/policy/pbr/action/encap/ip-gre/
-Prefix:
-wbb://software/routing/nexthop-group/
-wbb://software/routing/nexthop-group/gre/
+wbb://software/routing/static/
+Parameters:
+ipv4/
+ipv4/admin-dist/
+ipv4/nexthop/
+ipv4/nexthop/null/
+ipv6/
+ipv6/admin-dist/
+ipv6/nexthop/
+ipv6/nexthop/null/
 
 ## Telemetry Parameter coverage
 
@@ -58,7 +80,7 @@ Prefix:
 wbb://software/interfaces/tunnel/
 wbb://software/interfaces/tunnel/gre/
 wbb://software/forwarding/policy/acl/rule/
-
+Needs to define
 ST for Tunnel counters
 ST for packet capture on DUT and ATE to read:
 Packet metadata
@@ -76,7 +98,5 @@ state/counters/out-octets
 state/counters/out-error-pkts
 state/counters/out-forwarded-pkts
 state/counters/out-forwarded-octets
-state/counters/out-discarded-pkts
-Fragmentation and assembly counters
-Filter counters
-Output to display the traffic is spread across the different tunnel subnet ranges/NH groups/Interfaces
+state/counters/out-discarded-pkt
+Fragmentation and assembly counters Filter counters Output to display the traffic is spread across the different tunnel subnet ranges/NH groups/Interfaces
