@@ -551,3 +551,42 @@ func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) b
 func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
 }
+
+// LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
+// /components/component/cpu/utilization/state/avg for linecards' CPU card.
+// Default value is false.
+func LinecardCPUUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinecardCpuUtilizationUnsupported()
+}
+
+// ConsistentComponentNamesUnsupported returns if the device does not support consistent component names for GNOI and GNMI.
+// Default value is false.
+func ConsistentComponentNamesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConsistentComponentNamesUnsupported()
+}
+
+// ControllerCardCPUUtilizationUnsupported returns if the device does not support telemetry path
+// /components/component/cpu/utilization/state/avg for controller cards' CPU card.
+// Default value is false.
+func ControllerCardCPUUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetControllerCardCpuUtilizationUnsupported()
+}
+
+// FabricDropCounterUnsupported returns if the device does not support counter for fabric block lost packets.
+// Default value is false.
+func FabricDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFabricDropCounterUnsupported()
+}
+
+// LinecardMemoryUtilizationUnsupported returns if the device does not support memory utilization related leaves for linecard components.
+// Default value is false.
+func LinecardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinecardMemoryUtilizationUnsupported()
+}
+
+// QOSVoqDropCounterUnsupported returns if the device does not support telemetry path
+// /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
+// Default value is false.
+func QOSVoqDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosVoqDropCounterUnsupported()
+}
