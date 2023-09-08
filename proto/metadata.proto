@@ -296,11 +296,30 @@ message Metadata {
     // lspLifetimeInterval is configured.
     // Arista: partnerissuetracker.corp.google.com/293667850
     bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
+    // Devices require configuring LoopbackMode on member ports to enable
+    // LoopbackMode on aggregate interface.
+    // Arista: partnerissuetracker.corp.google.com/297391260
+    bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for linecards' CPU card.
+    bool linecard_cpu_utilization_unsupported = 98;
+    // Device does not support consistent component names for GNOI and GNMI.
+    bool consistent_component_names_unsupported = 99;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for controller cards'
+    // CPU card.
+    bool controller_card_cpu_utilization_unsupported = 100;
+    // Device does not support counter for fabric block lost packets.
+    bool fabric_drop_counter_unsupported = 101;
+    // Device does not support memory utilization related leaves for linecard components.
+    bool linecard_memory_utilization_unsupported = 102;
+    // Device does not support telemetry path
+    // /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
+    bool qos_voq_drop_counter_unsupported = 103;
     // Device does not support tunnel interfaces state paths
-    bool tunnel_state_path_unsupported = 97;
+    bool tunnel_state_path_unsupported = 104;
     // Device does not support tunnel interfaces source and destination address config paths
-    bool tunnel_config_path_unsupported = 98;
-
+    bool tunnel_config_path_unsupported = 105;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
