@@ -534,12 +534,6 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
 }
 
-// ATEPortLinkStateOperationsUnsupported returns true for traffic generators that do not support
-// port link state control operations (such as port shutdown.)
-func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
-	return lookupATEDeviations(ate).GetAtePortLinkStateOperationsUnsupported()
-}
-
 // ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
 // configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
 func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
@@ -589,4 +583,22 @@ func LinecardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
 // Default value is false.
 func QOSVoqDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosVoqDropCounterUnsupported()
+}
+
+// ISISTimersCsnpIntervalUnsupported returns true for devices that do not support
+// configuring csnp-interval timer for ISIS.
+func ISISTimersCsnpIntervalUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisTimersCsnpIntervalUnsupported()
+}
+
+// ISISCounterManualAddressDropFromAreasUnsupported returns true for devices that do not
+// support telemetry for isis system-level-counter manual-address-drop-from-areas.
+func ISISCounterManualAddressDropFromAreasUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisCounterManualAddressDropFromAreasUnsupported()
+}
+
+// ISISCounterPartChangesUnsupported returns true for devices that do not
+// support telemetry for isis system-level-counter part-changes.
+func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
