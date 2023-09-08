@@ -2,44 +2,43 @@
 
 ## Summary
 
-Verify that packet drops in AF4, AF3, AF2, AF1, BE1 and NC1 according to the strict-priority test traffic table
-
-## QoS traffic test setup:
-
-*   Topology:
-
-    *   2 input interfaces and 1 output interface with the same port speed. The
-        interface can be a physical interface or LACP bundle interface with the
-        same aggregated speed.
-
-    ```
-      ATE port 1
-          |
-         DUT--------ATE port 3
-          |
-      ATE port 2
-    ```
-
-*   Counters should be also verified for each test case:
-
-    *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-    *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
-    *   transmit-pkts should be equal to the number of Rx pkts on Ixia port
-    *   dropped-pkts should be equal to diff between the number of Tx and the
-        number Rx pkts on Ixia ports
-
-*   Latency:
-
-    *   Should be < 100000ns
+Egress strict priority scheduler test
 
 ## Procedure
 
-*   Connect DUT port-1 to ATE port-1, DUT port-2 to ATE port-2 and DUT port-3 to
-    ATE port-3.
+*   Configure 6 forwarding classes according to the classification table.
+*   Configure egress multi-level strict-priority scheduling policy for the above classes.
+*   Send traffic flows according to the strict-priority test traffic table.
+*   Verify loss-rate for traffic on the ingress ATE interface to match the expected loss
+*   Verify queue drop counters on DUT egress interface.
 
-*   Configuration
+## Config parameter coverage
 
-    *   Configure strict priority scheduler mode for NC1, AF4, AF3, AF2
+*   /openconfig-qos:qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config
+*   /openconfig-qos:qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority
+*   /openconfig-qos:qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence
+*   /openconfig-qos:qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type
+*   /openconfig-qos:qos/scheduler-policies/scheduler-policy/schedulers/scheduler/output/config
+
+## Telemetry parameter coverage
+
+*   /openconfig-qos:qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/name
+*   /openconfig-qos:qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/transmit-pkts
+*   /openconfig-qos:qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts
+*   /openconfig-qos:qos/interfaces/interface/output/queues/queue/state/name
+*   /openconfig-qos:qos/interfaces/interface/output/queues/queue/state/transmit-pkts
+*   /openconfig-qos:qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+
+*   Classification table
+
+    IPv4 TOS      |       IPv6 TC           |         MPLS EXP        |    Forwarding class
+    ------------- | ----------------------- | ----------------------- | ---------------------
+    0             |      0-7                |          0              |         be1
+    1             |      8-15               |          1              |         af1
+    2             |      16-23              |          2              |         af2
+    3             |      24-31              |          3              |         af3
+    4,5           |      32-47              |          4,5            |         af4
+    6,7           |      48-63              |          6,7            |         nc1
 
 *   Strict Priority Test traffic table
 
@@ -51,43 +50,3 @@ Verify that packet drops in AF4, AF3, AF2, AF1, BE1 and NC1 according to the str
     af3               |      3               |          25                 |         0
     af4               |      2               |          35                 |         0
     nc1               |      1               |          1                  |         0
-
-## Config parameter coverage
-
-*   Classifiers
-
-    *   /qos/classifiers/classifier/config/name
-    *   /qos/classifiers/classifier/config/type
-    *   /qos/classifiers/classifier/terms/term/actions/config/target-group
-    *   /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set
-    *   /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set
-    *   /qos/classifiers/classifier/terms/term/config/id
-
-*   Forwarding Groups
-
-    *   /qos/forwarding-groups/forwarding-group/config/name
-    *   /qos/forwarding-groups/forwarding-group/config/output-queue
-
-*   Queue
-
-    *   /qos/queues/queue/config/name
-
-*   Interfaces
-
-    *   /qos/interfaces/interface/input/classifiers/classifier/config/name
-    *   /qos/interfaces/interface/output/queues/queue/config/name
-    *   /qos/interfaces/interface/output/scheduler-policy/config/name
-
-*   Scheduler policy
-
-    *   /qos/scheduler-policies/scheduler-policy/config/name
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type
-
-## Telemetry parameter coverage
-
-*   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-*   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
-*   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
-*   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
