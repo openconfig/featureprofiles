@@ -316,6 +316,8 @@ message Metadata {
     // Device does not support telemetry path
     // /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
     bool qos_voq_drop_counter_unsupported = 103;
+    // ATE IPv6 flow label unsupported in KNE/virtualized environments.
+    bool ate_ipv6_flow_label_unsupported = 104;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28;
