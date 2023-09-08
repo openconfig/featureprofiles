@@ -29,7 +29,7 @@ import (
 // shell to service stdin, stdout, and stderr; each SendCommand will
 // run in its own session but without shell or pty.
 type cli struct {
-	*binding.AbstractStreamClient
+	*binding.AbstractCLIClient
 
 	ssh    *ssh.Client
 	sess   *ssh.Session
@@ -37,8 +37,6 @@ type cli struct {
 	stdout io.Reader
 	stderr io.Reader
 }
-
-var _ = binding.StreamClient(&cli{})
 
 func newCLI(sc *ssh.Client) (*cli, error) {
 	sess, err := sc.NewSession()
@@ -84,20 +82,4 @@ func (c *cli) SendCommand(_ context.Context, cmd string) (string, error) {
 		return "", fmt.Errorf("could not execute command: %w", err)
 	}
 	return string(buf), nil
-}
-
-func (c *cli) Stdin() io.WriteCloser {
-	return c.stdin
-}
-
-func (c *cli) Stdout() io.ReadCloser {
-	return io.NopCloser(c.stdout)
-}
-
-func (c *cli) Stderr() io.ReadCloser {
-	return io.NopCloser(c.stderr)
-}
-
-func (c *cli) Close() error {
-	return c.ssh.Close()
 }
