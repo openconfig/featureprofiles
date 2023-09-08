@@ -21,9 +21,8 @@ card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 
 ## Telemetry Parameter coverage
 
-*   TODO:
-    /components/component[name=<heatsink-temperature-sensor>]/state/temperature/instant
-*   TODO: /components/component/storage
+*   /components/component[name=<heatsink-temperature-sensor>]/state/temperature/instant
+*   /components/component/storage
 *   TODO: /components/component/software-module
 *   TODO: /components/component/software-module/state/module-type
 *   /components/component/state/description

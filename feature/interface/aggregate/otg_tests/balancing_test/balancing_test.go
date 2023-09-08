@@ -364,6 +364,14 @@ func generateRandomPortList(count uint) []uint32 {
 	return a
 }
 
+func generateRandomFlowLabelList(count int) []uint32 {
+	a := make([]uint32, count)
+	for index := range a {
+		a[index] = uint32(rand.Intn(1048575-1) + 1)
+	}
+	return a
+}
+
 func (tc *testCase) configureATE(t *testing.T) {
 	if len(tc.atePorts) < 2 {
 		t.Fatalf("Testbed requires at least 2 ports, got: %v", tc.atePorts)
@@ -392,7 +400,22 @@ func (tc *testCase) configureATE(t *testing.T) {
 	}
 	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId("01:01:01:01:01:01")
 
-	dstDev := tc.top.Devices().Add().SetName(agg.Name())
+	// Disable FEC for 100G-FR ports because Novus does not support it.
+	p100gbasefr := []string{}
+	for _, p := range tc.atePorts {
+		if p.PMD() == ondatra.PMD100GBASEFR {
+			p100gbasefr = append(p100gbasefr, p.ID())
+		}
+	}
+
+	if len(p100gbasefr) > 0 {
+		l1Settings := tc.top.Layer1().Add().SetName("L1").SetPortNames(p100gbasefr)
+		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
+		autoNegotiate := l1Settings.AutoNegotiation()
+		autoNegotiate.SetRsFec(false)
+	}
+
+	dstDev := tc.top.Devices().Add().SetName(agg.Name() + ".dev")
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
@@ -507,6 +530,17 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 		v4.Dst().SetValue(ateDst.IPv4)
 		flow.Packet().Add().Ipv6()
 	}
+	if l3header == "ipv6flowlabel" {
+		if deviations.ATEIPv6FlowLabelUnsupported(tc.ate) {
+			t.Skip("IPv6 flow label unsupported")
+		}
+		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
+		v6 := flow.Packet().Add().Ipv6()
+		v6.FlowLabel().SetValues(generateRandomFlowLabelList(250000))
+		v6.Src().SetValue(ateSrc.IPv6)
+		v6.Dst().SetValue(ateDst.IPv6)
+
+	}
 
 	tcp := flow.Packet().Add().Tcp()
 	tcp.SrcPort().SetValues(generateRandomPortList(65534))
@@ -589,11 +623,10 @@ func TestBalancing(t *testing.T) {
 			desc:     "IPV6inIPV4",
 			l3header: "ipv6inipv4",
 		},
-		// TODO: flowHeader support is not available on OTG
-		// {
-		// 	desc:     "IPV6 FlowLabel",
-		// 	l3header: []ondatra.Header{flowHeader},
-		// },
+		{
+			desc:     "IPV6 FlowLabel",
+			l3header: "ipv6flowlabel",
+		},
 	}
 	tc := &testCase{
 		dut:     dut,
@@ -605,9 +638,9 @@ func TestBalancing(t *testing.T) {
 		atePorts: sortPorts(ate.Ports()),
 		aggID:    aggID,
 	}
+	tc.configureATE(t)
 	tc.configureDUT(t)
 	t.Run("verifyDUT", tc.verifyDUT)
-	tc.configureATE(t)
 
 	for _, tf := range tests {
 		t.Run(tf.desc, func(t *testing.T) {

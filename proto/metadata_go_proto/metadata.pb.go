@@ -595,6 +595,7 @@ type Metadata_Deviations struct {
 	IsisCounterPartChangesUnsupported bool `protobuf:"varint,107,opt,name=isis_counter_part_changes_unsupported,json=isisCounterPartChangesUnsupported,proto3" json:"isis_counter_part_changes_unsupported,omitempty"`
 	// Device does not support matched-packets and matched-octets state paths.
 	MatchedPacketsOctetsUnsupported bool `protobuf:"varint,108,opt,name=matched_packets_octets_unsupported,json=matchedPacketsOctetsUnsupported,proto3" json:"matched_packets_octets_unsupported,omitempty"`
+
 }
 
 func (x *Metadata_Deviations) Reset() {
