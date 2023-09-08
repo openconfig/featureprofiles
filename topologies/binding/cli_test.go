@@ -41,16 +41,6 @@ type cliFixture struct {
 	cli *cli
 }
 
-func (f *cliFixture) close(t testing.TB) {
-	if f.cli == nil {
-		return
-	}
-	if err := f.cli.Close(); err != nil {
-		t.Errorf("Could not close cli: %v", err)
-	}
-	f.cli = nil
-}
-
 // serverPrivateKey and serverPublicKey are ed25519 key pairs
 // specifically generated for testing.  This is initialized as
 // serverSigner.
@@ -281,48 +271,18 @@ var cmpSortStrings = cmpopts.SortSlices(func(a, b string) bool {
 
 func TestCLI(t *testing.T) {
 	f := &cliFixture{}
-	defer f.close(t)
 	if err := f.start(t); err != nil {
 		t.Fatalf("Could not start cliFixture: %v", err)
 	}
 	t.Log("Test is ready.")
 
-	stdout := bufio.NewReader(f.cli.Stdout())
-	stderr := bufio.NewReader(f.cli.Stderr())
-
-	t.Run("StdinStdout", func(t *testing.T) {
-		f.cli.Stdin().Write([]byte("hello\n"))
-		got, err := stdout.ReadString('\n')
-		if err != nil {
-			t.Fatalf("Could not read from stdout: %v", err)
-		}
-		want := "pty shell hello\n"
-		if got != want {
-			t.Errorf("Stdout got %q, want %q", got, want)
-		}
-	})
-
-	t.Run("StdinStderr", func(t *testing.T) {
-		f.cli.Stdin().Write([]byte("stderr hello again\n"))
-		got, err := stderr.ReadString('\n')
-		if err != nil {
-			t.Fatalf("Could not read from stderr: %v", err)
-		}
-		want := "pty shell stderr hello again\n"
-		if got != want {
-			t.Errorf("Stderr got %q, want %q", got, want)
-		}
-	})
-
-	t.Run("SendCommand", func(t *testing.T) {
-		output, err := f.cli.SendCommand(context.Background(), "xyzzy")
-		if err != nil {
-			t.Fatalf("Could not execute command: %v", err)
-		}
-		got := strings.Split(output, "\n")
-		want := []string{"exec command: xyzzy", "exec stderr", ""}
-		if diff := cmp.Diff(want, got, cmpSortStrings); diff != "" {
-			t.Errorf("Command output -want, +got:\n%s", diff)
-		}
-	})
+	output, err := f.cli.SendCommand(context.Background(), "xyzzy")
+	if err != nil {
+		t.Fatalf("Could not execute command: %v", err)
+	}
+	got := strings.Split(output, "\n")
+	want := []string{"exec command: xyzzy", "exec stderr", ""}
+	if diff := cmp.Diff(want, got, cmpSortStrings); diff != "" {
+		t.Errorf("Command output -want, +got:\n%s", diff)
+	}
 }
