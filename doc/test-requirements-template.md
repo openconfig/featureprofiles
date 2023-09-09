@@ -9,12 +9,8 @@ assignees: ''
 
 # Instructions for this template
 
-Below is the required template for writing test requirements.  Completed
-templates should be commited as a README.md file in a feature folder
-named according to the feature being tested.  When in doubt, the folder
-name should follow an "OpenConfig like" path name.
-
-Good examples of test requirements include:
+Below is the required template for writing test requirements.  Good examples of test
+requirements include:
 
 * [TE-3.7: Base Hierarchical NHG Update](/feature/gribi/otg_tests/base_hierarchical_nhg_update/README.md)
 * [gNMI-1.13: Telemetry: Optics Power and Bias Current](https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_power_and_bias_current_test/README.md)
@@ -69,4 +65,7 @@ For example:
 
 ## Required DUT platform
 
-* Specify the minimum DUT-type: {MFF, FFF, vRX}
+* Specify the minimum DUT-type:
+  * MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
+  * FFF - fixed form factor
+  * vRX - virtual router device
