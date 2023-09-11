@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
-	accpb "github.com/openconfig/gnsi/accounting"
+	accpb "github.com/openconfig/gnsi/acctz"
 	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
 	credpb "github.com/openconfig/gnsi/credentialz"
