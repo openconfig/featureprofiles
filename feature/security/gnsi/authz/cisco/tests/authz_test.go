@@ -101,7 +101,7 @@ func TestAllowRuleAll(t *testing.T) {
 	createUsersOnDevice(t, dut, users)
 	authzPolicy.AddAllowRules(users, []*gnxi.RPC{gnxi.RPCs.ALL})
 	authzPolicy.Rotate(t, dut)
-	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+	gnsiClient := dut.RawAPIs().GNSI(t)
 	for path := range gnxi.RPCMAP {
 		probReq := &authzpb.ProbeRequest{
 			User: "user1",
@@ -131,7 +131,7 @@ func TestDenyRuleAll(t *testing.T) {
 	createUsersOnDevice(t, dut, users)
 	authzPolicy.AddDenyRules(users, []*gnxi.RPC{gnxi.RPCs.ALL})
 	authzPolicy.Rotate(t, dut)
-	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+	gnsiClient := dut.RawAPIs().GNSI(t)
 	for path := range gnxi.RPCMAP {
 		probReq := &authzpb.ProbeRequest{
 			User: "user1",
@@ -159,7 +159,7 @@ func TestAllowAllForService(t *testing.T) {
 	users := []*authz.User{}
 	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
-	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+	gnsiClient := dut.RawAPIs().GNSI(t)
 
 	for path, service := range gnxi.RPCMAP {
 		if strings.HasSuffix(path, "/*") {
@@ -196,7 +196,7 @@ func TestDenyAllForService(t *testing.T) {
 	users := []*authz.User{}
 	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
-	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+	gnsiClient := dut.RawAPIs().GNSI(t)
 
 	for path, service := range gnxi.RPCMAP {
 		if strings.HasSuffix(path, "/*") {
@@ -230,7 +230,7 @@ func TestAllowAllRPCs(t *testing.T) {
 	users := []*authz.User{}
 	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
-	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+	gnsiClient := dut.RawAPIs().GNSI(t)
 
 	for path, service := range gnxi.RPCMAP {
 		if strings.Contains(path, "*") {
@@ -267,7 +267,7 @@ func TestDenyAllRPCs(t *testing.T) {
 	users := []*authz.User{}
 	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
-	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+	gnsiClient := dut.RawAPIs().GNSI(t)
 
 	for path, service := range gnxi.RPCMAP {
 		if strings.Contains(path, "*") {
@@ -301,7 +301,7 @@ func TestDenyOverWriteAllow(t *testing.T) {
 	users := []*authz.User{}
 	users = append(users, &authz.User{Name: sampleUser})
 	createUsersOnDevice(t, dut, users)
-	gnsiClient := dut.RawAPIs().GNSI().Default(t)
+	gnsiClient := dut.RawAPIs().GNSI(t)
 
 	for path, service := range gnxi.RPCMAP {
 		if strings.Contains(path, "*") {
@@ -329,7 +329,7 @@ func TestDenyOverWriteAllow(t *testing.T) {
 
 func rotate(t *testing.T, clientID string, dut *ondatra.DUTDevice, version, policy string, creationTime uint64) error {
 	t.Logf("Starting second rotate stream (%v)", clientID)
-	rotateStream, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+	rotateStream, err := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
 	if err == nil {
 		autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
 			UploadRequest: &authzpb.UploadRequest{
@@ -369,7 +369,7 @@ func TestTwoInterLeavingRotates(t *testing.T) {
 		}
 	}
 
-	rotateStream, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+	rotateStream, err := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
 	if err != nil {
 		t.Fatalf("Could not start rotate stream %v", err)
 	}
@@ -426,7 +426,7 @@ func TestSingleRotateCompetingClients(t *testing.T) {
 		var successfulStream uint64
 		wg.Add(threadNum)
 		startRotateStream := func() {
-			rotateStream, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+			rotateStream, err := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
 			if err == nil {
 				atomic.AddUint64(&successfulStream, 1)
 			}
@@ -585,7 +585,7 @@ func TestHAFailOverDuringRotate(t *testing.T) {
 	}
 	version := fmt.Sprintf("v0.%v", (time.Now().UnixMilli()))
 
-	rotateStream, err := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+	rotateStream, err := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
 	if err != nil {
 		t.Fatalf("Could not start rotate stream %v", err)
 	}

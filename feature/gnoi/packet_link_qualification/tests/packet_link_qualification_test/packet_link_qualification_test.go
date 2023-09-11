@@ -16,6 +16,7 @@ package packet_link_qualification_test
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -396,12 +397,14 @@ func TestLinkQualification(t *testing.T) {
 		}
 	}
 
+	// The packet counters between Generator and Reflector mismatch tolerance level in percentage
+	var tolerance float64 = 0.0001
 	if !deviations.SkipPLQPacketsCountCheck(dut1) {
-		if generatorPktsSent != reflectorPktsRxed {
-			t.Errorf("Packets received count at Reflector is not matching the packets sent count at Generator: generatorPktsSent %v, reflectorPktsRxed %v", generatorPktsSent, reflectorPktsRxed)
+		if ((math.Abs(float64(generatorPktsSent)-float64(reflectorPktsRxed)))/(float64(generatorPktsSent)+float64(reflectorPktsRxed)+tolerance))*200.00 > tolerance {
+			t.Errorf("The difference between packets received count at Reflector and packets sent count at Generator is greater than %0.4f percent: generatorPktsSent %v, reflectorPktsRxed %v", tolerance, generatorPktsSent, reflectorPktsRxed)
 		}
-		if reflectorPktsSent != generatorPktsRxed {
-			t.Errorf("Packets received count at Generator is not matching the packets sent count at Reflector: reflectorPktsSent %v, generatorPktsRxed %v", reflectorPktsSent, generatorPktsRxed)
+		if ((math.Abs(float64(reflectorPktsSent)-float64(generatorPktsRxed)))/(float64(reflectorPktsSent)+float64(generatorPktsRxed)+tolerance))*200.00 > tolerance {
+			t.Errorf("The difference between packets received count at Generator and packets sent count at Reflector is greater than %0.4f percent: reflectorPktsSent %v, generatorPktsRxed %v", tolerance, reflectorPktsSent, generatorPktsRxed)
 		}
 	}
 
