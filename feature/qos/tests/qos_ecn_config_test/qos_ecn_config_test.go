@@ -15,7 +15,6 @@
 package qos_ecn_config_test
 
 import (
-	"math"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -130,8 +129,8 @@ func testECNConfig(t *testing.T) {
 		ecnEnabled:                true,
 		dropEnabled:               false,
 		minThreshold:              uint64(80000),
-		maxThreshold:              math.MaxUint64,
-		maxDropProbabilityPercent: uint8(1),
+		maxThreshold:              uint64(80000),
+		maxDropProbabilityPercent: uint8(100),
 		weight:                    uint32(0),
 	}
 
@@ -363,8 +362,8 @@ func testCiscoECNConfig(t *testing.T) {
 	}{
 		ecnEnabled:                true,
 		dropEnabled:               false,
-		minThreshold:              uint64(8005632),
-		maxThreshold:              uint64(8011776),
+		minThreshold:              uint64(80000),
+		maxThreshold:              uint64(80000),
 		maxDropProbabilityPercent: uint8(100),
 		weight:                    uint32(0),
 	}
@@ -425,6 +424,7 @@ func testCiscoECNConfig(t *testing.T) {
 	}}
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 	t.Logf("qos output interface config cases: %v", cases)
 
 	for _, tc := range intcases {
@@ -435,10 +435,11 @@ func testCiscoECNConfig(t *testing.T) {
 			queue := output.GetOrCreateQueue(tc.queueName)
 			queue.SetQueueManagementProfile(tc.ecnProfile)
 			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
 		})
 
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	for _, tc := range cases {
 		// Verify the SchedulerPolicy is applied by checking the telemetry path state values.
@@ -612,8 +613,8 @@ func testJuniperECNConfig(t *testing.T) {
 		ecnEnabled:                true,
 		dropEnabled:               false,
 		minThreshold:              uint64(80000),
-		maxThreshold:              math.MaxUint64,
-		maxDropProbabilityPercent: uint8(1),
+		maxThreshold:              uint64(80000),
+		maxDropProbabilityPercent: uint8(100),
 		weight:                    uint32(0),
 	}
 

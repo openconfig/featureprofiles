@@ -39,7 +39,7 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    subinterface_packet_counters_missing: true
+    ipv6_discarded_pkts_unsupported: true
     default_network_instance: "default"
   }
 }
