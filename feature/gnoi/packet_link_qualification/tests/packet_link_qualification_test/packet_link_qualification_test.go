@@ -125,7 +125,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 func TestNonexistingID(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	id := "non-extsing-ID"
-	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
 	getResp, err := gnoiClient1.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{id}})
 
 	t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
@@ -156,8 +156,8 @@ func TestNonexistingID(t *testing.T) {
 func TestListDelete(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
-	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
-	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 
 	clients := []raw.GNOI{gnoiClient1, gnoiClient2}
 	for i, client := range clients {
@@ -306,8 +306,8 @@ func TestLinkQualification(t *testing.T) {
 	}
 	t.Logf("ReflectorCreateRequest: %v", reflectorCreateRequest)
 
-	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
-	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 
 	generatorCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), generatorCreateRequest)
 	t.Logf("LinkQualification().Create() generatorCreateResp: %v, err: %v", generatorCreateResp, err)

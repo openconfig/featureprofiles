@@ -492,7 +492,7 @@ func TestScaling(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")

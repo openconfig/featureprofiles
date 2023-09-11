@@ -136,7 +136,7 @@ func removeElement(list []string, element string) []string {
 func TestCheckForCoreFiles(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	timestamp := uint64(time.Now().UTC().Unix())
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	coreFileCheck(t, dut, gnoiClient, timestamp, true)
 }
 

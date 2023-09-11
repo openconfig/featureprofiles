@@ -168,7 +168,7 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 				},
 			},
 		}
-		gnmiClient := dut.RawAPIs().GNMI().Default(t)
+		gnmiClient := dut.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring User: %v", err)
 		}
