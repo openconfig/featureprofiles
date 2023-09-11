@@ -4,7 +4,6 @@ package config
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"testing"
 	"time"
@@ -55,50 +54,19 @@ func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeRel
 // TextWithSSH applies the cli confguration via ssh on the device
 func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) string {
 	t.Helper()
+
 	sshClient := dut.RawAPIs().CLI(t)
-	defer sshClient.Close()
-	cliOut := sshClient.Stdout()
-	cliIn := sshClient.Stdin()
-	if _, err := cliIn.Write([]byte(cfg)); err != nil {
+	tctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	response, err := sshClient.SendCommand(tctx, cfg)
+	if err != nil {
 		t.Fatalf("Failed to write using ssh: %v", err)
 	}
-	buf := make([]byte, 32768) // RFC 4253 max payload size for ssh
-	ch := make(chan bool)
-	response := ""
-	go func() {
-		for {
-			n, err := cliOut.Read(buf)
-			if err != nil {
-				if err == io.EOF {
-					response = fmt.Sprintf("%s%s", response, string(buf[:n]))
-					if checkCLIConfigIsApplied(response) {
-						ch <- true
-						break
-					}
-				}
-				ch <- false
-				break
-			} else {
-				response = fmt.Sprintf("%s%s", response, string(buf[:n]))
-				if checkCLIConfigIsApplied(response) {
-					ch <- true
-					break
-				}
-			}
-			time.Sleep(1 * time.Second)
-		}
-	}()
-	select {
-	case resp := <-ch:
-		log.V(1).Infof("ssh reply: %s", response)
-		if resp {
-			return response
-		}
+	if !checkCLIConfigIsApplied(response) {
 		t.Fatalf("Response message for ssh is not as expected %s", response)
-	case <-time.After(timeout):
-		// t.Fatalf("Did not recieve the expected response (timeout)")
 	}
-	return ""
+	return response
 }
 
 func checkCLIConfigIsApplied(output string) bool {
@@ -411,47 +379,12 @@ func CLIViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd st
 		cmd = cmd + " \n"
 	}
 	sshClient := dut.RawAPIs().CLI(t)
-	defer sshClient.Close()
-	cliOut := sshClient.Stdout()
-	cliIn := sshClient.Stdin()
-	if _, err := cliIn.Write([]byte(cmd)); err != nil {
+	tctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	response, err := sshClient.SendCommand(tctx, cmd)
+	if err != nil {
 		t.Fatalf("Failed to write using ssh: %v", err)
 	}
-	buf := make([]byte, 32768) // According to RFC 4253, max payload size for ssh is 32768
-	ch := make(chan bool)
-	response := ""
-	go func() {
-		for {
-			n, err := cliOut.Read(buf)
-			if err != nil {
-				if err == io.EOF {
-					response = fmt.Sprintf("%s%s", response, string(buf[:n]))
-					if strings.HasSuffix(response, "#") {
-						ch <- true
-						break
-					}
-				}
-				ch <- false
-				break
-			} else {
-				response = fmt.Sprintf("%s%s", response, string(buf[:n]))
-				if strings.HasSuffix(response, "#") {
-					ch <- true
-					break
-				}
-			}
-			time.Sleep(1 * time.Second)
-		}
-	}()
-	select {
-	case resp := <-ch:
-		log.V(1).Infof("ssh command reply: %s", response)
-		if resp {
-			return response
-		}
-		t.Fatalf("Response message for ssh is not as expected %s", response)
-	case <-time.After(timeout):
-		t.Fatalf("Did not recieve the expected response (timeout)")
-	}
-	return ""
+	return response
 }

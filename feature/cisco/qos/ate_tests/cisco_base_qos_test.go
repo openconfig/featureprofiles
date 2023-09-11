@@ -169,8 +169,7 @@ var (
 // func TestTrafficQos(t *testing.T) {
 // 	dut := ondatra.DUT(t, "dut")
 // 	cliHandle := dut.RawAPIs().CLI(t)
-// 	defer cliHandle.Close()
-// 	resp, err := cliHandle.SendCommand(context.Background(), "show version")
+// // 	resp, err := cliHandle.SendCommand(context.Background(), "show version")
 // 	t.Logf(resp)
 // 	if err != nil {
 // 		t.Error(err)
@@ -278,7 +277,6 @@ func TestScheduler(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	time.Sleep(time.Minute)
 	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
 	resp, err := cliHandle.SendCommand(context.Background(), "show version")
 	t.Logf(resp)
 	if err != nil {
@@ -377,7 +375,6 @@ func TestWrrTrafficQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	time.Sleep(time.Minute)
 	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
 	resp, err := cliHandle.SendCommand(context.Background(), "show version")
 	t.Logf(resp)
 	if err != nil {
