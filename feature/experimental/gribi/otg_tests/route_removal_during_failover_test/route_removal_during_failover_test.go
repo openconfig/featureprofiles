@@ -37,6 +37,7 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/raw"
@@ -478,7 +479,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
 	top := ate.OTG().NewConfig(t)
@@ -588,7 +589,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	switchoverReady(t, dut, primaryBeforeSwitch)
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	var gnoiClient binding.GNOIClients = dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),
