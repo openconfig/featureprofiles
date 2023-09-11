@@ -505,12 +505,6 @@ func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipFabricCardPowerAdmin()
 }
 
-// ComponentPowerDownReturnsInactiveState returns whether the device should allow the component power Down state inactive.
-// Default value is false and expected component power down state is shutdown.
-func ComponentPowerDownReturnsInactiveState(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetComponentPowerDownReturnsInactiveState()
-}
-
 // ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
 // the same ISIS Metrics for Level 1 when configuring Level 2 Metrics.
 func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
@@ -532,12 +526,6 @@ func SetNativeUser(dut *ondatra.DUTDevice) bool {
 // subinterface with tagged vlan for p4rt packet in.
 func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
-}
-
-// ATEPortLinkStateOperationsUnsupported returns true for traffic generators that do not support
-// port link state control operations (such as port shutdown.)
-func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
-	return lookupATEDeviations(ate).GetAtePortLinkStateOperationsUnsupported()
 }
 
 // ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
@@ -589,6 +577,25 @@ func LinecardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
 // Default value is false.
 func QOSVoqDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosVoqDropCounterUnsupported()
+}
+
+// ISISTimersCsnpIntervalUnsupported returns true for devices that do not support
+// configuring csnp-interval timer for ISIS.
+func ISISTimersCsnpIntervalUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisTimersCsnpIntervalUnsupported()
+}
+
+// ISISCounterManualAddressDropFromAreasUnsupported returns true for devices that do not
+// support telemetry for isis system-level-counter manual-address-drop-from-areas.
+func ISISCounterManualAddressDropFromAreasUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisCounterManualAddressDropFromAreasUnsupported()
+}
+
+// ISISCounterPartChangesUnsupported returns true for devices that do not
+// support telemetry for isis system-level-counter part-changes.
+func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
+
 }
 
 // TunnelStatePathUnsupported returns true for devices that require configuring
