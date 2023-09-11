@@ -98,7 +98,7 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	rpStandby, rpActive := components.FindStandbyRP(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
@@ -173,7 +173,7 @@ func TestLinecardReboot(t *testing.T) {
 		t.Fatalf("Component(lc).Removable().Get(t): got none, want non-empty")
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
@@ -249,7 +249,7 @@ func TestFabricReboot(t *testing.T) {
 	t.Logf("OperStatusUP interfaces before reboot: %v", intfsOperStatusUPBeforeReboot)
 
 	// Fetch a new gnoi client.
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
