@@ -725,7 +725,7 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring SRL ACL: %v", err)
 		}
@@ -761,7 +761,7 @@ func configAdmitAllACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbDelRequest); err != nil {
 			t.Fatalf("Unexpected error removing SRL ACL: %v", err)
 		}
@@ -810,7 +810,7 @@ func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string)
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring interface ACL: %v", err)
 		}
@@ -906,7 +906,7 @@ func findProcessByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint6
 // gNOIKillProcess kills a daemon on the DUT, given its name and pid.
 func gNOIKillProcess(t *testing.T, dut *ondatra.DUTDevice, pName string, pID uint32) {
 	t.Helper()
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
 	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
 	t.Logf("Got kill process response: %v\n\n", killResponse)
@@ -1275,7 +1275,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	})
 
 	t.Run("Disable LLGR on dut.", func(t *testing.T) {
-		gnmiClient := dut.RawAPIs().GNMI().Default(t)
+		gnmiClient := dut.RawAPIs().GNMI(t)
 		config := disableLLGRConf(dut, dutAS)
 		t.Logf("Push the CLI config:%s", dut.Vendor())
 		gpbSetRequest := buildCliConfigRequest(config)
