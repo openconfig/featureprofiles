@@ -369,7 +369,6 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *oc.Interface_Su
 // to activate fault point use true and to deactivate use false
 func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []string, componentName string, faultPointNumber string, returnValue string, activate bool) {
 	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
 	for _, lineCard := range lcNumber {
 		var fimActivate string
 		var fimDeactivate string

@@ -97,7 +97,6 @@ func TestCollectDebugFiles(t *testing.T) {
 		ctx := context.Background()
 		dut := ondatra.DUT(t, dutID)
 		sshClient := dut.RawAPIs().CLI(t)
-		defer sshClient.Close()
 
 		for _, cmd := range commands {
 			testt.CaptureFatal(t, func(t testing.TB) {
