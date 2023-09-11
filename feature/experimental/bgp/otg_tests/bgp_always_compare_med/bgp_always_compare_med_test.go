@@ -478,7 +478,9 @@ func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDVal
 			return v.IsPresent() && val == expectedAggrRouteRxValue
 		}).Await(t)
 
-	if ok {
+	if !ok {
+		t.Errorf("Received routes didn't match expected routes %d", expectedAggrRouteRxValue)
+	} else {
 		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
 		gotPrefixCount := len(bgpPrefixes)
 		if gotPrefixCount < routeCount {
@@ -547,6 +549,8 @@ func TestAlwaysCompareMED(t *testing.T) {
 	t.Logf("Start DUT config load.")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	// Pushing a blank config to clear BGP related counters
+	ate.OTG().PushConfig(t, ate.OTG().NewConfig(t))
 	d := &oc.Root{}
 
 	t.Run("Configure DUT interfaces", func(t *testing.T) {
@@ -570,6 +574,15 @@ func TestAlwaysCompareMED(t *testing.T) {
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 	})
 
+	t.Run("Configure SET MED on DUT", func(t *testing.T) {
+		setMED(t, dut, d)
+	})
+
+	t.Run("Configure always compare med on DUT", func(t *testing.T) {
+		t.Log("Configure always compare med on DUT.")
+		gnmi.Replace(t, dut, dutConfPath.Bgp().Global().RouteSelectionOptions().AlwaysCompareMed().Config(), true)
+	})
+
 	otg := ate.OTG()
 	var otgConfig gosnappi.Config
 	t.Run("Configure OTG", func(t *testing.T) {
@@ -587,15 +600,6 @@ func TestAlwaysCompareMED(t *testing.T) {
 		verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
 		t.Log("Check BGP Capabilities")
 		verifyBGPCapabilities(t, dut)
-	})
-
-	t.Run("Configure SET MED on DUT", func(t *testing.T) {
-		setMED(t, dut, d)
-	})
-
-	t.Run("Configure always compare med on DUT", func(t *testing.T) {
-		t.Log("Configure always compare med on DUT.")
-		gnmi.Replace(t, dut, dutConfPath.Bgp().Global().RouteSelectionOptions().AlwaysCompareMed().Config(), true)
 	})
 
 	t.Run("Verify received BGP routes at ATE Port 1 have lowest MED", func(t *testing.T) {
