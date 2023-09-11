@@ -185,7 +185,7 @@ func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb
 	return p4pb.NewP4RuntimeClient(conn), nil
 }
 
-func (d *staticDUT) DialCLI(_ context.Context) (binding.StreamClient, error) {
+func (d *staticDUT) DialCLI(_ context.Context) (binding.CLIClient, error) {
 	dialer, err := d.r.ssh(d.Name())
 	if err != nil {
 		return nil, err
