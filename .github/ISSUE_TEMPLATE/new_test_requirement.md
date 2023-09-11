@@ -12,4 +12,4 @@ assignees: ''
 * Add a label for the test priority according to the test requirements. (p0, p1, p2)
 * Add a link in this issue description to the README.md for the test requirements.  For example:
 
-Implement code for [Test name here](<https://github.com/openconfig/featureprofiles/><insert link to the README.md file here>)
+Implement code for [Test name here](https://github.com/openconfig/featureprofiles/blob/main/feature/example/tests/topology_test/README.md)
