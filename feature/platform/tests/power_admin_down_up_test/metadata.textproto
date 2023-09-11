@@ -35,7 +35,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    component_power_down_returns_inactive_state: true
     skip_fabric_card_power_admin: true
     skip_controller_card_power_admin: true
   }
