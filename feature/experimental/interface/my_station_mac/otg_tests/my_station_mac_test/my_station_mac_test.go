@@ -155,8 +155,9 @@ func testTraffic(
 ) {
 	top.Flows().Clear()
 	flow := top.Flows().Add().SetName("Flow")
-	flow.TxRx().Port().SetTxName("port1").SetRxName("port2")
+	flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2"})
 	flow.Metrics().SetEnable(true)
+	flow.Duration().FixedPackets().SetPackets(1000)
 	eth := flow.Packet().Add().Ethernet()
 	flow.Size().SetFixed(100)
 	eth.Src().SetValue(ateSrc.MAC)
@@ -175,7 +176,7 @@ func testTraffic(
 	ate.OTG().StartProtocols(t)
 
 	ate.OTG().StartTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 	ate.OTG().StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
