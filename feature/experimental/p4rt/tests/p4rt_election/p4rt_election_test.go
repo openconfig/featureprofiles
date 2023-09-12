@@ -101,7 +101,7 @@ func configurePortID(t *testing.T, dut *ondatra.DUTDevice) {
 // Create client connection
 func clientConnection(t *testing.T, dut *ondatra.DUTDevice) *p4rt_client.P4RTClient {
 	clientHandle := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := clientHandle.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := clientHandle.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 	return clientHandle
