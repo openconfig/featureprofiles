@@ -48,18 +48,12 @@ type lldpTestParameters struct {
 	otgName    string
 }
 
-type otgLLDPNeighbors struct {
+type lldpNeighbors struct {
 	systemName    string
 	chassisId     string
 	chassisIdType otgtelemetry.E_LldpNeighbor_ChassisIdType
 	portId        string
 	portIdType    otgtelemetry.E_LldpNeighbor_PortIdType
-}
-
-type lldpNeighbors struct {
-	systemName    string
-	chassisId     string
-	chassisIdType otgtelemetry.E_LldpNeighbor_ChassisIdType
 }
 
 const (
@@ -104,7 +98,7 @@ func TestLLDPEnabled(t *testing.T) {
 
 	checkLLDPMetricsOTG(t, otg, otgConfig, lldpEnabled)
 
-	dutPeerState := otgLLDPNeighbors{
+	dutPeerState := lldpNeighbors{
 		systemName:    lldpSrc.systemName,
 		chassisId:     lldpSrc.macAddress,
 		chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
@@ -117,6 +111,8 @@ func TestLLDPEnabled(t *testing.T) {
 		systemName:    stateValues.systemName,
 		chassisId:     strings.ToUpper(stateValues.chassisId),
 		chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(stateValues.chassisIdType),
+		portId:        dut.Port(t, portName).Name(),
+		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
 	}
 	checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
 
@@ -194,19 +190,13 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 	if lldpEnabled != state.GetEnabled() {
 		t.Errorf("LLDP enabled got: %t, want: %t.", state.GetEnabled(), lldpEnabled)
 	}
-	if state.GetChassisId() != "" {
-		t.Logf("LLDP ChassisId got: %s", state.GetChassisId())
-	} else {
+	if state.GetChassisId() == "" {
 		t.Errorf("LLDP chassisID is not proper, got %s", state.GetChassisId())
 	}
-	if state.GetChassisIdType() != 0 {
-		t.Logf("LLDP ChassisIdType got: %s", state.GetChassisIdType())
-	} else {
+	if state.GetChassisIdType() == 0 {
 		t.Errorf("LLDP chassisIdType is not proper, got %s", state.GetChassisIdType())
 	}
-	if state.GetSystemName() != "" {
-		t.Logf("LLDP SystemName got: %s", state.GetSystemName())
-	} else {
+	if state.GetSystemName() == "" {
 		t.Errorf("LLDP SystemName is not proper, got %s", state.GetSystemName())
 	}
 
@@ -270,7 +260,7 @@ func checkOTGLLDPNeighbor(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLldp
 }
 
 // verifyDUTTelemetry verifies the telemetry values from the node such as port LLDP neighbor info.
-func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.Port, conf *oc.Lldp, dutPeerState otgLLDPNeighbors) {
+func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.Port, conf *oc.Lldp, dutPeerState lldpNeighbors) {
 	verifyNodeConfig(t, dut, nodePort, conf, true)
 	interfacePath := gnmi.OC().Lldp().Interface(nodePort.Name())
 
