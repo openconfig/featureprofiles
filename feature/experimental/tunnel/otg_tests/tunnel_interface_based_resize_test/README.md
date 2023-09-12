@@ -25,6 +25,11 @@
  *   After decapsulation, traffic should be load balanced/hash to all available L3 ECMP or LAG or combination of both features
  *   Verify the tunnel interfaces counters to confirm the traffic decapsulation
 
+ *   Validate system for: 
+ *   Health-1.1 
+ *   No feature related error or drop counters incrementing, 
+ *   discussion with vendors required to highlight additional fields to monitor based on implementation and architecture
+
  ## Config Parameter coverage
 
  *   openconfig-interfaces:interfaces/interface 
