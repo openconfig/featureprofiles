@@ -311,12 +311,12 @@ func TestP4rtConnect(t *testing.T) {
 
 	// Setup two different clients for different FAPs
 	client1 := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := client1.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := client1.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	client2 := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := client2.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := client2.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
