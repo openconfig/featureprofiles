@@ -175,7 +175,7 @@ func filterPacketReceived(t *testing.T, flow string, ate *ondatra.ATEDevice) map
 // configureGRIBIClient configures a new GRIBI client with PRESERVE and FIB_ACK.
 func configureGRIBIClient(t *testing.T, dut *ondatra.DUTDevice) *fluent.GRIBIClient {
 	t.Helper()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the gRIBI client.
 	c := fluent.NewClient()

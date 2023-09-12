@@ -1,0 +1,56 @@
+name: "arista-ceos-dutdut"
+nodes: {
+    name: "dut1"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        image: "ceos:latest"
+        file: "config.cfg"
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem"
+                key_name: "gnmiCertKey.pem"
+                key_size: 4096
+            }
+        }
+    }
+}
+nodes: {
+    name: "dut2"
+    vendor: ARISTA
+    model: "ceos"
+    os: "eos"
+    config: {
+        image: "ceos:latest"
+        file: "config.cfg"
+        config_path: "/mnt/flash"
+        config_file: "startup-config"
+        cert: {
+            self_signed: {
+                cert_name: "gnmiCert.pem"
+                key_name: "gnmiCertKey.pem"
+                key_size: 4096
+            }
+        }
+    }
+}
+nodes: {
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "dut1"
+    z_int: "eth1"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth2"
+    z_node: "dut2"
+    z_int: "eth1"
+}
