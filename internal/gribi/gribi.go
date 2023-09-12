@@ -115,7 +115,7 @@ type NHOptions struct {
 func (c *Client) Start(t testing.TB) error {
 	t.Helper()
 	t.Logf("Starting GRIBI connection for dut: %s", c.DUT.Name())
-	gribiC := c.DUT.RawAPIs().GRIBI().Default(t)
+	gribiC := c.DUT.RawAPIs().GRIBI(t)
 	c.fluentC = fluent.NewClient()
 	c.electionID = Uint128{Low: 1, High: 0}
 
