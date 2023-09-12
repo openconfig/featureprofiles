@@ -23,10 +23,14 @@ Test-1 and Test-2 below are expected to be run at the global, peer-group and nei
 * DUT should be configured with "Both" Send and Receive ability for addpath on all IBGP peering. Same for ATE3:Port3, ATE4:Port4 and ATE5:Port5
   * During BGP capabilities negotiation in Open message, verify that the DUT negotiated addpath cability with Send/Receive field set to "3"
 
-* Configure ATE1:Port1 and ATE2:Port2 to advertise same prefix "prefix-1" with different path attributes to DUT:Port1 and DUT:Port2
+* Configure ATE1:Port1 and ATE2:Port2 to advertise same prefix "prefix-1" with different Protocol next-hops to DUT:Port1 and DUT:Port2
   * Verify that the DUT is advertising multiple paths to prefix-1 to RRCs ATE3 and ATE4 as well as to the RRS ATE5 with different path-ids
-* Configure RRCs ATE3:Port3 and ATE4:Port4 to advertise "prefix-2" to DUT with different Path attributes.
+* Configure each of ATE1:Port1 and ATE2:Port2 to advertise prefix "prefix-1" with 2 different Protocol next-hops to DUT:Port1 and DUT:Port2 respectively. Then configure DUT to send maximum 3 paths over ADD-Path to ATE3 and ATE4
+  * Verify that ATE3 and ATE4 receive only 3 different paths (out of 4) w/ unique path-ids from DUT for prefix-1.
+* Configure RRCs ATE3:Port3 and ATE4:Port4 to advertise "prefix-2" to DUT with different Protocol next-hops.
   * Verify that the DUT advertises multiple paths for prefix-2 to ATE5 with different path-ids
+* Configure RRCs ATE3:Port3 and ATE4:Port4 each to advertise 2 different paths for "prefix-2" to DUT with different Protocol next-hops each. Then configure DUT to send maximum 3 paths over ADD-Path to ATE5
+  * Verify that ATE5 receives only 3 different paths (out of 4) w/ unique path-ids from DUT for prefix-2.
 
 **Test-2**: Verify ADDPATH scaling 
 * DUT:Port3 and DUT:Port4 has IBGP peering with directly connected ATE3:Port3 and ATE4:Port4 respectively. In this case, DUT is the RR server and ATE3 and ATE4 are RR clients
@@ -38,8 +42,7 @@ Test-1 and Test-2 below are expected to be run at the global, peer-group and nei
   * During BGP capabilities negotiation in Open message, verify that the DUT negotiated addpath cability with Send/Receive field set to "2" signaling send capability.
  * Enable BGP multipath as well in the DUT.
  * ATE3, 4 and 5 should be conffigured for addpath "both" capability.
- * Configue ATE3 and ATE4 each to advertise 1M v4 prefixes with 32 different NHs for each prefix with a different path-id. Requirement here is for the DUT to receive 1M routes with 64 different NHs for the same prefixes but different path-id. Follow the same process for IPv6 with 600k routes and 32 distict NHs for each prefix.
-  * Among the advertised v4 prefixes, 500k routes should be ECMP routes for some set of NHs (advertised to the DUT w/ link-bw community of 4). For same 500k routes, there should also be non-best ECMP routes that can be tested as receive and installed as UCMP (set of NHs advertised w/ link-bandwidth community of 1-3).
+ * Configue ATE3 and ATE4 each to advertise 1M v4 prefixes with 32 different NHs for each prefix with a different path-id. Requirement here is for the DUT to receive 1M routes with 64 different NHs for the same prefixes but different path-id. Follow the same process for IPv6 with 600k routes and 32 distict NHs for each prefix from each ATE.
   * Follow the same procedure as above for 300k (out of total 600k) v6 routes.
   * Veirfy on ATE5 that it receives all v4 and v6 routes by checking for the received prefix count. However, for certain set of prefixes (example 500 v4 and 300 v6 prefixes), ensure that they are received with 64 different NHs each with different path-ids.
  * Withdraw 500k v4 prefixes and 300k v6 prefixes from ATE4 and verify the following for the withdrawn prefixes
