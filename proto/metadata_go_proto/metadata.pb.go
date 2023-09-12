@@ -598,7 +598,6 @@ type Metadata_Deviations struct {
 	TunnelStatePathUnsupported bool `protobuf:"varint,108,opt,name=tunnel_state_path_unsupported,json=tunnelStatePathUnsupported,proto3" json:"tunnel_state_path_unsupported,omitempty"`
 	// Device does not support tunnel interfaces source and destination address config paths
 	TunnelConfigPathUnsupported bool `protobuf:"varint,109,opt,name=tunnel_config_path_unsupported,json=tunnelConfigPathUnsupported,proto3" json:"tunnel_config_path_unsupported,omitempty"`
-
 }
 
 func (x *Metadata_Deviations) Reset() {
