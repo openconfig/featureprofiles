@@ -22,12 +22,15 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // nextHopsEvenly generates []nexthop that distributes weights evenly
@@ -93,15 +96,17 @@ func TestPortFlap(t *testing.T) {
 	// Dial gRIBI
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
-	gribic := dut.RawAPIs().GRIBI().Default(t)
-
-	// Configure the DUT
-	configureDUT(t, dut)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
+
+	// Configure the DUT
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	// Create nexthops across the dst atePorts.
 	atePorts := sortPorts(ate.Ports())
@@ -150,15 +155,32 @@ func TestPortFlap(t *testing.T) {
 		numUps := i - 1
 		numDowns := len(atePorts) - i
 		testName := fmt.Sprintf("%d Up, %d Down", numUps, numDowns)
+		if i < len(atePorts) {
+			dp := dut.Port(t, atePorts[i].ID())
+			if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+				defer setDUTInterfaceState(t, dut, dp, true)
+			} else {
+				t.Logf("Bringing down ate port: %v", atePorts[i])
+				portStateAction := gosnappi.NewControlState()
+				portStateAction.Port().Link().SetPortNames([]string{atePorts[i].ID()}).SetState(gosnappi.StatePortLinkState.UP)
+				defer ate.OTG().SetControlState(t, portStateAction)
+			}
+		}
 
 		t.Run(testName, func(t *testing.T) {
 			if i < len(atePorts) {
-				// Setting admin state down on the DUT interface.
-				// Setting the otg interface down has no effect on kne
 				dp := dut.Port(t, atePorts[i].ID())
-				t.Logf("Bringing down dut port: %v", dp.Name())
-				setDUTInterfaceState(t, dut, dp, false)
-
+				if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+					// Setting admin state down on the DUT interface.
+					// Setting the otg interface down has no effect on kne
+					t.Logf("Bringing down dut port: %v", dp.Name())
+					setDUTInterfaceState(t, dut, dp, false)
+				} else {
+					t.Logf("Bringing down ate port: %v", atePorts[i])
+					portStateAction := gosnappi.NewControlState()
+					portStateAction.Port().Link().SetPortNames([]string{atePorts[i].ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+					ate.OTG().SetControlState(t, portStateAction)
+				}
 				// ATE and DUT ports in the linked pair have the same ID(), but
 				// they are mapped to different Name().
 				t.Logf("Awaiting DUT port down: %v", dp)
@@ -170,4 +192,15 @@ func TestPortFlap(t *testing.T) {
 			debugGRIBI(t, dut)
 		})
 	}
+}
+
+// setDUTInterfaceState sets the admin state on the dut interface
+func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
+	t.Helper()
+	dc := gnmi.OC()
+	i := &oc.Interface{}
+	i.Enabled = ygot.Bool(state)
+	i.Type = ethernetCsmacd
+	i.Name = ygot.String(p.Name())
+	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }

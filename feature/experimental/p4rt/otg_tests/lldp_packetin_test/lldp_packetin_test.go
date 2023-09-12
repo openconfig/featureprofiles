@@ -394,12 +394,12 @@ func TestPacketIn(t *testing.T) {
 	configureDeviceID(ctx, t, dut)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
@@ -451,9 +451,9 @@ func (lldp *LLDPPacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, frameSize uint3
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(*lldp.SrcMAC)
 	ethHeader.Dst().SetValue(*lldp.DstMAC)
-	ethHeader.EtherType().SetValue(int32(*lldp.EthernetType))
-	flow.Size().SetFixed(int32(frameSize))
-	flow.Rate().SetPps(int64(frameRate))
+	ethHeader.EtherType().SetValue(uint32(*lldp.EthernetType))
+	flow.Size().SetFixed(uint32(frameSize))
+	flow.Rate().SetPps(uint64(frameRate))
 	return []gosnappi.Flow{flow}
 }
 
