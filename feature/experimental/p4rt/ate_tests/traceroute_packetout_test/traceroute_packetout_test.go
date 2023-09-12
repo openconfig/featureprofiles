@@ -243,7 +243,7 @@ func TestPacketOut(t *testing.T) {
 	configureDeviceID(ctx, t, dut)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
@@ -359,7 +359,7 @@ func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAd
 			Metadata: []*p4v1.PacketMetadata{
 				{
 					MetadataId: uint32(1), // "egress_port"
-					Value:      []byte("0"),
+					Value:      []byte("submit_to_ingress"),
 				},
 				{
 					MetadataId: uint32(2), // "submit_to_ingress"
