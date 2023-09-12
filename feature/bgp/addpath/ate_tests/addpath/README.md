@@ -26,7 +26,7 @@ ATE5:Port5 <-IBGP-> DUT:Port5
 * Configure RRCs ATE3:Port3 and ATE4:Port4 to advertise "prefix-2" to DUT with different Path attributes.
   * Verify that the DUT advertises multiple paths for prefix-2 to ATE5 with different path-ids
 
-**Test-2**: Verify ADDPATH Receive capability 
+**Test-2**: Verify ADDPATH scaling 
 * DUT:Port3 and DUT:Port4 has IBGP peering with directly connected ATE3:Port3 and ATE4:Port4 respectively. In this case, DUT is the RR server and ATE3 and ATE4 are RR clients
 * DUT:Port5 has IBGP peering with directly connected ATE5:Port5. In this case DUT is the RR client and ATE5:Port5 is the RR server
 * Ensure that the EBGP and IBGP peering are enabled for both address famailies.
