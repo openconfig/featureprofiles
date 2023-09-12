@@ -30,7 +30,7 @@ import (
 )
 
 type cloudBuild struct {
-	device device
+	device *device
 
 	buildClient *cloudbuild.Service
 	storClient  *storage.Client
