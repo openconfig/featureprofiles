@@ -595,7 +595,6 @@ func ISISCounterManualAddressDropFromAreasUnsupported(dut *ondatra.DUTDevice) bo
 // support telemetry for isis system-level-counter part-changes.
 func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
-
 }
 
 // TunnelStatePathUnsupported returns true for devices that require configuring

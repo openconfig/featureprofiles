@@ -213,7 +213,7 @@ func disableP4RTLLDP(t *testing.T, dut *ondatra.DUTDevice) {
 	case ondatra.ARISTA:
 		cli := `p4-runtime
 					shutdown`
-		if _, err := dut.RawAPIs().GNMI().Default(t).
+		if _, err := dut.RawAPIs().GNMI(t).
 			Set(context.Background(), cliSetRequest(cli)); err != nil {
 			t.Fatalf("Failed to disable P4RTLLDP: %v", err)
 		}

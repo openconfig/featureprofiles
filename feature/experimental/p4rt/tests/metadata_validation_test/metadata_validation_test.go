@@ -39,7 +39,7 @@ func TestP4RTMetadata(t *testing.T) {
 	configurePortID(t, dut)
 
 	c := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := c.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := c.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
