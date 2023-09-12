@@ -52,7 +52,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 	t.Logf("dut1: %v, dut2: %v", dut1, dut2)
 	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", dp1.Name(), dp2.Name())
 
-	gnoiClient1 := dut1.RawAPIs().GNOI().New(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
 	plqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
 
 	t.Logf("LinkQualification().Capabilities(): %v, err: %v", plqResp, err)
