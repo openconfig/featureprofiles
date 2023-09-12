@@ -89,7 +89,7 @@ func TestOriginCliConfig(t *testing.T) {
 		},
 	}
 
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
+	gnmiClient := dut.RawAPIs().GNMI(t)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			var config string

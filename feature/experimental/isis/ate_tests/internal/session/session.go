@@ -169,7 +169,7 @@ func New(t testing.TB) (*TestSession, error) {
 	s := &TestSession{}
 	s.DUT = ondatra.DUT(t, "dut")
 	var err error
-	s.DUTClient, err = ygnmi.NewClient(s.DUT.RawAPIs().GNMI().Default(t), ygnmi.WithTarget(s.DUT.ID()))
+	s.DUTClient, err = ygnmi.NewClient(s.DUT.RawAPIs().GNMI(t), ygnmi.WithTarget(s.DUT.ID()))
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to gNMI on %v: %w", s.DUT, err)
 	}
