@@ -220,7 +220,7 @@ func juniperCLI() string {
 func configureRegexPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	var config string
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
+	gnmiClient := dut.RawAPIs().GNMI(t)
 
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
