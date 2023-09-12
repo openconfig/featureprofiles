@@ -230,7 +230,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}},
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			time.Sleep(1 * time.Second) // some devices do not allow back to back traceroute to prevent flooding
