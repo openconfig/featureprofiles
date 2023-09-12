@@ -136,7 +136,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
-		SetPrefix(int32(atePort1.IPv4Len))
+		SetPrefix(uint32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
@@ -144,7 +144,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
-		SetPrefix(int32(atePort2.IPv4Len))
+		SetPrefix(uint32(atePort2.IPv4Len))
 
 	return top
 }

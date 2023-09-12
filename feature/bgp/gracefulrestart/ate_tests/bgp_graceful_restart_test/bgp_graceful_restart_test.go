@@ -582,7 +582,7 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring SRL ACL: %v", err)
 		}
@@ -618,7 +618,7 @@ func configAdmitAllACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbDelRequest); err != nil {
 			t.Fatalf("Unexpected error removing SRL ACL: %v", err)
 		}
@@ -667,7 +667,7 @@ func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string)
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring interface ACL: %v", err)
 		}

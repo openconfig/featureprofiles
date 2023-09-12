@@ -402,7 +402,7 @@ func TestGNOIPing(t *testing.T) {
 		expectedStats: commonExpectedReplyStats,
 	}}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Logf("Sent ping request: %v\n\n", tc.pingRequest)
