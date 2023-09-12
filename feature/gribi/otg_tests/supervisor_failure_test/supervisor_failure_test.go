@@ -327,7 +327,7 @@ func TestSupFailure(t *testing.T) {
 		t.Fatalf("Controller %q did not become switchover-ready before test.", primaryBeforeSwitch)
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),

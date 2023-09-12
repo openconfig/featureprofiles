@@ -32,6 +32,8 @@ var (
 	p4rtUnsetElectionIDPrimaryAllowed        = flag.Bool("deviation_p4rt_unsetelectionid_primary_allowed", false, "Device allows unset Election ID to be primary.")
 	p4rtBackupArbitrationResponseCode        = flag.Bool("deviation_bkup_arbitration_resp_code", false, "Device sets ALREADY_EXISTS status code for all backup client responses.")
 	backupNHGRequiresVrfWithDecap            = flag.Bool("deviation_backup_nhg_requires_vrf_with_decap", false, "Set to true for devices that require IPOverIP Decapsulation for Backup NHG without interfaces.")
+	atePortLinkStateOperationsUnsupported    = flag.Bool("deviation_ate_port_link_state_operations_unsupported", false, "Set to true for ATEs that do not support setting link state on their own ports.")
+	ateIPv6FlowLabelUnsupported              = flag.Bool("deviation_ate_ipv6_flow_label_unsupported", false, "Set to true for ATEs that do not support IPv6 flow labels")
 )
 
 func isFlagSet(name string) bool {
@@ -103,4 +105,22 @@ func BackupNHGRequiresVrfWithDecap(dut *ondatra.DUTDevice) bool {
 		return *backupNHGRequiresVrfWithDecap
 	}
 	return lookupDUTDeviations(dut).GetBackupNhgRequiresVrfWithDecap()
+}
+
+// ATEPortLinkStateOperationsUnsupported returns true for traffic generators that do not support
+// port link state control operations (such as port shutdown.)
+func ATEPortLinkStateOperationsUnsupported(ate *ondatra.ATEDevice) bool {
+	if isFlagSet("deviation_ate_port_link_state_operations_unsupported") {
+		return *atePortLinkStateOperationsUnsupported
+	}
+	return lookupATEDeviations(ate).GetAtePortLinkStateOperationsUnsupported()
+}
+
+// ATEIPv6FlowLabelUnsupported returns true for traffic generators that do not support
+// IPv6 flow labels
+func ATEIPv6FlowLabelUnsupported(ate *ondatra.ATEDevice) bool {
+	if isFlagSet("deviation_ate_ipv6_flow_label_unsupported") {
+		return *ateIPv6FlowLabelUnsupported
+	}
+	return lookupATEDeviations(ate).GetAteIpv6FlowLabelUnsupported()
 }
