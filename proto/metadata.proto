@@ -328,8 +328,10 @@ message Metadata {
     // Arista: partnerissuetracker.corp.google.com/299285991
     bool isis_counter_part_changes_unsupported = 107;
     // Device does not support tunnel interfaces state paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
     bool tunnel_state_path_unsupported = 108;
     // Device does not support tunnel interfaces source and destination address config paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
     bool tunnel_config_path_unsupported = 109;
 
     // Reserved field numbers and identifiers.
