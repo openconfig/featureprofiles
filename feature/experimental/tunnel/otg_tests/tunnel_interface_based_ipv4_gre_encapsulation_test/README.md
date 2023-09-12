@@ -13,14 +13,7 @@ Tunnel source should be able to configure with unnumbered interface address
 Tunnel Destination
 Directly on Tunnel interface or Tunnel Group
 Configure such 32 tunnel interfaces
-Filter match and action
-Filter is able to match the source and destination IP ranges or prefix lists
-Filter is able to divert traffic to IPv4 Next HOP
-Filter is able to count the packet
-Filter diverting traffic to IPv4 NH
 Configure static route with IPv4 NH pointing to Tunnel interfaces
-Filter application to specific interface
-Apply filter on IPv4 AF on DUT-PORT1
 Send 1000 IPv4 flows from tester on ATE-PORT1 connected to DUT-PORT1 where GRE Encap filter is applied with the traffic profile documented
 IPv4 flows are made of 5 tuples
 Source IP address
@@ -29,11 +22,10 @@ Destination IP address
 Destination port
 Payload protocol
 Enable the packet capture on ATE ingress port to verify the GRE header of uncapped traffic
-Verify the filter counters for packet being diverted or sent for encapsulation
 Verify the tunnel interfaces counters to confirm the traffic encapsulation
 After encapsulation, traffic should be load balanced/hash to all available L3 ECMP or LAG or combination of both features
 Validate system for:
-Health-1.1
+Health-1.1 #To do
 No feature related error or drop counters incrementing, discussion with vendors required to highlight additional fields to monitor based on implementation and architecture
 
 ## Config Parameter coverage
@@ -55,13 +47,7 @@ gre/source/interface/
 Prefix:
 wbb://software/routing/nexthop-group/
 wbb://software/routing/nexthop-group/gre/
-Prefix:
-wbb://software/forwarding/policy/acl/rule/
 
-Parameters:
-action/
-action/count/
-action/nexthop/
 Prefix:
 wbb://software/routing/static/
 Parameters:
@@ -79,7 +65,6 @@ ipv6/nexthop/null/
 Prefix:
 wbb://software/interfaces/tunnel/
 wbb://software/interfaces/tunnel/gre/
-wbb://software/forwarding/policy/acl/rule/
 Needs to define
 ST for Tunnel counters
 ST for packet capture on DUT and ATE to read:
