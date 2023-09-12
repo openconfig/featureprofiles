@@ -4,7 +4,7 @@
 uuid:  "10287306-7277-456a-ab43-99f63e991152"
 plan_id:  "TUN-1.3"
 description:  "Interface based IPv4 GRE Encapsulation"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_4LINKS
  platform_exceptions: {
    platform: {
      vendor: JUNIPER
