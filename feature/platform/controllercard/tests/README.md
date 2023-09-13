@@ -37,15 +37,13 @@
 * store list of present components of CONTROLLER_CARD type
 
 ### test 2 switchover
-* Verify that all controller_cards has `switchover-ready=TRUE`
+* Verify that all controller_cards have `switchover-ready=TRUE`
 * Collect and store `redundant-role` for each controller_card as "previous-role"
 * Initiate controller-card switchover
-* Wait 15 seconds
-* Collect `redundant-role` for each controller_card. Compare it wit "previous-role"
+* Try periodicaly (60 sec interval) untill sucesfull but no longer then 20 min: Collect `redundant-role` for each controller_card. Compare it with "previous-role"
   * for controller_card of **current** "PRIMARY" role, **previous** role must be "SECONDARY"
-  * for at least one controller_card of **previous** role "SECONDARY" role, **current** role must be "PRIMARY"
-  * shall more then 2 controller_cards exist, their previour and current states could be equal and be "SECONDARY"
-* Until (`switchover-ready=TRUE` on all controller_cards OR `last-switchover-time` is moret then 20min ago)
+  * for controller_card of **current** "SECONDARY" role, **previous** role must be "PRIMARY"
+* try until (`switchover-ready=TRUE` on all controller_cards OR `last-switchover-time` is moret then 20min ago)
   * Wait(5min)
   * Verify that all controller_cards has `switchover-ready=TRUE`; if so test PASSED
 
@@ -56,32 +54,19 @@
 * Collect `redundant-role` and `oper-status` from all components of CONTROLLER_CARD type as collected in test 1;
   * verify that "previous_primary" controller `oper-status` is **not** `ACTIVE`
   * verify that at exectly one controller_card has `redundant-role=PRIMARY` and `oper-status=ACTIVE`
-  * if gNMI client can retrive this information, it is asumed controller card redundancy works. 
+  * if gNMI client can get this information, it is asumed controller card redundancy works. 
     More torough tests of failover are part of forwarding tests.
 * Power up "previous_primary" controller card
 * Wait untill all controller_cards has `switchover-ready=TRUE` (cleanup)
  
 ### test 3 last reboot time
 * Select component with `redundant-role=SECONDARY`
-* store last-reboot-time for this component as "No_want"
+* store last-reboot-time for this component as "previous-reboot-time"
 * Power down this component, wait 60 sec.
 * Power up this component
 * Wait
-* get last-reboot-timea and compare with "want"
-  * "No_want" must be smaller (earlier) then recently collectrd last-reboot-time
-
-### test 4 switchover
-* Verify that all controller_cards has `switchover-ready=TRUE`
-* Collect and store `redundant-role` for each controller_card as "previous-role"
-* Initiate controller-card switchover
-* Wait 15 seconds
-* Collect `redundant-role` for each controller_card. Compare it wit "previous-role"
-  * for controller_card of **current** "PRIMARY" role, **previous** role must be "SECONDARY"
-  * for at least one controller_card of **previous** role "SECONDARY" role, **current** role must be "PRIMARY"
-  * shall more then 2 controller_cards exist, their previour and current states could be equal and be "SECONDARY"
-* Until (`switchover-ready=TRUE` on all controller_cards OR `last-switchover-time` is moret then 20min ago)
-  * Wait(5min)
-  * Verify that all controller_cards has `switchover-ready=TRUE`; if so test PASSED
+* get last-reboot-timea and compare with "previous-reboot-time"
+  * "previous-reboot-time" must be smaller (earlier) then recently collected last-reboot-time
 
 ## Config Parameter coverage
 
