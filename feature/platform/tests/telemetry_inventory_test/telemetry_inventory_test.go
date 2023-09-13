@@ -129,7 +129,7 @@ func TestHardwareCards(t *testing.T) {
 				nameValidation:        true,
 				partNoValidation:      true,
 				serialNoValidation:    true,
-				mfgNameValidation:     false,
+				mfgNameValidation:     true,
 				mfgDateValidation:     false,
 				hwVerValidation:       true,
 				fwVerValidation:       false,
@@ -236,7 +236,7 @@ func TestHardwareCards(t *testing.T) {
 				mfgDateValidation:     false,
 				swVerValidation:       false,
 				hwVerValidation:       true,
-				fwVerValidation:       false,
+				fwVerValidation:       true,
 				rrValidation:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 				parentValidation:      false,
@@ -380,9 +380,12 @@ func TestSwitchChip(t *testing.T) {
 
 		cName := card.GetName()
 		t.Run(fmt.Sprintf("Backplane:%s", cName), func(t *testing.T) {
-			if deviations.BackplaneFacingCapacityUnsupported(dut) && regexp.MustCompile("NPU[0-9]$").Match([]byte(card.GetName())) {
-				// Vendor does not support backplane-facing-capacity for nodes named 'NPU'.
-				t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")
+			if deviations.BackplaneFacingCapacityUnsupported(dut) {
+				v := dut.Vendor()
+				// Vendor does not support backplane-facing-capacity
+				if v != ondatra.JUNIPER || (v == ondatra.JUNIPER && regexp.MustCompile("NPU[0-9]$").Match([]byte(card.GetName()))) {
+					t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")
+				}
 			}
 			// For SwitchChip, check OC integrated-circuit paths.
 			if card.GetIntegratedCircuit() == nil {

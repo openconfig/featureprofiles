@@ -29,7 +29,6 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -104,7 +103,7 @@ func TestRouteRemovelViaFlush(t *testing.T) {
 	ate.OTG().PushConfig(t, ateTop)
 	ate.OTG().StartProtocols(t)
 
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the gRIBI client clientA with election ID of 10.
 	clientA := fluent.NewClient()
@@ -164,6 +163,7 @@ func testFlushWithDefaultNetworkInstance(ctx context.Context, t *testing.T, args
 	// Inject an entry into the default network instance pointing to ATE port-2.
 	// clientA is primary client
 	injectEntry(ctx, t, args.clientA, deviations.DefaultNetworkInstance(args.dut))
+	otgutils.WaitForARP(t, args.ate.OTG(), args.ateTop, "IPv4")
 	// Test traffic between ATE port-1 and ATE port-2.
 	lossPct := testTraffic(t, args.ate, args.ateTop)
 	if got := lossPct; got > 0 {
@@ -247,7 +247,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
-		SetPrefix(int32(atePort1.IPv4Len))
+		SetPrefix(uint32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
@@ -255,7 +255,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
-		SetPrefix(int32(atePort2.IPv4Len))
+		SetPrefix(uint32(atePort2.IPv4Len))
 
 	return top
 }
@@ -312,22 +312,13 @@ func injectEntry(ctx context.Context, t *testing.T, client *fluent.GRIBIClient, 
 	)
 }
 
-// Waits for at least one ARP entry on any OTG interface
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-}
-
 // testTraffic generates traffic flow from source network to
 // destination network via srcEndPoint to dstEndPoint and checks for
 // packet loss.
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) int {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) float32 {
 	// Ensure that traffic can be forwarded between ATE port-1 and ATE port-2.
 	t.Helper()
 	otg := ate.OTG()
-	waitOTGARPEntry(t)
 	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 	top.Flows().Clear().Items()
 	flowipv4 := top.Flows().Add().SetName("Flow")
@@ -352,8 +343,11 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) int 
 
 	otgutils.LogFlowMetrics(t, otg, top)
 	time.Sleep(time.Minute)
-	txPkts := int(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
-	rxPkts := int(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
+	txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
+	rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
+	if txPkts == 0 {
+		t.Fatalf("TxPkts == 0, want > 0")
+	}
 	lossPct := (txPkts - rxPkts) * 100 / txPkts
 	return lossPct
 }

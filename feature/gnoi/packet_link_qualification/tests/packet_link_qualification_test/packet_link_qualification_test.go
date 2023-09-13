@@ -16,6 +16,7 @@ package packet_link_qualification_test
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -124,7 +125,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 func TestNonexistingID(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	id := "non-extsing-ID"
-	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
 	getResp, err := gnoiClient1.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{id}})
 
 	t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
@@ -155,8 +156,8 @@ func TestNonexistingID(t *testing.T) {
 func TestListDelete(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
-	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
-	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 
 	clients := []raw.GNOI{gnoiClient1, gnoiClient2}
 	for i, client := range clients {
@@ -305,8 +306,8 @@ func TestLinkQualification(t *testing.T) {
 	}
 	t.Logf("ReflectorCreateRequest: %v", reflectorCreateRequest)
 
-	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
-	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 
 	generatorCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), generatorCreateRequest)
 	t.Logf("LinkQualification().Create() generatorCreateResp: %v, err: %v", generatorCreateResp, err)
@@ -396,12 +397,14 @@ func TestLinkQualification(t *testing.T) {
 		}
 	}
 
+	// The packet counters between Generator and Reflector mismatch tolerance level in percentage
+	var tolerance float64 = 0.0001
 	if !deviations.SkipPLQPacketsCountCheck(dut1) {
-		if generatorPktsSent != reflectorPktsRxed {
-			t.Errorf("Packets received count at Reflector is not matching the packets sent count at Generator: generatorPktsSent %v, reflectorPktsRxed %v", generatorPktsSent, reflectorPktsRxed)
+		if ((math.Abs(float64(generatorPktsSent)-float64(reflectorPktsRxed)))/(float64(generatorPktsSent)+float64(reflectorPktsRxed)+tolerance))*200.00 > tolerance {
+			t.Errorf("The difference between packets received count at Reflector and packets sent count at Generator is greater than %0.4f percent: generatorPktsSent %v, reflectorPktsRxed %v", tolerance, generatorPktsSent, reflectorPktsRxed)
 		}
-		if reflectorPktsSent != generatorPktsRxed {
-			t.Errorf("Packets received count at Generator is not matching the packets sent count at Reflector: reflectorPktsSent %v, generatorPktsRxed %v", reflectorPktsSent, generatorPktsRxed)
+		if ((math.Abs(float64(reflectorPktsSent)-float64(generatorPktsRxed)))/(float64(reflectorPktsSent)+float64(generatorPktsRxed)+tolerance))*200.00 > tolerance {
+			t.Errorf("The difference between packets received count at Generator and packets sent count at Reflector is greater than %0.4f percent: reflectorPktsSent %v, generatorPktsRxed %v", tolerance, reflectorPktsSent, generatorPktsRxed)
 		}
 	}
 

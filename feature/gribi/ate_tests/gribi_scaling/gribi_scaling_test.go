@@ -359,7 +359,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) || deviations.IntfRefConfigUnsupported(dut) {
+	if deviations.InterfaceRefConfigUnsupported(dut) {
 		pfCfg.InterfaceRef = nil
 	}
 	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
@@ -469,7 +469,7 @@ func TestScaling(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 	top := ate.Topology().New()
