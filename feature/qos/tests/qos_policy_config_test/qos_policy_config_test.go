@@ -584,7 +584,7 @@ func testECNConfig(t *testing.T) {
 		ecnEnabled:                true,
 		dropEnabled:               false,
 		minThreshold:              uint64(80000),
-		maxThreshold:              math.MaxUint64,
+		maxThreshold:              math.MaxUint32,
 		maxDropProbabilityPercent: uint8(1),
 		weight:                    uint32(0),
 	}
@@ -1653,7 +1653,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		ecnEnabled:                true,
 		dropEnabled:               false,
 		minThreshold:              uint64(80000),
-		maxThreshold:              math.MaxUint64,
+		maxThreshold:              math.MaxUint32,
 		maxDropProbabilityPercent: uint8(1),
 		weight:                    uint32(0),
 	}
