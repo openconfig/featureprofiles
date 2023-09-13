@@ -35,6 +35,7 @@ message Metadata {
     TESTBED_DUT_ATE_2LINKS = 3;
     TESTBED_DUT_ATE_4LINKS = 4;
     TESTBED_DUT_ATE_9LINKS_LAG = 5;
+    TESTBED_DUT_DUT_ATE_2LINKS = 6;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -277,8 +278,6 @@ message Metadata {
     bool os_component_parent_is_chassis = 88;
     // Device does not support fabric power-admin-state leaf.
     bool skip_fabric_card_power_admin = 89;
-    // Device returns component state inactive during power down.
-    bool component_power_down_returns_inactive_state = 90;
     // Devices require configuring the same ISIS Metrics for Level 1 when
     // configuring Level 2 Metrics.
     bool isis_require_same_l1_metric_with_l2_metric = 91;
@@ -316,13 +315,27 @@ message Metadata {
     // Device does not support telemetry path
     // /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
     bool qos_voq_drop_counter_unsupported = 103;
+    // ATE IPv6 flow label unsupported in KNE/virtualized environments.
+    bool ate_ipv6_flow_label_unsupported = 104;
+    // Devices do not support configuring isis csnp-interval timer.
+    // Arista: partnerissuetracker.corp.google.com/299283216
+    bool isis_timers_csnp_interval_unsupported = 105;
+    // Devices do not support telemetry for isis counter:
+    // manual-address-drop-from-areas.
+    // Arista: partnerissuetracker.corp.google.com/299285115
+    bool isis_counter_manual_address_drop_from_areas_unsupported = 106;
+    // Devices do not support telemetry for isis counter: part-changes.
+    // Arista: partnerissuetracker.corp.google.com/299285991
+    bool isis_counter_part_changes_unsupported = 107;
     // Device does not support tunnel interfaces state paths
-    bool tunnel_state_path_unsupported = 104;
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_state_path_unsupported = 108;
     // Device does not support tunnel interfaces source and destination address config paths
-    bool tunnel_config_path_unsupported = 105;
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_config_path_unsupported = 109;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28;
+    reserved 84, 9, 28, 90;
   }
 
   message PlatformExceptions {
