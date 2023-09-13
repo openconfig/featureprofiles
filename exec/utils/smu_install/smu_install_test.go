@@ -140,7 +140,6 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sshCmdTimeout)
 	defer cancel()
 	sshClient := dut.RawAPIs().CLI(t)
-	defer sshClient.Close()
 	return sshClient.SendCommand(ctx, cmd)
 }
 

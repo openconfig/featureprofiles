@@ -630,3 +630,14 @@ tests:
     mustpass: true
     timeout: 2400
     pr: 2071
+  - name: Health-1.1 (Generic Health Check)
+    path: feature/experimental/system/health/tests/system_generic_health_check
+    owners:
+      - wdolaast
+    mustpass: false
+  - name: RT-2.6 (IS-IS Hello-Padding enabled at interface level)
+    path: feature/experimental/isis/otg_tests/isis_interface_hello_padding_enable_test
+    owners:
+      - wdolaast
+    mustpass: false
+  

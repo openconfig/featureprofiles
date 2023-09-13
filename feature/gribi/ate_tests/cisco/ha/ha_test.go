@@ -2036,7 +2036,6 @@ func test_triggers(t *testing.T, args *testArgs) {
 						args.rpfo(args.ctx, t, true)
 					}
 					sshClient := args.dut.RawAPIs().CLI(t)
-					defer sshClient.Close()
 					time.Sleep(10 * time.Second)
 
 					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv6 \n commit \n", 30*time.Second)
@@ -2088,7 +2087,6 @@ func test_triggers(t *testing.T, args *testArgs) {
 						args.rpfo(args.ctx, t, true)
 					}
 					sshClient := args.dut.RawAPIs().CLI(t)
-					defer sshClient.Close()
 					time.Sleep(10 * time.Second)
 
 					port := rand.Intn(max-min+1) + min

@@ -1,0 +1,2 @@
+certificate-authorities/ca-.*
+certificate-authorities/ca-.*/.*

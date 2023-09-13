@@ -20,55 +20,79 @@ nodes: {
     interfaces: {
         key: "eth4"
         value: {
-          name: "et-0/0/1:0"
-        }
-    }
-    interfaces: {
-        key: "eth5"
-        value: {
-          name: "et-0/0/2:0"
-        }
-    }
-    interfaces: {
-        key: "eth6"
-        value: {
-          name: "et-0/0/3:0"
-        }
-    }
-    interfaces: {
-        key: "eth7"
-        value: {
-          name: "et-0/0/4:0"
-        }
-    }
-    interfaces: {
-        key: "eth8"
-        value: {
-          name: "et-0/0/5:0"
-        }
-    }
-    interfaces: {
-        key: "eth9"
-        value: {
-          name: "et-0/0/6:0"
-        }
-    }
-    interfaces: {
-        key: "eth10"
-        value: {
-          name: "et-0/0/7:0"
-        }
-    }
-    interfaces: {
-        key: "eth11"
-        value: {
-          name: "et-0/0/8:0"
+          name: "et-0/0/0:0"
         }
     }
     interfaces: {
         key: "eth12"
         value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth20"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+    interfaces: {
+        key: "eth28"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+    interfaces: {
+        key: "eth36"
+        value: {
+          name: "et-0/0/4:0"
+        }
+    }
+    interfaces: {
+        key: "eth40"
+        value: {
+          name: "et-0/0/6:0"
+        }
+    }
+    interfaces: {
+        key: "eth44"
+        value: {
+          name: "et-0/0/8:0"
+        }
+    }
+    interfaces: {
+        key: "eth52"
+        value: {
           name: "et-0/0/9:0"
+        }
+    }
+    interfaces: {
+        key: "eth60"
+        value: {
+          name: "et-0/0/10:0"
+        }
+    }
+    interfaces: {
+        key: "eth68"
+        value: {
+          name: "et-0/0/11:0"
+        }
+    }
+    interfaces: {
+        key: "eth69"
+        value: {
+          name: "et-0/0/11:1"
+        }
+    }
+    interfaces: {
+        key: "eth70"
+        value: {
+          name: "et-0/0/11:2"
+        }
+    }
+    interfaces: {
+        key: "eth71"
+        value: {
+          name: "et-0/0/11:3"
         }
     }
 }
@@ -93,55 +117,79 @@ nodes: {
     interfaces: {
         key: "eth4"
         value: {
-          name: "et-0/0/1:0"
-        }
-    }
-    interfaces: {
-        key: "eth5"
-        value: {
-          name: "et-0/0/2:0"
-        }
-    }
-    interfaces: {
-        key: "eth6"
-        value: {
-          name: "et-0/0/3:0"
-        }
-    }
-    interfaces: {
-        key: "eth7"
-        value: {
-          name: "et-0/0/4:0"
-        }
-    }
-    interfaces: {
-        key: "eth8"
-        value: {
-          name: "et-0/0/5:0"
-        }
-    }
-    interfaces: {
-        key: "eth9"
-        value: {
-          name: "et-0/0/6:0"
-        }
-    }
-    interfaces: {
-        key: "eth10"
-        value: {
-          name: "et-0/0/7:0"
-        }
-    }
-    interfaces: {
-        key: "eth11"
-        value: {
-          name: "et-0/0/8:0"
+          name: "et-0/0/0:0"
         }
     }
     interfaces: {
         key: "eth12"
         value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth20"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+    interfaces: {
+        key: "eth28"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+    interfaces: {
+        key: "eth36"
+        value: {
+          name: "et-0/0/4:0"
+        }
+    }
+    interfaces: {
+        key: "eth40"
+        value: {
+          name: "et-0/0/6:0"
+        }
+    }
+    interfaces: {
+        key: "eth44"
+        value: {
+          name: "et-0/0/8:0"
+        }
+    }
+    interfaces: {
+        key: "eth52"
+        value: {
           name: "et-0/0/9:0"
+        }
+    }
+    interfaces: {
+        key: "eth60"
+        value: {
+          name: "et-0/0/10:0"
+        }
+    }
+    interfaces: {
+        key: "eth68"
+        value: {
+          name: "et-0/0/11:0"
+        }
+    }
+    interfaces: {
+        key: "eth69"
+        value: {
+          name: "et-0/0/11:1"
+        }
+    }
+    interfaces: {
+        key: "eth70"
+        value: {
+          name: "et-0/0/11:2"
+        }
+    }
+    interfaces: {
+        key: "eth71"
+        value: {
+          name: "et-0/0/11:3"
         }
     }
 }
@@ -209,49 +257,49 @@ links: {
 }
 links: {
     a_node: "dut1"
-    a_int: "eth5"
+    a_int: "eth12"
     z_node: "otg"
     z_int: "eth2"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth6"
+    a_int: "eth20"
     z_node: "otg"
     z_int: "eth3"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth7"
+    a_int: "eth28"
     z_node: "otg"
     z_int: "eth4"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth8"
+    a_int: "eth36"
     z_node: "otg"
     z_int: "eth5"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth9"
+    a_int: "eth40"
     z_node: "otg"
     z_int: "eth6"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth10"
+    a_int: "eth44"
     z_node: "otg"
     z_int: "eth7"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth11"
+    a_int: "eth52"
     z_node: "otg"
     z_int: "eth8"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth12"
+    a_int: "eth60"
     z_node: "otg"
     z_int: "eth9"
 }
@@ -263,73 +311,73 @@ links: {
 }
 links: {
     a_node: "dut2"
-    a_int: "eth5"
+    a_int: "eth12"
     z_node: "otg"
     z_int: "eth11"
 }
 links: {
     a_node: "dut2"
-    a_int: "eth6"
+    a_int: "eth20"
     z_node: "otg"
     z_int: "eth12"
 }
 links: {
     a_node: "dut2"
-    a_int: "eth7"
+    a_int: "eth28"
     z_node: "otg"
     z_int: "eth13"
 }
 links: {
     a_node: "dut2"
-    a_int: "eth8"
+    a_int: "eth36"
     z_node: "otg"
     z_int: "eth14"
 }
 links: {
     a_node: "dut2"
-    a_int: "eth9"
+    a_int: "eth40"
     z_node: "otg"
     z_int: "eth15"
 }
 links: {
     a_node: "dut2"
-    a_int: "eth10"
+    a_int: "eth44"
     z_node: "otg"
     z_int: "eth16"
 }
 links: {
     a_node: "dut2"
-    a_int: "eth11"
+    a_int: "eth52"
     z_node: "otg"
     z_int: "eth17"
 }
 links: {
     a_node: "dut2"
-    a_int: "eth12"
+    a_int: "eth60"
     z_node: "otg"
     z_int: "eth18"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth13"
+    a_int: "eth68"
     z_node: "dut2"
-    z_int: "eth13"
+    z_int: "eth68"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth14"
+    a_int: "eth69"
     z_node: "dut2"
-    z_int: "eth14"
+    z_int: "eth69"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth15"
+    a_int: "eth70"
     z_node: "dut2"
-    z_int: "eth15"
+    z_int: "eth70"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth16"
+    a_int: "eth71"
     z_node: "dut2"
-    z_int: "eth16"
+    z_int: "eth71"
 }

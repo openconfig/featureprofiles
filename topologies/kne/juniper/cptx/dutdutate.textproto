@@ -1,0 +1,75 @@
+name: "juniper-cptx-dutdutate"
+nodes: {
+    name: "dut1"
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
+    config: {
+        image: "cptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+          name: "et-0/0/0:0"
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+}
+nodes: {
+    name: "dut2"
+    vendor: JUNIPER
+    model: "cptx"
+    os: "evo"
+    config: {
+        image: "cptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+}
+nodes: {
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "dut1"
+    z_int: "eth4"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth12"
+    z_node: "dut2"
+    z_int: "eth12"
+}
+
