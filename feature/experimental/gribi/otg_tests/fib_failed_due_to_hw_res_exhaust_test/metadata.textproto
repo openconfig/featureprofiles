@@ -13,6 +13,14 @@ platform_exceptions:  {
     ipv4_missing_enabled:  true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    skip_fib_failed_traffic_forwarding_check: true
+  }
+}
 platform_exceptions:  {
   platform:  {
     vendor:  NOKIA

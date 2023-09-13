@@ -307,8 +307,10 @@ func sendTraffic(t *testing.T, args *testArgs) {
 	args.otg.StopTraffic(t)
 
 	verifyTraffic(t, args, flow1ipv4.Name(), !wantLoss)
-	// https://github.com/open-traffic-generator/fp-testbed-juniper/issues/19
-	// TODO : verifyTraffic(t, args, flow2ipv4.Name(), wantLoss)
+
+	if !deviations.GRIBISkipFibFailedTrafficForwardingCheck(args.dut) {
+		verifyTraffic(t, args, flow2ipv4.Name(), wantLoss)
+	}
 }
 
 func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool) {
@@ -322,7 +324,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 	if txPackets != 0 {
 		lossPct = lostPackets * 100 / txPackets
 	} else {
-		t.Errorf("Traffic are not correct %v", recvMetric)
+		t.Errorf("Traffic stats are not correct %v", recvMetric)
 	}
 	if wantLoss {
 		if lossPct < 100-tolerancePct {
