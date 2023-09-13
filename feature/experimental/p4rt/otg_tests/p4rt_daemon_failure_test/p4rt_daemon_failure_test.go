@@ -282,7 +282,7 @@ func TestP4RTDaemonFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := dut.RawAPIs().GNOI().Default(t)
+	c := dut.RawAPIs().GNOI(t)
 	req := &syspb.KillProcessRequest{
 		Name:    p4rtD,
 		Pid:     uint32(pID),

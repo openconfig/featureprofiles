@@ -16,6 +16,7 @@
 // versions:
 // 	protoc-gen-go v1.31.0
 // 	protoc        v3.6.1
+
 // source: metadata.proto
 
 package metadata_go_proto
@@ -600,6 +601,7 @@ type Metadata_Deviations struct {
 	// Device does not support tunnel interfaces source and destination address config paths
 	// Juniper: partnerissuetracker.corp.google.com/300111031
 	TunnelConfigPathUnsupported bool `protobuf:"varint,109,opt,name=tunnel_config_path_unsupported,json=tunnelConfigPathUnsupported,proto3" json:"tunnel_config_path_unsupported,omitempty"`
+
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -1879,6 +1881,7 @@ var file_metadata_proto_rawDesc = []byte{
 	0x45, 0x10, 0x02, 0x12, 0x0d, 0x0a, 0x09, 0x54, 0x41, 0x47, 0x53, 0x5f, 0x45, 0x44, 0x47, 0x45,
 	0x10, 0x03, 0x12, 0x10, 0x0a, 0x0c, 0x54, 0x41, 0x47, 0x53, 0x5f, 0x54, 0x52, 0x41, 0x4e, 0x53,
 	0x49, 0x54, 0x10, 0x04, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+
 }
 
 var (
