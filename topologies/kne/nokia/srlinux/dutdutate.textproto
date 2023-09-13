@@ -1,0 +1,68 @@
+name: "nokia-srlinux-dutdut"
+nodes: {
+    name: "dut1"
+    vendor: NOKIA
+    model: "ixr10"
+    config: {
+        image: "srlinux:latest"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "kne-profile"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "e1-1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+    interfaces: {
+        key: "e1-2"
+        value: {
+            name: "ethernet-1/2"
+        }
+    }
+}
+nodes: {
+    name: "dut2"
+    vendor: NOKIA
+    model: "ixr10"
+    config: {
+        image: "srlinux:latest"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "kne-profile"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "e1-1"
+        value: {
+            name: "ethernet-1/1"
+        }
+    }
+}
+nodes: {
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "dut1"
+    z_int: "e1-1"
+}
+links: {
+    a_node: "dut1"
+    a_int: "e1-2"
+    z_node: "dut2"
+    z_int: "e1-1"
+}
