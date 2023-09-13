@@ -8,7 +8,10 @@ protocols such as BGP, IS-IS.
 
 Feature profiles also includes a suite of
 [Ondatra](https://github.com/openconfig/ondatra) tests for validating the
-network device behavior for each defined feature.
+network device behavior for each defined feature. If you are new to Ondatra,
+please start by reading the Ondata
+[README](https://github.com/openconfig/ondatra#readme) and taking the [Ondatra
+tour](https://docs.google.com/viewer?url=https://raw.githubusercontent.com/openconfig/ondatra/main/internal/tour/tour.pdf).
 
 # Contributing
 
