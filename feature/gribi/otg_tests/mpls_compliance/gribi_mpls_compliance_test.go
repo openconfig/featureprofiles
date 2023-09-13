@@ -43,7 +43,6 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	_ = mplsutil.PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
 	sleepFn := func(_ *testing.T, _ []uint32) { time.Sleep(time.Duration(*sleep) * time.Second) }
 
-	baseLabel := 42
 	for i := 1; i <= maxLabelDepth; i++ {
 		t.Run(fmt.Sprintf("push %d labels", i), func(t *testing.T) {
 			mplsutil.PushLabelStack(t, c, deviations.DefaultNetworkInstance(dut), baseLabel, i, sleepFn)
