@@ -2,8 +2,8 @@
 
 ## Summary
 
-Verifi configurability of interface hold-time down of 300ms  and hold-time up of 5 sec.\
-Verify oper-state behaviours
+Verify configurability of interface hold-time down of 300ms  and hold-time up of 5 sec.\
+Verify oper-state behaviour
 
 ## Procedure
 *   Configure DUT port-1 to OTG port-1
