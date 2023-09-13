@@ -207,7 +207,7 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
 
 	// reload the HW is rfpo count is 10 or more
-	if rpfo_count == 10 {
+	if rpfo_count == 6 {
 		gnoiClient := args.dut.RawAPIs().GNOI().New(t)
 		rebootRequest := &gnps.RebootRequest{
 			Method: gnps.RebootMethod_COLD,
