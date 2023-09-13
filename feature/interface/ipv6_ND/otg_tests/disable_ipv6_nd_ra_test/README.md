@@ -1,46 +1,37 @@
-# RT-5.x: Interface Loopback mode
-[TODO] assign test number 
+# RT-5.6: Disable IPv6 ND Router Arvetisment
 
 ## Summary
 
 Validate IPv6 ND Router Advertisement (RA) could be completely disabled.
 
 ## Procedure
-*   Connect DUT porr-1 to OTG port-1
+*   Connect DUT port-1 to OTG port-1
 *   Configure IPv6 address on DUT port-1
-*   set IPv6 ND RA transmission interval on DUT port-1 to 5 seconds
-*   disable IPv6 ND RA transmission on DUT port-1
+*   Set IPv6 ND RA transmission interval on DUT port-1 to 5 seconds
+*   Disable IPv6 ND RA transmission on DUT port-1
 
 ### TestCase-1: No periodical Router Advertisement
 
-*   Observe over period of 10 seconds if IPv6 ND RA arrives on OTG Port-1 ([rfc4861 section 6.2.1](https://datatracker.ietf.org/doc/html/rfc4861#section-6.2.1))
+*   Verify over period of 10 seconds that IPv6 ND RA **doesn't** arrives on OTG Port-1 ([rfc4861 section 6.2.1](https://datatracker.ietf.org/doc/html/rfc4861#section-6.2.1))
 *   Observe IPv6 ND RA configuration state on DUT Port-1
 
 ### TestCase-2: No Router Advertisement in response to Router Solicitation
 
 *   Send IPv6 ND Router Solicitation from OTG Port-1
-*   Observe over period of 1 seconds if IPv6 ND RA arrives on OTG Port-1  ([rfc4861 section 6.2.6](https://datatracker.ietf.org/doc/html/rfc4861#section-6.2.6))
+*   Verify over period of 1 seconds that IPv6 ND RA **doesn't** arrives on OTG Port-1  ([rfc4861 section 6.2.6](https://datatracker.ietf.org/doc/html/rfc4861#section-6.2.6))
 *   Observe IPv6 ND RA configuration state on DUT Port-1
 
 ## Config Parameter Coverage
 
-*   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/suppress
 *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/interval
-
-> NOTE: PR #900 (https://github.com/openconfig/public/pull/900) deprecate "suppress" leaf and replace it by:
-> *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/enable: FALSE
-> *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/mode:   ALL (default)
->  If PR #900 is mergeb by time of test coding, please follow new model.
+*   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/enable: FALSE
+*   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/mode:   ALL (default)
   
 ## Telemetry Parameter Coverage
 
-*   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/suppress
 *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/interval
-
-> NOTE: PR #900 (https://github.com/openconfig/public/pull/900) deprecate "suppress" leaf and replace it by:
-> *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/enable: FALSE
-> *   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/mode:   ALL (default)
-> If PR #900 is mergeb by time of test coding, please follow new model.
+*   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/enable: FALSE
+*   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/mode:   ALL (default)
 
 ## Protocol/RPC Parameter Coverage
 
