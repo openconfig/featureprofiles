@@ -138,7 +138,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureNetworkInstance(t)
 	t.Logf("Configure the DUT with static route ...")
 	configStaticRoute(t, dut, prefix, nexthop)
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
+	gnmiClient := dut.RawAPIs().GNMI(t)
 	var config string
 	t.Logf("Push the CLI config:\n%s", dut.Vendor())
 	switch dut.Vendor() {
