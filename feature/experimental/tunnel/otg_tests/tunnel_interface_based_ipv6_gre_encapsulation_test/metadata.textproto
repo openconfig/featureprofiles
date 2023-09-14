@@ -5,3 +5,4 @@ uuid: "4ba9a73c-9ed3-46fb-a9be-356542f41a3b"
 plan_id: "TUN-1.4"
 description: "Interface based IPv6 GRE Encapsulation"
 testbed: TESTBED_DUT_ATE_2LINKS
+tags: TAGS_AGGREGATION
