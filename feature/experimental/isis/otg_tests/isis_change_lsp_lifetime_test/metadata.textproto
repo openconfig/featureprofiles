@@ -40,3 +40,4 @@ platform_exceptions: {
     isis_instance_enabled_required: true          
   }
 }
+tags: TAGS_AGGREGATION
