@@ -151,7 +151,7 @@ func TestComponentStatus(t *testing.T) {
 	if len(checkComponents) == 0 {
 		t.Errorf("ERROR: No component has been found.")
 	}
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	// check oper-status of the components is Active.
 	for _, component := range checkComponents {
 		t.Run(component, func(t *testing.T) {
