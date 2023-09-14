@@ -43,73 +43,72 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-
 //  ##  TUN-1.7: Tunnel Interfaces disable and enable - Interface Based GRE Tunnel
 //  ## Summary
 //  *   Tunnel Interfaces disable and enable - Interface Based GRE Tunnel
 //  ## Procedure
-//  
-//  *   Apply the config mentioned in Tunnel-1.1 
-//  *   Send the traffic as mentioned in Tunnel-1.3 and Tunnel-1.4 with TP-1.1 and TP-1.2 
-//  *   Disable and enable  the numbers of Tunnel interface being used  
-//  *   Disabling Tunnel interfaces: 
-//      *  Disable 5 tunnel interfaces 
-//         *  One by one  
-//         *  All 5 at once 
-//  *   Static route using the disable interface should become invalid and should not be used in forwarding traffic 
-//  *   Incoming traffic on DUT-PORT1 should be load balanced to available Tunnel interfaces for encapsulation 
-//  *   Incoming traffic flow should be equally distributed for Encapsulation(ECMP) 
-//  *   No traffic loss expected 
-//  *   Enable the tunnel interfaces:  
-//      *  Enable or bring up the same interfaces which were disabled in previous step 
-//         *  One by one 
-//         *  All 5 at once 
-//  *   Incoming traffic on DUT-PORT1 should start using additional Tunnel Interfaces  for encapsulation 
-//  *   Incoming traffic flow should be equally distributed for Encapsulation(ECMP) 
-//  *   No traffic loss expected 
-//  *   Disabling and enabling the number of tunnel interfaces and related static route shouldn’t case traffic drops 
-//  *   Verify the Next hop counters for packet being diverted or sent for encapsulation 
-//  *   Verify the tunnel interfaces counters to confirm the traffic encapsulation  
-//  *   Verify the tunnel interfaces traffic/flow for equal distribution for optimal load balancing  
-//  *   After decapsulation, traffic should be load balanced/hash to all available L3 ECMP or LAG or combination of both features 
-//  *   Verify the tunnel interfaces counters to confirm the traffic decapsulation 
-// 
-//  *   Validate system for: 
-//  *   Health-1.1 
-//  *   No feature related error or drop counters incrementing, 
-//  *   discussion with vendors required to highlight additional fields to monitor based on implementation and architecture 
-// 
+//
+//  *   Apply the config mentioned in Tunnel-1.1
+//  *   Send the traffic as mentioned in Tunnel-1.3 and Tunnel-1.4 with TP-1.1 and TP-1.2
+//  *   Disable and enable  the numbers of Tunnel interface being used
+//  *   Disabling Tunnel interfaces:
+//      *  Disable 5 tunnel interfaces
+//         *  One by one
+//         *  All 5 at once
+//  *   Static route using the disable interface should become invalid and should not be used in forwarding traffic
+//  *   Incoming traffic on DUT-PORT1 should be load balanced to available Tunnel interfaces for encapsulation
+//  *   Incoming traffic flow should be equally distributed for Encapsulation(ECMP)
+//  *   No traffic loss expected
+//  *   Enable the tunnel interfaces:
+//      *  Enable or bring up the same interfaces which were disabled in previous step
+//         *  One by one
+//         *  All 5 at once
+//  *   Incoming traffic on DUT-PORT1 should start using additional Tunnel Interfaces  for encapsulation
+//  *   Incoming traffic flow should be equally distributed for Encapsulation(ECMP)
+//  *   No traffic loss expected
+//  *   Disabling and enabling the number of tunnel interfaces and related static route shouldn’t case traffic drops
+//  *   Verify the Next hop counters for packet being diverted or sent for encapsulation
+//  *   Verify the tunnel interfaces counters to confirm the traffic encapsulation
+//  *   Verify the tunnel interfaces traffic/flow for equal distribution for optimal load balancing
+//  *   After decapsulation, traffic should be load balanced/hash to all available L3 ECMP or LAG or combination of both features
+//  *   Verify the tunnel interfaces counters to confirm the traffic decapsulation
+//
+//  *   Validate system for:
+//  *   Health-1.1
+//  *   No feature related error or drop counters incrementing,
+//  *   discussion with vendors required to highlight additional fields to monitor based on implementation and architecture
+//
 //  ## Config Parameter coverage
-// 
-//  *   openconfig-interfaces:interfaces/interface 
-//  *   gre/ 
-//  *   gre/decap-group/ 
-//  *   gre/dest/ 
-//  *   gre/dest/address/ 
-//  *   gre/dest/address/ipv4/ 
-//  *   gre/dest/address/ipv6/ 
-//  *   gre/dest/nexthop-group/ 
-//  *   gre/source/ 
-//  *   gre/source/address/ 
-//  *   gre/source/address/ipv4/ 
-//  *   gre/source/address/ipv6/ 
-//  *   gre/source/interface/ 
-// 
+//
+//  *   openconfig-interfaces:interfaces/interface
+//  *   gre/
+//  *   gre/decap-group/
+//  *   gre/dest/
+//  *   gre/dest/address/
+//  *   gre/dest/address/ipv4/
+//  *   gre/dest/address/ipv6/
+//  *   gre/dest/nexthop-group/
+//  *   gre/source/
+//  *   gre/source/address/
+//  *   gre/source/address/ipv4/
+//  *   gre/source/address/ipv6/
+//  *   gre/source/interface/
+//
 //  ## Telemetry Parameter coverage
-// 
-//  *   state/counters/in-pkts 
-//  *   state/counters/in-octets 
-//  *   state/counters/out-pkts 
-//  *   state/counters/out-octets 
-//  *   state/counters/in-error-pkts 
-//  *   state/counters/in-forwarded-pkts 
-//  *   state/counters/in-forwarded-octets 
-//  *   state/counters/in-discarded-pkts 
-//  *   state/counters/out-error-pkts 
-//  *   state/counters/out-forwarded-pkts 
-//  *   state/counters/out-forwarded-octets 
-//  *   state/counters/out-discarded-pkts 
-// 
+//
+//  *   state/counters/in-pkts
+//  *   state/counters/in-octets
+//  *   state/counters/out-pkts
+//  *   state/counters/out-octets
+//  *   state/counters/in-error-pkts
+//  *   state/counters/in-forwarded-pkts
+//  *   state/counters/in-forwarded-octets
+//  *   state/counters/in-discarded-pkts
+//  *   state/counters/out-error-pkts
+//  *   state/counters/out-forwarded-pkts
+//  *   state/counters/out-forwarded-octets
+//  *   state/counters/out-discarded-pkts
+//
 //  ## Topology:
 //  *   otg:port1 <--> port1:dut1:port3 <--> port3:dut2:port5<--->otg:port5
 //  *   otg:port2 <--> port2:dut1:port4 <--> port4:dut2:port6<--->otg:port6
@@ -200,7 +199,7 @@ type parameters struct {
 	flow3           string
 	flow4           string
 	trafficDuration int64
-	trafficRate     uint64
+	trafficRate     int64
 }
 
 func GetNetworkAddress(t *testing.T, address string, mask int) string {
@@ -741,7 +740,7 @@ func TestFtiTunnels(t *testing.T) {
 	p := &parameters{
 		rtIntf1Ipv4Add:  "198.18.10.2",
 		rtIntf2Ipv4Add:  "198.18.11.2",
-		rtIntf5Ipv4Add:  "198.18.30.1", 
+		rtIntf5Ipv4Add:  "198.18.30.1",
 		rtIntf6Ipv4Add:  "198.18.31.1",
 		rtIntf1MacAdd:   "00:00:aa:aa:aa:aa",
 		rtIntf2MacAdd:   "00:00:bb:bb:bb:bb",
@@ -825,7 +824,7 @@ func TestFtiTunnels(t *testing.T) {
 		flow4:           "IPv6-flow4",
 		trafficDuration: 60,
 		trafficRate:     1000,
-}
+	}
 	t.Logf("the input variable %+v", p)
 	t.Helper()
 
@@ -879,34 +878,29 @@ func TestFtiTunnels(t *testing.T) {
 
 	t.Run("Configure 8 tunnel interface on dut1 and dut2 ", func(t *testing.T) {
 		// configure tunnel interface on dut1 - IPv4
+		ConfigureTunnelInterface(t, "fti0", p.r0Lo0Ut0Ipv4Add, p.r1Lo0Ut0Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, "fti1", p.r0Lo0Ut1Ipv4Add, p.r1Lo0Ut1Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, "fti2", p.r0Lo0Ut2Ipv4Add, p.r1Lo0Ut2Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, "fti3", p.r0Lo0Ut3Ipv4Add, p.r1Lo0Ut3Ipv4Add, dut1)
 
-		if deviations.TunnelConfigPathUnsupported(dut1) {
-			ConfigureTunnelInterface(t, "fti0", p.r0Lo0Ut0Ipv4Add, p.r1Lo0Ut0Ipv4Add, dut1)
-			ConfigureTunnelInterface(t, "fti1", p.r0Lo0Ut1Ipv4Add, p.r1Lo0Ut1Ipv4Add, dut1)
-			ConfigureTunnelInterface(t, "fti2", p.r0Lo0Ut2Ipv4Add, p.r1Lo0Ut2Ipv4Add, dut1)
-			ConfigureTunnelInterface(t, "fti3", p.r0Lo0Ut3Ipv4Add, p.r1Lo0Ut3Ipv4Add, dut1)
-		}
 		// configure tunnel interface on dut2- IPv4
-		if deviations.TunnelConfigPathUnsupported(dut2) {
-			ConfigureTunnelInterface(t, "fti0", p.r1Lo0Ut0Ipv4Add, p.r0Lo0Ut0Ipv4Add, dut2)
-			ConfigureTunnelInterface(t, "fti1", p.r1Lo0Ut1Ipv4Add, p.r0Lo0Ut1Ipv4Add, dut2)
-			ConfigureTunnelInterface(t, "fti2", p.r1Lo0Ut2Ipv4Add, p.r0Lo0Ut2Ipv4Add, dut2)
-			ConfigureTunnelInterface(t, "fti3", p.r1Lo0Ut3Ipv4Add, p.r0Lo0Ut3Ipv4Add, dut2)
-		}
+		ConfigureTunnelInterface(t, "fti0", p.r1Lo0Ut0Ipv4Add, p.r0Lo0Ut0Ipv4Add, dut2)
+		ConfigureTunnelInterface(t, "fti1", p.r1Lo0Ut1Ipv4Add, p.r0Lo0Ut1Ipv4Add, dut2)
+		ConfigureTunnelInterface(t, "fti2", p.r1Lo0Ut2Ipv4Add, p.r0Lo0Ut2Ipv4Add, dut2)
+		ConfigureTunnelInterface(t, "fti3", p.r1Lo0Ut3Ipv4Add, p.r0Lo0Ut3Ipv4Add, dut2)
+
 		//configure tunnel interface on dut2- IPv6
-		if deviations.TunnelConfigPathUnsupported(dut1) {
-			ConfigureTunnelInterface(t, "fti4", p.r0Lo0Ut0Ipv6Add, p.r1Lo0Ut0Ipv6Add, dut1)
-			ConfigureTunnelInterface(t, "fti5", p.r0Lo0Ut1Ipv6Add, p.r1Lo0Ut1Ipv6Add, dut1)
-			ConfigureTunnelInterface(t, "fti6", p.r0Lo0Ut2Ipv6Add, p.r1Lo0Ut2Ipv6Add, dut1)
-			ConfigureTunnelInterface(t, "fti7", p.r0Lo0Ut3Ipv6Add, p.r1Lo0Ut3Ipv6Add, dut1)
-		}
+		ConfigureTunnelInterface(t, "fti4", p.r0Lo0Ut0Ipv6Add, p.r1Lo0Ut0Ipv6Add, dut1)
+		ConfigureTunnelInterface(t, "fti5", p.r0Lo0Ut1Ipv6Add, p.r1Lo0Ut1Ipv6Add, dut1)
+		ConfigureTunnelInterface(t, "fti6", p.r0Lo0Ut2Ipv6Add, p.r1Lo0Ut2Ipv6Add, dut1)
+		ConfigureTunnelInterface(t, "fti7", p.r0Lo0Ut3Ipv6Add, p.r1Lo0Ut3Ipv6Add, dut1)
+
 		//configure tunnel interface on dut2- IPv6
-		if deviations.TunnelConfigPathUnsupported(dut2) {
-			ConfigureTunnelInterface(t, "fti4", p.r1Lo0Ut0Ipv6Add, p.r0Lo0Ut0Ipv6Add, dut2)
-			ConfigureTunnelInterface(t, "fti5", p.r1Lo0Ut1Ipv6Add, p.r0Lo0Ut1Ipv6Add, dut2)
-			ConfigureTunnelInterface(t, "fti6", p.r1Lo0Ut2Ipv6Add, p.r0Lo0Ut2Ipv6Add, dut2)
-			ConfigureTunnelInterface(t, "fti7", p.r1Lo0Ut3Ipv6Add, p.r0Lo0Ut3Ipv6Add, dut2)
-		}
+		ConfigureTunnelInterface(t, "fti4", p.r1Lo0Ut0Ipv6Add, p.r0Lo0Ut0Ipv6Add, dut2)
+		ConfigureTunnelInterface(t, "fti5", p.r1Lo0Ut1Ipv6Add, p.r0Lo0Ut1Ipv6Add, dut2)
+		ConfigureTunnelInterface(t, "fti6", p.r1Lo0Ut2Ipv6Add, p.r0Lo0Ut2Ipv6Add, dut2)
+		ConfigureTunnelInterface(t, "fti7", p.r1Lo0Ut3Ipv6Add, p.r0Lo0Ut3Ipv6Add, dut2)
+
 	})
 	// configure tunnel termination on dut1
 	t.Run("Configure tunnel termination at underlay interface on dut1 and dut2", func(t *testing.T) {
@@ -1145,36 +1139,36 @@ func configureOtg(t *testing.T, otg *otg.OTG, p *parameters) gosnappi.Config {
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName("port1" + ".Eth").SetMac(p.rtIntf1MacAdd)
 	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName("port1" + ".IPv4")
-	iDut1Ipv4.SetAddress(p.rtIntf1Ipv4Add).SetGateway(p.r0Intf1Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
+	iDut1Ipv4.SetAddress(p.rtIntf1Ipv4Add).SetGateway(p.r0Intf1Ipv4Add).SetPrefix(int32(p.ipv4Mask))
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName("port1" + ".IPv6")
-	iDut1Ipv6.SetAddress(p.rtIntf1Ipv6Add).SetGateway(p.r0Intf1Ipv6Add).SetPrefix(uint32(p.ipv6Mask))
+	iDut1Ipv6.SetAddress(p.rtIntf1Ipv6Add).SetGateway(p.r0Intf1Ipv6Add).SetPrefix(int32(p.ipv6Mask))
 
 	//port2
 	iDut2Dev := config.Devices().Add().SetName("port2")
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName("port2" + ".Eth").SetMac(p.rtIntf2MacAdd)
 	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
 	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName("port2" + ".IPv4")
-	iDut2Ipv4.SetAddress(p.rtIntf2Ipv4Add).SetGateway(p.r0Intf2Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
+	iDut2Ipv4.SetAddress(p.rtIntf2Ipv4Add).SetGateway(p.r0Intf2Ipv4Add).SetPrefix(int32(p.ipv4Mask))
 	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName("port2" + ".IPv6")
-	iDut2Ipv6.SetAddress(p.rtIntf2Ipv6Add).SetGateway(p.r0Intf2Ipv6Add).SetPrefix(uint32(p.ipv6Mask))
+	iDut2Ipv6.SetAddress(p.rtIntf2Ipv6Add).SetGateway(p.r0Intf2Ipv6Add).SetPrefix(int32(p.ipv6Mask))
 
 	//port5
 	iDut3Dev := config.Devices().Add().SetName("port5")
 	iDut3Eth := iDut3Dev.Ethernets().Add().SetName("port5" + ".Eth").SetMac(p.rtIntf5MacAdd)
 	iDut3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port3.Name())
 	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName("port5" + ".IPv4")
-	iDut3Ipv4.SetAddress(p.rtIntf5Ipv4Add).SetGateway(p.r1Intf5Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
+	iDut3Ipv4.SetAddress(p.rtIntf5Ipv4Add).SetGateway(p.r1Intf5Ipv4Add).SetPrefix(int32(p.ipv4Mask))
 	iDut3Ipv6 := iDut3Eth.Ipv6Addresses().Add().SetName("port5" + ".IPv6")
-	iDut3Ipv6.SetAddress(p.rtIntf5Ipv6Add).SetGateway(p.r1Intf5Ipv6Add).SetPrefix(uint32(p.ipv6Mask))
+	iDut3Ipv6.SetAddress(p.rtIntf5Ipv6Add).SetGateway(p.r1Intf5Ipv6Add).SetPrefix(int32(p.ipv6Mask))
 
 	//port6
 	iDut4Dev := config.Devices().Add().SetName("port6")
 	iDut4Eth := iDut4Dev.Ethernets().Add().SetName("port6" + ".Eth").SetMac(p.rtIntf6MacAdd)
 	iDut4Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port4.Name())
 	iDut4Ipv4 := iDut4Eth.Ipv4Addresses().Add().SetName("port6" + ".IPv4")
-	iDut4Ipv4.SetAddress(p.rtIntf6Ipv4Add).SetGateway(p.r1Intf6Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
+	iDut4Ipv4.SetAddress(p.rtIntf6Ipv4Add).SetGateway(p.r1Intf6Ipv4Add).SetPrefix(int32(p.ipv4Mask))
 	iDut4Ipv6 := iDut4Eth.Ipv6Addresses().Add().SetName("port6" + ".IPv6")
-	iDut4Ipv6.SetAddress(p.rtIntf6Ipv6Add).SetGateway(p.r1Intf6Ipv6Add).SetPrefix(uint32(p.ipv6Mask))
+	iDut4Ipv6.SetAddress(p.rtIntf6Ipv6Add).SetGateway(p.r1Intf6Ipv6Add).SetPrefix(int32(p.ipv6Mask))
 
 	t.Logf("Start Ote Traffic config")
 	t.Logf("configure IPv4 flow from %s to %s ", port1.Name(), port3.Name())
@@ -1316,13 +1310,13 @@ func SendTraffic(t *testing.T, ate *ondatra.ATEDevice, p *parameters) {
 	otg.StopTraffic(t)
 }
 
-func VerifyLoadbalance(t *testing.T, flowCount int64, rate uint64, duration int64, sharingIntfCont int64, initialStats int64, finalStats int64, wantLoss bool) {
+func VerifyLoadbalance(t *testing.T, flowCount int64, rate int64, duration int64, sharingIntfCont int64, initialStats int64, finalStats int64, wantLoss bool) {
 
 	tolerance := 20
 	// colculate correct stats on interface
 	stats := finalStats - initialStats
 	t.Logf("Initial packets %d Final Packets %d ", finalStats, initialStats)
-	expectedTotalPkts := (flowCount * int64(rate) * duration)
+	expectedTotalPkts := (flowCount * rate * duration)
 	expectedPerLinkPkts := expectedTotalPkts / sharingIntfCont
 	t.Logf("Total packets %d flow through the %d links", expectedTotalPkts, sharingIntfCont)
 	t.Logf("Expected per link packets %d ", expectedPerLinkPkts)
