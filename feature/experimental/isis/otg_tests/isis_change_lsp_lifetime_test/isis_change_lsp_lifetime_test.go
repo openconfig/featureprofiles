@@ -78,9 +78,8 @@ func configureOTG(t *testing.T, ts *session.TestSession) {
 	netv6.Addresses().Add().SetAddress(v6Route1).SetPrefix(uint32(session.ATEISISAttrs.IPv6Len))
 
 	// We generate traffic entering along port2 and destined for port1
-	srcIntf := ts.MustATEInterface(t, session.ATETrafficAttrs.Name)
-	srcIpv4 := srcIntf.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-	srcIpv6 := srcIntf.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
+	srcIpv4 := ts.ATEIntf2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	srcIpv6 := ts.ATEIntf2.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 
 	t.Log("Configuring v4 traffic flow ")
 
@@ -135,14 +134,10 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 	}
 	t.Run("Isis telemetry", func(t *testing.T) {
 
-		adjacencyPath := statePath.Interface(intfName).Level(2).AdjacencyAny().AdjacencyState().State()
-
-		_, ok := gnmi.WatchAll(t, ts.DUT, adjacencyPath, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-			state, present := val.Val()
-			return present && state == oc.Isis_IsisInterfaceAdjState_UP
-		}).Await(t)
-		if !ok {
-			t.Fatalf("No isis adjacency reported on interface %v", intfName)
+		// Checking adjacency
+		_, err := ts.AwaitAdjacency()
+		if err != nil {
+			t.Fatalf("Adjacency state invalid: %v", err)
 		}
 		// Getting neighbors sysid.
 		sysid := gnmi.GetAll(t, ts.DUT, statePath.Interface(intfName).Level(2).AdjacencyAny().SystemId().State())
