@@ -596,3 +596,8 @@ func ISISCounterManualAddressDropFromAreasUnsupported(dut *ondatra.DUTDevice) bo
 func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
+
+// Spiffe ID
+func SpiffeID(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSpiffeId()
+}
