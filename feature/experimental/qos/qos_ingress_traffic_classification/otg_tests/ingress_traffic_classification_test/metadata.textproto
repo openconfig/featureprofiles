@@ -16,3 +16,4 @@ platform_exceptions: {
     matched_packets_octets_unsupported: true
   }
 }
+tags: TAGS_AGGREGATION
