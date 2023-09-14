@@ -44,3 +44,4 @@ platform_exceptions: {
     isis_counter_part_changes_unsupported: true
   }
 }
+tags: TAGS_AGGREGATION
