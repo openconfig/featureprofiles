@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -60,6 +61,7 @@ const (
 	plenIPv4                 = 30
 	plenIPv6                 = 126
 	removeASPath             = true
+	policyName               = "ALLOW"
 )
 
 var (
@@ -94,6 +96,21 @@ var (
 		IPv6Len: plenIPv6,
 	}
 )
+
+// configreRoutePolicy adds route-policy config.
+func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(name)
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stc := st.GetOrCreateConditions()
+	stc.InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	st.GetOrCreateActions().PolicyResult = pr
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+}
 
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -131,6 +148,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	global.RouterId = ygot.String(dutDst.IPv4)
 	global.As = ygot.Uint32(localAs)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
@@ -141,6 +159,28 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	pg2 := bgp.GetOrCreatePeerGroup(peerGrpName2)
 	pg2.PeerAs = ygot.Uint32(ateAS2)
 	pg2.PeerGroupName = ygot.String(peerGrpName2)
+
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		rpl := pg1.GetOrCreateApplyPolicy()
+		rpl.ImportPolicy = []string{policyName}
+		rpl.ExportPolicy = []string{policyName}
+
+		rp2 := pg2.GetOrCreateApplyPolicy()
+		rp2.ImportPolicy = []string{policyName}
+		rp2.ExportPolicy = []string{policyName}
+	} else {
+		pgaf := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		pgaf.Enabled = ygot.Bool(true)
+		rpl := pgaf.GetOrCreateApplyPolicy()
+		rpl.ImportPolicy = []string{policyName}
+		rpl.ExportPolicy = []string{policyName}
+
+		pgaf2 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		pgaf2.Enabled = ygot.Bool(true)
+		rp2 := pgaf2.GetOrCreateApplyPolicy()
+		rp2.ImportPolicy = []string{policyName}
+		rp2.ExportPolicy = []string{policyName}
+	}
 
 	for _, nbr := range nbrs {
 		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
@@ -169,10 +209,10 @@ func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 			state, ok := val.Val()
 			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
-		state, _ := status.Val()
 		if !ok {
 			t.Fatal("No BGP neighbor formed")
 		}
+		state, _ := status.Val()
 		t.Logf("BGP adjacency for %s: %s", nbr, state)
 		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
 			t.Errorf("BGP peer %s status got %v, want %d", nbr, status, want)
@@ -220,13 +260,13 @@ func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, asSEQMode bool) go
 
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
-	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(ateDst.Name + ".BGP4.peer")
-	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	iDut2Bgp4Peer.SetPeerAddress(dutDst.IPv4).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
@@ -239,14 +279,12 @@ func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, asSEQMode bool) go
 		SetPrefix(uint32(advertisedRoutesv4Prefix)).
 		SetCount(routeCount)
 
+	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+
 	if asSEQMode {
-		bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetModeEnum("include_as_seq"))
-		//bgpNeti1.BGP().AddASPathSegment(asSeg...).WithTypeSEQ()
+		bgpNeti1AsPath.Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
 	} else {
-		// TODO : SET mode is not working
-		// https://github.com/openconfig/featureprofiles/issues/1659
-		//bgpNeti1.BGP().AddASPathSegment(asSeg...).WithTypeSET()
-		bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetModeEnum("include_as_set"))
+		bgpNeti1AsPath.Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SET)
 	}
 
 	t.Logf("Pushing config to ATE and starting protocols...")
@@ -303,41 +341,31 @@ func verifyBGPAsPath(t *testing.T, otg *otg.OTG, config gosnappi.Config, asSeg [
 			return v.IsPresent()
 		}).Await(t)
 
+	var wantASSeg = []uint32{dutAS, ateAS1}
+	if removeASPath {
+		for _, as := range asSeg {
+			if as < 64512 {
+				wantASSeg = append(wantASSeg, as)
+			}
+		}
+	} else {
+		wantASSeg = append(wantASSeg, asSeg...)
+	}
+
 	if ok {
 		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateDst.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
 		gotPrefixCount := len(bgpPrefixes)
 		if gotPrefixCount != routeCount {
 			t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
-		} else {
-			t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 		}
-	}
-
-	/*
-		// Below code will be un commented once issue 1659 is resolved for otg.
-		// https://github.com/openconfig/featureprofiles/issues/1659
-
-		var wantASSeg = []uint32{dutAS, ateAS1}
-		if removeASPath {
-			for _, as := range asSeg {
-				if as < 64512 {
-					wantASSeg = append(wantASSeg, as)
+		for _, prefix := range bgpPrefixes {
+			for _, gotASSeg := range prefix.AsPath {
+				if ok := cmp.Diff(gotASSeg.AsNumbers, wantASSeg); ok != "" {
+					t.Errorf("Remove private AS is not working: gotAsSeg %v wantAsSeg %v for Prefix %v", gotASSeg, wantASSeg, prefix.GetAddress())
 				}
 			}
-		} else {
-			wantASSeg = append(wantASSeg, asSeg...)
 		}
-
-		var gotASSeg []uint32
-		_, ok = gnmi.WatchAll(t, otg, prefixPath.AsPathAny().State(), 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix_AsPath]) bool {
-			val, present := v.Val()
-			gotASSeg = val.AsNumbers
-			return present && cmp.Diff(val.AsNumbers, wantASSeg) == ""
-		}).Await(t)
-		if !ok {
-			t.Errorf("Obtained AS path on ATE is not as expected, gotASSeg %v, wantASSeg %v", gotASSeg, wantASSeg)
-		}
-	*/
+	}
 }
 
 // TestRemovePrivateAS is to Validate that private AS numbers are stripped
@@ -360,6 +388,7 @@ func TestRemovePrivateAS(t *testing.T) {
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	t.Run("Configure BGP Neighbors", func(t *testing.T) {
 		gnmi.Delete(t, dut, dutConfPath.Config())
+		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
@@ -370,16 +399,24 @@ func TestRemovePrivateAS(t *testing.T) {
 		asSeg     []uint32
 		asSEQMode bool
 	}{{
-		desc:      "AS Path SEQ - 65501, 65507, 65534",
-		asSeg:     []uint32{65501, 65507, 65534},
+		desc:      "AS Path SEQ 65501",
+		asSeg:     []uint32{65501},
 		asSEQMode: true,
 	}, {
-		desc:      "AS Path SEQ - 65501, 600",
+		desc:      "AS Path SEQ 65501, 65507",
+		asSeg:     []uint32{65501, 65507},
+		asSEQMode: true,
+	}, {
+		desc:      "AS Path SEQ 800, 65501, 65508",
+		asSeg:     []uint32{800, 65501, 65508},
+		asSEQMode: true,
+	}, {
+		desc:      "AS Path SEQ 65501, 600",
 		asSeg:     []uint32{65501, 600},
 		asSEQMode: true,
 	}, {
-		desc:      "AS Path SEQ - 800, 65501, 600",
-		asSeg:     []uint32{800, 65501, 600},
+		desc:      "AS Path SEQ 800, 65507, 600",
+		asSeg:     []uint32{800, 65507, 600},
 		asSEQMode: true,
 	}}
 
