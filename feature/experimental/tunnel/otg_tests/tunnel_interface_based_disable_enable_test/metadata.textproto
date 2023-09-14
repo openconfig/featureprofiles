@@ -17,5 +17,4 @@ platform_exceptions: {
       tunnel_config_path_unsupported: true
     }
 }
-
-
+tags: TAGS_AGGREGATION
