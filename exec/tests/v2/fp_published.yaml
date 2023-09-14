@@ -640,4 +640,8 @@ tests:
     owners:
       - wdolaast
     mustpass: false
-  
+  - name: TE-9 (gRIBI MPLS Compliance)
+    path: feature/gribi/otg_tests/mpls_compliance
+    owners:
+      - mananpat
+    mustpass: false
