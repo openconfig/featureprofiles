@@ -74,3 +74,10 @@ tests:
   internal: true
   owners:
   - agvarghe
+- name: SFLOW-OC
+  path: feature/cisco/sampling/...
+  timeout: 7200
+  branch: master
+  internal: true
+  owners:
+  - agvarghe
