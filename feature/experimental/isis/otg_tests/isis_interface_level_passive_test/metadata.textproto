@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid:  "5d594ad6-9957-40e8-bf59-f75d2b700631"
-plan_id:  "RT-2.8"
+plan_id:  "RT-2.11"
 description:  "IS-IS Passive is enabled at the area level"
 testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
