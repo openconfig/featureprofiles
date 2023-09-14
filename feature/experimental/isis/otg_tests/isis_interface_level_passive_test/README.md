@@ -4,6 +4,10 @@
 
 * Verify isis adjacency with passive enabled under level.
 
+## Topology
+
+* ATE:port1 <-> port1:DUT:port2 <-> ATE:port2
+
 ## Procedure
 
 * Configure IS-IS for ATE port-1 and DUT port-1.
