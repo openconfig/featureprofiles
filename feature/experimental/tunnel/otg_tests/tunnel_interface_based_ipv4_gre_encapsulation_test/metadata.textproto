@@ -17,3 +17,4 @@ testbed:  TESTBED_DUT_ATE_4LINKS
      tunnel_config_path_unsupported: true
    }
  }
+tags: TAGS_AGGREGATION
