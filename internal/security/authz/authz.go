@@ -60,10 +60,10 @@ type Rule struct {
 	} `json:"request"`
 }
 
-func createRule(users []string, rpcs []*gnxi.RPC) Rule {
+func createRule(name string, users []string, rpcs []*gnxi.RPC) Rule {
 	rule := Rule{}
 	for _, rpc := range rpcs {
-		rule.Name = rule.Name + rpc.FQN
+		rule.Name = name
 		rule.Request.Paths = append(rule.Request.Paths, rpc.Path)
 	}
 	rule.Source.Principals = append(rule.Source.Principals, users...)
@@ -71,14 +71,14 @@ func createRule(users []string, rpcs []*gnxi.RPC) Rule {
 }
 
 // AddAllowRules adds an allow rule for policy p
-func (p *AuthorizationPolicy) AddAllowRules(users []string, rpcs []*gnxi.RPC) {
-	rule := createRule(users, rpcs)
+func (p *AuthorizationPolicy) AddAllowRules(name string, users []string, rpcs []*gnxi.RPC) {
+	rule := createRule(name, users, rpcs)
 	p.AllowRules = append(p.AllowRules, rule)
 }
 
 // AddDenyRules adds an allow rule for policy p
-func (p *AuthorizationPolicy) AddDenyRules(users []string, rpcs []*gnxi.RPC) {
-	rule := createRule(users, rpcs)
+func (p *AuthorizationPolicy) AddDenyRules(name string, users []string, rpcs []*gnxi.RPC) {
+	rule := createRule(name, users, rpcs)
 	p.DenyRules = append(p.DenyRules, rule)
 }
 
@@ -95,7 +95,7 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 // Rotate apply policy p on device dut, this is test api for positive testing and it fails the test on failure.
 func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
-	rotateStream, _ := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+	rotateStream, _ := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
 	defer rotateStream.CloseSend()
 	policy, err := p.Marshal()
 	if err != nil {
@@ -145,7 +145,7 @@ func NewAuthorizationPolicy() *AuthorizationPolicy {
 // Get read the applied policy from device dut. this is test api and fails the test when it fails.
 func Get(t testing.TB, dut *ondatra.DUTDevice) (*authz.GetResponse, *AuthorizationPolicy) {
 	t.Logf("Performing Authz.Get request on device %s", dut.Name())
-	gnsiC := dut.RawAPIs().GNSI().Default(t)
+	gnsiC := dut.RawAPIs().GNSI(t)
 	resp, err := gnsiC.Authz().Get(context.Background(), &authz.GetRequest{})
 	if err != nil {
 		t.Fatalf("Authz.Get request is failed on device %s", dut.Name())
@@ -184,7 +184,7 @@ func (p *AuthorizationPolicy) PrettyPrint() string {
 // Verify uses prob to validate if the user access for a certain rpc is expected.
 // It also execute the rpc when hardVerif is set to true and verifies if it matches the expectation.
 func Verify(t testing.TB, dut *ondatra.DUTDevice, user string, rpc *gnxi.RPC, tlsCfg *tls.Config, expectDeny, hardVerify bool) {
-	gnsiC := dut.RawAPIs().GNSI().Default(t)
+	gnsiC := dut.RawAPIs().GNSI(t)
 	resp, err := gnsiC.Authz().Probe(context.Background(), &authz.ProbeRequest{User: user, Rpc: rpc.Path})
 	if err != nil {
 		t.Fatalf("Prob Request %s failed on dut %s", prettyPrint(&authz.ProbeRequest{User: user, Rpc: rpc.Path}), dut.Name())

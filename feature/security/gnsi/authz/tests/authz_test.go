@@ -97,7 +97,6 @@ func removeSpiffeFromPrincipals(principals []string) []string {
 			newPrincipals = append(newPrincipals, principal)
 		}
 	}
-
 	// Return the slice of new principals.
 	return newPrincipals
 }
@@ -115,108 +114,29 @@ func removeSpiffeFromPrincipals(principals []string) []string {
 // 	gnmi.Update(t, dut, gnmi.OC().System().Aaa().Authentication().Config(), ocAuthentication)
 // }
 
-func rotate(t *testing.T, clientID string, dut *ondatra.DUTDevice, version, policy string, creationTime uint64) error {
-	t.Logf("Starting second rotate stream (%v)", clientID)
-	rotateStream, err := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
-	if err == nil {
-		autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
-			UploadRequest: &authzpb.UploadRequest{
-				Version:   version,
-				CreatedOn: creationTime,
-				Policy:    policy,
-			},
-		}
-		t.Logf("Sending Authz.Rotate Upload request on device (%s) : \n %v", clientID, autzRotateReq)
-		err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
-		if err == nil {
-			t.Logf("The upload rotate request is sent successfully (%s)", clientID)
-			_, err = rotateStream.Recv()
-			return err
-		}
-	} else {
-		return err
-	}
-	return nil
-}
 
-type AuthorizationTable struct {
-	Method       []string
+type authorizationTable struct {
+	RPCs       []*gnxi.RPC
 	AllowedCerts []string
 	DeniedCerts  []string
 }
 
-func appendMethods(authTable *AuthorizationTable, methods []string) {
-	// Check if the methods slice is not nil.
-	if methods == nil {
-		return
-	}
-	// Iterate through the methods slice.
-	for _, method := range methods {
-		// Append the method to the AuthorizationTable struct.
-		authTable.Method = append(authTable.Method, method)
-	}
-}
-
-func iterateAndProbeAllowed(t *testing.T, authTable AuthorizationTable, rpcMap map[string]string) {
-	// Iterate through the methods.
-	for _, method := range authTable.Method {
-		// Iterate through the allowed users.
+// verifyPerm takes an authorizationTable and verify the expected rpc/acess
+func verifyPerm(t *testing.T, authTable authorizationTable) {
+	dut := ondatra.DUT(t, "dut")
+	for _, rpc := range authTable.RPCs {
 		for _, allowedUser := range authTable.AllowedCerts {
-			// Form a probe request.
-			probReq := &authzpb.ProbeRequest{
-				User: allowedUser,
-				Rpc:  rpcMap[method],
-			}
-			// Send the probe request and verify the response.
-			dut := ondatra.DUT(t, "dut")
-			gnsiClient := dut.RawAPIs().GNSI(t)
-			resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
-			if err != nil {
-				t.Fatalf("Not expecting error for prob request %v", err)
-			}
-			if resp.GetAction() != authzpb.ProbeResponse_ACTION_PERMIT {
-				t.Fatalf("Expecting ProbeResponse_ACTION_Allow for user %s path %s, received %v ", allowedUser, method, resp.GetAction())
-			}
+			authz.Verify(t,dut,allowedUser,rpc,nil,false,false)
+		}
+		for _, deniedUser := range authTable.AllowedCerts {
+			authz.Verify(t,dut,deniedUser,rpc,nil,true,false)
 		}
 	}
 }
 
-func iterateAndProbeDenied(t *testing.T, authTable AuthorizationTable, rpcMap map[string]string) {
-	// Iterate through the methods.
-	for _, method := range authTable.Method {
-		// Iterate through the allowed users.
-		for _, allowedUser := range authTable.DeniedCerts {
-			// Form a probe request.
-			probReq := &authzpb.ProbeRequest{
-				User: allowedUser,
-				Rpc:  rpcMap[method],
-			}
-			// Send the probe request and verify the response.
-			dut := ondatra.DUT(t, "dut")
-			gnsiClient := dut.RawAPIs().GNSI(t)
-			resp, err := gnsiClient.Authz().Probe(context.Background(), probReq)
-			if err != nil {
-				t.Fatalf("Not expecting error for prob request %v", err)
-			}
-			if resp.GetAction() != authzpb.ProbeResponse_ACTION_DENY {
-				t.Fatalf("Expecting ProbeResponse_ACTION_DENY for user %s path %s, received %v ", allowedUser, method, resp.GetAction())
-			}
-		}
-	}
-}
 
+// 	getPolicyByName Gets the authorization policy with the specified name.
 func getPolicyByName(t *testing.T, policyName string, policies []authz.AuthorizationPolicy) authz.AuthorizationPolicy {
-	/*
-	   	Get the authorization policy with the specified name.
-
-	   Args:
-	   policyName: The name of the policy to get.
-	   policies: A list of authorization policies.
-
-	   Returns:
-	   The authorization policy with the specified name, or nil if the policy does
-	   not exist.
-	*/
 	var foundPolicy authz.AuthorizationPolicy
 	for _, policy := range policies {
 		if policy.Name == policyName {
@@ -224,20 +144,6 @@ func getPolicyByName(t *testing.T, policyName string, policies []authz.Authoriza
 		}
 	}
 	return foundPolicy
-}
-
-func FetchUniqueItems(t *testing.T, s []string) []string {
-	itemExisted := make(map[string]bool)
-	var uniqueList []string
-	for _, item := range s {
-		if _, ok := itemExisted[item]; !ok {
-			itemExisted[item] = true
-			uniqueList = append(uniqueList, item)
-		} else {
-			t.Logf("Detected duplicated item: %v", item)
-		}
-	}
-	return uniqueList
 }
 
 // Authz-1, Test policy behaviors, and probe results matches actual client results.
@@ -324,31 +230,17 @@ func TestAuthz1(t *testing.T) {
 		newpolicy.Rotate(t, dut, uint64(100), "policy-normal-1_v1")
 
 		// Verify all results match per the above table for policy policy-normal-1
-		authTable := AuthorizationTable{
-			Method:       []string{"gRIBI.Get"},
+		authTable := authorizationTable{
+			RPCs:       []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET, gnxi.RPCs.GNMI_GET, gnxi.RPCs.GNOI_SYSTEM_TIME,gnxi.RPCs.GNOI_SYSTEM_PING},
 			AllowedCerts: []string{"cert_user_admin", "cert_gribi_modify", "cert_read_only"},
 			DeniedCerts:  []string{"cert_user_fake", "cert_gnmi_set", "cert_gnoi_time", "cert_gnoi_ping", "cert_gnsi_probe"},
 		}
-		// Add more methods to the AuthorizationTable struct.
-		authTable.Method = append(authTable.Method, "gRIBI.Set")
-		authTable.AllowedCerts = append(authTable.AllowedCerts, "cert_user_admin")
-		authTable.DeniedCerts = append(authTable.DeniedCerts, "")
-		// Add more methods to the AuthorizationTable struct.
-		authTable.Method = append(authTable.Method, "gRIBI.Set")
-		authTable.AllowedCerts = append(authTable.AllowedCerts, "cert_user_admin")
-		authTable.DeniedCerts = append(authTable.DeniedCerts, "")
-		rpcMap := map[string]string{
-			"gRIBI.Modify": gnxi.RPCs.GRIBI_MODIFY.Path,
-			"gRIBI.Get":    gnxi.RPCs.GRIBI_GET.Path,
-			"gNMI.Set":     gnxi.RPCs.GNMI_SET.Path,
-			"gNMI.Get":     gnxi.RPCs.GNMI_GET.Path,
-			"gNOI.Time":    gnxi.RPCs.GNOI_SYSTEM_TIME.Path,
-			"gNOI.Ping":    gnxi.RPCs.GNOI_SYSTEM_PING.Path,
-			// "gNSI.Rotate":  gnxi.RPCs.GNSI_AUTHZ_ROTATE.Path,
-			// "gNSI.Get":     gnxi.RPCs.GNSI_AUTHZ_GET.Path,
-			// "gNSI.Probe":   gnxi.RPCs.GNSI_AUTHZ_PROBE.Path,
-		}
-		iterateAndProbeAllowed(t, authTable, rpcMap)
+		// TODO 
+		// add the following to the above list as well
+		// "gNSI.Rotate":  gnxi.RPCs.GNSI_AUTHZ_ROTATE.Path,
+		// "gNSI.Get":     gnxi.RPCs.GNSI_AUTHZ_GET.Path,
+		// "gNSI.Probe":   gnxi.RPCs.GNSI_AUTHZ_PROBE.Path,
+		verifyPerm(t, authTable)
 	})
 }
 
@@ -665,12 +557,20 @@ func TestAuthz4(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 	}
+	for {
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Log("Reboot is started")
+			break
+		} 
+		t.Log("Wait for reboot to be started")
+		time.Sleep(30 * time.Second)
+	}
 	startReboot := time.Now()
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 	for {
-
 		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
-		time.Sleep(30 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
@@ -680,7 +580,7 @@ func TestAuthz4(t *testing.T) {
 			break
 		}
 		if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
-			t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
 		}
 	}
 	// Verification Section
@@ -688,7 +588,7 @@ func TestAuthz4(t *testing.T) {
 	t.Logf("Performing Authz.Get request on device %s", dut.Name())
 	gnsiC, err := dut.RawAPI().DialGNSI(context.Background())
 	if err != nil {
-		t.Fatal("Could not create GNSI Connection %v", err)
+		t.Fatalf("Could not create GNSI Connection %v", err)
 	}
 	resp, err := gnsiC.Authz().Get(context.Background(), &authzpb.GetRequest{})
 	if err != nil {
