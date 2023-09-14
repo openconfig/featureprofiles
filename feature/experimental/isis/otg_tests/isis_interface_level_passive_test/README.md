@@ -1,4 +1,4 @@
-# RT-2.8: IS-IS Passive is enabled at the area level
+# RT-2.11: IS-IS Passive is enabled at the area level
 
 ## Summary
 
@@ -11,13 +11,14 @@
 ## Procedure
 
 * Configure IS-IS for ATE port-1 and DUT port-1.
-* Configure DUT interface with IS-IS passive configured at area level 2. 
-* Verify that IS-IS adjacency is not coming up in level-2 area for IPv4 and IPV6 address families.
-* Verify that IS-IS adjacency for IPv4 and IPV6 address families is coming up in level-1 area.
-* Verify that IPv4 and IPv6 prefixes that are advertised by ATE correctly installed into DUTs route and forwarding table.
-* Ensure that IPv4 and IPv6 prefixes that are advertised as part of an (emulated) neighboring system are installed into the DUT routing table, and validate that packets are sent and received to them.
-* TODO-Verify the output of ST path displaying the interface as passive in ISIS database/adj table
-    
+* Configure DUT interface with IS-IS passive configured at area level 2.
+    * Verify that IS-IS adjacency is not coming up in level-2 area for IPv4 and IPV6 address families.
+* Undo the IS-IS passive configuration under level 2
+    * Verify that IS-IS adjacency for IPv4 and IPV6 address families are coming up in the level-2 area.
+    * Verify that IPv4 and IPv6 prefixes that are advertised by ATE are correctly installed into DUTs route and forwarding table.
+    * Ensure that IPv4 and IPv6 prefixes that are advertised as part of an (emulated) neighboring system are installed into the DUT routing table, and validate that packets are sent and received to them.
+    * TODO-Verify the output of ST path displaying the interface as passive in ISIS database/adj table
+
 ## Config Parameter coverage
 
 * For prefix:

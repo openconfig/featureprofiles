@@ -16,12 +16,11 @@ package isis_interface_level_passive_test
 
 import (
 	"net"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -36,22 +35,21 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	plenIPv4       = 30
-	plenIPv6       = 126
-	ateAreaAddress = "49.0001"
-	password       = "google"
-	v4Route1       = "203.0.113.0"
-	v6Route1       = "2001:db8::203:0:113:0"
-	v4Route        = "203.0.113.0/30"
-	v6Route        = "2001:db8::203:0:113:0/126"
-	v4IP           = "203.0.113.1"
-	v6IP           = "2001:db8::203:0:113:1"
-	v4Metric       = 100
-	v6Metric       = 100
-	v4NetName      = "isisv4Net"
-	v6NetName      = "isisv6Net"
-	v4FlowName     = "v4Flow"
-	v6FlowName     = "v6Flow"
+	plenIPv4   = 30
+	plenIPv6   = 126
+	password   = "google"
+	v4Route1   = "203.0.113.0"
+	v6Route1   = "2001:db8::203:0:113:0"
+	v4Route    = "203.0.113.0/30"
+	v6Route    = "2001:db8::203:0:113:0/126"
+	v4IP       = "203.0.113.1"
+	v6IP       = "2001:db8::203:0:113:1"
+	v4Metric   = 100
+	v6Metric   = 100
+	v4NetName  = "isisv4Net"
+	v6NetName  = "isisv6Net"
+	v4FlowName = "v4Flow"
+	v6FlowName = "v6Flow"
 )
 
 // configureISIS configures isis on DUT.
@@ -68,25 +66,21 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 	// Global configs.
 	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_1_2
+	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalIsis.AuthenticationCheck = ygot.Bool(true)
 	globalIsis.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 
 	// Level configs.
-	level1 := isis.GetOrCreateLevel(1)
-	level1.Enabled = ygot.Bool(true)
-	level1.LevelNumber = ygot.Uint8(1)
-
 	level2 := isis.GetOrCreateLevel(2)
 	level2.Enabled = ygot.Bool(true)
 	level2.LevelNumber = ygot.Uint8(2)
 
 	// Authentication configs.
-	auth1 := level1.GetOrCreateAuthentication()
-	auth1.Enabled = ygot.Bool(true)
-	auth1.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-	auth1.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-	auth1.AuthPassword = ygot.String(password)
+	auth := level2.GetOrCreateAuthentication()
+	auth.Enabled = ygot.Bool(true)
+	auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
+	auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+	auth.AuthPassword = ygot.String(password)
 
 	// Interface configs.
 	intfName := ts.DUTPort1.Name()
@@ -104,14 +98,6 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 	isisIntfTimers.LspPacingInterval = ygot.Uint64(150)
 
 	// Interface level configs.
-	isisIntfLevel1 := intf.GetOrCreateLevel(1)
-	isisIntfLevel1.LevelNumber = ygot.Uint8(1)
-	isisIntfLevel1.Enabled = ygot.Bool(true)
-	isisIntfLevel1.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
-	isisIntfLevel1.GetHelloAuthentication().AuthPassword = ygot.String(password)
-	isisIntfLevel1.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
-	isisIntfLevel1.GetHelloAuthentication().AuthMode = oc.IsisTypes_AUTH_MODE_MD5
-
 	isisIntfLevel2 := intf.GetOrCreateLevel(2)
 	isisIntfLevel2.LevelNumber = ygot.Uint8(2)
 	isisIntfLevel2.Enabled = ygot.Bool(true)
@@ -122,14 +108,10 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 	isisIntfLevel2.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 	isisIntfLevel2.GetHelloAuthentication().AuthMode = oc.IsisTypes_AUTH_MODE_MD5
 
-	isisIntfLevel1Timers := isisIntfLevel1.GetOrCreateTimers()
-	isisIntfLevel1Timers.HelloInterval = ygot.Uint32(5)
-	isisIntfLevel1Timers.HelloMultiplier = ygot.Uint8(3)
-
-	isisIntfLevel1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	isisIntfLevel1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v4Metric)
-	isisIntfLevel1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	isisIntfLevel1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v6Metric)
+	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v4Metric)
+	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v6Metric)
 }
 
 // configureOTG configures isis and traffic on OTG.
@@ -138,10 +120,7 @@ func configureOTG(t *testing.T, ts *session.TestSession) {
 	ts.ATEIntf1.Isis().RouterAuth().AreaAuth().SetAuthType("md5").SetMd5(password)
 	ts.ATEIntf1.Isis().RouterAuth().DomainAuth().SetAuthType("md5").SetMd5(password)
 	ts.ATEIntf1.Isis().Basic().SetEnableWideMetric(true).SetLearnedLspFilter(false)
-	ts.ATEIntf1.Isis().Advanced().SetEnableHelloPadding(true).SetAreaAddresses([]string{strings.Replace(ateAreaAddress, ".", "", -1)})
-
 	ts.ATEIntf1.Isis().Interfaces().Items()[0].Authentication().SetAuthType("md5").SetMd5(password)
-	ts.ATEIntf1.Isis().Interfaces().Items()[0].SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_1_2)
 
 	// netv4 is a simulated network containing the ipv4 addresses specified by targetNetwork
 	netv4 := ts.ATEIntf1.Isis().V4Routes().Add().SetName(v4NetName).SetLinkMetric(10)
@@ -152,7 +131,6 @@ func configureOTG(t *testing.T, ts *session.TestSession) {
 	netv6.Addresses().Add().SetAddress(v6Route1).SetPrefix(uint32(session.ATEISISAttrs.IPv6Len))
 
 	// We generate traffic entering along port2 and destined for port1
-	//srcIntf := ts.MustATEInterface(t, session.ATETrafficAttrs.Name)
 	srcIpv4 := ts.ATEIntf2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	srcIpv6 := ts.ATEIntf2.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 
@@ -209,55 +187,63 @@ func TestISISLevelPassive(t *testing.T) {
 	}
 	t.Run("Isis telemetry", func(t *testing.T) {
 		t.Run("Passive checks", func(t *testing.T) {
+			// Passive should be true.
 			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().State()); got != true {
 				t.Errorf("FAIL- Expected level 2 passive state not found, got %t, want %t", got, true)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(1).Passive().State()); got != false {
-				t.Errorf("FAIL- Expected level 1 passive state not found, got %t, want %t", got, false)
+			// Adjacency should be down.
+			for _, val := range gnmi.LookupAll(t, ts.DUT, statePath.Interface(intfName).LevelAny().AdjacencyAny().AdjacencyState().State()) {
+				if v, _ := val.Val(); v == oc.Isis_IsisInterfaceAdjState_UP {
+					t.Fatalf("Adjacency should not be up as level 2 is passive")
+				}
+			}
+			// Updating passive config to false on dut.
+			gnmi.Update(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().Config(), false)
+			time.Sleep(time.Second * 5)
+
+			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().State()); got != false {
+				t.Errorf("FAIL- Expected level 2 passive state not found, got %t, want %t", got, true)
+			}
+			// Level 2 adjacency should be up.
+			_, err := ts.AwaitAdjacency()
+			if err != nil {
+				t.Fatalf("Adjacency state invalid: %v", err)
 			}
 		})
-		// level 1 adjacency should be up
-		_, err := ts.AwaitAdjacency()
-		if err != nil {
-			t.Fatalf("Adjacency state invalid: %v", err)
-		}
 		// Getting neighbors sysid.
-		sysid := gnmi.GetAll(t, ts.DUT, statePath.Interface(intfName).Level(1).AdjacencyAny().SystemId().State())
+		sysid := gnmi.GetAll(t, ts.DUT, statePath.Interface(intfName).Level(2).AdjacencyAny().SystemId().State())
 		ateSysID := sysid[0]
 		ateLspID := ateSysID + ".00-00"
 
-		if _, ok := gnmi.Lookup(t, ts.DUT, statePath.Interface(intfName).Level(2).Adjacency(ateSysID).AdjacencyState().State()).Val(); ok {
-			t.Errorf("FAIL- Level2 isis adjacency is not down on interface %v", intfName)
-		}
 		t.Run("Afi-Safi checks", func(t *testing.T) {
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(1).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).AfiName().State()); got != oc.IsisTypes_AFI_TYPE_IPV4 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).AfiName().State()); got != oc.IsisTypes_AFI_TYPE_IPV4 {
 				t.Errorf("FAIL- Expected afi name not found, got %d, want %d", got, oc.IsisTypes_AFI_TYPE_IPV4)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(1).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SafiName().State()); got != oc.IsisTypes_SAFI_TYPE_UNICAST {
+			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SafiName().State()); got != oc.IsisTypes_SAFI_TYPE_UNICAST {
 				t.Errorf("FAIL- Expected safi name not found, got %d, want %d", got, oc.IsisTypes_SAFI_TYPE_UNICAST)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(1).Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).AfiName().State()); got != oc.IsisTypes_AFI_TYPE_IPV6 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).AfiName().State()); got != oc.IsisTypes_AFI_TYPE_IPV6 {
 				t.Errorf("FAIL- Expected afi name not found, got %d, want %d", got, oc.IsisTypes_AFI_TYPE_IPV6)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(1).Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SafiName().State()); got != oc.IsisTypes_SAFI_TYPE_UNICAST {
+			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SafiName().State()); got != oc.IsisTypes_SAFI_TYPE_UNICAST {
 				t.Errorf("FAIL- Expected safi name not found, got %d, want %d", got, oc.IsisTypes_SAFI_TYPE_UNICAST)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(1).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric().State()); got != v4Metric {
+			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric().State()); got != v4Metric {
 				t.Errorf("FAIL- Expected v4 unicast metric value not found, got %d, want %d", got, v4Metric)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(1).Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric().State()); got != v6Metric {
+			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric().State()); got != v6Metric {
 				t.Errorf("FAIL- Expected v6 unicast metric value not found, got %d, want %d", got, v6Metric)
 			}
 		})
 		t.Run("Adjacency state checks", func(t *testing.T) {
-			adjPath := statePath.Interface(intfName).Level(1).Adjacency(ateSysID)
+			adjPath := statePath.Interface(intfName).Level(2).Adjacency(ateSysID)
 
 			if got := gnmi.Get(t, ts.DUT, adjPath.SystemId().State()); got != ateSysID {
 				t.Errorf("FAIL- Expected neighbor system id not found, got %s, want %s", got, ateSysID)
 			}
-			want := []string{session.DUTAreaAddress}
-			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want) {
-				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, session.DUTAreaAddress)
+			want := []string{session.ATEAreaAddress, session.DUTAreaAddress}
+			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
+				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
 			if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
 				t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
@@ -268,8 +254,8 @@ func TestISISLevelPassive(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, adjPath.MultiTopology().State()); got != false {
 				t.Errorf("FAIL- Expected value for multi topology not found, got %t, want %t", got, false)
 			}
-			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborCircuitType().State()); got != oc.Isis_LevelType_LEVEL_1 {
-				t.Errorf("FAIL- Expected value for circuit type not found, got %s, want %s", got, oc.Isis_LevelType_LEVEL_1)
+			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborCircuitType().State()); got != oc.Isis_LevelType_LEVEL_2 {
+				t.Errorf("FAIL- Expected value for circuit type not found, got %s, want %s", got, oc.Isis_LevelType_LEVEL_2)
 			}
 			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborIpv4Address().State()); got != session.ATEISISAttrs.IPv4 {
 				t.Errorf("FAIL- Expected value for ipv4 address not found, got %s, want %s", got, session.ATEISISAttrs.IPv4)
@@ -304,52 +290,55 @@ func TestISISLevelPassive(t *testing.T) {
 			}
 		})
 		t.Run("System level counter checks", func(t *testing.T) {
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().AuthFails().State()); got != 0 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().AuthFails().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting any authentication key failure, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().AuthTypeFails().State()); got != 0 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().AuthTypeFails().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting any authentication type mismatches, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting any corrupted lsps, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().ExceedMaxSeqNums().State()); got != 0 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ExceedMaxSeqNums().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero max_seqnum counter, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().IdLenMismatch().State()); got != 0 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().IdLenMismatch().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero IdLen_Mismatch counter, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().LspErrors().State()); got != 0 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().LspErrors().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting any lsp errors, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().MaxAreaAddressMismatches().State()); got != 0 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().MaxAreaAddressMismatches().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero MaxAreaAddressMismatches counter, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().OwnLspPurges().State()); got != 0 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().OwnLspPurges().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero OwnLspPurges counter, got %d, want %d", got, 0)
 			}
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SeqNumSkips().State()); got != 0 {
+				t.Errorf("FAIL- Not expecting non zero SeqNumber skips, got %d, want %d", got, 0)
+			}
 			if !deviations.ISISCounterManualAddressDropFromAreasUnsupported(ts.DUT) {
-				if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().ManualAddressDropFromAreas().State()); got != 0 {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ManualAddressDropFromAreas().State()); got != 0 {
 					t.Errorf("FAIL- Not expecting non zero ManualAddressDropFromAreas counter, got %d, want %d", got, 0)
 				}
 			}
 			if !deviations.ISISCounterPartChangesUnsupported(ts.DUT) {
-				if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().PartChanges().State()); got != 0 {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().PartChanges().State()); got != 0 {
 					t.Errorf("FAIL- Not expecting partition changes, got %d, want %d", got, 0)
 				}
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).SystemLevelCounters().SpfRuns().State()); got == 0 {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SpfRuns().State()); got == 0 {
 				t.Errorf("FAIL- Not expecting spf runs counter to be 0, got %d, want non zero", got)
 			}
 		})
 		t.Run("Route checks", func(t *testing.T) {
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(v4Route).Prefix().State()); got != v4Route {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(v4Route).Prefix().State()); got != v4Route {
 				t.Errorf("FAIL- Expected v4 route not found in isis, got %v, want %v", got, v4Route)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(1).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(v6Route).Prefix().State()); got != v6Route {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(v6Route).Prefix().State()); got != v6Route {
 				t.Errorf("FAIL- Expected v6 route not found in isis, got %v, want %v", got, v6Route)
 			}
 			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route).State()).GetPrefix(); got != v4Route {
