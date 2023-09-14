@@ -17,13 +17,12 @@ BGP remove private AS
     *   Validate that private AS numbers are stripped before advertisement to the eBGP peer OTG 
         Port2.
     *   AS path for received routes on OTG Port2 should be "500 100".   
-    *   TODO: different patterns of private AS should be tested.
-        *   AS Path SEQ - 65501, 65507, 65554
-        *   AS Path SEQ - 65501, 600
-        *   AS Path SEQ - 800, 65501, 600
-            ## TODO : https://github.com/openconfig/featureprofiles/issues/1659
-            ## SET mode is not working in OTG. 
-        *   AS Path SET - 800, 65505, 600 
+    *   Tested AS-Path Patterns:
+        *   PRIV_AS1
+        *   PRIV_AS1 PRIV_AS2
+        *   AS1 PRIV_AS1 PRIV_AS2
+        *   PRIV_AS1 AS1
+        *   AS1 PRIV_AS1 AS2
 
 ## Config Parameter coverage
 
