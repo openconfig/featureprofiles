@@ -84,8 +84,8 @@ func TestOSInstall(t *testing.T) {
 	tc := testCase{
 		reader: reader,
 		dut:    dut,
-		osc:    dut.RawAPIs().GNOI().Default(t).OS(),
-		sc:     dut.RawAPIs().GNOI().Default(t).System(),
+		osc:    dut.RawAPIs().GNOI(t).OS(),
+		sc:     dut.RawAPIs().GNOI(t).System(),
 	}
 	noReboot := deviations.OSActivateNoReboot(dut)
 	tc.fetchStandbySupervisorStatus(ctx, t)

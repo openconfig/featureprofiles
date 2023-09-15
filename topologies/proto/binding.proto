@@ -149,4 +149,7 @@ message Port {
 
   // Speed of the port.
   ondatra.Port.Speed speed = 3;
+
+  // PMD type of the port.
+  ondatra.Port.Pmd pmd = 4;
 }
