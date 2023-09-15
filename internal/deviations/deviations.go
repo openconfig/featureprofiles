@@ -596,3 +596,8 @@ func ISISCounterManualAddressDropFromAreasUnsupported(dut *ondatra.DUTDevice) bo
 func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
+
+// QOSQueueRequiresId returns if device should configure QOS queue along with queue-id
+func QOSQueueRequiresId(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
+}
