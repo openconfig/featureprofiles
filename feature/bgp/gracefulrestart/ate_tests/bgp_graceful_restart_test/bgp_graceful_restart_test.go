@@ -176,8 +176,8 @@ func buildNbrList(asN uint32) []*bgpNeighbor {
 func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(as)
@@ -246,7 +246,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Netw
 			af4.Enabled = ygot.Bool(false)
 		}
 	}
-	return ni_proto
+	return niProto
 }
 
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
