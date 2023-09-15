@@ -6,11 +6,11 @@ BGP remove private AS
 
 ## Procedure
 
-*   Establish BGP sessions as follows between ATE and DUT .  
-*   ATE port 1 emulates two eBGP neighbors peering the DUT. 
-*   eBGP neighbor # 1 is injecting routes with AS_PATH modified to have private AS numbers 
-*   Validate that private AS numbers are stripped before advertisement to the eBGP neighbor on ATE 
-    port 2. 
+*   Establish BGP sessions as follows between ATE and DUT.
+*   ATE port 1 emulates two eBGP neighbors peering the DUT.
+*   eBGP neighbor # 1 is injecting routes with AS_PATH modified to have private AS numbers.
+*   Validate that private AS numbers are stripped before advertisement to the eBGP neighbor on ATE
+    port 2.
 *   Tested AS-Path Patterns:
     *   PRIV_AS1
     *   PRIV_AS1 PRIV_AS2
