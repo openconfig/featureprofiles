@@ -402,6 +402,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         test_verbose=True,
                         test_html_report=False,
                         collect_debug_files=True,
+                        release_ixia_ports=True,
                         testbed=None,
                         **kwargs):
 
