@@ -889,7 +889,7 @@ def ReleaseIxiaPorts(self, ws, binding_file):
         logger.warning(f'Failed to release ixia ports. Ignoring...')
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=3)
+@app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def BringupIxiaController(self, reserved_testbed):
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
@@ -897,7 +897,7 @@ def BringupIxiaController(self, reserved_testbed):
     remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=3)
+@app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def TeardownIxiaController(self, reserved_testbed):
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
