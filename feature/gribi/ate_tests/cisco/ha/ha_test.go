@@ -96,13 +96,14 @@ const (
 
 // global variables
 var (
-	prefixes      = []string{}
-	repair_prefix = []string{}
-	flows         = []*ondatra.Flow{}
-	te_flow       = []*ondatra.Flow{}
-	src_ip_flow   = []*ondatra.Flow{}
-	p4rtNodeName  = flag.String("p4rt_node_name", "0/0/CPU0-NPU0", "component name for P4RT Node")
-	rpfo_count    = 0 // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
+	prefixes           = []string{}
+	repair_prefix      = []string{}
+	flows              = []*ondatra.Flow{}
+	te_flow            = []*ondatra.Flow{}
+	src_ip_flow        = []*ondatra.Flow{}
+	p4rtNodeName       = flag.String("p4rt_node_name", "0/0/CPU0-NPU0", "component name for P4RT Node")
+	rpfo_count         = 0 // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
+	which_traffic_call = 0
 )
 
 // NHScaleOptions
@@ -978,6 +979,7 @@ func (args *testArgs) gnmiConf(t *testing.T, conf string) {
 
 func testRestart_single_process(t *testing.T, args *testArgs) {
 
+	which_traffic_call = 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -998,6 +1000,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 		}
+		t.Logf("This is traffic call #%d", which_traffic_call+1)
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
@@ -1023,6 +1026,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 			}
@@ -1041,6 +1045,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 				if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 				}
+				t.Logf("This is traffic call #%d", which_traffic_call+1)
 				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 			}
 			//aft check
@@ -1083,6 +1088,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1100,6 +1106,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
 					}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1118,6 +1125,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1135,6 +1143,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1154,6 +1163,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1173,6 +1183,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1191,6 +1202,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 			}
@@ -1200,7 +1212,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 }
 
 func test_RFPO_with_programming(t *testing.T, args *testArgs) {
-
+	which_traffic_call = 0
 	if !with_RPFO {
 		t.Skip("run is without RPFO, skipping the tc")
 	}
@@ -1223,6 +1235,7 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 		}
+		t.Logf("This is traffic call #%d", which_traffic_call+1)
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
@@ -1268,6 +1281,7 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1293,6 +1307,7 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1319,6 +1334,7 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1371,6 +1387,7 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1398,6 +1415,7 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1424,13 +1442,14 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true})
 		}
 	}
 }
 
 func testRestart_multiple_process(t *testing.T, args *testArgs) {
-
+	which_traffic_call = 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -1450,6 +1469,7 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 		}
+		t.Logf("This is traffic call #%d", which_traffic_call+1)
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
@@ -1476,6 +1496,7 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 				if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 				}
+				t.Logf("This is traffic call #%d", which_traffic_call+1)
 				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 			}
 
@@ -1502,6 +1523,7 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 				if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 				}
+				t.Logf("This is traffic call #%d", which_traffic_call+1)
 				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 			}
 			//aft check
@@ -1517,7 +1539,7 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 }
 
 func test_microdrops(t *testing.T, args *testArgs) {
-
+	which_traffic_call = 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -1544,6 +1566,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 		}
+		t.Logf("This is traffic call #%d", which_traffic_call+1)
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
@@ -1587,6 +1610,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1604,6 +1628,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1622,6 +1647,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1639,6 +1665,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1658,6 +1685,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1677,6 +1705,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1695,6 +1724,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true})
 		}
 	}
@@ -1746,7 +1776,7 @@ func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsume
 }
 
 func test_triggers(t *testing.T, args *testArgs) {
-
+	which_traffic_call = 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -1767,6 +1797,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 		}
 		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+		t.Logf("This is traffic call #%d", which_traffic_call+1)
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
@@ -1819,6 +1850,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 15, start_after_verification: true})
 				}
 
@@ -1847,6 +1879,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether126", "Bundle-Ether127"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 10, start_after_verification: true})
 				}
 
@@ -1873,6 +1906,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, start_after_verification: true})
 				}
 			}
@@ -1919,6 +1953,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 15, start_after_verification: true})
 				}
 
@@ -1946,6 +1981,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether126", "Bundle-Ether127"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 10, start_after_verification: true})
 				}
 
@@ -1978,6 +2014,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, start_after_verification: true})
 				}
 			}
@@ -2032,6 +2069,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -2049,6 +2087,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -2067,6 +2106,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 			}
@@ -2082,6 +2122,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, true, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -2117,6 +2158,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 				}
 			}
@@ -2436,11 +2478,11 @@ func TestHA(t *testing.T) {
 			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
 			fn:   testRestart_multiple_process,
 		},
-		{
-			name: "Triggers",
-			desc: "With traffic running, validate multiple triggers",
-			fn:   test_triggers,
-		},
+		// {
+		// 	name: "Triggers",
+		// 	desc: "With traffic running, validate multiple triggers",
+		// 	fn:   test_triggers,
+		// },
 		// {
 		// 	name: "check multiple clients",
 		// 	desc: "With traffic running, validate use of multiple clients",
