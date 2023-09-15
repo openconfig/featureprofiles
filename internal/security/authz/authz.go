@@ -93,7 +93,7 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 }
 
 // Rotate apply policy p on device dut, this is test api for positive testing and it fails the test on failure.
-func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string) {
+func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
 	rotateStream, _ := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
 	defer rotateStream.CloseSend()
@@ -109,7 +109,7 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 		},
 	}
 	t.Logf("Sending Authz.Rotate request on device: \n %s", prettyPrint(autzRotateReq))
-	err = rotateStream.Send(&authz.RotateAuthzRequest{RotateRequest: autzRotateReq})
+	err = rotateStream.Send(&authz.RotateAuthzRequest{RotateRequest: autzRotateReq, ForceOverwrite: forcOverwrite})
 	if err == nil {
 		t.Logf("Authz.Rotate upload was successful, receiving response ...")
 		_, err = rotateStream.Recv()
@@ -148,7 +148,7 @@ func Get(t testing.TB, dut *ondatra.DUTDevice) (*authz.GetResponse, *Authorizati
 	gnsiC := dut.RawAPIs().GNSI(t)
 	resp, err := gnsiC.Authz().Get(context.Background(), &authz.GetRequest{})
 	if err != nil {
-		t.Fatalf("Authz.Get request is failed on device %s", dut.Name())
+		t.Fatalf("Authz.Get request is failed on device %s: %v", dut.Name(), err)
 	}
 
 	t.Logf("Authz.Get response is %s", prettyPrint(resp))
