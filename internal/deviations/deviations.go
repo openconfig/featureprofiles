@@ -602,3 +602,9 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverThresholdsUnsupported()
 }
+
+// MatchedPacketsOctetsUnsupported returns true if telemetry path /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets and matched-octets is not supported.
+func MatchedPacketsOctetsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchedPacketsOctetsUnsupported()
+
+}
