@@ -84,7 +84,7 @@ func EnableGRIBIUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni stri
 				},
 			}},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("Enabling Gribi on network-instance %s failed with unexpected error: %v", ni, err)
 		}
