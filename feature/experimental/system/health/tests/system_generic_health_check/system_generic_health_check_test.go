@@ -45,11 +45,13 @@ var (
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
 		ondatra.NOKIA:   "/var/core/",
+		ondatra.ARISTA:  "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]*regexp.Regexp{
 		ondatra.JUNIPER: regexp.MustCompile(".*.tar.gz"),
 		ondatra.CISCO:   regexp.MustCompile("/misc/disk1/.*core.*"),
 		ondatra.NOKIA:   regexp.MustCompile("/var/core/coredump-.*"),
+		ondatra.ARISTA:  regexp.MustCompile("/var/core/core.*"),
 	}
 )
 
