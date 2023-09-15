@@ -62,9 +62,8 @@ func TestMain(m *testing.M) {
 //
 
 func TestCopyingDebugFiles(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	if _, ok := bgpProcName[dut.Vendor()]; !ok {
 		t.Fatalf("Please add support for vendor %v in var bgpProcName", dut.Vendor())
 	}
@@ -120,7 +119,7 @@ func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 
 func TestChassisComponentArtifacts(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	componentName := map[string]string{"name": components[dut.Vendor()]}
 	// Execute Healthz Check RPC for the chassis component.
 	chkReq := &hpb.CheckRequest{
