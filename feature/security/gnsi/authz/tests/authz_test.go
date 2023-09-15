@@ -160,7 +160,7 @@ func TestAuthz1(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate
 		policies := loadPolicyFromJsonFile(t, dut, "testdata/policy.json")
@@ -178,7 +178,7 @@ func TestAuthz1(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate
 		policies := loadPolicyFromJsonFile(t, dut, "testdata/policy.json")
@@ -197,7 +197,7 @@ func TestAuthz1(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate - 1
 		policies := loadPolicyFromJsonFile(t, dut, "testdata/policy.json")
@@ -214,7 +214,7 @@ func TestAuthz1(t *testing.T) {
 		newpolicy = getPolicyByName(t, "policy-gnmi-get", policies)
 		newpolicy.AddAllowRules("default", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Verification of Policy for cert_read_only to deny gRIBI Get and allow gNMI Get
 		authz.Verify(t, dut, "cert_read_only", gnxi.RPCs.GRIBI_GET, nil, true, false)
@@ -225,7 +225,7 @@ func TestAuthz1(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate
 		policies := loadPolicyFromJsonFile(t, dut, "testdata/policy.json")
@@ -254,7 +254,7 @@ func TestAuthz2(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate
 		policies := loadPolicyFromJsonFile(t, dut, "testdata/policy.json")
@@ -272,7 +272,7 @@ func TestAuthz2(t *testing.T) {
 		defer rotateStream.CloseSend()
 		autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
 			UploadRequest: &authzpb.UploadRequest{
-				Version:   fmt.Sprintf("v0.%v", (time.Now().UnixMilli())),
+				Version:   fmt.Sprintf("v0.%v", (time.Now().UnixNano())),
 				CreatedOn: uint64(time.Now().UnixMilli()),
 				Policy:    string(jsonPolicy),
 			},
@@ -300,7 +300,7 @@ func TestAuthz2(t *testing.T) {
 		defer rotateStream.CloseSend()
 		autzRotateReq = &authzpb.RotateAuthzRequest_UploadRequest{
 			UploadRequest: &authzpb.UploadRequest{
-				Version:   fmt.Sprintf("v0.%v", (time.Now().UnixMilli())),
+				Version:   fmt.Sprintf("v0.%v", (time.Now().UnixNano())),
 				CreatedOn: uint64(time.Now().UnixMilli()),
 				Policy:    string(jsonPolicy),
 			},
@@ -323,14 +323,14 @@ func TestAuthz2(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate
 		policies := loadPolicyFromJsonFile(t, dut, "testdata/policy.json")
 		newpolicy := getPolicyByName(t, "policy-gribi-get", policies)
 		newpolicy.AddAllowRules("default", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Verification of Policy for cert_read_only to allow gRIBI Get and to deny gNMI Get
 		authz.Verify(t, dut, "cert_read_only", gnxi.RPCs.GRIBI_GET, nil, false, false)
@@ -350,7 +350,7 @@ func TestAuthz2(t *testing.T) {
 		defer rotateStream.CloseSend()
 		autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
 			UploadRequest: &authzpb.UploadRequest{
-				Version:   fmt.Sprintf("v0.%v", (time.Now().UnixMilli())),
+				Version:   fmt.Sprintf("v0.%v", (time.Now().UnixNano())),
 				CreatedOn: uint64(time.Now().UnixMilli()),
 				Policy:    string(jsonPolicy),
 			},
@@ -379,14 +379,14 @@ func TestAuthz2(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate
 		policies := loadPolicyFromJsonFile(t, dut, "testdata/policy.json")
 		newpolicy := getPolicyByName(t, "policy-gribi-get", policies)
 		newpolicy.AddAllowRules("default", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Verification of Policy for cert_read_only to allow gRIBI Get and to deny gNMI Get
 		// authz.Verify(t, dut, "cert_read_only", gnxi.RPCs.GRIBI_GET, nil, false, false)
@@ -406,7 +406,7 @@ func TestAuthz2(t *testing.T) {
 		defer rotateStream.CloseSend()
 		autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
 			UploadRequest: &authzpb.UploadRequest{
-				Version:   fmt.Sprintf("v0.%v", (time.Now().UnixMilli())),
+				Version:   fmt.Sprintf("v0.%v", (time.Now().UnixNano())),
 				CreatedOn: uint64(time.Now().UnixMilli()),
 				Policy:    string(jsonPolicy),
 			},
@@ -432,14 +432,14 @@ func TestAuthz2(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate
 		policies := loadPolicyFromJsonFile(t, dut, "testdata/policy.json")
 		newpolicy := getPolicyByName(t, "policy-gribi-get", policies)
 		newpolicy.AddAllowRules("default", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
 		// Rotate the policy.
-		prevVersion := fmt.Sprintf("v0.%v", (time.Now().UnixMilli()))
+		prevVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
 		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), prevVersion, false)
 
 		newpolicy = getPolicyByName(t, "policy-gnmi-get", policies)
@@ -488,7 +488,7 @@ func TestAuthz3(t *testing.T) {
 	setUpUsers(t,dut)
 	_, policyBefore := authz.Get(t, dut)
 	t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-	defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+	defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 	// Fetch the Desired Authorization Policy object.
 	policies := loadPolicyFromJsonFile(t, dut, "testdata/policy.json")
@@ -497,7 +497,7 @@ func TestAuthz3(t *testing.T) {
 	// Rotate the policy.
 	newpolicy.AddAllowRules("default", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
 	expCreatedOn := uint64(time.Now().UnixMilli())
-	expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixMilli()))
+	expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
 	newpolicy.Rotate(t, dut, expCreatedOn, expVersion, false)
 	t.Logf("New Rotated Authz Policy is %s", newpolicy.PrettyPrint())
 	// Wait for 30s, intial gNSI.Get and validate the value of version, created_on and gRPC policy content does not change.
@@ -531,14 +531,14 @@ func TestAuthz4(t *testing.T) {
 	setUpUsers(t,dut)
 	_, policyBefore := authz.Get(t, dut)
 	t.Logf("Authz Policy of the Device %s before the Reboot Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
-	defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
+	defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 	// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate
 	policies := loadPolicyFromJsonFile(t, dut, "testdata/policy.json")
 	newpolicy := getPolicyByName(t, "policy-normal-1", policies)
 	newpolicy.AddAllowRules("default", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
 	expCreatedOn := uint64(time.Now().UnixMilli())
-	expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixMilli()))
+	expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
 	t.Logf("New Authz Policy is %s", newpolicy.PrettyPrint())
 	newpolicy.Rotate(t, dut, expCreatedOn, expVersion, false)
 
