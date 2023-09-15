@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 // validate against the dataplane, but solely the gRIBI control-plane support.
 func TestMPLSLabelPushDepth(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
