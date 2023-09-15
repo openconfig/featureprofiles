@@ -258,7 +258,7 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 					},
 				}},
 			}
-			gnmiClient := dut.RawAPIs().GNMI().Default(t)
+			gnmiClient := dut.RawAPIs().GNMI(t)
 			_, err := gnmiClient.Set(context.Background(), gpbSetRequest)
 			if err != nil {
 				t.Errorf("Failed to update interface loopback mode")
