@@ -148,7 +148,9 @@ func NewAuthorizationPolicy() *AuthorizationPolicy {
 // Get read the applied policy from device dut. this is test api and fails the test when it fails.
 func Get(t testing.TB, dut *ondatra.DUTDevice) (*authz.GetResponse, *AuthorizationPolicy) {
 	t.Logf("Performing Authz.Get request on device %s", dut.Name())
-	gnsiC := dut.RawAPIs().GNSI(t)
+	gnsiC, err:=dut.RawAPI().DialGNSI(context.Background()); if err!=nil {
+		t.Fatalf("Could not connect gnsi %v",err)
+	}
 	resp, err := gnsiC.Authz().Get(context.Background(), &authz.GetRequest{})
 	if err != nil {
 		t.Fatalf("Authz.Get request is failed on device %s: %v", dut.Name(), err)

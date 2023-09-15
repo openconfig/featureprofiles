@@ -111,6 +111,7 @@ func createUser(t *testing.T, dut *ondatra.DUTDevice, user string) {
 func setUpUsers(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.SpiffeID(dut) {
 		createUser(t,dut, "cert_user_admin")
+		createUser(t,dut, "cert_read_only")
 		createUser(t,dut, "cert_gribi_modify")
 		createUser(t,dut, "cert_read_only")
 		createUser(t,dut, "cert_user_fake")
@@ -154,7 +155,7 @@ func getPolicyByName(t *testing.T, policyName string, policies []authz.Authoriza
 // Authz-1, Test policy behaviors, and probe results matches actual client results.
 func TestAuthz1(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	setUpUsers(t,dut)
+	//setUpUsers(t,dut)
 	t.Run("Authz-1.1, - Test empty source", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
@@ -175,7 +176,6 @@ func TestAuthz1(t *testing.T) {
 
 	t.Run("Authz-1.2, Test Empty Request", func(t *testing.T) {
 		// Pre-Test Section
-		dut := ondatra.DUT(t, "dut")
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
 		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
@@ -189,7 +189,7 @@ func TestAuthz1(t *testing.T) {
 
 		// Verification of Policy for cert_user_fake to deny gRIBI Get and cert_user_admin to allow gRIBI Get
 		authz.Verify(t, dut, "cert_user_fake", gnxi.RPCs.GRIBI_GET, nil, true, false)
-		// authz.Verify(t, dut, "cert_user_admin", gnxi.RPCs.GRIBI_GET, nil, false, false)
+		authz.Verify(t, dut, "cert_user_admin", gnxi.RPCs.GRIBI_GET, nil, false, false)
 	})
 
 	t.Run("Authz-1.3, Test that there can only be One policy", func(t *testing.T) {
@@ -223,7 +223,6 @@ func TestAuthz1(t *testing.T) {
 
 	t.Run("Authz-1.4, Test Normal Policy", func(t *testing.T) {
 		// Pre-Test Section
-		dut := ondatra.DUT(t, "dut")
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
 		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixMilli())), false)
