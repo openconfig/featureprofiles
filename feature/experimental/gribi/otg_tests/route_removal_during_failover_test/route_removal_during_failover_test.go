@@ -602,7 +602,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	var flushRes, wantFlushRes *gpb.FlushResponse
 	t.Log("Execute gRIBi flush and master switchover concurrently.")
 	go func(msg string) {
-		flushRes, err := gribi.Flush(client, eID, deviations.DefaultNetworkInstance(dut))
+		flushRes, err = gribi.Flush(client, eID, deviations.DefaultNetworkInstance(dut))
 		if err != nil {
 			t.Logf("Unexpected error from flush, got: %v, %v", err, flushRes)
 		}
@@ -683,7 +683,11 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	}
 
 	// Check for coredumps in the DUT and validate that none are present post failover.
-	gnoiClient = dut.RawAPIs().GNOI().New(t) // reconnect gnoi connection after switchover
+	// Reconnect gnoi connection after switchover.
+	gnoiClient, err = dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
 	coreFilecheck(t, dut, gnoiClient, sysConfigTime)
 
 	t.Log("Re-inject routes from ipBlock1 in default VRF with NHGID: #1.")
