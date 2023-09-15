@@ -330,7 +330,7 @@ message Metadata {
     // Devices do not support threshold container under /components/component/transceiver.
     bool transceiver_thresholds_unsupported = 108;
     // Devices do not support forwarding for fib failed routes.
-    bool skip_fib_failed_traffic_forwarding_check = 108;
+    bool skip_fib_failed_traffic_forwarding_check = 109;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
