@@ -596,7 +596,9 @@ type Metadata_Deviations struct {
 	IsisCounterPartChangesUnsupported bool `protobuf:"varint,107,opt,name=isis_counter_part_changes_unsupported,json=isisCounterPartChangesUnsupported,proto3" json:"isis_counter_part_changes_unsupported,omitempty"`
 	// Devices do not support showing negotiated tcp mss value in bgp tcp mss telemetry.
 	// Juniper: b/300499125
-	SkipTcpNegotiatedMssCheck bool `protobuf:"varint,108,opt,name=skip_tcp_negotiated_mss_check,json=skipTcpNegotiatedMssCheck,proto3" json:"skip_tcp_negotiated_mss_check,omitempty"`
+	SkipTcpNegotiatedMssCheck bool `protobuf:"varint,109,opt,name=skip_tcp_negotiated_mss_check,json=skipTcpNegotiatedMssCheck,proto3" json:"skip_tcp_negotiated_mss_check,omitempty"`
+	// Devices do not support threshold container under /components/component/transceiver.
+	TransceiverThresholdsUnsupported bool `protobuf:"varint,108,opt,name=transceiver_thresholds_unsupported,json=transceiverThresholdsUnsupported,proto3" json:"transceiver_thresholds_unsupported,omitempty"`
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -1303,9 +1305,17 @@ func (x *Metadata_Deviations) GetIsisCounterPartChangesUnsupported() bool {
 	return false
 }
 
+
 func (x *Metadata_Deviations) GetSkipTcpNegotiatedMssCheck() bool {
 	if x != nil {
 		return x.SkipTcpNegotiatedMssCheck
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetTransceiverThresholdsUnsupported() bool {
+	if x != nil {
+		return x.TransceiverThresholdsUnsupported
 	}
 	return false
 }
@@ -1865,6 +1875,7 @@ var file_metadata_proto_rawDesc = []byte{
 	0x09, 0x54, 0x41, 0x47, 0x53, 0x5f, 0x45, 0x44, 0x47, 0x45, 0x10, 0x03, 0x12, 0x10, 0x0a, 0x0c,
 	0x54, 0x41, 0x47, 0x53, 0x5f, 0x54, 0x52, 0x41, 0x4e, 0x53, 0x49, 0x54, 0x10, 0x04, 0x62, 0x06,
 	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+
 }
 
 var (

@@ -602,3 +602,9 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipTCPNegotiatedMssCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTCPNegotiatedMssCheck()
 }
+
+// TransceiverThresholdsUnsupported returns true if the device does not support threshold container under /components/component/transceiver.
+// Default value is false.
+func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverThresholdsUnsupported()
+}
