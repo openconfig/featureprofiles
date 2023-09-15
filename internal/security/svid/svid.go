@@ -14,7 +14,6 @@ import (
 
 	"math/big"
 	"net/url"
-	"os"
 
 	"time"
 )
@@ -91,12 +90,9 @@ func populateCertTemplate(id string, expireInDays int) (*x509.Certificate, error
 }
 
 // loadKeyPair load a pair of RSA/ECDSA private key and certificate
-func loadKeyPair(keyPath, certPath string) (any, *x509.Certificate, error) {
-	caPrivateKeyBytes, err := os.ReadFile(keyPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	caKeyPem, _ := pem.Decode(caPrivateKeyBytes)
+func loadKeyPair(keyPEM, certPEM []byte) (any, *x509.Certificate, error) {
+	var err error
+	caKeyPem, _ := pem.Decode(keyPEM)
 	var caPrivateKey any
 	if caKeyPem == nil {
 		return nil, nil, fmt.Errorf("error in loading private key")
@@ -115,11 +111,7 @@ func loadKeyPair(keyPath, certPath string) (any, *x509.Certificate, error) {
 		return nil, nil, fmt.Errorf("file does not contain an ECDSA/RSA private key")
 	}
 
-	caCertBytes, err := os.ReadFile(certPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	caCertPem, _ := pem.Decode(caCertBytes)
+	caCertPem, _ := pem.Decode(certPEM)
 	if caCertPem == nil {
 		return nil, nil, fmt.Errorf("error in loading ca cert")
 	}
