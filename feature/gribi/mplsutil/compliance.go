@@ -19,7 +19,7 @@ var (
 	// electionID is the global election ID used between test cases.
 	electionID = func() *atomic.Uint64 {
 		eid := new(atomic.Uint64)
-		eid.Add(1)
+		eid.Store(1)
 		return eid
 	}()
 )
