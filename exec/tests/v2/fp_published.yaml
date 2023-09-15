@@ -578,7 +578,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: DP-1.11 (QoS Bursty Traffic)
-    path: feature/qos/ate_tests/bursty_traffic_test
+    path: feature/qos/otg_tests/bursty_traffic_test
     owners:
       - saarvind
     mustpass: true
