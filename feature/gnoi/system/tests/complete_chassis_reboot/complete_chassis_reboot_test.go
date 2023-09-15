@@ -111,7 +111,10 @@ func TestChassisReboot(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			gnoiClient := dut.RawAPIs().GNOI().New(t)
+			gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+			if err != nil {
+				t.Fatalf("Error dialing gNOI: %v", err)
+			}
 			bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 			t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 			prevTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))

@@ -327,6 +327,8 @@ message Metadata {
     // Devices do not support telemetry for isis counter: part-changes.
     // Arista: partnerissuetracker.corp.google.com/299285991
     bool isis_counter_part_changes_unsupported = 107;
+    // Devices do not support threshold container under /components/component/transceiver.
+    bool transceiver_thresholds_unsupported = 108;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
