@@ -596,11 +596,13 @@ func ISISCounterManualAddressDropFromAreasUnsupported(dut *ondatra.DUTDevice) bo
 func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
+
 // GRIBISkipFibFailedTrafficForwardingCheck returns true for devices that do not
 // support fib forwarding for fib failed routes.
 func GRIBISkipFibFailedTrafficForwardingCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipFibFailedTrafficForwardingCheck()
 }
+
 // TransceiverThresholdsUnsupported returns true if the device does not support threshold container under /components/component/transceiver.
 // Default value is false.
 func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
