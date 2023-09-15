@@ -90,7 +90,7 @@ func populateCertTemplate(id string, expireInDays int) (*x509.Certificate, error
 }
 
 // loadKeyPair load a pair of RSA/ECDSA private key and certificate
-func loadKeyPair(keyPEM, certPEM []byte) (any, *x509.Certificate, error) {
+func LoadKeyPair(keyPEM, certPEM []byte) (any, *x509.Certificate, error) {
 	var err error
 	caKeyPem, _ := pem.Decode(keyPEM)
 	var caPrivateKey any

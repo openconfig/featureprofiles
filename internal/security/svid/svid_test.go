@@ -148,7 +148,7 @@ func TestGenRSASVID(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			caPrivateKey, CACert, err := loadKeyPair([]byte(test.caKey), []byte(test.caCert))
+			caPrivateKey, CACert, err := LoadKeyPair([]byte(test.caKey), []byte(test.caCert))
 			if err != nil {
 				t.Fatalf("Unexpected Error, %v", err)
 			}
@@ -203,7 +203,7 @@ func TestGenECDSASVID(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			caPrivateKey, CACert, err := loadKeyPair([]byte(test.caKey), []byte(test.caCert))
+			caPrivateKey, CACert, err := LoadKeyPair([]byte(test.caKey), []byte(test.caCert))
 			if err != nil {
 				t.Fatalf("Unexpected Error, %v", err)
 			}
