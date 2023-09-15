@@ -600,7 +600,7 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 // SkipTCPNegotiatedMssCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
 func SkipTCPNegotiatedMssCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipTCPNegotiatedMssCheck()
+	return lookupDUTDeviations(dut).GetSkipTcpNegotiatedMssCheck()
 }
 
 // TransceiverThresholdsUnsupported returns true if the device does not support threshold container under /components/component/transceiver.
