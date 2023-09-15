@@ -95,7 +95,10 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 // Rotate apply policy p on device dut, this is test api for positive testing and it fails the test on failure.
 func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
-	rotateStream, _ := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
+	gnsiC, err:=dut.RawAPI().DialGNSI(context.Background()); if err!=nil {
+		t.Fatalf("Could not connect gnsi %v",err)
+	}
+	rotateStream, _ := gnsiC.Authz().Rotate(context.Background())
 	defer rotateStream.CloseSend()
 	policy, err := p.Marshal()
 	if err != nil {
