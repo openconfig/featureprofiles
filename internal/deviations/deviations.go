@@ -602,3 +602,8 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverThresholdsUnsupported()
 }
+
+// QOSQueueRequiresId returns if device should configure QOS queue along with queue-id
+func QOSQueueRequiresId(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
+}
