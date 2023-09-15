@@ -602,7 +602,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	var flushRes, wantFlushRes *gpb.FlushResponse
 	t.Log("Execute gRIBi flush and master switchover concurrently.")
 	go func(msg string) {
-		flushRes, err := gribi.Flush(client, eID, deviations.DefaultNetworkInstance(dut))
+		flushRes, err = gribi.Flush(client, eID, deviations.DefaultNetworkInstance(dut))
 		if err != nil {
 			t.Logf("Unexpected error from flush, got: %v, %v", err, flushRes)
 		}
