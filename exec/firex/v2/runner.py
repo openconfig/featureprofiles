@@ -46,6 +46,7 @@ MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.
 whitelist_arguments([
     'test_html_report',
     'test_ignore_aborted',
+    'release_ixia_ports',
     'test_skip',
     'test_fail_skipped',
     'test_show_skipped',
