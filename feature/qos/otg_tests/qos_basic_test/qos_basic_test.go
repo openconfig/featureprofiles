@@ -614,6 +614,10 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
+		desc:        "forwarding-group-BE0",
+		queueName:   queues.BE0,
+		targetGroup: "target-group-BE0",
+	}, {
 		desc:        "forwarding-group-AF1",
 		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
