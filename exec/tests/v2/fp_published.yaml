@@ -235,6 +235,7 @@ tests:
     priority: 5
     mustpass: true
     timeout: 7200
+    pr: 2126
   - name: P4RT-5.1 (Traceroute Packetin)
     path: feature/experimental/p4rt/otg_tests/traceroute_packetin_test
     owners:
