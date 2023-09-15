@@ -2,22 +2,28 @@
 
 ## Summary
 
-BGP TCP MSS and PMTUD
+*   Validate changes in TCP MSS value is allowed and takes effect.
+*   Validate DUT's PMTUD compliance.
+
+## Topology
+
+*   ATE:port1 <-> port1:DUT1:Port2 <-> port1:DUT2
 
 ## Procedure
 
-*   Establish BGP sessions between:
-    *   ATE port-1 ---      eBGP-IPv4/IPv6        ---- DUT1 
-    *   ATE port-1 ----    Multihop iBGP IPv4     ---- DUT2.
-*   DUT-2 is directly connected to DUT-1.  
-*   TODO : Verify that the default TCP MSS value is set below interface MTU value.
-*   Change the Interface MTU to the ATE port as 5040.
-*   Configure IP TCP MSS value of 4096 bytes on the interface to the ATE port.
-*   Re-establish the BGP sessions by tcp reset.
-*   Verify that the TCP MSS value is set to 4096 bytes for IPv4 and IPv6.
-*   Establish Multihop iBGP session with MD5 enabled from ATE port-1 to DUT-2. 
-*   Change the MTU on DUT-1 - DUT-2 link to 512 bytes and enable PMTUD on the DUT-2. 
-*   TODO : Validate that the min MSS value has been adjusted to be below 512 bytes on the tcp session.
+*   Establish BGP sessions as follows:
+    *   ATE:port1 --- eBGP-IPv4/IPv6 ---- DUT1:port1.
+    *   ATE:port1 ---- iBGP IPv4 ---- DUT2:port1.
+*   Verify that the default TCP MSS value is set below the default interface MTU value.
+*   Change the Interface MTU on the DUT1:port1 port as well as ATE:port1 to 5040B
+*   Configure IP TCP MSS value of 4096 bytes on the DUT1:port1.
+*   Re-establish the EBGP sessions by tcp reset.
+*   Verify that the TCP MSS value is set to 4096 bytes for the IPv4 and IPv6 EBGP sessions.
+*   Establish iBGP session with MD5 enabled between ATE:port1 and DUT2:port2.
+*   Ensure that the MTU on the DUT1:port1 towards ATE1:port1 is left at default (1500B) while the ATE1:port1 interface towards DUT1:port1 is set at 5040B. Please also make sure that the DUT2:port2 MTU is set at 5040B as well.
+*   Enable PMTUD on DUT2:port2. 
+*   Re-establish the IBGP sessions by tcp reset.
+*   Validate that the min MSS value has been adjusted to be below 1500 bytes on the tcp session.
 
 ## Config Parameter coverage
 
