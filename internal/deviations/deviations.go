@@ -597,6 +597,12 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
 
+// TransceiverThresholdsUnsupported returns true if the device does not support threshold container under /components/component/transceiver.
+// Default value is false.
+func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverThresholdsUnsupported()
+}
+
 // QOSQueueRequiresId returns if device should configure QOS queue along with queue-id
 func QOSQueueRequiresId(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
