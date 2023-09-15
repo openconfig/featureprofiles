@@ -1223,7 +1223,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
 
-	if dut.Vendor() == ondatra.NOKIA {
+	if deviations.QOSQueueRequiresId(dut) {
 		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
 		for i, queue := range queueNames {
 			q1 := q.GetOrCreateQueue(queue)
