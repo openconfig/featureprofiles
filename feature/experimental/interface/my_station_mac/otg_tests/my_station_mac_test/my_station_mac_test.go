@@ -158,7 +158,6 @@ func testTraffic(
 	flow.TxRx().Port().SetTxName("port1").SetRxName("port2")
 	flow.Metrics().SetEnable(true)
 	eth := flow.Packet().Add().Ethernet()
-	flow.Size().SetFixed(100)
 	eth.Src().SetValue(ateSrc.MAC)
 	eth.Dst().SetChoice("value").SetValue(myStationMAC)
 	if ipType == "IPv4" {
