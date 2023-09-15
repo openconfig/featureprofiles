@@ -32,6 +32,7 @@ import (
 func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
 	// This short delay before printing will ensure that all the packets will be counted during the polling
+	time.Sleep(1 * time.Second)
 	var out strings.Builder
 	out.WriteString("\nOTG Flow Metrics\n")
 	fmt.Fprintln(&out, strings.Repeat("-", 80))
