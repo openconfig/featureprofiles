@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 //          which is equivalet to 32 in decimal.
 
 const (
-	ipv4PrefixLen     = 24
+	ipv4PrefixLen     = 30
 	pps               = 100
 	FrameSize         = 512
 	aclName           = "f1"
@@ -229,6 +229,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	v4.Priority().Dscp().Phb().SetValue(uint32(dscp))
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
+	t.Logf("starting protocols...")
 	otg.StartProtocols(t)
 	time.Sleep(30 * time.Second)
 	//	otgutils.WaitForARP(t, otg, topo, "IPv4")
