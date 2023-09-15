@@ -111,11 +111,10 @@ func configureDUT(t *testing.T) {
 
 // bgpCreateNbr creates bgp configuration on dut device.
 func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice, authPwd, routerId string, localAs uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
-
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(routerId)
 	global.As = ygot.Uint32(localAs)
@@ -142,7 +141,7 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice, authPwd, routerId string
 			af6.Enabled = ygot.Bool(true)
 		}
 	}
-	return ni_proto
+	return niProto
 }
 
 // verifyBGPTelemetry checks that the dut has an established BGP session with reasonable settings.
@@ -281,7 +280,6 @@ type bgpNeighbor struct {
 
 // TestTcpMssPathMtu is to Validate TCP MSS for BGP v4/v6 sessions.
 func TestTcpMssPathMtu(t *testing.T) {
-
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 	ate := ondatra.ATE(t, "ate")
@@ -326,7 +324,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 	})
 
 	dut1Port1Path := gnmi.OC().Interface(dut1.Port(t, "port1").Name())
-	if !deviations.SkipTcpNegotiatedMssCheck(dut1) {
+	if !deviations.SkipTCPNegotiatedMssCheck(dut1) {
 		t.Run("Verify that the default TCP MSS value is set below the default interface MTU value.", func(t *testing.T) {
 			// Fetch interface MTU value to compare negotiated tcp mss.
 			gotIntfMTU := gnmi.Get(t, dut1, dut1Port1Path.Mtu().State())
@@ -427,7 +425,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 		verifyBGPTelemetry(t, dut2, dut2NbrIP)
 	})
 
-	if !deviations.SkipTcpNegotiatedMssCheck(dut2) {
+	if !deviations.SkipTCPNegotiatedMssCheck(dut2) {
 		t.Run("Validate that the min MSS value has been adjusted to be below 1500 bytes on the tcp session.", func(t *testing.T) {
 			if gotTcpMss := gnmi.Get(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTcpMss > mtu1500B || gotTcpMss == 0 {
 				t.Errorf("Obtained TCP MSS for BGP v4 on dut2 is not as expected, got %v, want non zero value and less then %v", gotTcpMss, mtu1500B)

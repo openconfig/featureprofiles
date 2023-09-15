@@ -597,8 +597,8 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
 
-// SkipTcpNegotiatedMssCheck returns true for devices that do not
+// SkipTCPNegotiatedMssCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
-func SkipTcpNegotiatedMssCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipTcpNegotiatedMssCheck()
+func SkipTCPNegotiatedMssCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipTCPNegotiatedMssCheck()
 }
