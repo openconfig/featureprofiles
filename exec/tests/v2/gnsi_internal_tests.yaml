@@ -36,7 +36,7 @@ tests:
   owners:
     - harikri4,mbagherz
 - name: authzfp (Authz Functional Tests)
-    path: feature/security/gnsi/authz/tests
+  path: feature/security/gnsi/authz/tests
   args:
     - '-test_infra_id="cafyauto"'
   pr: 2136
