@@ -45,12 +45,14 @@ MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.
 
 whitelist_arguments([
     'test_html_report',
-    'release_ixia_ports',
     'test_ignore_aborted',
     'test_skip',
     'test_fail_skipped',
     'test_show_skipped',
 ])
+
+class IxiaError(Exception):
+    pass
 
 def _get_go_root_path(ws=None):
     p = os.path.join('/nobackup', getuser())
@@ -236,6 +238,14 @@ def _get_testsuite_from_xml(file_name):
     except:
         return None
 
+def _is_ixia_failure(suite):
+    failures = suite.findall("./testcase/failure")
+    for f in failures:
+        message = f.attrib.get("message", "")
+        if "" in message:
+            return True
+    return False
+    
 def _check_json_output(cmd):
     return json.loads(check_output(cmd))
 
@@ -345,6 +355,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         c |= ForceReboot.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
+    c |= ReleaseIxiaPorts.s()
     result = self.enqueue_child_and_get_results(c)
     return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
             result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
@@ -390,7 +401,6 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         test_debug=False,
                         test_verbose=True,
                         test_html_report=False,
-                        release_ixia_ports=True,
                         collect_debug_files=True,
                         testbed=None,
                         **kwargs):
@@ -426,9 +436,6 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     if test_debug:
         chain |= InstallGoDelve.s()
 
-    if release_ixia_ports:
-        chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
-
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
     if 'otg' in test_path:
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
@@ -454,7 +461,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
     return chain
 
 # noinspection PyPep8Naming
-@app.task(bind=True, base=FireXRunnerBase)
+@app.task(bind=True, max_retries=1, autoretry_for=[IxiaError], base=FireXRunnerBase)
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
@@ -523,20 +530,21 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                             cwd=test_repo_dir)
         stop_time = self.get_current_time()
     finally:
-        # if self.console_output_file and Path(self.console_output_file).is_file():
-        #     shutil.copyfile(self.console_output_file, json_results_file)
-        
         suite = _get_testsuite_from_xml(xml_results_file)
         if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
-            if collect_debug_files and suite.attrib['failures'] != '0':
-                self.enqueue_child(CollectDebugFiles.s(
-                    ws=ws,
-                    internal_fp_repo_dir=internal_fp_repo_dir, 
-                    reserved_testbed=reserved_testbed, 
-                    test_log_directory_path=test_log_directory_path,
-                    timestamp=start_timestamp
-                ))
+            if suite.attrib['failures'] != '0':
+                if _is_ixia_failure(suite):
+                    self.enqueue_child_and_get_results(ReleaseIxiaPorts.s(reserved_testbed=reserved_testbed))
+                    raise IxiaError
+                if collect_debug_files:
+                    self.enqueue_child(CollectDebugFiles.s(
+                        ws=ws,
+                        internal_fp_repo_dir=internal_fp_repo_dir, 
+                        reserved_testbed=reserved_testbed, 
+                        test_log_directory_path=test_log_directory_path,
+                        timestamp=start_timestamp
+                    ))
         elif test_ignore_aborted or test_skip:
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
 
@@ -879,11 +887,11 @@ def InstallGoDelve(self, ws, repo):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def ReleaseIxiaPorts(self, ws, binding_file):
+def ReleaseIxiaPorts(self, ws, reserved_testbed):
     logger.print("Releasing ixia ports...")
     try:
         logger.print(
-            check_output(f'{IXIA_RELEASE_BIN} {binding_file}')
+            check_output(f'{IXIA_RELEASE_BIN} {reserved_testbed["ate_binding_file"]}')
         )
     except:
         logger.warning(f'Failed to release ixia ports. Ignoring...')
