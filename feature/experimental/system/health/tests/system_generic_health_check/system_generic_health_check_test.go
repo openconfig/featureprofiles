@@ -45,11 +45,13 @@ var (
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
 		ondatra.NOKIA:   "/var/core/",
+		ondatra.ARISTA:  "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]*regexp.Regexp{
 		ondatra.JUNIPER: regexp.MustCompile(".*.tar.gz"),
 		ondatra.CISCO:   regexp.MustCompile("/misc/disk1/.*core.*"),
 		ondatra.NOKIA:   regexp.MustCompile("/var/core/coredump-.*"),
+		ondatra.ARISTA:  regexp.MustCompile("/var/core/core.*"),
 	}
 )
 
@@ -151,7 +153,7 @@ func TestComponentStatus(t *testing.T) {
 	if len(checkComponents) == 0 {
 		t.Errorf("ERROR: No component has been found.")
 	}
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	// check oper-status of the components is Active.
 	for _, component := range checkComponents {
 		t.Run(component, func(t *testing.T) {
