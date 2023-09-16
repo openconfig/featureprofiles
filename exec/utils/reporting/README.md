@@ -25,18 +25,18 @@ python exec/utils/reporting/google_reporter.py exec/tests/v2/fp_published.yaml F
 ### Sanities
 Count the number of tests
 ```
-grep -Rnw out -e '<testsuite' | wc -l
+grep -Rnw <output_dir> -e '<testsuite' | wc -l
 ```
 
 Count the number of passing tests
 ```
-grep -Rnw out -e 'failures="0"' | wc -l
+grep -Rnw <output_dir> -e 'failures="0"' | wc -l
 ```
 
 ### Prepare Archive
 ```
-cd out #important
-zip -r CISCO.8808.20230916-0600.e4897c7.zip feature/*
+cd <output_dir> #important
+zip -r CISCO.8808.YYYMMDD-HHMM.xxxxxxx.zip feature/*
 ```
-The last 7 characters `e4897c7` are the first 7 characters of the FP commit ID used for the runs. It can
-be found by looking for the value of the property 'git.commit' in any log file.
+The last 7 characters `xxxxxxx` are the first 7 characters of the FP commit ID used for the runs. It can
+be found by looking for the value of the property 'git.commit' in any log file. Example file name `CISCO.8808.20230916-0600.e4897c7.zip`.
