@@ -5,12 +5,23 @@ This test checks for DUT functionality of BGP addpath capability. It also confir
 3. DUT sets value for the Send/Receive field as "2" during capabilities negotiation to signal support for Send ability for multiple paths.
 4. Tests are conducted at scale of 1M v4 and 600k v6 routes with 64 different NHs each. Also, routes are withdrawn at scale to ensure addpath functionality is maintained at scale. Multipath is also enabled on the DUT to extend addpath functionalities implications on FIB programming at scale. 
 
+## Testbed type
+
+* TESTBED_DUT_ATE_9LINKS
+
 ## Topology:
+
+
 ATE1:Port1 <-EBGP-> DUT:Port1
+
 ATE2:Port2 <-EBGP-> DUT:Port2
+
 ATE3:Port3 <-IBGP-> DUT:Port3
+
 ATE4:Port4 <-IBGP-> DUT:Port4
+
 ATE5:Port5 <-IBGP-> DUT:Port5
+
 
 ### Test procedure
 Test-1 and Test-2 below are expected to be run at the global, peer-group and neighbor levels.
