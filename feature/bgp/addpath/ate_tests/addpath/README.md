@@ -36,7 +36,7 @@ Test-1 and Test-2 below are expected to be run at the global, peer-group and nei
 
 * Configure ATE1:Port1 and ATE2:Port2 to advertise same prefix "prefix-1" with different Protocol next-hops to DUT:Port1 and DUT:Port2
   * Verify that the DUT is advertising multiple paths to prefix-1 to RRCs ATE3 and ATE4 as well as to the RRS ATE5 with different path-ids
-* Configure each of ATE1:Port1 and ATE2:Port2 to advertise prefix "prefix-1" with 2 different Protocol next-hops to DUT:Port1 and DUT:Port2 respectively. Then configure DUT to send maximum 3 paths over ADD-Path to ATE3 and ATE4
+* Configure ATE1:Port1 and ATE2:Port2 to advertise 2 different paths each for prefix-1 with different Protocol next-hops to DUT:Port1 and DUT:Port2 respectively. Then configure DUT to send maximum 3 paths over ADD-Path to ATE3 and ATE4
   * Verify that ATE3 and ATE4 receive only 3 different paths (out of 4) w/ unique path-ids from DUT for prefix-1.
 * Configure RRCs ATE3:Port3 and ATE4:Port4 to advertise "prefix-2" to DUT with different Protocol next-hops.
   * Verify that the DUT advertises multiple paths for prefix-2 to ATE5 with different path-ids
