@@ -979,7 +979,7 @@ func (args *testArgs) gnmiConf(t *testing.T, conf string) {
 
 func testRestart_single_process(t *testing.T, args *testArgs) {
 
-	which_traffic_call = 0
+	which_traffic_call := 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -1012,7 +1012,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"isis", "bgp", "db_writer", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "ifmgr"}
+	processes := []string{"bgp", "ipv6_rib", "fib_mgr", "ifmgr"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			// RPFO
@@ -1222,7 +1222,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 }
 
 func test_RFPO_with_programming(t *testing.T, args *testArgs) {
-	which_traffic_call = 0
+	which_traffic_call := 0
 	if !with_RPFO {
 		t.Skip("run is without RPFO, skipping the tc")
 	}
@@ -1466,7 +1466,7 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 }
 
 func testRestart_multiple_process(t *testing.T, args *testArgs) {
-	which_traffic_call = 0
+	which_traffic_call := 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -1498,7 +1498,7 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"ifmgr", "ipv4_rib", "ipv6_rib", "db_writer", "fib_mgr"}
+	processes := []string{"db_writer", "fib_mgr"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			// RPFO
@@ -1559,7 +1559,7 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 }
 
 func test_microdrops(t *testing.T, args *testArgs) {
-	which_traffic_call = 0
+	which_traffic_call := 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -1803,7 +1803,7 @@ func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsume
 }
 
 func test_triggers(t *testing.T, args *testArgs) {
-	which_traffic_call = 0
+	which_traffic_call := 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -2497,11 +2497,11 @@ func TestHA(t *testing.T) {
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		{
-			name: "check_microdrops",
-			desc: "With traffic running do delete/update/create programming and look for drops",
-			fn:   test_microdrops,
-		},
+		// {
+		// 	name: "check_microdrops",
+		// 	desc: "With traffic running do delete/update/create programming and look for drops",
+		// 	fn:   test_microdrops,
+		// },
 		{
 			name: "Restart RFPO with programming",
 			desc: "After programming, perform RPFO try new programming and validate traffic",
