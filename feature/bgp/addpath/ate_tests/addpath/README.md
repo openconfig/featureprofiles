@@ -53,7 +53,7 @@ Test-1 and Test-2 below are expected to be run at the global, peer-group and nei
   * During BGP capabilities negotiation in Open message, verify that the DUT negotiated addpath cability with Send/Receive field set to "2" signaling send capability.
  * Enable BGP multipath as well in the DUT.
  * ATE3, 4 and 5 should be conffigured for addpath "both" capability.
- * Configue ATE3 and ATE4 each to advertise 1M v4 prefixes with 32 different NHs for each prefix with a different path-id. Requirement here is for the DUT to receive 1M routes with 64 different NHs for the same prefixes but different path-id. Follow the same process for IPv6 with 600k routes and 32 distict NHs for each prefix from each ATE.
+ * Configue ATE3 and ATE4 each to advertise 1M v4 prefixes with 32 different NHs for each prefix with a different path-id (for each peer). Requirement here is for the DUT to receive 1M routes with 64 different NHs for the same prefixes but different path-id. Follow the same process for IPv6 with 600k routes and 32 distict NHs for each prefix from each ATE.
   * Follow the same procedure as above for 300k (out of total 600k) v6 routes.
   * Veirfy on ATE5 that it receives all v4 and v6 routes by checking for the received prefix count. However, for certain set of prefixes (example 500 v4 and 300 v6 prefixes), ensure that they are received with 64 different NHs each with different path-ids.
  * Withdraw 500k v4 prefixes and 300k v6 prefixes from ATE4 and verify the following for the withdrawn prefixes
