@@ -2512,11 +2512,11 @@ func TestHA(t *testing.T) {
 			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
 			fn:   testRestart_single_process,
 		},
-		// {
-		// 	name: "Restart multiple process",
-		// 	desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-		// 	fn:   testRestart_multiple_process,
-		// },
+		{
+			name: "Restart multiple process",
+			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+			fn:   testRestart_multiple_process,
+		},
 		// {
 		// 	name: "Triggers",
 		// 	desc: "With traffic running, validate multiple triggers",
