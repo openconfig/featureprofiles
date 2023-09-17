@@ -273,27 +273,17 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 
 	var nh fluent.GRIBIEntry
 	var op1, op3 *client.OpResult
-	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
-		if deviations.GRIBIMACOverrideWithStaticARP(args.dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
-			nh, op1 = gribi.NHEntry(p2NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP2, Mac: pMAC, Dest: atePort2DummyIP.IPv4})
-		} else {
-			nh, op1 = gribi.NHEntry(p2NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP2, Mac: pMAC})
-		}
-		nhg, op2 := gribi.NHGEntry(virtualIPNHGID, map[uint64]uint64{p2NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
-		args.client.AddIPv4(t, virtualPfx, virtualIPNHGID, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-
-		nh, op1 = gribi.NHEntry(dstNHID, virtualIP, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		nhg, op2 = gribi.NHGEntry(dstNHGID, map[uint64]uint64{dstNHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
+	if deviations.GRIBIMACOverrideWithStaticARP(args.dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
+		nh, op1 = gribi.NHEntry(p2NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP2, Mac: pMAC, Dest: atePort2DummyIP.IPv4})
+		args.client.AddEntries(t, []fluent.GRIBIEntry{nh}, []*client.OpResult{op1})
 	} else {
 		args.client.AddNH(t, p2NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP2, Mac: pMAC})
-		args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.AddIPv4(t, virtualPfx, virtualIPNHGID, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-
-		args.client.AddNH(t, dstNHID, virtualIP, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.AddNHG(t, dstNHGID, map[uint64]uint64{dstNHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	}
+	args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv4(t, virtualPfx, virtualIPNHGID, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+	args.client.AddNH(t, dstNHID, virtualIP, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddNHG(t, dstNHGID, map[uint64]uint64{dstNHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddIPv4(t, dstPfx, dstNHGID, vrfName, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	waitOTGARPEntry(t)
@@ -302,42 +292,23 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, pMACFilter)
 
 	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
-	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
-		if deviations.GRIBIMACOverrideWithStaticARP(args.dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
-			nh, op3 = gribi.NHEntry(p3NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP3, Mac: pMAC, Dest: atePort3DummyIP.IPv4})
-
-		} else {
-			nh, op3 = gribi.NHEntry(p3NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP3, Mac: pMAC})
-		}
+	if deviations.GRIBIMACOverrideWithStaticARP(args.dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
+		nh, op3 = gribi.NHEntry(p3NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP3, Mac: pMAC, Dest: atePort3DummyIP.IPv4})
+		args.client.AddEntries(t, []fluent.GRIBIEntry{nh}, []*client.OpResult{op3})
 	} else {
 		args.client.AddNH(t, p3NHID, "MACwithInterface", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP3, Mac: pMAC})
 	}
 
 	t.Logf("Performing implicit in-place replace with two next-hops (NH IDs: %v and %v)", p2NHID, p3NHID)
-	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
-		nhg, op2 := gribi.NHGEntry(virtualIPNHGID, map[uint64]uint64{p2NHID: 1, p3NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op3, op2})
-	} else {
-		args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1, p3NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	}
+	args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1, p3NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	validateTrafficFlows(t, args.ate, nil, nil, []gosnappi.Flow{p2Flow, p3Flow}, pMACFilter)
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p3NHID)
-	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
-		nhg, op2 := gribi.NHGEntry(virtualIPNHGID, map[uint64]uint64{p3NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op3, op2})
-	} else {
-		args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p3NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	}
+	args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p3NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p3Flow}, []gosnappi.Flow{p2Flow}, nil, pMACFilter)
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p2NHID)
-	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
-		nhg, op2 := gribi.NHGEntry(virtualIPNHGID, map[uint64]uint64{p2NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
-	} else {
-		args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	}
+	args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, pMACFilter)
 }
 
@@ -389,10 +360,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
-	}
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfName)
 	}
 
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {

@@ -518,9 +518,6 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-	}
 
 	top.Push(t).StartProtocols(t)
 
