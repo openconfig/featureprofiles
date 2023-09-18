@@ -5,6 +5,7 @@ package mplsutil
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 
 	"github.com/openconfig/gribigo/chk"
@@ -12,12 +13,15 @@ import (
 	"github.com/openconfig/gribigo/compliance"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
-	"go.uber.org/atomic"
 )
 
 var (
 	// electionID is the global election ID used between test cases.
-	electionID = atomic.NewUint64(1)
+	electionID = func() *atomic.Uint64 {
+		eid := new(atomic.Uint64)
+		eid.Store(1)
+		return eid
+	}()
 )
 
 // flushServer removes all entries from the server and can be called between
@@ -57,7 +61,7 @@ func modify(t *testing.T, c *fluent.GRIBIClient, ops []func()) []*client.OpResul
 //
 // The DUT is expected to have a next-hop of 192.0.2.2 that is resolvable.
 func PushLabelStack(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, baseLabel, numLabels int, trafficFunc TrafficFunc) {
-	defer electionID.Inc()
+	defer electionID.Add(1)
 	defer flushServer(t, c)
 
 	var labels []uint32
