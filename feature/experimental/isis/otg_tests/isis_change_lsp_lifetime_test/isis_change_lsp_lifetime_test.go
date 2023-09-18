@@ -135,13 +135,10 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 	t.Run("Isis telemetry", func(t *testing.T) {
 
 		// Checking adjacency
-		_, err := ts.AwaitAdjacency()
+		ateSysID, err := ts.AwaitAdjacency()
 		if err != nil {
 			t.Fatalf("Adjacency state invalid: %v", err)
 		}
-		// Getting neighbors sysid.
-		sysid := gnmi.GetAll(t, ts.DUT, statePath.Interface(intfName).Level(2).AdjacencyAny().SystemId().State())
-		ateSysID := sysid[0]
 		ateLspID := ateSysID + ".00-00"
 		dutLspID := session.DUTSysID + ".00-00"
 
