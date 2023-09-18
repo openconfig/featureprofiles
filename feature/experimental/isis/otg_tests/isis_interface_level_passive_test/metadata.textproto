@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "7c80f692-478c-44c8-ba6e-d4d46bfebce1"
-plan_id: "RT-2.10"
-description: "IS-IS change LSP lifetime"
-testbed: TESTBED_DUT_ATE_2LINKS
+uuid:  "5d594ad6-9957-40e8-bf59-f75d2b700631"
+plan_id:  "RT-2.11"
+description:  "IS-IS Passive is enabled at the area level"
+testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: NOKIA
@@ -39,6 +39,9 @@ platform_exceptions: {
     default_network_instance: "default"
     isis_instance_enabled_required: true
     isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
+    isis_timers_csnp_interval_unsupported: true
+    isis_counter_manual_address_drop_from_areas_unsupported: true
+    isis_counter_part_changes_unsupported: true
   }
 }
 tags: TAGS_AGGREGATION

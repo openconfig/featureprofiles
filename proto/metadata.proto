@@ -329,6 +329,8 @@ message Metadata {
     bool isis_counter_part_changes_unsupported = 107;
     // Devices do not support threshold container under /components/component/transceiver.
     bool transceiver_thresholds_unsupported = 108;
+    // Update interface loopback mode using raw gnmi API due to server version.
+    bool interface_loopback_mode_raw_gnmi = 109;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
