@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "835d2c66-3b57-4a62-99df-05120e282786"
+plan_id:  "TE-9"
+description:  "gRIBI MPLS Compliance"
+testbed:  TESTBED_DUT_ATE_2LINKS
