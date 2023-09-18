@@ -54,7 +54,7 @@ All tests below are expected to be run at the global, peer-group and neighbor le
   * Verify that ATE2, ATE3 and ATE4 each receive only 3 different paths (out of 4) w/ unique path-ids from DUT for prefix-2.
   
 
-**Test-3**: Verify ADDPATH scaling with Multipath between EBGP and IBGP peers
+**Test-3**: Verify ADDPATH scaling with Multipath on EBGP peering
 * DUT:Port1 and DUT:Port2 has EBGP peering with ATE1:Port1 and ATE:Port2 respectively
   * ATE1:Port1 belongs to AS100 and ATE2:Port2 belongs to AS200. DUT is in AS300
 * DUT:port3 and DUT:port4 has IBGP peering with directly connected ATE3:port3 and ATE4:port4 peers respectively. In this case, DUT is the RR server and ATE3 and ATE4 are RR clients
