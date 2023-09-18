@@ -40,7 +40,6 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/raw"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
@@ -105,7 +104,7 @@ var (
 )
 
 // coreFileCheck function is used to check if any cores found during test execution.
-func coreFilecheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64) {
+func coreFilecheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient binding.GNOIClients, sysConfigTime uint64) {
 	// vendorCoreFilePath and vendorCoreProcName should be provided to fetch core file on dut.
 	if _, ok := vendorCoreFilePath[dut.Vendor()]; !ok {
 		t.Fatalf("Please add support for vendor %v in var vendorCoreFilePath ", dut.Vendor())
