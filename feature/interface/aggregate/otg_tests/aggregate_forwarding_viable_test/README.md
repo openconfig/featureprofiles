@@ -3,7 +3,7 @@
 ## Summary
 
 Ensure that forwarding-viable transition does not result in packet loss.
-Ensure that setting forwarding-viable=false impact **only** transmit traffic on given port.
+Ensure that setting forwarding-viable=false impact **only** transmitting traffic on given port.
 Ensure that port set with forwarding-viable=false can receive all type of traffic and forward it normally (same as with forwarding-viable=true)
 
 ## Procedure
