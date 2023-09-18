@@ -3,7 +3,7 @@ This test checks for DUT functionality of BGP addpath capability. It also confir
 1. DUT sets value for the Send/Receive field as "3" during capabilities negotiation to signal support for both Send and Receive ability for multiple paths.
 2. DUT sets value for the Send/Receive field as "1" during capabilities negotiation to signal support for Receive ability for multiple paths.
 3. DUT sets value for the Send/Receive field as "2" during capabilities negotiation to signal support for Send ability for multiple paths.
-4. Tests are conducted at scale of 1M v4 and 600k v6 routes with 64 different NHs each. Also, routes are withdrawn at scale to ensure addpath functionality is maintained at scale.
+4. Tests are conducted at scale of 1M v4 and 600k v6 routes with 64 different NHs each. Also, routes are withdrawn at scale to ensure addpath functionality is maintained at scale. During the entire process Multipath is also enabled to ensure Addpath behavior is as expected.
 
 ## Testbed type
 
