@@ -22,7 +22,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -30,6 +29,8 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+
+	gpb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
 )
 
 func TestMain(m *testing.M) {
@@ -313,7 +314,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	waitOTGARPEntry(t)
 
 	otg.StartTraffic(t)
-        time.Sleep(2 * time.Second)
+	time.Sleep(2 * time.Second)
 	// Check incoming and outgoing interface counters updated per second
 	inAndOutPktsPerSecoundCounterOK := validateInAndOutPktsPerSecond(t, dut, i1, i2)
 	otg.StopTraffic(t)
