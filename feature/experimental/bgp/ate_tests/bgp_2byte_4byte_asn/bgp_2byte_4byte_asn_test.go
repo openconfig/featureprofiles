@@ -188,8 +188,8 @@ func verifyPeer(t *testing.T, nbr *bgpNbr, dut *ondatra.DUTDevice) {
 
 	// Check BGP globalAS from telemetry.
 	globalAS := gnmi.Get(t, dut, glblPath.State()).GetAs()
-	if globalAS != nbr.localAS {
-		t.Errorf("BGP globalAS: got %v, want %v", globalAS, nbr.localAS)
+	if globalAS != nbr.globalAS {
+		t.Errorf("BGP globalAS: got %v, want %v", globalAS, nbr.globalAS)
 	}
 }
 
