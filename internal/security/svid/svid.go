@@ -26,7 +26,6 @@ func GenSVID(id string, expireInDays int, signingCert *x509.Certificate, signing
 	if err != nil {
 		return nil, err
 	}
-	//var pubKey any
 	var privKey crypto.PrivateKey
 	switch keyAlgo {
 	case x509.RSA:
