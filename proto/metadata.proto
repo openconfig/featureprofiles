@@ -331,6 +331,8 @@ message Metadata {
     bool transceiver_thresholds_unsupported = 108;
     // Update interface loopback mode using raw gnmi API due to server version.
     bool interface_loopback_mode_raw_gnmi = 109;
+    // Devices do not support configuring match as-path policy for BGP using OC.
+    bool bgp_match_as_path_set_policy_unsupported = 110;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;

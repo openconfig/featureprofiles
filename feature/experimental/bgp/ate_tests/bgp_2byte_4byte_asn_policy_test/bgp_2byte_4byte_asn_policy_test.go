@@ -142,10 +142,12 @@ func TestBgpSession(t *testing.T) {
 			t.Log("Clear BGP Configs on DUT")
 			bgpClearConfig(t, dut)
 
-			configureRegexPolicy(t, dut)
+			if deviations.BGPMatchAsPathSetPolicyUnsupported(dut) {
+				configureRegexPolicy(t, dut)
+			}
 
 			d := &oc.Root{}
-			rpl := configureBGPPolicy(t, d, tc.nbr.isV4)
+			rpl := configureBGPPolicy(t, dut, d, tc.nbr.isV4)
 			gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 
 			t.Log("Configure BGP on DUT")
@@ -226,6 +228,8 @@ func configureRegexPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	case ondatra.JUNIPER:
 		config = juniperCLI()
 		t.Logf("Push the CLI config:%s", dut.Vendor())
+	default:
+		return
 	}
 
 	gpbSetRequest, err := buildCliConfigRequest(config)
@@ -240,7 +244,7 @@ func configureRegexPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
 // Additonally, it also configures policy to match prefix based on community and regex for as path
-func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool) *oc.RoutingPolicy {
+func configureBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, isV4 bool) *oc.RoutingPolicy {
 	t.Helper()
 	rp := d.GetOrCreateRoutingPolicy()
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(rejectPrefix)
@@ -276,6 +280,20 @@ func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool) *oc.RoutingPolicy {
 	stmt50.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 	stmt50.GetOrCreateConditions().GetOrCreateBgpConditions().CommunitySet = ygot.String(communitySet)
 
+	if deviations.BGPMatchAsPathSetPolicyUnsupported(dut) {
+		return rp
+	}
+	asPathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet("AS-PATH-SET")
+	asPathSet.AsPathSetMember = []string{".*", "4400", "3300"}
+	pdefAsPath := rp.GetOrCreatePolicyDefinition(rejectAspath)
+
+	stmt500, err := pdefAsPath.AppendNewStatement("500")
+	if err != nil {
+		t.Errorf("Error while creating new statement %v", err)
+	}
+	stmt500.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+	stmt500.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().AsPathSet = ygot.String("AS-PATH-SET")
+	stmt500.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().MatchSetOptions = oc.RoutingPolicy_MatchSetOptionsType_ALL
 	return rp
 }
 

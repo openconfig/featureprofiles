@@ -608,3 +608,9 @@ func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
 func InterfaceLoopbackModeRawGnmi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceLoopbackModeRawGnmi()
 }
+
+// BGPMatchAsPathSetPolicyUnsupported returns true for devices that do not support
+// configuring match as-path policy for BGP using OC.
+func BGPMatchAsPathSetPolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMatchAsPathSetPolicyUnsupported()
+}
