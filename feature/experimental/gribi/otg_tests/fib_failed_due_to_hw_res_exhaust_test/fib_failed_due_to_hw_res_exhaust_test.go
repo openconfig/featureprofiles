@@ -97,11 +97,10 @@ var (
 )
 
 func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
-
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(dutAS)
@@ -129,7 +128,7 @@ func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	bgpNbr.PeerGroup = ygot.String("BGP-PEER-GROUP-V4")
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
-	return ni_proto
+	return niProto
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.DeviceIpv4, gosnappi.Config) {
@@ -218,7 +217,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 
 	verifyBgpTelemetry(t, dut)
 
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
@@ -236,7 +235,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	}()
 
 	client.StartSending(ctx, t)
-	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
+	if err := awaitTimeout(ctx, t, client, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for clientA: %v", err)
 	}
 	eID := gribi.BecomeLeader(t, client)
@@ -400,7 +399,7 @@ func injectBGPRoutes(t *testing.T, args *testArgs) {
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
-func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, timeout time.Duration) error {
+func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, timeout time.Duration) error {
 	t.Helper()
 	subctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -455,7 +454,7 @@ routeAddLoop:
 				WithPrefix(dstIPList[j]).WithNextHopGroup(dstNhIndex),
 		)
 
-		if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
+		if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 			t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 		}
 
@@ -467,6 +466,10 @@ routeAddLoop:
 			}
 		}
 		j = j + 1
+		// We are filling FIB with BGP routes. After FIB is full, trying to program
+		// routes through gRIBI client. Since FIB is already full , we should get
+		// FIB FAILED while programming gRIBI routes. Here we are trying to program
+		// 1500 VIP/Dst entries along with unique NH/NHG entries.
 		if i >= 1458 {
 			t.Errorf("FIB FAILED is not received as expected")
 		}
