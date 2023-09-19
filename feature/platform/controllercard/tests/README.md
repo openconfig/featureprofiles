@@ -8,10 +8,6 @@
 
 ### test 1 Contyroller Card inventory
 
-> NOTE: Theis test is practically identical to Fabric part of
-> https://github.com/openconfig/featureprofiles/tree/main/feature/platform/tests/telemetry_inventory_test;
-> Hence code could be reused and then removed form telemetry_inventory_test.
-
 * collect following attributes for each component of CONTROLLER_CARD type and verify corectness (mostly non-empty string)
   *   /components/component/state/empty
   *   /components/component/state/location
