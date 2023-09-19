@@ -175,10 +175,12 @@ func TestBgpSession(t *testing.T) {
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
 			verifyPrefixesTelemetry(t, dut, 1, tc.nbr.isV4)
 
-			t.Log("Apply BGP policy for rejecting prefix with as-path regex filter")
-			pol = applyBgpPolicy(rejectAspath, dut, tc.nbr.isV4)
-			gnmi.Update(t, dut, dutConfPath.Config(), pol)
-			verifyPrefixesTelemetry(t, dut, 0, tc.nbr.isV4)
+			if !deviations.BGPMatchAsPathSetPolicyUnsupported(dut) {
+				t.Log("Apply BGP policy for rejecting prefix with as-path regex filter")
+				pol = applyBgpPolicy(rejectAspath, dut, tc.nbr.isV4)
+				gnmi.Update(t, dut, dutConfPath.Config(), pol)
+				verifyPrefixesTelemetry(t, dut, 0, tc.nbr.isV4)
+			}
 
 			t.Log("Clear BGP Configs on ATE")
 			tc.ateConf.StopProtocols(t)
@@ -284,7 +286,7 @@ func configureBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, isV4 b
 		return rp
 	}
 	asPathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet("AS-PATH-SET")
-	asPathSet.AsPathSetMember = []string{".*", "4400", "3300"}
+	asPathSet.AsPathSetMember = []string{"55000", "4400", "3300"}
 	pdefAsPath := rp.GetOrCreatePolicyDefinition(rejectAspath)
 
 	stmt500, err := pdefAsPath.AppendNewStatement("500")

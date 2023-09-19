@@ -6,7 +6,9 @@ BGP 2-Byte and 4-Byte ASN support with policy
 
 ## Procedure
 
-*   Establish BGP sessions as follows and verify all the sessions are established:
+*   Establish BGP sessions as follows and verify all the sessions are
+    established:
+
     *   ATE (2-byte) - DUT (4-byte) - eBGP IPv4 with ASN < 65535 on DUT side
     *   ATE (2-byte) - DUT (4-byte) - eBGP IPv6 with ASN < 65535 on DUT side
     *   ATE (4-byte) - DUT (4-byte) - eBGP IPv4
@@ -17,9 +19,11 @@ BGP 2-Byte and 4-Byte ASN support with policy
     *   ATE (4-byte) - DUT (4-byte) - iBGP IPv6
 
 *   Configure below policies and verify prefix count:
+
     *   Policy to reject prefix with prefix filter
     *   Policy to reject prefix with community filter
-    *   Policy to reject prefix with regex filter to match as-path
+    *   TODO: Policy to reject prefix with regex filter to match as-path (regex
+        not currently supported by OC)
 
 ## Config Parameter Coverage
 
