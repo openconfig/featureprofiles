@@ -46,7 +46,7 @@
 ### test 2 Redundancy
 * Verify that all controller_cards has `switchover-ready=TRUE`
 * Select component with `redundant-role=PRIMARY`, store name as "previous_primary"
-* Power down this component. Wait 5s.
+* Perfom COntroller_Card switchover and then power down "previous_primary" component. Wait 5s.
 * Collect `redundant-role` and `oper-status` from all components of CONTROLLER_CARD type as collected in test 1;
   * verify that "previous_primary" controller `oper-status` is **not** `ACTIVE`
   * verify that at exectly one controller_card has `redundant-role=PRIMARY` and `oper-status=ACTIVE`
@@ -61,7 +61,7 @@
 * Power down this component, wait 60 sec.
 * Power up this component
 * Wait
-* get last-reboot-timea and compare with "previous-reboot-time"
+* get last-reboot-time and compare with "previous-reboot-time"
   * "previous-reboot-time" must be smaller (earlier) then recently collected last-reboot-time
 
 ## Config Parameter coverage
