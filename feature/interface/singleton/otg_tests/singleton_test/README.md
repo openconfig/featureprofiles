@@ -6,7 +6,7 @@ Singleton L3 interface (non-LAG) is supported on DUT.
 
 ## Procedure
 
-### TC 1
+### Test Case 1
 
 For each port speed and breakout port configuration that need to be tested, add
 a new testbed configuration with the desired port types.
@@ -29,15 +29,32 @@ a new testbed configuration with the desired port types.
                 set are not transmitted.
       * Packets with size of configured MTU are received.
       * Packets with size less than the configured MTU are received.
-## TC 2 [TODO]
+## Test Case 2 [TODO]
 Verify that interface packet counters are properly incremented in every streaming telemetry report
-* For IPv4 and IPv6:
-  * With traffic flow from ATE port-1 to ATE port-2 at constant rate, ensure:
-    * For MTUs [^1] of 1500, 9236:
-      * Packets with size greater than the configured MTU with DF-bit
-                set are not transmitted.
-      * Packets with size of configured MTU are received.
-      * Packets with size less than the configured MTU are received.
+* Subscribe to all interface counters of DUT Port1 and DUT Port 2 and with 30s interval.
+* Generate IPv4 and IPv6  traffic flow of packet size 4000B and IPv4 Don't Fragment bit set,  from ATE port-1 to ATE port-2 at constant rate, ensure:
+    * Set Port2 MTUs [^1] of 1500
+    * Verify that  for period of 300seconds difference between 2 consecutive reports of below counters for DUT's Port1 and Port2 is constant and > 0:
+      * `/interfaces/interface[name=Port2]/state/counters/out-discards`
+      * `/interfaces/interface[name=Port1]/state/counters/in-pkts`
+      * `/interfaces/interface[name=Port1]/state/counters/in-octets`
+    * Verify that  for period of 300seconds values returned by below couters for DUT's Port1 and Port2 are constatnt:
+      * `/interfaces/interface/state/out-rate`
+      * `/interfaces/interface/state/in-rate`
+## Test Case 3 [TODO]
+Verify that interface packet counters are properly incremented in every streaming telemetry report
+* Subscribe to all interface counters of DUT Port1 and DUT Port 2 and with 30s interval.
+* Generate IPv4 and IPv6  traffic flow of packet size 4000B and IPv4 Don't Fragment bit set,  from ATE port-1 to ATE port-2 at constant rate, ensure:
+    * Set Port2 MTUs [^1] of 5000
+    * Verify that  for period of 300seconds difference between 2 consecutive reports of below counters for DUT's Port1 and Port2 is constant and > 0:
+      * `/interfaces/interface[name=Port2]/state/counters/out-pkts`
+      * `/interfaces/interface[name=Port2]/state/counters/out-octets`
+      * `/interfaces/interface[name=Port1]/state/counters/in-pkts`
+      * `/interfaces/interface[name=Port1]/state/counters/in-octets`
+    * Verify that  for period of 300seconds values returned by below couters for DUT's Port1 and Port2 are constatnt, and that Port1 `in-rate` is equal to Port2 `out-rate`
+      * `/interfaces/interface/state/out-rate`
+      * `/interfaces/interface/state/in-rate`
+      
 
 [^1]: The MTU specified above refers to the L3 MTU, which is the payload portion
     of an Ethernet frame.
