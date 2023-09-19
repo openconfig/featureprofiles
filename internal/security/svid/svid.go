@@ -41,7 +41,7 @@ func GenSVID(id string, expireInDays int, signingCert *x509.Certificate, signing
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("key algorithms %v is not supported", keyAlgo)
+		return nil, fmt.Errorf("key algorithm %v is not supported", keyAlgo)
 	}
 	pubKey := privKey.(crypto.Signer).Public()
 	certBytes, err := x509.CreateCertificate(rand.Reader, certSpec, signingCert, pubKey, signingKey)
