@@ -4,10 +4,6 @@
 
 Configure an IPv6 address which is in link local scope. Verify the link local IPv6 address exists by checking the state path.
 
-## Testbed type
-
-* Use the [OTG DUT 2 port testbed](https://github.com/openconfig/featureprofiles/blob/main/topologies/otgdut_2.binding)
-
 ## Procedure
 
 * Sub Test #1 - Configure IPv6 link local
