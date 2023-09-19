@@ -30,18 +30,20 @@ func GenSVID(id string, expireInDays int, signingCert *x509.Certificate, signing
 	var privKey crypto.PrivateKey
 	switch keyAlgo {
 	case x509.RSA:
-		privKey, err = rsa.GenerateKey(rand.Reader, 4096);	if err != nil {
+		privKey, err = rsa.GenerateKey(rand.Reader, 4096)
+		if err != nil {
 			return nil, err
 		}
 	case x509.ECDSA:
 		curve := elliptic.P256()
-		privKey, err = ecdsa.GenerateKey(curve, rand.Reader);if err != nil {
+		privKey, err = ecdsa.GenerateKey(curve, rand.Reader)
+		if err != nil {
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("key algorithms %v is not supported",keyAlgo)
+		return nil, fmt.Errorf("key algorithms %v is not supported", keyAlgo)
 	}
-	pubKey:=privKey.(crypto.Signer).Public()
+	pubKey := privKey.(crypto.Signer).Public()
 	certBytes, err := x509.CreateCertificate(rand.Reader, certSpec, signingCert, pubKey, signingKey)
 	if err != nil {
 		return nil, err
@@ -50,14 +52,13 @@ func GenSVID(id string, expireInDays int, signingCert *x509.Certificate, signing
 	if err != nil {
 		return nil, err
 	}
-	tlsCert:=tls.Certificate{
+	tlsCert := tls.Certificate{
 		Certificate: [][]byte{certBytes},
-		PrivateKey: privKey,
-		Leaf: x509Cert,
+		PrivateKey:  privKey,
+		Leaf:        x509Cert,
 	}
-	return &tlsCert,nil
+	return &tlsCert, nil
 }
-
 
 func populateCertTemplate(id string, expireInDays int) (*x509.Certificate, error) {
 	uri, err := url.Parse(id)

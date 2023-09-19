@@ -161,7 +161,6 @@ func TestGenRSASVID(t *testing.T) {
 		},
 	}
 
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			caPrivateKey, CACert, err := LoadKeyPair([]byte(test.caKey), []byte(test.caCert))
@@ -172,14 +171,14 @@ func TestGenRSASVID(t *testing.T) {
 			if errdiff.Substring(err, test.err) != "" {
 				t.Fatalf("Unexpected Error, want: %s, got %v", test.err, err)
 			}
-			if test.err=="" && cert == nil {
+			if test.err == "" && cert == nil {
 				t.Fatalf("CERT must not be nil")
 			}
 			if cert.Leaf.PublicKeyAlgorithm != test.keyAlgorithm {
 				t.Fatalf("KeyAlgorithm mismatch, got %s, wanted %s", x509.PublicKeyAlgorithm(cert.Leaf.SignatureAlgorithm).String(), test.keyAlgorithm.String())
 			}
-			if 	cert.Leaf.Subject.CommonName!= test.username {
-				t.Errorf("Common name is not as expected, want: %s, got:%s", test.username,cert.Leaf.Issuer.CommonName)
+			if cert.Leaf.Subject.CommonName != test.username {
+				t.Errorf("Common name is not as expected, want: %s, got:%s", test.username, cert.Leaf.Issuer.CommonName)
 			}
 			opts := []cmp.Option{cmpopts.IgnoreUnexported(*test.uris[0])}
 			if !cmp.Equal(test.uris, cert.Leaf.URIs, opts...) {
