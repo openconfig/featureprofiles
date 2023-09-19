@@ -3,17 +3,13 @@
 ## Summary
 - collect inventory data for each fabric card
 - Verify last restart time is updated
-- verify traffic could be forwarded with only one Fabric Card active.
+- verify traffic could be forwarded with one of Fabric Card inactive.
 
 ## Procedure
 ### topology and basic setup
 *  Connect OTG port1 to DUT port1 and OTG port2 to DUT port2
 *  Configure IPv6 addresses on both links
 ### test 1 Fabric inventory
-
-> NOTE: Theis test is practically identical to Fabric part of
-> https://github.com/openconfig/featureprofiles/tree/main/feature/platform/tests/telemetry_inventory_test;
-> Hence code could be reused and then removed form telemetry_inventory_test.
 
 * collect following attributes for each component of FABRIC_CARD type and verify corectness (mostly non-empty string)
   *   /components/component/state/description             
