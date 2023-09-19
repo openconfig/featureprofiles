@@ -2,10 +2,12 @@
 package svid
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -18,50 +20,44 @@ import (
 	"time"
 )
 
-// GenRSASVID Generates SVID for user and signs it based on given rsa cert/key
-func GenRSASVID(id string, expireInDays int, signingCert *x509.Certificate, signingKey any) (*rsa.PrivateKey, *x509.Certificate, error) {
+// GenSVID generates SVID certificate for user and signs it based on given signing cert/key and public key algorithm
+func GenSVID(id string, expireInDays int, signingCert *x509.Certificate, signingKey any, keyAlgo x509.PublicKeyAlgorithm) (*tls.Certificate, error) {
 	certSpec, err := populateCertTemplate(id, expireInDays)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	privKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	//var pubKey any
+	var privKey crypto.PrivateKey
+	switch keyAlgo {
+	case x509.RSA:
+		privKey, err = rsa.GenerateKey(rand.Reader, 4096);	if err != nil {
+			return nil, err
+		}
+	case x509.ECDSA:
+		curve := elliptic.P256()
+		privKey, err = ecdsa.GenerateKey(curve, rand.Reader);if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("key algorithms %v is not supported",keyAlgo)
+	}
+	pubKey:=privKey.(crypto.Signer).Public()
+	certBytes, err := x509.CreateCertificate(rand.Reader, certSpec, signingCert, pubKey, signingKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	certBytes, err := x509.CreateCertificate(rand.Reader, certSpec, signingCert, &privKey.PublicKey, signingKey)
+	x509Cert, err := x509.ParseCertificate(certBytes)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	cert, err := x509.ParseCertificate(certBytes)
-	if err != nil {
-		return nil, nil, err
+	tlsCert:=tls.Certificate{
+		Certificate: [][]byte{certBytes},
+		PrivateKey: privKey,
+		Leaf: x509Cert,
 	}
-	return privKey, cert, nil
+	return &tlsCert,nil
 }
 
-// GenECDSASVID Generates SVID for user and signs it based on given ECDSA cert/key
-func GenECDSASVID(id string, expireInDays int, signingCert *x509.Certificate, signingKey any) (*ecdsa.PrivateKey, *x509.Certificate, error) {
-	certSpec, err := populateCertTemplate(id, expireInDays)
-	if err != nil {
-		return nil, nil, err
-	}
-	curve := elliptic.P256()
-	privKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-	if err != nil {
-		return nil, nil, err
-	}
-	certBytes, err := x509.CreateCertificate(rand.Reader, certSpec, signingCert, &privKey.PublicKey, signingKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cert, err := x509.ParseCertificate(certBytes)
-	if err != nil {
-		return nil, nil, err
-	}
-	return privKey, cert, nil
-}
 
 func populateCertTemplate(id string, expireInDays int) (*x509.Certificate, error) {
 	uri, err := url.Parse(id)
@@ -72,7 +68,7 @@ func populateCertTemplate(id string, expireInDays int) (*x509.Certificate, error
 	if err != nil {
 		return nil, err
 	}
-	// follows https://github.com/spiffe/spiffe/blob/main/standards/X509-SVID.md#appendix-a-x509-field-reference
+	// following https://github.com/spiffe/spiffe/blob/main/standards/X509-SVID.md#appendix-a-x509-field-reference
 	certSpec := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
@@ -89,7 +85,7 @@ func populateCertTemplate(id string, expireInDays int) (*x509.Certificate, error
 	return certSpec, nil
 }
 
-// loadKeyPair load a pair of RSA/ECDSA private key and certificate
+// LoadKeyPair loads a pair of RSA/ECDSA private key and certificate
 func LoadKeyPair(keyPEM, certPEM []byte) (any, *x509.Certificate, error) {
 	var err error
 	caKeyPem, _ := pem.Decode(keyPEM)
