@@ -30,7 +30,7 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	
-        gpb "github.com/openconfig/gnmi/proto/gnmi"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -312,9 +312,9 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	t.Logf("inPkts: %v and outPkts: %v before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	waitOTGARPEntry(t)
-
+	
 	otg.StartTraffic(t)
-        time.Sleep(2 * time.Second)
+	time.Sleep(2 * time.Second)
 	// Check incoming and outgoing interface counters updated per second
 	inAndOutPktsPerSecoundCounterOK := validateInAndOutPktsPerSecond(t, dut, i1, i2)
 	otg.StopTraffic(t)
