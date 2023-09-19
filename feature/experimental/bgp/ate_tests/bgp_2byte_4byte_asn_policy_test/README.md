@@ -1,4 +1,4 @@
-# RT-1.20: BGP 2-Byte and 4-Byte ASN support with policy
+# RT-1.24: BGP 2-Byte and 4-Byte ASN support with policy
 
 ## Summary
 
