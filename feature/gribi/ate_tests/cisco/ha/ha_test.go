@@ -176,7 +176,7 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 
 	gnoiClient := dut.RawAPIs().GNOI().Default(t)
 	for i := 0; i < process_restart_count; i++ {
-		killRequest := &gnps.KillProcessRequest{Name: pName, Pid: uint32(pID), Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
+		killRequest := &gnps.KillProcessRequest{Name: pName, Pid: uint32(pID), Signal: gnps.KillProcessRequest_SIGNAL_KILL, Restart: true}
 		killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
 		t.Logf("Got kill process response: %v\n\n", killResponse)
 		// bypassing the check as emsd restart causes timing issue
