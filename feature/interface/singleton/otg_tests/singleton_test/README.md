@@ -6,6 +6,8 @@ Singleton L3 interface (non-LAG) is supported on DUT.
 
 ## Procedure
 
+### TC 1
+
 For each port speed and breakout port configuration that need to be tested, add
 a new testbed configuration with the desired port types.
 
@@ -23,6 +25,15 @@ a new testbed configuration with the desired port types.
 * For IPv4 and IPv6:
   * With traffic flow from ATE port-1 to ATE port-2, ensure:
     * For MTUs [^1] of 1500, 5000, 9236:
+      * Packets with size greater than the configured MTU with DF-bit
+                set are not transmitted.
+      * Packets with size of configured MTU are received.
+      * Packets with size less than the configured MTU are received.
+## TC 2 [TODO]
+Verify that interface packet counters are properly incremented in every streaming telemetry report
+* For IPv4 and IPv6:
+  * With traffic flow from ATE port-1 to ATE port-2 at constant rate, ensure:
+    * For MTUs [^1] of 1500, 9236:
       * Packets with size greater than the configured MTU with DF-bit
                 set are not transmitted.
       * Packets with size of configured MTU are received.
