@@ -651,7 +651,7 @@ func rpSwitchOver(t *testing.T, dut *ondatra.DUTDevice) {
 	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
@@ -678,7 +678,7 @@ func verify_bootz(t *testing.T, dut *ondatra.DUTDevice) {
 	checkFiles(t, dut, bootzFiles, false)
 	//gNMI query after bootz
 	t.Log(gnmi.Get(t, dut, gnmi.OC().System().Hostname().State()))
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	in := &fpb.StatRequest{
 		Path: "/misc/config/grpc/gnsi",
 	}
@@ -701,7 +701,7 @@ func verify_bootz(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 	//process restart emsd
-	killResponse, err := dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: "emsd", Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
+	killResponse, err := dut.RawAPIs().GNOI(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: "emsd", Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
 	t.Logf("Got kill process response: %v\n\n", killResponse)
 	if err != nil {
 		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)

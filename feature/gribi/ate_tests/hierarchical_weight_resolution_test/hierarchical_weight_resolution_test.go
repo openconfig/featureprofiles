@@ -175,7 +175,7 @@ func filterPacketReceived(t *testing.T, flow string, ate *ondatra.ATEDevice) map
 // configureGRIBIClient configures a new GRIBI client with PRESERVE and FIB_ACK.
 func configureGRIBIClient(t *testing.T, dut *ondatra.DUTDevice) *fluent.GRIBIClient {
 	t.Helper()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the gRIBI client.
 	c := fluent.NewClient()
@@ -316,7 +316,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
-	gnmi.Replace(t, d, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, d)
 	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF(d))
 
 	if deviations.ExplicitGRIBIUnderNetworkInstance(d) {

@@ -360,7 +360,7 @@ func TestGrpcListenAddress(t *testing.T) {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", gotbefore, listenAdd)
 		}
 		//Reload router
-		gnoiClient := dut.RawAPIs().GNOI().New(t)
+		gnoiClient := dut.RawAPIs().GNOI(t)
 		_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 			Method:  spb.RebootMethod_COLD,
 			Delay:   0,

@@ -14,7 +14,7 @@ This document specifies the requirements for p4rt test implementation.
     function, which sets up the `StreamTermErr` channel required to check errors
     when the p4rt stream terminates.
 
-4.  Tests should make use of Ondatra Raw API `dut.RawAPIs().P4RT().Default(t)`
+4.  Tests should make use of Ondatra Raw API `dut.RawAPIs().P4RT(t)`
     during client instantiation.
 
 5.  Tests should log Stream Termination errors populated in the
