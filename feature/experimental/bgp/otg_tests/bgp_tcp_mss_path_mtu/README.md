@@ -19,9 +19,9 @@
 *   Configure IP TCP MSS value of 4096 bytes on the DUT1:port1.
 *   Re-establish the EBGP sessions by tcp reset.
 *   Verify that the TCP MSS value is set to 4096 bytes for the IPv4 and IPv6 EBGP sessions.
-*   Establish iBGP session with MD5 enabled between ATE:port1 and DUT2:port2.
-*   Ensure that the MTU on the DUT1:port1 towards ATE1:port1 is left at default (1500B) while the ATE1:port1 interface towards DUT1:port1 is set at 5040B. Please also make sure that the DUT2:port2 MTU is set at 5040B as well.
-*   Enable PMTUD on DUT2:port2. 
+*   Establish iBGP session with MD5 enabled between ATE:port1 and DUT2:port1.
+*   Ensure that the MTU on the DUT1:port1 towards ATE1:port1 is left at default (1500B) while the ATE1:port1 interface towards DUT1:port1 is set at 5040B. Please also make sure that the DUT2:port1 MTU is set at 5040B as well.
+*   Enable PMTUD on DUT2:port1. 
 *   Re-establish the IBGP sessions by tcp reset.
 *   Validate that the min MSS value has been adjusted to be below 1500 bytes on the tcp session.
 
