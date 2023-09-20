@@ -136,8 +136,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
 	t.Log("Configure/update Network Instance")
-	dutConfNIPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
@@ -176,8 +175,8 @@ func buildNbrList(asN uint32) []*bgpNeighbor {
 func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(as)
@@ -246,7 +245,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Netw
 			af4.Enabled = ygot.Bool(false)
 		}
 	}
-	return ni_proto
+	return niProto
 }
 
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
@@ -582,7 +581,7 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring SRL ACL: %v", err)
 		}
@@ -618,7 +617,7 @@ func configAdmitAllACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbDelRequest); err != nil {
 			t.Fatalf("Unexpected error removing SRL ACL: %v", err)
 		}
@@ -667,7 +666,7 @@ func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string)
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring interface ACL: %v", err)
 		}

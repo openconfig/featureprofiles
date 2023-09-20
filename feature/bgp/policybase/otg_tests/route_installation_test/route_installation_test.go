@@ -170,8 +170,8 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutDst.IPv4)
 	global.As = ygot.Uint32(localAs)
@@ -226,7 +226,7 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 		}
 
 	}
-	return ni_proto
+	return niProto
 }
 
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
@@ -596,9 +596,7 @@ func TestEstablish(t *testing.T) {
 
 	// Configure Network instance type on DUT.
 	t.Log("Configure Network Instance type")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	// Configure BGP+Neighbors on the DUT.
 	t.Logf("Start DUT BGP Config")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
