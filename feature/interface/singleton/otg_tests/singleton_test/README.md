@@ -15,6 +15,7 @@ a new testbed configuration with the desired port types.
     the octets of IPv4.
   * Ensure: ARP discovers static MAC address specified when port is
         configured with static MAC.
+### TC1 - singleton interface verification:
 * Validate that port speed is reported correctly and that port telemetry
     matches expected negotiated speeds for forced, auto-negotiation, and
     auto-negotiation while overriding port speed and duplex.
@@ -30,6 +31,14 @@ a new testbed configuration with the desired port types.
 
 [^1]: The MTU specified above refers to the L3 MTU, which is the payload portion
     of an Ethernet frame.
+### TC2 - link flaps:
+* Bring down the physical layer of ATE port-1, and bring it back up.
+    Repeat this a few times (minimum 2)
+  * Verify that the interface is back up by checking the oper state.
+  * Ensure that the number of interface state changes are accurately
+            captured in the OC path.
+  * Verify that the traffic flow from ATE port-1 to ATE port-2 is
+            now working after the interface is back up.
 
 ## Config Parameter Coverage
 
@@ -83,6 +92,7 @@ a new testbed configuration with the desired port types.
 * /interfaces/interface/state/hardware-port
 * /interfaces/interface/state/id
 * /interfaces/interface/state/counters/in-fcs-errors
+* /interfaces/interface/state/counters/carrier-transitions
 
 ## Protocol/RPC Parameter Coverage
 
