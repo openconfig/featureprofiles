@@ -387,9 +387,9 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				ipHeader := flow.Packet().Add().Ipv4()
 				ipHeader.Src().SetValue(data.inputIntf.IPv4)
 				ipHeader.Dst().SetValue(intf3.IPv4)
-				ipHeader.Priority().Dscp().Phb().SetValue(int32(data.dscp))
+				ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
 
-				flow.Size().SetFixed(int32(data.frameSize))
+				flow.Size().SetFixed(uint32(data.frameSize))
 				flow.Rate().SetPercentage(float32(data.trafficRate))
 
 			}
@@ -575,6 +575,14 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, intf.intfName, deviations.DefaultNetworkInstance(dut), 0)
+		}
+	}
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+		fptest.SetPortSpeed(t, dp3)
 	}
 }
 
@@ -587,6 +595,15 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
 
+	if dut.Vendor() == ondatra.NOKIA {
+		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
+		for i, queue := range queueNames {
+			q1 := q.GetOrCreateQueue(queue)
+			q1.Name = ygot.String(queue)
+			queueid := len(queueNames) - i
+			q1.QueueId = ygot.Uint8(uint8(queueid))
+		}
+	}
 	t.Logf("Create qos forwarding groups and queue name config")
 	forwardingGroups := []struct {
 		desc        string
@@ -955,16 +972,27 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		ecnProfile: "ECNProfile",
 	}}
 
+	maxBurstSize := uint32(268435456)
 	t.Logf("qos output interface config: %v", schedulerIntfs)
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
+		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
 		queue.SetQueueManagementProfile(tc.ecnProfile)
+		if dut.Vendor() == ondatra.NOKIA {
+			bufferAllocation := q.GetOrCreateBufferAllocationProfile("ballocprofile")
+			bq := bufferAllocation.GetOrCreateQueue(tc.queueName)
+			bq.SetStaticSharedBufferLimit(maxBurstSize)
+			output.SetBufferAllocationProfile("ballocprofile")
+		}
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 }

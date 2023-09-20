@@ -166,21 +166,21 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth := dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
 	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dev.Name())
 	ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-	ip.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(int32(atePort1.IPv4Len))
+	ip.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(atePort2.Name)
 	dev = top.Devices().Add().SetName(atePort2.Name)
 	eth = dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
 	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dev.Name())
 	ip = eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-	ip.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(int32(atePort2.IPv4Len))
+	ip.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(uint32(atePort2.IPv4Len))
 
 	top.Ports().Add().SetName(atePort3.Name)
 	dev = top.Devices().Add().SetName(atePort3.Name)
 	eth = dev.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetMac(atePort3.MAC)
 	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dev.Name())
 	ip = eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-	ip.SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(int32(atePort3.IPv4Len))
+	ip.SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(uint32(atePort3.IPv4Len))
 
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
@@ -224,8 +224,13 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, s
 	otgutils.LogFlowMetrics(t, otg, config)
 	for _, f := range config.Flows().Items() {
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
-		lostPackets := recvMetric.GetCounters().GetOutPkts() - recvMetric.GetCounters().GetInPkts()
-		lossPct := lostPackets * 100 / recvMetric.GetCounters().GetOutPkts()
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		lostPackets := txPackets - rxPackets
+		if txPackets == 0 {
+			t.Fatalf("TxPkts == 0, want > 0")
+		}
+		lossPct := lostPackets * 100 / txPackets
 		if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
 			t.Errorf("Loss Pct for %s got %v, want 0", f.Name(), lossPct)
 		}

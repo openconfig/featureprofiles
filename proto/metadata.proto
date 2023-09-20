@@ -35,6 +35,7 @@ message Metadata {
     TESTBED_DUT_ATE_2LINKS = 3;
     TESTBED_DUT_ATE_4LINKS = 4;
     TESTBED_DUT_ATE_9LINKS_LAG = 5;
+    TESTBED_DUT_DUT_ATE_2LINKS = 6;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -277,17 +278,62 @@ message Metadata {
     bool os_component_parent_is_chassis = 88;
     // Device does not support fabric power-admin-state leaf.
     bool skip_fabric_card_power_admin = 89;
-    // Device returns component state inactive during power down.
-    bool component_power_down_returns_inactive_state = 90;
     // Devices require configuring the same ISIS Metrics for Level 1 when
     // configuring Level 2 Metrics.
     bool isis_require_same_l1_metric_with_l2_metric = 91;
     // Devices require configuring the same OSPF setMetric when BGP
     // SetMED is configured.
     bool bgp_set_med_requires_equal_ospf_set_metric = 92;
-    
+    // Devices require configuring subinterface with tagged vlan for p4rt
+    // packet in.
+    bool p4rt_gdp_requires_dot1q_subinterface = 93;
+    // ATE port link state operations are a no-op in KNE/virtualized environments.
+    bool ate_port_link_state_operations_unsupported = 94;
+    // Creates a user and assigns role/rbac to said user via native model.
+    bool set_native_user = 95;
+    // Devices require configuring lspRefreshInterval ISIS timer when
+    // lspLifetimeInterval is configured.
+    // Arista: partnerissuetracker.corp.google.com/293667850
+    bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
+    // Devices require configuring LoopbackMode on member ports to enable
+    // LoopbackMode on aggregate interface.
+    // Arista: partnerissuetracker.corp.google.com/297391260
+    bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for linecards' CPU card.
+    bool linecard_cpu_utilization_unsupported = 98;
+    // Device does not support consistent component names for GNOI and GNMI.
+    bool consistent_component_names_unsupported = 99;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for controller cards'
+    // CPU card.
+    bool controller_card_cpu_utilization_unsupported = 100;
+    // Device does not support counter for fabric block lost packets.
+    bool fabric_drop_counter_unsupported = 101;
+    // Device does not support memory utilization related leaves for linecard components.
+    bool linecard_memory_utilization_unsupported = 102;
+    // Device does not support telemetry path
+    // /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
+    bool qos_voq_drop_counter_unsupported = 103;
+    // ATE IPv6 flow label unsupported in KNE/virtualized environments.
+    bool ate_ipv6_flow_label_unsupported = 104;
+    // Devices do not support configuring isis csnp-interval timer.
+    // Arista: partnerissuetracker.corp.google.com/299283216
+    bool isis_timers_csnp_interval_unsupported = 105;
+    // Devices do not support telemetry for isis counter:
+    // manual-address-drop-from-areas.
+    // Arista: partnerissuetracker.corp.google.com/299285115
+    bool isis_counter_manual_address_drop_from_areas_unsupported = 106;
+    // Devices do not support telemetry for isis counter: part-changes.
+    // Arista: partnerissuetracker.corp.google.com/299285991
+    bool isis_counter_part_changes_unsupported = 107;
+    // Devices do not support threshold container under /components/component/transceiver.
+    bool transceiver_thresholds_unsupported = 108;
+    // Update interface loopback mode using raw gnmi API due to server version.
+    bool interface_loopback_mode_raw_gnmi = 109;
+
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28;
+    reserved 84, 9, 28, 90;
   }
 
   message PlatformExceptions {
@@ -298,4 +344,16 @@ message Metadata {
   // The `platform` field for each `platform_exceptions` should be mutually
   // exclusive. Duplicate matches will result in a test failure.
   repeated PlatformExceptions platform_exceptions = 5;
+
+  enum Tags {
+    TAGS_UNSPECIFIED = 0;
+    TAGS_AGGREGATION = 1;
+    TAGS_DATACENTER_EDGE = 2;
+    TAGS_EDGE = 3;
+    TAGS_TRANSIT = 4;
+  }
+
+  // The `tags` used to identify the area(s) testcase applies to. An empty tag
+  // is the default implying it applies to all areas.
+  repeated Tags tags = 6;
 }

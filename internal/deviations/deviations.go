@@ -53,7 +53,7 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions, error) {
+func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
 	var matchedPlatformException *mpb.Metadata_PlatformExceptions
 
 	for _, platformExceptions := range metadata.Get().PlatformExceptions {
@@ -61,13 +61,13 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 		}
 
-		if dut.Device.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
+		if dvc.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
 			continue
 		}
 
 		// If hardware_model_regex is set and does not match, continue
 		if hardwareModelRegex := platformExceptions.GetPlatform().GetHardwareModelRegex(); hardwareModelRegex != "" {
-			matchHw, errHw := regexp.MatchString(hardwareModelRegex, dut.Device.Model())
+			matchHw, errHw := regexp.MatchString(hardwareModelRegex, dvc.Model())
 			if errHw != nil {
 				return nil, fmt.Errorf("error with regex match %v", errHw)
 			}
@@ -78,7 +78,7 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 
 		// If software_version_regex is set and does not match, continue
 		if softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex(); softwareVersionRegex != "" {
-			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dut.Device.Version())
+			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dvc.Version())
 			if errSw != nil {
 				return nil, fmt.Errorf("error with regex match %v", errSw)
 			}
@@ -95,20 +95,24 @@ func lookupDeviations(dut *ondatra.DUTDevice) (*mpb.Metadata_PlatformExceptions,
 	return matchedPlatformException, nil
 }
 
-func mustLookupDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_PlatformExceptions {
-	platformExceptions, err := lookupDeviations(dut)
+func mustLookupDeviations(dvc *ondatra.Device) *mpb.Metadata_Deviations {
+	platformExceptions, err := lookupDeviations(dvc)
 	if err != nil {
 		log.Exitf("Error looking up deviations: %v", err)
 	}
-	return platformExceptions
+	if platformExceptions == nil {
+		log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
+		return &mpb.Metadata_Deviations{}
+	}
+	return platformExceptions.GetDeviations()
 }
 
 func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
-	if platformExceptions := mustLookupDeviations(dut); platformExceptions != nil {
-		return platformExceptions.GetDeviations()
-	}
-	log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
-	return &mpb.Metadata_Deviations{}
+	return mustLookupDeviations(dut.Device)
+}
+
+func lookupATEDeviations(ate *ondatra.ATEDevice) *mpb.Metadata_Deviations {
+	return mustLookupDeviations(ate.Device)
 }
 
 // BannerDelimiter returns if device requires the banner to have a delimiter character.
@@ -501,12 +505,6 @@ func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipFabricCardPowerAdmin()
 }
 
-// ComponentPowerDownReturnsInactiveState returns whether the device should allow the component power Down state inactive.
-// Default value is false and expected component power down state is shutdown.
-func ComponentPowerDownReturnsInactiveState(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetComponentPowerDownReturnsInactiveState()
-}
-
 // ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
 // the same ISIS Metrics for Level 1 when configuring Level 2 Metrics.
 func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
@@ -517,4 +515,96 @@ func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
 // the same OSPF setMetric when BGP SetMED is configured.
 func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
+}
+
+// SetNativeUser creates a user and assigns role/rbac to that user via native model.
+func SetNativeUser(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetNativeUser()
+}
+
+// P4RTGdpRequiresDot1QSubinterface returns true for devices that require configuring
+// subinterface with tagged vlan for p4rt packet in.
+func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
+}
+
+// ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
+// configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
+func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
+}
+
+// AggregateLoopbackModeRequiresMemberPortLoopbackMode returns true for devices that require
+// configuring LoopbackMode on member ports to enable LoopbackMode on aggregate interface.
+func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
+}
+
+// LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
+// /components/component/cpu/utilization/state/avg for linecards' CPU card.
+// Default value is false.
+func LinecardCPUUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinecardCpuUtilizationUnsupported()
+}
+
+// ConsistentComponentNamesUnsupported returns if the device does not support consistent component names for GNOI and GNMI.
+// Default value is false.
+func ConsistentComponentNamesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConsistentComponentNamesUnsupported()
+}
+
+// ControllerCardCPUUtilizationUnsupported returns if the device does not support telemetry path
+// /components/component/cpu/utilization/state/avg for controller cards' CPU card.
+// Default value is false.
+func ControllerCardCPUUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetControllerCardCpuUtilizationUnsupported()
+}
+
+// FabricDropCounterUnsupported returns if the device does not support counter for fabric block lost packets.
+// Default value is false.
+func FabricDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFabricDropCounterUnsupported()
+}
+
+// LinecardMemoryUtilizationUnsupported returns if the device does not support memory utilization related leaves for linecard components.
+// Default value is false.
+func LinecardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinecardMemoryUtilizationUnsupported()
+}
+
+// QOSVoqDropCounterUnsupported returns if the device does not support telemetry path
+// /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
+// Default value is false.
+func QOSVoqDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosVoqDropCounterUnsupported()
+}
+
+// ISISTimersCsnpIntervalUnsupported returns true for devices that do not support
+// configuring csnp-interval timer for ISIS.
+func ISISTimersCsnpIntervalUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisTimersCsnpIntervalUnsupported()
+}
+
+// ISISCounterManualAddressDropFromAreasUnsupported returns true for devices that do not
+// support telemetry for isis system-level-counter manual-address-drop-from-areas.
+func ISISCounterManualAddressDropFromAreasUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisCounterManualAddressDropFromAreasUnsupported()
+}
+
+// ISISCounterPartChangesUnsupported returns true for devices that do not
+// support telemetry for isis system-level-counter part-changes.
+func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
+}
+
+// TransceiverThresholdsUnsupported returns true if the device does not support threshold container under /components/component/transceiver.
+// Default value is false.
+func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverThresholdsUnsupported()
+}
+
+// InterfaceLoopbackModeRawGnmi returns true if interface loopback mode needs to be updated using raw gnmi API due to server version.
+// Default value is false.
+func InterfaceLoopbackModeRawGnmi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceLoopbackModeRawGnmi()
 }

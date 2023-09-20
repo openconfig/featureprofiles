@@ -149,8 +149,8 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 	dutOcRoot := &oc.Root{}
 	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutDst2.IPv4)
 	global.As = ygot.Uint32(localAs)
@@ -180,7 +180,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		af6.Enabled = ygot.Bool(false)
 	}
-	return ni_proto
+	return niProto
 }
 
 func sendTraffic(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
@@ -261,25 +261,25 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
 	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
-	iDut1Ipv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	iDut1Ipv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
-	iDut1Ipv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
+	iDut1Ipv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
 	iDut2Dev := config.Devices().Add().SetName(ateDst1.Name)
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(ateDst1.Name + ".Eth").SetMac(ateDst1.MAC)
 	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
 	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName(ateDst1.Name + ".IPv4")
-	iDut2Ipv4.SetAddress(ateDst1.IPv4).SetGateway(dutDst1.IPv4).SetPrefix(int32(ateDst1.IPv4Len))
+	iDut2Ipv4.SetAddress(ateDst1.IPv4).SetGateway(dutDst1.IPv4).SetPrefix(uint32(ateDst1.IPv4Len))
 	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName(ateDst1.Name + ".IPv6")
-	iDut2Ipv6.SetAddress(ateDst1.IPv6).SetGateway(dutDst1.IPv6).SetPrefix(int32(ateDst1.IPv6Len))
+	iDut2Ipv6.SetAddress(ateDst1.IPv6).SetGateway(dutDst1.IPv6).SetPrefix(uint32(ateDst1.IPv6Len))
 
 	iDut3Dev := config.Devices().Add().SetName(ateDst2.Name)
 	iDut3Eth := iDut3Dev.Ethernets().Add().SetName(ateDst2.Name + ".Eth").SetMac(ateDst2.MAC)
 	iDut3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port3.Name())
 	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName(ateDst2.Name + ".IPv4")
-	iDut3Ipv4.SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(int32(ateDst2.IPv4Len))
+	iDut3Ipv4.SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(uint32(ateDst2.IPv4Len))
 	iDut3Ipv6 := iDut3Eth.Ipv6Addresses().Add().SetName(ateDst2.Name + ".IPv6")
-	iDut3Ipv6.SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(int32(ateDst2.IPv6Len))
+	iDut3Ipv6.SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(uint32(ateDst2.IPv6Len))
 
 	// BGP seesion
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
@@ -525,8 +525,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 
 	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
 		t.Log("Configure Network Instance type.")
-		dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 	})
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
