@@ -22,7 +22,7 @@
  *   Incoming traffic on DUT-PORT1 should start using additional Tunnel Interfaces  for encapsulation 
  *   Incoming traffic flow should be equally distributed for Encapsulation(ECMP) 
  *   No traffic loss expected 
- *   Disabling and enabling the number of tunnel interfaces and related static route shouldn’t case traffic drops 
+ *   Disabling and enabling the number of tunnel interfaces and related static route shouldn’t cause traffic drops 
  *   Verify the Next hop counters for packet being diverted or sent for encapsulation 
  *   Verify the tunnel interfaces counters to confirm the traffic encapsulation  
  *   Verify the tunnel interfaces traffic/flow for equal distribution for optimal load balancing  
