@@ -20,8 +20,8 @@ P0
 
 # Config Parameter coverage
 ```
-neighbors/neighbor/transport/config/tcp-mss
-/neighbors/neighbor/transport/config/mtu-discovery
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/tcp-mss	
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/mtu-discovery
 ```
 
 # Telemetry Parameter coverage
