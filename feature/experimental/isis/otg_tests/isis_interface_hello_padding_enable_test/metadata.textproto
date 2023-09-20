@@ -41,3 +41,4 @@ platform_exceptions: {
     isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
   }
 }
+tags: TAGS_AGGREGATION
