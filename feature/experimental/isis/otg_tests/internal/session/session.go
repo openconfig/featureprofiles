@@ -136,6 +136,9 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.
 	// Configure ISIS enable flag at interface level
 	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if deviations.ISISInterfaceAfiUnsupported(dut) {
+		intf.Af = nil
+	}
 }
 
 // addISISTopo configures basic IS-IS on an ATETopology interface.
