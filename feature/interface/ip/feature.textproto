@@ -38,20 +38,20 @@ telemetry_path {
 }
 
 config_path {
-  "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip";
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip";
 }
 config_path {
-  "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length";
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length";
 }
 config_path {
-  "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/type";
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/type";
 }
 telemetry_path {
-  "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip";
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip";
 }
 telemetry_path {
-  "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length";
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length";
 }
 telemetry_path {
-  "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/type";
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/type";
 }
