@@ -176,7 +176,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 
 	// reload the HW is rfpo count is 10 or more
 	if rpfo_count == 10 {
-		gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+		gnoiClient := args.dut.RawAPIs().GNOI(t)
 		rebootRequest := &gnps.RebootRequest{
 			Method: gnps.RebootMethod_COLD,
 			Force:  true,
@@ -208,7 +208,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 	if got, want := gnmi.Get(t, args.dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
-	gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+	gnoiClient := args.dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
@@ -934,7 +934,7 @@ func (args *testArgs) gnmiConf(t *testing.T, conf string) {
 	}
 	setRequest := &proto_gnmi.SetRequest{}
 	setRequest.Update = []*proto_gnmi.Update{updateRequest}
-	gnmiClient := args.dut.RawAPIs().GNMI().New(t)
+	gnmiClient := args.dut.RawAPIs().GNMI(t)
 	if _, err := gnmiClient.Set(args.ctx, setRequest); err != nil {
 		t.Fatalf("gNMI set request failed: %v", err)
 	}

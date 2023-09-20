@@ -41,7 +41,7 @@ func Dorpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
 	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),

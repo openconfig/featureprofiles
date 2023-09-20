@@ -536,7 +536,7 @@ func TestHAFailOverInSteadyState(t *testing.T) {
 	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
 
 	// Trigger Section
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	rebootRequest := &gnps.RebootRequest{
 		Method: gnps.RebootMethod_COLD,
 		Force:  true,
@@ -615,7 +615,7 @@ func TestHAFailOverDuringRotate(t *testing.T) {
 	// Trigger Section
 	// Simulate a RP failover by closing the stream.
 	rotateStream.CloseSend()
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	rebootRequest := &gnps.RebootRequest{
 		Method: gnps.RebootMethod_COLD,
 		Force:  true,

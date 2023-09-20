@@ -651,7 +651,7 @@ func rpSwitchOver(t *testing.T, dut *ondatra.DUTDevice) {
 	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
@@ -678,7 +678,7 @@ func verify_bootz(t *testing.T, dut *ondatra.DUTDevice) {
 	checkFiles(t, dut, bootzFiles, false)
 	//gNMI query after bootz
 	t.Log(gnmi.Get(t, dut, gnmi.OC().System().Hostname().State()))
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	in := &fpb.StatRequest{
 		Path: "/misc/config/grpc/gnsi",
 	}
