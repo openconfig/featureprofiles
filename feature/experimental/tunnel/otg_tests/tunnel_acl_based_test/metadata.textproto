@@ -5,3 +5,4 @@ uuid:  "5e46a336-0e6c-4b65-ac49-8b925aacb46c"
 plan_id:  "TUN-1.9"
 description:  "GRE inner packet DSCP"
 testbed:  TESTBED_DUT_ATE_2LINKS
+tags: TAGS_AGGREGATION
