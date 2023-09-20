@@ -496,7 +496,7 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	ctx := context.Background()
 	proc := findProcessByName(ctx, t, dut, pName)
 	pid := uint32(proc.GetPid())
-	killResponse, err := dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: pName, Pid: pid, Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
+	killResponse, err := dut.RawAPIs().GNOI(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: pName, Pid: pid, Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
 	t.Logf("Got kill process response: %v\n\n", killResponse)
 	if err != nil {
 		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)

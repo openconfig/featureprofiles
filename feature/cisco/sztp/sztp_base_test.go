@@ -701,7 +701,7 @@ func verify_bootz(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 	//process restart emsd
-	killResponse, err := dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: "emsd", Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
+	killResponse, err := dut.RawAPIs().GNOI(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: "emsd", Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
 	t.Logf("Got kill process response: %v\n\n", killResponse)
 	if err != nil {
 		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)

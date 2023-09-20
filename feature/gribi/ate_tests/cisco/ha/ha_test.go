@@ -141,7 +141,7 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 		}
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	for i := 0; i < process_restart_count; i++ {
 		killRequest := &gnps.KillProcessRequest{Name: pName, Pid: uint32(pID), Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
 		killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
@@ -1984,7 +1984,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 					args.ate.Traffic().Stop(t)
 				}
 
-				gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
+				gnoiClient := args.dut.RawAPIs().GNOI(t)
 				useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 				lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
 				rebootSubComponentRequest := &gnps.RebootRequest{
