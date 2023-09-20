@@ -212,8 +212,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	t.Log("Configure Network Instance")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
