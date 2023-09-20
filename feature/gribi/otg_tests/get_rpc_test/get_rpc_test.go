@@ -148,7 +148,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
-		SetPrefix(int32(atePort1.IPv4Len))
+		SetPrefix(uint32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
@@ -156,7 +156,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
-		SetPrefix(int32(atePort2.IPv4Len))
+		SetPrefix(uint32(atePort2.IPv4Len))
 
 	return top
 }
@@ -317,7 +317,7 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// Verify the above entries are active through AFT Telemetry.
 	for ip := range ateDstNetCIDR {
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR[ip]; got != want {
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	}
@@ -335,8 +335,9 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	dc := gnmi.OC()
 	niProto := dc.NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut))
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut))
-	gnmi.Replace(t, args.dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	fptest.ConfigureDefaultNetworkInstance(t, args.dut)
+
 	ni := &oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(args.dut))}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut))
 	staticRoute := static.GetOrCreateStatic(staticCIDR)
@@ -346,7 +347,7 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR[ip]; got != want {
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	}
@@ -381,7 +382,7 @@ func TestElectionID(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the DUT
 	configureDUT(t, dut)

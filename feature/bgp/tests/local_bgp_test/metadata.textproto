@@ -8,24 +8,44 @@ testbed: TESTBED_DUT_DUT_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
-    hardware_model: "CISCO-8808"
-    hardware_model: "CISCO-8202-32FH-M"
-    hardware_model: "8201"
-    hardware_model: "xrd"
   }
   deviations: {
     ipv4_missing_enabled: true
     missing_bgp_last_notification_error_code: true
+    connect_retry: true
   }
 }
 platform_exceptions: {
   platform: {
     vendor: NOKIA
-    hardware_model: "7250-ixr10e"
-    hardware_model: "ixr10"
   }
   deviations: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+    route_policy_under_afi_unsupported: true
+    missing_value_for_defaults: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    connect_retry: true
+    route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
+    network_instance_table_deletion_required: true
+    missing_value_for_defaults: true
+    interface_enabled: true
+    default_network_instance: "default"
   }
 }

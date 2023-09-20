@@ -17,20 +17,6 @@ id {
   version: 1
 }
 
-# Network Instance config
-config_path {
-    path: "/network-instances/network-instance/config/name"
-}
-telemetry_path {
-    path: "/network-instances/network-instance/state/name"
-}
-config_path {
-    path: "/network-instances/network-instance/config/type"
-}
-telemetry_path {
-    path: "/network-instances/network-instance/state/type"
-}
-
 # BGP Instance
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/global/config/as"

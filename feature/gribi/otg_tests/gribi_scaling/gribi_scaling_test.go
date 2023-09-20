@@ -329,8 +329,7 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), i)
 		} else {
 			// configure DEFAULT vrf
-			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			fptest.ConfigureDefaultNetworkInstance(t, dut)
 		}
 		if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
 			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
@@ -360,9 +359,10 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
 	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
-	if deviations.ExplicitInterfaceRefDefinition(dut) {
-		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		pfCfg.InterfaceRef = nil
 	}
 	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
@@ -447,9 +447,9 @@ func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, vlan
 	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(MAC)
 	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(atePort.ID())
 	if vlanID != 0 {
-		eth.Vlans().Add().SetName(Name).SetId(int32(vlanID))
+		eth.Vlans().Add().SetName(Name).SetId(uint32(vlanID))
 	}
-	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(int32(atePort1.IPv4Len))
+	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(uint32(atePort1.IPv4Len))
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
@@ -491,7 +491,7 @@ func TestScaling(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")

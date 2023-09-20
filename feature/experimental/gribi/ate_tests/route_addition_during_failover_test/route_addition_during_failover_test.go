@@ -33,9 +33,9 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/raw"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
@@ -121,7 +121,7 @@ var ipBlock1FlowArgs = &flowArgs{
 }
 
 // coreFileCheck function is used to check if cores are found on the DUT.
-func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64, retry bool) {
+func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient binding.GNOIClients, sysConfigTime uint64, retry bool) {
 	t.Helper()
 	t.Log("Checking for core files on DUT")
 
@@ -294,6 +294,12 @@ func generateSubIntfPair(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.
 		configureSubinterfaceDUT(t, d, dutPort, Index, vlanID, dutIPv4, dut)
 		configureATE(t, top, atePort, name, vlanID, dutIPv4, ateIPv4+"/30")
 		nextHops = append(nextHops, ateIPv4)
+	}
+	if deviations.RequireRoutedSubinterface0(dut) {
+		i := d.GetOrCreateInterface(dutPort.Name())
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		s := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+		s.Enabled = ygot.Bool(true)
 	}
 	configureInterfaceDUT(t, dutPort, dut, d, "dst")
 	pushConfig(t, dut, dutPort, d)
@@ -491,7 +497,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
 	top := ate.Topology().New()
@@ -591,7 +597,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	awaitSwitchoverReady(t, dut, primaryBeforeSwitch)
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),

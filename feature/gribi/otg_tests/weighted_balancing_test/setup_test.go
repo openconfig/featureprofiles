@@ -23,6 +23,7 @@ import (
 	"net"
 	"regexp"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,7 +39,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
+	netutil "github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -54,7 +55,7 @@ var (
 
 	trafficPause = flag.Duration("traffic_pause", 0,
 		"Amount of time to pause before sending traffic.")
-	trafficDuration = flag.Duration("traffic_duration", 5*time.Second,
+	trafficDuration = flag.Duration("traffic_duration", 30*time.Second,
 		"Duration for sending traffic.")
 )
 
@@ -196,17 +197,11 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 			fptest.AssignToNetworkInstance(t, dut, dp.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
-}
-
-// setDUTInterfaceState sets the admin state on the dut interface
-func setDUTInterfaceState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
-	t.Helper()
-	dc := gnmi.OC()
-	i := &oc.Interface{}
-	i.Enabled = ygot.Bool(state)
-	i.Type = ethernetCsmacd
-	i.Name = ygot.String(p.Name())
-	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
+	if deviations.ExplicitPortSpeed(dut) {
+		for _, dp := range dut.Ports() {
+			fptest.SetPortSpeed(t, dp)
+		}
+	}
 }
 
 // configureATE configures the topology of the ATE.
@@ -306,7 +301,6 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
-	waitOTGARPEntry(t, time.Minute)
 	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(ateSrcPort+".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().State())
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
@@ -318,18 +312,18 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
-		t.Errorf("Random source IP not yet supported")
+		ipv4.Src().SetValues(generateRandomIpList(ateSrcNetFirstIP+"/32", ateSrcNetCount))
 	} else {
-		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(int32(ateSrcNetCount))
+		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
 	}
 	if *randomDstIP {
-		t.Errorf("Random destination IP not yet supported")
+		ipv4.Dst().SetValues(generateRandomIpList(ateDstNetFirstIP+"/32", ateDstNetCount))
 	} else {
-		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(int32(ateDstNetCount))
+		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
 	}
 	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
-		tcp.SrcPort().SetValues(generateRandomPortList(65534))
+		tcp.SrcPort().SetValues((generateRandomPortList(65534)))
 	} else {
 		tcp.SrcPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
 	}
@@ -389,10 +383,10 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 }
 
 // generates a list of random tcp ports values
-func generateRandomPortList(count int) []int32 {
-	a := make([]int32, count)
+func generateRandomPortList(count uint) []uint32 {
+	a := make([]uint32, count)
 	for index := range a {
-		a[index] = int32(rand.Intn(65536-1) + 1)
+		a[index] = uint32(rand.Intn(65536-1) + 1)
 	}
 	return a
 }
@@ -442,11 +436,25 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// waitOTGArpEntry ensures that ARP entries are present on the tx otg interface and traffic could be started
-func waitOTGARPEntry(t *testing.T, timeout time.Duration) {
-	t.Helper()
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(ateSrcPort+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), timeout, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
+func generateRandomIpList(cidr string, count uint32) []string {
+	netsCh, _ := netutil.CIDRs(cidr, count)
+	gotNets := make([]string, 0)
+	for net := range netsCh {
+		gotNets = append(gotNets, strings.ReplaceAll(net, "/32", ""))
+	}
+	// Seed the random number generator with the current time
+	rand.Seed(time.Now().UnixNano())
+
+	// Make a copy of the input slice to avoid modifying the original
+	randomized := make([]string, len(gotNets))
+	copy(randomized, gotNets)
+
+	// Shuffle the slice of elements
+	for i := len(randomized) - 1; i > 0; i-- {
+		j := rand.Intn(i + 1)
+		randomized[i], randomized[j] = randomized[j], randomized[i]
+	}
+
+	return randomized
+
 }

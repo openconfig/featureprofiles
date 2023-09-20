@@ -17,25 +17,31 @@
 package main
 
 import (
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 
 	"flag"
 
 	log "github.com/golang/glog"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/text"
+	"google.golang.org/protobuf/encoding/prototext"
+
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 // testDoc stores test plan metadata.
 type testDoc struct {
-	Name  string
+	// Test directory name, e.g. "example_test"
+	Name string
+	// Full test title, e.g. "XX-01: Example Test"
 	Title string
-	Path  string
+	// Path is the file location of the test documentation, typically named README.md.
+	Path string
 }
 
 // path relative from outputRoot containing all test plan documents.
@@ -60,6 +66,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	sortTests(docs)
 
 	err = writeTestDocs(docs, *outputRoot)
 	if err != nil {
@@ -118,7 +125,7 @@ func writeTestDocs(docs []testDoc, rootPath string) error {
 
 // fetchTestDocs gathers all valid test plan documents in rootPath
 func fetchTestDocs(rootPath string) ([]testDoc, error) {
-	docs := []testDoc{}
+	docMap := make(map[string]testDoc)
 
 	err := filepath.WalkDir(rootPath,
 		func(path string, e fs.DirEntry, err error) error {
@@ -126,56 +133,60 @@ func fetchTestDocs(rootPath string) ([]testDoc, error) {
 				return err
 			}
 
-			if !validDoc(path) {
+			if filepath.Base(path) != "metadata.textproto" {
 				return nil
 			}
 
-			title, err := docTitle(path)
+			bytes, err := os.ReadFile(path)
 			if err != nil {
 				return err
 			}
-
-			doc := testDoc{
-				Name:  filepath.Base(filepath.Dir(path)),
-				Title: title,
-				Path:  path,
+			md := new(mpb.Metadata)
+			if err := prototext.Unmarshal(bytes, md); err != nil {
+				return err
 			}
-			docs = append(docs, doc)
+			docMap[md.GetUuid()] = testDoc{
+				Name:  filepath.Base(filepath.Dir(path)),
+				Path:  filepath.Dir(path) + "/README.md",
+				Title: md.GetPlanId() + ": " + md.GetDescription(),
+			}
 
 			return nil
 		})
 
+	docs := make([]testDoc, 0, len(docMap))
+	for _, v := range docMap {
+		docs = append(docs, v)
+	}
 	return docs, err
 }
 
-// validDoc checks if a given file path is eligible to contain a testplan doc.
-func validDoc(path string) bool {
-	if filepath.Base(path) != "README.md" {
-		return false
-	}
+func sortTests(docs []testDoc) {
+	re := regexp.MustCompile("[0-9]+|[a-z]+")
+	sort.Slice(docs, func(i, j int) bool {
+		in := re.FindAllString(strings.ToLower(docs[i].Title), -1)
+		jn := re.FindAllString(strings.ToLower(docs[j].Title), -1)
 
-	validPaths := []string{"/ate_tests/", "/tests/"}
-	for _, validPath := range validPaths {
-		if strings.Contains(path, validPath) {
-			return true
+		minLen := len(in)
+		if len(in) > len(jn) {
+			minLen = len(jn)
 		}
-	}
 
-	return false
-}
+		for k := 0; k < minLen; k++ {
+			if in[k] == jn[k] {
+				continue
+			}
 
-// docTitle fetches the first header string from a markdown file
-func docTitle(path string) (string, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
+			iv, errI := strconv.Atoi(in[k])
+			jv, errJ := strconv.Atoi(jn[k])
 
-	markdown := goldmark.New()
-	doc := markdown.Parser().Parse(text.NewReader(b))
-	if doc.ChildCount() == 0 {
-		return "", errors.New("no children")
-	}
+			if errI == nil && errJ == nil {
+				return iv < jv
+			}
 
-	return string(doc.FirstChild().Text(b)), nil
+			return strings.Compare(in[k], jn[k]) < 0
+		}
+
+		return len(in) < len(jn)
+	})
 }
