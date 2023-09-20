@@ -10,25 +10,27 @@ ATE (Port1) <-IBGP-> (Port1) DUT (Port2) <-EBGP-> (Port2) ATE
   - Connect ATE Port2 to DUT port2
 
 ## Procedure
-  - Establish IS-IS adjacency between ATE Port1 and DUT Port1. 
-  - Establish BGP sessions as follows between ATE and DUT . 
-    - ATE port 1 is used for IBGP connection between the Loopback address of the DUT and the IS-IS learnt address behind ATE:Port1. Please ensure that the ATE has BGP listening on a different TCP port than 179 (example: 1800) AND BGP session on ATE is configured as *passive*
-    - The DUT Port2 IP has eBGP peering with ATE port 2 IP and is receiving IPv4/6 routes. Here too for EBGP, ensure that ATE is listening on a different TCP port than default 179 (example: 1800).
-  - Validate session and transport states on ATE and DUT ports using telemetry.
-    - As part of the validation, we should ensure that the values for the leaves "neighbors/neighbor/state/neighbor-port" and "neighbors/neighbor/transport/state/remote-port" are as configured above and none are "179"
-    - Ensure that the remote address derived from the leaves, "neighbors/neighbor/state/neighbor-address" and "neighbor/transport/state/remote-address" are as configured for the neighbors.
-  - Validate session state and capabilities received on DUT using telemetry.
-  - Validate the BGP route/path and corresponding attributes for v4 and v6 prefixes
-    - NH
-    - Local Pref
-    - Metric
-    - Communities
-  - Initiate EBGP and IBGP session reset at the DUT end few times and ensure following are collected accurately each time on the DUT. Session reset can be initiated by toggling neighbors/neighbor/config/enabled
-    - last-notification-time, last-notification-error-code, last-notification-error-subcode in the `neighbour/state/messages/sent` container
-    - neighbors/neighbor/transport/state/remote-port, neighbors/neighbor/transport/state/remote-address, neighbors/neighbor/state/neighbor-address, neighbors/neighbor/state/neighbor-port
-  - Initiate EBGP and IBGP session reset at both the ATE ends few times and ensure following are collected accurately each time on the DUT. Session reset can be initiated by toggling neighbors/neighbor/config/enabled
-    - last-notification-time, last-notification-error-code, last-notification-error-subcode in the received container
-    - neighbors/neighbor/transport/state/remote-port, neighbors/neighbor/transport/state/remote-address, neighbors/neighbor/state/neighbor-address, neighbors/neighbor/state/neighbor-port
+  - Sub test 1
+    - Establish IS-IS adjacency between ATE Port1 and DUT Port1. 
+    - Establish BGP sessions as follows between ATE and DUT . 
+      - ATE port 1 is used for IBGP connection between the Loopback address of the DUT and the IS-IS learnt address behind ATE:Port1. Please ensure that the ATE has BGP listening on a different TCP port than 179 (example: 1800) AND BGP session on ATE is configured as *passive*
+      - The DUT Port2 IP has eBGP peering with ATE port 2 IP and is receiving IPv4/6 routes. Here too for EBGP, ensure that ATE is listening on a different TCP port than default 179 (example: 1800).
+    - Validate session and transport states on ATE and DUT ports using telemetry.
+      - As part of the validation, we should ensure that the values for the leaves "neighbors/neighbor/state/neighbor-port" and "neighbors/neighbor/transport/state/remote-port" are as configured above and none are "179"
+      - Ensure that the remote address derived from the leaves, "neighbors/neighbor/state/neighbor-address" and "neighbor/transport/state/remote-address" are as configured for the neighbors.
+    - Validate session state and capabilities received on DUT using telemetry.
+    - Validate the BGP route/path and corresponding attributes for v4 and v6 prefixes
+      - NH
+      - Local Pref
+      - Metric
+      - Communities
+  - Sub test 2
+    - Initiate EBGP and IBGP session reset at the DUT end few times and ensure following are collected accurately each time on the DUT. Session reset can be initiated by toggling neighbors/neighbor/config/enabled
+      - last-notification-time, last-notification-error-code, last-notification-error-subcode in the `neighbour/state/messages/sent` container
+      - neighbors/neighbor/transport/state/remote-port, neighbors/neighbor/transport/state/remote-address, neighbors/neighbor/state/neighbor-address, neighbors/neighbor/state/neighbor-port
+    - Initiate EBGP and IBGP session reset at both the ATE ends few times and ensure following are collected accurately each time on the DUT. Session reset can be initiated by toggling neighbors/neighbor/config/enabled
+      - last-notification-time, last-notification-error-code, last-notification-error-subcode in the received container
+      - neighbors/neighbor/transport/state/remote-port, neighbors/neighbor/transport/state/remote-address, neighbors/neighbor/state/neighbor-address, neighbors/neighbor/state/neighbor-port
 
 ## Config Parameter Coverage
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-port
