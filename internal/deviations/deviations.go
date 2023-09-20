@@ -608,3 +608,9 @@ func SkipTCPNegotiatedMssCheck(dut *ondatra.DUTDevice) bool {
 func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverThresholdsUnsupported()
 }
+
+// InterfaceLoopbackModeRawGnmi returns true if interface loopback mode needs to be updated using raw gnmi API due to server version.
+// Default value is false.
+func InterfaceLoopbackModeRawGnmi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceLoopbackModeRawGnmi()
+}
