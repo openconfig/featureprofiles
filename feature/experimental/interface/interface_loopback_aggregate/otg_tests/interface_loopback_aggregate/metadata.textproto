@@ -14,3 +14,11 @@ platform_exceptions: {
     aggregate_loopback_mode_requires_member_port_loopback_mode: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_loopback_mode_raw_gnmi: true
+  }
+}
