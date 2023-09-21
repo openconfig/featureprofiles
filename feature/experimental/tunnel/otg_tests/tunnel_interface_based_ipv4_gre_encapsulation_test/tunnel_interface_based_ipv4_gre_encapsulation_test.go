@@ -120,30 +120,91 @@ type parameters struct {
 func TestFtiTunnels(t *testing.T) {
 
 	p := &parameters{
-		rtIntf1Ipv4Add:  "198.51.100.2",
-		rtIntf2Ipv4Add:  "198.51.100.3",
-		rtIntf5Ipv4Add:  "198.51.100.5",
-		rtIntf6Ipv4Add:  "198.51.100.6",
-		rtIntf1MacAdd:   "00:00:aa:aa:aa:aa",
-		rtIntf2MacAdd:   "00:00:bb:bb:bb:bb",
-		rtIntf5MacAdd:   "00:00:cc:cc:cc:cc",
-		rtIntf6MacAdd:   "00:00:dd:dd:dd:dd",
-		r0Intf1Ipv4Add:  "198.51.100.1",
-		r0Intf2Ipv4Add:  "198.51.100.4",
-		r0Intf3Ipv4Add:  "198.51.100.7",
-		r0Intf4Ipv4Add:  "198.51.100.8",
-		r0Fti0Ipv4Add:   "198.51.100.9",
-		r0Fti1Ipv4Add:   "198.51.100.10",
-		r0Fti2Ipv4Add:   "198.51.100.11",
-		r0Fti3Ipv4Add:   "198.51.100.12",
-		r0Fti4Ipv4Add:   "198.51.100.13",
-		r0Fti5Ipv4Add:   "198.51.100.14",
-		r0Fti6Ipv4Add:   "198.51.100.15",
-		r0Fti7Ipv4Add:   "198.51.100.16",
-		r0Lo0Ut0Ipv4Add: "198.51.100.17",
-		r0Lo0Ut1Ipv4Add: "198.51.100.18",
-		r0Lo0Ut2Ipv4Add: "198.51.100.19",
-		r0Lo0Ut3Ipv4Add: "198.51.100.20",
+		rtIntf1Ipv4Add:   "198.51.100.2",
+		rtIntf2Ipv4Add:   "198.51.100.3",
+		rtIntf5Ipv4Add:   "198.51.100.5",
+		rtIntf6Ipv4Add:   "198.51.100.6",
+		rtIntf1MacAdd:    "00:00:aa:aa:aa:aa",
+		rtIntf2MacAdd:    "00:00:bb:bb:bb:bb",
+		rtIntf5MacAdd:    "00:00:cc:cc:cc:cc",
+		rtIntf6MacAdd:    "00:00:dd:dd:dd:dd",
+		r0Intf1Ipv4Add:   "198.51.100.1",
+		r0Intf2Ipv4Add:   "198.51.100.4",
+		r0Intf3Ipv4Add:   "198.51.100.7",
+		r0Intf4Ipv4Add:   "198.51.100.8",
+		r0Fti0Ipv4Add:    "198.51.100.9",
+		r0Fti1Ipv4Add:    "198.51.100.10",
+		r0Fti2Ipv4Add:    "198.51.100.11",
+		r0Fti3Ipv4Add:    "198.51.100.12",
+		r0Fti4Ipv4Add:    "198.51.100.13",
+		r0Fti5Ipv4Add:    "198.51.100.14",
+		r0Fti6Ipv4Add:    "198.51.100.15",
+		r0Fti7Ipv4Add:    "198.51.100.16",
+		r0Lo0Ut0Ipv4Add:  "198.18.70.1",
+		r0Lo0Ut1Ipv4Add:  "198.18.71.1",
+		r0Lo0Ut2Ipv4Add:  "198.18.72.1",
+		r0Lo0Ut3Ipv4Add:  "198.18.73.1",
+		r0Lo0Ut4Ipv4Add:  "198.18.74.1",
+		r0Lo0Ut5Ipv4Add:  "198.18.75.1",
+		r0Lo0Ut6Ipv4Add:  "198.18.76.1",
+		r0Lo0Ut7Ipv4Add:  "198.18.77.1",
+		r0Lo0Ut8Ipv4Add:  "198.18.78.1",
+		r0Lo0Ut9Ipv4Add:  "198.18.79.1",
+		r0Lo0Ut10Ipv4Add: "198.18.80.1",
+		r0Lo0Ut11Ipv4Add: "198.18.81.1",
+		r0Lo0Ut12Ipv4Add: "198.18.82.1",
+		r0Lo0Ut13Ipv4Add: "198.18.83.1",
+		r0Lo0Ut14Ipv4Add: "198.18.84.1",
+		r0Lo0Ut15Ipv4Add: "198.18.85.1",
+		r0Lo0Ut16Ipv4Add: "198.18.86.1",
+		r0Lo0Ut17Ipv4Add: "198.18.87.1",
+		r0Lo0Ut18Ipv4Add: "198.18.88.1",
+		r0Lo0Ut19Ipv4Add: "198.18.89.1",
+		r0Lo0Ut20Ipv4Add: "198.18.90.1",
+		r0Lo0Ut21Ipv4Add: "198.18.91.1",
+		r0Lo0Ut22Ipv4Add: "198.18.92.1",
+		r0Lo0Ut23Ipv4Add: "198.18.93.1",
+		r0Lo0Ut24Ipv4Add: "198.18.94.1",
+		r0Lo0Ut25Ipv4Add: "198.18.95.1",
+		r0Lo0Ut26Ipv4Add: "198.18.96.1",
+		r0Lo0Ut27Ipv4Add: "198.18.97.1",
+		r0Lo0Ut28Ipv4Add: "198.18.98.1",
+		r0Lo0Ut29Ipv4Add: "198.18.99.1",
+		r0Lo0Ut30Ipv4Add: "198.18.100.1",
+		r0Lo0Ut31Ipv4Add: "198.18.101.1",
+		rtLo0Ut0Ipv4Add:  "198.18.110.1",
+		rtLo0Ut1Ipv4Add:  "198.18.111.1",
+		rtLo0Ut2Ipv4Add:  "198.18.112.1",
+		rtLo0Ut3Ipv4Add:  "198.18.113.1",
+		rtLo0Ut4Ipv4Add:  "198.18.114.1",
+		rtLo0Ut5Ipv4Add:  "198.18.115.1",
+		rtLo0Ut6Ipv4Add:  "198.18.116.1",
+		rtLo0Ut7Ipv4Add:  "198.18.117.1",
+		rtLo0Ut8Ipv4Add:  "198.18.118.1",
+		rtLo0Ut9Ipv4Add:  "198.18.119.1",
+		rtLo0Ut10Ipv4Add: "198.18.120.1",
+		rtLo0Ut11Ipv4Add: "198.18.121.1",
+		rtLo0Ut12Ipv4Add: "198.18.122.1",
+		rtLo0Ut13Ipv4Add: "198.18.123.1",
+		rtLo0Ut14Ipv4Add: "198.18.124.1",
+		rtLo0Ut15Ipv4Add: "198.18.125.1",
+		rtLo0Ut16Ipv4Add: "198.18.126.1",
+		rtLo0Ut17Ipv4Add: "198.18.127.1",
+		rtLo0Ut18Ipv4Add: "198.18.128.1",
+		rtLo0Ut19Ipv4Add: "198.18.129.1",
+		rtLo0Ut20Ipv4Add: "198.18.130.1",
+		rtLo0Ut21Ipv4Add: "198.18.131.1",
+		rtLo0Ut22Ipv4Add: "198.18.132.1",
+		rtLo0Ut23Ipv4Add: "198.18.133.1",
+		rtLo0Ut24Ipv4Add: "198.18.134.1",
+		rtLo0Ut25Ipv4Add: "198.18.135.1",
+		rtLo0Ut26Ipv4Add: "198.18.136.1",
+		rtLo0Ut27Ipv4Add: "198.18.137.1",
+		rtLo0Ut28Ipv4Add: "198.18.138.1",
+		rtLo0Ut29Ipv4Add: "198.18.139.1",
+		rtLo0Ut30Ipv4Add: "198.18.140.1",
+		rtLo0Ut31Ipv4Add: "198.18.141.1",
+
 		ipv4Mask:        24,
 		ipv4FullMask:    32,
 		flow1:           "IPv4-flow1",
@@ -167,26 +228,41 @@ func TestFtiTunnels(t *testing.T) {
 		ConfigureTunnelEncapDUT(t, p, dut1, d1p1, d1p2, d1p3, d1p4)
 	})
 
-	t.Run("Configure loopback interface on dut1 and dut2 ", func(t *testing.T) {
-		// configure addtional loop address by native cli configuration.
-		ConfigureLoobackInterfaceWithIPv4address(t, p.r0Lo0Ut1Ipv4Add, dut1)
-		ConfigureLoobackInterfaceWithIPv4address(t, p.r0Lo0Ut2Ipv4Add, dut1)
-		ConfigureLoobackInterfaceWithIPv4address(t, p.r0Lo0Ut3Ipv4Add, dut1)
-
+	t.Run("Configure 32 tunnel interface on DUT ", func(t *testing.T) {
+		ConfigureTunnelInterface(t, 0, p.r0Lo0Ut0Ipv4Add, p.rtLo0Ut0Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 1, p.r0Lo0Ut1Ipv4Add, p.rtLo0Ut1Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 2, p.r0Lo0Ut2Ipv4Add, p.rtLo0Ut2Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 3, p.r0Lo0Ut3Ipv4Add, p.rtLo0Ut3Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 4, p.r0Lo0Ut4Ipv4Add, p.rtLo0Ut4Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 5, p.r0Lo0Ut5Ipv4Add, p.rtLo0Ut5Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 6, p.r0Lo0Ut6Ipv4Add, p.rtLo0Ut6Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 7, p.r0Lo0Ut7Ipv4Add, p.rtLo0Ut7Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 8, p.r0Lo0Ut8Ipv4Add, p.rtLo0Ut8Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 9, p.r0Lo0Ut9Ipv4Add, p.rtLo0Ut9Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 10, p.r0Lo0Ut10Ipv4Add, p.rtLo0Ut10Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 11, p.r0Lo0Ut11Ipv4Add, p.rtLo0Ut11Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 12, p.r0Lo0Ut12Ipv4Add, p.rtLo0Ut12Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 13, p.r0Lo0Ut13Ipv4Add, p.rtLo0Ut13Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 14, p.r0Lo0Ut14Ipv4Add, p.rtLo0Ut14Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 15, p.r0Lo0Ut15Ipv4Add, p.rtLo0Ut15Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 16, p.r0Lo0Ut16Ipv4Add, p.rtLo0Ut16Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 17, p.r0Lo0Ut17Ipv4Add, p.rtLo0Ut17Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 18, p.r0Lo0Ut18Ipv4Add, p.rtLo0Ut18Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 19, p.r0Lo0Ut19Ipv4Add, p.rtLo0Ut19Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 20, p.r0Lo0Ut20Ipv4Add, p.rtLo0Ut20Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 21, p.r0Lo0Ut21Ipv4Add, p.rtLo0Ut21Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 22, p.r0Lo0Ut22Ipv4Add, p.rtLo0Ut22Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 23, p.r0Lo0Ut23Ipv4Add, p.rtLo0Ut23Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 24, p.r0Lo0Ut24Ipv4Add, p.rtLo0Ut24Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 25, p.r0Lo0Ut25Ipv4Add, p.rtLo0Ut25Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 26, p.r0Lo0Ut26Ipv4Add, p.rtLo0Ut26Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 27, p.r0Lo0Ut27Ipv4Add, p.rtLo0Ut27Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 28, p.r0Lo0Ut28Ipv4Add, p.rtLo0Ut28Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 29, p.r0Lo0Ut29Ipv4Add, p.rtLo0Ut29Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 30, p.r0Lo0Ut30Ipv4Add, p.rtLo0Ut30Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 31, p.r0Lo0Ut31Ipv4Add, p.rtLo0Ut31Ipv4Add, dut1)
 	})
 
-	t.Run("Configure 8 tunnel interface on DUT ", func(t *testing.T) {
-		// configure tunnel interface on dut1 - IPv4
-		ConfigureTunnelInterface(t, "fti0", p.r0Lo0Ut0Ipv4Add, p.r1Lo0Ut0Ipv4Add, dut1)
-		ConfigureTunnelInterface(t, "fti1", p.r0Lo0Ut1Ipv4Add, p.r1Lo0Ut1Ipv4Add, dut1)
-		ConfigureTunnelInterface(t, "fti2", p.r0Lo0Ut2Ipv4Add, p.r1Lo0Ut2Ipv4Add, dut1)
-		ConfigureTunnelInterface(t, "fti3", p.r0Lo0Ut3Ipv4Add, p.r1Lo0Ut3Ipv4Add, dut1)
-	})
-	// configure tunnel termination on dut1
-	t.Run("Configure tunnel termination at underlay interface on dut1 and dut2", func(t *testing.T) {
-		ConfigureTunnelTermination(t, d1p3, dut1)
-		ConfigureTunnelTermination(t, d1p4, dut1)
-	})
 	//configure Network Instance for both dut
 	t.Run("Configure routing instance on dut1 and dut2", func(t *testing.T) {
 		configureNetworkInstance(t, dut1)
@@ -288,7 +364,7 @@ func ConfigureTunnelInterface(t *testing.T, intf string, tunnelSrc string, tunne
 	t.Logf("Push the IPv4 tunnel endpoint config:\n%s", dut.Vendor())
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
-		config := ConfigureTunnelEndPoints(intf, tunnelSrc, tunnelDst)
+		config := ConfigureTunnelCLI(intf, tunnelSrc, tunnelDst)
 		t.Logf("Push the CLI config:\n%s", config)
 		gnmiClient := dut.RawAPIs().GNMI().Default(t)
 		gpbSetRequest, err := buildCliConfigRequest(config)
@@ -575,28 +651,6 @@ func ConfigureAdditionalIPv4AddressonLoopback(address string) string {
 
 }
 
-func ConfigureTunnelEndPoints(intf string, tunnelSrc string, tunnelDest string) string {
-
-	return fmt.Sprintf(`
-	interfaces {
-	%s {
-		unit 0 {
-			tunnel {
-				encapsulation gre {
-					source {
-						address %s;
-					}
-					destination {
-						address %s;
-					}
-				}
-			}
-		}
-	}
-	}`, intf, tunnelSrc, tunnelDest)
-
-}
-
 func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	// Build config with Origin set to cli and Ascii encoded config.
 	gpbSetRequest := &gpb.SetRequest{
@@ -822,4 +876,26 @@ func ConfigureTunnelTermination(t *testing.T, intf *ondatra.Port, dut *ondatra.D
 	default:
 		t.Errorf("Invalid Tunnel termination configuration")
 	}
+}
+
+func ConfigureTunnelCLI(tunnelUnit string, tunnelSrc string, tunnelDest string) string {
+
+	return fmt.Sprintf(`
+	interfaces {
+	fti0 {
+		unit %s {
+			tunnel {
+				encapsulation gre {
+					source {
+						address %s;
+					}
+					destination {
+						address %s;
+					}
+				}
+			}
+		}
+	}
+	}`, tunnelUnit, tunnelSrc, tunnelDest, tunnelInet)
+
 }
