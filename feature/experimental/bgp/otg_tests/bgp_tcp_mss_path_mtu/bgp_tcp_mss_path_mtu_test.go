@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bgp_tcp_mss_path_mtu_otg_test
+package bgp_tcp_mss_path_mtu_test
 
 import (
 	"fmt"
@@ -194,7 +194,6 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
-
 	config := otg.NewConfig(t)
 	port1 := config.Ports().Add().SetName("port1")
 
@@ -229,7 +228,6 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 }
 
 func configOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
-
 	config := otg.NewConfig(t)
 	port1 := config.Ports().Add().SetName("port1")
 
