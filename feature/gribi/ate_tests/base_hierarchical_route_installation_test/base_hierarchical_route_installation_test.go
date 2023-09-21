@@ -135,7 +135,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), ni)
 
-
 	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 

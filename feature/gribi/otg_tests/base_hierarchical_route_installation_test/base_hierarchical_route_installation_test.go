@@ -138,7 +138,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), ni)
 
-
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	// configure PBF in DEFAULT vrf
