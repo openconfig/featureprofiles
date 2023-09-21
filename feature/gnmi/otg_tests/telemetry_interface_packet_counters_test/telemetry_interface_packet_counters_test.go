@@ -198,7 +198,7 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 	inValFinal, _ := inPkts[len(inPkts)-1].Val()
 	outValFinal, _ := outPkts[len(inPkts)-1].Val()
 
-	if inValFinal == inValFirst || outValFinal == outValFirst {
+	if inValLatest == inValOld || outValLatest == outValOld || (inValLatest-inValOld != outValLatest-outValOld) {
 		t.Logf("Counters not incremented: Initial Incoming Packets: %d, Final Incoming Packets: %d", inValFirst, inValFinal)
 		t.Logf("Counters not incremented: Initial Outgoing Packets: %d,  Final Outgoing Packets: %d", outValFirst, outValFinal)
 		pktCounterOK = false
