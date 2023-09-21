@@ -322,7 +322,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 	})
 
 	dut1Port1Path := gnmi.OC().Interface(dut1.Port(t, "port1").Name())
-	if !deviations.SkipTCPNegotiatedMssCheck(dut1) {
+	if !deviations.SkipTCPNegotiatedMSSCheck(dut1) {
 		t.Run("Verify that the default TCP MSS value is set below the default interface MTU value.", func(t *testing.T) {
 			// Fetch interface MTU value to compare negotiated tcp mss.
 			gotIntfMTU := gnmi.Get(t, dut1, dut1Port1Path.Mtu().State())
@@ -423,7 +423,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 		verifyBGPTelemetry(t, dut2, dut2NbrIP)
 	})
 
-	if !deviations.SkipTCPNegotiatedMssCheck(dut2) {
+	if !deviations.SkipTCPNegotiatedMSSCheck(dut2) {
 		t.Run("Validate that the min MSS value has been adjusted to be below 1500 bytes on the tcp session.", func(t *testing.T) {
 			if gotTcpMss := gnmi.Get(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTcpMss > mtu1500B || gotTcpMss == 0 {
 				t.Errorf("Obtained TCP MSS for BGP v4 on dut2 is not as expected, got %v, want non zero value and less then %v", gotTcpMss, mtu1500B)
