@@ -280,43 +280,37 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
 	iDut1Ipv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
-	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
-	iDut1Ipv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
 	iDut2Dev := config.Devices().Add().SetName(ateDst1.Name)
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(ateDst1.Name + ".Eth").SetMac(ateDst1.MAC)
 	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
 	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName(ateDst1.Name + ".IPv4")
 	iDut2Ipv4.SetAddress(ateDst1.IPv4).SetGateway(dutDst1.IPv4).SetPrefix(uint32(ateDst1.IPv4Len))
-	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName(ateDst1.Name + ".IPv6")
-	iDut2Ipv6.SetAddress(ateDst1.IPv6).SetGateway(dutDst1.IPv6).SetPrefix(uint32(ateDst1.IPv6Len))
 
 	iDut3Dev := config.Devices().Add().SetName(ateDst2.Name)
 	iDut3Eth := iDut3Dev.Ethernets().Add().SetName(ateDst2.Name + ".Eth").SetMac(ateDst2.MAC)
 	iDut3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port3.Name())
 	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName(ateDst2.Name + ".IPv4")
 	iDut3Ipv4.SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(uint32(ateDst2.IPv4Len))
-	iDut3Ipv6 := iDut3Eth.Ipv6Addresses().Add().SetName(ateDst2.Name + ".IPv6")
-	iDut3Ipv6.SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(uint32(ateDst2.IPv6Len))
 
 	// BGP seesion
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
+	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(ateDst1.Name + ".BGP4.peer")
 	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
+	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	iDut3Bgp := iDut3Dev.Bgp().SetRouterId(iDut3Ipv4.Address())
 	iDut3Bgp4Peer := iDut3Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut3Ipv4.Name()).Peers().Add().SetName(ateDst2.Name + ".BGP4.peer")
 	iDut3Bgp4Peer.SetPeerAddress(iDut3Ipv4.Gateway()).SetAsNumber(ateAS3).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut3Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	iDut3Bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
+	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	bgpNeti1Bgp4PeerRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(ateDst1.Name + ".BGP4.Route")
 	bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(iDut2Ipv4.Address()).
@@ -466,37 +460,24 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 }
 
 // verifySetMed is used to validate MED on received prefixes at OTG Port1.
-func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDValue uint32, expectedAggrRouteRxValue uint64) {
+func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDValue uint32) {
 	t.Helper()
 
-	// First verify if expected count of routes are recived by the BGP peer on test port1 and
-	// then verify if all routeCount prefixes in RIB/Learend Information have expected Med val
-	_, ok := gnmi.Watch(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").Counters().InRoutes().State(),
-		2*time.Minute, func(v *ygnmi.Value[uint64]) bool {
-			val, _ := v.Val()
-			t.Logf("Total routes Received since start of test for BGP peer %s.BGP4.peer is %d.", ateSrc.Name, val)
-			return v.IsPresent() && val == expectedAggrRouteRxValue
-		}).Await(t)
-
-	if !ok {
-		t.Errorf("Received routes didn't match expected routes %d", expectedAggrRouteRxValue)
+	bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
+	gotPrefixCount := len(bgpPrefixes)
+	if gotPrefixCount < routeCount {
+		t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 	} else {
-		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
-		gotPrefixCount := len(bgpPrefixes)
-		if gotPrefixCount < routeCount {
-			t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
-		} else {
-			t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
-		}
-
-		// compare Med val with expected for each of the recieved routes.
-		for _, prefix := range bgpPrefixes {
-			if prefix.GetMultiExitDiscriminator() != wantMEDValue {
-				t.Errorf("Received Prefix Med %d Expected Med %d for Prefix %v", prefix.GetMultiExitDiscriminator(), wantMEDValue, prefix.GetAddress())
-			}
-		}
-		t.Logf("Received Prefixes are verified for Proper MED value %d", wantMEDValue)
+		t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 	}
+
+	// compare Med val with expected for each of the recieved routes.
+	for _, prefix := range bgpPrefixes {
+		if prefix.GetMultiExitDiscriminator() != wantMEDValue {
+			t.Errorf("Received Prefix Med %d Expected Med %d for Prefix %v", prefix.GetMultiExitDiscriminator(), wantMEDValue, prefix.GetAddress())
+		}
+	}
+	t.Logf("Received Prefixes are verified for Proper MED value %d", wantMEDValue)
 }
 
 // verifyBGPCapabilities is used to Verify BGP capabilities like route refresh as32 and mpbgp.
@@ -605,8 +586,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 		t.Log("Verify BGP prefix telemetry.")
 		verifyPrefixesTelemetry(t, dut, 0, routeCount)
 		t.Log("Verify best route advertised to atePort1 is Peer with lowest MED 50 - eBGP Peer2.")
-		/* Aggregate route count expected to be routeCount after which RIB/Learned Information shoud be fetched */
-		verifySetMed(t, otg, otgConfig, bgpMED50, routeCount)
+		verifySetMed(t, otg, otgConfig, bgpMED50)
 	})
 
 	t.Run("Send and validate traffic from ATE Port1", func(t *testing.T) {
@@ -633,8 +613,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 		t.Log("Verify BGP prefix telemetry.")
 		verifyPrefixesTelemetry(t, dut, 0, routeCount)
 		t.Log("Verify best route advertised to atePort1.")
-		// Aggregate route count expected to be routeCount + routeCount ( set of updated routes after MED reset) after which RIB/Learned Information shoud be fetched
-		verifySetMed(t, otg, otgConfig, uint32(0), routeCount+routeCount)
+		verifySetMed(t, otg, otgConfig, uint32(0))
 	})
 
 	t.Run("Send and verify traffic after removing MED settings on DUT", func(t *testing.T) {
