@@ -18,21 +18,30 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
-// IsTrafficStopped checks to see if all the flows are completely stopped
-func IsTrafficStopped(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
+// GetFlowStats checks to see if all the flows are completely stopped and returns tx and rx packets for the given flow
+func GetFlowStats(t testing.TB, otg *otg.OTG, flowName string, timeout time.Duration) (txPackets, rxPackets uint64) {
+	flow := gnmi.OTG().Flow(flowName)
 
-	for _, f := range c.Flows().Items() {
-		flow := gnmi.OTG().Flow(f.Name())
-
-		gnmi.Watch(t, otg, flow.Transmit().State(), 30*time.Second, func(val *ygnmi.Value[bool]) bool {
-			transmitState, ok := val.Val()
-			return ok && !transmitState
-		}).Await(t)
+	_, watcher := gnmi.Watch(t, otg, flow.Transmit().State(), timeout, func(val *ygnmi.Value[bool]) bool {
+		transmitState, ok := val.Val()
+		return ok && !transmitState
+	}).Await(t)
+	if !watcher {
+		t.Logf("Flow still not stopped after %v. Stats may be inconsistent", timeout)
 	}
+	txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
+
+	rxPkts, _ := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
+		rxPackets, ok := val.Val()
+		return ok && rxPackets == txPkts
+	}).Await(t)
+	rx, _ := rxPkts.Val()
+
+	return txPkts, rx
+
 }

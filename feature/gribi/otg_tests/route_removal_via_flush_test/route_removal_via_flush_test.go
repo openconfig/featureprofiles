@@ -29,7 +29,6 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -331,19 +330,9 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) floa
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 
-	otgutils.IsTrafficStopped(t, otg, top)
-	txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State())
-	if txPkts == 0 {
-		t.Fatalf("TxPkts == 0, want > 0")
-	}
-	gnmi.Watch(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State(), 5*time.Second, func(val *ygnmi.Value[uint64]) bool {
-		rxPackets, ok := val.Val()
-		return ok && rxPackets == txPkts
-	}).Await(t)
+	txPkts, rxPkts := otgutils.GetFlowStats(t, otg, "Flow", 5*time.Second)
 	otgutils.LogFlowMetrics(t, otg, top)
-
-	rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
-	lossPct := (float32(txPkts) - rxPkts) * 100 / float32(txPkts)
+	lossPct := float32(txPkts-rxPkts) * 100 / float32(txPkts)
 	return lossPct
 }
 
