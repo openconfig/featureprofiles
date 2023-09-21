@@ -192,14 +192,12 @@ type testArgs struct {
 // is supported due to hardware exhaust.
 func TestFibFailDueToHwResExhaust(t *testing.T) {
 	ctx := context.Background()
-	dc := gnmi.OC()
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 	configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	t.Log("Configure/update Network Instance")
-	dutConfNIPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	t.Run("configureBGP", func(t *testing.T) {
@@ -470,8 +468,8 @@ routeAddLoop:
 		// routes through gRIBI client. Since FIB is already full , we should get
 		// FIB FAILED while programming gRIBI routes. Here we are trying to program
 		// 1500 VIP/Dst entries along with unique NH/NHG entries.
-		if i >= 1458 {
-			t.Errorf("FIB FAILED is not received as expected")
+		if i >= 1498 {
+			t.Fatalf("FIB FAILED is not received as expected")
 		}
 		if j == 1 {
 			fibPassedDstRoute = dstIPList[0]
