@@ -180,8 +180,8 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		time.Sleep(10 * time.Second)
 		return true
 	}
-	inSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(1*time.Second)), i1.Counters().InUnicastPkts().State(), 10*time.Second)
-	outSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(1*time.Second)), i2.Counters().OutUnicastPkts().State(), 10*time.Second)
+	inSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Counters().InUnicastPkts().State(), 90*time.Second)
+	outSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Counters().OutUnicastPkts().State(), 90*time.Second)
 
 	inPkts := inSamples.Await(t)
 	outPkts := outSamples.Await(t)
@@ -190,7 +190,7 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		t.Fatalf("did not get enough samples: in counters: %s out counters %s",
 			inPkts, outPkts)
 	}
-	t.Log("Sample Size Incoming Packets: ", len(inPkts), "Sample Size Outgoing Packets: ", len(outPkts))
+	t.Logf("Sample Size Incoming Packets: %d, Sample Size Outgoing Packets: %d", len(inPkts), len(outPkts))
 	var pktCounterOK = true
 	// check counters for first and last sample interval, they shouldn't be equal
 	inValFirst, _ := inPkts[0].Val()
@@ -199,8 +199,8 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 	outValFinal, _ := outPkts[len(inPkts)-1].Val()
 
 	if inValFinal == inValFirst || outValFinal == outValFirst {
-		t.Log("Counters not incremented: Initial Incoming Packets: ", inValFirst, "Final Incoming Packets: ", inValFinal)
-		t.Log("Counters not incremented: Initial Outgoing Packets: ", outValFirst, "Final Outgoing Packets: ", outValFinal)
+		t.Logf("Counters not incremented: Initial Incoming Packets: %d, Final Incoming Packets: %d", inValFirst, inValFinal)
+		t.Logf("Counters not incremented: Initial Outgoing Packets: %d,  Final Outgoing Packets: %d", outValFirst, outValFinal)
 		pktCounterOK = false
 		return pktCounterOK
 	}
@@ -210,8 +210,9 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		outValOld, _ := outPkts[i-1].Val()
 		inValLatest, _ := inPkts[i].Val()
 		outValLatest, _ := outPkts[i].Val()
-		t.Log("Incoming Packets: ", inValLatest, "Outgoing Packets: ", outValLatest)
+		t.Logf("Incoming Packets: %d, Outgoing Packets: %d", inValLatest, outValLatest)
 		if inValLatest-inValOld != outValLatest-outValOld {
+			t.Logf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d", inValLatest-inValOld, outValLatest-outValOld)
 			pktCounterOK = false
 			break
 		}
