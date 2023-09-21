@@ -120,46 +120,111 @@ type parameters struct {
 func TestFtiTunnels(t *testing.T) {
 
 	p := &parameters{
-		rtIntf1MacAdd:   "00:00:aa:aa:aa:aa",
-		rtIntf2MacAdd:   "00:00:bb:bb:bb:bb",
-		rtIntf5MacAdd:   "00:00:cc:cc:cc:cc",
-		rtIntf6MacAdd:   "00:00:dd:dd:dd:dd",
-		rtIntf1Ipv6Add:  "2001:DB8:0:1::2",
-		rtIntf2Ipv6Add:  "2001:DB8:0:2::2",
-		rtIntf5Ipv6Add:  "2001:DB8:0:3::2",
-		rtIntf6Ipv6Add:  "2001:DB8:0:4::2",
-		r0Intf1Ipv6Add:  "2001:DB8:0:5::2",
-		r0Intf2Ipv6Add:  "2001:DB8:0:6::2",
-		r0Intf3Ipv6Add:  "2001:DB8:0:7::2",
-		r0Intf4Ipv6Add:  "2001:DB8:0:8::2",
-		r0Fti0Ipv6Add:   "2001:DB8:0:9::2",
-		r0Fti1Ipv6Add:   "2001:DB8:0:10::2",
-		r0Fti2Ipv6Add:   "2001:DB8:0:11::2",
-		r0Fti3Ipv6Add:   "2001:DB8:0:12::2",
-		r0Fti4Ipv6Add:   "2001:DB8:0:13::2",
-		r0Fti5Ipv6Add:   "2001:DB8:0:14::2",
-		r0Fti6Ipv6Add:   "2001:DB8:0:15::2",
-		r0Fti7Ipv6Add:   "2001:DB8:0:16::2",
-		r0Lo0Ut0Ipv6Add: "2001:DB8:0:17::2",
-		r0Lo0Ut1Ipv6Add: "2001:DB8:0:18::2",
-		r0Lo0Ut2Ipv6Add: "2001:DB8:0:19::2",
-		r0Lo0Ut3Ipv6Add: "2001:DB8:0:20::2",
-		r1Intf5Ipv6Add:  "2001:DB8:0:21::2",
-		r1Intf6Ipv6Add:  "2001:DB8:0:22::2",
-		r1Intf3Ipv6Add:  "2001:DB8:0:23::2",
-		r1Intf4Ipv6Add:  "2001:DB8:0:24::2",
-		r1Fti0Ipv6Add:   "2001:DB8:0:25::2",
-		r1Fti1Ipv6Add:   "2001:DB8:0:26::2",
-		r1Fti2Ipv6Add:   "2001:DB8:0:27::2",
-		r1Fti3Ipv6Add:   "2001:DB8:0:28::2",
-		r1Fti4Ipv6Add:   "2001:DB8:0:28::2",
-		r1Fti5Ipv6Add:   "2001:DB8:0:29::2",
-		r1Fti6Ipv6Add:   "2001:DB8:0:30::2",
-		r1Fti7Ipv6Add:   "2001:DB8:0:31::2",
-		r1Lo0Ut0Ipv6Add: "2001:DB8:0:32::2",
-		r1Lo0Ut1Ipv6Add: "2001:DB8:0:33::2",
-		r1Lo0Ut2Ipv6Add: "2001:DB8:0:34::2",
-		r1Lo0Ut3Ipv6Add: "2001:DB8:0:35::2",
+		rtIntf1MacAdd:    "00:00:aa:aa:aa:aa",
+		rtIntf2MacAdd:    "00:00:bb:bb:bb:bb",
+		rtIntf5MacAdd:    "00:00:cc:cc:cc:cc",
+		rtIntf6MacAdd:    "00:00:dd:dd:dd:dd",
+		rtIntf1Ipv6Add:   "2001:DB8:0:1::2",
+		rtIntf2Ipv6Add:   "2001:DB8:0:2::2",
+		rtIntf5Ipv6Add:   "2001:DB8:0:3::2",
+		rtIntf6Ipv6Add:   "2001:DB8:0:4::2",
+		r0Intf1Ipv6Add:   "2001:DB8:0:5::2",
+		r0Intf2Ipv6Add:   "2001:DB8:0:6::2",
+		r0Intf3Ipv6Add:   "2001:DB8:0:7::2",
+		r0Intf4Ipv6Add:   "2001:DB8:0:8::2",
+		r0Fti0Ipv6Add:    "2001:DB8:0:9::2",
+		r0Fti1Ipv6Add:    "2001:DB8:0:10::2",
+		r0Fti2Ipv6Add:    "2001:DB8:0:11::2",
+		r0Fti3Ipv6Add:    "2001:DB8:0:12::2",
+		r0Fti4Ipv6Add:    "2001:DB8:0:13::2",
+		r0Fti5Ipv6Add:    "2001:DB8:0:14::2",
+		r0Fti6Ipv6Add:    "2001:DB8:0:15::2",
+		r0Fti7Ipv6Add:    "2001:DB8:0:16::2",
+		r0Lo0Ut0Ipv6Add:  "2001:DB8:0:17::2",
+		r0Lo0Ut1Ipv6Add:  "2001:DB8:0:18::2",
+		r0Lo0Ut2Ipv6Add:  "2001:DB8:0:19::2",
+		r0Lo0Ut3Ipv6Add:  "2001:DB8:0:20::2",
+		r1Intf5Ipv6Add:   "2001:DB8:0:21::2",
+		r1Intf6Ipv6Add:   "2001:DB8:0:22::2",
+		r1Intf3Ipv6Add:   "2001:DB8:0:23::2",
+		r1Intf4Ipv6Add:   "2001:DB8:0:24::2",
+		r1Fti0Ipv6Add:    "2001:DB8:0:25::2",
+		r1Fti1Ipv6Add:    "2001:DB8:0:26::2",
+		r1Fti2Ipv6Add:    "2001:DB8:0:27::2",
+		r1Fti3Ipv6Add:    "2001:DB8:0:28::2",
+		r1Fti4Ipv6Add:    "2001:DB8:0:28::2",
+		r1Fti5Ipv6Add:    "2001:DB8:0:29::2",
+		r1Fti6Ipv6Add:    "2001:DB8:0:30::2",
+		r1Fti7Ipv6Add:    "2001:DB8:0:31::2",
+		r1Lo0Ut0Ipv6Add:  "2001:DB8:0:32::2",
+		r1Lo0Ut1Ipv6Add:  "2001:DB8:0:33::2",
+		r1Lo0Ut2Ipv6Add:  "2001:DB8:0:34::2",
+		r1Lo0Ut3Ipv6Add:  "2001:DB8:0:35::2",
+		r0Lo0Ut0Ipv4Add:  "2001:DB8:0:36::2",
+		r0Lo0Ut1Ipv4Add:  "2001:DB8:0:37::2",
+		r0Lo0Ut2Ipv4Add:  "2001:DB8:0:38::2",
+		r0Lo0Ut3Ipv4Add:  "2001:DB8:0:39::2",
+		r0Lo0Ut4Ipv4Add:  "2001:DB8:0:40::2",
+		r0Lo0Ut5Ipv4Add:  "2001:DB8:0:41::2",
+		r0Lo0Ut6Ipv4Add:  "2001:DB8:0:42::2",
+		r0Lo0Ut7Ipv4Add:  "2001:DB8:0:43::2",
+		r0Lo0Ut8Ipv4Add:  "2001:DB8:0:44::2",
+		r0Lo0Ut9Ipv4Add:  "2001:DB8:0:45::2",
+		r0Lo0Ut10Ipv4Add: "2001:DB8:0:46::2",
+		r0Lo0Ut11Ipv4Add: "2001:DB8:0:47::2",
+		r0Lo0Ut12Ipv4Add: "2001:DB8:0:48::2",
+		r0Lo0Ut13Ipv4Add: "2001:DB8:0:49::2",
+		r0Lo0Ut14Ipv4Add: "2001:DB8:0:50::2",
+		r0Lo0Ut15Ipv4Add: "2001:DB8:0:51::2",
+		r0Lo0Ut16Ipv4Add: "2001:DB8:0:52::2",
+		r0Lo0Ut17Ipv4Add: "2001:DB8:0:53::2",
+		r0Lo0Ut18Ipv4Add: "2001:DB8:0:54::2",
+		r0Lo0Ut19Ipv4Add: "2001:DB8:0:55::2",
+		r0Lo0Ut20Ipv4Add: "2001:DB8:0:56::2",
+		r0Lo0Ut21Ipv4Add: "2001:DB8:0:57::2",
+		r0Lo0Ut22Ipv4Add: "2001:DB8:0:58::2",
+		r0Lo0Ut23Ipv4Add: "2001:DB8:0:59::2",
+		r0Lo0Ut24Ipv4Add: "2001:DB8:0:60::2",
+		r0Lo0Ut25Ipv4Add: "2001:DB8:0:61::2",
+		r0Lo0Ut26Ipv4Add: "2001:DB8:0:62::2",
+		r0Lo0Ut27Ipv4Add: "2001:DB8:0:63::2",
+		r0Lo0Ut28Ipv4Add: "2001:DB8:0:64::2",
+		r0Lo0Ut29Ipv4Add: "2001:DB8:0:65::2",
+		r0Lo0Ut30Ipv4Add: "2001:DB8:0:66::2",
+		r0Lo0Ut31Ipv4Add: "2001:DB8:0:67::2",
+		rtLo0Ut0Ipv4Add:  "2001:DB8:0:68::2",
+		rtLo0Ut1Ipv4Add:  "2001:DB8:0:69::2",
+		rtLo0Ut2Ipv4Add:  "2001:DB8:0:70::2",
+		rtLo0Ut3Ipv4Add:  "2001:DB8:0:71::2",
+		rtLo0Ut4Ipv4Add:  "2001:DB8:0:72::2",
+		rtLo0Ut5Ipv4Add:  "2001:DB8:0:73::2",
+		rtLo0Ut6Ipv4Add:  "2001:DB8:0:74::2",
+		rtLo0Ut7Ipv4Add:  "2001:DB8:0:75::2",
+		rtLo0Ut8Ipv4Add:  "2001:DB8:0:76::2",
+		rtLo0Ut9Ipv4Add:  "2001:DB8:0:77::2",
+		rtLo0Ut10Ipv4Add: "2001:DB8:0:78::2",
+		rtLo0Ut11Ipv4Add: "2001:DB8:0:79::2",
+		rtLo0Ut12Ipv4Add: "2001:DB8:0:80::2",
+		rtLo0Ut13Ipv4Add: "2001:DB8:0:81::2",
+		rtLo0Ut14Ipv4Add: "2001:DB8:0:82::2",
+		rtLo0Ut15Ipv4Add: "2001:DB8:0:83::2",
+		rtLo0Ut16Ipv4Add: "2001:DB8:0:84::2",
+		rtLo0Ut17Ipv4Add: "2001:DB8:0:85::2",
+		rtLo0Ut18Ipv4Add: "2001:DB8:0:86::2",
+		rtLo0Ut19Ipv4Add: "2001:DB8:0:87::2",
+		rtLo0Ut20Ipv4Add: "2001:DB8:0:88::2",
+		rtLo0Ut21Ipv4Add: "2001:DB8:0:89::2",
+		rtLo0Ut22Ipv4Add: "2001:DB8:0:90::2",
+		rtLo0Ut23Ipv4Add: "2001:DB8:0:91::2",
+		rtLo0Ut24Ipv4Add: "2001:DB8:0:92::2",
+		rtLo0Ut25Ipv4Add: "2001:DB8:0:93::2",
+		rtLo0Ut26Ipv4Add: "2001:DB8:0:94::2",
+		rtLo0Ut27Ipv4Add: "2001:DB8:0:95::2",
+		rtLo0Ut28Ipv4Add: "2001:DB8:0:96::2",
+		rtLo0Ut29Ipv4Add: "2001:DB8:0:97::2",
+		rtLo0Ut30Ipv4Add: "2001:DB8:0:98::2",
+		rtLo0Ut31Ipv4Add: "2001:DB8:0:98::2",
+
 		ipv6Mask:        120,
 		ipv6FullMask:    128,
 		flow1:           "IPv6-flow1",
@@ -183,12 +248,39 @@ func TestFtiTunnels(t *testing.T) {
 		ConfigureTunnelEncapDUT(t, p, dut1, d1p1, d1p2, d1p3, d1p4)
 	})
 
-	t.Run("Configure loopback interface on dut1 and dut2 ", func(t *testing.T) {
-		// configure addtional loop address by native cli configuration.
-		ConfigureLoobackInterfaceWithIPv6address(t, p.r0Lo0Ut1Ipv6Add, dut1)
-		ConfigureLoobackInterfaceWithIPv6address(t, p.r0Lo0Ut2Ipv6Add, dut1)
-		ConfigureLoobackInterfaceWithIPv6address(t, p.r0Lo0Ut3Ipv6Add, dut1)
-
+	t.Run("Configure 32 tunnel interface on DUT ", func(t *testing.T) {
+		ConfigureTunnelInterface(t, 0, p.r0Lo0Ut0Ipv4Add, p.rtLo0Ut0Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 1, p.r0Lo0Ut1Ipv4Add, p.rtLo0Ut1Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 2, p.r0Lo0Ut2Ipv4Add, p.rtLo0Ut2Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 3, p.r0Lo0Ut3Ipv4Add, p.rtLo0Ut3Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 4, p.r0Lo0Ut4Ipv4Add, p.rtLo0Ut4Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 5, p.r0Lo0Ut5Ipv4Add, p.rtLo0Ut5Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 6, p.r0Lo0Ut6Ipv4Add, p.rtLo0Ut6Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 7, p.r0Lo0Ut7Ipv4Add, p.rtLo0Ut7Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 8, p.r0Lo0Ut8Ipv4Add, p.rtLo0Ut8Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 9, p.r0Lo0Ut9Ipv4Add, p.rtLo0Ut9Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 10, p.r0Lo0Ut10Ipv4Add, p.rtLo0Ut10Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 11, p.r0Lo0Ut11Ipv4Add, p.rtLo0Ut11Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 12, p.r0Lo0Ut12Ipv4Add, p.rtLo0Ut12Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 13, p.r0Lo0Ut13Ipv4Add, p.rtLo0Ut13Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 14, p.r0Lo0Ut14Ipv4Add, p.rtLo0Ut14Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 15, p.r0Lo0Ut15Ipv4Add, p.rtLo0Ut15Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 16, p.r0Lo0Ut16Ipv4Add, p.rtLo0Ut16Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 17, p.r0Lo0Ut17Ipv4Add, p.rtLo0Ut17Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 18, p.r0Lo0Ut18Ipv4Add, p.rtLo0Ut18Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 19, p.r0Lo0Ut19Ipv4Add, p.rtLo0Ut19Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 20, p.r0Lo0Ut20Ipv4Add, p.rtLo0Ut20Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 21, p.r0Lo0Ut21Ipv4Add, p.rtLo0Ut21Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 22, p.r0Lo0Ut22Ipv4Add, p.rtLo0Ut22Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 23, p.r0Lo0Ut23Ipv4Add, p.rtLo0Ut23Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 24, p.r0Lo0Ut24Ipv4Add, p.rtLo0Ut24Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 25, p.r0Lo0Ut25Ipv4Add, p.rtLo0Ut25Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 26, p.r0Lo0Ut26Ipv4Add, p.rtLo0Ut26Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 27, p.r0Lo0Ut27Ipv4Add, p.rtLo0Ut27Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 28, p.r0Lo0Ut28Ipv4Add, p.rtLo0Ut28Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 29, p.r0Lo0Ut29Ipv4Add, p.rtLo0Ut29Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 30, p.r0Lo0Ut30Ipv4Add, p.rtLo0Ut30Ipv4Add, dut1)
+		ConfigureTunnelInterface(t, 31, p.r0Lo0Ut31Ipv4Add, p.rtLo0Ut31Ipv4Add, dut1)
 	})
 
 	t.Run("Configure 8 tunnel interface on DUT ", func(t *testing.T) {
@@ -303,7 +395,7 @@ func ConfigureTunnelInterface(t *testing.T, intf string, tunnelSrc string, tunne
 	t.Logf("Push the Ipv6 tunnel endpoint config:\n%s", dut.Vendor())
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
-		config := ConfigureTunnelEndPoints(intf, tunnelSrc, tunnelDst)
+		config := ConfigureTunnelCLI(intf, tunnelSrc, tunnelDst)
 		t.Logf("Push the CLI config:\n%s", config)
 		gnmiClient := dut.RawAPIs().GNMI().Default(t)
 		gpbSetRequest, err := buildCliConfigRequest(config)
@@ -837,4 +929,26 @@ func ConfigureTunnelTermination(t *testing.T, intf *ondatra.Port, dut *ondatra.D
 	default:
 		t.Errorf("Invalid Tunnel termination configuration")
 	}
+}
+
+func ConfigureTunnelCLI(tunnelUnit string, tunnelSrc string, tunnelDest string) string {
+
+	return fmt.Sprintf(`
+	interfaces {
+	fti0 {
+		unit %s {
+			tunnel {
+				encapsulation gre {
+					source {
+						address %s;
+					}
+					destination {
+						address %s;
+					}
+				}
+			}
+		}
+	}
+	}`, tunnelUnit, tunnelSrc, tunnelDest, tunnelInet)
+
 }

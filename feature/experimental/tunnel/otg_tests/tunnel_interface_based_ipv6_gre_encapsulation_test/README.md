@@ -13,14 +13,8 @@ Tunnel Destination
 Directly on Tunnel interface or Tunnel Group
 Configure such 32 tunnel interfaces
 Configure static route with IPv6 NH pointing to Tunnel interfaces
-Send 1000 IPv6 flows from tester on ATE-PORT1 connected to DUT-PORT1 where GRE Encap filter is applied with the traffic profile documented
-IPv6 flows are made of 5 tuples
-Source IP address
-Source port
-Destination IP address
-Destination port
-Payload protocol
-Enable the packet capture on ATE ingress port to verify the GRE header of uncapped traffic
+Send 1000 IPv6 flows from tester on ATE-PORT1 connected to DUT-PORT1
+Enable the packet capture on ATE ingress port to verify the GRE header of encapped traffic
 Verify the tunnel interfaces counters to confirm the traffic encapsulation
 After encapsulation, traffic should be load balanced/hash to all available L3 ECMP or LAG or combination of both features
 Validate system for:
