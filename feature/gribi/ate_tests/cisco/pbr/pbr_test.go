@@ -71,10 +71,14 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	policy := oc.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
+	intfRef := &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{}
+	intfRef.SetInterface("Bundle-Ether120")
+	intfRef.SetSubinterface(0)
 	policy.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{
 		"Bundle-Ether120": {
 			InterfaceId:             ygot.String("Bundle-Ether120"),
 			ApplyVrfSelectionPolicy: ygot.String(pbrName),
+			InterfaceRef:            intfRef,
 		},
 	}
 
