@@ -1,7 +1,7 @@
 # gNMI-1.14 OpenConfig metadata consistency during large config push
 
 ## Summary
-This test verify if OpenConfig metadata leaf at root is updated according to pushed config and not reverted or otherway modified if rapid, subsequent Subscribe request are served while setRequest is in process and SetResponce is not recived yet.
+This test verify if OpenConfig metadata leaf at root is updated according to pushed config and not reverted or otherway modified if any rapid, concurrent non-write requests are served while setRequest is in process and SetResponce is not recived yet.
 
 ## Topology
 dut.testbed
@@ -20,13 +20,14 @@ dut.testbed
   *  /lacp/
   *  /protobuf-metadata
 * Push 1st_LARGE_CONFIGURATION and wait for SetResponce that confirm push was sucesfull.
-* Subscribe once (note: GNMI getRequest is deprecated) for configuration root-level metadata and verify that it is identical corresponding root-level metadata of 1st_LARGE_CONFIGURATION.
-* Repeat sending subsequent Subscribe once requests for configuration root-level metadata rapidly.
-* While above Subscribe once requests are send, push SetRequest replace with 2nd_LARGE_CONFIGURATION.
-* After SetResponse is recived confirming sucesfull push of 2nd_LARGE_CONFIGURATION:
-  * stop sending Subscribe once requests
-  * wait 5 seconds
-  * Subscribe once for configuration root-level metadata and verify that it is identical corresponding root-level metadata of 2nd_LARGE_CONFIGURATION.
+* DubbscribeRequest once for configuration root-level metadata and verify that it is identical corresponding root-level metadata of 1st_LARGE_CONFIGURATION.
+* For REQUEST of type (GetRequest, SubscribeRequest, CapabilityRequest)
+  * Repeat sending rapidly subsequent REQUEST requests for configuration root-level metadata (GetRequest, SubscribeRequest).
+  * While above REQUESTS are send, push SetRequest replace with 2nd_LARGE_CONFIGURATION.
+  * After SetResponse is recived confirming sucesfull push of 2nd_LARGE_CONFIGURATION:
+    * stop sending REQUEST requests
+    * wait 5 seconds
+    * SubscribeRequest once for configuration root-level metadata and verify that it is identical corresponding root-level metadata of 2nd_LARGE_CONFIGURATION.
 
 ## Configuration path coverage
 * /config/protobuf-metadata
