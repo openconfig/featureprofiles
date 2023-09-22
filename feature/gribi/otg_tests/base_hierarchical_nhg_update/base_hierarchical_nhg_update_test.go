@@ -188,9 +188,10 @@ type bundleName struct {
 
 // enum for validateTrafficFlows options
 const (
-	traffic_on_port2_port3_and_not_on_port4 = iota + 1
-	switch_traffic_to_port4_from_port2_and_port3
-	switch_traffic_to_port2_and_port3_from_port4
+	startTraffic = iota
+	trafficOnPort2Port3NotOnPort4
+	switchTrafficToPort4FromPort2AndPort3
+	switchTrafficToPort2AndPort3FromPort4
 )
 
 func TestMain(m *testing.M) {
@@ -307,7 +308,7 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, dstPfx, dstNHGID, vrfName, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
-	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, 0, args.client, false)
+	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, startTraffic, args.client, false)
 
 	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
 	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
@@ -328,7 +329,7 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	} else {
 		args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1, p3NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	}
-	validateTrafficFlows(t, args.ate, nil, nil, []gosnappi.Flow{p2Flow, p3Flow}, 0, args.client, false)
+	validateTrafficFlows(t, args.ate, nil, nil, []gosnappi.Flow{p2Flow, p3Flow}, startTraffic, args.client, false)
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p3NHID)
 	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
@@ -337,7 +338,7 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	} else {
 		args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p3NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	}
-	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p3Flow}, []gosnappi.Flow{p2Flow}, nil, 0, args.client, false)
+	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p3Flow}, []gosnappi.Flow{p2Flow}, nil, startTraffic, args.client, false)
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p2NHID)
 	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
@@ -346,7 +347,7 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	} else {
 		args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	}
-	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, 0, args.client, false)
+	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, startTraffic, args.client, false)
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
@@ -546,10 +547,10 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 	config := otg.FetchConfig(t)
 
 	switch option {
-	case traffic_on_port2_port3_and_not_on_port4:
+	case trafficOnPort2Port3NotOnPort4:
 		otg.StartTraffic(t)
 		time.Sleep(15 * time.Second)
-	case switch_traffic_to_port4_from_port2_and_port3:
+	case switchTrafficToPort4FromPort2AndPort3:
 		nonrx_ports = []string{"port2", "port3"}
 		expected_outgoing_port = []string{"port4"}
 		otg.StartTraffic(t)
@@ -557,7 +558,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 		t.Logf("Modify NHG %v pointing to %v", nhg1ID, btrunk4)
 		gr.AddNHG(t, nhg1ID, map[uint64]uint64{nh3ID: 100}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 		time.Sleep(30 * time.Second)
-	case switch_traffic_to_port2_and_port3_from_port4:
+	case switchTrafficToPort2AndPort3FromPort4:
 		nonrx_ports = []string{"port4"}
 		expected_outgoing_port = []string{"port2", "port3"}
 		otg.StartTraffic(t)
@@ -818,7 +819,7 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	t.Log("Validate primary path traffic received at ate port2, ate port3 and no traffic on ate port4")
 
-	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, 1, args.client, false)
+	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, trafficOnPort2Port3NotOnPort4, args.client, false)
 
 	t.Logf("Adding NH %d for trunk4 via gribi", nh3ID)
 	if deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
@@ -828,10 +829,10 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	t.Log("Validate traffic switching from  ate port2, ate port3 to ate port4")
-	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, nil, 2, args.client, true)
+	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, nil, switchTrafficToPort4FromPort2AndPort3, args.client, true)
 
 	t.Log("Validate traffic switching from  ate port4 back to ate port2 and ate port3")
-	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, 3, args.client, true)
+	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, switchTrafficToPort2AndPort3FromPort4, args.client, true)
 
 }
 
