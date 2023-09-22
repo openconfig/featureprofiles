@@ -210,7 +210,7 @@ func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 // The DUT is expected to be in a topology where 192.0.2.2 is a valid next-hop. Packets
 // with label 100 will have this label popped from the stack.
 func PopTopLabel(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, trafficFunc TrafficFunc) {
-	defer electionID.Inc()
+	defer electionID.Add(1)
 	defer flushServer(t, c)
 
 	ops := []func(){
