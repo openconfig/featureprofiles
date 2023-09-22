@@ -23,6 +23,17 @@ traffic validation.
 * Validate that gRIBI transactions are successfully processed by the server.
 
 ### TE-9.2: Push MPLS Labels to IP Packet
+<<<<<<< HEAD
+=======
+
+* Configure DUT with a destination interface connected to an ATE. The ATE is
+  configured to have an assigned address of `192.0.2.2`, and the interface to
+  the DUT is enabled.
+* For label stack depths from `N=1...numLabels` program:
+     * an IPv4 entry for `10.0.0.0/24` with a next-hop of `192.0.2.2` pushing N
+       additional labels onto the packet.
+* Validate that gRIBI transactions are successfully processed by the server.
+>>>>>>> 1e06a84b (Add gRIBI IP2MPLS compliance test.)
 
 * Configure DUT with a destination interface connected to an ATE. The ATE is
   configured to have an assigned address of `192.0.2.2`, and the interface to
