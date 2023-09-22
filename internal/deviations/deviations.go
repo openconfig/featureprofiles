@@ -614,3 +614,9 @@ func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
 func InterfaceLoopbackModeRawGnmi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceLoopbackModeRawGnmi()
 }
+
+// ISISLspMetadataLeafsUnsupported returns true for devices that don't support ISIS-Lsp
+// metadata paths: checksum, sequence-number, remaining-lifetime.
+func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspMetadataLeafsUnsupported()
+}
