@@ -32,6 +32,14 @@ traffic validation.
        additional labels onto the packet.
 * Validate that gRIBI transactions are successfully processed by the server.
 
+### TE-9.3: Pop Top MPLS Label
+
+* Configure DUT with a destination interface connected to an ATE. The ATE is
+  configured to have assigned address 192.0.2.2.
+* Program DUT with a label forwarding entry matching label 100 and specifying to
+  pop the top label.
+* Validate that gRIBI transactions are successfully processed by the server.
+
 ## Protocol/RPC Parameter coverage
 
 *   gRIBI:
