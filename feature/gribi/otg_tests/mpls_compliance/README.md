@@ -31,6 +31,7 @@ traffic validation.
      * an IPv4 entry for `10.0.0.0/24` with a next-hop of `192.0.2.2` pushing N
        additional labels onto the packet.
 * Validate that gRIBI transactions are successfully processed by the server.
+<<<<<<< HEAD
 
 * Configure DUT with a destination interface connected to an ATE. The ATE is
   configured to have an assigned address of `192.0.2.2`, and the interface to
@@ -57,6 +58,8 @@ traffic validation.
     * Label `100`
     * Label stack `[100, 42]`
     * Label stack `[100, 42, 43, 44, 45]`
+=======
+>>>>>>> 16dfc334 (Add gRIBI IP2MPLS compliance test.)
 
 ## TE-9.5: Pop 1 Push N Labels
 
