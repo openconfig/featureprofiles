@@ -259,7 +259,10 @@ func (s *TestSession) PushDUT(ctx context.Context, t testing.TB) error {
 	}
 
 	// Push the ISIS protocol
-	if _, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE); err != nil {
+	if _, err := ygnmi.Update(ctx, s.DUTClient, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).Config(), &oc.NetworkInstance{
+		Name: ygot.String(deviations.DefaultNetworkInstance(s.DUT)),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+	}); err != nil {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).GetOrCreateProtocol(PTISIS, ISISName)
