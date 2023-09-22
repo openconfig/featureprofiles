@@ -186,6 +186,12 @@ type bundleName struct {
 	trunk4 string
 }
 
+const (
+	traffic_on_port2_port3_and_not_on_port4 = iota + 1
+	switch_traffic_to_port4_from_port2_and_port3
+	switch_traffic_to_port2_and_port3_from_port4
+)
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -250,10 +256,10 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Log("Create flows for port 1 to port2, port 1 to port3")
-	p2flow := "Port 1 to Port 2"
-	p3flow := "Port 1 to Port 3"
-	p2Flow := createFlow(t, p2flow, args.top, false, &atePort2)
-	p3Flow := createFlow(t, p3flow, args.top, false, &atePort3)
+	p2FlowName := "Port 1 to Port 2"
+	p3FlowName := "Port 1 to Port 3"
+	p2Flow := createFlow(t, p2FlowName, args.top, false, &atePort2)
+	p3Flow := createFlow(t, p3FlowName, args.top, false, &atePort3)
 
 	args.ate.OTG().PushConfig(t, args.top)
 	args.ate.OTG().StartProtocols(t)
@@ -341,6 +347,7 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, 0, args.client, false)
 }
+
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top := ate.OTG().NewConfig(t)
 
@@ -482,6 +489,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
+// Set drain to true to design flows for testImplementDrain case and false to design flows for testBaseHierarchialNHG case
 func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, drain bool, dsts ...*attrs.Attributes) gosnappi.Flow {
 	var rxEndpoints []string
 	for _, dst := range dsts {
@@ -519,6 +527,10 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, drain bool, d
 
 // validateTrafficFlows starts traffic and ensures that good flows have 0% loss and bad flows have
 // 100% loss.
+// Set option 1 to receive traffic on port 2 and port 3 and no traffic on port 4
+// Set option 2 to switch traffic from port2 and port3 to port4
+// Set option 3 to switch traffic from port 4 to port 2 and port 3
+// set change to true if some traffic lost is expected due to converge on path switch
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []gosnappi.Flow, option int, gr *gribi.Client, change bool) {
 
 	if len(good) == 0 && len(bad) == 0 && len(lb) == 0 {
@@ -533,10 +545,10 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 	config := otg.FetchConfig(t)
 
 	switch option {
-	case 1:
+	case traffic_on_port2_port3_and_not_on_port4:
 		otg.StartTraffic(t)
 		time.Sleep(15 * time.Second)
-	case 2:
+	case switch_traffic_to_port4_from_port2_and_port3:
 		nonrx_ports = []string{"port2", "port3"}
 		expected_outgoing_port = []string{"port4"}
 		otg.StartTraffic(t)
@@ -544,7 +556,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 		t.Logf("Modify NHG %v pointing to %v", nhg1ID, btrunk4)
 		gr.AddNHG(t, nhg1ID, map[uint64]uint64{nh3ID: 100}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 		time.Sleep(30 * time.Second)
-	case 3:
+	case switch_traffic_to_port2_and_port3_from_port4:
 		nonrx_ports = []string{"port4"}
 		expected_outgoing_port = []string{"port2", "port3"}
 		otg.StartTraffic(t)
@@ -692,6 +704,22 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Skip()
 		//Testcase skipped as static arp and route config needed for other vendors
 	}
+	t.Log("Create flows for port1 to port2, port1 to port3 and port1 to port4")
+	args.top.Flows().Clear()
+
+	p2FlowName := "Flow Port 1 to Port 2"
+	p3FlowName := "Flow Port 1 to Port 3"
+	p4FlowName := "Flow Port 1 to Port 4"
+	p2Flow := createFlow(t, p2FlowName, args.top, true, &atePort2)
+	p3Flow := createFlow(t, p3FlowName, args.top, true, &atePort3)
+	p4Flow := createFlow(t, p4FlowName, args.top, true, &atePort4)
+
+	args.ate.OTG().PushConfig(t, args.top)
+	args.ate.OTG().StartProtocols(t)
+
+	// waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
+
 	configDUTDrain(t, args.dut)
 	addStaticRoute(t, args.dut)
 
@@ -787,22 +815,8 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 				WithPrefix(prefix+"/"+mask),
 		)
 	}
-
-	t.Log("Create flows for port1 to port2, port1 to port3 and port1 to port4")
-	args.top.Flows().Clear()
-
-	p2flow := "Flow Port 1 to Port 2"
-	p3flow := "Flow Port 1 to Port 3"
-	p4flow := "Flow Port 1 to Port 4"
-	p2Flow := createFlow(t, p2flow, args.top, true, &atePort2)
-	p3Flow := createFlow(t, p3flow, args.top, true, &atePort3)
-	p4Flow := createFlow(t, p4flow, args.top, true, &atePort4)
-
-	args.ate.OTG().PushConfig(t, args.top)
-	args.ate.OTG().StartProtocols(t)
-
 	t.Log("Validate primary path traffic received at ate port2, ate port3 and no traffic on ate port4")
-	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
+
 	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, 1, args.client, false)
 
 	t.Logf("Adding NH %d for trunk4 via gribi", nh3ID)
@@ -930,12 +944,12 @@ func getLossPct(t *testing.T, flowName string) float32 {
 	t.Helper()
 	otg := ondatra.ATE(t, "ate").OTG()
 	flowStats := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
-	txPackets := float32(flowStats.GetCounters().GetOutPkts())
-	rxPackets := float32(flowStats.GetCounters().GetInPkts())
+	txPackets := flowStats.GetCounters().GetOutPkts()
+	rxPackets := flowStats.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
 	if txPackets == 0 {
 		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
 	}
-	lossPct := lostPackets * 100 / txPackets
+	lossPct := 100 * (float32(lostPackets) / float32(txPackets))
 	return lossPct
 }
