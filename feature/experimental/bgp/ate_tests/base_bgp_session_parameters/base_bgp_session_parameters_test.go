@@ -269,8 +269,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	t.Log("Configure BGP")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -326,9 +325,13 @@ func TestEstablishAndDisconnect(t *testing.T) {
 
 	// Verify if Cease notification is received on DUT.
 	t.Log("Verify Error code received on DUT: BgpTypes_BGP_ERROR_CODE_CEASE")
-	code := gnmi.Get(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State())
-	if code != oc.BgpTypes_BGP_ERROR_CODE_CEASE {
-		t.Errorf("On disconnect: expected error code %v, got %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE, code)
+	_, codeok := gnmi.Watch(t, dut, nbrPath.Messages().Received().LastNotificationErrorCode().State(), 60*time.Second, func(val *ygnmi.Value[oc.E_BgpTypes_BGP_ERROR_CODE]) bool {
+		code, present := val.Val()
+		t.Logf("On disconnect, received code status %v", present)
+		return present && code == oc.BgpTypes_BGP_ERROR_CODE_CEASE
+	}).Await(t)
+	if !codeok {
+		t.Errorf("On disconnect: expected error code %v", oc.BgpTypes_BGP_ERROR_CODE_CEASE)
 	}
 
 	// Clear config on DUT and ATE
