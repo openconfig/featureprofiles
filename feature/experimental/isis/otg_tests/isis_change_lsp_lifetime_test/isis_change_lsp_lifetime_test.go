@@ -57,17 +57,25 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 
 	isis := prot.GetOrCreateIsis()
 	globalIsis := isis.GetOrCreateGlobal()
+	if deviations.ISISInstanceEnabledRequired(ts.DUT) {
+		globalIsis.Instance = ygot.String(session.ISISName)
+	}
 
 	// Global configs
 	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalIsis.GetOrCreateTimers().LspLifetimeInterval = ygot.Uint16(lspLifetime)
+	if deviations.ISISLspLifetimeIntervalRequiresLspRefreshInterval(ts.DUT) {
+		globalIsis.GetOrCreateTimers().LspRefreshInterval = ygot.Uint16(60)
+	}
 }
 
 // configureOTG configures isis and traffic on OTG.
 func configureOTG(t *testing.T, ts *session.TestSession) {
 	t.Helper()
+
+	ts.ATEIntf1.Isis().Advanced().SetLspRefreshRate(60)
 
 	// netv4 is a simulated network containing the ipv4 addresses specified by targetNetwork
 	netv4 := ts.ATEIntf1.Isis().V4Routes().Add().SetName(v4NetName).SetLinkMetric(10)
@@ -127,7 +135,7 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 
 	ts.PushAndStart(t)
 
-	statePath := session.ISISPath(ts.DUT)
+	isisPath := session.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		intfName += ".0"
@@ -142,65 +150,77 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 		ateLspID := ateSysID + ".00-00"
 		dutLspID := session.DUTSysID + ".00-00"
 
+		// wait for ATE Lsp TLV to be present in DUT
+		_, ok := gnmi.Await(t, ts.DUT, isisPath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(v4Route).Prefix().State(), 2*time.Minute, v4Route).Val()
+		if !ok {
+			t.Error("FAIL- Couldn't find v4Route in ATE LSP TLV")
+		}
+
 		t.Run("Adjacency state checks", func(t *testing.T) {
-			adjPath := statePath.Interface(intfName).Level(2).Adjacency(ateSysID)
+			adjPath := isisPath.Interface(intfName).Level(2).Adjacency(ateSysID)
 			if got := gnmi.Get(t, ts.DUT, adjPath.Nlpid().State()); !cmp.Equal(got, []oc.E_Adjacency_Nlpid{oc.Adjacency_Nlpid_IPV4, oc.Adjacency_Nlpid_IPV6}) {
 				t.Errorf("FAIL- Expected address families not found, got %s, want %s", got, []oc.E_Adjacency_Nlpid{oc.Adjacency_Nlpid_IPV4, oc.Adjacency_Nlpid_IPV6})
 			}
 		})
 		t.Run("Lsp checks", func(t *testing.T) {
-			if got := gnmi.Get(t, ts.DUT, statePath.Global().Timers().LspLifetimeInterval().State()); got != lspLifetime {
-				t.Errorf("FAIL- Expected lsp lifetime interval not found, want %d, got %d", lspLifetime, got)
+			isis := gnmi.Get(t, ts.DUT, isisPath.State())
+			if got, want := isis.GetGlobal().GetTimers().GetLspLifetimeInterval(), uint16(lspLifetime); got != want {
+				t.Errorf("FAIL- Expected lsp lifetime interval not found, got %d, want %d", got, want)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).LspId().State()); got != dutLspID {
-				t.Errorf("FAIL- Expected DUT lsp id not found, want %s, got %s", dutLspID, got)
+			if got, want := isis.GetLevel(2).GetLsp(dutLspID).GetRemainingLifetime(), uint16(lspLifetime); got >= want {
+				t.Errorf("FAIL- Expected remaining lifetime not found, got %d,want less then %d", got, want)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).LspId().State()); got != ateLspID {
-				t.Errorf("FAIL- Expected ATE lsp not found, want %s, got %s", ateLspID, got)
+			if got, want := isis.GetLevel(2).GetLsp(dutLspID).GetLspId(), dutLspID; got != want {
+				t.Errorf("FAIL- Expected DUT lsp id not found, got %s, want %s", got, want)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State()); got == 0 {
+			if got, want := isis.GetLevel(2).GetLsp(ateLspID).GetLspId(), ateLspID; got != want {
+				t.Errorf("FAIL- Expected ATE lsp not found, got %s, want %s", got, want)
+			}
+			if got := gnmi.Get(t, ts.DUT, isisPath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State()); got == 0 {
 				t.Errorf("FAIL- Expected lsp count is greater than 0, got %d", got)
-			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).RemainingLifetime().State()); got >= lspLifetime {
-				t.Errorf("FAIL- Expected remaining lifetime not found, got %d,want less then %d", got, lspLifetime)
 			}
 		})
 		t.Run("Route checks", func(t *testing.T) {
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(v4Route).Prefix().State()); got != v4Route {
-				t.Errorf("FAIL- Expected ate v4 route not found, got %v, want %v", got, v4Route)
+			isis := gnmi.Get(t, ts.DUT, isisPath.State())
+			if got, want := isis.GetLevel(2).GetLsp(ateLspID).GetTlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).GetExtendedIpv4Reachability().GetPrefix(v4Route).GetPrefix(), v4Route; got != want {
+				t.Errorf("FAIL- Expected ate v4 route not found, got %v, want %v", got, want)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(v6Route).Prefix().State()); got != v6Route {
-				t.Errorf("FAIL- Expected v6 route not found in isis, got %v, want %v", got, v6Route)
+			if got, want := isis.GetLevel(2).GetLsp(ateLspID).GetTlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).GetIpv6Reachability().GetPrefix(v6Route).GetPrefix(), v6Route; got != want {
+				t.Errorf("FAIL- Expected v6 route not found in isis, got %v, want %v", got, want)
 			}
-			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route).State()).GetPrefix(); got != v4Route {
-				t.Errorf("FAIL- Expected v4 route not found in aft, got %v, want %v", got, v4Route)
+			if got, want := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route).State()).GetPrefix(), v4Route; got != want {
+				t.Errorf("FAIL- Expected v4 route not found in aft, got %v, want %v", got, want)
 			}
-			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(v6Route).State()).GetPrefix(); got != v6Route {
-				t.Errorf("FAIL- Expected v6 route not found in aft, got %v, want %v", got, v6Route)
+			if got, want := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(v6Route).State()).GetPrefix(), v6Route; got != want {
+				t.Errorf("FAIL- Expected v6 route not found in aft, got %v, want %v", got, want)
 			}
 		})
-		seqNum1 := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).SequenceNumber().State())
-		checksum1 := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Checksum().State())
-		lspSent1 := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State())
-
 		// Check the lsp's checksum/seq number/remaining lifetime once lsp refreshes periodically.
 		t.Run("Lsp lifetime checks", func(t *testing.T) {
-			_, ok := gnmi.Watch(t, ts.DUT, statePath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State(), time.Minute*4, func(val *ygnmi.Value[uint32]) bool {
-				lspSent2, present := val.Val()
+			isis := gnmi.Get(t, ts.DUT, isisPath.State())
+			seqNum1 := isis.GetLevel(2).GetLsp(dutLspID).GetSequenceNumber()
+			checksum1 := isis.GetLevel(2).GetLsp(dutLspID).GetChecksum()
+			lspSent1 := gnmi.Get(t, ts.DUT, isisPath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State())
 
-				if lspSent2 > lspSent1 {
-					time.Sleep(time.Second * 5)
-					if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).SequenceNumber().State()); got <= seqNum1 {
-						t.Errorf("FAIL- Sequence number of new lsp should increment, got %d, want greater than %d", got, seqNum1)
-					}
-					if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Checksum().State()); got == checksum1 {
-						t.Errorf("FAIL- Checksum of new lsp should be different from %d, got %d", checksum1, got)
-					}
-					if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).RemainingLifetime().State()); got >= lspLifetime || got < lspLifetime-50 {
-						t.Errorf("FAIL- Expected remaining lifetime not found, got %d,expected b/w %d and %d", got, lspLifetime, lspLifetime-50)
-					}
+			_, ok := gnmi.Watch(t, ts.DUT, isisPath.Interface(intfName).Level(2).PacketCounters().Lsp().Sent().State(), time.Minute*4, func(val *ygnmi.Value[uint32]) bool {
+				lspSent2, ok := val.Val()
+				if !ok || lspSent2 <= lspSent1 {
+					return false
 				}
-				return present && lspSent2 > lspSent1
+				if deviations.ISISLspMetadataLeafsUnsupported(ts.DUT) {
+					return true
+				}
+				isisNew := gnmi.Get(t, ts.DUT, isisPath.State())
+				if got, want := isisNew.GetLevel(2).GetLsp(dutLspID).GetSequenceNumber(), seqNum1; got <= want {
+					t.Errorf("FAIL- Sequence number of new lsp should increment, got %d, want greater than %d", got, want)
+				}
+				if got := isisNew.GetLevel(2).GetLsp(dutLspID).GetChecksum(); got == checksum1 {
+					t.Errorf("FAIL- Checksum of new lsp should be different from %d, got %d", checksum1, got)
+				}
+				if got := isisNew.GetLevel(2).GetLsp(dutLspID).GetRemainingLifetime(); got >= lspLifetime || got < lspLifetime-50 {
+					t.Errorf("FAIL- Expected remaining lifetime not found, got %d,expected b/w %d and %d", got, lspLifetime, lspLifetime-50)
+				}
+				return true
 			}).Await(t)
 			if !ok {
 				t.Error("FAIL- Isis lsp is not refreshing periodically")
