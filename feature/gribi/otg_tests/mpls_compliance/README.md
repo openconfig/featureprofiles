@@ -23,8 +23,6 @@ traffic validation.
 * Validate that gRIBI transactions are successfully processed by the server.
 
 ### TE-9.2: Push MPLS Labels to IP Packet
-<<<<<<< HEAD
-=======
 
 * Configure DUT with a destination interface connected to an ATE. The ATE is
   configured to have an assigned address of `192.0.2.2`, and the interface to
@@ -33,7 +31,6 @@ traffic validation.
      * an IPv4 entry for `10.0.0.0/24` with a next-hop of `192.0.2.2` pushing N
        additional labels onto the packet.
 * Validate that gRIBI transactions are successfully processed by the server.
->>>>>>> 1e06a84b (Add gRIBI IP2MPLS compliance test.)
 
 * Configure DUT with a destination interface connected to an ATE. The ATE is
   configured to have an assigned address of `192.0.2.2`, and the interface to
@@ -51,7 +48,6 @@ traffic validation.
   pop the top label.
 * Validate that gRIBI transactions are successfully processed by the server.
 
-<<<<<<< HEAD
 ## TE-9.4: Pop N Labels from Stack
 
 * Configure DUT with destination interface connected to an ATE. The ATE is
@@ -73,8 +69,6 @@ traffic validation.
    - push stack `[100, 200, 300, 400]`
    - push stack `[100, 200, 300, 400, 500, 600]`
 
-=======
->>>>>>> 81bb985c (Add gRIBI control plane only pop top MPLS label test.)
 ## Protocol/RPC Parameter coverage
 
 *   gRIBI:

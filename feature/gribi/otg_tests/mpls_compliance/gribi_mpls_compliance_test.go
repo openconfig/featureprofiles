@@ -71,7 +71,6 @@ func TestMPLSPushToIP(t *testing.T) {
 		})
 	}
 }
-<<<<<<< HEAD
 
 // TestPopTopLabel validates the gRIBI actions that are used to pop the top label
 // when specified in a next-hop.
@@ -85,7 +84,6 @@ func TestPopTopLabel(t *testing.T) {
 
 	mplsutil.PopTopLabel(t, c, deviations.DefaultNetworkInstance(dut), sleepFn)
 }
-<<<<<<< HEAD
 
 // TestPopNLabels validates the gRIBI actions that are used to pop N labels from a
 // label stack when specified in a next-hop.
@@ -125,7 +123,3 @@ func TestPopOnePushN(t *testing.T) {
 		})
 	}
 }
-=======
->>>>>>> 81bb985c (Add gRIBI control plane only pop top MPLS label test.)
-=======
->>>>>>> 1e06a84b (Add gRIBI IP2MPLS compliance test.)
