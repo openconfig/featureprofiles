@@ -132,15 +132,15 @@ func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attri
 	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
 
 	if a.MTU > 0 {
-		eth.SetMtu(int32(a.MTU))
+		eth.SetMtu(uint32(a.MTU))
 	}
 	if a.IPv4 != "" {
 		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-		ip.SetAddress(a.IPv4).SetGateway(peer.IPv4).SetPrefix(int32(a.IPv4Len))
+		ip.SetAddress(a.IPv4).SetGateway(peer.IPv4).SetPrefix(uint32(a.IPv4Len))
 	}
 	if a.IPv6 != "" {
 		ip := eth.Ipv6Addresses().Add().SetName(dev.Name() + ".IPv6")
-		ip.SetAddress(a.IPv6).SetGateway(peer.IPv6).SetPrefix(int32(a.IPv6Len))
+		ip.SetAddress(a.IPv6).SetGateway(peer.IPv6).SetPrefix(uint32(a.IPv6Len))
 	}
 	return dev
 }
