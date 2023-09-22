@@ -71,3 +71,16 @@ func TestMPLSPushToIP(t *testing.T) {
 		})
 	}
 }
+
+// TestPopTopLabel validates the gRIBI actions that are used to pop the top label
+// when specified in a next-hop.
+func TestPopTopLabel(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	gribic := dut.RawAPIs().GRIBI(t)
+	c := fluent.NewClient()
+	c.Connection().WithStub(gribic)
+
+	_ = mplsutil.PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+
+	mplsutil.PopTopLabel(t, c, deviations.DefaultNetworkInstance(dut), sleepFn)
+}
