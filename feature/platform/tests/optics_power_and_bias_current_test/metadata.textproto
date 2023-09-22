@@ -13,3 +13,12 @@ platform_exceptions: {
     explicit_port_speed: true
   }
 }
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    transceiver_thresholds_unsupported: true
+  }
+}
