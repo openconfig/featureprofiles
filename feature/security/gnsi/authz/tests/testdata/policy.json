@@ -12,7 +12,11 @@
     "allow_rules": [
       {
         "name": "everyone-can-gnmi-get",
-        "source": {},
+        "source": {
+          "principals": [
+            "*"
+          ]
+        },
         "request": {
           "paths": [
             "/gnmi.gNMI/Get"
@@ -23,6 +27,11 @@
     "deny_rules": [
       {
         "name": "no-one-can-gribi-get",
+        "source": {
+          "principals": [
+            "*"
+          ]
+        },
         "request": {
           "paths": [
             "/gribi.gRIBI/Get"
@@ -35,24 +44,34 @@
     "name": "policy-everyone-can-gribi-not-gnmi",
     "allow_rules": [
       {
-        "name": "admin-can-do-everything",
+        "name": "everyone-can-gribi",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/admin"
+            "*"
           ]
         },
-        "request": {}
+        "request": {
+          "paths": [
+            "/gribi.gRIBI/*"
+          ]
+        }
       }
     ],
     "deny_rules": [
       {
-        "name": "fake-user-can-do-nothing",
+        "name": "no-one-can-gnmi",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/fake"
+            "*"
+          ]
+        },
+        "request": {
+          "paths": [
+            "/gribi.gNMI/*"
           ]
         }
       }
+      
     ]
   },
   {
@@ -60,6 +79,11 @@
     "deny_rules": [
       {
         "name": "no-one-can-gribi",
+        "source": {
+          "principals": [
+            "*"
+          ]
+        },
         "request": {
           "paths": [
             "/gribi.gRIBI/Modify"

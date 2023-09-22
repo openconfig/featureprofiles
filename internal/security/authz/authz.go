@@ -95,8 +95,9 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 // Rotate apply policy p on device dut, this is test api for positive testing and it fails the test on failure.
 func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
-	gnsiC, err:=dut.RawAPI().DialGNSI(context.Background()); if err!=nil {
-		t.Fatalf("Could not connect gnsi %v",err)
+	gnsiC, err := dut.RawAPI().DialGNSI(context.Background())
+	if err != nil {
+		t.Fatalf("Could not connect gnsi %v", err)
 	}
 	rotateStream, _ := gnsiC.Authz().Rotate(context.Background())
 	defer rotateStream.CloseSend()
@@ -148,8 +149,9 @@ func NewAuthorizationPolicy() *AuthorizationPolicy {
 // Get read the applied policy from device dut. this is test api and fails the test when it fails.
 func Get(t testing.TB, dut *ondatra.DUTDevice) (*authz.GetResponse, *AuthorizationPolicy) {
 	t.Logf("Performing Authz.Get request on device %s", dut.Name())
-	gnsiC, err:=dut.RawAPI().DialGNSI(context.Background()); if err!=nil {
-		t.Fatalf("Could not connect gnsi %v",err)
+	gnsiC, err := dut.RawAPI().DialGNSI(context.Background())
+	if err != nil {
+		t.Fatalf("Could not connect gnsi %v", err)
 	}
 	resp, err := gnsiC.Authz().Get(context.Background(), &authz.GetRequest{})
 	if err != nil {
