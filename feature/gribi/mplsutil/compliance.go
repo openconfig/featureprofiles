@@ -135,7 +135,7 @@ func PushLabelStack(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 //
 // The DUT is expected to be within a topology where 192.0.2.2 is a valid next-hop.
 func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, baseLabel, numLabels int, trafficFunc TrafficFunc) {
-	defer electionID.Inc()
+	defer electionID.Add(1)
 	defer flushServer(t, c)
 
 	c.Connection().
