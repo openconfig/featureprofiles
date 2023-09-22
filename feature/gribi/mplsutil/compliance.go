@@ -270,3 +270,69 @@ func PopTopLabel(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, traf
 		})
 	}
 }
+
+// PopNLabels programs a gRIBI server with a LFIB entry matching label 100
+// that pops the labels specified in popLabels from the stack. If trafficFunc
+// is non-nil it is called after the gRIBI programming is verified.
+//
+// The DUT is expected to be in a topology where 192.0.2.2 resolves to
+// a valid next-hop.
+func PopNLabels(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, popLabels []uint32, trafficFunc TrafficFunc) {
+	defer electionID.Add(1)
+	defer flushServer(t, c)
+
+	ops := []func(){
+		func() {
+			c.Modify().AddEntry(t,
+				fluent.NextHopEntry().
+					WithNetworkInstance(defaultNIName).
+					WithIndex(1).
+					WithIPAddress("192.0.2.2"))
+
+			c.Modify().AddEntry(t,
+				fluent.NextHopGroupEntry().
+					WithNetworkInstance(defaultNIName).
+					WithID(1).
+					AddNextHop(1, 1))
+
+			c.Modify().AddEntry(t,
+				fluent.LabelEntry().
+					WithLabel(100).
+					WithPoppedLabelStack(popLabels...).
+					WithNetworkInstance(defaultNIName).
+					WithNextHopGroup(1))
+		},
+	}
+
+	res := modify(t, c, ops)
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithMPLSOperation(100).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopGroupOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	if trafficFunc != nil {
+		t.Run("pop-n-labels, traffic test", func(t *testing.T) {
+			trafficFunc(t, nil)
+		})
+	}
+}

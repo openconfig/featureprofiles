@@ -40,6 +40,16 @@ traffic validation.
   pop the top label.
 * Validate that gRIBI transactions are successfully processed by the server.
 
+## TE-9.4: Pop N Labels from Stack
+
+* Configure DUT with destination interface connected to an ATE. The ATE is
+  configured to have assigned address `192.0.2.2`.
+* Program DUT with a label forwarding entry matching label 100 and specifying to
+  pop:
+    * Label `100`
+    * Label stack `[100, 42]`
+    * Label stack `[100, 42, 43, 44, 45]`
+
 ## Protocol/RPC Parameter coverage
 
 *   gRIBI:
@@ -60,6 +70,8 @@ traffic validation.
             * `id`
             * `ip_address`
             * `pushed_label_stack`
+            * `pop_top_label`
+            * `popped_label_stack`
     *   `ModifyResponse`:
     *   `AFTResult`:
         *   `id`

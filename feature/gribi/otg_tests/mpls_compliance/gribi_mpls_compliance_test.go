@@ -84,3 +84,20 @@ func TestPopTopLabel(t *testing.T) {
 
 	mplsutil.PopTopLabel(t, c, deviations.DefaultNetworkInstance(dut), sleepFn)
 }
+
+// TestPopNLabels validates the gRIBI actions that are used to pop N labels from a
+// label stack when specified in a next-hop.
+func TestPopNLabels(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	gribic := dut.RawAPIs().GRIBI(t)
+	c := fluent.NewClient()
+	c.Connection().WithStub(gribic)
+
+	_ = mplsutil.PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+
+	for _, stack := range [][]uint32{{100}, {100, 42}, {100, 42, 43, 44, 45}} {
+		t.Run(fmt.Sprintf("pop N labels, stack %v", stack), func(t *testing.T) {
+			mplsutil.PopNLabels(t, c, deviations.DefaultNetworkInstance(dut), stack, sleepFn)
+		})
+	}
+}
