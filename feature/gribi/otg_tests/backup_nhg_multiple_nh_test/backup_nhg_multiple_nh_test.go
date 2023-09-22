@@ -45,6 +45,7 @@ const (
 	vrf2           = "vrfB"
 	fps            = 1000000 // traffic frames per second
 	switchovertime = 250.0   // switchovertime during interface shut in milliseconds
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
 // testArgs holds the objects needed by a test case.
@@ -228,15 +229,17 @@ func TestBackup(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
-	//configure DUT
-	configureDUT(t, dut)
-
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+
+	//configure DUT
+	configureDUT(t, dut)
+
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 	t.Run("IPv4BackUpSwitch", func(t *testing.T) {
 		t.Logf("Name: IPv4BackUpSwitch")
@@ -338,13 +341,25 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	//shutdown port2
 	t.Logf("Shutdown port 2 and validate traffic switching over port3 primary path")
 	a.validateTrafficFlows(t, BaseFlow, []*ondatra.Port{a.ate.Port(t, "port3")}, "port2")
-	defer a.flapinterface(t, "port2", true)
+	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
+		defer a.flapinterface(t, "port2", true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.UP)
+		defer a.ate.OTG().SetControlState(t, portStateAction)
+	}
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 
 	//shutdown port3
 	t.Logf("Shutdown port 3 and validate traffic switching over port4 backup path")
 	a.validateTrafficFlows(t, BaseFlow, []*ondatra.Port{a.ate.Port(t, "port4")}, "port3")
-	defer a.flapinterface(t, "port3", true)
+	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
+		defer a.flapinterface(t, "port3", true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{"port3"}).SetState(gosnappi.StatePortLinkState.UP)
+		defer a.ate.OTG().SetControlState(t, portStateAction)
+	}
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 }
 
@@ -357,13 +372,15 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	flow.TxRx().Port().SetTxName("port1")
+	flow.Rate().SetPps(fps)
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().SetValue(dstPfxMin)
+	v4.Src().Increment().SetStart(dutPort1.IPv4)
+	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(routeCount)
 	a.ate.OTG().PushConfig(t, a.top)
 	// StartProtocols required for running on hardware
 	a.ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, a.ate.OTG(), a.top, "IPv4")
 	return name
 
 }
@@ -374,16 +391,23 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	//Shutdown interface if provided while traffic is flowing and validate traffic
 	time.Sleep(30 * time.Second)
 	for _, port := range shut_ports {
-		a.flapinterface(t, port, false)
+		if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
+			a.flapinterface(t, port, false)
+		} else {
+			portStateAction := gosnappi.NewControlState()
+			portStateAction.Port().Link().SetPortNames([]string{port}).SetState(gosnappi.StatePortLinkState.DOWN)
+			a.ate.OTG().SetControlState(t, portStateAction)
+		}
 		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
 	}
 	time.Sleep(30 * time.Second)
 	a.ate.OTG().StopTraffic(t)
-	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
+	time.Sleep(10 * time.Second)
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
+
 	// Get send traffic
-	incoming_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
-	sentPkts := gnmi.Get(t, a.ate.OTG(), incoming_traffic_state).GetCounters().GetOutFrames()
+	outgoing_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
+	sentPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_state).GetCounters().GetOutFrames()
 	if sentPkts == 0 {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
@@ -425,6 +449,8 @@ func (a *testArgs) flapinterface(t *testing.T, port string, action bool) {
 	dc := gnmi.OC()
 	i := &oc.Interface{}
 	i.Enabled = ygot.Bool(action)
+	i.Name = ygot.String(dutP.Name())
+	i.Type = ethernetCsmacd
 	gnmi.Update(t, a.dut, dc.Interface(dutP.Name()).Config(), i)
 }
 

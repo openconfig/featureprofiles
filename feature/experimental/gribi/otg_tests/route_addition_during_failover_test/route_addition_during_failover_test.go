@@ -36,9 +36,9 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/raw"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
@@ -125,7 +125,7 @@ var ipBlock1FlowArgs = &flowArgs{
 }
 
 // coreFileCheck function is used to check if cores are found on the DUT.
-func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64, retry bool) {
+func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient binding.GNOIClients, sysConfigTime uint64, retry bool) {
 	t.Helper()
 	t.Log("Checking for core files on DUT")
 
@@ -350,9 +350,9 @@ func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, vlan
 	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(MAC)
 	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(atePort.ID())
 	if vlanID != 0 {
-		eth.Vlans().Add().SetName(Name).SetId(int32(vlanID))
+		eth.Vlans().Add().SetName(Name).SetId(uint32(vlanID))
 	}
-	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(int32(atePort1.IPv4Len))
+	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(uint32(atePort1.IPv4Len))
 
 }
 
@@ -388,7 +388,7 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(flowArgs.flowStartAddress).SetCount(int32(flowArgs.flowCount))
+	v4.Dst().Increment().SetStart(flowArgs.flowStartAddress).SetCount(flowArgs.flowCount)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
@@ -524,7 +524,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
 	top := ate.OTG().NewConfig(t)
@@ -628,7 +628,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	awaitSwitchoverReady(t, dut, primaryBeforeSwitch)
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),

@@ -91,7 +91,7 @@ func (d *dialer) loadCertificates() (*x509.CertPool, tls.Certificate, error) {
 	}
 	keyPair, err := tls.LoadX509KeyPair(d.CertFile, d.KeyFile)
 	if err != nil {
-		return nil, tls.Certificate{}, fmt.Errorf("could load the client keys")
+		return nil, tls.Certificate{}, err
 	}
 	return trusBundle, keyPair, nil
 
@@ -100,7 +100,8 @@ func (d *dialer) loadCertificates() (*x509.CertPool, tls.Certificate, error) {
 // dialGRPC dials a gRPC connection using the binding options.
 //
 //lint:ignore U1000 will be used by the binding.
-func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+func (d *dialer) dialGRPC(ctx context.Context, overrideOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	opts := []grpc.DialOption{grpc.WithBlock()}
 	switch {
 	case d.Insecure:
 		tc := insecure.NewCredentials()
@@ -127,16 +128,17 @@ func (d *dialer) dialGRPC(ctx context.Context, opts ...grpc.DialOption) (*grpc.C
 	if d.MaxRecvMsgSize != 0 {
 		opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(d.MaxRecvMsgSize))))
 	}
-	if d.Timeout == 0 {
-		return grpc.DialContext(ctx, d.Target, opts...)
+	if d.Timeout != 0 {
+		retryOpt := grpc_retry.WithPerRetryTimeout(time.Duration(d.Timeout) * time.Second)
+		opts = append(opts,
+			grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
+			grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
+		)
+		var cancelFunc context.CancelFunc
+		ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(d.Timeout)*time.Second)
+		defer cancelFunc()
 	}
-	retryOpt := grpc_retry.WithPerRetryTimeout(time.Duration(d.Timeout) * time.Second)
-	opts = append(opts,
-		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
-		grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
-	)
-	ctx, cancelFunc := context.WithTimeout(ctx, time.Duration(d.Timeout)*time.Second)
-	defer cancelFunc()
+	opts = append(opts, overrideOpts...)
 	return grpc.DialContext(ctx, d.Target, opts...)
 }
 
