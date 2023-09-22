@@ -186,6 +186,7 @@ type bundleName struct {
 	trunk4 string
 }
 
+// enum for validateTrafficFlows options
 const (
 	traffic_on_port2_port3_and_not_on_port4 = iota + 1
 	switch_traffic_to_port4_from_port2_and_port3
