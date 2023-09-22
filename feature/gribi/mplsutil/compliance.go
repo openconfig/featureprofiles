@@ -127,3 +127,81 @@ func PushLabelStack(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 		})
 	}
 }
+
+// PushToIPPacket programs a gRIBI entry for an ingress LER function whereby MPLS labels are
+// pushed to an IP packet. The entries are programmed into defaultNIName, with the stack
+// imposed being a stack of numLabels labels, starting with baseLabel. After the programming
+// has been verified trafficFunc is run to allow validation of the dataplane.
+//
+// The DUT is expected to be within a topology where 192.0.2.2 is a valid next-hop.
+func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, baseLabel, numLabels int, trafficFunc TrafficFunc) {
+	defer electionID.Inc()
+	defer flushServer(t, c)
+
+	c.Connection().
+		WithRedundancyMode(fluent.ElectedPrimaryClient).
+		WithInitialElectionID(electionID.Load(), 0)
+
+	labels := []uint32{}
+	for n := 1; n <= numLabels; n++ {
+		labels = append(labels, uint32(baseLabel+n))
+	}
+
+	ops := []func(){
+		// Set up, ensure that the label that we will use to forward is resolvable.
+		func() {
+			c.Modify().AddEntry(t,
+				fluent.NextHopEntry().
+					WithNetworkInstance(defaultNIName).
+					WithIndex(1).
+					WithPushedLabelStack(labels...).
+					WithIPAddress("192.0.2.2"))
+
+			c.Modify().AddEntry(t,
+				fluent.NextHopGroupEntry().
+					WithNetworkInstance(defaultNIName).
+					WithID(1).
+					AddNextHop(1, 1))
+
+			c.Modify().AddEntry(t,
+				fluent.IPv4Entry().
+					WithPrefix("10.0.0.0/24").
+					WithNetworkInstance(defaultNIName).
+					WithNextHopGroupNetworkInstance(defaultNIName).
+					WithNextHopGroup(1))
+		},
+	}
+
+	res := modify(t, c, ops)
+	t.Logf("received gRIBI results from server, %v", res)
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithIPv4Operation("10.0.0.0/24").
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopGroupOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	if trafficFunc != nil {
+		t.Run(fmt.Sprintf("%d label push, traffic test", numLabels), func(t *testing.T) {
+			trafficFunc(t, labels)
+		})
+	}
+}
