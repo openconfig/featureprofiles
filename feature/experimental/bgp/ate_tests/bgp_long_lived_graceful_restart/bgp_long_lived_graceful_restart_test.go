@@ -320,8 +320,8 @@ func buildNbrList(asN uint32) []*bgpNeighbor {
 func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(as)
@@ -382,7 +382,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Netw
 			af4.Enabled = ygot.Bool(false)
 		}
 	}
-	return ni_proto
+	return niProto
 }
 
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice, nbrIP []*bgpNeighbor) {
@@ -725,7 +725,7 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring SRL ACL: %v", err)
 		}
@@ -761,7 +761,7 @@ func configAdmitAllACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbDelRequest); err != nil {
 			t.Fatalf("Unexpected error removing SRL ACL: %v", err)
 		}
@@ -810,7 +810,7 @@ func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string)
 				},
 			},
 		}
-		gnmiClient := d.RawAPIs().GNMI().Default(t)
+		gnmiClient := d.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring interface ACL: %v", err)
 		}
@@ -906,7 +906,7 @@ func findProcessByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint6
 // gNOIKillProcess kills a daemon on the DUT, given its name and pid.
 func gNOIKillProcess(t *testing.T, dut *ondatra.DUTDevice, pName string, pID uint32) {
 	t.Helper()
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
 	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
 	t.Logf("Got kill process response: %v\n\n", killResponse)
@@ -950,8 +950,8 @@ func configureDUTNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeigh
 	d := &oc.Root{}
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
@@ -968,7 +968,7 @@ func configureDUTNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeigh
 		af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		af6.Enabled = ygot.Bool(false)
 	}
-	gnmi.Update(t, dut, dutConfPath.Config(), ni_proto)
+	gnmi.Update(t, dut, dutConfPath.Config(), niProto)
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 }
 
@@ -1275,7 +1275,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	})
 
 	t.Run("Disable LLGR on dut.", func(t *testing.T) {
-		gnmiClient := dut.RawAPIs().GNMI().Default(t)
+		gnmiClient := dut.RawAPIs().GNMI(t)
 		config := disableLLGRConf(dut, dutAS)
 		t.Logf("Push the CLI config:%s", dut.Vendor())
 		gpbSetRequest := buildCliConfigRequest(config)

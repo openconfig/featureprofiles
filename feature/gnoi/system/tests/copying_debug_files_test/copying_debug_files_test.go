@@ -62,9 +62,8 @@ func TestMain(m *testing.M) {
 //
 
 func TestCopyingDebugFiles(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	if _, ok := bgpProcName[dut.Vendor()]; !ok {
 		t.Fatalf("Please add support for vendor %v in var bgpProcName", dut.Vendor())
 	}
@@ -116,4 +115,53 @@ func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		}
 	}
 	return pID
+}
+
+func TestChassisComponentArtifacts(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	componentName := map[string]string{"name": components[dut.Vendor()]}
+	// Execute Healthz Check RPC for the chassis component.
+	chkReq := &hpb.CheckRequest{
+		Path: &tpb.Path{
+			Elem: []*tpb.PathElem{
+				{
+					Name: "components",
+				},
+				{
+					Name: "component",
+					Key:  componentName,
+				},
+			},
+		},
+	}
+	t.Logf("Executing Healthz Check RPC for component %v", componentName["name"])
+	chkRes, err := gnoiClient.Healthz().Check(context.Background(), chkReq)
+	if err != nil {
+		t.Fatalf("Unexpected error on executing Healthz Check RPC: %v", err)
+	}
+	// Fetch artifact related metadata that was returned in the Check Response.
+	artifacts := chkRes.GetStatus().GetArtifacts()
+	if len(artifacts) == 0 {
+		t.Fatalf("Artifacts received for component %v after executing Healthz Check RPC - want non-nil, got nil", componentName["name"])
+	}
+	t.Logf("Artifacts received for component %v: %v", componentName["name"], artifacts)
+	// Fetch artifact details by executing ArtifactRequest and passing the artifact ID along.
+	for _, artifact := range artifacts {
+		artId := artifact.GetId()
+		t.Logf("Executing ArtifactRequest for artifact ID %v", artId)
+		artReq := &hpb.ArtifactRequest{
+			Id: artId,
+		}
+		// Verify that a valid response is received.
+		artRes, err := gnoiClient.Healthz().Artifact(context.Background(), artReq)
+		if err != nil {
+			t.Fatalf("Unexpected error on executing Healthz Artifact RPC: %v", err)
+		}
+		h1, err := artRes.Header()
+		t.Logf("Header of artifact %v: %v", artId, h1)
+		if err != nil {
+			t.Fatalf("Unexpected error when fetching the header of artifact %v: %v", artId, err)
+		}
+	}
 }
