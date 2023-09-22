@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+plan_id: "RT-5.6"
+description: "IPv6 ND RA disable"
+testbed: TESTBED_DUT_ATE_2LINKS
+
