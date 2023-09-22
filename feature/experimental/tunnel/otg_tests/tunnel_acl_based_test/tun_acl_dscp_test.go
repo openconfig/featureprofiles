@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 //          which is equivalet to 32 in decimal.
 
 const (
-	ipv4PrefixLen     = 24
+	ipv4PrefixLen     = 30
 	pps               = 100
 	FrameSize         = 512
 	aclName           = "f1"
@@ -138,7 +138,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureNetworkInstance(t)
 	t.Logf("Configure the DUT with static route ...")
 	configStaticRoute(t, dut, prefix, nexthop)
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
+	gnmiClient := dut.RawAPIs().GNMI(t)
 	var config string
 	t.Logf("Push the CLI config:\n%s", dut.Vendor())
 	switch dut.Vendor() {
@@ -203,14 +203,14 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
 	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
 	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
-	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	t.Logf("Configuring OTG port2")
 	dstPort := topo.Ports().Add().SetName("port2")
 	dstDev := topo.Devices().Add().SetName(ateDst.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dstPort.Name())
 	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
-	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 	topo.Captures().Add().SetName("grecapture").SetPortNames([]string{dstPort.Name()}).SetFormat(gosnappi.CaptureFormat.PCAP)
 	t.Logf("Testtraffic:start ate Traffic config")
 	flowipv4 := topo.Flows().Add().SetName("IPv4")
@@ -226,9 +226,10 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(srcIpv4.Address())
 	v4.Dst().SetValue(dstIpv4.Address())
-	v4.Priority().Dscp().Phb().SetValue(int32(dscp))
+	v4.Priority().Dscp().Phb().SetValue(uint32(dscp))
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
+	t.Logf("starting protocols...")
 	otg.StartProtocols(t)
 	time.Sleep(30 * time.Second)
 	//	otgutils.WaitForARP(t, otg, topo, "IPv4")

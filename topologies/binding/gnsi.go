@@ -18,7 +18,7 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"google.golang.org/grpc"
 
-	accpb "github.com/openconfig/gnsi/accounting"
+	accpb "github.com/openconfig/gnsi/acctz"
 	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
 	credpb "github.com/openconfig/gnsi/credentialz"
@@ -40,11 +40,8 @@ func (g gnsiConn) Certz() certzpb.CertzClient { return certzpb.NewCertzClient(g.
 func (g gnsiConn) Credentialz() credpb.CredentialzClient {
 	return credpb.NewCredentialzClient(g.conn)
 }
-func (g gnsiConn) AccountingPull() accpb.AccountingPullClient {
-	return accpb.NewAccountingPullClient(g.conn)
-}
-func (g gnsiConn) AccountingPush() accpb.AccountingPushClient {
-	return accpb.NewAccountingPushClient(g.conn)
+func (g gnsiConn) Acctz() accpb.AcctzClient {
+	return accpb.NewAcctzClient(g.conn)
 }
 
 var _ = binding.GNSIClients(gnsiConn{})
