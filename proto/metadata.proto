@@ -337,6 +337,8 @@ message Metadata {
     // Devices don't support ISIS-Lsp metadata paths: checksum, sequence-number,
     // remaining-lifetime.
     bool isis_lsp_metadata_leafs_unsupported = 111;
+    // QOS queue requires configuration with queue-id
+    bool qos_queue_requires_id = 112;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
