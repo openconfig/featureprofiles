@@ -22,7 +22,7 @@ Configure an IPv6 address which is in link local scope. Verify the link local IP
   * Validate that DUT port 1 link local address is still configured
   * Send IPv6 traffic from OTG port 1 to DUT port 1, validate DUT port 1 receives the traffic
 
-* Subtest #3 - Verify enable/disable of DUT port 1 does not affect link local address
+* Subtest #4 - Verify enable/disable of DUT port 1 does not affect link local address
   * Disable/enable the port and see if the configured link-local address stays?
   * Validate that DUT port 1 link local address config and state paths continue to contain the address assignment
   * Send IPv6 traffic from OTG port 1 to DUT port 1, validate DUT port 1 receives the traffic
