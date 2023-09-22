@@ -29,22 +29,22 @@ setting must not be interpreted as the actual egress port id.
 
 | egress_port | submit_to_ingress | padding | expected behaviour
 | ------ | ------ | ------ | ------ |
-| DUT port-2 | 0x0 | "0" | traffic received on ATE port-2
-| DUT port-2 | | "0" | traffic received on ATE port-2
+| DUT port-2 | 0x0 | 0x0 | traffic received on ATE port-2
+| DUT port-2 | | 0x0 | traffic received on ATE port-2
 | DUT port-2 | | | traffic received on ATE port-2
-| DUT port-2 | 0x1 | "0" | traffic received on ATE port-1
+| DUT port-2 | 0x1 | 0x0 | traffic received on ATE port-1
 | | 0x1 | | traffic received on ATE port-1
-|  | 0x1 | "0" | traffic received on ATE port-1
-"TBD BY SWITCH" | 0x1 | "0" | traffic received on ATE port-1
+|  | 0x1 | 0x0 | traffic received on ATE port-1
+"TBD BY SWITCH" | 0x1 | 0x0 | traffic received on ATE port-1
 "TBD BY SWITCH" | 0x1 | | traffic received on ATE port-1
 | DUT port-2 | 0x1 | | traffic received on ATE port-1
-"TBD BY SWITCH" | 0x0 | "0" | no traffic received
+"TBD BY SWITCH" | 0x0 | 0x0 | no traffic received
 "TBD BY SWITCH" | 0x0 | | no traffic received
-"TBD BY SWITCH" | | "0" | no traffic received
+"TBD BY SWITCH" | | 0x0 | no traffic received
 | "TBD BY SWITCH" | | | no traffic received
-|  | 0x0 | "0" | no traffic received
+|  | 0x0 | 0x0 | no traffic received
 | | 0x0 | | no traffic received
-| | | "0" | no traffic received
+| | | 0x0 | no traffic received
 | | | | no traffic received
 
 *   Validate:
