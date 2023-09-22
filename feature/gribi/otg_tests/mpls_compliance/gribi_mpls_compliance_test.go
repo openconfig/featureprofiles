@@ -101,3 +101,25 @@ func TestPopNLabels(t *testing.T) {
 		})
 	}
 }
+
+// TestPopOnePushN validates the gRIBI actions that are used to pop 1 label and then
+// push N when specified in a next-hop.
+func TestPopOnePushN(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	gribic := dut.RawAPIs().GRIBI(t)
+	c := fluent.NewClient()
+	c.Connection().WithStub(gribic)
+
+	_ = mplsutil.PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+
+	stacks := [][]uint32{
+		{100}, // swap for label 100, pop+push for label 200
+		{100, 200, 300, 400},
+		{100, 200, 300, 400, 500, 600},
+	}
+	for _, stack := range stacks {
+		t.Run(fmt.Sprintf("pop one, push N, stack: %v", stack), func(t *testing.T) {
+			mplsutil.PopOnePushN(t, c, deviations.DefaultNetworkInstance(dut), stack, sleepFn)
+		})
+	}
+}

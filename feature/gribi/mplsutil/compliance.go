@@ -336,3 +336,73 @@ func PopNLabels(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, popLa
 		})
 	}
 }
+
+// PopOnePushN implements a test whereby one (the top) label is popped, and N labels as specified
+// by pushLabels are pushed to the stack for an input MPLS packet. Two LFIB entries (100 and 200)
+// are created. If trafficFunc is non-nil it is called after the gRIBI programming has been validated.
+//
+// The DUT is expected to be in a topology where 192.0.2.2 is a resolvable next-hop.
+func PopOnePushN(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, pushLabels []uint32, trafficFunc TrafficFunc) {
+	defer electionID.Add(1)
+	defer flushServer(t, c)
+
+	ops := []func(){
+		func() {
+			c.Modify().AddEntry(t,
+				fluent.NextHopEntry().
+					WithNetworkInstance(defaultNIName).
+					WithIndex(1).
+					WithIPAddress("192.0.2.2").
+					WithPopTopLabel().
+					WithPushedLabelStack(pushLabels...))
+
+			c.Modify().AddEntry(t,
+				fluent.NextHopGroupEntry().
+					WithNetworkInstance(defaultNIName).
+					WithID(1).
+					AddNextHop(1, 1))
+
+			for _, label := range []uint32{100, 200} {
+				c.Modify().AddEntry(t,
+					fluent.LabelEntry().
+						WithLabel(label).
+						WithNetworkInstance(defaultNIName).
+						WithNextHopGroup(1))
+			}
+		},
+	}
+
+	res := modify(t, c, ops)
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopGroupOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	for _, label := range []uint64{100, 200} {
+		chk.HasResult(t, res,
+			fluent.OperationResult().
+				WithMPLSOperation(label).
+				WithProgrammingResult(fluent.InstalledInRIB).
+				WithOperationType(constants.Add).
+				AsResult(),
+			chk.IgnoreOperationID())
+	}
+
+	if trafficFunc != nil {
+		t.Run("pop-one-push-N, traffic test", func(t *testing.T) {
+			trafficFunc(t, nil)
+		})
+	}
+}
