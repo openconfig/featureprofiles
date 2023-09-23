@@ -165,7 +165,7 @@ func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 
 			c.Modify().AddEntry(t,
 				fluent.IPv4Entry().
-					WithPrefix("10.0.0.0/24").
+					WithPrefix("198.18.1.0/24").
 					WithNetworkInstance(defaultNIName).
 					WithNextHopGroupNetworkInstance(defaultNIName).
 					WithNextHopGroup(1))
@@ -177,7 +177,7 @@ func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 
 	chk.HasResult(t, res,
 		fluent.OperationResult().
-			WithIPv4Operation("10.0.0.0/24").
+			WithIPv4Operation("198.18.1.0/24").
 			WithProgrammingResult(fluent.InstalledInRIB).
 			WithOperationType(constants.Add).
 			AsResult(),
