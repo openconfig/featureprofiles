@@ -40,6 +40,7 @@ traffic validation.
   pop the top label.
 * Validate that gRIBI transactions are successfully processed by the server.
 
+<<<<<<< HEAD
 ## TE-9.4: Pop N Labels from Stack
 
 * Configure DUT with destination interface connected to an ATE. The ATE is
@@ -61,6 +62,8 @@ traffic validation.
    - push stack `[100, 200, 300, 400]`
    - push stack `[100, 200, 300, 400, 500, 600]`
 
+=======
+>>>>>>> 81bb985c (Add gRIBI control plane only pop top MPLS label test.)
 ## Protocol/RPC Parameter coverage
 
 *   gRIBI:
