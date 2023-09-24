@@ -24,13 +24,19 @@ ATE (Port1) <-IBGP-> (Port1) DUT (Port2) <-EBGP-> (Port2) ATE
       - Local Pref
       - Metric
       - Communities
-  - Sub test 2
+  - Sub test 2 [Negative test case-1 for BGP peer flapping]
     - Initiate EBGP and IBGP session reset at the DUT end few times and ensure following are collected accurately each time on the DUT. Session reset can be initiated by toggling neighbors/neighbor/config/enabled
       - last-notification-time, last-notification-error-code, last-notification-error-subcode in the `neighbour/state/messages/sent` container
       - neighbors/neighbor/transport/state/remote-port, neighbors/neighbor/transport/state/remote-address, neighbors/neighbor/state/neighbor-address, neighbors/neighbor/state/neighbor-port
     - Initiate EBGP and IBGP session reset at both the ATE ends few times and ensure following are collected accurately each time on the DUT. Session reset can be initiated by toggling neighbors/neighbor/config/enabled
       - last-notification-time, last-notification-error-code, last-notification-error-subcode in the received container
       - neighbors/neighbor/transport/state/remote-port, neighbors/neighbor/transport/state/remote-address, neighbors/neighbor/state/neighbor-address, neighbors/neighbor/state/neighbor-port
+     
+  - Sub test 3 [Negative test case-2 for non-matching BGP TCP port configuration]
+    - Configure DUT with neighbor-port (say 1801) that mismatches ATE listen port (say 1800). Configure ATE in "Passive" mode. Conduct this test for both IBGP as well as EBGP peering. Verify that,
+      - BGP is not established, which is a test pass
+      - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-port returns 1801
+      - Whereas, /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/remote-port returns null.
 
 ## Config Parameter Coverage
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-port
