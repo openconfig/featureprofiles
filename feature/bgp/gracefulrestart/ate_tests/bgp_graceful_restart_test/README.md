@@ -41,6 +41,7 @@ For prefixes:
 
 *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor
+*   gNOI.killProcessRequest_Signal_Term [To gracefully kill BGP process]
 
 Parameters:
 
