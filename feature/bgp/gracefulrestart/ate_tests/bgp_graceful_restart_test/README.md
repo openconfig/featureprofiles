@@ -5,7 +5,7 @@
 BGP Graceful Restart
 
 ## Topology
-Follwing connections:
+Create the following connections:
  *   ATE port-1 <--> DUT port-1 
  *   ATE port-2 <--> DUT port-2
 
