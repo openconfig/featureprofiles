@@ -10,7 +10,7 @@ Validate 400ZR optics module reports correct firmware version.
     state is enabled and host is able to detect the module.
 *   With the module correctly recognized verify it reports correct firmware
     version through the following telemetry path
-    *  /components/component/state/firmware-version
+    *   /platform/components/component/state/firmware-version
 
 *   Verify that the modules firmware version is reported correctly after a
     optic software reset.
@@ -23,8 +23,8 @@ Validate 400ZR optics module reports correct firmware version.
 
 ## Config Parameter coverage
 
-*   /components/component/transceiver/config/enabled
+*   /components/component/oc-transceiver:transceiver/oc-transceiver/config/enabled
 
 ## Telemetry Parameter coverage
 
-    * /components/component/state/firmware-version
+    *  /platform/components/component/state/firmware-version
