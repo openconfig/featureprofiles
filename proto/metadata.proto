@@ -331,6 +331,9 @@ message Metadata {
     bool transceiver_thresholds_unsupported = 108;
     // Update interface loopback mode using raw gnmi API due to server version.
     bool interface_loopback_mode_raw_gnmi = 109;
+    // Device does not support same max and minimun threshold value in ECN config.
+    // Cisco: partnerissuetracker.corp.google.com/<>
+    bool ecn_same_min_max_threshold_unsupproted = 110;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;

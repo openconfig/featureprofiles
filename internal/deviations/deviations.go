@@ -608,3 +608,9 @@ func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
 func InterfaceLoopbackModeRawGnmi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceLoopbackModeRawGnmi()
 }
+
+// EcnMaxMimumThreshold returns the maximum threshold value while comparing for pass or fail conditions.
+// Maximum and mimium threshold value not be same. Anything less Maximum threshold should be 6144 greate then mimnimum threshold value.
+func EcnSameMaxMimumThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnSameMaxMimumThresholdUnsupported()
+}
