@@ -27,4 +27,4 @@ Validate 400ZR optics module reports correct firmware version.
 
 ## Telemetry Parameter coverage
 
-    *  /platform/components/component/state/firmware-version
+    * /components/component/state/firmware-version
