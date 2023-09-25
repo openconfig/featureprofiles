@@ -28,13 +28,15 @@
          * Set the version field of the ActivateRequest message to be the same as the version specified in the TransferRequest message above.
          * Set the no_reboot flag to true.
          * Set the standby_supervisor to FALSE.
-   3. Install and activate the same new software version on standby supervisor:
+           
+   2. Install and activate the same new software version on standby supervisor:
       
       a. Repeat the above process of TransferRequest. This time set the standby_supervisor to TRUE.
          * Expect the switch to return a InstallResponse with a SyncProgress message. The switch should sync the software image from primary SUP to standby.
          * Expect the sync to return a value of 100 for percentage_transferred field.
          * At the end, expect the switch to return InstallResponse with a Validated message. The version in the message should be set to the one which was transferred above.
-   5. Activate the software by issuing gnoi.os.Activate rpc as in the case of primary supervisor.
+           
+   3. Activate the software by issuing gnoi.os.Activate rpc as in the case of primary supervisor.
       
       a. Set the version field of the ActivateRequest message to be the same as the version specified in the TransferRequest message above.
       
@@ -42,10 +44,11 @@
       
       c. Set the standby_supervisor to TRUE this time.
       
-   7. Reboot the switch:
+   4. Reboot the switch:
       
       a. Issue gnoi.system.Reboot as specified in [gNOI-3.1: Complete Chassis Reboot](feature/gnoi/tests/complete_chassis_reboot/complete_chassis_reboot_test.md).
-   9. Verify that the supervisor image has moved to the new image:
+      
+   5. Verify that the supervisor image has moved to the new image:
        
       a. Verify that the supervisor has a valid image by issuing gnoi.os.Verify rpc.
          * Expect a VerifyResponse with the version field set to the version specified in messages above eventually.
@@ -57,17 +60,19 @@
   1. Check the health of the software-module component that allows configuration of the router and verify if it is healthy using the leaf /components/component[**process that handles configuration of the DUT**]/healthz/status/
      
      a. If unhealthy, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
-        * Rollback to the previous OS version by following the steps in iii, iv and v above from Sub-test-1 to recover the DUT from the faulty state.
+        * Rollback to the previous OS version by following the steps in 3, 4 and 5 above from Sub-test-1 to recover the DUT from the faulty state.
         * Mark the test as a failure due to issues with the OS upgrade and exit the test.
-  3. Do a gNMI.GET() RPC to extract the current configuration on the DUT as backup.
-  4. Push test configuration to the router using gNMI.Set() RPC with "replace operation" and reverify the status of the leaf /components/component[process that handles configuration of the DUT]/healthz/status/.
+          
+  2. Do a gNMI.GET() RPC to extract the current configuration on the DUT as backup.
+     
+  3. Push test configuration to the router using gNMI.Set() RPC with "replace operation" and reverify the status of the leaf /components/component[process that handles configuration of the DUT]/healthz/status/.
      
      a. If unhealthy, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
         [TODO: Below step needs to be discussed to inderstand how to recover the DUT. May just need to depend on the Test infrastructure]
-        * Push the backup configuration fetched in Subtest-2 bullet#ii above to the DUT to recover the DUT.
+        * Push the backup configuration fetched in Subtest-2 bullet#2 above to the DUT to recover the DUT.
         * Mark the test as a failure due to issues with the OS upgrade and exit the test.
           
-  6. Kill the process that manages device configuration using the "gNOI.KillProcessRequest_SIGNAL_ABRT" and restart flag set to False. This will terminate the process and will also dump a Core file, while maintaing the process in a down state. Verify if the leaf /components/component/healthz/state/ transitioned to unhealthy state.
+  4. Kill the process that manages device configuration using the "gNOI.KillProcessRequest_SIGNAL_ABRT" and restart flag set to False. This will terminate the process and will also dump a Core file, while maintaing the process in a down state. Verify if the leaf /components/component/healthz/state/ transitioned to unhealthy state.
      
      a. If the software module is found unhealthy, issue healthZ.Get() to collect more details on the event. Also, use HealthZ.Artifact() to collect artifacts like core dump, logs etc.
      
