@@ -43,22 +43,28 @@
 
                
 * Subtest-2 : Configuration push verification post OS change and check health of the software-module that allows configuration.
-  1. Check the health of the software-module component that allows configuration of the router and verify if it is healthy using the leaf /components/component[process that handles configuration of the DUT]/healthz/status/
+  1. Check the health of the software-module component that allows configuration of the router and verify if it is healthy using the leaf /components/component[**process that handles configuration of the DUT**]/healthz/status/
      a. If unhealthy, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
         * Rollback to the previous OS version by following the steps in iii, iv and v above from Sub-test-1 to recover the DUT from the faulty state.
-  2. Do a gNMI.GET() RPC to extract the current configuration on the DUT as backup.
-  3. Push test configuration to the router using gNMI.Set() RPC with "update operation" and reverify the status of the leaf /components/component[process that handles configuration of the DUT]/healthz/status/.
+        * Mark the test as a failure due to issues with the OS upgrade and exit the test.
+  3. Do a gNMI.GET() RPC to extract the current configuration on the DUT as backup.
+  4. Push test configuration to the router using gNMI.Set() RPC with "replace operation" and reverify the status of the leaf /components/component[process that handles configuration of the DUT]/healthz/status/.
      a. If unhealthy, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
+        [TODO: Below step needs to be discussed to inderstand how to recover the DUT. May just need to depend on the Test infrastructure]
         * Push the backup configuration fetched in Subtest-2 bullet#ii above to the DUT to recover the DUT.
-  4. Kill the process that manages device configuration using the "gNOI.KillProcessRequest_SIGNAL_ABRT" which will terminate the process and will also dump a Core file. Verify if the leaf /components/component/healthz/state/ transitioned to unhealthy state.
+        * Mark the test as a failure due to issues with the OS upgrade and exit the test.
+  5. Kill the process that manages device configuration using the "gNOI.KillProcessRequest_SIGNAL_ABRT" and restart flag set to False. This will terminate the process and will also dump a Core file, while maintaing the process in a down state. Verify if the leaf /components/component/healthz/state/ transitioned to unhealthy state.
      a. If the software module is found unhealthy, issue healthZ.Get() to collect more details on the event. Also, use HealthZ.Artifact() to collect artifacts like core dump, logs etc.
-     b. Initiate a gNOI.KillProcessRequest w/ restart flag to reboot and recover the process from its faulty state.
+     b. Initiate a gNOI.KillProcessRequest_SIGNAL_HUP operation to restart and recover the killed process.
+     c. If we could successfully collect all stats and artifacts from the DUT, then mark the test as a success and exit.
  
 
 ## Process that controls configuration of a router by vendor
-   * Juniper: mgd
-   * Cisco:
-   * Arista: ConfigAgent 
+   * Different processes by vendors
+      * Juniper: mgd
+      * Cisco:
+      * Arista: ConfigAgent
+   * NOS implementations will need to model their agent that handles device configuration as a [" component of the type SOFTWARE_MODULE"](https://github.com/openconfig/public/blob/master/release/models/platform/openconfig-platform-types.yang#L394) and represent it under the componenets/component tree
      
   
 
