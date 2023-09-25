@@ -101,7 +101,7 @@ func configurePortID(t *testing.T, dut *ondatra.DUTDevice) {
 // Create client connection
 func clientConnection(t *testing.T, dut *ondatra.DUTDevice) *p4rt_client.P4RTClient {
 	clientHandle := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := clientHandle.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := clientHandle.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 	return clientHandle
@@ -249,7 +249,7 @@ func canRead(t *testing.T, args *testArgs) (bool, error) {
 		ElectionId: &p4v1pb.Uint128{High: args.highID, Low: args.lowID},
 		Action:     p4v1pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4v1pb.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4v1pb.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},
@@ -412,7 +412,7 @@ func TestUnsetElectionid(t *testing.T) {
 				DeviceId: deviceID,
 				Action:   p4v1pb.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 				Config: &p4v1pb.ForwardingPipelineConfig{
-					P4Info: &p4Info,
+					P4Info: p4Info,
 					Cookie: &p4v1pb.ForwardingPipelineConfig_Cookie{
 						Cookie: 159,
 					},

@@ -121,11 +121,15 @@ type dutData struct {
 	bgpOC *oc.NetworkInstance_Protocol_Bgp
 }
 
-func configureRoutingPolicy(d *oc.Root) *oc.RoutingPolicy {
+func configureRoutingPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
-	pdef.GetOrCreateStatement("20").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	return rp
+	stmt, err := pdef.AppendNewStatement("20")
+	if err != nil {
+		return nil, err
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	return rp, nil
 }
 
 func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
@@ -135,8 +139,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	t.Log("Configure Network Instance")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
@@ -168,7 +171,10 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 			},
 		},
 	}
-	rpl := configureRoutingPolicy(&oc.Root{})
+	rpl, err := configureRoutingPolicy(&oc.Root{})
+	if err != nil {
+		t.Fatalf("Failed to configure routing policy: %v", err)
+	}
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 	gnmi.Replace(t, dut, dutProto.Config(), niOC.Protocol[key])
 }

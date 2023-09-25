@@ -149,6 +149,18 @@ func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (bind
 	return gnoiConn{conn: conn}, nil
 }
 
+func (d *staticDUT) DialGNSI(ctx context.Context, opts ...grpc.DialOption) (binding.GNSIClients, error) {
+	dialer, err := d.r.gnsi(d.Name())
+	if err != nil {
+		return nil, err
+	}
+	conn, err := dialer.dialGRPC(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return gnsiConn{conn: conn}, nil
+}
+
 func (d *staticDUT) DialGRIBI(ctx context.Context, opts ...grpc.DialOption) (grpb.GRIBIClient, error) {
 	dialer, err := d.r.gribi(d.Name())
 	if err != nil {
@@ -173,7 +185,7 @@ func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb
 	return p4pb.NewP4RuntimeClient(conn), nil
 }
 
-func (d *staticDUT) DialCLI(_ context.Context) (binding.StreamClient, error) {
+func (d *staticDUT) DialCLI(_ context.Context) (binding.CLIClient, error) {
 	dialer, err := d.r.ssh(d.Name())
 	if err != nil {
 		return nil, err
@@ -363,12 +375,23 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 		}
 	}
 	for _, bport := range bports {
-		p, ok := portmap[bport.Id]
-		if !ok {
-			errs = append(errs, fmt.Errorf("binding port %q not found in testbed", bport.Id))
-			continue
+		if p, ok := portmap[bport.Id]; ok {
+			p.Name = bport.Name
+			// If port speed is empty populate from testbed ports.
+			if bport.Speed != opb.Port_SPEED_UNSPECIFIED {
+				if p.Speed != opb.Port_SPEED_UNSPECIFIED && p.Speed != bport.Speed {
+					return nil, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, p.Speed)
+				}
+				p.Speed = bport.Speed
+			}
+			// Populate the PMD type if configured.
+			if bport.Pmd != opb.Port_PMD_UNSPECIFIED {
+				if p.PMD != opb.Port_PMD_UNSPECIFIED && p.PMD != bport.Pmd {
+					return nil, fmt.Errorf("binding port PMD type %v and testbed port PMD type %v do not match", bport.Pmd, p.PMD)
+				}
+				p.PMD = bport.Pmd
+			}
 		}
-		p.Name = bport.Name
 	}
 	for id, p := range portmap {
 		if p.Name == "" {

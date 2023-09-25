@@ -21,10 +21,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -354,12 +356,12 @@ func TestBurstyTraffic(t *testing.T) {
 				ipHeader := flow.Packet().Add().Ipv4()
 				ipHeader.Src().SetValue(data.inputIntf.IPv4)
 				ipHeader.Dst().SetValue(intf3.IPv4)
-				ipHeader.Priority().Dscp().Phb().SetValue(int32(data.dscp))
+				ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
 
-				flow.Size().SetFixed(int32(data.frameSize))
+				flow.Size().SetFixed(uint32(data.frameSize))
 				flow.Rate().SetPercentage(float32(data.trafficRate))
 				flow.Duration().SetChoice("burst")
-				flow.Duration().Burst().SetPackets(int32(data.burstPackets)).SetGap(int32(data.burstMinGap))
+				flow.Duration().Burst().SetPackets(uint32(data.burstPackets)).SetGap(uint32(data.burstMinGap))
 				flow.Duration().Burst().InterBurstGap().SetBytes(float64(data.burstGap))
 
 			}
@@ -397,12 +399,33 @@ func TestBurstyTraffic(t *testing.T) {
 			}
 
 			// Get QoS egress packet counters before the traffic.
+			const timeout = time.Minute
+			isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 			for _, data := range trafficFlows {
-				counters["dutQosPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				counters["dutQosOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
-				counters["dutQosDroppedPktsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosPktsBeforeTraffic"][data.queue], _ = count.Val()
+
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("TransmitOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosOctetsBeforeTraffic"][data.queue], _ = count.Val()
+
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
+
 				if !deviations.QOSDroppedOctets(dut) {
-					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+					if !ok {
+						t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					}
+					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
 				}
 			}
 
@@ -412,7 +435,7 @@ func TestBurstyTraffic(t *testing.T) {
 			ate.OTG().StartTraffic(t)
 			time.Sleep(30 * time.Second)
 			ate.OTG().StopTraffic(t)
-			time.Sleep(30 * time.Second)
+			time.Sleep(60 * time.Second)
 
 			for trafficID, data := range trafficFlows {
 				flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().State())
@@ -460,8 +483,10 @@ func TestBurstyTraffic(t *testing.T) {
 				dutOctetCounterDiff := counters["dutQosOctetsAfterTraffic"][data.queue] - counters["dutQosOctetsBeforeTraffic"][data.queue]
 				ateOctetCounterDiff := counters["ateInPkts"][data.queue] * uint64(data.frameSize)
 				t.Logf("Queue %q: ateOctetCounterDiff: %v dutOctetCounterDiff: %v", data.queue, ateOctetCounterDiff, dutOctetCounterDiff)
-				if dutOctetCounterDiff < ateOctetCounterDiff {
-					t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+				if !deviations.QOSOctets(dut) {
+					if dutOctetCounterDiff < ateOctetCounterDiff {
+						t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+					}
 				}
 
 				if !deviations.QOSDroppedOctets(dut) {
@@ -572,12 +597,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos forwarding groups config: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
-		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-		fwdGroup.SetName(tc.targetGroup)
-		fwdGroup.SetOutputQueue(tc.queueName)
-		queue := q.GetOrCreateQueue(tc.queueName)
-		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 	}
 
 	t.Logf("Create qos Classifiers config")
@@ -740,16 +760,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		i := q.GetOrCreateInterface(tc.intf)
-		i.SetInterfaceId(tc.intf)
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(tc.intf)
-			i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		}
-		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-		c.SetType(tc.inputClassifierType)
-		c.SetName(tc.classifier)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -881,8 +892,9 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
-		if deviations.ExplicitInterfaceRefDefinition(dut) {
-			i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
 		}
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
@@ -1052,12 +1064,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("qos forwarding groups config cases: %v", casesfwdgrp)
 	for _, tc := range casesfwdgrp {
 		t.Run(tc.desc, func(t *testing.T) {
-			fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-			fwdGroup.SetName(tc.targetGroup)
-			fwdGroup.SetOutputQueue(tc.queueName)
-			queue := q.GetOrCreateQueue(tc.queueName)
-			queue.SetName(tc.queueName)
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
 		})
 	}
 	for _, tc := range classifiers {
@@ -1111,12 +1118,7 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		i := q.GetOrCreateInterface(tc.intf)
-		i.SetInterfaceId(tc.intf)
-		c := i.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType)
-		c.SetType(tc.inputClassifierType)
-		c.SetName(tc.classifier)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
 
 	t.Logf("Create qos scheduler policies config")
@@ -1248,12 +1250,14 @@ func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
 		i.SetInterfaceId(dp3.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
 		output := i.GetOrCreateOutput()
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 }

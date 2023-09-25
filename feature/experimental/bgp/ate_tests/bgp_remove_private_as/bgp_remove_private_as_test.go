@@ -122,8 +122,8 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutDst.IPv4)
 	global.As = ygot.Uint32(localAs)
@@ -172,7 +172,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		af6.Enabled = ygot.Bool(false)
 	}
-	return ni_proto
+	return niProto
 }
 
 // verifyBGPTelemetry checks that the dut has an established BGP session with reasonable settings.
@@ -284,9 +284,16 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 		wantASSeg = append(wantASSeg, asSeg...)
 	}
 
-	gotASSeg, ok := gnmi.WatchAll(t, ate, rib.AttrSetAny().AsSegmentAny().State(), 1*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet_AsSegment]) bool {
+	gotASSeg, ok := gnmi.WatchAll(t, ate, rib.AttrSetAny().AsSegmentMap().State(), 1*time.Minute, func(v *ygnmi.Value[map[uint32]*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet_AsSegment]) bool {
 		val, present := v.Val()
-		return present && cmp.Diff(val.Member, wantASSeg) == ""
+		if present {
+			for _, as := range val {
+				if cmp.Equal(as.Member, wantASSeg) {
+					return true
+				}
+			}
+		}
+		return false
 	}).Await(t)
 	if !ok {
 		t.Errorf("Obtained AS path on ATE is not as expected, gotASSeg %v, wantASSeg %v", gotASSeg, wantASSeg)
@@ -298,7 +305,10 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 	pd := rp.GetOrCreatePolicyDefinition(name)
-	st := pd.GetOrCreateStatement("id-1")
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	stc := st.GetOrCreateConditions()
 	stc.InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 	st.GetOrCreateActions().PolicyResult = pr

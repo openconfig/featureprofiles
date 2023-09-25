@@ -519,11 +519,11 @@ func TestTraffic(t *testing.T) {
 	srcIpv4 := srcIntf.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	// netv4 is a simulated network containing the ipv4 addresses specified by targetNetwork
 	netv4 := dstIntf.Isis().V4Routes().Add().SetName("netv4").SetLinkMetric(10)
-	netv4.Addresses().Add().SetAddress(targetNetwork.IPv4).SetPrefix(int32(targetNetwork.IPv4Len))
+	netv4.Addresses().Add().SetAddress(targetNetwork.IPv4).SetPrefix(uint32(targetNetwork.IPv4Len))
 
 	// netv6 is a simulated network containing the ipv6 addresses specified by targetNetwork
 	netv6 := dstIntf.Isis().V6Routes().Add().SetName("netv6").SetLinkMetric(10)
-	netv6.Addresses().Add().SetAddress(targetNetwork.IPv6).SetPrefix(int32(targetNetwork.IPv6Len))
+	netv6.Addresses().Add().SetAddress(targetNetwork.IPv6).SetPrefix(uint32(targetNetwork.IPv6Len))
 
 	t.Log("Configuring traffic from ATE through DUT...")
 

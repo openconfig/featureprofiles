@@ -120,8 +120,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Configure Network instance type on DUT
 	t.Log("Configure/update Network Instance")
-	dutConfNIPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
@@ -235,8 +234,8 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16, dut *
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(localAs)
@@ -302,14 +301,17 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16, dut *
 			}
 		}
 	}
-	return ni_proto
+	return niProto
 }
 
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 	pd := rp.GetOrCreatePolicyDefinition(name)
-	st := pd.GetOrCreateStatement("id-1")
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	st.GetOrCreateActions().PolicyResult = pr
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }

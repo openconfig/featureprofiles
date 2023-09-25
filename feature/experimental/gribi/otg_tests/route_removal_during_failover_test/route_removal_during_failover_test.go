@@ -37,11 +37,10 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/raw"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	fpb "github.com/openconfig/gnoi/file"
@@ -105,7 +104,7 @@ var (
 )
 
 // coreFileCheck function is used to check if any cores found during test execution.
-func coreFilecheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64) {
+func coreFilecheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient binding.GNOIClients, sysConfigTime uint64) {
 	// vendorCoreFilePath and vendorCoreProcName should be provided to fetch core file on dut.
 	if _, ok := vendorCoreFilePath[dut.Vendor()]; !ok {
 		t.Fatalf("Please add support for vendor %v in var vendorCoreFilePath ", dut.Vendor())
@@ -300,9 +299,9 @@ func configureATE(top gosnappi.Config, atePort *ondatra.Port, Name string, vlanI
 	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(ateMAC)
 	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(atePort.ID())
 	if vlanID != 0 {
-		eth.Vlans().Add().SetName(Name).SetId(int32(vlanID))
+		eth.Vlans().Add().SetName(Name).SetId(uint32(vlanID))
 	}
-	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(int32(ipv4PrefixLen))
+	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(uint32(ipv4PrefixLen))
 
 }
 
@@ -471,15 +470,6 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// Waits for an ARP entry to be present for ATE Port1
-func waitOTGARPEntry(t *testing.T) {
-	t.Helper()
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-}
-
 // TestRouteRemovalDuringFailover is to test gRIBI flush and slave switchover
 // concurrently, validate reinject of gRIBI programmed routes and traffic.
 func TestRouteRemovalDuringFailover(t *testing.T) {
@@ -488,7 +478,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
 	top := ate.OTG().NewConfig(t)
@@ -578,7 +568,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	// Send traffic from ATE port-1 to prefixes in ipBlock1 and ensure traffic
 	// flows 100% and reaches ATE port-2.
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
 	dstMac := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 	createTrafficFlow(t, args.ate, args.top, dstMac)
 	args.ate.OTG().PushConfig(t, top)
@@ -598,7 +588,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	switchoverReady(t, dut, primaryBeforeSwitch)
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	var gnoiClient binding.GNOIClients = dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),
@@ -611,7 +601,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	var flushRes, wantFlushRes *gpb.FlushResponse
 	t.Log("Execute gRIBi flush and master switchover concurrently.")
 	go func(msg string) {
-		flushRes, err := gribi.Flush(client, eID, deviations.DefaultNetworkInstance(dut))
+		flushRes, err = gribi.Flush(client, eID, deviations.DefaultNetworkInstance(dut))
 		if err != nil {
 			t.Logf("Unexpected error from flush, got: %v, %v", err, flushRes)
 		}
@@ -692,7 +682,11 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	}
 
 	// Check for coredumps in the DUT and validate that none are present post failover.
-	gnoiClient = dut.RawAPIs().GNOI().New(t) // reconnect gnoi connection after switchover
+	// Reconnect gnoi connection after switchover.
+	gnoiClient, err = dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
 	coreFilecheck(t, dut, gnoiClient, sysConfigTime)
 
 	t.Log("Re-inject routes from ipBlock1 in default VRF with NHGID: #1.")

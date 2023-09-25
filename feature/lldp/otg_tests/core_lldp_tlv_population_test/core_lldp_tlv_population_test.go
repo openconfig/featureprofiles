@@ -15,6 +15,7 @@
 package core_lldp_tlv_population_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -30,6 +32,8 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 type lldpTestParameters struct {
@@ -76,6 +80,7 @@ func TestLLDPEnabled(t *testing.T) {
 	// DUT configuration.
 	t.Log("Configure DUT.")
 	dut, dutConf := configureDUT(t, "dut", lldpEnabled)
+	disableP4RTLLDP(t, dut)
 	dutPort := dut.Port(t, portName)
 	verifyNodeConfig(t, dut, dutPort, dutConf, lldpEnabled)
 
@@ -104,6 +109,9 @@ func TestLLDPEnabled(t *testing.T) {
 		chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
 	}
 	checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
+
+	// disable LLDP before releasing the devices.
+	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
 }
 
 // TestLLDPDisabled tests LLDP advertisement turned off.
@@ -111,6 +119,7 @@ func TestLLDPDisabled(t *testing.T) {
 	// DUT configuration.
 	t.Log("Configure DUT.")
 	dut, dutConf := configureDUT(t, "dut", lldpDisabled)
+	disableP4RTLLDP(t, dut)
 	dutPort := dut.Port(t, portName)
 	verifyNodeConfig(t, dut, dutPort, dutConf, lldpDisabled)
 
@@ -135,6 +144,9 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 
 	if lldpEnabled {
 		gnmi.Replace(t, node, lldp.Interface(p.Name()).Enabled().Config(), lldpEnabled)
+	}
+	if deviations.InterfaceEnabled(node) {
+		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
 	}
 
 	return node, gnmi.GetConfig(t, node, lldp.Config())
@@ -287,4 +299,32 @@ func (expLldpNeighbor *lldpNeighbors) Equal(neighbour *otgtelemetry.LldpInterfac
 		neighbour.GetPortId() == expLldpNeighbor.portId &&
 		neighbour.GetPortIdType() == expLldpNeighbor.portIdType &&
 		neighbour.GetSystemName() == expLldpNeighbor.systemName
+}
+
+func disableP4RTLLDP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := `p4-runtime
+					shutdown`
+		if _, err := dut.RawAPIs().GNMI(t).
+			Set(context.Background(), cliSetRequest(cli)); err != nil {
+			t.Fatalf("Failed to disable P4RTLLDP: %v", err)
+		}
+	}
+}
+
+func cliSetRequest(config string) *gpb.SetRequest {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
 }
