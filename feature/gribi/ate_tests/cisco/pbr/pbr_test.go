@@ -71,15 +71,10 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	policy := oc.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-	intfRef := &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{}
-	intfRef.SetInterface("Bundle-Ether120")
-	intfRef.SetSubinterface(0)
 	policy.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{
-		"Bundle-Ether120.0": {
-			InterfaceId:             ygot.String("Bundle-Ether120.0"),
-			ApplyVrfSelectionPolicy: ygot.String(pbrName),
-			InterfaceRef:            intfRef,
-		},
+		"Bundle-Ether120": {
+			InterfaceId:             ygot.String("Bundle-Ether120"),
+	}
 	}
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Config(), &policy)
@@ -293,7 +288,6 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	configBasePBR(t, dut)
 
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
-	// gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().InterfaceAny().InterfaceRef("Bundle-Ether120").Interface("Bundle-Ether120.0").Config(), pbrName)
 	t.Log("Reload the router to activate hw module config")
 	util.ReloadDUT(t, dut)
 
