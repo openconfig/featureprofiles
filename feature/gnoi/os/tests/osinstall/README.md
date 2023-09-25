@@ -57,7 +57,8 @@
 
 ## Process that controls configuration of a router by vendor
    * Juniper: mgd
-   * Cisco: 
+   * Cisco:
+   * Arista: ConfigAgent 
      
   
 
