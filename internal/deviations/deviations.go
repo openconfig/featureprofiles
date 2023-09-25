@@ -597,7 +597,7 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
 
-// SkipTCPNegotiatedMssCheck returns true for devices that do not
+// SkipTCPNegotiatedMSSCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
 func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTcpNegotiatedMssCheck()
@@ -613,4 +613,15 @@ func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
 // Default value is false.
 func InterfaceLoopbackModeRawGnmi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceLoopbackModeRawGnmi()
+}
+
+// ISISLspMetadataLeafsUnsupported returns true for devices that don't support ISIS-Lsp
+// metadata paths: checksum, sequence-number, remaining-lifetime.
+func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspMetadataLeafsUnsupported()
+}
+
+// QOSQueueRequiresID returns if device should configure QOS queue along with queue-id
+func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
