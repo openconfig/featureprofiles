@@ -183,7 +183,7 @@ func filterPacketReceived(t *testing.T, flow string, ate *ondatra.ATEDevice) map
 // configureGRIBIClient configures a new GRIBI client with PRESERVE and FIB_ACK.
 func configureGRIBIClient(t *testing.T, dut *ondatra.DUTDevice) *fluent.GRIBIClient {
 	t.Helper()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the gRIBI client.
 	c := fluent.NewClient()
@@ -239,7 +239,10 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4.
 func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface, dut *ondatra.DUTDevice) {
 	t.Helper()
-
+if deviations.RequireRoutedSubinterface0(dut) {
+		s0 := intf.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+		s0.Enabled = ygot.Bool(true)
+	}
 	for i := uint32(1); i <= a.numSubIntf; i++ {
 		ip := a.ip(uint8(i))
 
@@ -321,7 +324,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
-	gnmi.Replace(t, d, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, d)
 	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF(d))
 
 	if deviations.ExplicitGRIBIUnderNetworkInstance(d) {
@@ -367,6 +370,8 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	if deviations.ExplicitInterfaceRefDefinition(dut) {
 		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+if deviations.InterfaceRefConfigUnsupported(dut) {
+		pfCfg.InterfaceRef = nil
 	}
 	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
