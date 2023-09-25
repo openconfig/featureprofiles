@@ -23,7 +23,7 @@ Validate 400ZR optics module reports correct firmware version.
 
 ## Config Parameter coverage
 
-*   /components/component/oc-transceiver:transceiver/oc-transceiver/config/enabled
+*   /components/component/transceiver/config/enabled
 
 ## Telemetry Parameter coverage
 
