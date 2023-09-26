@@ -34,7 +34,7 @@ BGP policy configuration for AS Paths and Community Sets
         * Advertise routes with as path `[110]`
         * Advertise routes with as path `[400]`
     * For each DUT policy configuration
-        * Update the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the selected as-path-set 
+        * Update the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the selected as-path-set
             * Verify prefixes sent, received and installed are as expected
         * Send traffic
             * Verify traffic is forwarded for routes with matching policy
@@ -43,11 +43,11 @@ BGP policy configuration for AS Paths and Community Sets
 
 * Subtest 3 for community-set
     * Configure DUT for each of the following policies
-        * Create a named community-set with members and match options as follows
+        * Create a community-set named `my_3_comms` with members and match options as follows
             * `{ community-member = [ "1000", "2000", "3000" ], match-set-options=ANY }`
-        * Create a named community-set with members and match options as follows
+        * Create a community-set named `my_regex_comms` with members and match options as follows
             * `{ community-member = [ "100[0-9]" ], match-set-options=ANY }`
-        * Create a named community-set with members and match options as follows
+        * Create a community-set named `all_3_comms` with members and match options as follows
             * `{ community-member = [ "1000", "2000", "3000" ], match-set-options=ALL }`
     * Configure ATE to
         * Advertise 2 routes with communities `[1000,2000,3000]`
@@ -55,14 +55,23 @@ BGP policy configuration for AS Paths and Community Sets
         * Advertise 2 routes with communities `[1100]`
         * Advertise 2 routes with communities `[4000]`
     * For each DUT policy configuration
-        * Update the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the selected community set 
+        * Update the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the selected community set
             * Verify prefixes sent, received and installed are as expected
         * Send traffic
             * Verify traffic is forwarded for routes with matching policy
             * Verify traffic is not forwarded for routes without matching policy
 
 * Subtest 4 - Single routing-policy containing as-path-set and community-set
-   * create routing-policy with both as-path-set and community-set
+    * Configure ATE
+        * Advertise routes with as path `[100, 101, 200]` and communities `[1000,1001,2000]`
+        * Advertise routes with as path `[110]` and community `[1100]`
+    * Configure DUT
+        * Replace the import-policy configuration for the ATE port1 bgp neighbor to use as-path-set-name `my_regex_aspaths` and community-set-name `my_regex_comms`
+    * Send traffic
+        * Verify traffic is forwarded for routes with matching policy
+        * Verify traffic is not forwarded for routes without matching policy
+
+
 
 ## Config Parameter Coverage
 
