@@ -333,6 +333,7 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	// create flow
 	dstMac := gnmi.Get(t, a.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 	BaseFlow := a.createFlow(t, "BaseFlow", dstMac)
+        time.Sleep(5 * time.Second)
 
 	// Validate traffic over primary path port2, port3
 	t.Logf("Validate traffic over primary path port2, port3")
@@ -438,7 +439,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 		}
 		t.Logf("Traffic loss during path change : %v msecs", fpm)
 	} else if sentPkts > receivedPkts {
-		t.Fatalf("Traffic didn't switch to the expected outgoing port")
+		t.Fatalf("Traffic didn't forward to the expected outgoing port, Sent: %v, Received: %v", sentPkts, receivedPkts")
 	}
 }
 
