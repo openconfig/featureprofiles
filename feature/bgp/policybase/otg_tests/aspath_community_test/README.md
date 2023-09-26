@@ -18,41 +18,48 @@ BGP policy configuration for AS Paths and Community Sets
         routes
 
 * Subtest 2 for as-path-set
-    * Create table based tests for each of the following policies
-    * Create an as-path-set/name "my_3_aspaths" with members and match options as follows
-        *  `{ as-path-set-member = [ "100", "200", "300" ] }`
-        *  `{ match-set-options=ANY }`
-    * Create an as-path-set/name "my_regex_aspaths" with one member as follows
-        * `{ as-path-set-member = [ "10[0-9]" ] }`
-        * `{ match-set-options=ANY }`
-    * Create an as-path-set/name "all_3_aspaths" with members and match options as follows
-        * `{ as-path-set-member = [ "100", "200", "300" ], match-set-options=ALL }`
-  * For each table based test, validate that traffic can be forwarded to
-    all installed routes between ATE port-1 and ATE port-2, validate that
-    traffic flows between all denied routes cannot be forwarded.
-      * Advertise routes with as path `[100, 200, 300]`
-      * Advertise routes with as path `[100, 101, 200]`
-      * Advertise routes with as path `[110]`
-      * Advertise routes with as path `[400]`
+    * Configure DUT for each of the following policies
+        * Create an as-path-set/name "my_3_aspaths" with members and match options as follows
+            *  `{ as-path-set-member = [ "100", "200", "300" ] }`
+            *  `{ match-set-options=ANY }`
+        * Create an as-path-set/name "my_regex_aspaths" with one member as follows
+            * `{ as-path-set-member = [ "10[0-9]" ] }`
+            * `{ match-set-options=ANY }`
+        * Create an as-path-set/name "all_3_aspaths" with members and match options as follows
+            * `{ as-path-set-member = [ "100", "200", "300" ]}`
+            * `{ match-set-options=ALL }`
+    * Configure ATE to
+        * Advertise routes with as path `[100, 200, 300]`
+        * Advertise routes with as path `[100, 101, 200]`
+        * Advertise routes with as path `[110]`
+        * Advertise routes with as path `[400]`
+    * For each DUT policy configuration
+        * Update the configuration for bgp-conditions/match-as-path-set/config/as-path-set to the selected as-path-set 
+            * Verify prefixes sent, received and installed are as expected
+        * Send traffic
+            * Verify traffic is forwarded for routes with matching policy
+            * Verify traffic is not forwarded for routes without matching policy
 
 
 * Subtest 3 for community-set
-    * Create table based tests for each of the following policies
-    * Create a named community-set with members and match options as follows
-        * `{ community-member = [ "1000", "2000", "3000" ], match-set-options=ANY }`
-    *   Create a named community-set with members and match options as follows
-          * `{ community-member = [ "100[0-9]" ], match-set-options=ANY }`
-  *   Create a named community-set with members and match options as follows
-      * `{ community-member = [ "1000", "2000", "3000" ], match-set-options=ALL }`
-  * For each table based test, validate that traffic can be forwarded to
-    all installed routes between ATE port-1 and ATE port-2, validate that
-    traffic flows between all denied routes cannot be forwarded.
-      * Advertise routes with communities `[1000,2000,3000]`
-      * Advertise routes with communities `[1000,1001,2000]`
-      * Advertise routes with communities `[1100]`
-      * Advertise routes with communities `[4000]`
-      * Verify traffic is forwarded for routes with matching policy
-      * Verify traffic is not forwarded for routes without matching policy
+    * Configure DUT for each of the following policies
+        * Create a named community-set with members and match options as follows
+            * `{ community-member = [ "1000", "2000", "3000" ], match-set-options=ANY }`
+        * Create a named community-set with members and match options as follows
+            * `{ community-member = [ "100[0-9]" ], match-set-options=ANY }`
+        * Create a named community-set with members and match options as follows
+            * `{ community-member = [ "1000", "2000", "3000" ], match-set-options=ALL }`
+    * Configure ATE to
+        * Advertise 2 routes with communities `[1000,2000,3000]`
+        * Advertise 2 routes with communities `[1000,1001,2000]`
+        * Advertise 2 routes with communities `[1100]`
+        * Advertise 2 routes with communities `[4000]`
+    * For each DUT policy configuration
+        * Update the configuration for bgp-conditions/config/community-set to the selected commuity set 
+            * Verify prefixes sent, received and installed are as expected
+        * Send traffic
+            * Verify traffic is forwarded for routes with matching policy
+            * Verify traffic is not forwarded for routes without matching policy
 
 * Subtest 4 - Single routing-policy containing as-path-set and community-set
    * create routing-policy with both as-path-set and community-set
