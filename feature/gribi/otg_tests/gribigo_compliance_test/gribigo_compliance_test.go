@@ -131,7 +131,7 @@ func TestCompliance(t *testing.T) {
 	configureDUT(t, dut)
 	syncElectionID(t, dut)
 
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	for _, tt := range compliance.TestSuite {
 		t.Run(tt.In.ShortName, func(t *testing.T) {
