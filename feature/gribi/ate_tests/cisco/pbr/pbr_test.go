@@ -290,13 +290,13 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
 	util.GNMIWithText(ctx, t, dut, configToChange)
 
-	t.Log("Configure PBR policy and Apply it under interface")
-	configBasePBR(t, dut)
 	// gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120.0").Config(),
 		getPolicyForwardingInterfaceConfig(pbrName, "Bundle-Ether120", 0))
 	t.Log("Reload the router to activate hw module config")
 	util.ReloadDUT(t, dut)
+	t.Log("Configure PBR policy and Apply it under interface")
+	configBasePBR(t, dut)
 
 }
 
