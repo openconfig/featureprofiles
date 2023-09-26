@@ -34,7 +34,7 @@ BGP policy configuration for AS Paths and Community Sets
         * Advertise routes with as path `[110]`
         * Advertise routes with as path `[400]`
     * For each DUT policy configuration
-        * Update the configuration for bgp-conditions/match-as-path-set/config/as-path-set to the selected as-path-set 
+        * Update the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the selected as-path-set 
             * Verify prefixes sent, received and installed are as expected
         * Send traffic
             * Verify traffic is forwarded for routes with matching policy
@@ -55,7 +55,7 @@ BGP policy configuration for AS Paths and Community Sets
         * Advertise 2 routes with communities `[1100]`
         * Advertise 2 routes with communities `[4000]`
     * For each DUT policy configuration
-        * Update the configuration for bgp-conditions/config/community-set to the selected commuity set 
+        * Update the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the selected community set 
             * Verify prefixes sent, received and installed are as expected
         * Send traffic
             * Verify traffic is forwarded for routes with matching policy
@@ -75,18 +75,24 @@ BGP policy configuration for AS Paths and Community Sets
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options
 * /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/config/community-set
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/
+import-policy
 
 ### Policy for ext-community-set match
 * /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-set-name
 * /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-member
 * /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/match-set-options
 * /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/config/ext-community-set
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/
+import-policy
 
 ### Policy for as-path match
 * /routing-policy/defined-sets/bgp-defined-sets/as-path-sets/as-path-set/config/as-path-set-name
 * /routing-policy/defined-sets/bgp-defined-sets/as-path-sets/as-path-set/config/as-path-set-member
 * /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/as-path-set
 * /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/match-set-options
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/
+import-policy
 
 ## Telemetry Parameter Coverage
 
