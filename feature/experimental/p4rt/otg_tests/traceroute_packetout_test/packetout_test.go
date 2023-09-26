@@ -40,7 +40,7 @@ type testArgs struct {
 	top         gosnappi.Config
 	srcMAC      net.HardwareAddr
 	dstMAC      net.HardwareAddr
-	useIpv6     bool
+	useIpv4     bool
 	metadata    []*p4v1.PacketMetadata
 	trafficPort string
 	packetIO    PacketIO
@@ -58,7 +58,7 @@ func (t *testArgs) testName() string {
 			padding = string(m.Value)
 		}
 	}
-	return fmt.Sprintf("egressPort:%s,submitToIngress:%s,padding:%s,ipv6:%v", egressPort, submitIngress, padding, t.useIpv6)
+	return fmt.Sprintf("egressPort:%s,submitToIngress:%s,padding:%s,ipv4:%v", egressPort, submitIngress, padding, t.useIpv4)
 }
 
 // sendPackets sends out packets via PacketOut message in StreamChannel.
@@ -86,7 +86,7 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	counter0p2 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
 	t.Logf("Initial number of packets on ATE port %s: %d", "port2", counter0p2)
 
-	packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, args.useIpv6, uint8(ttl), 100, args.metadata)
+	packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, args.useIpv4, uint8(ttl), 100, args.metadata)
 	if err != nil {
 		t.Fatalf("GetPacketOut returned unexpected error: %v", err)
 	}

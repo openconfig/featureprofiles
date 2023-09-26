@@ -249,7 +249,7 @@ func TestPacketOut(t *testing.T) {
 	}
 
 	for _, m := range genMetadataCombinations() {
-		for _, ipv6 := range []bool{false, true} {
+		for _, ipv4 := range []bool{true, false} {
 			args := &testArgs{
 				ctx:         ctx,
 				client:      client,
@@ -259,7 +259,7 @@ func TestPacketOut(t *testing.T) {
 				srcMAC:      srcMAC,
 				dstMAC:      dstMAC,
 				metadata:    m,
-				useIpv6:     ipv6,
+				useIpv4:     ipv4,
 				trafficPort: getExpectedTrafficPort(m),
 				packetIO:    getTracerouteParameter(t),
 			}
