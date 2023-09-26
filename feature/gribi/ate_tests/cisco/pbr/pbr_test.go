@@ -4,6 +4,7 @@ package policy_test
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
@@ -71,10 +72,14 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	policy := oc.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
+	intfRef := &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{}
+	intfRef.SetInterface("Bundle-Ether120")
+	intfRef.SetSubinterface(0)
 	policy.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{
-		"Bundle-Ether120": {
-			InterfaceId:             ygot.String("Bundle-Ether120"),
+		"Bundle-Ether120.0": {
+			InterfaceId:             ygot.String("Bundle-Ether120.0"),
 			ApplyVrfSelectionPolicy: ygot.String(pbrName),
+			InterfaceRef:            intfRef,
 		},
 	}
 
@@ -287,11 +292,21 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 
 	t.Log("Configure PBR policy and Apply it under interface")
 	configBasePBR(t, dut)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
-
+	// gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120.0").Config(),
+		getPolicyForwardingInterfaceConfig(pbrName, "Bundle-Ether120", 0))
 	t.Log("Reload the router to activate hw module config")
 	util.ReloadDUT(t, dut)
 
+}
+
+func getPolicyForwardingInterfaceConfig(policyName, intf string, subint int) *oc.NetworkInstance_PolicyForwarding_Interface {
+	pf := &oc.NetworkInstance_PolicyForwarding{}
+	pfCfg := pf.GetOrCreateInterface(intf + "." + strconv.Itoa(subint))
+	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(intf)
+	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(uint32(subint))
+	return pfCfg
 }
 
 // Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy
