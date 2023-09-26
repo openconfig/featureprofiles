@@ -6,10 +6,10 @@ Base BGP policy configuration and route installation.
 
 ## Procedure
 
-* Subtest 1
-    *   Establish eBGP sessions between ATE port-1 and DUT port-1
-    *   For IPv4 and IPv6 routes:
-        *   Advertise IPv4 prefixes over IPv4 neighbor from ATE port-1, observe received prefixes at ATE port-2.
+*   Establish eBGP sessions between:
+    *   ATE port-1 and DUT port-1
+*   For IPv4 and IPv6 routes:
+    *   Advertise IPv4 prefixes over IPv4 neighbor from ATE port-1, observe received prefixes at ATE port-2.
     *   Similarly advertise IPv6 prefixes over IPv6 neighbor from ATE port-1, observe received prefixes at ATE port-2.
     *   Specify table based policy configuration under peer-group AFI to cover
         *   Default accept for policies.
@@ -18,7 +18,6 @@ Base BGP policy configuration and route installation.
         *   TODO: Explicitly specifying MED value.
         *   Explicitly prepending AS for advertisement with a specified AS
             number.
-        *   as-path with match-set-options ANY
     *   Validate that traffic can be forwarded to **all** installed routes
         between ATE port-1 and ATE port-2, validate that flows between all
         denied routes cannot be forwarded.
