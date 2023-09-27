@@ -16,6 +16,7 @@ package base_hierarchical_nhg_update_test
 
 import (
 	"context"
+	"math/big"
 	"net"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -37,7 +39,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -47,12 +48,10 @@ const (
 	// Destination ATE MAC address for port-2 and port-3.
 	pMAC = "00:1A:11:00:1A:BC"
 	// 12-bit filter for egress flow tracking. ABC in hex == 0xabc in hexadecimal.
-	pMACFilter = "0xabc"
-	// 15-bit filter for egress flow tracking. 1ABC in hex == 43981 in decimal.
-	// pMACFilter      = "6844"
-	// pMACFilterport2 = "6841"
-	// pMACFilterport3 = "6842"
-	// pMACFilterport4 = "6843"
+	pMACFilter      = "0xabc"
+	pMACFilterport2 = "0xab9"
+	pMACFilterport3 = "0xaba"
+	pMACFilterport4 = "0xabb"
 
 	// port-2 nexthop ID.
 	p2NHID = 40
@@ -136,21 +135,25 @@ var (
 	}
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: 30,
 	}
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
+		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: 30,
 	}
 	atePort3 = attrs.Attributes{
 		Name:    "atePort3",
+		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
 		IPv4Len: 30,
 	}
 	atePort4 = attrs.Attributes{
 		Name:    "atePort4",
+		MAC:     "02:00:04:01:01:01",
 		IPv4:    "192.0.2.14",
 		IPv4Len: 30,
 	}
@@ -183,6 +186,14 @@ type bundleName struct {
 	trunk4 string
 }
 
+// enum for validateTrafficFlows options
+const (
+	startTraffic = iota
+	trafficOnPort2Port3NotOnPort4
+	switchTrafficToPort4FromPort2AndPort3
+	switchTrafficToPort2AndPort3FromPort4
+)
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -196,9 +207,6 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
 
 	tests := []struct {
 		name string
@@ -250,10 +258,13 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Log("Create flows for port 1 to port2, port 1 to port3")
-	p2flow := "Port 1 to Port 2"
-	p3flow := "Port 1 to Port 3"
-	p2Flow := createFlow(t, p2flow, args.top, &atePort2)
-	p3Flow := createFlow(t, p3flow, args.top, &atePort3)
+	p2FlowName := "Port 1 to Port 2"
+	p3FlowName := "Port 1 to Port 3"
+	p2Flow := createFlow(t, p2FlowName, args.top, false, &atePort2)
+	p3Flow := createFlow(t, p3FlowName, args.top, false, &atePort3)
+
+	args.ate.OTG().PushConfig(t, args.top)
+	args.ate.OTG().StartProtocols(t)
 
 	defer func() {
 
@@ -296,10 +307,8 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 	args.client.AddIPv4(t, dstPfx, dstNHGID, vrfName, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
-	waitOTGARPEntry(t)
-
 	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
-	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, pMACFilter)
+	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, startTraffic, args.client, false)
 
 	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
 	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
@@ -320,7 +329,7 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	} else {
 		args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1, p3NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	}
-	validateTrafficFlows(t, args.ate, nil, nil, []gosnappi.Flow{p2Flow, p3Flow}, pMACFilter)
+	validateTrafficFlows(t, args.ate, nil, nil, []gosnappi.Flow{p2Flow, p3Flow}, startTraffic, args.client, false)
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p3NHID)
 	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
@@ -329,7 +338,7 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	} else {
 		args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p3NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	}
-	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p3Flow}, []gosnappi.Flow{p2Flow}, nil, pMACFilter)
+	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p3Flow}, []gosnappi.Flow{p2Flow}, nil, startTraffic, args.client, false)
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p2NHID)
 	if !deviations.ExplicitGRIBIUnderNetworkInstance(args.dut) {
@@ -338,7 +347,23 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	} else {
 		args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	}
-	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, pMACFilter)
+	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p2Flow}, []gosnappi.Flow{p3Flow}, nil, startTraffic, args.client, false)
+}
+
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	top := ate.OTG().NewConfig(t)
+
+	p1 := ate.Port(t, "port1")
+	p2 := ate.Port(t, "port2")
+	p3 := ate.Port(t, "port3")
+	p4 := ate.Port(t, "port4")
+
+	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort2.AddToOTG(top, p2, &dutPort2)
+	atePort3.AddToOTG(top, p3, &dutPort3)
+	atePort4.AddToOTG(top, p4, &dutPort4)
+
+	return top
 }
 
 // configureDUT configures DUT.
@@ -465,6 +490,201 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), atePort3DummyIP.IPv4, pMAC, false))
 }
 
+// createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
+// Set drain to true to design flows for testImplementDrain case and false to design flows for testBaseHierarchialNHG case
+func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, drain bool, dsts ...*attrs.Attributes) gosnappi.Flow {
+	var rxEndpoints []string
+	for _, dst := range dsts {
+		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
+	}
+
+	flowipv4 := ateTop.Flows().Add().SetName(name)
+	flowipv4.Metrics().SetEnable(true)
+	e1 := flowipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
+	outerIPHeader := flowipv4.Packet().Add().Ipv4()
+	if drain {
+		outerIPHeader.Src().SetValue(outerSrcIP)
+		outerIPHeader.Dst().Increment().SetStart(dstPfxvrf1).SetStep("0.0.0.1").SetCount(vrfPrefixcount)
+		innerIPHeader := flowipv4.Packet().Add().Ipv4()
+		innerIPHeader.Src().SetValue(innerSrcIP)
+		innerIPHeader.Dst().Increment().SetStart(innerDstPfx).SetStep("0.0.0.1").SetCount(vrfPrefixcount)
+
+	} else {
+		outerIPHeader.Src().SetValue(atePort1.IPv4)
+		outerIPHeader.Dst().SetValue(dstPfxFlowIP)
+		innerIPHeader := flowipv4.Packet().Add().Ipv4()
+		innerIPHeader.Src().Increment().SetStart(innerSrcIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
+		innerIPHeader.Dst().Increment().SetStart(innerDstIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
+	}
+	flowipv4.Size().SetFixed(300)
+	flowipv4.Rate().SetPps(fps)
+	eth := flowipv4.EgressPacket().Add().Ethernet()
+	ethTag := eth.Dst().MetricTags().Add()
+	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
+
+	return flowipv4
+}
+
+// validateTrafficFlows starts traffic and ensures that good flows have 0% loss and bad flows have
+// 100% loss.
+// Set option 1 to receive traffic on port 2 and port 3 and no traffic on port 4
+// Set option 2 to switch traffic from port2 and port3 to port4
+// Set option 3 to switch traffic from port 4 to port 2 and port 3
+// set change to true if some traffic lost is expected due to converge on path switch
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []gosnappi.Flow, option int, gr *gribi.Client, change bool) {
+
+	if len(good) == 0 && len(bad) == 0 && len(lb) == 0 {
+		return
+	}
+	dut := ondatra.DUT(t, "dut")
+	var nonrx_ports []string
+	var expected_outgoing_port []string
+	var macFilter string
+
+	otg := ate.OTG()
+	config := otg.FetchConfig(t)
+
+	switch option {
+	case trafficOnPort2Port3NotOnPort4:
+		otg.StartTraffic(t)
+		time.Sleep(15 * time.Second)
+	case switchTrafficToPort4FromPort2AndPort3:
+		nonrx_ports = []string{"port2", "port3"}
+		expected_outgoing_port = []string{"port4"}
+		otg.StartTraffic(t)
+		time.Sleep(15 * time.Second)
+		t.Logf("Modify NHG %v pointing to %v", nhg1ID, btrunk4)
+		gr.AddNHG(t, nhg1ID, map[uint64]uint64{nh3ID: 100}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+		time.Sleep(30 * time.Second)
+	case switchTrafficToPort2AndPort3FromPort4:
+		nonrx_ports = []string{"port4"}
+		expected_outgoing_port = []string{"port2", "port3"}
+		otg.StartTraffic(t)
+		time.Sleep(15 * time.Second)
+		t.Logf("Modify NHG %v pointing back to %v and %v", nhg1ID, btrunk2, btrunk3)
+		gr.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 50, nh2ID: 50}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+		time.Sleep(30 * time.Second)
+	default:
+		otg.StartTraffic(t)
+		time.Sleep(15 * time.Second)
+
+	}
+	otg.StopTraffic(t)
+
+	otgutils.LogFlowMetrics(t, otg, config)
+	otgutils.LogPortMetrics(t, otg, config)
+
+	for _, flow := range good {
+		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
+		if flow.Name() == "Flow Port 1 to Port 2" {
+			macFilter = pMACFilterport2
+		} else if flow.Name() == "Flow Port 1 to Port 3" {
+			macFilter = pMACFilterport3
+		} else if flow.Name() == "Flow Port 1 to Port 4" {
+			macFilter = pMACFilterport4
+		} else {
+			macFilter = pMACFilter
+		}
+		if !change {
+			if got := getLossPct(t, flow.Name()); got > 0 {
+				t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
+			}
+		}
+		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
+		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
+		if got := len(ets); got != 1 {
+			t.Errorf("EgressTracking got %d items, want %d", got, 1)
+		}
+		etTagspath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny().TagsAny()
+		etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
+		if got := etTags[0].GetTagValue().GetValueAsHex(); !strings.EqualFold(got, macFilter) {
+			t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
+		}
+		if got := ets[0].GetCounters().GetInPkts(); got != rxPkts {
+			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, rxPkts)
+		} else {
+			t.Logf("Received %d packets with %s as the last 12 bits in the dst MAC", got, macFilter)
+		}
+
+	}
+	for _, flow := range lb {
+		// for LB flows, we expect to receive between 48-52% of packets on each interface (before and after filtering).
+		lbPct := 50.0
+		if flow.Name() == "Flow Port 1 to Port 2" {
+			macFilter = pMACFilterport2
+		} else if flow.Name() == "Flow Port 1 to Port 3" {
+			macFilter = pMACFilterport3
+		} else if flow.Name() == "Flow Port 1 to Port 4" {
+			macFilter = pMACFilterport4
+		} else {
+			macFilter = pMACFilter
+		}
+		if !change {
+			if diff := cmp.Diff(float32(lbPct), getLossPct(t, flow.Name()), cmpopts.EquateApprox(0, lbPrecision)); diff != "" {
+				t.Errorf("Received number of packets -want,+got:\n%s", diff)
+			}
+		}
+		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
+		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
+		if got := len(ets); got != 1 {
+			t.Errorf("EgressTracking got %d items, want %d", got, 1)
+			return
+		}
+		etTagspath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny().TagsAny()
+		etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
+		if got := etTags[0].GetTagValue().GetValueAsHex(); !strings.EqualFold(got, macFilter) {
+			t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
+		}
+		inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
+		if diff := cmp.Diff(inPkts, ets[0].GetCounters().GetInPkts(), cmpopts.EquateApprox(lbPct, lbPrecision)); diff != "" {
+			t.Errorf("EgressTracking received number of packets -want,+got:\n%s", diff)
+		}
+	}
+	for _, flow := range bad {
+		if !change {
+			if got := getLossPct(t, flow.Name()); got < 100 {
+				t.Errorf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
+			}
+		}
+	}
+
+	if change {
+		var receivedPkts uint64
+
+		incoming_traffic_counters := gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters()
+		sentPkts := gnmi.Get(t, ate.OTG(), incoming_traffic_counters.OutFrames().State())
+
+		// Get traffic received on primary outgoing interface before modifying NHG
+		for _, port := range nonrx_ports {
+			outgoing_traffic_counters := gnmi.OTG().Port(ate.Port(t, port).ID()).Counters()
+			outPkts := gnmi.Get(t, ate.OTG(), outgoing_traffic_counters.InFrames().State())
+			receivedPkts = receivedPkts + outPkts
+		}
+
+		// Get traffic received on expected port after modifying NHG
+		for _, outPort := range expected_outgoing_port {
+			outgoing_traffic_counters := gnmi.OTG().Port(ate.Port(t, outPort).ID()).Counters()
+			outPkts := gnmi.Get(t, ate.OTG(), outgoing_traffic_counters.InFrames().State())
+			receivedPkts = receivedPkts + outPkts
+		}
+
+		// Check if traffic restores with in expected time in milliseconds during modify NHG
+		if len(nonrx_ports) > 0 {
+			// Time took for traffic to restore in milliseconds after trigger
+			diff := big.NewInt(0).Sub(big.NewInt(0).SetUint64(receivedPkts), big.NewInt(0).SetUint64(sentPkts))
+			fpm := (diff.Uint64() / (fps / 1000))
+			if fpm > *args.ConvergencePathChange {
+				t.Fatalf("Traffic loss %v msecs more than expected %v msecs", fpm, *args.ConvergencePathChange)
+			}
+			t.Logf("Traffic loss during path change : %v msecs", fpm)
+		} else if sentPkts > receivedPkts {
+			t.Fatalf("Traffic didn't switch to the expected outgoing port")
+		}
+	}
+}
+
 // configStaticArp configures static arp entries
 func configStaticArp(p string, ipv4addr string, macAddr string, trunk bool) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(p)}
@@ -482,10 +702,26 @@ func configStaticArp(p string, ipv4addr string, macAddr string, trunk bool) *oc.
 
 // TE3.7 case2 - Drain Implementation test.
 func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
+	if !deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
 		t.Skip()
 		//Testcase skipped as static arp and route config needed for other vendors
 	}
+	t.Log("Create flows for port1 to port2, port1 to port3 and port1 to port4")
+	args.top.Flows().Clear()
+
+	p2FlowName := "Flow Port 1 to Port 2"
+	p3FlowName := "Flow Port 1 to Port 3"
+	p4FlowName := "Flow Port 1 to Port 4"
+	p2Flow := createFlow(t, p2FlowName, args.top, true, &atePort2)
+	p3Flow := createFlow(t, p3FlowName, args.top, true, &atePort3)
+	p4Flow := createFlow(t, p4FlowName, args.top, true, &atePort4)
+
+	args.ate.OTG().PushConfig(t, args.top)
+	args.ate.OTG().StartProtocols(t)
+
+	// waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
+
 	configDUTDrain(t, args.dut)
 	addStaticRoute(t, args.dut)
 
@@ -581,19 +817,9 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 				WithPrefix(prefix+"/"+mask),
 		)
 	}
-
-	t.Log("Create flows for port1 to port2, port1 to port3 and port1 to port4")
-
-	p2flow := "Port 1 to Port 2"
-	p3flow := "Port 1 to Port 3"
-	p4flow := "Port 1 to Port 4"
-	p2Flow := createFlow(t, p2flow, args.top, &atePort2)
-	p3Flow := createFlow(t, p3flow, args.top, &atePort3)
-	p4Flow := createFlow(t, p4flow, args.top, &atePort4)
-
 	t.Log("Validate primary path traffic received at ate port2, ate port3 and no traffic on ate port4")
-	waitOTGARPEntry(t)
-	validateTrafficFlows(t, args.ate, nil, nil, []gosnappi.Flow{p2Flow, p3Flow}, pMACFilter)
+
+	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, trafficOnPort2Port3NotOnPort4, args.client, false)
 
 	t.Logf("Adding NH %d for trunk4 via gribi", nh3ID)
 	if deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
@@ -603,10 +829,10 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	t.Log("Validate traffic switching from  ate port2, ate port3 to ate port4")
-	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, nil, pMACFilter)
+	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, nil, switchTrafficToPort4FromPort2AndPort3, args.client, true)
 
 	t.Log("Validate traffic switching from  ate port4 back to ate port2 and ate port3")
-	validateTrafficFlows(t, args.ate, nil, nil, []gosnappi.Flow{p2Flow, p3Flow}, pMACFilter)
+	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, switchTrafficToPort2AndPort3FromPort4, args.client, true)
 
 }
 
@@ -619,9 +845,9 @@ func deleteinterfaceconfig(t *testing.T, dut *ondatra.DUTDevice) {
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		ni := deviations.DefaultNetworkInstance(dut)
-		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p2.Name()+"."+"0").Subinterface().Config())
-		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p3.Name()+"."+"0").Subinterface().Config())
-		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p4.Name()+"."+"0").Subinterface().Config())
+		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p2.Name()+".").Subinterface().Config())
+		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p3.Name()+".").Subinterface().Config())
+		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p4.Name()+".").Subinterface().Config())
 	} else {
 		gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
 		gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
@@ -715,136 +941,17 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	top := ate.OTG().NewConfig(t)
-
-	p1 := ate.Port(t, "port1")
-	p2 := ate.Port(t, "port2")
-	p3 := ate.Port(t, "port3")
-	p4 := ate.Port(t, "port4")
-
-	atePort1.AddToOTG(top, p1, &dutPort1)
-	atePort2.AddToOTG(top, p2, &dutPort2)
-	atePort3.AddToOTG(top, p3, &dutPort3)
-	atePort4.AddToOTG(top, p4, &dutPort4)
-
-	return top
-}
-
-// createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dsts.
-func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, dsts ...*attrs.Attributes) gosnappi.Flow {
-	var rxEndpoints []string
-	for _, dst := range dsts {
-		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
-	}
-
-	flowipv4 := ateTop.Flows().Add().SetName(name)
-	flowipv4.Metrics().SetEnable(true)
-	e1 := flowipv4.Packet().Add().Ethernet()
-	e1.Src().SetValue(atePort1.MAC)
-	e1.Dst().SetChoice("value").SetValue(pMAC)
-	flowipv4.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxEndpoints)
-	outerIPHeader := flowipv4.Packet().Add().Ipv4()
-	outerIPHeader.Src().SetValue(atePort1.IPv4)
-	outerIPHeader.Dst().SetValue(dstPfxFlowIP)
-	innerIPHeader := flowipv4.Packet().Add().Ipv4()
-	innerIPHeader.Src().Increment().SetStart(innerSrcIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
-	innerIPHeader.Dst().Increment().SetStart(innerDstIPv4Start).SetStep("0.0.0.1").SetCount(ipv4FlowCount)
-	flowipv4.Size().SetFixed(100)
-	eth := flowipv4.EgressPacket().Add().Ethernet()
-	ethTag := eth.Dst().MetricTags().Add()
-	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
-
-	return flowipv4
-}
-
-// validateTrafficFlows starts traffic and ensures that good flows have 0% loss and bad flows have
-// 100% loss.
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []gosnappi.Flow, macFilter string) {
-
-	if len(good) == 0 && len(bad) == 0 && len(lb) == 0 {
-		return
-	}
-
-	otg := ate.OTG()
-	config := otg.FetchConfig(t)
-	otg.StartTraffic(t)
-	time.Sleep(15 * time.Second)
-	otg.StopTraffic(t)
-
-	otgutils.LogFlowMetrics(t, otg, config)
-	otgutils.LogPortMetrics(t, otg, config)
-	for _, flow := range good {
-		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-		if got := getLossPct(t, flow.Name()); got > 0 {
-			t.Errorf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
-		}
-		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
-		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
-		if got := len(ets); got != 1 {
-			t.Errorf("EgressTracking got %d items, want %d", got, 1)
-		}
-		etTagspath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny().TagsAny()
-		etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
-		if got := etTags[0].GetTagValue().GetValueAsHex(); !strings.EqualFold(got, macFilter) {
-			t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
-		}
-		if got := ets[0].GetCounters().GetInPkts(); got != rxPkts {
-			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, rxPkts)
-		} else {
-			t.Logf("Received %d packets with %s as the last 12 bits in the dst MAC", got, macFilter)
-		}
-
-	}
-	for _, flow := range lb {
-		// for LB flows, we expect to receive between 48-52% of packets on each interface (before and after filtering).
-		lbPct := 50.0
-		if diff := cmp.Diff(float32(lbPct), getLossPct(t, flow.Name()), cmpopts.EquateApprox(0, lbPrecision)); diff != "" {
-			t.Errorf("Received number of packets -want,+got:\n%s", diff)
-		}
-		etPath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny()
-		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
-		if got := len(ets); got != 1 {
-			t.Errorf("EgressTracking got %d items, want %d", got, 1)
-			return
-		}
-		etTagspath := gnmi.OTG().Flow(flow.Name()).TaggedMetricAny().TagsAny()
-		etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
-		if got := etTags[0].GetTagValue().GetValueAsHex(); !strings.EqualFold(got, macFilter) {
-			t.Errorf("EgressTracking filter got %q, want %q", got, macFilter)
-		}
-		inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-		if diff := cmp.Diff(inPkts, ets[0].GetCounters().GetInPkts(), cmpopts.EquateApprox(lbPct, lbPrecision)); diff != "" {
-			t.Errorf("EgressTracking received number of packets -want,+got:\n%s", diff)
-		}
-	}
-	for _, flow := range bad {
-		if got := getLossPct(t, flow.Name()); got < 100 {
-			t.Errorf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
-		}
-	}
-}
-
 // getLossPct returns the loss percentage for a given flow
 func getLossPct(t *testing.T, flowName string) float32 {
 	t.Helper()
 	otg := ondatra.ATE(t, "ate").OTG()
 	flowStats := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
-	txPackets := float32(flowStats.GetCounters().GetOutPkts())
-	rxPackets := float32(flowStats.GetCounters().GetInPkts())
+	txPackets := flowStats.GetCounters().GetOutPkts()
+	rxPackets := flowStats.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
 	if txPackets == 0 {
 		t.Fatalf("Tx packets should be higher than 0 for flow %s", flowName)
 	}
-	lossPct := lostPackets * 100 / txPackets
+	lossPct := 100 * (float32(lostPackets) / float32(txPackets))
 	return lossPct
-}
-
-// Waits for an ARP entry to be present for ATE Port1
-func waitOTGARPEntry(t *testing.T) {
-	t.Helper()
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
 }
