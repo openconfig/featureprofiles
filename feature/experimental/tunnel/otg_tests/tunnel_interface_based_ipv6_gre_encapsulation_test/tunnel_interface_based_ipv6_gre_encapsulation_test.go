@@ -102,6 +102,8 @@ type parameters struct {
 	r1Lo0Ut1Ipv6Add string
 	r1Lo0Ut2Ipv6Add string
 	r1Lo0Ut3Ipv6Add string
+	r0Lo0Ut0Ipv4Add string
+	rtLo0Ut0Ipv4Add string
 }
 
 func TestFtiTunnels(t *testing.T) {
@@ -235,7 +237,7 @@ func TestFtiTunnels(t *testing.T) {
 	captureTrafficStats(t, rt, otgConfig)
 }
 
-func configureTunnelInterface(t *testing.T, intf string, tunnelSrc string, tunnelDst string, dut *ondatra.DUTDevice) {
+func configureTunnelInterface(t *testing.T, intf int, tunnelSrc string, tunnelDst string, dut *ondatra.DUTDevice) {
 	t.Helper()
 	t.Logf("Push the Ipv6 tunnel endpoint config:\n%s", dut.Vendor())
 	switch dut.Vendor() {
@@ -267,7 +269,7 @@ func calculateNetworkAddress(t *testing.T, address string, mask int) string {
 	// This mask corresponds to a /24 subnet for Ipv6.
 	Ipv6Mask := net.CIDRMask(mask, 32)
 	//t.Logf("%s in %T\n",Ipv6Mask,Ipv6Mask)
-	network := Addr.Mask(Ipv6Mask)
+	network = Addr.Mask(Ipv6Mask)
 	return fmt.Sprintf("%s/%d", network, mask)
 }
 
@@ -570,7 +572,7 @@ func validatePackets(t *testing.T, filename string) {
 			t.Errorf("IpLayer is null: %d", ipLayer)
 		}
 		ipPacket, _ := ipLayer.(*layers.IPv6)
-		if ipPacket.NextHeader != GreProtocol {
+		if ipPacket.NextHeader != greProtocol {
 			t.Errorf("Packet is not encapslated properly. Encapsulated protocol is: %d", ipPacket.NextHeader)
 		}
 	}
@@ -656,12 +658,12 @@ func configureTunnelCLI(tunnelUnit int, tunnelSrc string, tunnelDest string) str
 
 func nextIP(ip string) string {
 	i := net.ParseIP(ip)
-	ipv6 := i.To6()
+	ipv6 := i.To4()
 	v := uint(ipv6[0])<<24 + uint(ipv6[1])<<16 + uint(ipv6[2])<<8 + uint(ipv6[3])
 	v += 1
 	v3 := byte(v & 0xFF)
 	v2 := byte((v >> 8) & 0xFF)
 	v1 := byte((v >> 16) & 0xFF)
 	v0 := byte((v >> 24) & 0xFF)
-	return string(net.IPv6(v0, v1, v2, v3))
+	return string(net.IPv4(v0, v1, v2, v3))
 }
