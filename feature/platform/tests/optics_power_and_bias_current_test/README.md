@@ -77,26 +77,26 @@ to Automatic Test Equipment (ATE).
 
 ## Config Parameter coverage
 
-    *   /interfaces/interface/config/enabled
-    *   /components/component/transceiver/state/enabled    (transceiver 3.3V power supply on/off)
+*   /interfaces/interface/config/enabled
+*   /components/component/transceiver/state/enabled (transceiver 3.3V power supply on/off)
 
 ## Telemetry Parameter coverage
 
-    *   /components/component/transceiver/physical-channels/channel/state/input-power/instant
-    *   /components/component/transceiver/physical-channels/channel/state/output-power/instant
-    *   /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant
-    *   /components/component/state/temperature/instant
-    *   /components/component[name=%s]/state/mfg-name
-    *   /components/component[name=%s]/transceiver/state/form-factor
-    *   /components/component/state/serial-no
-    *   /components/component[name=%s]/state/part-no
-    *   /components/component/state/firmware-version
-    *   /components/component/transceiver/thresholds/threshold/state/output-power-lower
-    *   /components/component/transceiver/thresholds/threshold/state/output-power-upper
-    *   /components/component/transceiver/thresholds/threshold/state/input-power-lower
-    *   /components/component/transceiver/thresholds/threshold/state/input-power-upper
-    *   /components/component/transceiver/thresholds/threshold/state/module-temperature-lower
-    *   /components/component/transceiver/thresholds/threshold/state/module-temperature-upper
-    *   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-lower
-    *   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-upper
-    *   /components/component/transceiver/thresholds/threshold/state/severity
+*   /components/component/transceiver/physical-channels/channel/state/input-power/instant
+*   /components/component/transceiver/physical-channels/channel/state/output-power/instant
+*   /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant
+*   /components/component/state/temperature/instant
+*   /components/component[name=%s]/state/mfg-name
+*   /components/component[name=%s]/transceiver/state/form-factor
+*   /components/component/state/serial-no
+*   /components/component[name=%s]/state/part-no
+*   /components/component/state/firmware-version
+*   /components/component/transceiver/thresholds/threshold/state/output-power-lower
+*   /components/component/transceiver/thresholds/threshold/state/output-power-upper
+*   /components/component/transceiver/thresholds/threshold/state/input-power-lower
+*   /components/component/transceiver/thresholds/threshold/state/input-power-upper
+*   /components/component/transceiver/thresholds/threshold/state/module-temperature-lower
+*   /components/component/transceiver/thresholds/threshold/state/module-temperature-upper
+*   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-lower
+*   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-upper
+*   /components/component/transceiver/thresholds/threshold/state/severity
