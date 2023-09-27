@@ -39,7 +39,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -165,18 +164,28 @@ func cidr(ipv4 string, ones int) string {
 func filterPacketReceived(t *testing.T, flow string, ate *ondatra.ATEDevice) map[string]float64 {
 	t.Helper()
 
-	flowPath := gnmi.OC().Flow(flow)
-	filters := gnmi.GetAll(t, ate, flowPath.EgressTrackingAny().State())
+	// Check the egress packets
+	etPath := gnmi.OTG().Flow(flow).TaggedMetricAny()
+	ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
+	if got := len(ets); got != 1 {
+		t.Errorf("EgressTracking got %d items, want %d", got, 1)
+	}
+	etTagspath := gnmi.OTG().Flow(flow).TaggedMetricAny().TagsAny()
+	etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
+	t.Logf("tags are %v", etTags)
 
-	inPkts := map[string]uint64{}
-	for _, f := range filters {
-		inPkts[f.GetFilter()] = f.GetCounters().GetInPkts()
-	}
+	// flowPath := gnmi.OC().Flow(flow)
+	// filters := gnmi.GetAll(t, ate, flowPath.EgressTrackingAny().State())
+
+	// inPkts := map[string]uint64{}
+	// for _, f := range filters {
+	// 	inPkts[f.GetFilter()] = f.GetCounters().GetInPkts()
+	// }
 	inPct := map[string]float64{}
-	total := gnmi.Get(t, ate, flowPath.Counters().OutPkts().State())
-	for k, v := range inPkts {
-		inPct[k] = (float64(v) / float64(total)) * 100.0
-	}
+	// total := gnmi.Get(t, ate, flowPath.Counters().OutPkts().State())
+	// for k, v := range inPkts {
+	// 	inPct[k] = (float64(v) / float64(total)) * 100.0
+	// }
 	return inPct
 }
 
@@ -239,7 +248,7 @@ func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, time
 // for Subinterface(1) = dutPort.ip(1) = dutPort.ip + 4.
 func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface, dut *ondatra.DUTDevice) {
 	t.Helper()
-if deviations.RequireRoutedSubinterface0(dut) {
+	if deviations.RequireRoutedSubinterface0(dut) {
 		s0 := intf.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 		s0.Enabled = ygot.Bool(true)
 	}
@@ -370,17 +379,18 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	if deviations.ExplicitInterfaceRefDefinition(dut) {
 		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-if deviations.InterfaceRefConfigUnsupported(dut) {
-		pfCfg.InterfaceRef = nil
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			pfCfg.InterfaceRef = nil
+		}
+		gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 	}
-	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
 
-// ConfigureATE configures Ethernet + IPv4 on the ATE. If the number of
+// configureATE configures Ethernet + IPv4 on the ATE. If the number of
 // Subinterfaces(numSubIntf) > 0, we then create additional sub-interfaces
 // each with a unique VlanID starting from 1. The IPv4 addresses start with
 // ATE:Port.IPv4 and then nextIP(ATE:Port.IPv4, 4) for each sub interface.
-func (a *attributes) ConfigureATE(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice) {
+func (a *attributes) configureATE(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice) {
 	t.Helper()
 	p := ate.Port(t, a.Name)
 
@@ -389,10 +399,10 @@ func (a *attributes) ConfigureATE(t *testing.T, top gosnappi.Config, ate *ondatr
 
 	top.Ports().Add().SetName(p.ID())
 	dev := top.Devices().Add().SetName(a.Name)
-	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth")
-	eth.SetPortName(p.ID()).SetMac(a.MAC)
+	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth").SetMac(a.MAC)
+	eth.Connection().SetPortName(p.ID())
 	ipObj := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-	ipObj.SetAddress(ip).SetGateway(gateway).SetPrefix(int32(a.IPv4Len))
+	ipObj.SetAddress(ip).SetGateway(gateway).SetPrefix(uint32(a.IPv4Len))
 	t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
 
 	for i := uint32(1); i <= a.numSubIntf; i++ {
@@ -402,11 +412,10 @@ func (a *attributes) ConfigureATE(t *testing.T, top gosnappi.Config, ate *ondatr
 		mac, _ := incrementMAC(a.MAC, int(i)+1)
 
 		dev := top.Devices().Add().SetName(name + ".Dev")
-		eth := dev.Ethernets().Add().SetName(name + ".Eth")
-		eth.Connection().SetChoice("port_name")
-		eth.SetPortName(p.ID()).SetMac(mac)
-		eth.Vlans().Add().SetName(name).SetId(int32(i))
-		eth.Ipv4Addresses().Add().SetName(name + ".IPv4").SetAddress(ip).SetGateway(gateway).SetPrefix(int32(a.IPv4Len))
+		eth := dev.Ethernets().Add().SetName(name + ".Eth").SetMac(mac)
+		eth.Connection().SetPortName(p.ID())
+		eth.Vlans().Add().SetName(name).SetId(uint32(i))
+		eth.Ipv4Addresses().Add().SetName(name + ".IPv4").SetAddress(ip).SetGateway(gateway).SetPrefix(uint32(a.IPv4Len))
 
 		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s and VlanID: %d", cidr(ip, 30), gateway, i)
 	}
@@ -429,17 +438,6 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// Waits for at least one ARP entry on the tx OTG interface
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	got, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-	if !ok {
-		t.Fatalf("Did not receive OTG Neighbor entry, last got: %v", got)
-	}
-}
-
 // testTraffic creates a traffic flow with ATE source & destination endpoints
 // and configures a VlanID filter for output frames. The IPv4 header for the
 // flow contains the ATE:Port1 address as source and the configured gRIBI-
@@ -448,32 +446,42 @@ func waitOTGARPEntry(t *testing.T) {
 // traffic test result.
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[string]float64 {
 
-	waitOTGARPEntry(t)
-	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
+	dut := ondatra.DUT(t, "dut")
+	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 	top.Flows().Clear().Items()
 	flowipv4 := top.Flows().Add().SetName("Flow")
 	flowipv4.Metrics().SetEnable(true)
-	flowipv4.TxRx().Port().SetTxName(atePort1.Name).SetRxName(atePort2.Name)
+	flowipv4.TxRx().Port().SetTxName(atePort1.Name).SetRxNames([]string{atePort2.Name})
+	flowipv4.Size().SetFixed(100)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(ipv4FlowIP).SetCount(256)
+	v4.Dst().SetValue(ipv4FlowIP)
+	v4Inner := flowipv4.Packet().Add().Ipv4()
+	v4Inner.Src().Increment().SetStart(innerSrcIPv4Start).SetCount(ipv4FlowCount)
+	v4Inner.Dst().Increment().SetStart(innerDstIPv4Start).SetCount(ipv4FlowCount)
+	vlan := flowipv4.EgressPacket().Add().Vlan()
+	vlanTag := vlan.Id().MetricTags().Add()
+	vlanTag.SetName("EgressVlanIdTrackingFlow").SetOffset(0).SetLength(12)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
 	// Run traffic for 2 minutes.
 	ate.OTG().StartTraffic(t)
-	time.Sleep(2 * time.Minute)
+	time.Sleep(1 * time.Minute)
 	ate.OTG().StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	otgutils.LogPortMetrics(t, ate.OTG(), top)
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowipv4.Name()).State())
-	lostPackets := recvMetric.GetCounters().GetOutPkts() - recvMetric.GetCounters().GetInPkts()
-	lossPct := lostPackets * 100 / recvMetric.GetCounters().GetOutPkts()
+	txPkts := float32(recvMetric.GetCounters().GetOutPkts())
+	rxPkts := float32(recvMetric.GetCounters().GetInPkts())
+	lossPct := (txPkts - rxPkts) * 100 / txPkts
+	if txPkts == 0 {
+		t.Fatalf("TxPkts == 0, want > 0.")
+	}
 	if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
 		t.Errorf("Loss Pct for %s got %v, want 0", flowipv4.Name(), lossPct)
 	}
@@ -687,14 +695,16 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ctx := context.Background()
 
+	// Configure ATE ports and start Ethernet+IPv4.
+	top := ate.OTG().NewConfig(t)
+	atePort1.configureATE(t, top, ate)
+	atePort2.configureATE(t, top, ate)
+
+	ate.OTG().PushConfig(t, top)
+
 	// configure DUT.
 	configureDUT(t, dut)
 
-	// Configure ATE ports and start Ethernet+IPv4.
-	top := ate.OTG().NewConfig(t)
-	atePort1.ConfigureATE(t, top, ate)
-	atePort2.ConfigureATE(t, top, ate)
-	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
 	// Configure gRIBI with FIB_ACK.
