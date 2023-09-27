@@ -83,9 +83,6 @@ type parameters struct {
 	r0Fti6Ipv4Add   string
 	r0Fti7Ipv4Add   string
 	r0Lo0Ut0Ipv4Add string
-	r0Lo0Ut1Ipv4Add string
-	r0Lo0Ut2Ipv4Add string
-	r0Lo0Ut3Ipv4Add string
 	r1Intf5Ipv4Add  string
 	r1Intf6Ipv4Add  string
 	r1Intf3Ipv4Add  string
@@ -237,25 +234,6 @@ func TestFtiTunnels(t *testing.T) {
 		verifyUnderlayOverlayLoadbalanceTest(t, p, dut1, rt, rt, d1p1, d1p2, d1p3, d1p4, rt1, rt2, rt2, rt3, 8, wantLoss)
 	})
 	captureTrafficStats(t, rt, otgConfig)
-}
-
-func configureLoobackInterfaceWithIPv4address(t *testing.T, address string, dut *ondatra.DUTDevice) {
-	t.Helper()
-	t.Logf("Push the IPv4 address to lo0 interface :\n%s", dut.Vendor())
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		config := configureAdditionalIPv4AddressonLoopback(address)
-		t.Logf("Push the CLI config:\n%s", config)
-
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		gpbSetRequest := buildCliConfigRequest(config)
-		t.Log("gnmiClient Set CLI config")
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	default:
-		t.Errorf("Invalid IPv4 Loop back address configuration")
-	}
 }
 
 func configureTunnelInterface(t *testing.T, intf int, tunnelSrc string, tunnelDst string, dut *ondatra.DUTDevice) {
@@ -515,21 +493,6 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLo
 	}
 }
 
-func configureAdditionalIPv4AddressonLoopback(address string) string {
-	return fmt.Sprintf(`
-	interfaces {
-
-    lo0 {
-        unit 0 {
-            family inet {
-                address %s;
-            }
-        }
-    }
-}`, address)
-
-}
-
 func buildCliConfigRequest(config string) *gpb.SetRequest {
 	// Build config with Origin set to cli and Ascii encoded config.
 	gpbSetRequest := &gpb.SetRequest{
@@ -696,40 +659,6 @@ func configureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 		a.PrefixLength = ygot.Uint8(intf.ipv4mask)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 
-	}
-}
-
-func configureTunnelTerminationOption(interf string) string {
-	return fmt.Sprintf(`
-	interfaces {
-    %s {
-        unit 0 {
-            family inet {
-                  tunnel-termination;
-            }
-            family inet6 {
-                tunnel-termination;
-            }
-        }
-    }
-}`, interf)
-}
-
-func configureTunnelTermination(t *testing.T, intf *ondatra.Port, dut *ondatra.DUTDevice) {
-	t.Helper()
-	t.Logf("IPv4 tunnel termination on underlay port :\n%s", dut.Vendor())
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		config := configureTunnelTerminationOption(intf.Name())
-		t.Logf("Push the CLI config:\n%s", config)
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		gpbSetRequest := buildCliConfigRequest(config)
-		t.Log("gnmiClient Set CLI config")
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	default:
-		t.Errorf("Invalid Tunnel termination configuration")
 	}
 }
 
