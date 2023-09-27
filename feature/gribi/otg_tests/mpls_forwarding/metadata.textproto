@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "74fe316d-c8f4-48fe-b6fa-092e87be9ec3"
+plan_id:  "TE-10"
+description:  "gRIBI MPLS Forwarding"
+testbed:  TESTBED_DUT_ATE_2LINKS

@@ -1,0 +1,26 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "2b4372c2-8827-4624-837c-f44b1a54edf7"
+plan_id: "RT-1.11"
+description: "BGP remove private AS"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+  }
+}
+tags: TAGS_AGGREGATION
+
