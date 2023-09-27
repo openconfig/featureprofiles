@@ -44,21 +44,15 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	Ipv6PrefixLen     = 24
 	pps               = 100
-	FrameSize         = 512
 	aclName           = "f1"
 	termName          = "t1"
-	EncapSrcMatch     = "192.0.2.2"
-	EncapDstMatch     = "192.0.2.6"
 	count             = "GreFilterCount"
 	greTunnelEndpoint = "TunnelEncapIpv6"
 	greSrcAddr        = "198.51.100.1"
 	greDstAddr        = "203.0.113.1/32"
 	dscp              = 8
-	CorrespondingTOS  = 32
-	GreProtocol       = 47
-	Tunnelaction      = "TunnelEncapIpv6"
+	greProtocol       = 47
 	plenIpv6          = 30
 	tolerance         = 50
 	lossTolerance     = 2
@@ -589,36 +583,36 @@ func configureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 		ipAddr   string
 		Ipv6mask uint8
 	}{{
-			desc:     "R0_ATE1",
-			intfName: dp1.Name(),
-			ipAddr:   p.r0Intf1Ipv6Add,
-			Ipv6mask: p.ipv6Mask,
-		}, {
-			desc:     "R0_ATE2",
-			intfName: dp2.Name(),
-			ipAddr:   p.r0Intf2Ipv6Add,
-			Ipv6mask: p.ipv6Mask,
-		}, {
-			desc:     "R0_R1_1",
-			intfName: dp3.Name(),
-			ipAddr:   p.r0Intf3Ipv6Add,
-			Ipv6mask: p.ipv6Mask,
-		},{
-			desc:     "R0_R1_2",
-			intfName: dp4.Name(),
-			ipAddr:   p.r0Intf4Ipv6Add,
-			Ipv6mask: p.ipv6Mask,
-		},{
-			desc:     "tunnel0",
-			intfName: "lo0",
-			ipAddr:   p.r0Lo0Ut0Ipv6Add,
-			Ipv6mask: p.ipv6FullMask,
-		},{
-			desc:     "tunnel-1",
-			intfName: "fti0",
-			ipAddr:   p.r0Fti0Ipv6Add,
-			Ipv6mask: p.ipv6Mask,
-		}
+		desc:     "R0_ATE1",
+		intfName: dp1.Name(),
+		ipAddr:   p.r0Intf1Ipv6Add,
+		Ipv6mask: p.ipv6Mask,
+	}, {
+		desc:     "R0_ATE2",
+		intfName: dp2.Name(),
+		ipAddr:   p.r0Intf2Ipv6Add,
+		Ipv6mask: p.ipv6Mask,
+	}, {
+		desc:     "R0_R1_1",
+		intfName: dp3.Name(),
+		ipAddr:   p.r0Intf3Ipv6Add,
+		Ipv6mask: p.ipv6Mask,
+	}, {
+		desc:     "R0_R1_2",
+		intfName: dp4.Name(),
+		ipAddr:   p.r0Intf4Ipv6Add,
+		Ipv6mask: p.ipv6Mask,
+	}, {
+		desc:     "tunnel0",
+		intfName: "lo0",
+		ipAddr:   p.r0Lo0Ut0Ipv6Add,
+		Ipv6mask: p.ipv6FullMask,
+	}, {
+		desc:     "tunnel-1",
+		intfName: "fti0",
+		ipAddr:   p.r0Fti0Ipv6Add,
+		Ipv6mask: p.ipv6Mask,
+	},
 	}
 
 	t.Helper()
