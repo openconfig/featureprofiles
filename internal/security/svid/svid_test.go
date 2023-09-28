@@ -3,7 +3,6 @@ package svid
 
 import (
 	"crypto/x509"
-
 	"net/url"
 	"testing"
 
