@@ -15,7 +15,7 @@ a new testbed configuration with the desired port types.
     the octets of IPv4.
   * Ensure: ARP discovers static MAC address specified when port is
         configured with static MAC.
-### TC1 - singleton interface verification:
+### Subtest 1 - singleton interface verification:
 * Validate that port speed is reported correctly and that port telemetry
     matches expected negotiated speeds for forced, auto-negotiation, and
     auto-negotiation while overriding port speed and duplex.
