@@ -1,4 +1,7 @@
-// Package svid provides functions to generate and sign svid.
+// Package svid provides functions to generate and sign SVID.
+// for more info related to SVID refer to:
+//
+//	https://github.com/spiffe/spiffe/blob/main/standards/X509-SVID.md
 package svid
 
 import (
@@ -12,10 +15,8 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-
 	"math/big"
 	"net/url"
-
 	"time"
 )
 
