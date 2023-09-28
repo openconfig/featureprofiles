@@ -31,7 +31,7 @@ a new testbed configuration with the desired port types.
 
 [^1]: The MTU specified above refers to the L3 MTU, which is the payload portion
     of an Ethernet frame.
-### TC2 - link flaps:
+### Subtest 2 - link flaps:
 * Bring down the physical layer of ATE port-1, and bring it back up.
     Repeat this a few times (minimum 2)
   * Verify that the interface is back up by checking the oper state.
