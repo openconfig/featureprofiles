@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -165,27 +166,23 @@ func filterPacketReceived(t *testing.T, flow string, ate *ondatra.ATEDevice) map
 	t.Helper()
 
 	// Check the egress packets
-	etPath := gnmi.OTG().Flow(flow).TaggedMetricAny()
-	ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
-	if got := len(ets); got != 1 {
-		t.Errorf("EgressTracking got %d items, want %d", got, 1)
+	path := gnmi.OTG().Flow(flow).TaggedMetricAny()
+	vlanTags := gnmi.GetAll(t, ate.OTG(), path.State())
+	tagspath := gnmi.OTG().Flow(flow).TaggedMetricAny().TagsAny()
+	tags := gnmi.GetAll(t, ate.OTG(), tagspath.State())
+	t.Logf("There are a total of %v vlans", len(tags))
+
+	inPkts := map[string]uint64{}
+	for i, tag := range tags {
+		vlanHex := strings.Replace(tag.GetTagValue().GetValueAsHex(), "0x", "", -1)
+		vlanDec, _ := strconv.ParseUint(vlanHex, 16, 64)
+		inPkts[strconv.Itoa(int(vlanDec))] = vlanTags[i].GetCounters().GetInPkts()
 	}
-	etTagspath := gnmi.OTG().Flow(flow).TaggedMetricAny().TagsAny()
-	etTags := gnmi.GetAll(t, ate.OTG(), etTagspath.State())
-	t.Logf("tags are %v", etTags)
-
-	// flowPath := gnmi.OC().Flow(flow)
-	// filters := gnmi.GetAll(t, ate, flowPath.EgressTrackingAny().State())
-
-	// inPkts := map[string]uint64{}
-	// for _, f := range filters {
-	// 	inPkts[f.GetFilter()] = f.GetCounters().GetInPkts()
-	// }
 	inPct := map[string]float64{}
-	// total := gnmi.Get(t, ate, flowPath.Counters().OutPkts().State())
-	// for k, v := range inPkts {
-	// 	inPct[k] = (float64(v) / float64(total)) * 100.0
-	// }
+	total := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).Counters().InPkts().State())
+	for k, v := range inPkts {
+		inPct[k] = (float64(v) / float64(total)) * 100.0
+	}
 	return inPct
 }
 
@@ -462,9 +459,10 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	v4Inner := flowipv4.Packet().Add().Ipv4()
 	v4Inner.Src().Increment().SetStart(innerSrcIPv4Start).SetCount(ipv4FlowCount)
 	v4Inner.Dst().Increment().SetStart(innerDstIPv4Start).SetCount(ipv4FlowCount)
+	flowipv4.EgressPacket().Add().Ethernet()
 	vlan := flowipv4.EgressPacket().Add().Vlan()
 	vlanTag := vlan.Id().MetricTags().Add()
-	vlanTag.SetName("EgressVlanIdTrackingFlow").SetOffset(0).SetLength(12)
+	vlanTag.SetName("EgressVlanIdTrackingFlow")
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
@@ -483,11 +481,11 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 		t.Fatalf("TxPkts == 0, want > 0.")
 	}
 	if lossPct > 0 && recvMetric.GetCounters().GetOutPkts() > 0 {
-		t.Errorf("Loss Pct for %s got %v, want 0", flowipv4.Name(), lossPct)
+		t.Fatalf("Loss Pct for %s got %v, want 0", flowipv4.Name(), lossPct)
 	}
 
 	// Compare traffic distribution with the wanted results.
-	results := filterPacketReceived(t, "flow", ate)
+	results := filterPacketReceived(t, "Flow", ate)
 	t.Logf("Filters: %v", results)
 	return results
 }
