@@ -12,7 +12,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"strings"
 
 	"math/big"
 	"net/url"
@@ -20,9 +19,9 @@ import (
 	"time"
 )
 
-// GenSVID generates SVID certificate for user and signs it based on given signing cert/key and public key algorithm
-func GenSVID(id string, expireInDays int, signingCert *x509.Certificate, signingKey any, keyAlgo x509.PublicKeyAlgorithm) (*tls.Certificate, error) {
-	certSpec, err := populateCertTemplate(id, expireInDays)
+// GenSVID generates a SVID certificate for user and signs it based on given signing cert/key and public key algorithm
+func GenSVID(commonName string, spiffeID string, expireInDays int, signingCert *x509.Certificate, signingKey any, keyAlgo x509.PublicKeyAlgorithm) (*tls.Certificate, error) {
+	certSpec, err := populateCertTemplate(commonName, spiffeID, expireInDays)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +58,8 @@ func GenSVID(id string, expireInDays int, signingCert *x509.Certificate, signing
 	return &tlsCert, nil
 }
 
-func populateCertTemplate(id string, expireInDays int) (*x509.Certificate, error) {
-	uri, err := url.Parse(id)
+func populateCertTemplate(commonName, spiffeID string, expireInDays int) (*x509.Certificate, error) {
+	uri, err := url.Parse(spiffeID)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +71,7 @@ func populateCertTemplate(id string, expireInDays int) (*x509.Certificate, error
 	certSpec := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
-			CommonName:   id,
+			CommonName:   commonName,
 			Organization: []string{"OpenconfigFeatureProfiles"},
 			Country:      []string{"US"},
 		},
@@ -93,20 +92,21 @@ func LoadKeyPair(keyPEM, certPEM []byte) (any, *x509.Certificate, error) {
 	if caKeyPem == nil {
 		return nil, nil, fmt.Errorf("error in loading private key")
 	}
-	if strings.Contains(caKeyPem.Type, "EC") {
+	switch caKeyPem.Type {
+	case "EC PRIVATE KEY":
 		caPrivateKey, err = x509.ParseECPrivateKey(caKeyPem.Bytes)
 		if err != nil {
 			return nil, nil, err
 		}
-	} else if strings.Contains(caKeyPem.Type, "RSA") {
+	case "RSA PRIVATE KEY":
 		caPrivateKey, err = x509.ParsePKCS1PrivateKey(caKeyPem.Bytes)
 		if err != nil {
 			return nil, nil, err
 		}
-	} else {
+	default:
 		return nil, nil, fmt.Errorf("file does not contain an ECDSA/RSA private key")
-	}
 
+	}
 	caCertPem, _ := pem.Decode(certPEM)
 	if caCertPem == nil {
 		return nil, nil, fmt.Errorf("error in loading ca cert")

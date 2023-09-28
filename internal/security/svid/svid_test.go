@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/h-fam/errdiff"
+	"github.com/openconfig/gnmi/errdiff"
 )
 
 const (
@@ -124,38 +124,41 @@ func TestGenRSASVID(t *testing.T) {
 		name         string
 		caCert       string
 		caKey        string
-		username     string
-		err          string
+		commonName   string
+		spiffeID     string
+		errStr       string
 		keyAlgorithm x509.PublicKeyAlgorithm
 		uris         []*url.URL
 	}{
 		{
 			name:         "Successful SVID with RSA certificate",
-			username:     "test",
-			err:          "",
+			commonName:   "test",
+			spiffeID:     "spiffe://test-abc.foo.bar/xyz/admin",
+			errStr:       "",
 			keyAlgorithm: x509.RSA,
 			caKey:        caRSAKey,
 			caCert:       caRSACERT,
 			uris: []*url.URL{
 				{
-					Scheme: "",
-					Host:   "",
-					Path:   "test",
+					Scheme: "spiffe",
+					Host:   "test-abc.foo.bar",
+					Path:   "/xyz/admin",
 				},
 			},
 		},
 		{
 			name:         "Successful SVID with ECDSA certificate",
-			username:     "test",
-			err:          "",
+			commonName:   "test",
+			spiffeID:     "spiffe://test-abc.foo.bar/xyz/admin",
+			errStr:       "",
 			keyAlgorithm: x509.ECDSA,
 			caKey:        ecDSAKey,
 			caCert:       ecDSACert,
 			uris: []*url.URL{
 				{
-					Scheme: "",
-					Host:   "",
-					Path:   "test",
+					Scheme: "spiffe",
+					Host:   "test-abc.foo.bar",
+					Path:   "/xyz/admin",
 				},
 			},
 		},
@@ -167,18 +170,18 @@ func TestGenRSASVID(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unexpected Error, %v", err)
 			}
-			cert, err := GenSVID(test.username, 300, CACert, caPrivateKey, test.keyAlgorithm)
-			if errdiff.Substring(err, test.err) != "" {
-				t.Fatalf("Unexpected Error, want: %s, got %v", test.err, err)
+			cert, err := GenSVID(test.commonName, test.spiffeID, 300, CACert, caPrivateKey, test.keyAlgorithm)
+			if diff := errdiff.Substring(err, test.errStr); diff != "" {
+				t.Fatalf("Unexpected Error, %v", diff)
 			}
-			if test.err == "" && cert == nil {
-				t.Fatalf("CERT must not be nil")
+			if test.errStr == "" && cert == nil {
+				t.Fatalf("Cert must not be nil")
 			}
 			if cert.Leaf.PublicKeyAlgorithm != test.keyAlgorithm {
 				t.Fatalf("KeyAlgorithm mismatch, got %s, wanted %s", x509.PublicKeyAlgorithm(cert.Leaf.SignatureAlgorithm).String(), test.keyAlgorithm.String())
 			}
-			if cert.Leaf.Subject.CommonName != test.username {
-				t.Errorf("Common name is not as expected, want: %s, got:%s", test.username, cert.Leaf.Issuer.CommonName)
+			if cert.Leaf.Subject.CommonName != test.commonName {
+				t.Errorf("Common name is not as expected, want: %s, got:%s", test.commonName, cert.Leaf.Issuer.CommonName)
 			}
 			opts := []cmp.Option{cmpopts.IgnoreUnexported(*test.uris[0])}
 			if !cmp.Equal(test.uris, cert.Leaf.URIs, opts...) {
