@@ -34,7 +34,8 @@ a new testbed configuration with the desired port types.
 ### Subtest 2 - link flaps:
 * Bring down the physical layer of ATE port-1, and bring it back up.
     Repeat this a few times (minimum 2)
-  * Verify that the interface is back up by checking the oper state.
+  * Verify that the interface goes down by checking the physical state on DUT/ATE.
+  * Verify that the interface is back up by checking the physical state on DUT/ATE.
   * Ensure that the number of interface state changes are accurately
             captured in the OC path.
   * Verify that the traffic flow from ATE port-1 to ATE port-2 is
