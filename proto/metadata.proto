@@ -340,6 +340,7 @@ message Metadata {
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
     // Devices requires enabled leaf under isis level
+    // Juniper: partnerissuetracker.corp.google.com/302661486
     bool isis_level_enabled = 113;
 
     // Reserved field numbers and identifiers.
