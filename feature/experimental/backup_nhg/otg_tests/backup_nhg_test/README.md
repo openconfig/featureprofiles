@@ -9,7 +9,6 @@ containing a single NH.
 
 *   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, and ATE port-3
     to DUT port-3.
-*   Create a non-default `VRF-A` that contains ATE port-1.
 *   Create a non-default `VRF-B` that contains no interfaces.
 *   Connect gRIBI client to DUT with persistence `PRESERVE`, redundancy
     `SINGLE_PRIMARY`, with election ID 1.
@@ -21,7 +20,7 @@ containing a single NH.
 *   192.0.2.254/32 --> NHG#1
 *   NHG#100 --> NH#100 {network-instance:VRF-B}
 *   NHG#101 --> [NH#101 {next-hop: 192.0.2.254}, backupNHG: NHG#100]
-*   198.51.100.0/32 {VRF-A} --> NHG#101
+*   198.51.100.0/32 {DEFAULT} --> NHG#101
 *   198.51.100.0/32 {VRF-B} --> NHG#2
 *   Validate:
     *   AFT telemetry shows the installed NHGs and NHs.
