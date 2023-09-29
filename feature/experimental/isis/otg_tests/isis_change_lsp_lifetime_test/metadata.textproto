@@ -41,4 +41,12 @@ platform_exceptions: {
     isis_lsp_metadata_leafs_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+  }
+}
 tags: TAGS_AGGREGATION
