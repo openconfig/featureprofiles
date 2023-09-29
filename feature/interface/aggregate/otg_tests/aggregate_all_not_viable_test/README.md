@@ -1,5 +1,5 @@
 # RT-5.7 Aggregate Not Viable All
-
+[TODO: test automation/coding; issue https://github.com/openconfig/featureprofiles/issues/1655]
 ## Summary
 
 Test forwarding-viable with LAG and routing
