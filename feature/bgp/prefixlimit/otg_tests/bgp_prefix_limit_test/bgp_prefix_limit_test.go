@@ -58,8 +58,6 @@ const (
 	ipv4DstTrafficEnd        = "203.0.113.254"
 	ipv6DstTrafficStart      = "2001:db8::203:0:113:1"
 	ipv6DstTrafficEnd        = "2001:db8::203:0:113:fe"
-	advertisedRoutesv4CIDR   = "203.0.113.1/32"
-	advertisedRoutesv6CIDR   = "2001:db8::203:0:113:1/128"
 	Routesv4NetUnderLimit    = "203.0.113.1"
 	Routesv6NetUnderLimit    = "2001:db8::203:0:113:1"
 	Routesv4NetAtLimit       = "213.0.113.1"
@@ -76,7 +74,6 @@ const (
 	plenIPv4                 = 30
 	plenIPv6                 = 126
 	tolerance                = 50
-	lossTolerance            = 2
 	rplType                  = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName                  = "ALLOW"
 	peerGrpNamev4            = "BGP-PEER-GROUP-V4"
@@ -192,143 +189,67 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().SetIpv6Name(dstIpv6.Name()).Peers().Add().SetName(ateDst.Name + ".BGP6.peer")
 	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	dstBgp4PeerRoutesUnderLimit := dstBgp4Peer.V4Routes().Add().SetName("r4UnderLimit")
-	dstBgp4PeerRoutesUnderLimit.SetNextHopIpv4Address(dstIpv4.Address()).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	dstBgp4PeerRoutesUnderLimit.Addresses().Add().
-		SetAddress(Routesv4NetUnderLimit).
-		SetPrefix(advertisedRoutesv4Prefix).
-		SetCount(prefixLimit - 1)
-	dstBgp6PeerRoutesUnderLimit := dstBgp6Peer.V6Routes().Add().SetName("r6UnderLimit")
-	dstBgp6PeerRoutesUnderLimit.SetNextHopIpv6Address(dstIpv6.Address()).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	dstBgp6PeerRoutesUnderLimit.Addresses().Add().
-		SetAddress(Routesv6NetUnderLimit).
-		SetPrefix(advertisedRoutesv6Prefix).
-		SetCount(prefixLimit - 1)
+	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), "r4UnderLimit", Routesv4NetUnderLimit, prefixLimit-1)
+	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), "r6UnderLimit", Routesv6NetUnderLimit, prefixLimit-1)
+	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), "r4AtLimit", Routesv4NetAtLimit, prefixLimit)
+	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), "r6AtLimit", Routesv6NetAtLimit, prefixLimit)
+	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), "r4OverLimit", Routesv4NetOverLimit, prefixLimit+1)
+	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), "r6OverLimit", Routesv6NetOverLimit, prefixLimit+1)
 
-	dstBgp4PeerRoutesAtLimit := dstBgp4Peer.V4Routes().Add().SetName("r4AtLimit")
-	dstBgp4PeerRoutesAtLimit.SetNextHopIpv4Address(dstIpv4.Address()).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	dstBgp4PeerRoutesAtLimit.Addresses().Add().
-		SetAddress(Routesv4NetAtLimit).
-		SetPrefix(advertisedRoutesv4Prefix).
-		SetCount(prefixLimit)
-	dstBgp6PeerRoutesAtLimit := dstBgp6Peer.V6Routes().Add().SetName("r6AtLimit")
-	dstBgp6PeerRoutesAtLimit.SetNextHopIpv6Address(dstIpv6.Address()).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	dstBgp6PeerRoutesAtLimit.Addresses().Add().
-		SetAddress(Routesv6NetAtLimit).
-		SetPrefix(advertisedRoutesv6Prefix).
-		SetCount(prefixLimit)
-
-	dstBgp4PeerRoutesOverLimit := dstBgp4Peer.V4Routes().Add().SetName("r4OverLimit")
-	dstBgp4PeerRoutesOverLimit.SetNextHopIpv4Address(dstIpv4.Address()).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	dstBgp4PeerRoutesOverLimit.Addresses().Add().
-		SetAddress(Routesv4NetOverLimit).
-		SetPrefix(advertisedRoutesv4Prefix).
-		SetCount(prefixLimit + 1)
-	dstBgp6PeerRoutesOverLimit := dstBgp6Peer.V6Routes().Add().SetName("r6OverLimit")
-	dstBgp6PeerRoutesOverLimit.SetNextHopIpv6Address(dstIpv6.Address()).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	dstBgp6PeerRoutesOverLimit.Addresses().Add().
-		SetAddress(Routesv6NetOverLimit).
-		SetPrefix(advertisedRoutesv6Prefix).
-		SetCount(prefixLimit + 1)
-
-	// ATE Traffic Configuration
-	t.Logf("TestBGP:start ate Traffic config")
-	//  BGP V4 Traffic Under Limit
-	flowipv4underlimit := topo.Flows().Add().SetName("IPv4" + ".UnderLimit")
-	flowipv4underlimit.Metrics().SetEnable(true)
-	flowipv4underlimit.TxRx().Device().
-		SetTxNames([]string{srcIpv4.Name()}).
-		SetRxNames([]string{dstBgp4PeerRoutesUnderLimit.Name()})
-	flowipv4underlimit.Size().SetFixed(1500)
-	flowipv4underlimit.Duration().FixedPackets().SetPackets(1000)
-	e1 := flowipv4underlimit.Packet().Add().Ethernet()
-	e1.Src().SetValue(srcEth.Mac())
-	v4 := flowipv4underlimit.Packet().Add().Ipv4()
-	v4.Src().SetValue(ipv4SrcTraffic)
-	v4.Dst().Increment().SetStart(Routesv4NetUnderLimit).SetCount(prefixLimit - 1)
-
-	// BGP IP V6 traffic Under Limit
-	flowipv6underlimit := topo.Flows().Add().SetName("IPv6" + ".UnderLimit")
-	flowipv6underlimit.Metrics().SetEnable(true)
-	flowipv6underlimit.TxRx().Device().
-		SetTxNames([]string{srcIpv6.Name()}).
-		SetRxNames([]string{dstBgp6PeerRoutesUnderLimit.Name()})
-	flowipv6underlimit.Size().SetFixed(1500)
-	flowipv6underlimit.Duration().FixedPackets().SetPackets(1000)
-	e2 := flowipv6underlimit.Packet().Add().Ethernet()
-	e2.Src().SetValue(srcEth.Mac())
-	v6 := flowipv6underlimit.Packet().Add().Ipv6()
-	v6.Src().SetValue(ipv6SrcTraffic)
-	v6.Dst().Increment().SetStart(Routesv6NetUnderLimit).SetCount(prefixLimit - 1)
-
-	//  BGP V4 Traffic At Limit
-	flowipv4atlimit := topo.Flows().Add().SetName("IPv4" + ".AtLimit")
-	flowipv4atlimit.Metrics().SetEnable(true)
-	flowipv4atlimit.TxRx().Device().
-		SetTxNames([]string{srcIpv4.Name()}).
-		SetRxNames([]string{dstBgp4PeerRoutesAtLimit.Name()})
-	flowipv4atlimit.Duration().FixedPackets().SetPackets(1000)
-	flowipv4atlimite1 := flowipv4atlimit.Packet().Add().Ethernet()
-	flowipv4atlimite1.Src().SetValue(srcEth.Mac())
-	flowipv4atlimitv4 := flowipv4atlimit.Packet().Add().Ipv4()
-	flowipv4atlimitv4.Src().SetValue(ipv4SrcTraffic)
-	flowipv4atlimitv4.Dst().Increment().SetStart(Routesv4NetAtLimit).SetCount(prefixLimit)
-
-	// BGP IP V6 traffic At Limit
-	flowipv6atlimit := topo.Flows().Add().SetName("IPv6" + ".AtLimit")
-	flowipv6atlimit.Metrics().SetEnable(true)
-	flowipv6atlimit.TxRx().Device().
-		SetTxNames([]string{srcIpv6.Name()}).
-		SetRxNames([]string{dstBgp6PeerRoutesAtLimit.Name()})
-	flowipv6atlimit.Duration().FixedPackets().SetPackets(1000)
-	flowipv6atlimite2 := flowipv6atlimit.Packet().Add().Ethernet()
-	flowipv6atlimite2.Src().SetValue(srcEth.Mac())
-	flowipv6atlimitv6 := flowipv6atlimit.Packet().Add().Ipv6()
-	flowipv6atlimitv6.Src().SetValue(ipv6SrcTraffic)
-	flowipv6atlimitv6.Dst().Increment().SetStart(Routesv6NetAtLimit).SetCount(prefixLimit)
-
-	//  BGP V4 Traffic Over Limit
-	flowipv4overlimit := topo.Flows().Add().SetName("IPv4" + ".OverLimit")
-	flowipv4overlimit.Metrics().SetEnable(true)
-	flowipv4overlimit.TxRx().Device().
-		SetTxNames([]string{srcIpv4.Name()}).
-		SetRxNames([]string{dstBgp4PeerRoutesOverLimit.Name()})
-	flowipv4overlimit.Duration().FixedPackets().SetPackets(1000)
-	flowipv4overlimite1 := flowipv4overlimit.Packet().Add().Ethernet()
-	flowipv4overlimite1.Src().SetValue(srcEth.Mac())
-	flowipv4overlimitv4 := flowipv4overlimit.Packet().Add().Ipv4()
-	flowipv4overlimitv4.Src().SetValue(ipv4SrcTraffic)
-	flowipv4overlimitv4.Dst().Increment().SetStart(Routesv4NetOverLimit).SetCount(prefixLimit + 1)
-
-	// BGP IP V6 traffic Over Limit
-	flowipv6overlimit := topo.Flows().Add().SetName("IPv6" + ".OverLimit")
-	flowipv6overlimit.Metrics().SetEnable(true)
-	flowipv6overlimit.TxRx().Device().
-		SetTxNames([]string{srcIpv6.Name()}).
-		SetRxNames([]string{dstBgp6PeerRoutesOverLimit.Name()})
-	flowipv6overlimit.Duration().FixedPackets().SetPackets(1000)
-	flowipv6overlimite2 := flowipv6overlimit.Packet().Add().Ethernet()
-	flowipv6overlimite2.Src().SetValue(srcEth.Mac())
-	flowipv6overlimitv6 := flowipv6overlimit.Packet().Add().Ipv6()
-	flowipv6overlimitv6.Src().SetValue(ipv6SrcTraffic)
-	flowipv6overlimitv6.Dst().Increment().SetStart(Routesv6NetOverLimit).SetCount(prefixLimit + 1)
+	configureFlow(topo, "IPv4.UnderLimit", srcIpv4.Name(), "r4UnderLimit", ateSrc.MAC, ateSrc.IPv4, Routesv4NetUnderLimit, "ipv4", prefixLimit-1)
+	configureFlow(topo, "IPv6.UnderLimit", srcIpv6.Name(), "r6UnderLimit", ateSrc.MAC, ateSrc.IPv6, Routesv6NetUnderLimit, "ipv6", prefixLimit-1)
+	configureFlow(topo, "IPv4.AtLimit", srcIpv4.Name(), "r4AtLimit", ateSrc.MAC, ateSrc.IPv4, Routesv4NetAtLimit, "ipv4", prefixLimit)
+	configureFlow(topo, "IPv6.AtLimit", srcIpv6.Name(), "r6AtLimit", ateSrc.MAC, ateSrc.IPv6, Routesv6NetAtLimit, "ipv6", prefixLimit)
+	configureFlow(topo, "IPv4.OverLimit", srcIpv4.Name(), "r4OverLimit", ateSrc.MAC, ateSrc.IPv4, Routesv4NetOverLimit, "ipv4", prefixLimit+1)
+	configureFlow(topo, "IPv6.OverLimit", srcIpv6.Name(), "r6OverLimit", ateSrc.MAC, ateSrc.IPv6, Routesv6NetOverLimit, "ipv6", prefixLimit+1)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
 
 	return topo
+}
+
+func configureBGPv4Routes(peer gosnappi.BgpV4Peer, ipv4 string, name string, prefix string, count uint32) {
+	routes := peer.V4Routes().Add().SetName(name)
+	routes.SetNextHopIpv4Address(ipv4).
+		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+	routes.Addresses().Add().
+		SetAddress(prefix).
+		SetPrefix(advertisedRoutesv4Prefix).
+		SetCount(count)
+}
+
+func configureBGPv6Routes(peer gosnappi.BgpV6Peer, ipv6 string, name string, prefix string, count uint32) {
+	routes := peer.V6Routes().Add().SetName(name)
+	routes.SetNextHopIpv6Address(ipv6).
+		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+	routes.Addresses().Add().
+		SetAddress(prefix).
+		SetPrefix(advertisedRoutesv6Prefix).
+		SetCount(count)
+}
+
+func configureFlow(topo gosnappi.Config, name, flowSrcEndPoint, flowDstEndPoint, srcMac, srcIp, dstIp, iptype string, routeCount uint32) {
+	flow := topo.Flows().Add().SetName(name)
+	flow.Metrics().SetEnable(true)
+	flow.TxRx().Device().
+		SetTxNames([]string{flowSrcEndPoint}).
+		SetRxNames([]string{flowDstEndPoint})
+	flow.Size().SetFixed(1500)
+	flow.Duration().FixedPackets().SetPackets(1000)
+	e := flow.Packet().Add().Ethernet()
+	e.Src().SetValue(srcMac)
+	if iptype == "ipv4" {
+		v4 := flow.Packet().Add().Ipv4()
+		v4.Src().SetValue(srcIp)
+		v4.Dst().Increment().SetStart(dstIp).SetCount(routeCount)
+	} else {
+		v6 := flow.Packet().Add().Ipv6()
+		v6.Src().SetValue(srcIp)
+		v6.Dst().Increment().SetStart(dstIp).SetCount(routeCount)
+	}
 }
 
 type BGPNeighbor struct {
@@ -600,7 +521,17 @@ func withdrawBGPRoutes(t *testing.T, conf gosnappi.Config, name string, routes u
 		name = "AtLimit"
 	}
 	cs := gosnappi.NewControlState()
-	cs.Protocol().Route().SetNames([]string{"r4" + name, "r6" + name}).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
+	if name == "all" {
+		cs.Protocol().Route().SetNames([]string{"r4UnderLimit",
+			"r6UnderLimit",
+			"r4AtLimit",
+			"r6AtLimit",
+			"r4OverLimit",
+			"r6OverLimit"}).
+			SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
+	} else {
+		cs.Protocol().Route().SetNames([]string{"r4" + name, "r6" + name}).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
+	}
 	otg.SetControlState(t, cs)
 
 }
@@ -617,7 +548,7 @@ func (tc *testCase) run(t *testing.T, conf gosnappi.Config, dut *ondatra.DUTDevi
 	t.Log(tc.desc)
 	flowNames := []string{}
 
-	for _, name := range []string{"IPv4", "IPv4"} {
+	for _, name := range []string{"IPv4", "IPv6"} {
 		if tc.numRoutes == prefixLimit {
 			flowNames = append(flowNames, name+"."+"AtLimit")
 		} else {
@@ -703,15 +634,7 @@ func TestTrafficBGPPrefixLimit(t *testing.T) {
 
 	ate.OTG().StartProtocols(t)
 
-	cs := gosnappi.NewControlState()
-	cs.Protocol().Route().SetNames([]string{"r4UnderLimit",
-		"r6UnderLimit",
-		"r4AtLimit",
-		"r6AtLimit",
-		"r4OverLimit",
-		"r6OverLimit"}).
-		SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
-	ate.OTG().SetControlState(t, cs)
+	withdrawBGPRoutes(t, conf, "all", prefixLimit+1)
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
