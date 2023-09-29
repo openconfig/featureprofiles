@@ -15,15 +15,12 @@
 package bgp_2byte_4byte_asn_with_policy_test
 
 import (
-	"context"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -36,6 +33,7 @@ const (
 	rejectPrefix        = "REJECT-PREFIX"
 	communitySet        = "COMM-SET"
 	rejectCommunity     = "REJECT-COMMUNITY"
+	asPathSet           = "AS-PATH-SET"
 	rejectAspath        = "REJECT-AS-PATH"
 	aclStatement1       = "10"
 	aclStatement2       = "50"
@@ -47,6 +45,7 @@ const (
 var prefixV4 = []string{"198.51.100.0/30", "198.51.100.4/30", "198.51.100.8/30"}
 var prefixV6 = []string{"2001:DB8:1::0/126", "2001:DB8:1::4/126", "2001:DB8:1::8/126"}
 var community = []string{"200:1"}
+var asPathRegex = []string{".* 4400 3300"}
 
 var (
 	dutSrc = attrs.Attributes{
@@ -142,10 +141,6 @@ func TestBgpSession(t *testing.T) {
 			t.Log("Clear BGP Configs on DUT")
 			bgpClearConfig(t, dut)
 
-			if deviations.BGPMatchAsPathSetPolicyUnsupported(dut) {
-				configureRegexPolicy(t, dut)
-			}
-
 			d := &oc.Root{}
 			rpl := configureBGPPolicy(t, dut, d, tc.nbr.isV4)
 			gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
@@ -185,62 +180,6 @@ func TestBgpSession(t *testing.T) {
 			t.Log("Clear BGP Configs on ATE")
 			tc.ateConf.StopProtocols(t)
 		})
-	}
-}
-
-// Build config with Origin set to cli and Ascii encoded config.
-func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{{
-			Path: &gpb.Path{
-				Origin: "cli",
-				Elem:   []*gpb.PathElem{},
-			},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_AsciiVal{
-					AsciiVal: config,
-				},
-			},
-		}},
-	}
-	return gpbSetRequest, nil
-}
-
-// juniperCLI returns Juniper CLI config statement.
-func juniperCLI() string {
-	return fmt.Sprintf(`
-	policy-options {
-		policy-statement %s {
-			term term1 {
-				from as-path match-as-path;
-				then reject;
-			}
-		}
-		as-path match-as-path ".* 4400 3300";
-	}`, rejectAspath)
-}
-
-// configureRegexPolicy is used to configure vendor specific config statement.
-func configureRegexPolicy(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	var config string
-	gnmiClient := dut.RawAPIs().GNMI(t)
-
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		config = juniperCLI()
-		t.Logf("Push the CLI config:%s", dut.Vendor())
-	default:
-		return
-	}
-
-	gpbSetRequest, err := buildCliConfigRequest(config)
-	if err != nil {
-		t.Fatalf("Cannot build a gNMI SetRequest: %v", err)
-	}
-
-	if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 	}
 }
 
@@ -285,8 +224,8 @@ func configureBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, isV4 b
 	if deviations.BGPMatchAsPathSetPolicyUnsupported(dut) {
 		return rp
 	}
-	asPathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet("AS-PATH-SET")
-	asPathSet.AsPathSetMember = []string{"55000", "4400", "3300"}
+	aps := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(asPathSet)
+	aps.AsPathSetMember = asPathRegex
 	pdefAsPath := rp.GetOrCreatePolicyDefinition(rejectAspath)
 
 	stmt500, err := pdefAsPath.AppendNewStatement("500")
@@ -294,7 +233,7 @@ func configureBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, isV4 b
 		t.Errorf("Error while creating new statement %v", err)
 	}
 	stmt500.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
-	stmt500.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().AsPathSet = ygot.String("AS-PATH-SET")
+	stmt500.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().AsPathSet = ygot.String(asPathSet)
 	stmt500.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().MatchSetOptions = oc.RoutingPolicy_MatchSetOptionsType_ALL
 	return rp
 }
