@@ -625,7 +625,8 @@ func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
 func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
+
 // IsisLevelEnabled returns if device should enable isis under level.
 func IsisLevelEnabled(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetIsisLevelEnabled()
+	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
 }

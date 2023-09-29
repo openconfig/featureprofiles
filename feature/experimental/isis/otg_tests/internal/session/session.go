@@ -125,7 +125,7 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.
 	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 	// Configure ISIS enabled flag at level
 	if deviations.IsisLevelEnabled(dut) {
-	level.Enabled = ygot.Bool(true)
+		level.Enabled = ygot.Bool(true)
 	}
 	intf := isis.GetOrCreateInterface(ifaceName)
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
