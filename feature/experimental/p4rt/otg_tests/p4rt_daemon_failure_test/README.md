@@ -18,7 +18,7 @@ Ensure that data plane traffic is not interrupted by P4RT daemon failure.
   * Validate traffic can continue to be forwarded between ATE port-1 and port-2.
 
 * Subtest 2
-  * Use gNMI subscribe ON_CHANGE to get the value for /interfaces/interface/state/id for DUT port-1
+  * Use gNMI subscribe ON_CHANGE to get the value for `/interfaces/interface/state/id` for DUT port-1
   * Kill P4RT daemon on DUT using gNOI test command (gNOI.KillProcess).
   * Verify the interface id for DUT port-1 does not change
 
@@ -37,5 +37,5 @@ Ensure that data plane traffic is not interrupted by P4RT daemon failure.
 
 ## Telemetry Parameter Coverage
 
-* AFT
-  * /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix/
+* /interfaces/interface/state/id
+* /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix/
