@@ -94,7 +94,7 @@ func TestQoSCounters(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	top.Ports().Add().SetName(ap1.ID())
 	top.Ports().Add().SetName(ap2.ID())

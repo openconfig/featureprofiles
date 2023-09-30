@@ -106,7 +106,7 @@ func dutIntf(dut *ondatra.DUTDevice, intf *attrs.Attributes, index int) ([]*oc.I
 
 // ateIntfConfig returns the configuration required for the ATE interfaces.
 func configureATEInterfaces(t *testing.T, ate *ondatra.ATEDevice, srcATE, srcDUT, dstATE, dstDUT *attrs.Attributes) (gosnappi.Config, error) {
-	topology := ate.OTG().NewConfig(t)
+	topology := gosnappi.NewConfig()
 	for _, p := range []struct {
 		ate, dut *attrs.Attributes
 	}{
