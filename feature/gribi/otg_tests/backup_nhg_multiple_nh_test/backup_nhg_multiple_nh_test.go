@@ -403,7 +403,6 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	time.Sleep(30 * time.Second)
 	a.ate.OTG().StopTraffic(t)
 	time.Sleep(10 * time.Second)
-	t.Log(a.top.Msg().GetCaptures())
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
 	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 
