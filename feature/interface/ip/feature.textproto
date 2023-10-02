@@ -13,7 +13,7 @@
 # limitations under the License.
 
 id {
-  name: "interface_ipv6_ND"
+  name: "interface_ip"
   version: 1
 }
 
@@ -35,4 +35,23 @@ config_path {
 }
 telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/interval"
+}
+
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip";
+}
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length";
+}
+config_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/type";
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip";
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length";
+}
+telemetry_path {
+  path: "/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/type";
 }

@@ -222,7 +222,7 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
-	global.As = ygot.Uint32(nbr.localAS)
+	global.As = ygot.Uint32(nbr.globalAS)
 	global.RouterId = ygot.String(dutSrc.IPv4)
 
 	pg := bgp.GetOrCreatePeerGroup("ATE")

@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sort"
 	"testing"
 
 	"flag"
@@ -45,7 +44,8 @@ const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
 	deviceID      = uint64(100)
-	portId        = uint32(2100)
+	ingressPortId = uint32(2100)
+	egressPortId  = ingressPortId + 1
 	electionId    = uint64(100)
 	dstMAC        = "00:1A:11:00:00:01"
 )
@@ -103,31 +103,18 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// sortPorts sorts the ports by the testbed port ID.
-func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
-	sort.Slice(ports, func(i, j int) bool {
-		idi, idj := ports[i].ID(), ports[j].ID()
-		li, lj := len(idi), len(idj)
-		if li == lj {
-			return idi < idj
-		}
-		return li < lj // "port2" < "port10"
-	})
-	return ports
-}
-
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1").Name()
 	i1 := dutPort1.NewOCInterface(p1, dut)
-	i1.Id = ygot.Uint32(portId)
+	i1.Id = ygot.Uint32(ingressPortId)
 	gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
 
 	p2 := dut.Port(t, "port2").Name()
 	i2 := dutPort2.NewOCInterface(p2, dut)
-	i2.Id = ygot.Uint32(portId + 1)
+	i2.Id = ygot.Uint32(egressPortId)
 	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
 
 	if deviations.ExplicitPortSpeed(dut) {
@@ -168,19 +155,13 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
-// setupP4RTClient sends client arbitration message for both leader and follower clients,
-// then sends setforwordingpipelineconfig with leader client.
-func setupP4RTClient(ctx context.Context, args *testArgs) error {
-	// Setup p4rt-client stream parameters
+func setupP4RTClient(ctx context.Context, client *p4rt_client.P4RTClient) error {
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
 		DeviceId:    deviceID,
 		ElectionIdH: uint64(0),
 		ElectionIdL: electionId,
 	}
-
-	// Send ClientArbitration message on both p4rt leader and backup clients.
-	client := args.leader
 
 	if client != nil {
 		client.StreamChannelCreate(&streamParameter)
@@ -204,13 +185,13 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 			return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
 		}
 	}
-	// Load p4info file.
+
 	p4Info, err := utils.P4InfoLoad(p4InfoFile)
 	if err != nil {
 		return errors.New("Errors seen when loading p4info file.")
 	}
-	// Send SetForwardingPipelineConfig for p4rt leader client.
-	if err := args.leader.SetForwardingPipelineConfig(&p4v1.SetForwardingPipelineConfigRequest{
+
+	if err := client.SetForwardingPipelineConfig(&p4v1.SetForwardingPipelineConfigRequest{
 		DeviceId:   deviceID,
 		ElectionId: &p4v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
@@ -229,15 +210,15 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 // getTracerouteParameter returns Traceroute related parameters for testPacketOut testcase.
 func getTracerouteParameter(t *testing.T) PacketIO {
 	return &TraceroutePacketIO{
-		IngressPort: fmt.Sprint(portId),
+		IngressPort: fmt.Sprint(ingressPortId),
 	}
 }
+
 func TestPacketOut(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
-	// Configure the DUT
+	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
-	// Configure the ATE
+
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 
@@ -245,11 +226,10 @@ func TestPacketOut(t *testing.T) {
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 
-	// Configure P4RT device-id and port-id on the DUT
 	configureDeviceID(ctx, t, dut)
 
-	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+	client := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+	if err := client.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
@@ -264,22 +244,100 @@ func TestPacketOut(t *testing.T) {
 		t.Fatalf("Couldn't parse router MAC: %v", err)
 	}
 
-	args := &testArgs{
-		ctx:    ctx,
-		leader: leader,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
-		srcMAC: srcMAC,
-		dstMAC: dstMAC,
-	}
-
-	if err := setupP4RTClient(ctx, args); err != nil {
+	if err := setupP4RTClient(ctx, client); err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 
-	args.packetIO = getTracerouteParameter(t)
-	testPacketOut(ctx, t, args)
+	for _, m := range genMetadataCombinations() {
+		for _, ipv4 := range []bool{true, false} {
+			args := &testArgs{
+				ctx:         ctx,
+				client:      client,
+				dut:         dut,
+				ate:         ate,
+				top:         top,
+				srcMAC:      srcMAC,
+				dstMAC:      dstMAC,
+				metadata:    m,
+				useIpv4:     ipv4,
+				trafficPort: getExpectedTrafficPort(m),
+				packetIO:    getTracerouteParameter(t),
+			}
+
+			t.Run(args.testName(), func(t *testing.T) {
+				args.packetIO = getTracerouteParameter(t)
+				testPacketOut(ctx, t, args)
+			})
+		}
+	}
+}
+
+// generates all possible combinations of metadata
+// including omission
+func genMetadataCombinations() [][]*p4v1.PacketMetadata {
+	combinations := [][]*p4v1.PacketMetadata{{}} // no metadata
+
+	egressOptions := []string{fmt.Sprint(egressPortId), "TBD BY SWITCH"}
+	submitToIngressOpts := []byte{0, 1}
+
+	// singletons
+	for _, pId := range egressOptions {
+		combinations = append(combinations, []*p4v1.PacketMetadata{{
+			MetadataId: uint32(1), // "egress_port"
+			Value:      []byte(pId),
+		}})
+	}
+
+	for _, submitIngress := range submitToIngressOpts {
+		combinations = append(combinations, []*p4v1.PacketMetadata{{
+			MetadataId: uint32(2), // "submit_to_ingress"
+			Value:      []byte{submitIngress},
+		}})
+	}
+
+	// binary combinations
+	for _, pId := range egressOptions {
+		for _, submitIngress := range submitToIngressOpts {
+			combinations = append(combinations, []*p4v1.PacketMetadata{
+				{
+					MetadataId: uint32(1), // "egress_port"
+					Value:      []byte(pId),
+				},
+				{
+					MetadataId: uint32(2), // "submit_to_ingress"
+					Value:      []byte{submitIngress},
+				},
+			})
+		}
+	}
+
+	// add ternary combinations with padding
+	for i := len(combinations) - 1; i >= 0; i-- {
+		combinations = append(combinations, append([]*p4v1.PacketMetadata{{
+			MetadataId: uint32(3), // "unused padding"
+			Value:      []byte{0},
+		}}, combinations[i]...))
+	}
+
+	return combinations
+}
+
+// returns the ate port on which traffic is expected
+// depending on submit_to_ingress and egress_port
+func getExpectedTrafficPort(meta []*p4v1.PacketMetadata) string {
+	for _, m := range meta {
+		// submit_to_ingress
+		if m.MetadataId == 2 && m.Value[0] == 1 {
+			return "port1"
+		}
+	}
+	for _, m := range meta {
+		// egress_port
+		if m.MetadataId == 1 && string(m.Value) == fmt.Sprint(egressPortId) {
+			return "port2"
+		}
+	}
+	return ""
 }
 
 type TraceroutePacketIO struct {
@@ -288,14 +346,13 @@ type TraceroutePacketIO struct {
 }
 
 // packetTracerouteRequestGet generates PacketOut payload for Traceroute packets.
-func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int) ([]byte, error) {
+func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8, seq int, size int) ([]byte, error) {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
 	payload := []byte{}
-	payLoadLen := 32
 
 	ethType := layers.EthernetTypeIPv4
 	if !isIPv4 {
@@ -332,7 +389,7 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 	}
 	pktICMP6.SetNetworkLayerForChecksum(pktIpv6)
 
-	for i := 0; i < payLoadLen; i++ {
+	for i := 0; i < size; i++ {
 		payload = append(payload, byte(i))
 	}
 	if isIPv4 {
@@ -353,31 +410,25 @@ func packetTracerouteRequestGet(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, tt
 
 // GetPacketOut generates PacketOut message with payload as Traceroute IPv6 and IPv6 packets.
 // isIPv4==true refers to the ipv4 packets and if false we are sending ipv6 packet
-func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error) {
+func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8, numPkts int, metadata []*p4v1.PacketMetadata) ([]*p4v1.PacketOut, error) {
 	packets := []*p4v1.PacketOut{}
-	for i := 1; i <= numPkts; i++ {
-		pkt, err := packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl, i)
-		if err != nil {
-			return nil, err
+	packetSizes := []int{32, 512, 1024, 2048}
+
+	seqNum := 0
+	for pSize := range packetSizes {
+		for i := 0; i < numPkts/len(packetSizes); i++ {
+			seqNum += 1
+			pkt, err := packetTracerouteRequestGet(srcMAC, dstMAC, isIPv4, ttl, seqNum, pSize)
+			if err != nil {
+				return nil, err
+			}
+			packet := &p4v1.PacketOut{
+				Payload:  pkt,
+				Metadata: metadata,
+			}
+			packets = append(packets, packet)
 		}
-		packet := &p4v1.PacketOut{
-			Payload: pkt,
-			Metadata: []*p4v1.PacketMetadata{
-				{
-					MetadataId: uint32(1), // "egress_port"
-					Value:      []byte("submit_to_ingress"),
-				},
-				{
-					MetadataId: uint32(2), // "submit_to_ingress"
-					Value:      []byte{1},
-				},
-				{
-					MetadataId: uint32(3), // "unused_pad"
-					Value:      []byte{0},
-				},
-			},
-		}
-		packets = append(packets, packet)
 	}
+
 	return packets, nil
 }
