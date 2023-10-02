@@ -333,7 +333,6 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	// create flow
 	dstMac := gnmi.Get(t, a.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 	BaseFlow := a.createFlow(t, "BaseFlow", dstMac)
-        time.Sleep(5 * time.Second)
 
 	// Validate traffic over primary path port2, port3
 	t.Logf("Validate traffic over primary path port2, port3")
@@ -372,7 +371,7 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	flow.Size().SetFixed(300)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	flow.TxRx().Port().SetTxName("port1")
+	flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2", "port3", "port4"})
 	flow.Rate().SetPps(fps)
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
@@ -404,33 +403,21 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 	time.Sleep(30 * time.Second)
 	a.ate.OTG().StopTraffic(t)
 	time.Sleep(10 * time.Second)
+	t.Log(a.top.Msg().GetCaptures())
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
+	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 
-	// Get send traffic
-	outgoing_traffic_state := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
-	sentPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_state).GetCounters().GetOutFrames()
+	flowMetrics := gnmi.Get(t, a.ate.OTG(), gnmi.OTG().Flow(flow).State())
+	sentPkts := float32(flowMetrics.GetCounters().GetOutPkts())
+
+	receivedPkts := float32(flowMetrics.GetCounters().GetInPkts())
 	if sentPkts == 0 {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
 
-	var receivedPkts uint64
-
-	// Get traffic received on primary outgoing interface before interface shutdown
-	for _, port := range shut_ports {
-		outgoing_traffic_counters := gnmi.OTG().Port(a.ate.Port(t, port).ID()).State()
-		outPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_counters).GetCounters().GetInFrames()
-		receivedPkts = receivedPkts + outPkts
-	}
-
-	// Get traffic received on expected port after interface shut
-	for _, outPort := range expected_outgoing_port {
-		outgoing_traffic_counters := gnmi.OTG().Port(outPort.ID()).State()
-		outPkts := gnmi.Get(t, a.ate.OTG(), outgoing_traffic_counters).GetCounters().GetInFrames()
-		receivedPkts = receivedPkts + outPkts
-	}
-
 	// Check if traffic restores with in expected time in milliseconds during interface shut
 	// else if there is no interface trigger, validate received packets (control+data) are more than send packets
+	t.Logf("Sent Packets: %v, Received packets: %v", sentPkts, receivedPkts)
 	if len(shut_ports) > 0 {
 		// Time took for traffic to restore in milliseconds after trigger
 		fpm := ((sentPkts - receivedPkts) / (fps / 1000))
@@ -439,7 +426,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, expected_outg
 		}
 		t.Logf("Traffic loss during path change : %v msecs", fpm)
 	} else if sentPkts > receivedPkts {
-		t.Fatalf("Traffic didn't forward to the expected outgoing port, Sent: %v, Received: %v", sentPkts, receivedPkts")
+		t.Fatalf("Traffic didn't forward to the expected outgoing port, Sent: %v, Received: %v", sentPkts, receivedPkts)
 	}
 }
 
