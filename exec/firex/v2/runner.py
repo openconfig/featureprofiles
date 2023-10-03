@@ -471,7 +471,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
         test_debug=False, test_verbose=False, testbed_info_path=None, test_ignore_aborted=False,
-        test_skip=False, test_fail_skipped=False, test_show_skipped=False):
+        test_skip=False, test_fail_skipped=False, test_show_skipped=False, release_ixia_ports=True):
 
     logger.print('Running Go test...')
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
