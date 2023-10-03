@@ -242,9 +242,9 @@ def _get_testsuite_from_xml(file_name):
 def _is_ixia_failure(suite):
     failures = suite.findall("./testcase/failure")
     for f in failures:
-        message = f.attrib.get("message", "")
-        if "PushConfig(t)" in message:
-            return True
+        for t in f.itertext():
+            if "PushConfig(t)" in t:
+                return True   
     return False
     
 def _check_json_output(cmd):
