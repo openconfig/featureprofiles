@@ -16,7 +16,6 @@ platform_exceptions: {
     set_subinterface_nil: true
     reorder_calls_for_vendor_compatibilty: true
     add_missing_base_config_via_cli: true
-    set_ethernet_mac_autonegotiate: true
   }
 }
 platform_exceptions: {

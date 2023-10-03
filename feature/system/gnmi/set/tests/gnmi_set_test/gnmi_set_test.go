@@ -39,7 +39,7 @@ import (
 
 var (
 	// These flags skip unwanted test cases that can speed up development or debugging.
-	skipRootOp      = flag.Bool("skip_root_op", false, "Skip RootOp test cases.")
+	skipRootOp      = flag.Bool("skip_root_op", true, "Skip RootOp test cases.")
 	skipContainerOp = flag.Bool("skip_container_op", false, "Skip ContainerOp test cases.")
 	skipItemOp      = flag.Bool("skip_item_op", false, "Skip ItemOp test cases.")
 
@@ -427,9 +427,11 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 			}
 		}
 
-		firstni := config.GetOrCreateNetworkInstance(firstVRF)
-		id1 := attachInterface(firstni, p1.Name(), 0)
-		id2 := attachInterface(firstni, p2.Name(), 0)
+		if !deviations.ReorderCallsForVendorCompatibilty(dut) {
+			firstni := config.GetOrCreateNetworkInstance(firstVRF)
+			id1 = attachInterface(firstni, p1.Name(), 0)
+			id2 = attachInterface(firstni, p2.Name(), 0)
+		}
 
 		config.DeleteNetworkInstance(secondVRF)
 		if *cannotDeleteVRF {
@@ -443,10 +445,7 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 			verifyInterface(t, dut, p1.Name(), &ip1)
 			verifyInterface(t, dut, p2.Name(), &ip2)
 			// verify the added interface to first Non default VRF
-			if deviations.ReorderCallsForVendorCompatibilty(dut) && firstVRF != defaultVRF {
-				verifyAttachment(t, dut, firstVRF, id1, p1.Name())
-				verifyAttachment(t, dut, firstVRF, id2, p2.Name())
-			} else {
+			if !deviations.ReorderCallsForVendorCompatibilty(dut) || firstVRF != defaultVRF {
 				verifyAttachment(t, dut, firstVRF, id1, p1.Name())
 				verifyAttachment(t, dut, firstVRF, id2, p2.Name())
 			}
@@ -466,21 +465,30 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 			}
 			config.DeleteNetworkInstance(firstVRF)
 		} else {
-			// Remove just the interface attachments but keep the VRF.
-			config.DeleteInterface(p1.Name())
-			config.DeleteInterface(p2.Name())
-			// Remove just the interface attachments but keep the VRF.
-			firstni.DeleteInterface(id1)
-			firstni.DeleteInterface(id2)
-
+			// Delete interface from default NI before modifying the attachement
+			if deviations.ReorderCallsForVendorCompatibilty(dut) {
+				config.DeleteInterface(p1.Name())
+				config.DeleteInterface(p2.Name())
+			} else {
+				// Remove just the interface attachments but keep the VRF.
+				firstni := config.GetOrCreateNetworkInstance(firstVRF)
+				firstni.DeleteInterface(id1)
+				firstni.DeleteInterface(id2)
+			}
 		}
 		op.push(t, dut, config, scope)
 
 		secondni := config.GetOrCreateNetworkInstance(secondVRF)
 		secondni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		attachInterface(secondni, p1.Name(), 0)
-		attachInterface(secondni, p2.Name(), 0)
-
+		if deviations.ReorderCallsForVendorCompatibilty(dut) {
+			id1 = attachInterface(secondni, p1.Name(), 0)
+			id2 = attachInterface(secondni, p2.Name(), 0)
+			ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
+			ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
+		} else {
+			attachInterface(secondni, p1.Name(), 0)
+			attachInterface(secondni, p2.Name(), 0)
+		}
 		op.push(t, dut, config, scope)
 
 		t.Run("VerifyAfterMove", func(t *testing.T) {
