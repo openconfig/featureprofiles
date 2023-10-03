@@ -243,7 +243,7 @@ def _is_ixia_failure(suite):
     failures = suite.findall("./testcase/failure")
     for f in failures:
         for t in f.itertext():
-            if "PushConfig(t)" in t:
+            if "PushConfig(t)" in t or "StartProtocols(t)" in t:
                 return True   
     return False
     
