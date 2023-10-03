@@ -176,35 +176,43 @@ func configNetworkInstanceInterface(t *testing.T, dut *ondatra.DUTDevice, vrfnam
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), v)
 }
 
+// configInterfaceDUT configures the interface
+func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+	i.Description = ygot.String(dutPort.Desc)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	return i
+}
+
 // configureDUT configures port1, port2, port3 and port4 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
-	// create VRF "vrfA" and assign incoming port under it
 	p1 := dut.Port(t, "port1")
-	i1 := dutPort1.NewOCInterface(p1.Name(), dut)
-	i1.GetOrCreateSubinterface(0)
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), i1)
+	// create VRF "vrfA" and assign incoming port under it
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 	configNetworkInstanceInterface(t, dut, vrf1, p1.Name(), uint32(0))
 	// create VRF "vrfB"
 	configNetworkInstance(t, dut, vrf2)
+
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
 		d := &oc.Root{}
-		ni := d.GetOrCreateNetworkInstance(vrf2)
+		ni := d.GetOrCreateNetworkInstance(vrf1)
 		pf := ni.GetOrCreatePolicyForwarding()
 		fp1 := pf.GetOrCreatePolicy("match-ipip")
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 		fp1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipOverIPProtocol)
-		fp1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(vrf2)
+		fp1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(vrf1)
 		p1 := dut.Port(t, "port1")
 		intf := pf.GetOrCreateInterface(p1.Name())
 		intf.ApplyVrfSelectionPolicy = ygot.String("match-ipip")
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf2).PolicyForwarding().Config(), pf)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf1).PolicyForwarding().Config(), pf)
 	}
 
-	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
-		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), i1)
-	}
+	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 
 	p2 := dut.Port(t, "port2")
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
@@ -225,6 +233,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf1)
+		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf2)
 	}
 }
 
@@ -353,13 +366,6 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	t.Run("Baseline (port3 only)", func(t *testing.T) {
 		t.Logf("Shutdown port 2 and validate traffic switching over port3 primary path")
 		a.validateTrafficFlows(t, baseFlow, []*ondatra.Port{a.ate.Port(t, "port3")}, "port2")
-		if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
-			defer a.flapinterface(t, "port2", true)
-		} else {
-			portStateAction := gosnappi.NewControlState()
-			portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.UP)
-			defer a.ate.OTG().SetControlState(t, portStateAction)
-		}
 	})
 
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
@@ -368,14 +374,15 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	t.Run("Backup (port4)", func(t *testing.T) {
 		t.Logf("Shutdown port 3 and validate traffic switching over port4 backup path")
 		a.validateTrafficFlows(t, baseFlow, []*ondatra.Port{a.ate.Port(t, "port4")}, "port3")
-		if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
-			defer a.flapinterface(t, "port3", true)
-		} else {
-			portStateAction := gosnappi.NewControlState()
-			portStateAction.Port().Link().SetPortNames([]string{"port3"}).SetState(gosnappi.StatePortLinkState.UP)
-			defer a.ate.OTG().SetControlState(t, portStateAction)
-		}
 	})
+	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
+		defer a.flapinterface(t, "port2", true)
+		defer a.flapinterface(t, "port3", true)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{"port2", "port3"}).SetState(gosnappi.StatePortLinkState.UP)
+		defer a.ate.OTG().SetControlState(t, portStateAction)
+	}
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 }
 
