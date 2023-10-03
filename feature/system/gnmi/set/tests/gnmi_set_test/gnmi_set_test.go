@@ -15,6 +15,7 @@
 package gnmi_set_test
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -53,7 +54,11 @@ var (
 	pruneQoS = flag.Bool("prune_qos", true, "Prune QoS config.")
 
 	// Experimental flags that will likely become a deviation.
-	cannotDeleteVRF = flag.Bool("cannot_delete_vrf", true, "Device cannot delete VRF.") // See "Note about cannotDeleteVRF" below.
+	cannotDeleteVRF          = flag.Bool("cannot_delete_vrf", true, "Device cannot delete VRF.") // See "Note about cannotDeleteVRF" below.
+	cannotConfigurePortSpeed = flag.Bool("cannot_config_port_speed", false, "Some devices depending on the type of line card may not allow changing port speed, while still supporting the port speed leaf.")
+
+	// Flags to ensure test passes without any dependency to the device config
+	baseOCConfigIsPresent = flag.Bool("base_oc_config_is_present", false, "No OC config is loaded on router, so Get config on the root returns no data.")
 )
 
 var (
@@ -73,6 +78,20 @@ var (
 		IPv6Len: 126,
 	}
 )
+
+// Options are optional parameters to pass when deleting configs from the collected running config used in removeStatementsBetweenWords
+type Options struct {
+	interfaces []string
+}
+
+// showRunningConfig gets the running config from the router
+func showRunningConfig(t testing.TB, dut *ondatra.DUTDevice) string {
+	runningConfig, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show running-config")
+	if err != nil {
+		t.Fatalf("'show running-config' failed: %v", err)
+	}
+	return runningConfig
+}
 
 // Implementation Note
 //
@@ -102,6 +121,9 @@ func TestMain(m *testing.M) {
 
 func TestGetSet(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SkipContainerOp(dut) {
+		*skipContainerOp = true
+	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
@@ -121,6 +143,9 @@ func TestGetSet(t *testing.T) {
 
 func TestDeleteInterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SkipContainerOp(dut) {
+		*skipContainerOp = true
+	}
 	scope := defaultPushScope(dut)
 
 	p1 := dut.Port(t, "port1")
@@ -171,6 +196,9 @@ func TestDeleteInterface(t *testing.T) {
 
 func TestReuseIP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SkipContainerOp(dut) {
+		*skipContainerOp = true
+	}
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
@@ -192,6 +220,10 @@ func TestReuseIP(t *testing.T) {
 
 	forEachPushOp(t, dut, func(t *testing.T, op pushOp, config *oc.Root) {
 		t.Log("Initialize")
+
+		if deviations.DontSetEthernetFromState(dut) {
+			*setEthernetFromState = false
+		}
 
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(agg1)
@@ -237,6 +269,9 @@ func TestReuseIP(t *testing.T) {
 
 func TestSwapIPs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SkipContainerOp(dut) {
+		*skipContainerOp = true
+	}
 	scope := defaultPushScope(dut)
 
 	p1 := dut.Port(t, "port1")
@@ -277,6 +312,9 @@ func TestDeleteNonExistingVRF(t *testing.T) {
 	const vrf = "GREEN"
 
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SkipContainerOp(dut) {
+		*skipContainerOp = true
+	}
 	scope := &pushScope{
 		interfaces:       nil,
 		networkInstances: []string{vrf},
@@ -292,6 +330,9 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 	const vrf = "BLUE"
 
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SkipContainerOp(dut) {
+		*skipContainerOp = true
+	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
@@ -326,7 +367,10 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 		})
 
 		t.Log("Cleanup")
-
+		if deviations.ReorderCallsForVendorCompatibilty(dut) {
+			config.DeleteInterface(p1.Name())
+			config.DeleteInterface(p2.Name())
+		}
 		config.DeleteNetworkInstance(vrf)
 		op.push(t, dut, config, scope)
 
@@ -341,6 +385,9 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 
 func TestMoveInterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SkipContainerOp(dut) {
+		*skipContainerOp = true
+	}
 	t.Run("DefaultToNonDefaultVRF", func(t *testing.T) {
 		testMoveInterfaceBetweenVRF(t, dut, deviations.DefaultNetworkInstance(dut), "BLUE")
 	})
@@ -354,6 +401,7 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
+	var id1, id2 string
 
 	scope := &pushScope{
 		interfaces:       []string{p1.Name(), p2.Name()},
@@ -372,6 +420,11 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 			config.DeleteNetworkInstance(firstVRF)
 			ni := config.GetOrCreateNetworkInstance(firstVRF)
 			ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+			// add interface to firstVRF
+			if deviations.ReorderCallsForVendorCompatibilty(dut) {
+				id1 = attachInterface(ni, p1.Name(), 0)
+				id2 = attachInterface(ni, p2.Name(), 0)
+			}
 		}
 
 		firstni := config.GetOrCreateNetworkInstance(firstVRF)
@@ -389,9 +442,14 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 		t.Run("VerifyBeforeMove", func(t *testing.T) {
 			verifyInterface(t, dut, p1.Name(), &ip1)
 			verifyInterface(t, dut, p2.Name(), &ip2)
-			verifyAttachment(t, dut, firstVRF, id1, p1.Name())
-			verifyAttachment(t, dut, firstVRF, id2, p2.Name())
-
+			// verify the added interface to first Non default VRF
+			if deviations.ReorderCallsForVendorCompatibilty(dut) && firstVRF != defaultVRF {
+				verifyAttachment(t, dut, firstVRF, id1, p1.Name())
+				verifyAttachment(t, dut, firstVRF, id2, p2.Name())
+			} else {
+				verifyAttachment(t, dut, firstVRF, id1, p1.Name())
+				verifyAttachment(t, dut, firstVRF, id2, p2.Name())
+			}
 			// We don't check /network-instances/network-instance/vlans/vlan/members because
 			// these are for L2 switched ports, not L3 routed ports.
 		})
@@ -401,12 +459,22 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 		if firstVRF != defaultVRF {
 			// It is not necessary to explicitly remove the interface attachments since the VRF
 			// is being deleted.
+			// delete interface before deleting NI
+			if deviations.ReorderCallsForVendorCompatibilty(dut) {
+				config.DeleteInterface(p1.Name())
+				config.DeleteInterface(p2.Name())
+			}
 			config.DeleteNetworkInstance(firstVRF)
 		} else {
 			// Remove just the interface attachments but keep the VRF.
+			config.DeleteInterface(p1.Name())
+			config.DeleteInterface(p2.Name())
+			// Remove just the interface attachments but keep the VRF.
 			firstni.DeleteInterface(id1)
 			firstni.DeleteInterface(id2)
+
 		}
+		op.push(t, dut, config, scope)
 
 		secondni := config.GetOrCreateNetworkInstance(secondVRF)
 		secondni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
@@ -423,7 +491,11 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 		})
 
 		t.Log("Cleanup")
-
+		// delete interface before deleting NI
+		if deviations.ReorderCallsForVendorCompatibilty(dut) {
+			config.DeleteInterface(p1.Name())
+			config.DeleteInterface(p2.Name())
+		}
 		config.DeleteNetworkInstance(secondVRF)
 
 		op.push(t, dut, config, scope)
@@ -432,6 +504,9 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 
 func TestStaticProtocol(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SkipContainerOp(dut) {
+		*skipContainerOp = true
+	}
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
 	staticName := deviations.StaticProtocolName(dut)
 
@@ -542,7 +617,11 @@ func TestStaticProtocol(t *testing.T) {
 		})
 
 		t.Log("Cleanup")
-
+		// delete interface before deleting NI
+		if deviations.ReorderCallsForVendorCompatibilty(dut) {
+			config.DeleteInterface(p1.Name())
+			config.DeleteInterface(p2.Name())
+		}
 		config.DeleteNetworkInstance(otherVRF)
 		config.DeleteNetworkInstance(unusedVRF)
 		op.push(t, dut, config, scope)
@@ -723,6 +802,54 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 	config := gnmi.Get[*oc.Root](t, dev, gnmi.OC().Config())
 	fptest.WriteQuery(t, "Untouched", gnmi.OC().Config(), config)
 
+	// load the base oc config from the device state when no oc config is loaded
+	if !*baseOCConfigIsPresent {
+		intfsState := gnmi.GetAll(t, dev, gnmi.OC().InterfaceAny().State())
+		for _, intf := range intfsState {
+			ygot.PruneConfigFalse(oc.SchemaTree["Interface"], intf)
+			config.DeleteInterface(intf.GetName())
+			if intf.GetName() == "Loopback0" || intf.GetName() == "PTP0/RP1/CPU0/0" || intf.GetName() == "Null0" || intf.GetName() == "PTP0/RP0/CPU0/0" {
+				continue
+			}
+			intf.ForwardingViable = nil
+			intf.Mtu = nil
+			intf.HoldTime = nil
+			if intf.Subinterface != nil {
+				if intf.Subinterface[0].Ipv6 != nil {
+					intf.Subinterface[0].Ipv6.Autoconf = nil
+				}
+			}
+			config.AppendInterface(intf)
+		}
+		vrfsStates := gnmi.GetAll(t, dev, gnmi.OC().NetworkInstanceAny().State())
+		for _, vrf := range vrfsStates {
+			// only needed for containerOp
+			if vrf.GetName() == "**iid" {
+				continue
+			}
+			if vrf.GetName() == "DEFAULT" {
+				config.NetworkInstance = nil
+				vrf.Interface = nil
+				for _, ni := range config.NetworkInstance {
+					ni.Mpls = nil
+				}
+			}
+			ygot.PruneConfigFalse(oc.SchemaTree["NetworkInstance"], vrf)
+			vrf.Table = nil
+			vrf.RouteLimit = nil
+			vrf.Mpls = nil
+			for _, intf := range vrf.Interface {
+				intf.AssociatedAddressFamilies = nil
+			}
+			for _, protocol := range vrf.Protocol {
+				for _, routes := range protocol.Static {
+					routes.Description = nil
+				}
+			}
+			config.AppendNetworkInstance(vrf)
+		}
+	}
+
 	if *pruneComponents {
 		for cname, component := range config.Component {
 			// Keep the port components in order to preserve the breakout-mode config.
@@ -748,6 +875,25 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			if e.PortSpeed != 0 && e.PortSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
 				iface.Ethernet = e
 			}
+			if iname == "MgmtEth0/RP0/CPU0/0" || iname == "MgmtEth0/RP1/CPU0/0" {
+				e.MacAddress = nil
+			}
+			if iface.Ethernet.AggregateId != nil {
+				iface.Ethernet.MacAddress = nil
+				continue
+			}
+			iface.Ethernet.AutoNegotiate = nil
+		}
+	}
+
+	if !*cannotConfigurePortSpeed {
+		for _, iface := range config.Interface {
+			if iface.GetEthernet() == nil {
+				continue
+			}
+			iface.GetEthernet().PortSpeed = oc.IfEthernet_ETHERNET_SPEED_UNSET
+			iface.GetEthernet().DuplexMode = oc.Ethernet_DuplexMode_UNSET
+			iface.GetEthernet().EnableFlowControl = nil
 		}
 	}
 
@@ -815,7 +961,30 @@ func (op rootOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root, _ *p
 		setEthernetFromBase(t, op.base, config)
 	}
 	fptest.WriteQuery(t, "RootOp", gnmi.OC().Config(), config)
-	gnmi.Replace(t, dev, gnmi.OC().Config(), config)
+	dut := ondatra.DUT(t, "dut")
+	if deviations.AddMissingBaseConfigViaCli(dut) {
+		running := showRunningConfig(t, dut)
+		//editing config while removing NI and interface since it will be part of another replace call
+		data := "hostname " + strings.Split(running, "hostname ")[1]
+		modifiedStr := strings.Replace(data, "\r\n", "\n", -1)
+		// remove interface config from the running configure
+		fileString := removeStatementsBetweenWords(modifiedStr, "interface ", "!", &Options{interfaces: []string{"HundredGigE", "FourHundredGigE", "TenGigE", "Bundle-Ether", "Loopback", "MgmtEth0", "FortyGigE", "PTP0/RP"}})
+		// remove router static config from the running config
+		fileString = removeStatementsBetweenWords(fileString, "router static ", "!")
+		// delete unwanted NI
+		fileString = removeStatementsBetweenWords(fileString, "vrf BLUE", "!")
+
+		cliPath, err := schemaless.NewConfig[string]("", "cli")
+		if err != nil {
+			t.Fatalf("Failed to create CLI ygnmi query: %v", err)
+		}
+		batch := &gnmi.SetBatch{}
+		gnmi.BatchReplace(batch, cliPath, fileString)
+		gnmi.BatchReplace(batch, gnmi.OC().Config(), config)
+		batch.Set(t, dev)
+	} else {
+		gnmi.Replace(t, dev, gnmi.OC().Config(), config)
+	}
 }
 
 // containerOp pushes config using replace of containers of lists directly under root in
@@ -911,3 +1080,40 @@ type NetworkInstances struct {
 }
 
 func (*NetworkInstances) IsYANGGoStruct() {}
+
+func removeStatementsBetweenWords(inputStr, startWord, endWord string, opts ...*Options) string {
+	lines := strings.Split(inputStr, "\n")
+	result := []string{}
+	betweenWords := false
+	var start bool
+	for _, line := range lines {
+		if strings.HasPrefix(line, startWord) {
+			if len(opts) != 0 {
+				for _, opt := range opts {
+					for _, intf := range opt.interfaces {
+						if strings.Contains(line, intf) {
+							start = true
+							betweenWords = true
+							continue
+						}
+					}
+				}
+			} else {
+				start = true
+				betweenWords = true
+				continue
+			}
+		}
+		if strings.HasPrefix(line, endWord) {
+			betweenWords = false
+			if start == true {
+				start = false
+				continue
+			}
+		}
+		if !betweenWords {
+			result = append(result, line)
+		}
+	}
+	return strings.Join(result, "\n")
+}

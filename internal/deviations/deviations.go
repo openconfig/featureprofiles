@@ -625,3 +625,28 @@ func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
 func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
+
+// SkipContainerOp returns true if gNMI container OP needs to be skipped.
+func SkipContainerOp(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipContainerOp()
+}
+
+// DontSetEthernetFromState returns true if ethernet value doesn't need to be set.
+func DontSetEthernetFromState(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDontSetEthernetFromState()
+}
+
+// SetSubinterfaceNil returns true if subinterface is set to nil.
+func SetSubinterfaceNil(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetSubinterfaceNil()
+}
+
+// ReorderCallsForVendorCompatibilty returns true if call needs to be updated/added/deleted.
+func ReorderCallsForVendorCompatibilty(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetReorderCallsForVendorCompatibilty()
+}
+
+// AddMissingBaseConfigViaCli returns true if missing base config needs to be added using CLI.
+func AddMissingBaseConfigViaCli(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAddMissingBaseConfigViaCli()
+}

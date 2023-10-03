@@ -339,6 +339,16 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
+    // Skip gNMI container OP tc.
+    bool skip_container_op = 113;
+    // Set ethernet from state.
+    bool dont_set_ethernet_from_state = 114;
+    // Set subinterface to nil.
+    bool set_subinterface_nil = 115;
+    // Reorder calls for vendor compatibility.
+    bool reorder_calls_for_vendor_compatibilty = 116;
+    // Add missing base config using cli.
+    bool add_missing_base_config_via_cli = 117;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
