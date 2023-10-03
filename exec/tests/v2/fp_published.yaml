@@ -235,7 +235,6 @@ tests:
     priority: 5
     mustpass: true
     timeout: 7200
-    pr: 2126
   - name: P4RT-5.1 (Traceroute Packetin)
     path: feature/experimental/p4rt/otg_tests/traceroute_packetin_test
     owners:
@@ -326,6 +325,8 @@ tests:
     mustpass: true
     pr: 2087
     priority: 34
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
     owners:
@@ -500,6 +501,8 @@ tests:
     args:
       - '-arg_temp_sensor_name_pattern="^[0-9]/RP[0-9]/CPU[0-9].*TEMP.*"'
       - '-arg_switchchip_name_pattern="^[0-9]/[0-9]/CPU[0-9]-NPU[0-9]"'
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: gNOI-3.3 (Supervisor Switchover)
     path: feature/gnoi/system/tests/supervisor_switchover_test
     owners:
@@ -611,7 +614,8 @@ tests:
     path: feature/system/gnmi/set/tests/gnmi_set_test
     owners:
       - mbagherz
-    mustpass: false
+    mustpass: true
+    pr: 2202
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
@@ -632,6 +636,8 @@ tests:
     mustpass: true
     timeout: 2400
     pr: 2071
+
+  #?
   - name: Health-1.1 (Generic Health Check)
     path: feature/experimental/system/health/tests/system_generic_health_check
     owners:
@@ -644,6 +650,51 @@ tests:
     mustpass: false
   - name: TE-9 (gRIBI MPLS Compliance)
     path: feature/gribi/otg_tests/mpls_compliance
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-1.10 (BGP Keepalive and HoldTimer Configuration Test)
+    path: feature/bgp/timers/otg_tests/bgp_keepalive_and_holdtimer_configuration_test
+    owners:
+      - mananpat
+    mustpass: true
+  - name: RT-1.23 (BGP AFI SAFI OC DEFAULTS)
+    path: feature/experimental/bgp/otg_tests/bgp_afi_safi_defaults
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-1.24 (BGP 2-Byte and 4-Byte ASN support with policy)
+    path: feature/experimental/bgp/ate_tests/bgp_2byte_4byte_asn_policy_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.7 (IS-IS Passive is enabled at interface level)
+    path: feature/experimental/isis/otg_tests/isis_interface_passive_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.8 (IS-IS metric style wide not enabled)
+    path: feature/experimental/isis/otg_tests/isis_metric_style_wide_not_enabled_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.9 (IS-IS metric style wide enabled)
+    path: feature/experimental/isis/otg_tests/isis_metric_style_wide_enabled_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.10 (IS-IS change LSP lifetime)
+    path: feature/experimental/isis/otg_tests/isis_change_lsp_lifetime_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.11 (IS-IS Passive is enabled at the area level)
+    path: feature/experimental/isis/otg_tests/isis_interface_level_passive_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: TUN-1.9 (GRE inner packet DSCP)
+    path: feature/experimental/tunnel/otg_tests/tunnel_acl_based_test
     owners:
       - mananpat
     mustpass: false
