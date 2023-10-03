@@ -325,6 +325,8 @@ tests:
     mustpass: true
     pr: 2087
     priority: 34
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
     owners:
@@ -499,6 +501,8 @@ tests:
     args:
       - '-arg_temp_sensor_name_pattern="^[0-9]/RP[0-9]/CPU[0-9].*TEMP.*"'
       - '-arg_switchchip_name_pattern="^[0-9]/[0-9]/CPU[0-9]-NPU[0-9]"'
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: gNOI-3.3 (Supervisor Switchover)
     path: feature/gnoi/system/tests/supervisor_switchover_test
     owners:
