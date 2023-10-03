@@ -610,7 +610,8 @@ tests:
     path: feature/system/gnmi/set/tests/gnmi_set_test
     owners:
       - mbagherz
-    mustpass: false
+    mustpass: true
+    pr: 2202
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
