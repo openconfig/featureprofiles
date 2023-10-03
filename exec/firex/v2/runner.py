@@ -243,7 +243,7 @@ def _is_ixia_failure(suite):
     failures = suite.findall("./testcase/failure")
     for f in failures:
         message = f.attrib.get("message", "")
-        if "" in message:
+        if "PushConfig(t)" in message:
             return True
     return False
     
@@ -537,7 +537,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
             shutil.copyfile(xml_results_file, xunit_results_filepath)
             if suite.attrib['failures'] != '0':
                 if _is_ixia_failure(suite):
-                    self.enqueue_child_and_get_results(ReleaseIxiaPorts.s(reserved_testbed=reserved_testbed))
+                    self.enqueue_child_and_get_results(ReleaseIxiaPorts.s(ws=ws,reserved_testbed=reserved_testbed))
                     raise IxiaError
                 if collect_debug_files:
                     self.enqueue_child(CollectDebugFiles.s(
