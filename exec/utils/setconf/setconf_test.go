@@ -52,7 +52,7 @@ func TestSetConf(t *testing.T) {
 		setRequest.Replace = []*gnmi.Update{updateRequest}
 	}
 
-	gnmiClient := dut.RawAPIs().GNMI().New(t)
+	gnmiClient := dut.RawAPIs().GNMI(t)
 	if _, err := gnmiClient.Set(ctx, setRequest); err != nil {
 		t.Fatalf("gNMI set request failed: %v", err)
 	}

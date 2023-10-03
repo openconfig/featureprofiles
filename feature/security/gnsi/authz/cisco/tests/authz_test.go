@@ -496,7 +496,7 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	ctx := context.Background()
 	proc := findProcessByName(ctx, t, dut, pName)
 	pid := uint32(proc.GetPid())
-	killResponse, err := dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: pName, Pid: pid, Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
+	killResponse, err := dut.RawAPIs().GNOI(t).System().KillProcess(context.Background(), &gnps.KillProcessRequest{Name: pName, Pid: pid, Restart: true, Signal: gnps.KillProcessRequest_SIGNAL_TERM})
 	t.Logf("Got kill process response: %v\n\n", killResponse)
 	if err != nil {
 		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
@@ -536,7 +536,7 @@ func TestHAFailOverInSteadyState(t *testing.T) {
 	t.Logf("Authz Policy of the Device %s before the Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
 
 	// Trigger Section
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	rebootRequest := &gnps.RebootRequest{
 		Method: gnps.RebootMethod_COLD,
 		Force:  true,
@@ -615,7 +615,7 @@ func TestHAFailOverDuringRotate(t *testing.T) {
 	// Trigger Section
 	// Simulate a RP failover by closing the stream.
 	rotateStream.CloseSend()
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	rebootRequest := &gnps.RebootRequest{
 		Method: gnps.RebootMethod_COLD,
 		Force:  true,

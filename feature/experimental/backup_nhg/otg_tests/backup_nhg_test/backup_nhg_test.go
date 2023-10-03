@@ -183,8 +183,8 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 
 	tcArgs.configureBackupNextHopGroup(t, false)
 
-	baselineFlow := tcArgs.createFlow("Baseline Path Flow", ateTop, &atePort2)
-	backupFlow := tcArgs.createFlow("Backup Path Flow", ateTop, &atePort3)
+	baselineFlow := tcArgs.createFlow("Baseline_Path_Flow", ateTop, &atePort2)
+	backupFlow := tcArgs.createFlow("Backup_Path_Flow", ateTop, &atePort3)
 	backupIPIPFlow := tcArgs.createIPIPFlow("Backup IP Over IP Path Flow", ateTop, &atePort3)
 	tcArgs.ate.OTG().PushConfig(t, ateTop)
 	tcArgs.ate.OTG().StartProtocols(t)
@@ -194,22 +194,34 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 		applyImpairmentFn  func()
 		removeImpairmentFn func()
 	}{
-		// Disabling otg / kne ports has no effect
-		// {
-		// 	desc: "Disable ATE port-2",
-		// 	applyImpairmentFn: func() {
-		// 		ateP2 := ate.Port(t, "port2")
-		// 		dutP2 := dut.Port(t, "port2")
-		// 		ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(false).Send(t)
-		// 		dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
-		// 	},
-		// 	removeImpairmentFn: func() {
-		// 		ateP2 := ate.Port(t, "port2")
-		// 		dutP2 := dut.Port(t, "port2")
-		// 		ate.Actions().NewSetPortState().WithPort(ateP2).WithEnabled(true).Send(t)
-		// 		dut.Telemetry().Interface(dutP2.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
-		// 	},
-		// },
+		{
+			desc: "Disable ATE port-2",
+			applyImpairmentFn: func() {
+				ateP2 := ate.Port(t, "port2")
+				dutP2 := dut.Port(t, "port2")
+				if deviations.ATEPortLinkStateOperationsUnsupported(tcArgs.ate) {
+					gnmi.Replace(t, dut, gnmi.OC().Interface(dutP2.Name()).Enabled().Config(), false)
+					gnmi.Await(t, dut, gnmi.OC().Interface(dutP2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
+				} else {
+					portStateAction := gosnappi.NewControlState()
+					portStateAction.Port().Link().SetPortNames([]string{ateP2.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+					tcArgs.ate.OTG().SetControlState(t, portStateAction)
+				}
+			},
+			removeImpairmentFn: func() {
+				ateP2 := ate.Port(t, "port2")
+				dutP2 := dut.Port(t, "port2")
+				if deviations.ATEPortLinkStateOperationsUnsupported(tcArgs.ate) {
+					gnmi.Replace(t, dut, gnmi.OC().Interface(dutP2.Name()).Enabled().Config(), true)
+					gnmi.Await(t, dut, gnmi.OC().Interface(dutP2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+				} else {
+					portStateAction := gosnappi.NewControlState()
+					portStateAction.Port().Link().SetPortNames([]string{ateP2.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+					tcArgs.ate.OTG().SetControlState(t, portStateAction)
+					otgutils.WaitForARP(t, ate.OTG(), tcArgs.ateTop, "IPv4")
+				}
+			},
+		},
 		{
 			desc: "Disable DUT port-2",
 			applyImpairmentFn: func() {
@@ -357,8 +369,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
 func (a *testArgs) createFlow(name string, ateTop gosnappi.Config, dst *attrs.Attributes) string {
 
-	modName := strings.Replace(name, " ", "_", -1)
-	flowipv4 := ateTop.Flows().Add().SetName(modName)
+	flowipv4 := ateTop.Flows().Add().SetName(name)
 	flowipv4.Metrics().SetEnable(true)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
@@ -367,7 +378,7 @@ func (a *testArgs) createFlow(name string, ateTop gosnappi.Config, dst *attrs.At
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().SetValue(dstPfx)
 
-	return modName
+	return flowipv4.Name()
 }
 
 // createIPIPFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.

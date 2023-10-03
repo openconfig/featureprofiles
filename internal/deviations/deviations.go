@@ -505,12 +505,6 @@ func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipFabricCardPowerAdmin()
 }
 
-// ComponentPowerDownReturnsInactiveState returns whether the device should allow the component power Down state inactive.
-// Default value is false and expected component power down state is shutdown.
-func ComponentPowerDownReturnsInactiveState(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetComponentPowerDownReturnsInactiveState()
-}
-
 // ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
 // the same ISIS Metrics for Level 1 when configuring Level 2 Metrics.
 func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
@@ -601,4 +595,16 @@ func ISISCounterManualAddressDropFromAreasUnsupported(dut *ondatra.DUTDevice) bo
 // support telemetry for isis system-level-counter part-changes.
 func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
+}
+
+// TransceiverThresholdsUnsupported returns true if the device does not support threshold container under /components/component/transceiver.
+// Default value is false.
+func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverThresholdsUnsupported()
+}
+
+// InterfaceLoopbackModeRawGnmi returns true if interface loopback mode needs to be updated using raw gnmi API due to server version.
+// Default value is false.
+func InterfaceLoopbackModeRawGnmi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceLoopbackModeRawGnmi()
 }

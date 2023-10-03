@@ -1196,7 +1196,7 @@ func testEntryProgrammingPacketInWithGNOI(ctx context.Context, t *testing.T, arg
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
-	gnoi := args.dut.RawAPIs().GNOI().Default(t)
+	gnoi := args.dut.RawAPIs().GNOI(t)
 
 	gnoi.System().Traceroute(ctx, &spb.TracerouteRequest{
 		Destination: atePort1.IPv4,

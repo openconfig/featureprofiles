@@ -1076,7 +1076,7 @@ func TestForwardingUnviableFP(t *testing.T) {
 	})
 
 	t.Run("Reload the router and check for counters", func(t *testing.T) {
-		gnoiClient := dut.RawAPIs().GNOI().New(t)
+		gnoiClient := dut.RawAPIs().GNOI(t)
 		_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 			Method:  spb.RebootMethod_COLD,
 			Delay:   0,

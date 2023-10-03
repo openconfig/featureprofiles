@@ -30,6 +30,6 @@ func TestMain(m *testing.M) {
 
 func TestEmsdRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	dut.RawAPIs().GNOI().Default(t).System().KillProcess(context.Background(), &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
+	dut.RawAPIs().GNOI(t).System().KillProcess(context.Background(), &system.KillProcessRequest{Name: "emsd", Restart: true, Signal: system.KillProcessRequest_SIGNAL_TERM})
 	time.Sleep(30 * time.Second)
 }
