@@ -36,6 +36,7 @@ import (
 )
 
 const (
+	pktDropTolerance = 10
 	ipv4PrefixLen    = 30
 	ipv6PrefixLen    = 126
 	dstPfx           = "203.0.113.1/32"
@@ -458,16 +459,24 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, outPorts []*o
 
 	// Check if traffic restores with in expected time in milliseconds during interface shut
 	// else if there is no interface trigger, validate received packets (control+data) are more than send packets
+	diff := pktDiff(sentPkts, receivedPkts)
 	if len(shutPorts) > 0 {
 		// Time took for traffic to restore in milliseconds after trigger
-		fpm := ((sentPkts - receivedPkts) / (fps / 1000))
+		fpm := (diff / (fps / 1000))
 		if fpm > switchovertime {
 			t.Errorf("Traffic loss %v msecs more than expected %v msecs", fpm, switchovertime)
 		}
 		t.Logf("Traffic loss during path change : %v msecs", fpm)
-	} else if sentPkts > receivedPkts {
+	} else if diff > pktDropTolerance {
 		t.Error("Traffic didn't switch to the expected outgoing port")
 	}
+}
+
+func pktDiff(sent, recveived uint64) uint64 {
+	if sent > recveived {
+		return sent - recveived
+	}
+	return recveived - sent
 }
 
 // flapinterface shut/unshut interface, action true bringsup the interface and false brings it down
