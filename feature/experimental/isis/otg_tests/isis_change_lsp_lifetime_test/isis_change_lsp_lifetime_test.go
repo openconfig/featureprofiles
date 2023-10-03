@@ -188,7 +188,6 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 			if got, want := isis.GetLevel(2).GetLsp(ateLspID).GetTlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).GetIpv6Reachability().GetPrefix(v6Route).GetPrefix(), v6Route; got != want {
 				t.Errorf("FAIL- Expected v6 route not found in isis, got %v, want %v", got, want)
 			}
-			time.Sleep(time.Second * 10)
 			if got, want := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route).State()).GetPrefix(), v4Route; got != want {
 				t.Errorf("FAIL- Expected v4 route not found in aft, got %v, want %v", got, want)
 			}
