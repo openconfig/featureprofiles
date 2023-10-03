@@ -347,6 +347,10 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(p2.Name())
 
+		if deviations.ReorderCallsForVendorCompatibilty(dut) {
+			op.push(t, dut, config, scope)
+		}
+
 		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
 		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 
