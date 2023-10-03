@@ -39,7 +39,7 @@ import (
 
 var (
 	// These flags skip unwanted test cases that can speed up development or debugging.
-	skipRootOp      = flag.Bool("skip_root_op", true, "Skip RootOp test cases.")
+	skipRootOp      = flag.Bool("skip_root_op", false, "Skip RootOp test cases.")
 	skipContainerOp = flag.Bool("skip_container_op", false, "Skip ContainerOp test cases.")
 	skipItemOp      = flag.Bool("skip_item_op", false, "Skip ItemOp test cases.")
 
