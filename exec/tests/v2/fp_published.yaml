@@ -632,6 +632,8 @@ tests:
     mustpass: true
     timeout: 2400
     pr: 2071
+
+  #?
   - name: Health-1.1 (Generic Health Check)
     path: feature/experimental/system/health/tests/system_generic_health_check
     owners:
@@ -644,6 +646,51 @@ tests:
     mustpass: false
   - name: TE-9 (gRIBI MPLS Compliance)
     path: feature/gribi/otg_tests/mpls_compliance
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-1.10 (BGP Keepalive and HoldTimer Configuration Test)
+    path: feature/bgp/timers/otg_tests/bgp_keepalive_and_holdtimer_configuration_test
+    owners:
+      - mananpat
+    mustpass: true
+  - name: RT-1.23 (BGP AFI SAFI OC DEFAULTS)
+    path: feature/experimental/bgp/otg_tests/bgp_afi_safi_defaults
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-1.24 (BGP 2-Byte and 4-Byte ASN support with policy)
+    path: feature/experimental/bgp/ate_tests/bgp_2byte_4byte_asn_policy_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.7 (IS-IS Passive is enabled at interface level)
+    path: feature/experimental/isis/otg_tests/isis_interface_passive_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.8 (IS-IS metric style wide not enabled)
+    path: feature/experimental/isis/otg_tests/isis_metric_style_wide_not_enabled_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.9 (IS-IS metric style wide enabled)
+    path: feature/experimental/isis/otg_tests/isis_metric_style_wide_enabled_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.10 (IS-IS change LSP lifetime)
+    path: feature/experimental/isis/otg_tests/isis_change_lsp_lifetime_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.11 (IS-IS Passive is enabled at the area level)
+    path: feature/experimental/isis/otg_tests/isis_interface_level_passive_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: TUN-1.9 (GRE inner packet DSCP)
+    path: feature/experimental/tunnel/otg_tests/tunnel_acl_based_test
     owners:
       - mananpat
     mustpass: false
