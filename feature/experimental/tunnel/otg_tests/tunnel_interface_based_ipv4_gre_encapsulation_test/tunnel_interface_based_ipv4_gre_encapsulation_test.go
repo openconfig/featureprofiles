@@ -17,17 +17,13 @@ package tunnel_interface_based_ipv4_gre_encapsulation_test
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
-	"os"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -35,439 +31,191 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygot/ygot"
+)
+
+const (
+	tunnelNhIpv4Network      = "198.18.1.0"
+	tunnelSrcIpv4Network     = "198.18.2.0"
+	tunnelDesIpv4Network     = "198.18.32.0"
+	encapInnerDesIpv4Network = "198.18.100.1"
+	decapInnerDesIpv4Network = "198.18.200.1"
+	tunnelPlen4              = 31
+	plen4                    = 32
+	interfacePlen4           = 24
+	tunnelCount              = 32
+	tunnelInterface          = "fti0"
+	trafficRatePps           = 5000
+	trafficDuration          = 120
+	tolerance                = 5
+)
+
+var (
+	dutIntf1 = attrs.Attributes{
+		Desc:    "dutsrc",
+		MAC:     "00:00:a1:a1:a1:a1",
+		IPv4:    "198.18.0.1",
+		IPv4Len: interfacePlen4,
+	}
+
+	dutIntf2 = attrs.Attributes{
+		Desc:    "dutdst1",
+		MAC:     "00:00:b1:b1:b1:b1",
+		IPv4:    "198.18.3.1",
+		IPv4Len: interfacePlen4,
+	}
+
+	dutIntf3 = attrs.Attributes{
+		Desc:    "dutdst2",
+		MAC:     "00:00:c1:c1:c1:c1",
+		IPv4:    "198.18.4.1",
+		IPv4Len: interfacePlen4,
+	}
+
+	otgIntf1 = attrs.Attributes{
+		Name:    "otgsrc",
+		IPv4:    "198.18.0.2",
+		IPv4Len: interfacePlen4,
+		MAC:     "00:00:01:01:01:01",
+	}
+
+	otgIntf2 = attrs.Attributes{
+		Name:    "otgdst1",
+		IPv4:    "198.18.3.2",
+		IPv4Len: interfacePlen4,
+		MAC:     "00:00:02:02:02:02",
+	}
+
+	otgIntf3 = attrs.Attributes{
+		Name:    "otgdst2",
+		IPv4:    "198.18.4.2",
+		IPv4Len: interfacePlen4,
+		MAC:     "00:00:03:03:03:03",
+	}
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-const (
-	ipv4PrefixLen     = 24
-	pps               = 100
-	aclName           = "f1"
-	termName          = "t1"
-	count             = "GreFilterCount"
-	greTunnelEndpoint = "TunnelEncapIpv4"
-	greSrcAddr        = "198.51.100.1"
-	greDstAddr        = "203.0.113.1/32"
-	dscp              = 8
-	greprotocol       = 47
-	plenIPv4          = 30
-	tolerance         = 50
-	lossTolerance     = 2
-	prefix            = "0.0.0.0/0"
-	nexthop           = "192.0.2.6"
-)
-
-type parameters struct {
-	rtIntf1Ipv4Add  string
-	rtIntf2Ipv4Add  string
-	rtIntf5Ipv4Add  string
-	rtIntf6Ipv4Add  string
-	rtIntf1MacAdd   string
-	rtIntf2MacAdd   string
-	rtIntf5MacAdd   string
-	rtIntf6MacAdd   string
-	r0Intf1Ipv4Add  string
-	r0Intf2Ipv4Add  string
-	r0Intf3Ipv4Add  string
-	r0Intf4Ipv4Add  string
-	r0Fti0Ipv4Add   string
-	r0Fti1Ipv4Add   string
-	r0Fti2Ipv4Add   string
-	r0Fti3Ipv4Add   string
-	r0Fti4Ipv4Add   string
-	r0Fti5Ipv4Add   string
-	r0Fti6Ipv4Add   string
-	r0Fti7Ipv4Add   string
-	r0Lo0Ut0Ipv4Add string
-	r1Intf5Ipv4Add  string
-	r1Intf6Ipv4Add  string
-	r1Intf3Ipv4Add  string
-	r1Intf4Ipv4Add  string
-	r1Fti0Ipv4Add   string
-	r1Fti1Ipv4Add   string
-	r1Fti2Ipv4Add   string
-	r1Fti3Ipv4Add   string
-	r1Fti4Ipv4Add   string
-	r1Fti5Ipv4Add   string
-	r1Fti6Ipv4Add   string
-	r1Fti7Ipv4Add   string
-	r1Lo0Ut0Ipv4Add string
-	r1Lo0Ut1Ipv4Add string
-	r1Lo0Ut2Ipv4Add string
-	r1Lo0Ut3Ipv4Add string
-	rtLo0Ut0Ipv4Add string
-	flow1           string
-	flow2           string
-	flow3           string
-	flow4           string
-	trafficDuration uint64
-	trafficRate     uint64
-	ipv4Mask        uint64
-	ipv4FullMask    uint64
-}
-
-func TestFtiTunnels(t *testing.T) {
-	p := &parameters{
-		rtIntf1Ipv4Add:  "198.51.100.2",
-		rtIntf2Ipv4Add:  "198.51.100.3",
-		rtIntf5Ipv4Add:  "198.51.100.5",
-		rtIntf6Ipv4Add:  "198.51.100.6",
-		rtIntf1MacAdd:   "00:00:aa:aa:aa:aa",
-		rtIntf2MacAdd:   "00:00:bb:bb:bb:bb",
-		rtIntf5MacAdd:   "00:00:cc:cc:cc:cc",
-		rtIntf6MacAdd:   "00:00:dd:dd:dd:dd",
-		r0Intf1Ipv4Add:  "198.51.100.1",
-		r0Intf2Ipv4Add:  "198.51.100.4",
-		r0Intf3Ipv4Add:  "198.51.100.7",
-		r0Intf4Ipv4Add:  "198.51.100.8",
-		r0Fti0Ipv4Add:   "198.51.100.9",
-		r0Fti1Ipv4Add:   "198.51.100.10",
-		r0Fti2Ipv4Add:   "198.51.100.11",
-		r0Fti3Ipv4Add:   "198.51.100.12",
-		r0Fti4Ipv4Add:   "198.51.100.13",
-		r0Fti5Ipv4Add:   "198.51.100.14",
-		r0Fti6Ipv4Add:   "198.51.100.15",
-		r0Fti7Ipv4Add:   "198.51.100.16",
-		r0Lo0Ut0Ipv4Add: "198.18.70.1",
-		rtLo0Ut0Ipv4Add: "198.18.70.1",
-
-		ipv4Mask:        24,
-		ipv4FullMask:    32,
-		flow1:           "IPv4-flow1",
-		flow2:           "IPv4-flow2",
-		trafficDuration: 60,
-		trafficRate:     1000,
-	}
-
-	dut1 := ondatra.DUT(t, "dut")
-	d1p1 := dut1.Port(t, "port1")
-	d1p2 := dut1.Port(t, "port2")
-	d1p3 := dut1.Port(t, "port3")
-	d1p4 := dut1.Port(t, "port4")
-
-	rt := ondatra.ATE(t, "ate")
-	rt1 := rt.Port(t, "port1")
-	rt2 := rt.Port(t, "port2")
-	rt3 := rt.Port(t, "port3")
-
-	t.Run("Configure DUT ", func(t *testing.T) {
-		configureTunnelEncapDUT(t, p, dut1, d1p1, d1p2, d1p3, d1p4)
-	})
-
-	t.Run("Configure 32 tunnel interface on DUT ", func(t *testing.T) {
-		newSourceIP := p.r0Lo0Ut0Ipv4Add
-		newDestinationIP := p.rtLo0Ut0Ipv4Add
-		for unit := range [32]int32{} {
-			newSourceIP = nextIP(newSourceIP)
-			newDestinationIP = nextIP(newDestinationIP)
-			configureTunnelInterface(t, unit, newSourceIP, newDestinationIP, dut1)
-		}
-	})
-
-	//configure Network Instance for both dut
-	t.Run("Configure routing instance on dut1 and dut2", func(t *testing.T) {
-		configureNetworkInstance(t, dut1)
-	})
-
-	// underylay IPv4 static route to reach tunnel-destination at dut1
-	t.Run("Configure underlay IPv4 static routes on dut1", func(t *testing.T) {
-		ipv4Destination1 := calculateNetworkAddress(t, p.r1Lo0Ut0Ipv4Add, int(p.ipv4Mask))
-		ipv4Destination2 := calculateNetworkAddress(t, p.r1Lo0Ut1Ipv4Add, int(p.ipv4Mask))
-		ipv4Destination3 := calculateNetworkAddress(t, p.r1Lo0Ut2Ipv4Add, int(p.ipv4Mask))
-		ipv4Destination4 := calculateNetworkAddress(t, p.r1Lo0Ut3Ipv4Add, int(p.ipv4Mask))
-		// underlay static route Nexthops
-		underlayIPv4NextHopDut1 := []string{p.r1Intf3Ipv4Add, p.r1Intf4Ipv4Add}
-		for i, nextHop := range underlayIPv4NextHopDut1 {
-			t.Logf("configuring static route in %s destination %s with next-hop %s", dut1, ipv4Destination1, nextHop)
-			configIPv4StaticRoute(t, dut1, ipv4Destination1, nextHop, strconv.Itoa(i))
-			t.Logf("configuring static route in %s destination %s with next-hop %s", dut1, ipv4Destination2, nextHop)
-			configIPv4StaticRoute(t, dut1, ipv4Destination2, nextHop, strconv.Itoa(i))
-			t.Logf("configuring static route in %s destination %s with next-hop %s", dut1, ipv4Destination3, nextHop)
-			configIPv4StaticRoute(t, dut1, ipv4Destination3, nextHop, strconv.Itoa(i))
-			t.Logf("configuring static route in %s destination %s with next-hop %s", dut1, ipv4Destination4, nextHop)
-			configIPv4StaticRoute(t, dut1, ipv4Destination4, nextHop, strconv.Itoa(i))
-		}
-	})
-
-	t.Run("Telemetry: Verify all tunnel interfaces oper-state", func(t *testing.T) {
-		const want = oc.Interface_OperStatus_UP
-		for unit := range [32]int32{} {
-			if got := gnmi.Get(t, dut1, gnmi.OC().Interface("fti0").Subinterface(uint32(unit)).OperStatus().State()); got != want {
-				t.Errorf("device %s interface %d oper-status got %v, want %v", dut1, unit, got, want)
-			} else {
-				t.Logf("device %s interface %d oper-status got %v", dut1, unit, got)
+func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	dutPort1 := dut.Port(t, "port1")
+	dutPort2 := dut.Port(t, "port2")
+	dutPort3 := dut.Port(t, "port3")
+	ate := ondatra.ATE(t, "ate")
+	ateport1 := ate.Port(t, "port1")
+	ateport2 := ate.Port(t, "port2")
+	ateport3 := ate.Port(t, "port3")
+	egressInterfaces := []string{dutPort2.Name(), dutPort3.Name()}
+	initialEgressPkts := make([]uint64, tunnelCount)
+	initialTunnelInPkts := make([]uint64, tunnelCount)
+	initialTunnelOutPkts := make([]uint64, tunnelCount)
+	tunnelLoadblanceDiff := tunnelCount * 3
+	interfaceLoadblanceDiff := tunnelCount
+	t.Run("Configure dut with 32 tunnel interface with one ingress and 2 egress interface", func(t *testing.T) {
+		configureTunnelBaseOnDUT(t, dut, dutPort1, &dutIntf1)
+		configureTunnelBaseOnDUT(t, dut, dutPort2, &dutIntf2)
+		configureTunnelBaseOnDUT(t, dut, dutPort3, &dutIntf3)
+		step := 0
+		var overlayIPv4Nh []string
+		for unit := 0; unit < tunnelCount; unit++ {
+			tunnelSrc := incrementAddress(t, tunnelSrcIpv4Network, unit, "host")
+			tunnelDstNetwork := incrementAddress(t, tunnelDesIpv4Network, unit, "network")
+			tunnelDst := incrementAddress(t, tunnelDstNetwork, 1, "host")
+			tunnelIpv4address := incrementAddress(t, tunnelNhIpv4Network, step, "host")
+			t.Logf("unit : %d tunnel ipv4 address: %s/%d  tunnel source address: %s tunnel destination: %s", unit, tunnelIpv4address, tunnelPlen4, tunnelSrc, tunnelDst)
+			if deviations.TunnelConfigPathUnsupported(dut) {
+				configureTunnelInterface(t, tunnelInterface, unit, tunnelSrc, tunnelDst, tunnelIpv4address, tunnelPlen4, dut)
 			}
+			overlayIPv4Nh = append(overlayIPv4Nh, incrementAddress(t, tunnelIpv4address, 1, "host"))
+			step = step + 2
 		}
 
+		t.Logf("Configure routing instance on dut")
+		configureNetworkInstance(t, dut)
+		t.Logf("Configure IPv4 tunnel destination address reachable via ECMP link")
+		underlayIpv4Nh := []string{otgIntf2.IPv4, otgIntf3.IPv4}
+		for i, nextHop := range underlayIpv4Nh {
+			_, ipv4Destination := fetchNetworkAddress(t, tunnelDesIpv4Network, 19)
+			t.Logf("configuring static route in %s destination %s with next-hop %s", dut, ipv4Destination, nextHop)
+			configIPv4StaticRoute(t, dut, ipv4Destination, nextHop, strconv.Itoa(i))
+		}
+		t.Logf("overlay static route via tunnel for an original IPv4 destination prefix")
+		for i, nextHop := range overlayIPv4Nh {
+			_, ipv4Destination := fetchNetworkAddress(t, encapInnerDesIpv4Network, interfacePlen4)
+			t.Logf("configuring static route in %s destination %s with next-hop %s", dut, ipv4Destination, nextHop)
+			configIPv4StaticRoute(t, dut, ipv4Destination, nextHop, strconv.Itoa(i))
+		}
 	})
-
-	//Configure Overlay Static routes for IPv4 at dut1
-	t.Run("Configure overlay IPv4 static routes on dut1", func(t *testing.T) {
-		ipv4Destination1 := calculateNetworkAddress(t, p.rtIntf5Ipv4Add, int(p.ipv4Mask))
-		ipv4Destination2 := calculateNetworkAddress(t, p.rtIntf6Ipv4Add, int(p.ipv4Mask))
-		// overlay static route Nexthops
-		overlayIPv4NextHopDut1 := []string{p.r1Fti0Ipv4Add, p.r1Fti1Ipv4Add, p.r1Fti2Ipv4Add, p.r1Fti3Ipv4Add, p.r1Fti4Ipv4Add, p.r1Fti5Ipv4Add, p.r1Fti6Ipv4Add, p.r1Fti7Ipv4Add}
-		for i, nextHop := range overlayIPv4NextHopDut1 {
-			t.Logf("configuring static route in %s destination %s with next-hop %s", dut1, ipv4Destination1, nextHop)
-			configIPv4StaticRoute(t, dut1, ipv4Destination1, nextHop, strconv.Itoa(i))
-			t.Logf("configuring static route in %s destination %s with next-hop %s", dut1, ipv4Destination2, nextHop)
-			configIPv4StaticRoute(t, dut1, ipv4Destination2, nextHop, strconv.Itoa(i))
+	t.Run("Configure OTG ports", func(t *testing.T) {
+		top := ate.OTG().NewConfig(t)
+		t.Logf("Start Port/device configuraturation on OTG")
+		configureOtgPorts(top, ateport1, otgIntf1.Name, otgIntf1.MAC, otgIntf1.IPv4, dutIntf1.IPv4, otgIntf1.IPv4Len)
+		configureOtgPorts(top, ateport2, otgIntf2.Name, otgIntf2.MAC, otgIntf2.IPv4, dutIntf2.IPv4, otgIntf2.IPv4Len)
+		configureOtgPorts(top, ateport3, otgIntf3.Name, otgIntf3.MAC, otgIntf3.IPv4, dutIntf3.IPv4, otgIntf3.IPv4Len)
+		ate.OTG().PushConfig(t, top)
+		time.Sleep(30 * time.Second)
+		t.Logf("Start Traffic flow configuraturation in OTG")
+		configureTrafficFlowsToEncasulation(t, top, ateport1, ateport2, ateport3, &otgIntf1, dutIntf1.MAC)
+		t.Logf(top.ToJson())
+		ate.OTG().PushConfig(t, top)
+		ate.OTG().StartProtocols(t)
+		time.Sleep(30 * time.Second)
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	})
+	t.Run("Fetch all the interface status before start traffic ", func(t *testing.T) {
+		initialEgressPkts = fetchEgressInterfacestatsics(t, dut, egressInterfaces)
+		if !deviations.TunnelStatePathUnsupported(dut) {
+			initialTunnelInPkts, initialTunnelOutPkts = fetchTunnelInterfacestatsics(t, dut, tunnelCount)
+		}
+	})
+	t.Run("Incoming traffic flow should be equally distributed for Encapsulation(ECMP) ", func(t *testing.T) {
+		t.Log("Send traffic from OTG Port1 to Port2 and Port3")
+		wantLoss := true
+		sendTraffic(t, ate)
+		flows := []string{"IPv4"}
+		for i, flowName := range flows {
+			t.Logf("Verify flow %d stats", i)
+			verifyTrafficStatistics(t, ate, flowName, wantLoss)
+		}
+	})
+	t.Run("Verify after Encapsulation loadbalance (ECMP) && load balanced to available Tunnel interfaces ", func(t *testing.T) {
+		finalEgressPkts := fetchEgressInterfacestatsics(t, dut, egressInterfaces)
+		t.Logf("Verify Incoming traffic flow should be equally distributed for Encapsulation(ECMP)")
+		verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 2, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
+		if !deviations.TunnelStatePathUnsupported(dut) {
+			finalTunnelInPkts, finalTunnelOutPkts := fetchTunnelInterfacestatsics(t, dut, tunnelCount)
+			t.Logf("Incoming traffic on DUT-PORT1 should be load balanced to available Tunnel interfaces for encapsulation")
+			verifyEcmpLoadBalance(t, initialTunnelOutPkts, finalTunnelOutPkts, 2, int64(tunnelCount), 0, true, tunnelLoadblanceDiff)
+			verifyUnusedTunnelStatistic(t, initialTunnelInPkts, finalTunnelInPkts)
 		}
 	})
 
-	// Send the traffic as mentioned in Tunnel-1.3 and Tunnel-1.4 with TP-1.1 and TP-1.2
-	otg := rt.OTG()
-	var otgConfig gosnappi.Config
-	t.Run("Configure ATE", func(t *testing.T) {
-		t.Logf("Start ATE Config.")
-		otgConfig = configureOTG(t, otg, p)
-	})
-	_ = otgConfig
-
-	wantLoss := false
-	t.Run("Verify load balance and traffic drops with IPv4 flow via 8 tunnel", func(t *testing.T) {
-		t.Log("Verify load balance and traffic drops with IPv4 flow via 8 tunnel")
-		verifyUnderlayOverlayLoadbalanceTest(t, p, dut1, rt, rt, d1p1, d1p2, d1p3, d1p4, rt1, rt2, rt2, rt3, 8, wantLoss)
-	})
-	captureTrafficStats(t, rt, otgConfig)
 }
 
-func configureTunnelInterface(t *testing.T, intf int, tunnelSrc string, tunnelDst string, dut *ondatra.DUTDevice) {
-	t.Helper()
-	t.Logf("Push the IPv4 tunnel endpoint config:\n%s", dut.Vendor())
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		config := configureTunnelCLI(intf, tunnelSrc, tunnelDst)
-		t.Logf("Push the CLI config:\n%s", config)
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		gpbSetRequest := buildCliConfigRequest(config)
-		t.Log("gnmiClient Set CLI config")
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	default:
-		t.Errorf("Invalid Tunnel endpoint configuration")
+func fetchEgressInterfacestatsics(t *testing.T, dut *ondatra.DUTDevice, interfaceSlice []string) []uint64 {
+	egressStats := make([]uint64, len(interfaceSlice))
+	for i, intf := range interfaceSlice {
+		egressStats[i] = gnmi.Get(t, dut, gnmi.OC().Interface(intf).Counters().OutUnicastPkts().State())
 	}
+	t.Log("Egress interface Out pkts stats:", egressStats)
+	return egressStats
 }
-
-// Configure network instance
-func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-}
-
-func calculateNetworkAddress(t *testing.T, address string, mask int) string {
-	addr := net.ParseIP(address)
-	var network net.IP
-	// This mask corresponds to a /24 subnet for IPv4.
-	ipv4Mask := net.CIDRMask(mask, 32)
-	network = addr.Mask(ipv4Mask)
-	return fmt.Sprintf("%s/%d", network, mask)
-}
-
-func configIPv4StaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string) {
-	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop(index)
-	nh.NextHop = oc.UnionString(nexthop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
-}
-
-func configureOTG(t *testing.T, otg *otg.OTG, p *parameters) gosnappi.Config {
-	//  NewConfig creates a new OTG config.
-	config := otg.NewConfig(t)
-	// Add ports to config.
-	port1 := config.Ports().Add().SetName("port1")
-	port2 := config.Ports().Add().SetName("port2")
-	port3 := config.Ports().Add().SetName("port5")
-	port4 := config.Ports().Add().SetName("port6")
-
-	//port1
-	iDut1Dev := config.Devices().Add().SetName("port1")
-	iDut1Eth := iDut1Dev.Ethernets().Add().SetName("port1" + ".Eth").SetMac(p.rtIntf1MacAdd)
-	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
-	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName("port1" + ".IPv4")
-	iDut1Ipv4.SetAddress(p.rtIntf1Ipv4Add).SetGateway(p.r0Intf1Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
-
-	//port2
-	iDut2Dev := config.Devices().Add().SetName("port2")
-	iDut2Eth := iDut2Dev.Ethernets().Add().SetName("port2" + ".Eth").SetMac(p.rtIntf2MacAdd)
-	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
-	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName("port2" + ".IPv4")
-	iDut2Ipv4.SetAddress(p.rtIntf2Ipv4Add).SetGateway(p.r0Intf2Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
-
-	//port5
-	iDut3Dev := config.Devices().Add().SetName("port5")
-	iDut3Eth := iDut3Dev.Ethernets().Add().SetName("port5" + ".Eth").SetMac(p.rtIntf5MacAdd)
-	iDut3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port3.Name())
-	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName("port5" + ".IPv4")
-	iDut3Ipv4.SetAddress(p.rtIntf5Ipv4Add).SetGateway(p.r1Intf5Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
-
-	//port6
-	iDut4Dev := config.Devices().Add().SetName("port6")
-	iDut4Eth := iDut4Dev.Ethernets().Add().SetName("port6" + ".Eth").SetMac(p.rtIntf6MacAdd)
-	iDut4Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port4.Name())
-	iDut4Ipv4 := iDut4Eth.Ipv4Addresses().Add().SetName("port6" + ".IPv4")
-	iDut4Ipv4.SetAddress(p.rtIntf6Ipv4Add).SetGateway(p.r1Intf6Ipv4Add).SetPrefix(uint32(p.ipv4Mask))
-
-	t.Logf("Start Ote Traffic config")
-	t.Logf("configure IPv4 flow from %s to %s ", port1.Name(), port3.Name())
-	// Set config flow
-	flow1ipv4 := config.Flows().Add().SetName(p.flow1)
-	flow1ipv4.Metrics().SetEnable(true)
-	// Set source and reciving ports.
-	flow1ipv4.TxRx().Device().
-		SetTxNames([]string{iDut1Ipv4.Name()}).
-		SetRxNames([]string{iDut3Ipv4.Name()})
-	// Flow settings.
-	flow1ipv4.Size().SetFixed(512)
-	flow1ipv4.Rate().SetPps(p.trafficRate)
-	flow1ipv4.Duration().SetChoice("continuous")
-	// Ethernet header
-	f1e1 := flow1ipv4.Packet().Add().Ethernet()
-	f1e1.Src().SetValue(iDut1Eth.Mac())
-	// IP header
-	f1v4 := flow1ipv4.Packet().Add().Ipv4()
-	// V4 source
-	f1v4.Src().Increment().SetStart(iDut1Ipv4.Address()).SetCount(200)
-	// V4 destination
-	f1v4.Dst().SetValue(iDut3Ipv4.Address())
-
-	t.Logf("configure IPv4 flow from %s to %s ", port2.Name(), port4.Name())
-	// Set config flow
-	flow2ipv4 := config.Flows().Add().SetName(p.flow2)
-	flow2ipv4.Metrics().SetEnable(true)
-	// Set source and reciving ports.
-	flow2ipv4.TxRx().Device().
-		SetTxNames([]string{iDut2Ipv4.Name()}).
-		SetRxNames([]string{iDut4Ipv4.Name()})
-	// Flow settings.
-	flow2ipv4.Size().SetFixed(512)
-	flow2ipv4.Rate().SetPps(p.trafficRate)
-	flow2ipv4.Duration().SetChoice("continuous")
-	// Ethernet header
-	f2e1 := flow2ipv4.Packet().Add().Ethernet()
-	f2e1.Src().SetValue(iDut2Eth.Mac())
-	// IP header
-	f2v4 := flow2ipv4.Packet().Add().Ipv4()
-	// V4 source
-	f2v4.Src().Increment().SetStart(iDut2Ipv4.Address()).SetCount(200)
-	// V4 destination
-	f2v4.Dst().SetValue(iDut4Ipv4.Address())
-
-	t.Logf("Pushing Traffic config to ATE and starting protocols...")
-	otg.PushConfig(t, config)
-	time.Sleep(30 * time.Second)
-	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
-	otgutils.WaitForARP(t, otg, config, "IPv4")
-	return config
-}
-
-func verifyUnderlayOverlayLoadbalanceTest(t *testing.T, p *parameters, dut1 *ondatra.DUTDevice, dut2 *ondatra.ATEDevice, rt *ondatra.ATEDevice, d1p1 *ondatra.Port, d1p2 *ondatra.Port, d1p3 *ondatra.Port, d1p4 *ondatra.Port, d2p1 *ondatra.Port, d2p2 *ondatra.Port, d2p3 *ondatra.Port, d2p4 *ondatra.Port, FtiIntfCount uint64, wantLoss bool) {
-	t.Helper()
-	initialInfStats := map[string]uint64{}
-	initialInfStats["dut1InputIntf1InPkts"] = gnmi.Get(t, dut1, gnmi.OC().Interface(d1p1.Name()).Counters().InUnicastPkts().State())
-	initialInfStats["dut1InputIntf2InPkts"] = gnmi.Get(t, dut1, gnmi.OC().Interface(d1p2.Name()).Counters().InUnicastPkts().State())
-	initialInfStats["dut1OutputIntf3OutPkts"] = gnmi.Get(t, dut1, gnmi.OC().Interface(d1p3.Name()).Counters().OutUnicastPkts().State())
-	initialInfStats["dut1OutputIntf4OutPkts"] = gnmi.Get(t, dut1, gnmi.OC().Interface(d1p4.Name()).Counters().OutUnicastPkts().State())
-
-	t.Logf("Initial ingress interface: %v input pkts stats: %d at dut1\n", d1p1, initialInfStats["dut1InputIntf1InPkts"])
-	t.Logf("Initial ingress interface: %v input pkts stats: %d at dut1\n", d1p2, initialInfStats["dut1InputIntf2InPkts"])
-	t.Logf("Initial egress interface: %v output pkts stats: %d at dut1\n", d1p3, initialInfStats["dut1OutputIntf3OutPkts"])
-	t.Logf("Initial egress interface: %v output pkts stats: %d at dut1\n", d1p4, initialInfStats["dut1OutputIntf4OutPkts"])
-	//dut2 interface statistics
-	initialInfStats["dut2InputIntf1InPkts"] = gnmi.Get(t, dut2, gnmi.OC().Interface(d2p1.Name()).Counters().InUnicastPkts().State())
-	initialInfStats["dut2InputIntf2InPkts"] = gnmi.Get(t, dut2, gnmi.OC().Interface(d2p2.Name()).Counters().InUnicastPkts().State())
-	initialInfStats["dut2OutputIntf3OutPkts"] = gnmi.Get(t, dut2, gnmi.OC().Interface(d2p3.Name()).Counters().OutUnicastPkts().State())
-	initialInfStats["dut2OutputIntf4IutPkts"] = gnmi.Get(t, dut2, gnmi.OC().Interface(d2p4.Name()).Counters().OutUnicastPkts().State())
-
-	t.Logf("Initial ingress interface: %v input pkts stats: %d at dut2\n", d2p1, initialInfStats["dut2InputIntf1InPkts"])
-	t.Logf("Initial ingress interface: %v input pkts stats: %d at dut2\n", d2p2, initialInfStats["dut2InputIntf2InPkts"])
-	t.Logf("Initial egress interface: %v output pkts stats: %d at dut2\n", d2p3, initialInfStats["dut2OutputIntf3OutPkts"])
-	t.Logf("Initial egress interface: %v output pkts stats: %d at dut2\n", d2p4, initialInfStats["dut2OutputIntf4IutPkts"])
-
-	// Verify GRE Traffic loss at ATE
-	//rt := ate.OTG()
-	wantDrops := false
-	t.Log("Send and validate traffic from ATE Port1 and Port2")
-	sendTraffic(t, rt, p)
-
-	flows := []string{p.flow1, p.flow2, p.flow3, p.flow4}
-	for i, flowName := range flows {
-		t.Logf("Verify flow %d stats", i)
-		verifyTraffic(t, rt, flowName, wantDrops)
+func fetchTunnelInterfacestatsics(t *testing.T, dut *ondatra.DUTDevice, count int) ([]uint64, []uint64) {
+	tunnelOutStats := make([]uint64, count)
+	tunnelInStats := make([]uint64, count)
+	for i := 0; i < count; i++ {
+		tunnelOutStats[i] = gnmi.Get(t, dut, gnmi.OC().Interface(tunnelInterface).Subinterface(uint32(i)).Counters().OutPkts().State())
+		tunnelInStats[i] = gnmi.Get(t, dut, gnmi.OC().Interface(tunnelInterface).Subinterface(uint32(i)).Counters().InPkts().State())
 	}
-
-	// Incoming traffic flow should be equally distributed for Encapsulation(ECMP)
-	// dut1 interface statistics
-	finalInfStats := map[string]uint64{}
-	finalInfStats["dut1InputIntf1InPkts"] = gnmi.Get(t, dut1, gnmi.OC().Interface(d1p1.Name()).Counters().InUnicastPkts().State())
-	finalInfStats["dut1InputIntf2InPkts"] = gnmi.Get(t, dut1, gnmi.OC().Interface(d1p2.Name()).Counters().InUnicastPkts().State())
-	finalInfStats["dut1OutputIntf3OutPkts"] = gnmi.Get(t, dut1, gnmi.OC().Interface(d1p3.Name()).Counters().OutUnicastPkts().State())
-	finalInfStats["dut1OutputIntf4OutPkts"] = gnmi.Get(t, dut1, gnmi.OC().Interface(d1p4.Name()).Counters().OutUnicastPkts().State())
-
-	t.Logf("After Traffic Test ingress interface: %v input pkts stats: %d at dut1\n", d1p1, finalInfStats["dut1InputIntf1InPkts"])
-	t.Logf("After Traffic Test ingress interface: %v input pkts stats: %d at dut1\n", d1p2, finalInfStats["dut1InputIntf2InPkts"])
-	t.Logf("After Traffic Test egress interface: %v output pkts stats: %d at dut1\n", d1p3, finalInfStats["dut1OutputIntf3OutPkts"])
-	t.Logf("After Traffic Test egress interface: %v output pkts stats: %d at dut1\n", d1p4, finalInfStats["dut1OutputIntf4OutPkts"])
-	//dut2 interface statistics
-	finalInfStats["dut2InputIntf1InPkts"] = gnmi.Get(t, dut2, gnmi.OC().Interface(d2p1.Name()).Counters().InUnicastPkts().State())
-	finalInfStats["dut2InputIntf2InPkts"] = gnmi.Get(t, dut2, gnmi.OC().Interface(d2p2.Name()).Counters().InUnicastPkts().State())
-	finalInfStats["dut2OutputIntf3OutPkts"] = gnmi.Get(t, dut2, gnmi.OC().Interface(d2p3.Name()).Counters().OutUnicastPkts().State())
-	finalInfStats["dut2OutputIntf4IutPkts"] = gnmi.Get(t, dut2, gnmi.OC().Interface(d2p4.Name()).Counters().OutUnicastPkts().State())
-
-	t.Logf("After Traffic Test ingress interface: %v input pkts stats: %d at dut2\n", d2p1, finalInfStats["dut2InputIntf1InPkts"])
-	t.Logf("After Traffic Test ingress interface: %v input pkts stats: %d at dut2\n", d2p2, finalInfStats["dut2InputIntf2InPkts"])
-	t.Logf("After Traffic Test egress interface: %v output pkts stats: %d at dut2\n", d2p3, finalInfStats["dut2OutputIntf3OutPkts"])
-	t.Logf("After Traffic Test egress interface: %v output pkts stats: %d at dut2\n", d2p4, finalInfStats["dut2OutputIntf4IutPkts"])
-
-	// Incoming traffic flow should be equally distributed for Encapsulation(ECMP)
-	t.Logf("Verify Underlay loadbalancing 2 fti tunnel interface - Incoming traffic flow should be equally distributed for Encapsulation(ECMP) ")
-	for key := range finalInfStats {
-		verifyLoadbalance(t, 4, p.trafficRate, p.trafficDuration, 2, uint64(initialInfStats[key]), uint64(finalInfStats[key]))
-	}
+	t.Log("Tunnel In pkts stats:", tunnelInStats)
+	t.Log("Tunnel Out pkts stats:", tunnelOutStats)
+	return tunnelInStats, tunnelOutStats
 }
-
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, p *parameters) {
-	t.Helper()
+func verifyTrafficStatistics(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLoss bool) {
 	otg := ate.OTG()
-	t.Logf("Starting traffic")
-	otg.StartTraffic(t)
-	time.Sleep(time.Duration(p.trafficDuration) * time.Second)
-	t.Logf("Stop traffic")
-	otg.StopTraffic(t)
-}
-
-func verifyLoadbalance(t *testing.T, flowCount uint64, rate uint64, duration uint64, sharingIntfCont uint64, initialStats uint64, finalStats uint64) {
-	t.Helper()
-	tolerance := 5
-	stats := finalStats - initialStats
-	expectedTotalPkts := (flowCount * rate * duration)
-	expectedPerLinkPkts := expectedTotalPkts / sharingIntfCont
-	t.Logf("Total packets %d flow through the %d links", expectedTotalPkts, sharingIntfCont)
-	t.Logf("Expected per link packets %d ", expectedPerLinkPkts)
-	min := expectedPerLinkPkts - (expectedPerLinkPkts * uint64(tolerance) / 100)
-	max := expectedPerLinkPkts + (expectedPerLinkPkts * uint64(tolerance) / 100)
-
-	if min < stats && stats < max {
-		t.Logf("Traffic  %d is in expected range: %d - %d", stats, min, max)
-		t.Logf("Traffic Load balance Test Passed!")
-	} else {
-		t.Errorf("Traffic is expected in range %d - %d but got %d. Load balance Test Failed\n", min, max, stats)
-	}
-}
-
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLoss bool) {
-	t.Helper()
-	otg := ate.OTG()
-	tolerancePct := 5
-	t.Logf("Verifying flow metrics for flow %s\n", flowName)
+	t.Logf("Traffic Loss Test Validation for flow %s\n", flowName)
 	recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).State())
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	t.Logf("Flow: %s transmitted packets: %d !", flowName, txPackets)
@@ -477,173 +225,126 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLo
 	t.Logf("Flow: %s lost packets: %d !", flowName, lostPackets)
 	lossPct := lostPackets * 100 / txPackets
 	t.Logf("Flow: %s packet loss percent : %d !", flowName, lossPct)
-	t.Logf("Traffic Loss Test Validation")
 	if wantLoss {
-		if lossPct < 100-uint64(tolerancePct) {
-			t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", flowName, lossPct)
+		if lossPct > uint64(tolerance) {
+			t.Errorf("Traffic Loss for Flow: %s but got %v, want 0 Failed.", flowName, lossPct)
 		} else {
-			t.Logf("Traffic Loss Test Passed!")
+			t.Logf("No Traffic Loss Test Passed!!")
 		}
 	} else {
-		if lossPct > uint64(tolerancePct) {
-			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", flowName, lossPct)
+		if lossPct < 100-uint64(tolerance) {
+			t.Errorf("Traffic is expected to fail but flow :%s  got %v, want 100%% Failed.", flowName, lossPct)
 		} else {
-			t.Logf("Traffic No Loss Test Passed!")
+			t.Logf("Traffic Loss Test Passed!!")
 		}
 	}
 }
-
-func buildCliConfigRequest(config string) *gpb.SetRequest {
-	// Build config with Origin set to cli and Ascii encoded config.
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{{
-			Path: &gpb.Path{
-				Origin: "cli",
-			},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_AsciiVal{
-					AsciiVal: config,
-				},
-			},
-		}},
-	}
-	return gpbSetRequest
-}
-
-// captureTrafficStats Captures traffic statistics and verifies for the loss
-func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
-	t.Helper()
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	otg := ate.OTG()
-	ap := ate.Port(t, "port1")
-	t.Log("get sent packets from port1 Traffic statistics")
-	aic1 := gnmi.OTG().Port(ap.ID()).Counters()
-	sentPkts := gnmi.Get(t, otg, aic1.OutFrames().State())
-	fptest.LogQuery(t, "ate:port1 counters", aic1.State(), gnmi.Get(t, otg, aic1.State()))
-	op := ate.Port(t, "port2")
-	aic2 := gnmi.OTG().Port(op.ID()).Counters()
-	t.Log("get recieved packets from port2 Traffic statistics")
-	rxPkts := gnmi.Get(t, otg, aic2.InFrames().State())
-	fptest.LogQuery(t, "ate:port2 counters", aic2.State(), gnmi.Get(t, otg, aic2.State()))
-	var lostPkts uint64
-	t.Log("Verify Traffic statistics")
-	if rxPkts > sentPkts {
-		lostPkts = rxPkts - sentPkts
-	} else {
-		lostPkts = sentPkts - rxPkts
-	}
-	t.Logf("Packets: %d sent, %d received, %d lost", sentPkts, rxPkts, lostPkts)
-	if lostPkts > tolerance {
-		t.Errorf("Lost Packets are more than tolerance: %d", lostPkts)
-	} else {
-		t.Log("Traffic Test Passed!")
-	}
-	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(config.Ports().Items()[1].Name()))
-	f, err := os.CreateTemp("", "pcap")
-	if err != nil {
-		t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
-	}
-	if _, err := f.Write(bytes); err != nil {
-		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
-	}
-	f.Close()
-	validatePackets(t, f.Name())
+	t.Logf("Starting traffic")
+	otg.StartTraffic(t)
+	time.Sleep(time.Duration(trafficDuration) * time.Second)
+	t.Logf("Stop traffic")
+	otg.StopTraffic(t)
 }
+func configureOtgPorts(top gosnappi.Config, port *ondatra.Port, name string, mac string, ipv4Address string, ipv4Gateway string, ipv4Mask uint8) {
 
-func validatePackets(t *testing.T, filename string) {
-	t.Helper()
-	handle, err := pcap.OpenOffline(filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	for packet := range packetSource.Packets() {
-		ipLayer := packet.Layer(layers.LayerTypeIPv4)
-		if ipLayer == nil {
-			t.Errorf("IpLayer is null: %d", ipLayer)
-		}
-		ipPacket, _ := ipLayer.(*layers.IPv4)
-		if ipPacket.Protocol != greprotocol {
-			t.Errorf("Packet is not encapslated properly. Encapsulated protocol is: %d", ipPacket.Protocol)
-		}
-	}
+	top.Ports().Add().SetName(port.ID())
+	//port1
+	iDutDev := top.Devices().Add().SetName(name)
+	iDutEth := iDutDev.Ethernets().Add().SetName(name + ".Eth").SetMac(mac)
+	iDutEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port.ID()) //port.Name()
+	iDutIpv4 := iDutEth.Ipv4Addresses().Add().SetName(name + ".IPv4")
+	iDutIpv4.SetAddress(ipv4Address).SetGateway(ipv4Gateway).SetPrefix(uint32(ipv4Mask))
+
 }
+func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port1 *ondatra.Port, port2 *ondatra.Port, port3 *ondatra.Port, peer *attrs.Attributes, destMac string) {
+	t.Logf("configure IPv4 flow from %s ", port1.Name())
+	// Set config flow
+	flow1ipv4 := top.Flows().Add().SetName("IPv4")
+	flow1ipv4.Metrics().SetEnable(true)
+	//TxRx ports
+	flow1ipv4.TxRx().Port().SetTxName(port1.ID()).SetRxNames([]string{port2.ID(), port3.ID()})
+	// Flow settings.
+	flow1ipv4.Size().SetFixed(512)
+	flow1ipv4.Rate().SetPps(trafficRatePps)
+	flow1ipv4.Duration().SetChoice("continuous")
+	// Ethernet header
+	f1e1 := flow1ipv4.Packet().Add().Ethernet()
+	f1e1.Src().SetValue(peer.MAC)
+	f1e1.Dst().SetValue(destMac)
+	// IP header
+	f1v4 := flow1ipv4.Packet().Add().Ipv4()
+	// V4 protocol
+	f1v4.Protocol().SetChoice("value").SetValue(6)
+	// V4 source
+	f1v4.Src().Increment().SetStart(peer.IPv4).SetCount(200)
+	// V4 destination
+	f1v4.Dst().Increment().SetStart(encapInnerDesIpv4Network).SetCount(200)
+	// Add L4 protocol
+	flow1ipv4.Packet().Add().Tcp()
+	// Increment Source port
+	flow1ipv4.Packet().Add().Tcp().SrcPort().Increment().SetStart(3000).SetCount(2000)
+	// Increment destination port
+	flow1ipv4.Packet().Add().Tcp().DstPort().Increment().SetStart(4000).SetCount(2000)
 
-func configureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, dp3 *ondatra.Port, dp4 *ondatra.Port) {
+}
+func fetchNetworkAddress(t *testing.T, address string, mask int) (string, string) {
+	addr := net.ParseIP(address)
+	var network net.IP
+
+	// This mask corresponds to a /24 subnet for IPv4.
+	ipv4Mask := net.CIDRMask(mask, 32)
+	network = addr.Mask(ipv4Mask)
+
+	networkWithMask := fmt.Sprintf("%s/%d", network, mask)
+	networkAlone := fmt.Sprintf("%s", network)
+	//t.Logf("Network address : %s", networkWithMask)
+	return networkAlone, networkWithMask
+}
+func incrementAddress(t *testing.T, address string, i int, part string) string {
+	addr := net.ParseIP(address)
+	IsIPv4 := addr.To4()
+	var oct int
+	if IsIPv4 != nil {
+		if part == "network" {
+			oct = 2
+		} else if part == "host" {
+			oct = 3
+		}
+		for j := 0; j < i; j++ {
+			IsIPv4[oct]++
+		}
+	} else {
+		if part == "network" {
+			oct = 13
+		} else if part == "host" {
+			oct = 15
+		}
+
+		for j := 0; j < i; j++ {
+			addr[oct]++
+		}
+	}
+	return addr.String()
+}
+func configureTunnelBaseOnDUT(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, a *attrs.Attributes) {
 	dutIntfs := []struct {
 		desc     string
 		intfName string
 		ipAddr   string
 		ipv4mask uint8
-	}{{
-		desc:     "R0_ATE1",
-		intfName: dp1.Name(),
-		ipAddr:   p.r0Intf1Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "R0_ATE2",
-		intfName: dp2.Name(),
-		ipAddr:   p.r0Intf2Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "R0_R1_1",
-		intfName: dp3.Name(),
-		ipAddr:   p.r0Intf3Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "R0_R1_2",
-		intfName: dp4.Name(),
-		ipAddr:   p.r0Intf4Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "tunnel0",
-		intfName: "lo0",
-		ipAddr:   p.r0Lo0Ut0Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "tunnel-1",
-		intfName: "fti0",
-		ipAddr:   p.r0Fti0Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "tunnel-2",
-		intfName: "fti1",
-		ipAddr:   p.r0Fti1Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "tunnel-3",
-		intfName: "fti2",
-		ipAddr:   p.r0Fti2Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "tunnel-4",
-		intfName: "fti3",
-		ipAddr:   p.r0Fti3Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "tunnel-5",
-		intfName: "fti4",
-		ipAddr:   p.r0Fti4Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "tunnel-6",
-		intfName: "fti5",
-		ipAddr:   p.r0Fti5Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "tunnel-7",
-		intfName: "fti6",
-		ipAddr:   p.r0Fti6Ipv4Add,
-		ipv4mask: 24,
-	}, {
-		desc:     "tunnel-8",
-		intfName: "fti7",
-		ipAddr:   p.r0Fti7Ipv4Add,
-		ipv4mask: 24,
-	},
+		mac      string
+	}{
+		{
+			desc:     a.Desc,
+			intfName: dp.Name(),
+			ipAddr:   a.IPv4,
+			ipv4mask: a.IPv4Len,
+			mac:      a.MAC,
+		},
 	}
-
-	t.Helper()
+	// Configure the interfaces.
 	for _, intf := range dutIntfs {
 		t.Logf("Configure DUT interface %s with attributes %v", intf.intfName, intf)
 		i := &oc.Interface{
@@ -653,19 +354,38 @@ func configureTunnelEncapDUT(t *testing.T, p *parameters, dut *ondatra.DUTDevice
 			Enabled:     ygot.Bool(true),
 		}
 		// configure ipv4 address
-		i.GetOrCreateEthernet()
+		e := i.GetOrCreateEthernet()
+		e.MacAddress = ygot.String(intf.mac)
 		i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 		a := i4.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.ipv4mask)
-		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 
 	}
 }
+func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc string, tunnelDst string, tunnelIpv4address string, Ipv4Mask int, dut *ondatra.DUTDevice) {
+	// IPv4 tunnel source and destination configuration
+	t.Logf("Push the IPv4 tunnel endpoint config:\n%s", dut.Vendor())
+	var config string
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		config = configureTunnelEndPoints(intf, unit, tunnelSrc, tunnelDst, tunnelIpv4address, Ipv4Mask)
+		t.Logf("Push the CLI config:\n%s", config)
 
-func configureTunnelCLI(tunnelUnit int, tunnelSrc string, tunnelDest string) string {
+	default:
+		t.Errorf("Invalid Tunnel endpoint configuration")
+	}
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	gpbSetRequest := buildCliConfigRequest(config)
+
+	t.Log("gnmiClient Set CLI config")
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+	}
+}
+func configureTunnelEndPoints(intf string, unit int, tunnelSrc string, tunnelDest string, tunnelIpv4address string, Ipv4Mask int) string {
 	return fmt.Sprintf(`
 	interfaces {
-	fti0 {
+	%s {
 		unit %d {
 			tunnel {
 				encapsulation gre {
@@ -677,19 +397,85 @@ func configureTunnelCLI(tunnelUnit int, tunnelSrc string, tunnelDest string) str
 					}
 				}
 			}
+			family inet {
+				address %s/%d;
+			}
 		}
 	}
-	}`, tunnelUnit, tunnelSrc, tunnelDest)
+	}`, intf, unit, tunnelSrc, tunnelDest, tunnelIpv4address, Ipv4Mask)
 }
 
-func nextIP(ip string) string {
-	i := net.ParseIP(ip)
-	ipv4 := i.To4()
-	v := uint(ipv4[0])<<24 + uint(ipv4[1])<<16 + uint(ipv4[2])<<8 + uint(ipv4[3])
-	v += 1
-	v3 := byte(v & 0xFF)
-	v2 := byte((v >> 8) & 0xFF)
-	v1 := byte((v >> 16) & 0xFF)
-	v0 := byte((v >> 24) & 0xFF)
-	return string(net.IPv4(v0, v1, v2, v3))
+func configIPv4StaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string) {
+	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	sr := static.GetOrCreateStatic(prefix)
+	nh := sr.GetOrCreateNextHop(index)
+	nh.NextHop = oc.UnionString(nexthop)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+
+}
+
+func buildCliConfigRequest(config string) *gpb.SetRequest {
+	// Build config with Origin set to cli and Ascii encoded config.
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+	return gpbSetRequest
+}
+func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Logf("Configure routing instance on dut")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+}
+
+func verifyEcmpLoadBalance(t *testing.T, inital []uint64, final []uint64, flowCount int64, sharingIntfCont int64, firstintf int, wantLoss bool, lbTolerance int) {
+
+	expectedTotalPkts := (flowCount * trafficRatePps * trafficDuration)
+	expectedPerLinkPkts := expectedTotalPkts / sharingIntfCont
+	t.Logf("Total packets %d flow through the %d links", expectedTotalPkts, sharingIntfCont)
+	t.Logf("Expected per link packets %d ", expectedPerLinkPkts)
+	min := expectedPerLinkPkts - (expectedPerLinkPkts * int64(lbTolerance) / 100)
+	max := expectedPerLinkPkts + (expectedPerLinkPkts * int64(lbTolerance) / 100)
+
+	for i := firstintf; i < len(inital); i++ {
+		stats := final[i] - inital[i]
+		t.Logf("Initial packets %d Final Packets %d ", inital[i], final[i])
+		if wantLoss {
+			if min < int64(stats) && int64(stats) < max {
+				t.Logf("Traffic  %d is in expected range: %d - %d", stats, min, max)
+				t.Logf("Traffic Load balance Test Passed!!")
+			} else {
+				t.Errorf("Traffic is expected in range %d - %d but got %d. Load balance Test Failed\n", min, max, stats)
+
+			}
+		} else {
+			if min > int64(stats) || int64(stats) > max {
+				t.Logf("Traffic  %d is not in expected range: %d - %d", stats, min, max)
+				t.Logf("Tunnel interfaces was down, Traffic not used this interface as expected Passed!!")
+			} else {
+				t.Errorf("Traffic is not expected in range %d - %d but got %d. Negative Load balance Test Failed\n", min, max, stats)
+			}
+		}
+	}
+
+}
+
+func verifyUnusedTunnelStatistic(t *testing.T, inital []uint64, final []uint64) {
+	for i := 0; i < len(inital); i++ {
+		value := final[i] - inital[i]
+		if int(value) > tolerance {
+			t.Logf("Traffic initial stats %d && final stats %d ", inital[i], final[i])
+			t.Errorf("Tunnel interface used and got %d stats additionally which is not expected FAILED!!\n", value)
+		}
+	}
 }
