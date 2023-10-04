@@ -605,7 +605,8 @@ type Metadata_Deviations struct {
 	// remaining-lifetime.
 	IsisLspMetadataLeafsUnsupported bool `protobuf:"varint,111,opt,name=isis_lsp_metadata_leafs_unsupported,json=isisLspMetadataLeafsUnsupported,proto3" json:"isis_lsp_metadata_leafs_unsupported,omitempty"`
 	// QOS queue requires configuration with queue-id
-	QosQueueRequiresId bool `protobuf:"varint,112,opt,name=qos_queue_requires_id,json=qosQueueRequiresId,proto3" json:"qos_queue_requires_id,omitempty"`	// Device does not support tunnel interfaces state paths
+	QosQueueRequiresId bool `protobuf:"varint,112,opt,name=qos_queue_requires_id,json=qosQueueRequiresId,proto3" json:"qos_queue_requires_id,omitempty"`
+	// Device does not support tunnel interfaces state paths
 	// Juniper: partnerissuetracker.corp.google.com/300111031
 	TunnelStatePathUnsupported bool `protobuf:"varint,113,opt,name=tunnel_state_path_unsupported,json=tunnelStatePathUnsupported,proto3" json:"tunnel_state_path_unsupported,omitempty"`
 	// Device does not support tunnel interfaces source and destination address config paths
