@@ -340,7 +340,7 @@ message Metadata {
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
     // OC unsupported for BGP LLGR disable.
-    // Juniper: https://partnerissuetracker.corp.google.com/issues/303479602
+    // Juniper: b/303479602
     bool bgp_llgr_oc_undefined = 113;
 
     // Reserved field numbers and identifiers.
