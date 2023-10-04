@@ -31,5 +31,7 @@ platform_exceptions: {
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
+    interface_config_vrf_before_address: true
+    backup_nhg_requires_vrf_with_decap: true
   }
 }
