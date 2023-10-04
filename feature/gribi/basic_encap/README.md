@@ -43,7 +43,7 @@ network-instances {
         policy-forwarding {
             policies {
                 policy {
-                    policy-id: "merged VRF selection policy"
+                    policy-id: "vrf_selection_policy_c"
                     rules {
                         rule {
                             sequence-id: 1
