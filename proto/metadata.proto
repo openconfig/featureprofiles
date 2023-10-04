@@ -339,6 +339,8 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
+    // OC unsupported for BGP LLGR disable.
+    bool bgp_llgr_oc_undefined = 113;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
