@@ -18,13 +18,13 @@ nodes: {
         }
     }
     interfaces: {
-        key: "eth4"
+        key: "eth5"
         value: {
           name: "et-0/0/0:0"
         }
     }
     interfaces: {
-        key: "eth12"
+        key: "eth13"
         value: {
           name: "et-0/0/1:0"
         }
@@ -49,7 +49,7 @@ nodes: {
         }
     }
     interfaces: {
-        key: "eth12"
+        key: "eth13"
         value: {
           name: "et-0/0/1:0"
         }
@@ -64,12 +64,12 @@ links: {
     a_node: "otg"
     a_int: "eth1"
     z_node: "dut1"
-    z_int: "eth4"
+    z_int: "eth5"
 }
 links: {
     a_node: "dut1"
-    a_int: "eth12"
+    a_int: "eth13"
     z_node: "dut2"
-    z_int: "eth12"
+    z_int: "eth13"
 }
 
