@@ -68,6 +68,7 @@ const (
 var (
 	vendorSpecRoutecount = map[ondatra.Vendor]uint32{
 		ondatra.JUNIPER: 2500000,
+		ondatra.NOKIA:   1600000,
 	}
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -112,6 +113,8 @@ func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(dutAS)
 	g.RouterId = ygot.String(dutPort1.IPv4)
+	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP-V6")
 	pg.PeerAs = ygot.Uint32(ateAS)
@@ -133,8 +136,10 @@ func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	bgpNbr.PeerAs = ygot.Uint32(ateAS)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbr.PeerGroup = ygot.String("BGP-PEER-GROUP-V6")
-	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	af4.Enabled = ygot.Bool(true)
+	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	af6.Enabled = ygot.Bool(true)
+	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	af4.Enabled = ygot.Bool(false)
 	return niProto
 }
 
@@ -459,7 +464,7 @@ routeAddLoop:
 			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithID(vipNhIndex).AddNextHop(vipNhIndex, 1),
 			fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-				WithPrefix(vipList[j]).WithNextHopGroup(vipNhIndex),
+				WithPrefix(vipList[j]+"/32").WithNextHopGroup(vipNhIndex),
 		)
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
@@ -467,7 +472,7 @@ routeAddLoop:
 			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithID(dstNhIndex).AddNextHop(dstNhIndex, 1),
 			fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-				WithPrefix(dstIPList[j]).WithNextHopGroup(dstNhIndex),
+				WithPrefix(dstIPList[j]+"/32").WithNextHopGroup(dstNhIndex),
 		)
 
 		if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
