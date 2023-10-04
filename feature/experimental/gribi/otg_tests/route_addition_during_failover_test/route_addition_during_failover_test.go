@@ -546,9 +546,6 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-	}
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
