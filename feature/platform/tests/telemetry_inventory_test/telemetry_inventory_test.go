@@ -60,6 +60,7 @@ type properties struct {
 	rrValidation          bool
 	operStatus            oc.E_PlatformTypes_COMPONENT_OPER_STATUS
 	parentValidation      bool
+	slotIDValidation      bool
 	pType                 oc.Component_Type_Union
 }
 
@@ -188,6 +189,7 @@ func TestHardwareCards(t *testing.T) {
 				rrValidation:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
+				slotIDValidation:      true,
 				pType:                 componentType["Linecard"],
 			},
 		}, {
@@ -528,7 +530,12 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					t.Errorf("Component %s Description: got empty string, want non-empty string", cName)
 				}
 			}
-
+			if p.slotIDValidation && card.GetType() == componentType["Linecard"] {
+				t.Logf("Component %s linecard/state/slot-id: %s", cName, card.GetLinecard().GetSlotId())
+				if card.GetLinecard().GetSlotId() == "" {
+					t.Errorf("Component %s LineCard SlotID: got empty string, want non-empty string", cName)
+				}
+			}
 			if p.idValidation {
 				if deviations.SwitchChipIDUnsupported(dut) {
 					t.Logf("Skipping check for Id due to deviation SwitChipIDUnsupported")
