@@ -336,11 +336,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	ni1.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfB).Config(), ni1)
 
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfA)
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfB)
-	}
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
