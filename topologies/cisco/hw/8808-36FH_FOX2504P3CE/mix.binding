@@ -43,6 +43,10 @@ duts {
   name: "DUT"  # Change this to the device hostname.
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+  
   options {
     insecure: false 
     skip_verify: true
