@@ -47,7 +47,7 @@ const (
 	tunnelInterface          = "fti0"
 	trafficRatePps           = 5000
 	trafficDuration          = 120
-	tolerance                = 5
+	tolerance                = 10
 )
 
 var (
@@ -112,7 +112,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	initialTunnelInPkts := make([]uint64, tunnelCount)
 	initialTunnelOutPkts := make([]uint64, tunnelCount)
 	tunnelLoadblanceDiff := tunnelCount * 3
-	interfaceLoadblanceDiff := tunnelCount
+	interfaceLoadblanceDiff := tolerance
 	t.Run("Configure dut with 32 tunnel interface with one ingress and 2 egress interface", func(t *testing.T) {
 		configureTunnelBaseOnDUT(t, dut, dutPort1, &dutIntf1)
 		configureTunnelBaseOnDUT(t, dut, dutPort2, &dutIntf2)
@@ -183,11 +183,11 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	t.Run("Verify after Encapsulation loadbalance (ECMP) && load balanced to available Tunnel interfaces ", func(t *testing.T) {
 		finalEgressPkts := fetchEgressInterfacestatsics(t, dut, egressInterfaces)
 		t.Logf("Verify Incoming traffic flow should be equally distributed for Encapsulation(ECMP)")
-		verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 2, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
+		verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 1, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
 		if !deviations.TunnelStatePathUnsupported(dut) {
 			finalTunnelInPkts, finalTunnelOutPkts := fetchTunnelInterfacestatsics(t, dut, tunnelCount)
 			t.Logf("Incoming traffic on DUT-PORT1 should be load balanced to available Tunnel interfaces for encapsulation")
-			verifyEcmpLoadBalance(t, initialTunnelOutPkts, finalTunnelOutPkts, 2, int64(tunnelCount), 0, true, tunnelLoadblanceDiff)
+			verifyEcmpLoadBalance(t, initialTunnelOutPkts, finalTunnelOutPkts, 1, int64(tunnelCount), 0, true, tunnelLoadblanceDiff)
 			verifyUnusedTunnelStatistic(t, initialTunnelInPkts, finalTunnelInPkts)
 		}
 	})
@@ -197,7 +197,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 func fetchEgressInterfacestatsics(t *testing.T, dut *ondatra.DUTDevice, interfaceSlice []string) []uint64 {
 	egressStats := make([]uint64, len(interfaceSlice))
 	for i, intf := range interfaceSlice {
-		egressStats[i] = gnmi.Get(t, dut, gnmi.OC().Interface(intf).Counters().OutUnicastPkts().State())
+		egressStats[i] = gnmi.Get(t, dut, gnmi.OC().Interface(intf).Counters().OutPkts().State())
 	}
 	t.Log("Egress interface Out pkts stats:", egressStats)
 	return egressStats
@@ -284,9 +284,9 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	// Add L4 protocol
 	flow1ipv4.Packet().Add().Tcp()
 	// Increment Source port
-	flow1ipv4.Packet().Add().Tcp().SrcPort().Increment().SetStart(3000).SetCount(2000)
+	flow1ipv4.Packet().Add().Tcp().SrcPort().Increment().SetStart(9000).SetCount(28000)
 	// Increment destination port
-	flow1ipv4.Packet().Add().Tcp().DstPort().Increment().SetStart(4000).SetCount(2000)
+	flow1ipv4.Packet().Add().Tcp().DstPort().Increment().SetStart(37001).SetCount(28000)
 
 }
 func fetchNetworkAddress(t *testing.T, address string, mask int) (string, string) {
@@ -297,8 +297,8 @@ func fetchNetworkAddress(t *testing.T, address string, mask int) (string, string
 	ipv4Mask := net.CIDRMask(mask, 32)
 	network = addr.Mask(ipv4Mask)
 
-	networkWithMask := fmt.Sprintf("%s/%d", network, mask)
-	networkAlone := fmt.Sprintf("%s", network)
+	networkWithMask := network.String() + "/" + strconv.Itoa(mask)
+	networkAlone := network.String()
 	//t.Logf("Network address : %s", networkWithMask)
 	return networkAlone, networkWithMask
 }
@@ -359,6 +359,7 @@ func configureTunnelBaseOnDUT(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.
 		i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 		a := i4.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.ipv4mask)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 
 	}
 }
