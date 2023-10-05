@@ -6,8 +6,8 @@ Validate optics related streaming telemetry performance monitoring parameters
 like input power, output power, bias current and so on.
 
 ## Setup
-Optics test requirements alongside the platform FNT require 2 optics DUT
-samples each optics part number, connect both two optical ethernet interfaces
+Optics test requirements alongside the platform funtional tests require 2
+optics DUT samples each optics part number, connect both two optical ethernet interfaces
 to Automatic Test Equipment (ATE). 
 
 
@@ -37,7 +37,9 @@ to Automatic Test Equipment (ATE).
 
 *   Step 2: Get list of components of type TRANSCEIVER. Verify the instant value is
     between the corresponding lower and upper thresholds for both
-    [severity]=WARNING and [severity]=CRITICAL:
+    [severity]=WARNING and [severity]=CRITICAL. In case of multiple physical
+    channels or lanes relevant PMs like TX and RX power should be reported for
+    all the lanes. 
     *   Module case temperature
         *   /components/component/transceiver/thresholds/threshold/state/module-temperature-lower
         *   /components/component/transceiver/thresholds/threshold/state/module-temperature-upper
