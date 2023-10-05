@@ -327,9 +327,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 			// configure DEFAULT vrf
 			fptest.ConfigureDefaultNetworkInstance(t, dut)
 		}
-		if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
-		}
 	}
 	// configure PBF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), configurePBF(dut))
