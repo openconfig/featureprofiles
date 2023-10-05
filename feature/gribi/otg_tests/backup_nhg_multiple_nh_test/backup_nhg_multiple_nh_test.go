@@ -430,11 +430,11 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, outPorts []*o
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
 	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 
-        // Get send and receive traffic
+	// Get send and receive traffic
 	flowMetrics := gnmi.Get(t, a.ate.OTG(), gnmi.OTG().Flow(flow).State())
 	sentPkts := uint64(flowMetrics.GetCounters().GetOutPkts())
 	receivedPkts := uint64(flowMetrics.GetCounters().GetInPkts())
-  
+
 	if sentPkts == 0 {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
@@ -442,7 +442,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, outPorts []*o
 	// Check if traffic restores with in expected time in milliseconds during interface shut
 	// else if there is no interface trigger, validate received packets (control+data) are more than send packets
 	t.Logf("Sent Packets: %v, Received packets: %v", sentPkts, receivedPkts)
-        diff := pktDiff(sentPkts, receivedPkts)
+	diff := pktDiff(sentPkts, receivedPkts)
 	if len(shutPorts) > 0 {
 		// Time took for traffic to restore in milliseconds after trigger
 		fpm := (diff / (fps / 1000))
