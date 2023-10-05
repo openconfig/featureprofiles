@@ -52,7 +52,6 @@ J[DUT:Port6] --> K[Port6:OTG];
  *   Start from the condition in Subtest-3 above with inflight traffic from OTG:Port1.
  *   Increase number of Tunnel interfaces, e.g. From 16 to 32 per tunnel-destination by address-family.
  *   Incoming traffic on DUT:PORT1 should now be load shared across all 32 Tunnel interfaces per tunnel-destination by address-family. Follow all the verifications steps in [*] below
- *   Inflight increase in the number of tunnel interfaces and related static route shouldn’t cause traffic drops.
 
 #### [*] Verification steps
  *   Verify the next hop counters for packets being diverted or sent for encapsulation. Test should fail if drops recorded.
