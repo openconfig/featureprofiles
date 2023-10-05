@@ -45,8 +45,7 @@ J[DUT:Port6] --> K[Port6:OTG];
  *   Reduce the number of Tunnel interfaces, e.g. from 32 to 16 for each of the tunnel destination group by address-family:
         * If the static routes are used to forward traffic to tunnel, please disable or delete the static routes in this test to simulate the reduction in available paths.
  *   Incoming traffic on DUT:PORT1 should now be load shared across all remaining 16 Tunnel interfaces per tunnel-destination by address-family.
- *   Follow all the verifications steps in [*] below
- *   Inflight reduction in number of tunnel interfaces shouuldn't cause traffic drop.
+ *   Follow all the verifications steps in [*] below.
 
 ## Subtest-4: Restore the number of tunnel interfaces 
  *   Start from the condition in Subtest-3 above with inflight traffic from OTG:Port1.
