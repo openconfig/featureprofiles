@@ -351,7 +351,7 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
