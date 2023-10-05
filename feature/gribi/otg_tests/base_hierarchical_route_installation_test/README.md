@@ -51,7 +51,7 @@ Validate hierarchical resolution using egress interface and MAC:
     198.51.100.1/32) and ensure that ATE port-2 receives packet with
     `00:1A:11:00:00:01` as the destination MAC address.
 
-Repeat the above tests with one additional scenario with the following changes, and it should not change the expected test result.
+[TODO]: Repeat the above tests with one additional scenario with the following changes, and it should not change the expected test result.
 
 *   Add an empty decap VRF, `DECAP_TE_VRF`.
 *   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`, `ENCAP_TE_VRF_C` and `ENCAP_TE_VRF_D`.
