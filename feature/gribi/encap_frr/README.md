@@ -310,10 +310,17 @@ NH#1000 -> {
 
 IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#7 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
-  backup_next_hop_group: 200 // decap to DEFAULT VRF
+  backup_next_hop_group: 201 // decap to DEFAULT VRF
 }
 IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#8 (DEFAULT VRF) -> {
   {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
+}
+NHG#201 (Default VRF) {
+  {NH#2001, DEFAULT VRF, weight:1}
+}
+NH#2001 -> {
+    OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+    network_instance: "DEFAULT"
 }
 
 // 203.10.113.2 is the tunnel IP address. Note that the NHG#4 is different than NHG#1.
