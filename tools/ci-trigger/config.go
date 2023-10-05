@@ -93,7 +93,7 @@ var triggerKeywords = map[string][]deviceType{
 	"/fptest cisco-8808":         {{Vendor: opb.Device_CISCO, HardwareModel: "8808"}},
 	"/fptest cisco-xrd":          {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
 	"/fptest juniper-cptx":       {{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}},
-	"/fptest juniper-ncptx":       {{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"}},
+	"/fptest juniper-ncptx":      {{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"}},
 	"/fptest juniper-ptx10008":   {{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"}},
 	"/fptest nokia-7250":         {{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"}},
 	"/fptest nokia-srl":          {{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}},
