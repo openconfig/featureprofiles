@@ -1025,23 +1025,21 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		queue.SetName(tc.queueName)
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
-	gnmiClient := dut.RawAPIs().GNMI().Default(t)
+	gnmiClient := dut.RawAPIs().GNMI(t)
 	var config string
-	t.Logf("Push the CLI config:\n%s", dut.Vendor())
-	config = juniperCLI()
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
-		config = juniperCLI()
 		t.Logf("Push the CLI config:\n%s", dut.Vendor())
+		config = juniperCLI()
+		gpbSetRequest := buildCLIConfigRequest(config)
+		t.Log("gnmiClient Set CLI config")
+		if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+		}
+	default:
+		t.Fatalf("Vendor specific config should be added: %v", err)
 	}
-	gpbSetRequest, err := buildCLIConfigRequest(config)
-	if err != nil {
-		t.Fatalf("Cannot build a gNMI SetRequest: %v", err)
-	}
-	t.Log("gnmiClient Set CLI config")
-	if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-	}
+
 }
 func juniperCLI() string {
 	return `
@@ -1055,7 +1053,7 @@ func juniperCLI() string {
 	}
   `
 }
-func buildCLIConfigRequest(config string) (*gpb.SetRequest, error) {
+func buildCLIConfigRequest(config string) *gpb.SetRequest {
 	// Build config with Origin set to cli and Ascii encoded config.
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{{
@@ -1070,5 +1068,5 @@ func buildCLIConfigRequest(config string) (*gpb.SetRequest, error) {
 			},
 		}},
 	}
-	return gpbSetRequest, nil
+	return gpbSetRequest
 }
