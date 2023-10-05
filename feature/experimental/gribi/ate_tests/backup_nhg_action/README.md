@@ -94,6 +94,32 @@ Different test scenarios requires different setups.
         traffic with decapsulated traffic with destination IP as `InnerDstIP_1`
         at ATE port-4.
 
+*   Test#3 - (tunnel viability triggers decap):
+
+    *   Deploy Setup#2 as above.
+
+    *   Update `OuterDstIP_1/32 {VRF-B} --> NHG#102` to `OuterDstIP_1/32 {VRF-B} --> NHG#103`, which does decap to the default VRF.
+
+    *   Send IPinIP traffic to `OuterDstIP_1`. Validate that ATE port-2 receives
+        the IPinIP traffic with outer IP as `OuterDstIP_1`.
+
+    *   Shutdown DUT port-2 interface, and validate that ATE port-4 receives the
+        traffic with decapsulated traffic with destination IP as `InnerDstIP_1`
+        at ATE port-4.
+
+*   Test#4 - (resolution failure on new tunnels triggers decap in the backup NHG):
+
+    *   Deploy Setup#2 as above.
+
+    *   Remove `OuterDstIP_2/32` from `VRF-C`.
+
+    *   Send IPinIP traffic to `OuterDstIP_1`. Validate that ATE port-2 receives
+        the IPinIP traffic with outer IP as `OuterDstIP_1`.
+
+    *   Shutdown DUT port-2 interface, and validate that ATE port-4 receives the
+        traffic with decapsulated traffic with destination IP as `InnerDstIP_1`
+        at ATE port-4.
+
 ## Config Parameter coverage
 
 No new configuration covered.
