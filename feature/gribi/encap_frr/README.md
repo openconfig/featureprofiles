@@ -386,7 +386,7 @@ backup specifies fallback to routing, then the traffic for that tunnel is not
 encapped. Instead, that fraction of traffic should be forwarded according to the
 BGP/IS-IS routes in the DEFAULT VRF.
 
-1.  Update `NHG#8` to the following:
+1.  Update `NHG#100` to the following:
 
     ```
     NHG#100 (Default VRF) {
@@ -437,7 +437,7 @@ the double failure handling, and ensures that the fallback to DEFAULT is
 activated through the backup NHGs of the tunnels instead of withdrawing the
 IPv4Entry.
 
-1.  Update `NHG#8` and `NHG#9` to the following:
+1.  Update `NHG#100` and `NHG#101` to the following:
 
     ```
     NHG#100 (Default VRF) {
