@@ -14,3 +14,11 @@ platform_exceptions: {
     drop_weight_leaves_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ecn_same_min_max_threshold_unsupproted: true
+  }
+}

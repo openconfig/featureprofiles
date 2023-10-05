@@ -339,7 +339,9 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
-
+    // Cisco: Device does not support same max and minimun threshold value in QOS ECN config.
+    bool ecn_same_min_max_threshold_unsupproted = 113;
+   
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
   }
