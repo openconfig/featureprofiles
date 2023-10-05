@@ -218,11 +218,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf1)
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf2)
-	}
 }
 
 func TestBackup(t *testing.T) {

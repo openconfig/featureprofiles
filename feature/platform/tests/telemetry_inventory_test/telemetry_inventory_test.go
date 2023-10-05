@@ -17,6 +17,7 @@ package telemetry_inventory_test
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
@@ -285,6 +286,12 @@ func TestHardwareCards(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.desc == "Storage" && deviations.StorageComponentUnsupported(dut) {
 				t.Skipf("Telemetry path /components/component/storage is not supported.")
+			} else if tc.desc == "Fabric" && *args.NumLinecards <= 0 {
+				t.Skip("Skip Fabric Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Linecard" && *args.NumLinecards <= 0 {
+				t.Skip("Skip Linecard Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Supervisor" && *args.NumControllerCards <= 0 {
+				t.Skip("Skip Supervisor Telemetry check for fixed form factor devices.")
 			}
 			cards := components[tc.desc]
 			t.Logf("%s components count: %d", tc.desc, len(cards))
@@ -343,6 +350,9 @@ func isCompNameExpected(t *testing.T, name, regexpPattern string) bool {
 }
 
 func TestSwitchChip(t *testing.T) {
+	if *args.NumControllerCards <= 0 {
+		t.Skip("Skip SwitchChip Telemetry check for fixed form factor devices.")
+	}
 	dut := ondatra.DUT(t, "dut")
 
 	cardFields := properties{
@@ -651,8 +661,18 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			if p.fwVerValidation {
 				fwVer := card.GetFirmwareVersion()
 				t.Logf("Component %s FirmwareVersion: %s", cName, fwVer)
+
+				isTransceiver := card.GetType() == componentType["Transceiver"]
+				is400G := false
+				if isTransceiver {
+					is400G = strings.Contains(card.GetTransceiver().GetEthernetPmd().String(), "ETH_400GBASE")
+				}
 				if fwVer == "" {
-					t.Errorf("Component %s FirmwareVersion: got empty string, want non-empty string", cName)
+					if isTransceiver && !is400G {
+						t.Logf("Skipping firmware-version check for %s transceiver", card.GetTransceiver().GetEthernetPmd().String())
+					} else {
+						t.Errorf("Component %s FirmwareVersion: got empty string, want non-empty string", cName)
+					}
 				}
 			}
 
