@@ -340,6 +340,7 @@ message Metadata {
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
     // Devices do not support interface passive state.
+    // Juniper: b/303631436
     bool isis_interface_passive_state_unsupported = 113;
    
 
