@@ -199,7 +199,7 @@ func TestTunnelEncapsulationByGREOverIPv6WithLoadBalance(t *testing.T) {
 func fetchEgressInterfacestatsics(t *testing.T, dut *ondatra.DUTDevice, interfaceSlice []string) []uint64 {
 	egressStats := make([]uint64, len(interfaceSlice))
 	for i, intf := range interfaceSlice {
-		egressStats[i] = gnmi.Get(t, dut, gnmi.OC().Interface(intf).Counters().OutUnicastPkts().State())
+		egressStats[i] = gnmi.Get(t, dut, gnmi.OC().Interface(intf).Counters().OutPkts().State())
 	}
 	t.Log("Egress interface Out pkts stats:", egressStats)
 	return egressStats
@@ -208,10 +208,8 @@ func fetchTunnelInterfacestatsics(t *testing.T, dut *ondatra.DUTDevice, count in
 	tunnelOutStats := make([]uint64, count)
 	tunnelInStats := make([]uint64, count)
 	for i := 0; i < count; i++ {
-
 		tunnelOutStats[i] = gnmi.Get(t, dut, gnmi.OC().Interface(tunnelInterface).Subinterface(uint32(i)).Counters().OutPkts().State())
 		tunnelInStats[i] = gnmi.Get(t, dut, gnmi.OC().Interface(tunnelInterface).Subinterface(uint32(i)).Counters().InPkts().State())
-
 	}
 	t.Log("Tunnel In pkts stats:", tunnelInStats)
 	t.Log("Tunnel Out pkts stats:", tunnelOutStats)
@@ -287,9 +285,9 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	// Add L4 protocol
 	flow1ipv6.Packet().Add().Tcp()
 	// Increment Source port
-	flow1ipv6.Packet().Add().Tcp().SrcPort().Increment().SetStart(5500).SetCount(2000)
+	flow1ipv6.Packet().Add().Tcp().SrcPort().Increment().SetStart(1000).SetCount(2000)
 	// Increment destination port
-	flow1ipv6.Packet().Add().Tcp().DstPort().Increment().SetStart(1500).SetCount(2000)
+	flow1ipv6.Packet().Add().Tcp().DstPort().Increment().SetStart(4000).SetCount(2000)
 }
 func fetchNetworkAddress(t *testing.T, address string, mask int) (string, string) {
 	addr := net.ParseIP(address)
@@ -297,8 +295,8 @@ func fetchNetworkAddress(t *testing.T, address string, mask int) (string, string
 	// This mask corresponds to a /128 subnet for IPv6.
 	ipv6Mask := net.CIDRMask(mask, 128)
 	network = addr.Mask(ipv6Mask)
-	networkWithMask := fmt.Sprintf("%s/%d", network, mask)
-	networkAlone := fmt.Sprintf("%s", network)
+	networkWithMask := network.String() + "/" + strconv.Itoa(mask)
+	networkAlone := network.String()
 	//t.Logf("Network address : %s", networkWithMask)
 	return networkAlone, networkWithMask
 }
@@ -402,10 +400,7 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 
 }
-func deleteStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string) {
-	dutProtoStatConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
-	gnmi.Delete(t, dut, dutProtoStatConfPath.Static(prefix).NextHop(index).Config())
-}
+
 func buildCliConfigRequest(config string) *gpb.SetRequest {
 	// Build config with Origin set to cli and Ascii encoded config.
 	gpbSetRequest := &gpb.SetRequest{
