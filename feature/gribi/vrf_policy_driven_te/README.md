@@ -433,10 +433,12 @@ network-instances {
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF) -> {
   {NH#201, DEFAULT VRF, weight:1},
   {NH#202, DEFAULT VRF, weight:3},
+  backup_next_hop_group: 100 // in case specific vendor implementation or bugs pruned the NHs.
 }
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_B)} -> NHG#11 (DEFAULT VRF) -> {
   {NH#201, DEFAULT VRF, weight:3},
   {NH#202, DEFAULT VRF, weight:1},
+  backup_next_hop_group: 100 // in case specific vendor implementation or bugs pruned the NHs.
 }
 NH#201 -> {
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
@@ -455,11 +457,18 @@ NH#202 -> {
   network_instance: "TE_VRF_111"
 }
 
+NHG#200 (Default VRF) {
+  {NH#2000, DEFAULT VRF, weight:1}
+}
+NH#2000 -> {
+    decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+    network_instance: "DEFAULT"
+}
 
 IPv4Entry {203.0.113.1/32 (TE_VRF_111)} -> NHG#1 (DEFAULT VRF) -> {
   {NH#1, DEFAULT VRF, weight:1,ip_address=192.0.2.101},
   {NH#2, DEFAULT VRF, weight:3,ip_address=192.0.2.102},
-  backup_next_hop_group: 8 // re-encap to 203.0.113.100
+  backup_next_hop_group: 100 // re-encap to 203.0.113.100
 }
 IPv4Entry {192.0.2.101/32 (DEFAULT VRF)} -> NHG#2 (DEFAULT VRF) -> {
   {NH#10, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-2-interface},
@@ -469,7 +478,7 @@ IPv4Entry {192.0.2.102/32 (DEFAUlT VRF)} -> NHG#3 (DEFAULT VRF) -> {
   {NH#100, DEFAULT VRF, weight:2,mac_address:magic_mac, interface-ref:dut-port-4-interface},
 }
 
-NHG#8 (Default VRF) {
+NHG#100 (Default VRF) {
   {NH#1000, DEFAULT VRF}
 }
 NH#1000 -> {
@@ -483,6 +492,7 @@ NH#1000 -> {
 
 IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#7 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
+  backup_next_hop_group: 200 // decap to DEFAULT VRF
 }
 IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#8 (DEFAULT VRF) -> {
   {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
@@ -492,12 +502,12 @@ IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#8 (DEFAULT VRF) -> {
 
 IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#4 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.104},
-  backup_next_hop_group: 9 // re-encap to 203.10.113.101
+  backup_next_hop_group: 101 // re-encap to 203.10.113.101
 }
 IPv4Entry {192.0.2.104/32 (DEFAULT VRF)} -> NHG#5 (DEFAULT VRF) -> {
   {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-6-interface},
 }
-NHG#9 (DEFAULT VRF) {
+NHG#101 (DEFAULT VRF) {
   {NH#1001, DEFAULT VRF}
 }
 NH#1001 -> {
@@ -510,6 +520,7 @@ NH#1001 -> {
 }
 IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#9 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
+  backup_next_hop_group: 200 // decap to DEFAULT VRF
 }
 IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#10 (DEFAULT VRF) -> {
   {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-7-interface},
@@ -517,6 +528,8 @@ IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#10 (DEFAULT VRF) -> {
 ```
 
 *   Install a BGP route resolved by ISIS in default VRF to rout traffic out of DUT port-8.
+
+*   Install an 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 
 ## Procedure
 
@@ -539,23 +552,23 @@ The DUT should be reset to the baseline after each of the following tests.
 
 3.  Send the following 6in4 and 4in4 flows to DUT port-1:
 
-```
-* inner_src: `ipv4_inner_src`
-* inner_dst: `ipv4_inner_encap_match`
-* dscp: `dscp_encap_no_match`
-* outter_src: `ipv4_outter_src_111`
-* outter_dst: `ipv4_outter_decap_match`
-* dscp: `dscp_encap_no_match`
-* proto: `4`
+    ```
+    * inner_src: `ipv4_inner_src`
+    * inner_dst: `ipv4_inner_encap_match`
+    * dscp: `dscp_encap_no_match`
+    * outter_src: `ipv4_outter_src_111`
+    * outter_dst: `ipv4_outter_decap_match`
+    * dscp: `dscp_encap_no_match`
+    * proto: `4`
 
-* inner_src: `ipv6_inner_src`
-* inner_dst: `ipv6_inner_encap_match`
-* dscp: `dscp_encap_no_match`
-* outter_src: `ipv4_outter_src_111`
-* outter_dst: `ipv4_outter_decap_match`
-* dscp: `dscp_encap_no_match`
-* proto: `41`
-```
+    * inner_src: `ipv6_inner_src`
+    * inner_dst: `ipv6_inner_encap_match`
+    * dscp: `dscp_encap_no_match`
+    * outter_src: `ipv4_outter_src_111`
+    * outter_dst: `ipv4_outter_decap_match`
+    * dscp: `dscp_encap_no_match`
+    * proto: `41`
+    ```
 
 4.  Verify that the packets have their outer v4 header stripped and are forwarded out of DUT port-8 per the BGP-ISIS routes in the DEFAULT VRF.
 
@@ -565,40 +578,40 @@ The DUT should be reset to the baseline after each of the following tests.
 
 7.  Repeat the test with packets with a destination address that does not match the decap entry, and verify that such packets are not decapped.
 
-#### Test-2, match on source, protocol and DSCP, VRF_DECAP hit -> VRF_ENCAP_A miss
+#### Test-2, match on source, protocol and DSCP, VRF_DECAP hit -> VRF_ENCAP_A miss -> DEFAULT
 
 1.  Using gRIBI to install the following entries in the `DECAP_TE_VRF`:
 
-```
-IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#1 (DEFAULT VRF) -> {
-    {NH#1001, DEFAULT VRF, weight:1}
-}
-NH#1001 -> {
-    decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
-}
-```
+    ```
+    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#3000 (DEFAULT VRF) -> {
+        {NH#3000, DEFAULT VRF, weight:1}
+    }
+    NH#3000 -> {
+        decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+    }
+    ```
 
 2.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
 
 3.  Send the following 6in4 and 4in4 flows to DUT port-1:
 
-```
-* inner_src: `ipv4_inner_src`
-* inner_dst: `ipv4_inner_encap_no_match`
-* dscp: `dscp_encap_a_1`
-* outter_src: `ipv4_outter_src_111`
-* outter_dst: `ipv4_outter_decap_match`
-* dscp: `dscp_encap_a_1`
-* proto: `4`
+    ```
+    * inner_src: `ipv4_inner_src`
+    * inner_dst: `ipv4_inner_encap_no_match`
+    * dscp: `dscp_encap_a_1`
+    * outter_src: `ipv4_outter_src_111`
+    * outter_dst: `ipv4_outter_decap_match`
+    * dscp: `dscp_encap_a_1`
+    * proto: `4`
 
-* inner_src: `ipv6_inner_src`
-* inner_dst: `ipv6_inner_encap_no_match`
-* dscp: `dscp_encap_a_1`
-* outter_src: `ipv4_outter_src_111`
-* outter_dst: `ipv4_outter_decap_match`
-* dscp: `dscp_encap_a_1`
-* proto: `41`
-```
+    * inner_src: `ipv6_inner_src`
+    * inner_dst: `ipv6_inner_encap_no_match`
+    * dscp: `dscp_encap_a_1`
+    * outter_src: `ipv4_outter_src_111`
+    * outter_dst: `ipv4_outter_decap_match`
+    * dscp: `dscp_encap_a_1`
+    * proto: `41`
+    ```
 
 4.  Verify that the packets have their outer v4 header stripped and are forwarded out of DUT port-8 per the BGP-ISIS routes in the DEFAULT VRF.
 
@@ -612,48 +625,48 @@ Support for decap actions with mixed prefixes installed through gRIBI
 
 1.  Add the following gRIBI entries:
 
-```
-IPv4Entry {192.51.129.0/22 (DECAP_TE_VRF)} -> NHG#1 (DEFAULT VRF) -> {
-    {NH#1001, DEFAULT VRF, weight:1}
-}
-IPv4Entry {192.55.200.3/32 (DECAP_TE_VRF)} -> NHG#1 (DEFAULT VRF) -> {
-    {NH#1001, DEFAULT VRF, weight:1}
-}
+    ```
+    IPv4Entry {192.51.129.0/22 (DECAP_TE_VRF)} -> NHG#3000 (DEFAULT VRF) -> {
+        {NH#3000, DEFAULT VRF, weight:1}
+    }
+    IPv4Entry {192.55.200.3/32 (DECAP_TE_VRF)} -> NHG#3000 (DEFAULT VRF) -> {
+        {NH#3000, DEFAULT VRF, weight:1}
+    }
 
-NH#1001 -> {
-    decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
-}
-```
+    NH#1001 -> {
+        decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+    }
+    ```
 
 2.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
 
 3.  Send the following 6in4 and 4in4 flows to DUT port-1:
 
-```
-* inner_src: `ipv4_inner_src`
-* inner_dst: `ipv4_inner_encap_match`
-* dscp: `dscp_encap_no_match`
-* outter_src: `ipv4_outter_src_111`
-* outter_dst: `192.51.100.64`
-* dscp: `dscp_encap_no_match`
-* proto: `4`
+    ```
+    * inner_src: `ipv4_inner_src`
+    * inner_dst: `ipv4_inner_encap_match`
+    * dscp: `dscp_encap_no_match`
+    * outter_src: `ipv4_outter_src_111`
+    * outter_dst: `192.51.100.64`
+    * dscp: `dscp_encap_no_match`
+    * proto: `4`
 
-* inner_src: `ipv6_inner_src`
-* inner_dst: `ipv6_inner_encap_match`
-* dscp: `dscp_encap_no_match`
-* outter_src: `ipv4_outter_src_111`
-* outter_dst: `192.55.200.3`
-* dscp: `dscp_encap_no_match`
-* proto: `41`
+    * inner_src: `ipv6_inner_src`
+    * inner_dst: `ipv6_inner_encap_match`
+    * dscp: `dscp_encap_no_match`
+    * outter_src: `ipv4_outter_src_111`
+    * outter_dst: `192.55.200.3`
+    * dscp: `dscp_encap_no_match`
+    * proto: `41`
 
-* inner_src: `ipv4_inner_src`
-* inner_dst: `ipv4_inner_encap_match`
-* dscp: `dscp_encap_no_match`
-* outter_src: `ipv4_outter_src_111`
-* outter_dst: `192.51.128.5`
-* dscp: `dscp_encap_no_match`
-* proto: `4`
-```
+    * inner_src: `ipv4_inner_src`
+    * inner_dst: `ipv4_inner_encap_match`
+    * dscp: `dscp_encap_no_match`
+    * outter_src: `ipv4_outter_src_111`
+    * outter_dst: `192.51.128.5`
+    * dscp: `dscp_encap_no_match`
+    * proto: `4`
+    ```
 
 4.  Verify that the packets have their outer v4 header stripped, and are forwarded according to the route in the DEFAULT VRF that matches the inner IP address.
 
@@ -703,25 +716,25 @@ Tests support for TE disabled IPinIP IPv4 (IP protocol 4) cluster traffic arrivi
 
 2.  Send the following packets to DUT port-1:
 
-```
-* inner_src: `ipv4_inner_src`
-* inner_dst: `ipv4_inner_encap_match`
-* dscp: `dscp_encap_a_1`
-* outter_src: `ipv4_outter_src_222`
-* outter_dst: `ipv4_outter_decap_match`
-* dscp: `dscp_encap_a_1`
-* proto: `4`
-```
+    ```
+    * inner_src: `ipv4_inner_src`
+    * inner_dst: `ipv4_inner_encap_match`
+    * dscp: `dscp_encap_a_1`
+    * outter_src: `ipv4_outter_src_222`
+    * outter_dst: `ipv4_outter_decap_match`
+    * dscp: `dscp_encap_a_1`
+    * proto: `4`
+    ```
 
-```
-* inner_src: `ipv6_inner_src`
-* inner_dst: `ipv6_inner_encap_match`
-* dscp: `dscp_encap_a_1`
-* outter_src: `ipv4_outter_src_111`
-* outter_dst: `ipv4_outter_decap_match`
-* dscp: `dscp_encap_a_1`
-* proto: `41`
-```
+    ```
+    * inner_src: `ipv6_inner_src`
+    * inner_dst: `ipv6_inner_encap_match`
+    * dscp: `dscp_encap_a_1`
+    * outter_src: `ipv4_outter_src_111`
+    * outter_dst: `ipv4_outter_decap_match`
+    * dscp: `dscp_encap_a_1`
+    * proto: `41`
+    ```
 
 3.  We should expect that all egress packets:
 
@@ -732,23 +745,23 @@ Tests support for TE disabled IPinIP IPv4 (IP protocol 4) cluster traffic arrivi
 
 4.  Send the following packets to DUT port -1
 
-```
-* inner_src: `ipv4_inner_src`
-* inner_dst: `ipv4_inner_encap_match`
-* dscp: `dscp_encap_b_1`
-* outter_src: `ipv4_outter_src_111`
-* outter_dst: `ipv4_outter_decap_match`
-* dscp: `dscp_encap_b_1`
-* proto: `4`
+    ```
+    * inner_src: `ipv4_inner_src`
+    * inner_dst: `ipv4_inner_encap_match`
+    * dscp: `dscp_encap_b_1`
+    * outter_src: `ipv4_outter_src_111`
+    * outter_dst: `ipv4_outter_decap_match`
+    * dscp: `dscp_encap_b_1`
+    * proto: `4`
 
-* inner_src: `ipv6_inner_src`
-* inner_dst: `ipv6_inner_encap_match`
-* dscp: `dscp_encap_b_1`
-* outter_src: `ipv4_outter_src_222`
-* outter_dst: `ipv4_outter_decap_match`
-* dscp: `dscp_encap_b_1`
-* proto: `41`
-```
+    * inner_src: `ipv6_inner_src`
+    * inner_dst: `ipv6_inner_encap_match`
+    * dscp: `dscp_encap_b_1`
+    * outter_src: `ipv4_outter_src_222`
+    * outter_dst: `ipv4_outter_decap_match`
+    * dscp: `dscp_encap_b_1`
+    * proto: `41`
+    ```
 
 5.  We should expect that all egress packets:
 
