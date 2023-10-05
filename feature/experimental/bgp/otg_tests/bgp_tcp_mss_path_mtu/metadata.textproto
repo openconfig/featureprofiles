@@ -1,0 +1,33 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "5a1c71f3-9c37-4ea3-8101-8f3058ed8c33"
+plan_id:  "RT-1.21"
+description:  "BGP TCP MSS and PMTUD"
+testbed:  TESTBED_DUT_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    skip_tcp_negotiated_mss_check:  true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+  }
+}
+tags: TAGS_AGGREGATION

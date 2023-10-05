@@ -203,11 +203,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		for _, vrf := range []string{vrfA, vrfB, vrfC, deviations.DefaultNetworkInstance(dut)} {
-			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
-		}
-	}
 }
 
 // TE11.3 backup nhg action tests.
