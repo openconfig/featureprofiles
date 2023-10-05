@@ -349,11 +349,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	ni.Description = ygot.String("Non Default routing instance VRF-B created for testing")
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfB).Config(), ni)
-
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrfB)
-	}
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.

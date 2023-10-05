@@ -318,9 +318,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-	}
 }
 
 // configureATE configures port1, port2 on the ATE.
@@ -357,9 +354,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	niIntf.Interface = ygot.String(p1.Name())
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), nonDefaultNI)
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, nonDefaultVRF)
-	}
 }
 
 // networkInstance creates an OpenConfig network instance with the specified name
