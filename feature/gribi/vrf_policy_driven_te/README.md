@@ -433,12 +433,12 @@ network-instances {
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF) -> {
   {NH#201, DEFAULT VRF, weight:1},
   {NH#202, DEFAULT VRF, weight:3},
-  backup_next_hop_group: 100 // in case specific vendor implementation or bugs pruned the NHs.
+  backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
 }
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_B)} -> NHG#11 (DEFAULT VRF) -> {
   {NH#201, DEFAULT VRF, weight:3},
   {NH#202, DEFAULT VRF, weight:1},
-  backup_next_hop_group: 100 // in case specific vendor implementation or bugs pruned the NHs.
+  backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
 }
 NH#201 -> {
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
@@ -461,7 +461,6 @@ NHG#200 (Default VRF) {
   {NH#2000, DEFAULT VRF, weight:1}
 }
 NH#2000 -> {
-    decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     network_instance: "DEFAULT"
 }
 
@@ -492,10 +491,17 @@ NH#1000 -> {
 
 IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#7 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
-  backup_next_hop_group: 200 // decap to DEFAULT VRF
+  backup_next_hop_group: 201 // decap to DEFAULT VRF
 }
 IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#8 (DEFAULT VRF) -> {
   {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
+}
+NHG#201 (Default VRF) {
+  {NH#2001, DEFAULT VRF, weight:1}
+}
+NH#2001 -> {
+    OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+    network_instance: "DEFAULT"
 }
 
 // 203.10.113.2 is the tunnel IP address. Note that the NHG#4 is different than NHG#1.
@@ -520,11 +526,12 @@ NH#1001 -> {
 }
 IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#9 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
-  backup_next_hop_group: 200 // decap to DEFAULT VRF
+  backup_next_hop_group: 201 // decap to DEFAULT VRF
 }
 IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#10 (DEFAULT VRF) -> {
   {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-7-interface},
 }
+
 ```
 
 *   Install a BGP route resolved by ISIS in default VRF to rout traffic out of DUT port-8.
