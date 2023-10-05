@@ -744,8 +744,7 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			// Ethernet config may not contain meaningful values if it wasn't explicitly
 			// configured, so use its current state for the config, but prune non-config leaves.
 			intf := gnmi.Get(t, dev, gnmi.OC().Interface(iname).State())
-			hp := intf.GetHardwarePort()
-			breakout := config.GetComponent(hp).GetPort().GetBreakoutMode()
+			breakout := config.GetComponent(intf.GetHardwarePort()).GetPort().GetBreakoutMode()
 			e := intf.GetEthernet()
 			// Set port speed to unknown for non breakout interfaces
 			if breakout.GetGroup(1) == nil && e != nil {
