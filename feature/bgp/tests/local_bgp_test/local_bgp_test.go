@@ -61,8 +61,8 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 	bgp.GetOrCreateGlobal().As = ygot.Uint32(as)
 	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
@@ -88,16 +88,15 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 	}
 
 	bgp.AppendNeighbor(nbr)
-	return ni_proto
+	return niProto
 }
 
 func configureNIType(t *testing.T) {
-	dut := ondatra.DUT(t, "dut1")
-	ate := ondatra.DUT(t, "dut2")
+	dut1 := ondatra.DUT(t, "dut1")
+	dut2 := ondatra.DUT(t, "dut2")
 	// Configure Network instance type on DUT
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	gnmi.Replace(t, ate, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut1)
+	fptest.ConfigureDefaultNetworkInstance(t, dut2)
 }
 
 // configreRoutePolicy adds route-policy config

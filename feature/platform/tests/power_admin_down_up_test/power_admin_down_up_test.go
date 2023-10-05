@@ -22,6 +22,9 @@ func TestMain(m *testing.M) {
 
 func TestFabricPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SkipFabricCardPowerAdmin(dut) {
+		t.Skip("Fabric power down up unsupported")
+	}
 	fs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
 
 	for _, f := range fs {
@@ -148,7 +151,6 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 		t.Errorf("Component %s oper-status, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED)
 	}
 	t.Logf("Component %s, oper-status after %f minutes: %v", name, time.Since(start).Minutes(), oper)
-
 	start = time.Now()
 	t.Logf("Starting %s POWER_ENABLE", name)
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_ENABLED)

@@ -170,8 +170,12 @@ func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 
 	time.Sleep(time.Minute)
 
-	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
-	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+	txPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
+	rxPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
+
+	if txPkts == 0 {
+		t.Fatalf("TxPkts == 0, want > 0")
+	}
 
 	if got := (txPkts - rxPkts) * 100 / txPkts; got != 0 {
 		t.Errorf("FAIL: LossPct for flow named %s got %v, want 0", flowName, got)
@@ -246,7 +250,7 @@ func verifyGRIBIGet(ctx context.Context, t *testing.T, clientA *gribi.Client, du
 
 // gNOIKillProcess kills a daemon on the DUT, given its name and pid.
 func gNOIKillProcess(ctx context.Context, t *testing.T, args *testArgs, pName string, pID uint32) {
-	gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := args.dut.RawAPIs().GNOI(t)
 	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
 	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
 	t.Logf("Got kill process response: %v\n\n", killResponse)

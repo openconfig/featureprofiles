@@ -80,7 +80,7 @@ parser.add_argument('--patches', default=False, action='store_true', help="inclu
 parser.add_argument('--patched-only', default=False, action='store_true', help="skip patched tests")
 parser.add_argument('--passed-only', default=False, action='store_true', help="skip failed tests")
 parser.add_argument('--skip-patched', default=False, action='store_true', help="skip patched tests")
-parser.add_argument('--update-failed', default=False, action='store_true', help="update failed tests only")
+parser.add_argument('--update-failed', default=True, action='store_true', help="update failed tests only")
 parser.add_argument('--set-property', action='store', type=str, nargs='*')
 args = parser.parse_args()
 

@@ -141,7 +141,7 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 		}
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	for i := 0; i < process_restart_count; i++ {
 		killRequest := &gnps.KillProcessRequest{Name: pName, Pid: uint32(pID), Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
 		killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
@@ -176,7 +176,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 
 	// reload the HW is rfpo count is 10 or more
 	if rpfo_count == 10 {
-		gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+		gnoiClient := args.dut.RawAPIs().GNOI(t)
 		rebootRequest := &gnps.RebootRequest{
 			Method: gnps.RebootMethod_COLD,
 			Force:  true,
@@ -208,7 +208,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 	if got, want := gnmi.Get(t, args.dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
-	gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+	gnoiClient := args.dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
@@ -934,7 +934,7 @@ func (args *testArgs) gnmiConf(t *testing.T, conf string) {
 	}
 	setRequest := &proto_gnmi.SetRequest{}
 	setRequest.Update = []*proto_gnmi.Update{updateRequest}
-	gnmiClient := args.dut.RawAPIs().GNMI().New(t)
+	gnmiClient := args.dut.RawAPIs().GNMI(t)
 	if _, err := gnmiClient.Set(args.ctx, setRequest); err != nil {
 		t.Fatalf("gNMI set request failed: %v", err)
 	}
@@ -1984,7 +1984,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 					args.ate.Traffic().Stop(t)
 				}
 
-				gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
+				gnoiClient := args.dut.RawAPIs().GNOI(t)
 				useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 				lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
 				rebootSubComponentRequest := &gnps.RebootRequest{
@@ -2036,7 +2036,6 @@ func test_triggers(t *testing.T, args *testArgs) {
 						args.rpfo(args.ctx, t, true)
 					}
 					sshClient := args.dut.RawAPIs().CLI(t)
-					defer sshClient.Close()
 					time.Sleep(10 * time.Second)
 
 					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv6 \n commit \n", 30*time.Second)
@@ -2088,7 +2087,6 @@ func test_triggers(t *testing.T, args *testArgs) {
 						args.rpfo(args.ctx, t, true)
 					}
 					sshClient := args.dut.RawAPIs().CLI(t)
-					defer sshClient.Close()
 					time.Sleep(10 * time.Second)
 
 					port := rand.Intn(max-min+1) + min

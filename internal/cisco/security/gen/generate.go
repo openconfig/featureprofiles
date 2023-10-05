@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
-	accpb "github.com/openconfig/gnsi/accounting"
+	accpb "github.com/openconfig/gnsi/acctz"
 	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
 	credpb "github.com/openconfig/gnsi/credentialz"
@@ -52,7 +52,7 @@ var (
 		"gnsi.certz":              certzpb.File_github_com_openconfig_gnsi_certz_certz_proto.Services(),
 		"gnsi.pathz":              pathzpb.File_github_com_openconfig_gnsi_pathz_pathz_proto.Services(),
 		"gnsi.cred":               credpb.File_github_com_openconfig_gnsi_credentialz_credentialz_proto.Services(),
-		"gnsi.acc":                accpb.File_github_com_openconfig_gnsi_accounting_acct_proto.Services(),
+		"gnsi.acc":                accpb.File_github_com_openconfig_gnsi_acctz_acctz_proto.Services(),
 		"gnoi.bgp":                bpb.File_bgp_bgp_proto.Services(),
 		"gnoi.cert":               cpb.File_cert_cert_proto.Services(),
 		"gnoi.diag":               dpb.File_diag_diag_proto.Services(),

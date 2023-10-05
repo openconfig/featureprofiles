@@ -36,7 +36,8 @@ devices:
       - 88-LC1-36EH
     platform: spitfire_d
     pre_cli: reload location 0/0/CPU0 noprompt
-    pre_config: hw-module profile npu-compatibility Q200
+    pre_config: "hw-module profile npu-compatibility Q200
+    hw-module profile netflow sflow-enable location 0/0/cpu0"
     xr_hostname: dut
     xr_password: cisco123
     xr_port_redir: 

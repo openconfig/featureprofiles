@@ -475,7 +475,6 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	t.Logf("clear qos counters on all interfaces")
 	cliHandle := args.dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
 	resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
 	t.Logf(resp, err)
 	t.Logf("sleeping after clearing qos counters")
@@ -713,7 +712,6 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf(resp, err)
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
-		cliHandle.Close()
 	}
 }
 func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
@@ -825,7 +823,6 @@ func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf(resp, err)
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
-		cliHandle.Close()
 	}
 
 }
@@ -911,7 +908,6 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf(resp, err)
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
-		cliHandle.Close()
 	}
 
 }

@@ -1,0 +1,21 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "a01b6e65-3b45-4e0c-a71d-f451c07fec6b"
+plan_id:  "Health-1.1"
+description:  "Generic Health Check"
+testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    controller_card_cpu_utilization_unsupported: true
+    linecard_cpu_utilization_unsupported: true
+    consistent_component_names_unsupported: true
+    fabric_drop_counter_unsupported: true
+    linecard_memory_utilization_unsupported: true
+    qos_voq_drop_counter_unsupported: true
+  }
+}
+tags: TAGS_AGGREGATION

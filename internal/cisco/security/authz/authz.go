@@ -76,7 +76,7 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 
 func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
-	rotateStream, _ := dut.RawAPIs().GNSI().Default(t).Authz().Rotate(context.Background())
+	rotateStream, _ := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
 	defer rotateStream.CloseSend()
 	policy, err := p.Marshal()
 	if err != nil {
@@ -130,7 +130,7 @@ func (p *AuthorizationPolicy) Get(t testing.TB, dut *ondatra.DUTDevice) *authz.G
 	p.RestAllowRules()
 	p.RestDenyRules()
 	t.Logf("Performing Authz.Get request on device %s", dut.Name())
-	gnsiCLient := dut.RawAPIs().GNSI().Default(t)
+	gnsiCLient := dut.RawAPIs().GNSI(t)
 	resp, err := gnsiCLient.Authz().Get(context.Background(), &authz.GetRequest{})
 	if err != nil {
 		t.Fatalf("Authz.Get request is failed on device %s", dut.Name())
@@ -225,7 +225,7 @@ func (p *AuthorizationPolicy) Verify(t *testing.T, dut *ondatra.DUTDevice, deepC
 			}
 		}
 	}
-	gnsiCLient := dut.RawAPIs().GNSI().Default(t)
+	gnsiCLient := dut.RawAPIs().GNSI(t)
 	for _, rule := range p.AllowRules {
 		t.Logf("Verifying Allow Rule %s", rule.Name)
 		for _, user := range rule.Source.Principals {

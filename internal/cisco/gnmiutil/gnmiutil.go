@@ -493,7 +493,7 @@ func subscribe(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, n ygnm
 	usesGet := opts.useGetForConfig && mode == gpb.SubscriptionList_ONCE
 	var sub gpb.GNMI_SubscribeClient
 	//create a gnmi connection oper watch to support multi-threading
-	opts.client = dut.RawAPIs().GNMI().New(t)
+	opts.client = dut.RawAPIs().GNMI(t)
 	if usesGet {
 		sub = &getSubscriber{
 			client: opts.client,
