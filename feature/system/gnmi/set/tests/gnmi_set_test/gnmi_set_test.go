@@ -721,7 +721,9 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 
 	// Gets all the config (read-write) paths from root, not the state (read-only) paths.
 	config := gnmi.Get[*oc.Root](t, dev, gnmi.OC().Config())
+	state := gnmi.Get[*oc.Root](t, dev, gnmi.OC().State())
 	fptest.WriteQuery(t, "Untouched", gnmi.OC().Config(), config)
+	fptest.WriteQuery(t, "Untouched State", gnmi.OC().State(), state)
 
 	if *pruneComponents {
 		for cname, component := range config.Component {
@@ -743,7 +745,13 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			}
 			// Ethernet config may not contain meaningful values if it wasn't explicitly
 			// configured, so use its current state for the config, but prune non-config leaves.
-			e := gnmi.Get(t, dev, gnmi.OC().Interface(iname).Ethernet().State())
+			hp := state.GetInterface(iname).GetHardwarePort()
+			breakout := config.GetComponent(hp).GetPort().GetBreakoutMode()
+			e := state.GetInterface(iname).GetEthernet()
+			// Set port speed to unknown for non breakout interfaces
+			if breakout.GetGroup(1) == nil && e != nil {
+				e.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN)
+			}
 			ygot.PruneConfigFalse(oc.SchemaTree["Interface_Ethernet"], e)
 			if e.PortSpeed != 0 && e.PortSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
 				iface.Ethernet = e
