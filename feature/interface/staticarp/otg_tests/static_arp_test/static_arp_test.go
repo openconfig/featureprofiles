@@ -24,7 +24,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/ondatra"
@@ -69,7 +68,6 @@ const (
 
 	poisonedMAC = "12:34:56:78:7a:69" // 0xa69 = 2665
 	noStaticMAC = ""
-	macFilter   = ""
 )
 
 var (
@@ -192,21 +190,7 @@ func configureATE(t *testing.T) gosnappi.Config {
 // Extract the hex equivalent last 12 bits
 func getMacFilter(mac string) string {
 	newMac := strings.Replace(mac, ":", "", -1)
-	macFilter := "0x" + newMac[9:]
-	return macFilter
-}
-
-// waitForOTGNeighborEntry waits for the neighbor to be ready on the Tx side
-func waitForOTGNeighborEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
-
-	got, ok := gnmi.WatchAll(t, otg, gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
-	if !ok {
-		t.Fatalf("Did not receive OTG Neighbor entry for tx interface, last got: %v", got)
-	}
+	return "0x" + newMac[9:]
 }
 
 func testFlow(
@@ -326,7 +310,7 @@ func TestStaticARP(t *testing.T) {
 	configureDUT(t, noStaticMAC)
 
 	ate.OTG().StartProtocols(t)
-	waitForOTGNeighborEntry(t)
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().State())
 
 	t.Run("NotPoisoned", func(t *testing.T) {
