@@ -257,7 +257,7 @@ network-instances {
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF) -> {
   {NH#201, DEFAULT VRF, weight:1},
   {NH#202, DEFAULT VRF, weight:3},
-  backup_next_hop_group: 100 // in case specific vendor implementation or bugs pruned the NHs.
+  backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
 }
 NH#201 -> {
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
@@ -280,7 +280,6 @@ NHG#200 (Default VRF) {
   {NH#2000, DEFAULT VRF, weight:1}
 }
 NH#2000 -> {
-    decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     network_instance: "DEFAULT"
 }
 
@@ -454,7 +453,8 @@ IPv4Entry.
     }
     NH#1001 -> {
         decapsulate_header:
-        OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4 network_instance: "DEFAULT"
+        OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+        network_instance: "DEFAULT"
     }
     ```
 
