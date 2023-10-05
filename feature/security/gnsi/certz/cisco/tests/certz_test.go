@@ -2,12 +2,11 @@ package certz_test
 
 import (
 	"context"
-	"testing"
-	"reflect"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
-
+	"reflect"
+	"testing"
 )
 
 func TestMain(m *testing.M) {
@@ -16,8 +15,9 @@ func TestMain(m *testing.M) {
 
 func TestSimpleCertzGetProfile(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnsiC:= dut.RawAPIs().GNSI().Default(t)
-	profiles, err:= gnsiC.Certz().GetProfileList(context.Background(),&certzpb.GetProfileListRequest{}); if err!=nil {
+	gnsiC := dut.RawAPIs().GNSI(t)
+	profiles, err := gnsiC.Certz().GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
+	if err != nil {
 		t.Fatalf("Unexpected Error in getting profile list: %v", err)
 	}
 	t.Logf("Profile list get was successful, %v", profiles)
@@ -25,7 +25,7 @@ func TestSimpleCertzGetProfile(t *testing.T) {
 
 func TestAddProfile(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnsiC := dut.RawAPIs().GNSI().Default(t)
+	gnsiC := dut.RawAPIs().GNSI(t)
 	SSLProfileList := [2]string{"Test123", "Abc123"}
 	type args struct {
 		req *certzpb.AddProfileRequest
@@ -73,7 +73,7 @@ func TestAddProfile(t *testing.T) {
 
 func TestGetProfileList(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnsiC := dut.RawAPIs().GNSI().Default(t)
+	gnsiC := dut.RawAPIs().GNSI(t)
 	type args struct {
 		req *certzpb.GetProfileListRequest
 	}
@@ -113,7 +113,7 @@ func TestGetProfileList(t *testing.T) {
 
 func TestDeleteProfile(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnsiC := dut.RawAPIs().GNSI().Default(t)
+	gnsiC := dut.RawAPIs().GNSI(t)
 	SSLProfileList := [2]string{"Test123", "Abc123"}
 	type args struct {
 		req *certzpb.DeleteProfileRequest
@@ -165,685 +165,66 @@ func TestDeleteProfile(t *testing.T) {
 	}
 }
 
+func populateCSRParams(csrSuite certzpb.CSRSuite) *certzpb.CSRParams {
+	return &certzpb.CSRParams{
+		CsrSuite:           csrSuite,
+		CommonName:         "testcertz.com",
+		Country:            "US",
+		State:              "California",
+		City:               "San Francisco",
+		Organization:       "Example Inc",
+		OrganizationalUnit: "IT",
+		San: &certzpb.V3ExtensionSAN{
+			Dns:    []string{"testcertz.com", "www.testcertz.com"},
+			Emails: []string{"admin@testcertz.com"},
+			Ips:    []string{"127.0.0.1"},
+			Uris:   []string{"https://testcertz.com"},
+		},
+	}
+}
 func TestCanGenerateCSR(t *testing.T) {
-	rsa2048testvalidparamssha256 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	rsa2048testvalidparamssha384 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_384,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	rsa2048testvalidparamssha512 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_512,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	rsa3072testvalidparamssha256 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_3072_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	rsa3072testvalidparamssha384 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_3072_SIGNATURE_ALGORITHM_SHA_2_384,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	rsa3072testvalidparamssha512 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_3072_SIGNATURE_ALGORITHM_SHA_2_512,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	rsa4096testvalidparamssha256 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_4096_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	rsa4096testvalidparamssha384 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_4096_SIGNATURE_ALGORITHM_SHA_2_384,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	rsa4096testvalidparamssha512 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_4096_SIGNATURE_ALGORITHM_SHA_2_512,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	ecdsa256testvalidparamssha256 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_PRIME256V1_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	ecdsa384testvalidparamssha256 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP384R1_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	ecdsa256testvalidparamssha384 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP384R1_SIGNATURE_ALGORITHM_SHA_2_384,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	ecdsa256testvalidparamssha512 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP384R1_SIGNATURE_ALGORITHM_SHA_2_512,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	ecdsa384testvalidparamssha384 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP384R1_SIGNATURE_ALGORITHM_SHA_2_384,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	ecdsa384testvalidparamssha512 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP384R1_SIGNATURE_ALGORITHM_SHA_2_512,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	ecdsa521testvalidparamssha256 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP521R1_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	ecdsa521testvalidparamssha384 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP521R1_SIGNATURE_ALGORITHM_SHA_2_384,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	ecdsa521testvalidparamssha512 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP521R1_SIGNATURE_ALGORITHM_SHA_2_512,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	ed25519testvalidparamssha256 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_EDDSA_ED25519,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	invalidparams1 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_CIPHER_UNSPECIFIED,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		State: "California",
-
-		City: "San Francisco",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
+	rsa2048testvalidparamssha256 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256)
+	rsa2048testvalidparamssha384 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_384)
+	rsa2048testvalidparamssha512 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_512)
+	rsa3072testvalidparamssha256 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_3072_SIGNATURE_ALGORITHM_SHA_2_256)
+	rsa3072testvalidparamssha384 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_3072_SIGNATURE_ALGORITHM_SHA_2_384)
+	rsa3072testvalidparamssha512 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_3072_SIGNATURE_ALGORITHM_SHA_2_512)
+	rsa4096testvalidparamssha256 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_4096_SIGNATURE_ALGORITHM_SHA_2_256)
+	rsa4096testvalidparamssha384 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_4096_SIGNATURE_ALGORITHM_SHA_2_384)
+	rsa4096testvalidparamssha512 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_4096_SIGNATURE_ALGORITHM_SHA_2_512)
+	ecdsa256testvalidparamssha256 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_PRIME256V1_SIGNATURE_ALGORITHM_SHA_2_256)
+	ecdsa384testvalidparamssha256 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP384R1_SIGNATURE_ALGORITHM_SHA_2_256)
+	ecdsa256testvalidparamssha384 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP384R1_SIGNATURE_ALGORITHM_SHA_2_384)
+	ecdsa256testvalidparamssha512 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP384R1_SIGNATURE_ALGORITHM_SHA_2_512)
+	ecdsa384testvalidparamssha384 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP384R1_SIGNATURE_ALGORITHM_SHA_2_384)
+	ecdsa384testvalidparamssha512 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP384R1_SIGNATURE_ALGORITHM_SHA_2_512)
+	ecdsa521testvalidparamssha256 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP521R1_SIGNATURE_ALGORITHM_SHA_2_256)
+	ecdsa521testvalidparamssha384 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP521R1_SIGNATURE_ALGORITHM_SHA_2_384)
+	ecdsa521testvalidparamssha512 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_ECDSA_SECP521R1_SIGNATURE_ALGORITHM_SHA_2_512)
+	ed25519testvalidparamssha256 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_EDDSA_ED25519)
+	invalidparams1 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_CIPHER_UNSPECIFIED)
 	invalidparams2 := certzpb.CSRParams{
-
 		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256,
 	}
-	invalidparams3 := certzpb.CSRParams{
+	invalidparams3 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256)
+	invalidparams3.San.Dns = []string{"testcertz.com", "www.testcertz.com", "invalid_dns.-com"}
 
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256,
+	invalidparams4 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256)
+	invalidparams4.San.Emails = []string{"invalid.email.com"}
 
-		CommonName: "testcertz.com",
+	invalidparams5 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256)
+	invalidparams5.San.Ips = []string{"invalid_ip"}
 
-		Country: "US",
+	invalidparams6 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256)
+	invalidparams6.San.Uris = []string{"invalid_uri"}
 
-		Organization: "Example Inc",
+	randomparams1 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256)
 
-		OrganizationalUnit: "IT",
+	randomparams2 := populateCSRParams(certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256)
+	randomparams2.San.Ips = []string{}
 
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com", "invalid_dns.-com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	invalidparams4 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"invalid.email.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	invalidparams5 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"invalid_ip"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
-	invalidparams6 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-
-			Uris: []string{"invalid_uri"},
-		},
-	}
-	randomparams1 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Emails: []string{"admin@testcertz.com"},
-
-			Ips: []string{"127.0.0.1"},
-		},
-	}
-	randomparams2 := certzpb.CSRParams{
-
-		CsrSuite: certzpb.CSRSuite_CSRSUITE_X509_KEY_TYPE_RSA_2048_SIGNATURE_ALGORITHM_SHA_2_256,
-
-		CommonName: "testcertz.com",
-
-		Country: "US",
-
-		Organization: "Example Inc",
-
-		OrganizationalUnit: "IT",
-
-		San: &certzpb.V3ExtensionSAN{
-
-			Dns: []string{"testcertz.com", "www.testcertz.com"},
-
-			Uris: []string{"https://testcertz.com"},
-		},
-	}
 	dut := ondatra.DUT(t, "dut")
-	gnsiC := dut.RawAPIs().GNSI().Default(t)
+	gnsiC := dut.RawAPIs().GNSI(t)
 	type args struct {
 		req *certzpb.CanGenerateCSRRequest
 	}
@@ -855,121 +236,121 @@ func TestCanGenerateCSR(t *testing.T) {
 	}{
 		{
 			name:    "CSR with RSA 2048 SHA256 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &rsa2048testvalidparamssha256}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: rsa2048testvalidparamssha256}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with RSA 2048 SHA384 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &rsa2048testvalidparamssha384}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: rsa2048testvalidparamssha384}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with RSA 2048 SHA512 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &rsa2048testvalidparamssha512}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: rsa2048testvalidparamssha512}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with RSA 3072 SHA256 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &rsa3072testvalidparamssha256}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: rsa3072testvalidparamssha256}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with RSA 3072 SHA384 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &rsa3072testvalidparamssha384}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: rsa3072testvalidparamssha384}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with RSA 3072 SHA512 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &rsa3072testvalidparamssha512}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: rsa3072testvalidparamssha512}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with RSA 4096 SHA256 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &rsa4096testvalidparamssha256}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: rsa4096testvalidparamssha256}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with RSA 4096 SHA384 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &rsa4096testvalidparamssha384}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: rsa4096testvalidparamssha384}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with RSA 4096 SHA512 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &rsa4096testvalidparamssha512}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: rsa4096testvalidparamssha512}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with ECDSA256 SHA256 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &ecdsa256testvalidparamssha256}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: ecdsa256testvalidparamssha256}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with ECDSA256 SHA384 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &ecdsa256testvalidparamssha384}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: ecdsa256testvalidparamssha384}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with ECDSA256 SHA512 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &ecdsa256testvalidparamssha512}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: ecdsa256testvalidparamssha512}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with ECDSA384 SHA256 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &ecdsa384testvalidparamssha256}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: ecdsa384testvalidparamssha256}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with ECDSA384 SHA384 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &ecdsa384testvalidparamssha384}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: ecdsa384testvalidparamssha384}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with ECDSA384 SHA512 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &ecdsa384testvalidparamssha512}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: ecdsa384testvalidparamssha512}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with ECDSA521 SHA256 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &ecdsa521testvalidparamssha256}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: ecdsa521testvalidparamssha256}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with ECDSA521 SHA384 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &ecdsa521testvalidparamssha384}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: ecdsa521testvalidparamssha384}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with ECDSA521 SHA512 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &ecdsa521testvalidparamssha512}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: ecdsa521testvalidparamssha512}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with ED25519 test",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &ed25519testvalidparamssha256}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: ed25519testvalidparamssha256}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with invalid unspecified suite",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &invalidparams1}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: invalidparams1}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: false},
 			wantErr: true,
 		},
@@ -981,25 +362,25 @@ func TestCanGenerateCSR(t *testing.T) {
 		},
 		{
 			name:    "CSR with invalid DNS",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &invalidparams3}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: invalidparams3}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: false},
 			wantErr: true,
 		},
 		{
 			name:    "CSR with invalid email",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &invalidparams4}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: invalidparams4}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: false},
 			wantErr: true,
 		},
 		{
 			name:    "CSR with invalid IP",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &invalidparams5}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: invalidparams5}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: false},
 			wantErr: true,
 		},
 		{
 			name:    "CSR with invalid URI",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &invalidparams6}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: invalidparams6}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: false},
 			wantErr: true,
 		},
@@ -1011,13 +392,13 @@ func TestCanGenerateCSR(t *testing.T) {
 		},
 		{
 			name:    "CSR with fewer parameters 1",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &randomparams1}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: randomparams1}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
 		{
 			name:    "CSR with fewer parameters 2",
-			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: &randomparams2}},
+			args:    args{req: &certzpb.CanGenerateCSRRequest{Params: randomparams2}},
 			want:    &certzpb.CanGenerateCSRResponse{CanGenerate: true},
 			wantErr: false,
 		},
@@ -1036,4 +417,3 @@ func TestCanGenerateCSR(t *testing.T) {
 		})
 	}
 }
-

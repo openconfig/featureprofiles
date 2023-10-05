@@ -42,3 +42,10 @@ tests:
   pr: 2136
   mustpass: true
   timeout: 21000
+
+- name: CERTZBasic (Certz Internal Basic Tests) 
+  path: feature/security/gnsi/certz/cisco/tests
+  owners:
+    - venthota,mbagherz
+  mustpass: true
+  timeout: 21000
