@@ -177,11 +177,10 @@ func configureDUT(t *testing.T, peermac string) {
 
 func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
-	config := otg.NewConfig(t)
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 
+	config := gosnappi.NewConfig()
 	srcPort := config.Ports().Add().SetName(ap1.ID())
 	dstPort := config.Ports().Add().SetName(ap2.ID())
 
