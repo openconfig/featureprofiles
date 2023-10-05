@@ -44,4 +44,12 @@ platform_exceptions: {
     isis_counter_part_changes_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_interface_passive_state_unsupported: true
+  }
+}
 tags: TAGS_AGGREGATION

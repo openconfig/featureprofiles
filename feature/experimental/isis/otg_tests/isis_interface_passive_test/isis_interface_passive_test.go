@@ -307,8 +307,10 @@ func TestIsisInterfacePassive(t *testing.T) {
 			gnmi.Update(t, ts.DUT, statePath.Interface(intfName).Passive().Config(), true)
 
 			// Checking passive telemetry.
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Passive().State()); got != true {
-				t.Errorf("FAIL- Expected value for passive not found on isis interface, got %t, want %t", got, true)
+			if !deviations.IsisInterfacePassiveStateUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Passive().State()); got != true {
+					t.Errorf("FAIL- Expected value for passive not found on isis interface, got %t, want %t", got, true)
+				}
 			}
 			l2 := statePath.Interface(intfName).Level(2).State()
 			_, ok := gnmi.Watch(t, ts.DUT, l2, time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Isis_Interface_Level]) bool {

@@ -625,3 +625,8 @@ func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
 func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
+// IsisInterfacePassiveStateUnsupported returns true for devices that do not
+// support interface passive state.
+func IsisInterfacePassiveStateUnsupported(dut *ondatra.DUTDevice) bool {
+        return lookupDUTDeviations(dut).GetIsisInterfacePassiveStateUnsupported()
+}
