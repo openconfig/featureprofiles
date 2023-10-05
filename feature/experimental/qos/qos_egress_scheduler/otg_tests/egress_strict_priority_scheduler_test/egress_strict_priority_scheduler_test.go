@@ -1033,11 +1033,11 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		config = juniperCLI()
 		gpbSetRequest := buildCLIConfigRequest(config)
 		t.Log("gnmiClient Set CLI config")
-		if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 		}
 	default:
-		t.Fatalf("Vendor specific config should be added: %v", err)
+		t.Fatalf("Vendor specific config is not supported ")
 	}
 
 }
