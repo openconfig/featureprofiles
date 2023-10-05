@@ -31,7 +31,7 @@ J[DUT:Port6] --> K[Port6:OTG];
 
 ## Subtest-2: Gather baseline stats by passing traffic
  *   Start with the configuration in Subtest-1 above.
- *   The test should send 2000 IPv4 and 2000 1Pv6 flows from the ATE:Port1 to the DUT:Port1. These flows should equally be split between the 2x /24 IPv4 and 2x /64 IPv6 destination prefixes mentioned in Subtest-1 bullet#4 above. The flows should use variations in the following,
+ *   The test should send 2000 IPv4 and 2000 1Pv6 flows from the ATE:Port1 to the "tunnel payload destination prefixes". These flows should equally be split between the 2x /24 IPv4 and 2x /64 IPv6 destination prefixes mentioned in Subtest-1 bullet#4 above. The flows should use variations in the following,
         * Source IP address
         * Source Port
         * Destination IP adresses.
