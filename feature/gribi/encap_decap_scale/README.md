@@ -1,6 +1,6 @@
 # TE-14.2 encap and decap scale
 
-NOTE: this tests depends on https://github.com/openconfig/featureprofiles/pull/1950 
+NOTE: this test depends on https://github.com/openconfig/featureprofiles/pull/1950 
 
 ## Summary
 
