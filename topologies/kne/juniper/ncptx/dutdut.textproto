@@ -1,0 +1,111 @@
+name: "juniper-ncptx-dutdut"
+nodes: {
+    name: "dut1"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        image: "ncptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/0:0"
+        }
+    }
+    interfaces: {
+        key: "eth13"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth21"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+    interfaces: {
+        key: "eth29"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+}
+nodes: {
+    name: "dut2"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        image: "ncptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/0:0"
+        }
+    }
+    interfaces: {
+        key: "eth13"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth21"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+    interfaces: {
+        key: "eth29"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth5"
+    z_node: "dut2"
+    z_int: "eth5"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth13"
+    z_node: "dut2"
+    z_int: "eth13"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth21"
+    z_node: "dut2"
+    z_int: "eth21"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth29"
+    z_node: "dut2"
+    z_int: "eth29"
+}
