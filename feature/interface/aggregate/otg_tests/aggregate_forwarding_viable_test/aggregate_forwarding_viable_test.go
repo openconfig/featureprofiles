@@ -592,7 +592,7 @@ func TestAggregateForwardingViable(t *testing.T) {
 		args := &testArgs{
 			dut:      dut,
 			ate:      ate,
-			top:      ate.OTG().NewConfig(t),
+			top:      gosnappi.NewConfig(),
 			lagType:  lagType,
 			dutPorts: sortPorts(dut.Ports()),
 			atePorts: sortPorts(ate.Ports()),

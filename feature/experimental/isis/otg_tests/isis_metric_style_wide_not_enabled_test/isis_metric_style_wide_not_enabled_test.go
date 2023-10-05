@@ -194,7 +194,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 // configureOTG configures the interfaces and isis on OTG.
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Helper()
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 	port2 := config.Ports().Add().SetName("port2")
 
