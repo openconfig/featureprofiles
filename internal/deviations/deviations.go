@@ -597,7 +597,7 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
 
-// GRIBISkipFibFailedTrafficForwardingCheck returns true for devices that do not
+// GRIBISkipFIBFailedTrafficForwardingCheck returns true for devices that do not
 // support fib forwarding for fib failed routes.
 func GRIBISkipFIBFailedTrafficForwardingCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipFibFailedTrafficForwardingCheck()
