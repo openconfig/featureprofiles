@@ -40,7 +40,7 @@ J[DUT:Port6] --> K[Port6:OTG];
  *   Incoming traffic on DUT:PORT1 should be load shared across all 64 Tunnel interfaces for encapsulation and then routed out the combination of lag and singleton interfaces, i.e. lag1, lag2 and Port6.
  *   Follow all the "verifications" steps in [*] below
 
-## Subtest-3: Reduce number of tunnel interfaces 
+## Subtest-3: Removal of static routes to prevent using some of the tunnels 
  *   Start with the state in Subtest-2 above with active traffic flow.
  *   Reduce the number of Tunnel interfaces, e.g. from 32 to 16 for each of the tunnel destination group by address-family:
         * If the static routes are used to forward traffic to tunnel, please disable or delete the static routes in this test to simulate the reduction in available paths.
