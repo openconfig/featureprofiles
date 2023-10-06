@@ -47,10 +47,18 @@ J[DUT:Port6] --> K[Port6:OTG];
  *   Incoming traffic on DUT:PORT1 should now be load shared across all remaining 16 Tunnel interfaces per tunnel-destination by address-family.
  *   Follow all the verifications steps in [*] below.
 
-## Subtest-4: Restore the number of tunnel interfaces 
+## Subtest-4: Restore static routes to start using all 32 tunnels 
  *   Start from the condition in Subtest-3 above with inflight traffic from OTG:Port1.
  *   Increase number of Tunnel interfaces, e.g. From 16 to 32 per tunnel-destination by address-family.
  *   Incoming traffic on DUT:PORT1 should now be load shared across all 32 Tunnel interfaces per tunnel-destination by address-family. Follow all the verifications steps in [*] below
+
+## Subtest-5: gNMI configuration push test to validate tunnel configuration as a single atomic operation
+ *   Start w/o any tunnel interface and corresponding static routes configuration 
+ *   Use a single gNMI.Replace operation to configure 32 tunnel interfaces and corresponding routes in a single request.
+ *   Start traffic. Follow verification steps in [*] below to confirm success
+ *   While the traffic flow is happening, make another gNMI.Replace operation for just 16 tunnels and corresponding static routes
+ *   Follow the verification steps in [*] below for success.
+   
 
 #### [*] Verification steps
  *   Verify the next hop counters for packets being diverted or sent for encapsulation. Test should fail if drops recorded.
