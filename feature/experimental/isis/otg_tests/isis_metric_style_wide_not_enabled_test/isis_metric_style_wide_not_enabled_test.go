@@ -65,13 +65,13 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 	prot.Enabled = ygot.Bool(true)
 
 	isis := prot.GetOrCreateIsis()
-	globalIsis := isis.GetOrCreateGlobal()
+	globalISIS := isis.GetOrCreateGlobal()
 
 	// Global configs.
-	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	globalIsis.AuthenticationCheck = ygot.Bool(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
+	globalISIS.AuthenticationCheck = ygot.Bool(true)
 
 	// Level configs.
 	level := isis.GetOrCreateLevel(2)
