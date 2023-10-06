@@ -194,7 +194,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
@@ -228,7 +228,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 }
 
 func configOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
