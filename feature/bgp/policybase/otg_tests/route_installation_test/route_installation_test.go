@@ -420,8 +420,7 @@ func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) 
 // configureATE configures the interfaces and BGP protocols on an OTG, including advertising some
 // (faked) networks over BGP.
 func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
-
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	srcPort := config.Ports().Add().SetName("port1")
 	dstPort := config.Ports().Add().SetName("port2")
 
