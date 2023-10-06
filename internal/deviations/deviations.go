@@ -637,8 +637,3 @@ func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
 }
-
-// LoadBalancingDeviation returns true for devices that does not support load balance with expected deviation
-func LoadBalancingDeviation(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetLoadBalancingDeviation()
-}

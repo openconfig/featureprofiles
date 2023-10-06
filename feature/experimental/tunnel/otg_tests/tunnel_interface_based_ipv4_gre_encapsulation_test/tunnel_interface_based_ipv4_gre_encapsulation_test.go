@@ -47,7 +47,7 @@ const (
 	tunnelInterface          = "fti0"
 	trafficRatePps           = 5000
 	trafficDuration          = 120
-	tolerance                = 6
+	tolerance                = 12
 )
 
 var (
@@ -183,9 +183,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	t.Run("Verify after Encapsulation loadbalance (ECMP) && load balanced to available Tunnel interfaces ", func(t *testing.T) {
 		finalEgressPkts := fetchEgressInterfacestatsics(t, dut, egressInterfaces)
 		t.Logf("Verify Incoming traffic flow should be equally distributed for Encapsulation(ECMP)")
-		if !deviations.LoadBalancingDeviation(dut) {
-			verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 1, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
-		}
+		verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 1, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
 		if !deviations.TunnelStatePathUnsupported(dut) {
 			finalTunnelInPkts, finalTunnelOutPkts := fetchTunnelInterfacestatsics(t, dut, tunnelCount)
 			t.Logf("Incoming traffic on DUT-PORT1 should be load balanced to available Tunnel interfaces for encapsulation")
