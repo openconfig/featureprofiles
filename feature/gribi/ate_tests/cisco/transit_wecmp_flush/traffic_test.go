@@ -55,6 +55,9 @@ func generateBaseScenario(t *testing.T, ate *ondatra.ATEDevice, topoobj *ondatra
 	// }
 	for _, port := range ate.Device.Ports() {
 		sortedAtePorts = append(sortedAtePorts, port.Name())
+		fmt.Println(sortedAtePorts)
+		sort.Strings(sortedAtePorts)
+		fmt.Println(sortedAtePorts)
 	}
 	if len(sortedAtePorts) < 2 {
 		t.Fatalf("At least two ports are required for the test")
