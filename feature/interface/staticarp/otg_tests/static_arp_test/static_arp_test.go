@@ -213,48 +213,41 @@ func testFlow(
 	// Configure the flow
 	otg := ate.OTG()
 	config.Flows().Clear().Items()
+	var flow gosnappi.Flow
 	switch ipType {
 	case "IPv4":
-		flowipv4 := config.Flows().Add().SetName("FlowIPv4")
-		flowipv4.Metrics().SetEnable(true)
-		flowipv4.TxRx().Port().
+		flow = config.Flows().Add().SetName("FlowIPv4")
+		flow.Metrics().SetEnable(true)
+		flow.TxRx().Port().
 			SetTxName("port1").
 			SetRxNames([]string{"port2"})
-		flowipv4.Duration().SetChoice("fixed_packets")
-		flowipv4.Duration().FixedPackets().SetPackets(1000)
-		flowipv4.Size().SetFixed(100)
-		e1 := flowipv4.Packet().Add().Ethernet()
+		e1 := flow.Packet().Add().Ethernet()
 		e1.Src().SetValue(ateSrc.MAC)
 		e1.Dst().SetValue(dstMac)
-		v4 := flowipv4.Packet().Add().Ipv4()
+		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
-		eth := flowipv4.EgressPacket().Add().Ethernet()
-		ethTag := eth.Dst().MetricTags().Add()
-		ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
-		otg.PushConfig(t, config)
-		otg.StartProtocols(t)
 	case "IPv6":
-		flowipv6 := config.Flows().Add().SetName("FlowIPv6")
-		flowipv6.Metrics().SetEnable(true)
-		flowipv6.TxRx().Port().
+		flow = config.Flows().Add().SetName("FlowIPv6")
+		flow.Metrics().SetEnable(true)
+		flow.TxRx().Port().
 			SetTxName("port1").
 			SetRxNames([]string{"port2"})
-		flowipv6.Duration().SetChoice("fixed_packets")
-		flowipv6.Duration().FixedPackets().SetPackets(1000)
-		flowipv6.Size().SetFixed(100)
-		e1 := flowipv6.Packet().Add().Ethernet()
+		e1 := flow.Packet().Add().Ethernet()
 		e1.Src().SetValue(ateSrc.MAC)
 		e1.Dst().SetValue(dstMac)
-		v6 := flowipv6.Packet().Add().Ipv6()
+		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
-		eth := flowipv6.EgressPacket().Add().Ethernet()
-		ethTag := eth.Dst().MetricTags().Add()
-		ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
-		otg.PushConfig(t, config)
-		otg.StartProtocols(t)
 	}
+	flow.Duration().SetChoice("fixed_packets")
+	flow.Duration().FixedPackets().SetPackets(1000)
+	flow.Size().SetFixed(100)
+	eth := flow.EgressPacket().Add().Ethernet()
+	ethTag := eth.Dst().MetricTags().Add()
+	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
+	otg.PushConfig(t, config)
+	otg.StartProtocols(t)
 
 	// Starting the traffic
 	otg.StartTraffic(t)
