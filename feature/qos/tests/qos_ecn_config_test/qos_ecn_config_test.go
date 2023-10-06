@@ -482,13 +482,6 @@ func testCiscoECNConfig(t *testing.T) {
 	if got, want := gnmi.GetConfig(t, dut, wredUniform.EnableEcn().Config()), ecnConfig.ecnEnabled; got != want {
 		t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
 	}
-
-	// if got, want := gnmi.GetConfig(t, dut, wredUniform.MinThreshold().Config()), ecnConfig.minThreshold; got != want {
-	// 	t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
-	// }
-	// if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxThreshold().Config()), ecnConfig.maxThreshold; got != want {
-	// 	t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
-	// }
 	if deviations.EcnSameMaxMimumThresholdUnsupported(dut) {
 		if got, want := gnmi.GetConfig(t, dut, wredUniform.MinThreshold().Config()), Cisco_MinThreshold; got != want {
 			t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
