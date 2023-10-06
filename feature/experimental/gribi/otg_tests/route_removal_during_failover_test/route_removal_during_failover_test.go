@@ -481,7 +481,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	gribic := dut.RawAPIs().GRIBI(t)
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 	top.Ports().Add().SetName(ap1.ID())
 	// configure DUT port#1 - source port.
 	configureSubinterfaceDUT(d, dp1, 0, 0, dutPort1.IPv4, dut)
