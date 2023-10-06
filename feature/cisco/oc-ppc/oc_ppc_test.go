@@ -29,58 +29,8 @@ import (
 // constant variables
 const (
 	vrf1 = "TE"
+	traffic = true
 )
-
-var (
-	TestOC_PPC = map[string][]Testcase{
-		TestOC_PPC_interface_subsystem = []Testcase{
-			{
-				name: "TC1 name",
-				desc: "TC description",
-				fn:   testhost,
-			},
-		},
-		TestOC_PPC_queuing_subsystem = []Testcase{
-			{
-				name: "TC1 name",
-				desc: "TC description",
-				fn:   testhost,
-			},
-		},
-		TestOC_PPC_lookup_subsystem = []Testcase{
-			{
-				name: "TC1 name",
-				desc: "TC description",
-				fn:   testhost,
-			},
-		},
-		TestOC_PPC_host_subsystem = []Testcase{
-			{
-				name: "TC1 name",
-				desc: "TC description",
-				fn:   testhost,
-			},
-		},
-		TestOC_PPC_fabric_subsystem = []Testcase{
-			{
-				name: "TC1 name",
-				desc: "TC description",
-				fn:   testhost,
-			},
-		},
-	}
-)
-
-func testhost(){
-
-}
-
-// Testcase defines testcase structure
-type Testcase struct {
-	name string
-	desc string
-	fn   func(ctx context.Context, t *testing.T, args *testArgs)
-}
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
@@ -97,12 +47,74 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func (a *testArgs) testOC_PPC_interfae_subsystem(t *testing.T){
+	t.Skip("skipping interface subsystem")
+} 
+
+func (a *testArgs)testOC_PPC_queuing_subsystem(t *testing.T){
+	type testCase struct {
+		desc     string
+		path     string
+		counters []*ygnmi.Value[uint64]
+	}
+	interfaces := sortedInterfaces(a.dut.Ports())
+	t.Logf("Interfaces: %s", interfaces)
+	for _, intf := range interfaces {
+		t.Run(intf, func(t *testing.T) {
+			qosInterface := gnmi.OC().Qos().Interface(intf)
+			cases := []testCase{
+				{
+					desc:     "Queue Input Dropped packets",
+					path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, a.dut, qosInterface.Input().QueueAny().DroppedPkts().State()),
+				},
+				{
+					desc:     "Queue Output Dropped packets",
+					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, a.dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
+				},
+				{
+					desc:     "Queue input voq-output-interface dropped packets",
+					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, a.dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
+				},
+			}
+			for _, c := range cases {
+				t.Run(c.desc, func(t *testing.T) {
+					if len(c.counters) == 0 {
+						t.Errorf("%s Interface %s Telemetry Value is not present", c.desc, intf)
+					}
+					for queueID, dropPkt := range c.counters {
+						dropCount, present := dropPkt.Val()
+						if !present {
+							t.Errorf("%s Interface %s %s Telemetry Value is not present", c.desc, intf, dropPkt.Path)
+						} else {
+							t.Logf("%s Interface %s, Queue %d has %d drop(s)", dropPkt.Path.GetOrigin(), intf, queueID, dropCount)
+						}
+					}
+				})
+			}
+		})
+	}
+} 
+
+func (a *testArgs) testOC_PPC_lookup_subsystem(t *testing.T){
+	t.Skip("skipping lookup subsystem")
+} 
+
+func (a *testArgs) testOC_PPC_host_subsystem(t *testing.T){
+	t.Skip("skipping host subsystem")
+}	
+
+func (a *testArgs) testOC_PPC_fabric_subsystem(t *testing.T){
+	t.Skip("skipping fabric subsystem")
+}
+
 func TestOC_PPC(t *testing.T) {
 	t.Log("Name: OC PPC")
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
-	// ctx, cancelMonitors := context.WithCancel(context.Background())
 
 	// Configure the DUT
 	var vrfs = []string{vrf1}
@@ -122,45 +134,50 @@ func TestOC_PPC(t *testing.T) {
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	if *ciscoFlags.GRIBITrafficCheck {
+	if traffic {
 		addPrototoAte(t, top)
 		time.Sleep(120 * time.Second)
 	}
-	for subsystem_name, subsystem_tc_data := range TestOC_PPC {
-		t.Logf("Executing Subsystem: %s", subsystem_name)
 
-		//Creating gribi client for run across 1 subsystem
-		clientA := gribi.Client{
-			DUT:         ondatra.DUT(t, "dut"),
-			FIBACK:      true,
-			Persistence: true,
-			InitialElectionIDLow:  1,
-			InitialElectionIDHigh: 0,
-		}}
-		defer clientA.Close(t)
-		if err := clientA.Start(t); err != nil {
-			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-			if err = clientA.Start(t); err != nil {
-				t.Fatalf("gRIBI Connection could not be established: %v", err)
-			}
-		}
-		clientA.BecomeLeader(t)
-
-		for _, subsystem_tc := range subsystem_tc_data{
-			t.Run(subsystem_tc.name, func(t *testing.T) {
-				t.Logf("Name: %s", subsystem_tc.name)
-				t.Logf("Description: %s", subsystem_tc.desc)
-
-				args := &testArgs{
-					ctx:        ctx,
-					clientA:    &clientA,
-					dut:        dut,
-					ate:        ate,
-					top:        top,
-					},
-				}
-				tt.fn(ctx, t, args)
-			})
+	//Creating gribi client for run across 1 subsystem
+	clientA := gribi.Client{
+		DUT:         ondatra.DUT(t, "dut"),
+		FIBACK:      true,
+		Persistence: true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}}
+	defer clientA.Close(t)
+	if err := clientA.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = clientA.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
 		}
 	}
+	clientA.BecomeLeader(t)
+
+	args := &testArgs{
+		ctx:        ctx,
+		clientA:    &clientA,
+		dut:        dut,
+		ate:        ate,
+		top:        top,
+		},
+	}
+
+	t.Run("Test interface subsystem", func(t *testing.T) {
+		args.testOC_PPC_interfae_subsystem(t)
+	})
+	t.Run("Test queuing subsystem", func(t *testing.T) {
+		args.testOC_PPC_queuing_subsystem(t)
+	})
+	t.Run("Test lookup subsystem", func(t *testing.T) {
+		args.testOC_PPC_lookup_subsystem(t)
+	})
+	t.Run("Test host subsystem", func(t *testing.T) {
+		args.testOC_PPC_host_subsystem(t)
+	})
+	t.Run("Test fabrc subsystem", func(t *testing.T) {
+		args.testOC_PPC_fabric_subsystem(t)
+	})
 }
