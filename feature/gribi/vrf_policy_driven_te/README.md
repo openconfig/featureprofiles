@@ -697,8 +697,6 @@ We should expect that the egress traffic are 100% encapped with 203.0.113.100 as
 
 #### Test-5: match on "default term", send to default VRF
 
-TE-2.4.3: 4in4 Cluster Traffic on WAN-facing Ports [Note: before opensource this test, we need to reword this test to obscure Google traffic flow]
-
 Tests support for TE disabled IPinIP IPv4 (IP protocol 4) cluster traffic arriving on WAN facing ports. Specifically, this test verifies the tunnel traffic identification using ipv4_outer_src_111 and ipv4_outer_src_222 in the VRF selection policy.
 
 1.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
