@@ -19,6 +19,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    ecn_same_min_max_threshold_unsupproted: true
+    ecn_same_min_max_threshold_unsupported: true
   }
 }

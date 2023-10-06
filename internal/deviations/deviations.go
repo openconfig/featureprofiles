@@ -625,8 +625,10 @@ func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
 func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
+
+// GetEcnSameMinMaxThresholdUnsupported returns true for devices that don't support Minimum and Maximum threshold values are same
 // EcnMaxMimumThreshold returns the maximum threshold value while comparing for pass or fail conditions.
-// Maximum and mimium threshold value not be same. Anything less Maximum threshold should be 6144 greate then mimnimum threshold value.
+// CISCO: Maximum and mimium threshold value not be same. Anything less Maximum threshold should be 6144 greate then mimnimum threshold value.
 func EcnSameMaxMimumThresholdUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetEcnSameMinMaxThresholdUnsupproted()
+	return lookupDUTDeviations(dut).GetEcnSameMinMaxThresholdUnsupported()
 }

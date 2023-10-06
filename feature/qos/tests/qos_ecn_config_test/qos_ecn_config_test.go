@@ -36,6 +36,8 @@ type Testcase struct {
 	fn   func(t *testing.T)
 }
 
+// For Cisco devices, minimum and maximum Threshold values can't be the same,
+// as well as it should be a multiple of 6,144 bytes
 const (
 	Cisco_MinThreshold = (uint64(8005632))
 	Cisco_MaxThreshold = (uint64(8011776))
