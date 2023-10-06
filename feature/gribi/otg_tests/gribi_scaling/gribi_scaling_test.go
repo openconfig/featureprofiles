@@ -331,9 +331,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 			// configure DEFAULT vrf
 			fptest.ConfigureDefaultNetworkInstance(t, dut)
 		}
-		if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
-		}
 	}
 	// configure PBF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), configurePBF(dut))
@@ -495,7 +492,7 @@ func TestScaling(t *testing.T) {
 
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 

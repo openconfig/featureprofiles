@@ -157,9 +157,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureATE configures port1, port2 and port3 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	top.Ports().Add().SetName(atePort1.Name)
 	dev := top.Devices().Add().SetName(atePort1.Name)
@@ -182,8 +180,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	ip = eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
 	ip.SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(uint32(atePort3.IPv4Len))
 
-	otg.PushConfig(t, top)
-	otg.StartProtocols(t)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 	return top
 }
 

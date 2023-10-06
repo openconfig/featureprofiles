@@ -319,10 +319,6 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	fptest.ConfigureDefaultNetworkInstance(t, d)
 	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF(d))
 
-	if deviations.ExplicitGRIBIUnderNetworkInstance(d) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, d, nonDefaultVRF)
-		fptest.EnableGRIBIUnderNetworkInstance(t, d, deviations.DefaultNetworkInstance(d))
-	}
 }
 
 // assignSubifsToDefaultNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled.

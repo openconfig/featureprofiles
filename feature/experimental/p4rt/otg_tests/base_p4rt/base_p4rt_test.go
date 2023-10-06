@@ -177,8 +177,7 @@ func findP4RTNodes(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
 // ATE configuration with IP address
 func configureATE(t *testing.T, ate *ondatra.ATEDevice, ports []string) gosnappi.Config {
 	t.Helper()
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, ports[0])
 	atePort1.AddToOTG(top, p1, &dutPort1)

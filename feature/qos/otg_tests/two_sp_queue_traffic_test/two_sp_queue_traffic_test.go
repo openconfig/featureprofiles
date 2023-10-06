@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -139,7 +140,7 @@ func TestMain(m *testing.M) {
 func TestTwoSPQueueTraffic(t *testing.T) {
 	// Clear otg config
 	ate := ondatra.ATE(t, "ate")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 	ate.OTG().PushConfig(t, top)
 
 	dut := ondatra.DUT(t, "dut")

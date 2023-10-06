@@ -100,8 +100,7 @@ type ateData struct {
 }
 
 func (ad *ateData) ConfigureOTG(t *testing.T, otg *otg.OTG, ateList []string) gosnappi.Config {
-
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	bgp4ObjectMap := make(map[string]gosnappi.BgpV4Peer)
 	bgp6ObjectMap := make(map[string]gosnappi.BgpV6Peer)
 	ipv4ObjectMap := make(map[string]gosnappi.DeviceIpv4)

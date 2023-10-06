@@ -294,7 +294,7 @@ type trafficFlows struct {
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	t.Helper()
 	t.Logf("*** Configuring OTG interfaces ...")
-	topo := ate.OTG().NewConfig(t)
+	topo := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
