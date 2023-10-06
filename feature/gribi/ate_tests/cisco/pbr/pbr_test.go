@@ -4,7 +4,6 @@ package policy_test
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
@@ -277,11 +276,18 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *o
 }
 
 func configPBRunderInterface(t *testing.T, args *testArgs, interfaceName, policyName string) {
-	gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config(), policyName)
+	// gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config(), policyName)
+	t.Log("configPBRunderInterface")
+	dut := ondatra.DUT(t, "dut")
+	pfPath := gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName + ".0")
+	pfCfg := getPolicyForwardingInterfaceConfig(t, policyName, interfaceName)
+	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
+
 }
 
 func unconfigPBRunderInterface(t *testing.T, args *testArgs, interfaceName string) {
-	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config())
+	t.Log("unconfigPBRunderInterface")
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+".0").Config())
 }
 
 // Remove flowspec and add as pbr
@@ -290,23 +296,29 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
 	util.GNMIWithText(ctx, t, dut, configToChange)
 
-	// gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120.0").Config(),
-		getPolicyForwardingInterfaceConfig(pbrName, "Bundle-Ether120", 0))
-	t.Log("Reload the router to activate hw module config")
-	util.ReloadDUT(t, dut)
 	t.Log("Configure PBR policy and Apply it under interface")
 	configBasePBR(t, dut)
 
+	// gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
+
+	getPolicyForwardingInterfaceConfig(t, pbrName, "Bundle-Ether120")
+
+	t.Log("Reload the router to activate hw module config")
+	util.ReloadDUT(t, dut)
+
 }
 
-func getPolicyForwardingInterfaceConfig(policyName, intf string, subint int) *oc.NetworkInstance_PolicyForwarding_Interface {
-	pf := &oc.NetworkInstance_PolicyForwarding{}
-	pfCfg := pf.GetOrCreateInterface(intf + "." + strconv.Itoa(subint))
+func getPolicyForwardingInterfaceConfig(t *testing.T, policyName, intf string) *oc.NetworkInstance_PolicyForwarding_Interface {
+
+	t.Logf("Applying forwarding policy on interface %v ... ", intf)
+	d := &oc.Root{}
+	pfCfg := d.GetOrCreateNetworkInstance(*ciscoFlags.PbrInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(intf + ".0")
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(intf)
-	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(uint32(subint))
+	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	t.Logf("Applying forwarding policy on config %v ... ", pfCfg)
 	return pfCfg
+
 }
 
 // Remove the policy under physical interface and add the related physical interface under bundle interface which use the same PBR policy
@@ -825,7 +837,8 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	t.Run("Delete apply-vrf-selection-policy leaf", func(t *testing.T) {
-		gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config())
+		// gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config())
+		gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+"."+"0").Config())
 		defer configPBRunderInterface(t, args, interfaceName, pbrName)
 
 		// // TODO: enabled once gNMI Get works on XR
@@ -848,7 +861,8 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 	})
 
 	t.Run("Delete interface list entry", func(t *testing.T) {
-		gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).Config())
+		// gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).Config())
+		gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+"."+"0").Config())
 		defer configPBRunderInterface(t, args, interfaceName, pbrName)
 
 		// // TODO: enabled once gNMI Get works on XR
@@ -1307,6 +1321,9 @@ func testDettachAndAttachWrongSrcIp(ctx context.Context, t *testing.T, args *tes
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	dscpVal := uint8(Dscpval)
+
+	// un-Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	// Configure policy-map that matches the SourceAddress
 	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
