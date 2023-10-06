@@ -40,6 +40,5 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    qos_octets: true
   }
 }

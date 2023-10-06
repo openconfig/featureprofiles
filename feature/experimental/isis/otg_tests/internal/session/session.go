@@ -204,8 +204,7 @@ func New(t testing.TB) (*TestSession, error) {
 	// that don't use an ATE.
 	if ate, ok := ondatra.ATEs(t)["ate"]; ok {
 		s.ATE = ate
-		otg := s.ATE.OTG()
-		s.ATETop = otg.NewConfig(t)
+		s.ATETop = gosnappi.NewConfig()
 		s.ATEPort1 = s.ATE.Port(t, "port1")
 		s.ATEPort2 = s.ATE.Port(t, "port2")
 		s.ATEIntf1 = ATEISISAttrs.AddToOTG(s.ATETop, s.ATEPort1, DUTISISAttrs)
