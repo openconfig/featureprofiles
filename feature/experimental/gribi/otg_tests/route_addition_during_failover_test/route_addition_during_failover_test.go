@@ -36,9 +36,9 @@ import (
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/raw"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
@@ -125,7 +125,7 @@ var ipBlock1FlowArgs = &flowArgs{
 }
 
 // coreFileCheck function is used to check if cores are found on the DUT.
-func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64, retry bool) {
+func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient binding.GNOIClients, sysConfigTime uint64, retry bool) {
 	t.Helper()
 	t.Log("Checking for core files on DUT")
 
@@ -527,7 +527,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	gribic := dut.RawAPIs().GRIBI(t)
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 	top.Ports().Add().SetName(ap1.ID())
 	// configure DUT port#1 - source port.
 	configureSubinterfaceDUT(t, d, dp1, 0, 0, dutPort1.IPv4, dut)
@@ -545,9 +545,6 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
-	}
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
 	}
 
 	ate.OTG().PushConfig(t, top)

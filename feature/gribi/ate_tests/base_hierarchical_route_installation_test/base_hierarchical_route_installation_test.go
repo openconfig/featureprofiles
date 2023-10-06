@@ -135,18 +135,11 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), ni)
 
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, nonDefaultVRF)
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-	}
-
 	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	// configure PBF in DEFAULT vrf
-	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-	gnmi.Replace(t, dut, defNIPath.PolicyForwarding().Config(), configurePBF(dut))
+	gnmi.Replace(t, dut, dutConfNIPath.PolicyForwarding().Config(), configurePBF(dut))
 }
 
 // configureDUT configures port1 and port2 on the DUT.

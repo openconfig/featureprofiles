@@ -27,6 +27,10 @@ var (
 	sleep = flag.Int("sleep", 0, "seconds to sleep within test before exiting")
 )
 
+// sleepFn is a function that is called by default to pause the test in a specific state before exiting.
+// It reads the sleep duration from the provided flag.
+func sleepFn(_ *testing.T, _ []uint32) { time.Sleep(time.Duration(*sleep) * time.Second) }
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -36,12 +40,11 @@ func TestMain(m *testing.M) {
 // validate against the dataplane, but solely the gRIBI control-plane support.
 func TestMPLSLabelPushDepth(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
 	_ = mplsutil.PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
-	sleepFn := func(_ *testing.T, _ []uint32) { time.Sleep(time.Duration(*sleep) * time.Second) }
 
 	for i := 1; i <= maxLabelDepth; i++ {
 		t.Run(fmt.Sprintf("push %d labels", i), func(t *testing.T) {

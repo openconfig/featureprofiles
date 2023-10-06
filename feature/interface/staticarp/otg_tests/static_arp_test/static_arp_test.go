@@ -15,6 +15,7 @@
 package te_1_1_static_arp_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -176,11 +177,10 @@ func configureDUT(t *testing.T, peermac string) {
 
 func configureOTG(t *testing.T) (*ondatra.ATEDevice, gosnappi.Config) {
 	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
-	config := otg.NewConfig(t)
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 
+	config := gosnappi.NewConfig()
 	srcPort := config.Ports().Add().SetName(ap1.ID())
 	dstPort := config.Ports().Add().SetName(ap2.ID())
 
@@ -210,14 +210,14 @@ func checkDUTEntry(t *testing.T, ipType string, poisoned bool) {
 	switch ipType {
 	case "IPv4":
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv4().Neighbor(ateDst.IPv4).State()).LinkLayerAddress
-		if *macAddress != expectedMac {
+		if !strings.EqualFold(*macAddress, expectedMac) {
 			t.Errorf("ARP entry for %v is %v and expected was %v", ateDst.IPv4, *macAddress, expectedMac)
 		} else {
 			t.Logf("ARP entry for %v is %v", ateDst.IPv4, *macAddress)
 		}
 	case "IPv6":
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Subinterface(0).Ipv6().Neighbor(ateDst.IPv6).State()).LinkLayerAddress
-		if *macAddress != expectedMac {
+		if !strings.EqualFold(*macAddress, expectedMac) {
 			t.Errorf("Neighbor entry for %v is %v and expected was %v", ateDst.IPv6, *macAddress, expectedMac)
 		} else {
 			t.Logf("Neighbor entry for %v is %v", ateDst.IPv6, *macAddress)

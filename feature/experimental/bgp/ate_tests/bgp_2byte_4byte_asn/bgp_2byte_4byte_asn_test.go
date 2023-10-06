@@ -51,9 +51,9 @@ var (
 )
 
 type bgpNbr struct {
-	localAS, peerAS uint32
-	peerIP          string
-	isV4            bool
+	globalAS, localAS, peerAS uint32
+	peerIP                    string
+	isV4                      bool
 }
 
 func TestMain(m *testing.M) {
@@ -82,44 +82,44 @@ func TestBgpSession(t *testing.T) {
 	}{
 		{
 			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
-			nbr:     &bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
-			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 100, isV4: true}, connExternal),
+			nbr:     &bgpNbr{globalAS: 300, localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
+			dutConf: createBgpNeighbor(&bgpNbr{globalAS: 300, localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
+			ateConf: configureATE(t, &bgpNbr{globalAS: 300, localAS: 200, peerIP: dutSrc.IPv4, peerAS: 100, isV4: true}, connExternal),
 		}, {
 			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv6 peers",
-			nbr:     &bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
-			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 100, isV4: false}, connExternal),
+			nbr:     &bgpNbr{globalAS: 300, localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
+			dutConf: createBgpNeighbor(&bgpNbr{globalAS: 300, localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
+			ateConf: configureATE(t, &bgpNbr{globalAS: 300, localAS: 200, peerIP: dutSrc.IPv6, peerAS: 100, isV4: false}, connExternal),
 		}, {
 			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
-			nbr:     &bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
-			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 70000, isV4: true}, connExternal),
+			nbr:     &bgpNbr{globalAS: 300, localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
+			dutConf: createBgpNeighbor(&bgpNbr{globalAS: 300, localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
+			ateConf: configureATE(t, &bgpNbr{globalAS: 300, localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 70000, isV4: true}, connExternal),
 		}, {
 			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
-			nbr:     &bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: true},
-			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 70000, isV4: false}, connExternal),
+			nbr:     &bgpNbr{globalAS: 300, localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: true},
+			dutConf: createBgpNeighbor(&bgpNbr{globalAS: 300, localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
+			ateConf: configureATE(t, &bgpNbr{globalAS: 300, localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 70000, isV4: false}, connExternal),
 		}, {
 			name:    "Establish iBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
-			nbr:     &bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
-			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 200, isV4: true}, connInternal),
+			nbr:     &bgpNbr{globalAS: 300, localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
+			dutConf: createBgpNeighbor(&bgpNbr{globalAS: 300, localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
+			ateConf: configureATE(t, &bgpNbr{globalAS: 300, localAS: 200, peerIP: dutSrc.IPv4, peerAS: 200, isV4: true}, connInternal),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte < 65535) for ipv6 peers",
-			nbr:     &bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
-			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 200, isV4: false}, connInternal),
+			nbr:     &bgpNbr{globalAS: 300, localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
+			dutConf: createBgpNeighbor(&bgpNbr{globalAS: 300, localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
+			ateConf: configureATE(t, &bgpNbr{globalAS: 300, localAS: 200, peerIP: dutSrc.IPv6, peerAS: 200, isV4: false}, connInternal),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
-			nbr:     &bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
-			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 80000, isV4: true}, connInternal),
+			nbr:     &bgpNbr{globalAS: 300, localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
+			dutConf: createBgpNeighbor(&bgpNbr{globalAS: 300, localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
+			ateConf: configureATE(t, &bgpNbr{globalAS: 300, localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 80000, isV4: true}, connInternal),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
-			nbr:     &bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
-			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 80000, isV4: false}, connInternal),
+			nbr:     &bgpNbr{globalAS: 300, localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
+			dutConf: createBgpNeighbor(&bgpNbr{globalAS: 300, localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
+			ateConf: configureATE(t, &bgpNbr{globalAS: 300, localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 80000, isV4: false}, connInternal),
 		},
 	}
 
@@ -188,8 +188,8 @@ func verifyPeer(t *testing.T, nbr *bgpNbr, dut *ondatra.DUTDevice) {
 
 	// Check BGP globalAS from telemetry.
 	globalAS := gnmi.Get(t, dut, glblPath.State()).GetAs()
-	if globalAS != nbr.localAS {
-		t.Errorf("BGP globalAS: got %v, want %v", globalAS, nbr.localAS)
+	if globalAS != nbr.globalAS {
+		t.Errorf("BGP globalAS: got %v, want %v", globalAS, nbr.globalAS)
 	}
 }
 
@@ -218,11 +218,11 @@ func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string) *ondat
 func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
-	global.As = ygot.Uint32(nbr.localAS)
+	global.As = ygot.Uint32(nbr.globalAS)
 	global.RouterId = ygot.String(dutSrc.IPv4)
 
 	pg := bgp.GetOrCreatePeerGroup("ATE")
@@ -233,6 +233,7 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 	neighbor.PeerAs = ygot.Uint32(nbr.peerAS)
 	neighbor.Enabled = ygot.Bool(true)
 	neighbor.PeerGroup = ygot.String("ATE")
+	neighbor.LocalAs = ygot.Uint32(nbr.localAS)
 	neighbor.GetOrCreateTimers().RestartTime = ygot.Uint16(75)
 
 	if nbr.isV4 {
@@ -244,5 +245,5 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 		afisafi6.Enabled = ygot.Bool(true)
 		neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 	}
-	return ni_proto
+	return niProto
 }

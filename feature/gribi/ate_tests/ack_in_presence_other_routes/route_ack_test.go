@@ -143,9 +143,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port3"))
 	}
 
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-	}
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -211,9 +208,7 @@ type testArgs struct {
 // Configure network instance
 func configureNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 }
 
 // configStaticRoute configures a static route.
