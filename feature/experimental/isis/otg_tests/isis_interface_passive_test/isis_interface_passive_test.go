@@ -307,7 +307,7 @@ func TestIsisInterfacePassive(t *testing.T) {
 			gnmi.Update(t, ts.DUT, statePath.Interface(intfName).Passive().Config(), true)
 
 			// Checking passive telemetry.
-			if !deviations.IsisInterfacePassiveStateUnsupported(ts.DUT) {
+			if !deviations.ISISInterfacePassiveStateUnsupported(ts.DUT) {
 				if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Passive().State()); got != true {
 					t.Errorf("FAIL- Expected value for passive not found on isis interface, got %t, want %t", got, true)
 				}
