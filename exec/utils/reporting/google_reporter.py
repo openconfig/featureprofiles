@@ -39,12 +39,12 @@ def _did_fail(log_file):
     try:
         with open(log_file, 'r') as file:
             data = file.read()
-            if data.find('failures="0"') != -1: 
-                return False
+            if data.find('failures="0"') == -1: 
+                return True
     except:
         print("Error processing file " + log_file)
-    finally:
         return True
+    return False
 
 def _did_pass(log_file):
     return not _did_fail(log_file)
