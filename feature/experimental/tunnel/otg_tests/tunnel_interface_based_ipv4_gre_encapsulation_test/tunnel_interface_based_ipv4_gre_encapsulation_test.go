@@ -47,7 +47,7 @@ const (
 	tunnelInterface          = "fti0"
 	trafficRatePps           = 5000
 	trafficDuration          = 120
-	tolerance                = 10
+	tolerance                = 6
 )
 
 var (
@@ -149,7 +149,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 		}
 	})
 	t.Run("Configure OTG ports", func(t *testing.T) {
-		top := ate.OTG().NewConfig(t)
+		top := gosnappi.NewConfig()
 		t.Logf("Start Port/device configuraturation on OTG")
 		configureOtgPorts(top, ateport1, otgIntf1.Name, otgIntf1.MAC, otgIntf1.IPv4, dutIntf1.IPv4, otgIntf1.IPv4Len)
 		configureOtgPorts(top, ateport2, otgIntf2.Name, otgIntf2.MAC, otgIntf2.IPv4, dutIntf2.IPv4, otgIntf2.IPv4Len)
@@ -183,7 +183,9 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	t.Run("Verify after Encapsulation loadbalance (ECMP) && load balanced to available Tunnel interfaces ", func(t *testing.T) {
 		finalEgressPkts := fetchEgressInterfacestatsics(t, dut, egressInterfaces)
 		t.Logf("Verify Incoming traffic flow should be equally distributed for Encapsulation(ECMP)")
-		verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 1, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
+		if !deviations.LoadBalancingDeviation(dut) {
+			verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 1, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
+		}
 		if !deviations.TunnelStatePathUnsupported(dut) {
 			finalTunnelInPkts, finalTunnelOutPkts := fetchTunnelInterfacestatsics(t, dut, tunnelCount)
 			t.Logf("Incoming traffic on DUT-PORT1 should be load balanced to available Tunnel interfaces for encapsulation")

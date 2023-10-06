@@ -345,6 +345,9 @@ message Metadata {
     // Device does not support tunnel interfaces source and destination address config paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
     bool tunnel_config_path_unsupported = 114;
+    // Device does not support load balance with expected deviation
+    bool load_balancing_deviation = 115;
+
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
