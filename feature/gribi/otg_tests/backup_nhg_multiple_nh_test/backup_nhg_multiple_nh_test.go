@@ -390,7 +390,7 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	flow.Size().SetFixed(300)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	flow.TxRx().Port().SetTxName("port1")
+	flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2", "port3", "port4"})
 	flow.Rate().SetPps(fps)
 	e1.Dst().SetChoice("value").SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
@@ -428,32 +428,20 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, outPorts []*o
 	a.ate.OTG().StopTraffic(t)
 	time.Sleep(10 * time.Second)
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
+	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 
-	// Get send traffic
-	outTrafficState := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
-	sentPkts := gnmi.Get(t, a.ate.OTG(), outTrafficState).GetCounters().GetOutFrames()
+	// Get send and receive traffic
+	flowMetrics := gnmi.Get(t, a.ate.OTG(), gnmi.OTG().Flow(flow).State())
+	sentPkts := uint64(flowMetrics.GetCounters().GetOutPkts())
+	receivedPkts := uint64(flowMetrics.GetCounters().GetInPkts())
+
 	if sentPkts == 0 {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
 
-	var receivedPkts uint64
-
-	// Get traffic received on primary outgoing interface before interface shutdown
-	for _, port := range shutPorts {
-		outTrafficCounters := gnmi.OTG().Port(a.ate.Port(t, port).ID()).State()
-		outPkts := gnmi.Get(t, a.ate.OTG(), outTrafficCounters).GetCounters().GetInFrames()
-		receivedPkts = receivedPkts + outPkts
-	}
-
-	// Get traffic received on expected port after interface shut
-	for _, outPort := range outPorts {
-		outTrafficCounters := gnmi.OTG().Port(outPort.ID()).State()
-		outPkts := gnmi.Get(t, a.ate.OTG(), outTrafficCounters).GetCounters().GetInFrames()
-		receivedPkts = receivedPkts + outPkts
-	}
-
 	// Check if traffic restores with in expected time in milliseconds during interface shut
 	// else if there is no interface trigger, validate received packets (control+data) are more than send packets
+	t.Logf("Sent Packets: %v, Received packets: %v", sentPkts, receivedPkts)
 	diff := pktDiff(sentPkts, receivedPkts)
 	if len(shutPorts) > 0 {
 		// Time took for traffic to restore in milliseconds after trigger
