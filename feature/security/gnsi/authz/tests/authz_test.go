@@ -17,39 +17,65 @@ package authz_test
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/authz"
 	"github.com/openconfig/featureprofiles/internal/security/gnxi"
-	gnps "github.com/openconfig/gnoi/system"
-	authzpb "github.com/openconfig/gnsi/authz"
+	"github.com/openconfig/featureprofiles/internal/security/svid"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
+
+	gnps "github.com/openconfig/gnoi/system"
+	authzpb "github.com/openconfig/gnsi/authz"
 )
+
+type spiffe struct {
+	spiffeID string
+	// tls config that is created created using ca bundle and svid of the user
+	tslConf *tls.Config
+}
 
 var (
 	testInfraID = flag.String("test_infra_id", "cafyauto", "test Infra ID user for authz operation")
-	usersMap    = map[string]string{
-		"cert_user_admin":   "spiffe://test-abc.foo.bar/xyz/admin",
-		"cert_user_fake":    "spiffe://test-abc.foo.bar/xyz/fake",
-		"cert_gribi_modify": "spiffe://test-abc.foo.bar/xyz/gribi-modify",
-		"cert_gnmi_set":     "spiffe://test-abc.foo.bar/xyz/gnmi-set",
-		"cert_gnoi_time":    "spiffe://test-abc.foo.bar/xyz/gnoi-time",
-		"cert_gnoi_ping":    "spiffe://test-abc.foo.bar/xyz/gnoi-ping",
-		"cert_gnsi_probe":   "spiffe://test-abc.foo.bar/xyz/gnsi-probe",
-		"cert_read_only":    "spiffe://test-abc.foo.bar/xyz/read-only",
+	caCertPem   = flag.String("ca_cert_pem", "/Users/mbagherz/git/test_ws/src/featureprofiles/internal/cisco/security/cert/keys/CA/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
+	caKeyPem    = flag.String("ca_key_pem", "/Users/mbagherz/git/test_ws/src/featureprofiles/internal/cisco/security/cert/keys/CA/ca.key.pem", "a pem file for ca key that will be used to generate svid")
+	usersMap    = map[string]spiffe{
+		"cert_user_admin": {
+			spiffeID: "spiffe://test-abc.foo.bar/xyz/admin",
+		},
+		"cert_user_fake": {
+			spiffeID: "spiffe://test-abc.foo.bar/xyz/fake",
+		},
+		"cert_gribi_modify": {
+			spiffeID: "spiffe://test-abc.foo.bar/xyz/gribi-modify",
+		},
+		"cert_gnmi_set": {
+			spiffeID: "spiffe://test-abc.foo.bar/xyz/gnmi-set",
+		},
+		"cert_gnoi_time": {
+			spiffeID: "spiffe://test-abc.foo.bar/xyz/gnoi-time",
+		},
+		"cert_gnoi_ping": {
+			spiffeID: "spiffe://test-abc.foo.bar/xyz/gnoi-ping",
+		},
+		"cert_gnsi_probe": {
+			spiffeID: "spiffe://test-abc.foo.bar/xyz/gnsi-probe",
+		},
+		"cert_read_only": {
+			spiffeID: "spiffe://test-abc.foo.bar/xyz/read-only",
+		},
 	}
 )
 
@@ -77,35 +103,7 @@ func loadPolicyFromJsonFile(t *testing.T, dut *ondatra.DUTDevice, file_path stri
 	if err1 != nil {
 		t.Fatalf("Not expecting error while decoding policy %v", err)
 	}
-	if deviations.SpiffeID(dut) {
-		for i, policy := range policies {
-			for j, allowRule := range policy.AllowRules {
-				allowRule.Source.Principals = removeSpiffeFromPrincipals(allowRule.Source.Principals)
-				policies[i].AllowRules[j] = allowRule
-			}
-			for k, denyRule := range policy.DenyRules {
-				denyRule.Source.Principals = removeSpiffeFromPrincipals(denyRule.Source.Principals)
-				policies[i].DenyRules[k] = denyRule
-			}
-		}
-	}
 	return policies
-}
-
-func removeSpiffeFromPrincipals(principals []string) []string {
-	// Create a slice to store the new principals.
-	newPrincipals := []string{}
-	for _, principal := range principals {
-		// If the principal starts with "spiffe://", get the text after the last "/".
-		if strings.HasPrefix(principal, "spiffe://") {
-			newPrincipals = append(newPrincipals, strings.Split(principal, "/")[len(strings.Split(principal, "/"))-1])
-		} else {
-			// Else principal is not Changed
-			newPrincipals = append(newPrincipals, principal)
-		}
-	}
-	// Return the slice of new principals.
-	return newPrincipals
 }
 
 func createUser(t *testing.T, dut *ondatra.DUTDevice, user string) {
@@ -119,15 +117,32 @@ func createUser(t *testing.T, dut *ondatra.DUTDevice, user string) {
 }
 
 func setUpUsers(t *testing.T, dut *ondatra.DUTDevice) {
-	if deviations.SpiffeID(dut) {
-		createUser(t, dut, "cert_user_admin")
-		createUser(t, dut, "cert_read_only")
-		createUser(t, dut, "cert_gribi_modify")
-		createUser(t, dut, "cert_read_only")
-		createUser(t, dut, "cert_user_fake")
-		createUser(t, dut, "cert_gnoi_time")
-		createUser(t, dut, "cert_gnoi_ping")
-		createUser(t, dut, "cert_gnsi_probe")
+	createUser(t, dut, "cisco")
+	caKey, tructBundle, err := svid.LoadKeyPair(*caKeyPem, *caCertPem)
+	if err != nil {
+		t.Fatalf("Could not load ca key/cert: %v", err)
+	}
+	caCertBytes, err := os.ReadFile(*caCertPem)
+	if err != nil {
+		t.Fatalf("Could not load the ca cert: %v", err)
+	}
+	trusBundle := x509.NewCertPool()
+	if !trusBundle.AppendCertsFromPEM(caCertBytes) {
+		t.Fatalf("Could not create the trust bundle: %v", err)
+	}
+	for user, v := range usersMap {
+		svid, err := svid.GenSVID(user, v.spiffeID, 300, tructBundle, caKey, x509.RSA)
+		if err != nil {
+			t.Fatalf("Could not generate svid for user %s: %v", user, err)
+		}
+		tlsConf := tls.Config{
+			Certificates: []tls.Certificate{*svid},
+			RootCAs:      trusBundle,
+		}
+		usersMap[user] = spiffe{
+			spiffeID: v.spiffeID,
+			tslConf:  &tlsConf,
+		}
 	}
 }
 
@@ -163,22 +178,27 @@ func getPolicyByName(t *testing.T, policyName string, policies []authz.Authoriza
 }
 
 func getSpiffeID(t *testing.T, dut *ondatra.DUTDevice, certName string) string {
-	spiffeID, ok := usersMap[certName]
+	user, ok := usersMap[certName]
 	if !ok {
 		t.Fatalf("Could not find Spiffe ID for user %s", certName)
 	}
-	if deviations.SpiffeID(dut) {
-		if strings.HasPrefix(spiffeID, "spiffe://") {
-			return strings.Split(spiffeID, "/")[len(strings.Split(spiffeID, "/"))-1]
-		}
+	return user.spiffeID
+}
+
+func getTlsConfig(t *testing.T, dut *ondatra.DUTDevice, certName string) *tls.Config {
+	user, ok := usersMap[certName]
+	if !ok {
+		t.Fatalf("Could not find Spiffe ID for user %s", certName)
 	}
-	return spiffeID
+	return user.tslConf
 }
 
 // Authz-1, Test policy behaviors, and probe results matches actual client results.
 func TestAuthz1(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	setUpUsers(t, dut)
+	tlsCertAdmin := getTlsConfig(t, dut, "cert_user_admin")
+	spiffeCertAdmin := getSpiffeID(t, dut, "cert_user_admin")
 	t.Run("Authz-1.1, - Test empty source", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
@@ -193,8 +213,8 @@ func TestAuthz1(t *testing.T) {
 		newpolicy.Rotate(t, dut, uint64(100), "policy-everyone-can-gnmi-not-gribi_v1", false)
 
 		// Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_user_admin"), gnxi.RPCs.GRIBI_GET, nil, true, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_user_admin"), gnxi.RPCs.GNMI_GET, nil, false, false)
+		authz.Verify(t, dut, spiffeCertAdmin, gnxi.RPCs.GRIBI_GET, tlsCertAdmin, true, true)
+		authz.Verify(t, dut, spiffeCertAdmin, gnxi.RPCs.GNMI_GET, tlsCertAdmin, false, true)
 	})
 
 	t.Run("Authz-1.2, Test Empty Request", func(t *testing.T) {
@@ -214,17 +234,19 @@ func TestAuthz1(t *testing.T) {
 		// ensure   `cert_user_fake` is denied to issue `gRIBI.Get` method.
 		// ensure  `cert_user_admin` is allowed to issue `gRIBI.Get` method.
 		// ensure `cert_user_admin` is denied to issue `gNMI.Get` method.
-		if !deviations.SpiffeID(dut) {
+		if false {
 			// TODO: Clarification
 			// fake user will be rejected due to wrong svid during hard verification,
 			// but the prob will return true due to allow all permission for gribi get
 			authz.Verify(t, dut, getSpiffeID(t, dut, "cert_user_fake"), gnxi.RPCs.GRIBI_GET, nil, true, false)
 			authz.Verify(t, dut, getSpiffeID(t, dut, "cert_user_fake"), gnxi.RPCs.GNMI_GET, nil, true, false)
 		}
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_user_admin"), gnxi.RPCs.GRIBI_GET, nil, false, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_user_admin"), gnxi.RPCs.GNMI_GET, nil, true, false)
+		authz.Verify(t, dut, spiffeCertAdmin, gnxi.RPCs.GRIBI_GET, tlsCertAdmin, false, true)
+		authz.Verify(t, dut, spiffeCertAdmin, gnxi.RPCs.GNMI_GET, tlsCertAdmin, true, true)
 	})
 
+	tlsCertReadOnly := getTlsConfig(t, dut, "cert_read_only")
+	spiffeCertReadOnly := getSpiffeID(t, dut, "cert_read_only")
 	t.Run("Authz-1.3, Test that there can only be One policy", func(t *testing.T) {
 		// Pre-Test Section
 		dut := ondatra.DUT(t, "dut")
@@ -240,8 +262,8 @@ func TestAuthz1(t *testing.T) {
 		newpolicy.Rotate(t, dut, uint64(100), "policy-gribi-get_v1", false)
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GRIBI_GET, nil, false, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GNMI_GET, nil, true, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, false, true)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, true, true)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate - 2
 		newpolicy = getPolicyByName(t, "policy-gnmi-get", policies)
@@ -250,8 +272,8 @@ func TestAuthz1(t *testing.T) {
 		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GRIBI_GET, nil, true, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GNMI_GET, nil, false, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, true, true)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, false, true)
 	})
 
 	t.Run("Authz-1.4, Test Normal Policy", func(t *testing.T) {
@@ -329,6 +351,10 @@ func TestAuthz1(t *testing.T) {
 func TestAuthz2(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	setUpUsers(t, dut)
+	tlsCertUserAdmin := getTlsConfig(t, dut, "cert_user_admin")
+	spiffeUserAdmin := getSpiffeID(t, dut, "cert_user_admin")
+	tlsCertReadOnly := getTlsConfig(t, dut, "cert_read_only")
+	spiffeCertReadOnly := getSpiffeID(t, dut, "cert_read_only")
 	t.Run("Authz-2.1, Test only one rotation request at a time", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
@@ -394,8 +420,8 @@ func TestAuthz2(t *testing.T) {
 			t.Fatalf("Second Rotate request (client 2) should be Rejected - Error while receiving rotate request reply %v", err)
 		}
 		// Verification of Policy for user_admin to deny gRIBI Get and allow gNMI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_user_admin"), gnxi.RPCs.GNMI_GET, nil, false, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_user_admin"), gnxi.RPCs.GRIBI_GET, nil, true, false)
+		authz.Verify(t, dut, spiffeUserAdmin, gnxi.RPCs.GNMI_GET, tlsCertUserAdmin, false, true)
+		authz.Verify(t, dut, spiffeUserAdmin, gnxi.RPCs.GRIBI_GET, tlsCertUserAdmin, true, true)
 	})
 
 	t.Run("Authz-2.2, Authz-2.2, Test Rollback When Connection Closed", func(t *testing.T) {
@@ -412,8 +438,8 @@ func TestAuthz2(t *testing.T) {
 		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GRIBI_GET, nil, false, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GNMI_GET, nil, true, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, false, true)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, true, true)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate
 		newpolicy = getPolicyByName(t, "policy-gnmi-get", policies)
@@ -444,15 +470,15 @@ func TestAuthz2(t *testing.T) {
 			t.Fatalf("Error while receiving rotate request reply %v", err)
 		}
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GRIBI_GET, nil, true, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GNMI_GET, nil, false, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, true, true)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, false, true)
 
 		// Close the Stream
 		rotateStream.CloseSend()
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GRIBI_GET, nil, false, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GNMI_GET, nil, true, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, false, true)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, true, true)
 	})
 
 	t.Run("Authz-2.3, Test Rollback on Invalid Policy", func(t *testing.T) {
@@ -469,8 +495,8 @@ func TestAuthz2(t *testing.T) {
 		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GRIBI_GET, nil, false, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GNMI_GET, nil, true, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, false, true)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, true, true)
 
 		// Fetch the Desired Authorization Policy and Attach Default Admin Policy Before Rotate
 		newpolicy = getPolicyByName(t, "policy-invalid-no-allow-rules", policies)
@@ -504,8 +530,8 @@ func TestAuthz2(t *testing.T) {
 		// Close the Stream
 		rotateStream.CloseSend()
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GRIBI_GET, nil, false, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GNMI_GET, nil, true, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, false, true)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, true, true)
 	})
 	t.Run("Authz-2.4, Test Force_Overwrite when the Version does not change", func(t *testing.T) {
 		// Pre-Test Section
@@ -549,14 +575,14 @@ func TestAuthz2(t *testing.T) {
 			t.Fatalf("Expected Error for uploading the policy with the same version as the previous one")
 		}
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GRIBI_GET, nil, false, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GNMI_GET, nil, true, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, false, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, true, false)
 
 		t.Logf("Preforming Rotate with the same version with force overwrite\n")
 		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), prevVersion, true)
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GRIBI_GET, nil, true, false)
-		authz.Verify(t, dut, getSpiffeID(t, dut, "cert_read_only"), gnxi.RPCs.GNMI_GET, nil, false, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, true, false)
+		authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, false, false)
 	})
 }
 
@@ -665,7 +691,7 @@ func TestAuthz4(t *testing.T) {
 	// Verification Section
 	// Version and Created On Field Verification
 	t.Logf("Performing Authz.Get request on device %s", dut.Name())
-	gnsiC, err := dut.RawAPI().DialGNSI(context.Background())
+	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
 		t.Fatalf("Could not create GNSI Connection %v", err)
 	}

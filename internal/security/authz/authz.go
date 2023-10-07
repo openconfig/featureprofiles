@@ -95,7 +95,7 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 // Rotate apply policy p on device dut, this is test api for positive testing and it fails the test on failure.
 func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
-	gnsiC, err := dut.RawAPI().DialGNSI(context.Background())
+	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
 		t.Fatalf("Could not connect gnsi %v", err)
 	}
@@ -149,7 +149,7 @@ func NewAuthorizationPolicy() *AuthorizationPolicy {
 // Get read the applied policy from device dut. this is test api and fails the test when it fails.
 func Get(t testing.TB, dut *ondatra.DUTDevice) (*authz.GetResponse, *AuthorizationPolicy) {
 	t.Logf("Performing Authz.Get request on device %s", dut.Name())
-	gnsiC, err := dut.RawAPI().DialGNSI(context.Background())
+	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
 		t.Fatalf("Could not connect gnsi %v", err)
 	}
@@ -206,7 +206,7 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, user string, rpc *gnxi.RPC, tl
 		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", user, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
 	}
 	if hardVerify {
-		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg))}
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)), grpc.WithTimeout(time.Minute)}
 		err := rpc.Exec(context.Background(), dut, opts)
 		if status.Code(err) != expectedExecErr {
 			if status.Code(err) == codes.Unimplemented {

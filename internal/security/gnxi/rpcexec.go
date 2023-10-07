@@ -2,6 +2,8 @@ package gnxi
 
 import (
 	"context"
+	"io"
+	"strings"
 
 	"github.com/openconfig/gnoi/system"
 	gribi "github.com/openconfig/gribi/v1/proto/service"
@@ -27,7 +29,7 @@ func GnmiAllRPC(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOpt
 
 // function GnmiGet implements a sample request for service /gnmi.gNMI/Get to validate if authz works as expected.
 func GnmiGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	gnmiC, err := dut.RawAPI().DialGNMI(ctx, opts...)
+	gnmiC, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx, opts...)
 	if err != nil {
 		return err
 	}
@@ -40,12 +42,16 @@ func GnmiGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption
 		ygnmi.WithEncoding(gpb.Encoding_JSON_IETF),
 	}
 	_, err = ygnmi.Get[string](ctx, ygnmiC, gnmi.OC().System().Hostname().Config(), yopts...)
+	s := err.Error()
+	if strings.Contains(s, "value not present") {
+		return nil
+	}
 	return err
 }
 
 // function GnmiSet implements a sample request for service /gnmi.gNMI/Set to validate if authz works as expected.
 func GnmiSet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	gnmiC, err := dut.RawAPI().DialGNMI(ctx, opts...)
+	gnmiC, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx, opts...)
 	if err != nil {
 		return err
 	}
@@ -63,7 +69,7 @@ func GnmiSet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption
 
 // function GnmiSubscribe implements a sample request for service /gnmi.gNMI/Subscribe to validate if authz works as expected.
 func GnmiSubscribe(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	gnmiC, err := dut.RawAPI().DialGNMI(ctx, opts...)
+	gnmiC, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx, opts...)
 	if err != nil {
 		return err
 	}
@@ -77,7 +83,7 @@ func GnmiSubscribe(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Dial
 
 // function GnmiCapabilities implements a sample request for service /gnmi.gNMI/Capabilities to validate if authz works as expected.
 func GnmiCapabilities(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	gnmiC, err := dut.RawAPI().DialGNMI(ctx, opts...)
+	gnmiC, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx, opts...)
 	if err != nil {
 		return err
 	}
@@ -407,7 +413,7 @@ func GnoiSystemTraceroute(ctx context.Context, dut *ondatra.DUTDevice, opts []gr
 
 // function GnoiSystemPing implements a sample request for service /gnoi.system.System/Ping to validate if authz works as expected.
 func GnoiSystemPing(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	gnoiC, err := dut.RawAPI().DialGNOI(ctx, opts...)
+	gnoiC, err := dut.RawAPIs().BindingDUT().DialGNOI(ctx, opts...)
 	if err != nil {
 		return err
 	}
@@ -542,7 +548,7 @@ func GribiAllRPC(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOp
 
 // function GribiFlush implements a sample request for service /gribi.gRIBI/Flush to validate if authz works as expected.
 func GribiFlush(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	gribiC, err := dut.RawAPI().DialGRIBI(ctx, opts...)
+	gribiC, err := dut.RawAPIs().BindingDUT().DialGRIBI(ctx, opts...)
 	if err != nil {
 		return err
 	}
@@ -552,21 +558,40 @@ func GribiFlush(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOpt
 
 // function GribiGet implements a sample request for service /gribi.gRIBI/Get to validate if authz works as expected.
 func GribiGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	gribiC, err := dut.RawAPI().DialGRIBI(ctx, opts...)
+	gribiC, err := dut.RawAPIs().BindingDUT().DialGRIBI(ctx, opts...)
 	if err != nil {
 		return err
 	}
-	_, err = gribiC.Get(ctx, &gribi.GetRequest{})
+	getReq := gribi.GetRequest{
+		NetworkInstance: &gribi.GetRequest_All{},
+		Aft:             gribi.AFTType_ALL,
+	}
+	getSteram, err := gribiC.Get(ctx, &getReq)
+	if err != nil {
+		return err
+	}
+	_, err = getSteram.Recv()
+	if err == io.EOF {
+		return nil
+	}
 	return err
 }
 
 // function GribiModify implements a sample request for service /gribi.gRIBI/Modify to validate if authz works as expected.
 func GribiModify(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	gribiC, err := dut.RawAPI().DialGRIBI(ctx, opts...)
+	gribiC, err := dut.RawAPIs().BindingDUT().DialGRIBI(ctx, opts...)
 	if err != nil {
 		return err
 	}
-	_, err = gribiC.Modify(ctx)
+	mStream, err := gribiC.Modify(ctx)
+	if err != nil {
+		return err
+	}
+	err = mStream.Send(&gribi.ModifyRequest{})
+	if err != nil {
+		return err
+	}
+	_, err = mStream.Recv()
 	return err
 }
 
