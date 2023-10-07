@@ -626,9 +626,8 @@ func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
 
-// GetEcnSameMinMaxThresholdUnsupported returns true for devices that don't support Minimum and Maximum threshold values are same
-// EcnMaxMimumThreshold returns the maximum threshold value while comparing for pass or fail conditions.
-// CISCO: Maximum and mimium threshold value not be same. Anything less Maximum threshold should be 6144 greate then mimnimum threshold value.
-func EcnSameMaxMimumThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+// EcnSameMinMaxThresholdUnsupported returns true for devices that don't support Minimum and Maximum threshold values are same
+// CISCO: minimum and maximum threshold value not be same. Anything less than maximum threshold should be 6144 greater than minimum threshold value.
+func EcnSameMinMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEcnSameMinMaxThresholdUnsupported()
 }
