@@ -49,8 +49,8 @@ type spiffe struct {
 
 var (
 	testInfraID = flag.String("test_infra_id", "cafyauto", "test Infra ID user for authz operation")
-	caCertPem   = flag.String("ca_cert_pem", "", "a pem file for ca cert that will be used to generate svid")
-	caKeyPem    = flag.String("ca_key_pem", "", "a pem file for ca key that will be used to generate svid")
+	caCertPem   = flag.String("ca_cert_pem", "testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
+	caKeyPem    = flag.String("ca_key_pem", "testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
 	usersMap    = map[string]spiffe{
 		"cert_user_admin": {
 			spiffeID: "spiffe://test-abc.foo.bar/xyz/admin",
