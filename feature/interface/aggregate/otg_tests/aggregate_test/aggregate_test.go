@@ -227,6 +227,16 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	tc.configDstAggregateDUT(agg, &dutDst)
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
+
+	// Cleanup LACP and LAG configs if any to avoid potential conflicts
+	gnmi.Delete(t, tc.dut, aggPath.Config())
+	gnmi.Delete(t, tc.dut, lacpPath.Config())
+
+	// Apply LACP config only when LAG mode is LACP
+	if tc.lagType == lagTypeLACP {
+		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+	}
+
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
 
 	srcp := tc.dutPorts[0]
