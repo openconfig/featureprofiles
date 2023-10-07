@@ -57,7 +57,7 @@
 
                
 * Subtest-2 : Configuration push verification post OS change and check health of the software-module that allows configuration.
-  1. Check the health of the software-module component that allows configuration of the router and verify if it is healthy using the leaf /components/component[**process that handles configuration of the DUT**]/healthz/status/
+  1. Check the health of the software-module component that allows configuration of the router and verify if it is **HEALTHY** using the leaf /components/component[**process that handles configuration of the DUT**]/healthz/state/status/
      
      a. If unhealthy, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
         * Rollback to the previous OS version by following the steps in 3, 4 and 5 above from Sub-test-1 to recover the DUT from the faulty state.
@@ -65,9 +65,9 @@
           
   2. Do a gNMI.GET() RPC to extract the current configuration on the DUT as backup.
      
-  3. Push test configuration to the router using gNMI.Set() RPC with "replace operation" and reverify the status of the leaf /components/component[process that handles configuration of the DUT]/healthz/status/.
+  3. Push test configuration to the router using gNMI.Set() RPC with "replace operation" and reverify the status of the leaf /components/component[process that handles configuration of the DUT]/healthz/state/status/.
      
-     a. If unhealthy, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
+     a. If **UNHEALTHY**, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
         [TODO: Below step needs to be discussed to inderstand how to recover the DUT. May just need to depend on the Test infrastructure]
         * Push the backup configuration fetched in Subtest-2 bullet#2 above to the DUT to recover the DUT.
         * Mark the test as a failure due to issues with the OS upgrade and exit the test.
@@ -89,12 +89,11 @@
    * NOS implementations will need to model their agent that handles device configuration as a [" component of the type SOFTWARE_MODULE"](https://github.com/openconfig/public/blob/master/release/models/platform/openconfig-platform-types.yang#L394) and represent it under the componenets/component tree
      
   
-
-
-
-
 ## Config Parameter Coverage
+*   HealthZ.Get()
+*   HealthZ.Artifact()
 
 ## Telemetry Parameter Coverage
 
 *   /system/state/boot-time
+*   /components/component[**process that handles configuration of the DUT**]/healthz/state/status/
