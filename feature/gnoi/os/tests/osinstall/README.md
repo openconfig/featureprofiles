@@ -72,9 +72,9 @@
         * Push the backup configuration fetched in Subtest-2 bullet#2 above to the DUT to recover the DUT.
         * Mark the test as a failure due to issues with the OS upgrade and exit the test.
           
-  4. Kill the process that manages device configuration using the "gNOI.KillProcessRequest_SIGNAL_ABRT" and restart flag set to False. This will terminate the process and will also dump a Core file, while maintaing the process in a down state. Verify if the leaf /components/component/healthz/state/ transitioned to unhealthy state.
+  4. Kill the process that manages device configuration using the "gNOI.KillProcessRequest_SIGNAL_ABRT" and restart flag set to False. This will terminate the process and will also dump a Core file, while maintaing the process in a down state. Verify if the leaf /components/component/healthz/state/status transitioned to **UNHEALTHY**.
      
-     a. If the software module is found unhealthy, issue healthZ.Get() to collect more details on the event. Also, use HealthZ.Artifact() to collect artifacts like core dump, logs etc.
+     a. If the software module has a status of **UNHEALTHY**, issue healthZ.Get() to collect more details on the event. Also, use HealthZ.Artifact() to collect artifacts like core dump, logs etc.
      
      b. Initiate a gNOI.KillProcessRequest_SIGNAL_HUP operation to restart and recover the killed process.
      
