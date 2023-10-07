@@ -39,8 +39,6 @@ tests:
   path: feature/security/gnsi/authz/tests
   args:
     - '-test_infra_id="cafyauto"'
-    - '-ca_key_pem=""'
-    - '-ca_cert_pem=""'
   pr: 2136
   mustpass: true
   timeout: 21000
