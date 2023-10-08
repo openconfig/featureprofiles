@@ -236,6 +236,27 @@ def _get_testsuite_from_xml(file_name):
     except:
         return None
 
+def _extract_env_var_from_arg(arg):
+    m = re.findall('\$[^0-9a-zA-Z]+', arg)
+    if len(m) > 0: return m[0]
+    return None
+
+def _update_arg_val_from_env(val):
+    env_var_name = _extract_env_var_from_arg(val)
+    if not env_var_name: return val
+    
+    new_val = os.getenv(env_var_name[1:]) # remove leading $
+    if new_val: val.replace(env_var_name, new_val)
+    return val
+
+def _update_test_args_from_env(test_args):
+    new_args = []
+    for arg in test_args.split(' '):
+        k,v = arg.split('=')
+        _update_arg_val_from_env(v)
+        new_args.append(f'{k}={v}')
+    return ' '.join(new_args)
+        
 def _check_json_output(cmd):
     return json.loads(check_output(cmd))
 
@@ -392,6 +413,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         test_html_report=False,
                         release_ixia_ports=True,
                         collect_debug_files=True,
+                        override_args_from_env=True,
                         testbed=None,
                         **kwargs):
 
@@ -413,6 +435,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     test_debug=test_debug,
                     test_verbose=test_verbose,
                     collect_debug_files=collect_debug_files,
+                    override_args_from_env=override_args_from_env,
                     **kwargs)
 
     chain |= CloneRepo.s(repo_url=test_repo_url,
@@ -461,8 +484,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
-        test_debug=False, test_verbose=False, testbed_info_path=None, test_ignore_aborted=False,
-        test_skip=False, test_fail_skipped=False, test_show_skipped=False):
+        override_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
+        test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False):
 
     logger.print('Running Go test...')
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
@@ -483,6 +506,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     
     go_args = ''
     test_args = test_args or ''
+    if override_args_from_env:
+        test_args = _update_test_args_from_env(test_args)
 
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
