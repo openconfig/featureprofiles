@@ -236,6 +236,31 @@ def _get_testsuite_from_xml(file_name):
     except:
         return None
 
+def _extract_env_var_from_arg(arg):
+    m = re.findall('\$[0-9a-zA-Z_]+', arg)
+    if len(m) > 0: return m[0]
+    return None
+
+def _update_arg_val_from_env(arg, extra_env_vars):
+    env_var_name = _extract_env_var_from_arg(arg)
+    if not env_var_name: return arg
+    actual_env_var_name = env_var_name[1:] # remove leading $
+    
+    if actual_env_var_name in extra_env_vars:
+        val = extra_env_vars[actual_env_var_name]
+    else:
+        val = os.getenv(actual_env_var_name)
+
+    if val: arg = arg.replace(env_var_name, val)
+    return arg
+
+def _update_test_args_from_env(test_args, extra_env_vars={}):
+    new_args = []
+    for arg in test_args.split(' '):
+        arg = _update_arg_val_from_env(arg, extra_env_vars)
+        new_args.append(arg)
+    return ' '.join(new_args)
+        
 def _check_json_output(cmd):
     return json.loads(check_output(cmd))
 
@@ -291,7 +316,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         force_install=False,
                         force_reboot=False,
                         smus=None):
-
+    
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
 
@@ -392,9 +417,10 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         test_html_report=False,
                         release_ixia_ports=True,
                         collect_debug_files=True,
+                        override_test_args_from_env=True,
                         testbed=None,
                         **kwargs):
-
+    
     test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
 
     test_repo_url = PUBLIC_FP_REPO_URL
@@ -413,6 +439,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     test_debug=test_debug,
                     test_verbose=test_verbose,
                     collect_debug_files=collect_debug_files,
+                    override_test_args_from_env=override_test_args_from_env,
                     **kwargs)
 
     chain |= CloneRepo.s(repo_url=test_repo_url,
@@ -461,10 +488,15 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
-        test_debug=False, test_verbose=False, testbed_info_path=None, test_ignore_aborted=False,
-        test_skip=False, test_fail_skipped=False, test_show_skipped=False):
+        override_test_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
+        test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False):
 
     logger.print('Running Go test...')
+    logger.print('----- env start ----')
+    for name, value in os.environ.items():
+        logger.print("{0}: {1}".format(name, value))
+    logger.print('----- env end ----')
+    
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
@@ -480,9 +512,17 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     if os.path.exists(reserved_testbed['testbed_info_file']):
         shutil.copyfile(reserved_testbed['testbed_info_file'],
             os.path.join(test_log_directory_path, "testbed_info.txt"))
-    
+        
     go_args = ''
     test_args = test_args or ''
+
+    if override_test_args_from_env:
+        extra_args_env_vars = {}
+        if 'mtls_cert_file' in reserved_testbed:
+            extra_args_env_vars["MTLS_CERT_FILE"] = reserved_testbed['mtls_cert_file']
+        if 'mtls_key_file' in reserved_testbed:
+            extra_args_env_vars["MTLS_KEY_FILE"] = reserved_testbed['mtls_key_file']      
+        test_args = _update_test_args_from_env(test_args, extra_args_env_vars)
 
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
@@ -708,6 +748,9 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ondatra_binding_path}")
+
+        reserved_testbed['mtls_key_file'] = key_file
+        reserved_testbed['mtls_cert_file'] = cert_file
 
     reserved_testbed['testbed_file'] = ondatra_testbed_path
     reserved_testbed['testbed_info_file'] = testbed_info_path
