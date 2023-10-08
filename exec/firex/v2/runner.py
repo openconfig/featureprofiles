@@ -252,9 +252,8 @@ def _update_arg_val_from_env(val):
 def _update_test_args_from_env(test_args):
     new_args = []
     for arg in test_args.split(' '):
-        k,v = arg.split('=')
-        _update_arg_val_from_env(v)
-        new_args.append(f'{k}={v}')
+        arg = _update_arg_val_from_env(arg)
+        new_args.append(arg)
     return ' '.join(new_args)
         
 def _check_json_output(cmd):
