@@ -500,12 +500,18 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         override_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
         test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False):
 
+    logger.print('Running Go test...')
+
+    if 'mtls_cert_file' in reserved_testbed:
+        os.environ["MTLS_CERT_FILE"] = reserved_testbed['mtls_cert_file']
+    if 'mtls_key_file' in reserved_testbed:
+        os.environ["MTLS_KEY_FILE"] = reserved_testbed['mtls_key_file']
+        
     logger.print('----- env start ----')
     for name, value in os.environ.items():
         logger.print("{0}: {1}".format(name, value))
     logger.print('----- env end ----')
     
-    logger.print('Running Go test...')
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
@@ -751,6 +757,9 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ondatra_binding_path}")
+
+        reserved_testbed['mtls_key_file'] = key_file
+        reserved_testbed['mtls_cert_file'] = cert_file
 
     reserved_testbed['testbed_file'] = ondatra_testbed_path
     reserved_testbed['testbed_info_file'] = testbed_info_path
