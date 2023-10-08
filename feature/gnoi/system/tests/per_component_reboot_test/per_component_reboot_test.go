@@ -156,7 +156,6 @@ func TestLinecardReboot(t *testing.T) {
 		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
 	}
 
-	t.Logf("Find a removable line card to reboot.")
 	var removableLinecard string
 	for _, lc := range validCards {
 		t.Logf("Check if %s is removable", lc)
@@ -170,7 +169,7 @@ func TestLinecardReboot(t *testing.T) {
 		}
 	}
 	if removableLinecard == "" {
-		t.Fatalf("Component(lc).Removable().Get(t): got none, want non-empty")
+		t.Skipf("No removable line card found for the testing")
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
@@ -228,7 +227,6 @@ func TestFabricReboot(t *testing.T) {
 	fabrics := components.FindComponentsByType(t, dut, fabricType)
 	t.Logf("Found fabric components: %v", fabrics)
 
-	t.Logf("Find a removable fabric component to reboot.")
 	var removableFabric string
 	for _, fabric := range fabrics {
 		t.Logf("Check if %s is removable", fabric)
@@ -241,7 +239,7 @@ func TestFabricReboot(t *testing.T) {
 		}
 	}
 	if removableFabric == "" {
-		t.Fatalf("Component(fabric).Removable().Get(t): got none, want non-empty")
+		t.Skipf("No fabric component found for the testing")
 	}
 
 	// Fetch list of interfaces which are up prior to fabric component reboot.
