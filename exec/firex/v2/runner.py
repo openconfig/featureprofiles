@@ -242,28 +242,22 @@ def _extract_env_var_from_arg(arg):
     return None
 
 def _update_arg_val_from_env(arg, extra_env_vars):
-    logger.print(f'Looking for env var in arg {arg}')
     env_var_name = _extract_env_var_from_arg(arg)
     if not env_var_name: return arg
-    
     actual_env_var_name = env_var_name[1:] # remove leading $
-    logger.print(f'Found env var {actual_env_var_name} in arg {arg}')
     
     if actual_env_var_name in extra_env_vars:
         val = extra_env_vars[actual_env_var_name]
     else:
         val = os.getenv(actual_env_var_name)
 
-    logger.print(f'Value of {actual_env_var_name} is {val}')
     if val: arg = arg.replace(env_var_name, val)
     return arg
 
 def _update_test_args_from_env(test_args, extra_env_vars={}):
     new_args = []
     for arg in test_args.split(' '):
-        logger.print(f'Updating arg {arg} from env')
         arg = _update_arg_val_from_env(arg, extra_env_vars)
-        logger.print(f'New arg is {arg}')
         new_args.append(arg)
     return ' '.join(new_args)
         
@@ -322,11 +316,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         force_install=False,
                         force_reboot=False,
                         smus=None):
-
-    logger.print('----- env start ----')
-    for name, value in os.environ.items():
-        logger.print("{0}: {1}".format(name, value))
-    logger.print('----- env end ----')
     
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
@@ -431,11 +420,6 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         override_test_args_from_env=True,
                         testbed=None,
                         **kwargs):
-
-    logger.print('----- env start ----')
-    for name, value in os.environ.items():
-        logger.print("{0}: {1}".format(name, value))
-    logger.print('----- env end ----')
     
     test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
 
