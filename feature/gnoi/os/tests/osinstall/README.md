@@ -94,6 +94,5 @@
 *   HealthZ.Artifact()
 
 ## Telemetry Parameter Coverage
-
 *   /system/state/boot-time
 *   /components/component[**process that handles configuration of the DUT**]/healthz/state/status/
