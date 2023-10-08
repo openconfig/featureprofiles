@@ -312,6 +312,11 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         force_reboot=False,
                         smus=None):
 
+    logger.print('----- env start ----')
+    for name, value in os.environ.items():
+        logger.print("{0}: {1}".format(name, value))
+    logger.print('----- env end ----')
+    
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
 
