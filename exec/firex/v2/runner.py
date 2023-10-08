@@ -416,6 +416,11 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         testbed=None,
                         **kwargs):
 
+    logger.print('----- env start ----')
+    for name, value in os.environ.items():
+        logger.print("{0}: {1}".format(name, value))
+    logger.print('----- env end ----')
+    
     test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
 
     test_repo_url = PUBLIC_FP_REPO_URL
@@ -486,6 +491,11 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         override_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
         test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False):
 
+    logger.print('----- env start ----')
+    for name, value in os.environ.items():
+        logger.print("{0}: {1}".format(name, value))
+    logger.print('----- env end ----')
+    
     logger.print('Running Go test...')
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
