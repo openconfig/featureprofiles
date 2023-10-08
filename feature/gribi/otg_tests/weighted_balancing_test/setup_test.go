@@ -207,8 +207,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 // configureATE configures the topology of the ATE.
 func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	otg := ate.OTG()
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	for i, ap := range ate.Ports() {
 		// DUT and ATE ports are connected by the same names.
 		dutid := fmt.Sprintf("dut:%s", ap.ID())
@@ -223,7 +222,7 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
 			SetPrefix(plen)
 	}
-	otg.PushConfig(t, config)
+	ate.OTG().PushConfig(t, config)
 	return config
 }
 
