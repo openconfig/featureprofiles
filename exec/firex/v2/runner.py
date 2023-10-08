@@ -237,22 +237,26 @@ def _get_testsuite_from_xml(file_name):
         return None
 
 def _extract_env_var_from_arg(arg):
-    m = re.findall('\$[^0-9a-zA-Z]+', arg)
+    m = re.findall('\$[0-9a-zA-Z_]+', arg)
     if len(m) > 0: return m[0]
     return None
 
-def _update_arg_val_from_env(val):
-    env_var_name = _extract_env_var_from_arg(val)
-    if not env_var_name: return val
+def _update_arg_val_from_env(arg):
+    logger.print(f'Looking for env var in arg {arg}')
+    env_var_name = _extract_env_var_from_arg(arg)
+    if not env_var_name: return arg
+    logger.print(f'Found env var {env_var_name} in arg {arg}')
     
-    new_val = os.getenv(env_var_name[1:]) # remove leading $
-    if new_val: val.replace(env_var_name, new_val)
-    return val
+    new_arg = os.getenv(env_var_name[1:]) # remove leading $
+    if new_arg: arg.replace(env_var_name, new_arg)
+    return arg
 
 def _update_test_args_from_env(test_args):
     new_args = []
     for arg in test_args.split(' '):
+        logger.print(f'Updating arg {arg} from env')
         arg = _update_arg_val_from_env(arg)
+        logger.print(f'New arg is {arg}')
         new_args.append(arg)
     return ' '.join(new_args)
         
