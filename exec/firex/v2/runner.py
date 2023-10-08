@@ -247,8 +247,10 @@ def _update_arg_val_from_env(arg):
     if not env_var_name: return arg
     logger.print(f'Found env var {env_var_name} in arg {arg}')
     
-    new_arg = os.getenv(env_var_name[1:]) # remove leading $
-    if new_arg: arg.replace(env_var_name, new_arg)
+    logger.print(f'Looking for value of {env_var_name[1:]}')
+    val = os.getenv(env_var_name[1:]) # remove leading $
+    logger.print(f'Value of {env_var_name[1:]} is {val}')
+    if val: arg = arg.replace(env_var_name, val)
     return arg
 
 def _update_test_args_from_env(test_args):
@@ -504,8 +506,10 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
     if 'mtls_cert_file' in reserved_testbed:
         os.environ["MTLS_CERT_FILE"] = reserved_testbed['mtls_cert_file']
+        logger.print('Setting env var MTLS_CERT_FILE to {}', reserved_testbed['mtls_cert_file'])
     if 'mtls_key_file' in reserved_testbed:
         os.environ["MTLS_KEY_FILE"] = reserved_testbed['mtls_key_file']
+        logger.print('Setting env var MTLS_KEY_FILE to {}', reserved_testbed['mtls_key_file'])
         
     logger.print('----- env start ----')
     for name, value in os.environ.items():
