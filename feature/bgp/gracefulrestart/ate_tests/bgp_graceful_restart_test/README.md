@@ -6,8 +6,11 @@ BGP Graceful Restart
 
 ## Topology
 Create the following connections:
- *   ATE port-1 <--> DUT port-1 
- *   ATE port-2 <--> DUT port-2
+```mermaid
+graph LR; 
+A[OTG:Port1] -- EBGP --> B[Port1:DUT:Port2];
+B -- IBGP --> C[Port2:OTG];
+```
 
 ## Procedure
  *   Configure EBGP peering between ATE:Port1 and DUT:Port1
