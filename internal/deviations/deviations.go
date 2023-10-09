@@ -626,7 +626,7 @@ func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
 
-// IsisLevelEnabled returns if device should enable isis under level.
-func IsisLevelEnabled(dut *ondatra.DUTDevice) bool {
+// ISISLevelEnabled returns if device should enable isis under level.
+func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
 }
