@@ -530,7 +530,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					t.Errorf("Component %s Description: got empty string, want non-empty string", cName)
 				}
 			}
-			if p.slotIDValidation && card.GetType() == componentType["Linecard"] {
+			if p.slotIDValidation && card.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
 				t.Logf("Component %s linecard/state/slot-id: %s", cName, card.GetLinecard().GetSlotId())
 				if card.GetLinecard().GetSlotId() == "" {
 					t.Errorf("Component %s LineCard SlotID: got empty string, want non-empty string", cName)
