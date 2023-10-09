@@ -190,7 +190,7 @@ func TestHardwareCards(t *testing.T) {
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
 				slotIDValidation:      true,
-				pType:                 componentType["Linecard"],
+				pType:                 oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 			},
 		}, {
 			desc: "PowerSupply",
