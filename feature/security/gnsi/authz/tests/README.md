@@ -77,39 +77,30 @@ Prepare the following gRPC authorization policies.
 ```
 
 ```json
- {
-    "name": "policy-everyone-can-gribi-not-gnmi",
-    "allow_rules": [
-      {
-        "name": "everyone-can-gribi",
-        "source": {
-          "principals": [
-            "*"
-          ]
-        },
-        "request": {
-          "paths": [
-            "/gribi.gRIBI/*"
-          ]
-        }
+{
+  "name": "policy-everyone-can-gribi-not-gnmi",
+  "allow_rules": [
+    {
+      "name": "admin-can-do-everything",
+      "source": {
+        "principals": [
+          "spiffe://test-abc.foo.bar/xyz/admin"
+        ]
+      },
+      "request": {}
+    }
+  ],
+  "deny_rules": [
+    {
+      "name": "fake-user-can-do-nothing",
+      "source": {
+        "principals": [
+          "spiffe://test-abc.foo.bar/xyz/fake"
+        ]
       }
-    ],
-    "deny_rules": [
-      {
-        "name": "no-one-can-gnmi",
-        "source": {
-          "principals": [
-            "*"
-          ]
-        },
-        "request": {
-          "paths": [
-            "/gribi.gNMI/*"
-          ]
-        }
-      } 
-    ]
-  }
+    }
+  ]
+}
 ```
 
 ```json
@@ -321,12 +312,8 @@ For each of the scenarios in this section, we need to exercise the following 3 a
 * Authz-1.2, "Test empty request"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-everyone-can-gribi-not-gnmi`, with `create_on` = `100` and `version` = `policy-everyone-can-gribi-not-gnmi_v1`.
   2. Ensure all results match per the following:
-    // TODO: Clarify what fake user is here? a user with invalid certificate?
-    * `cert_user_fake` is denied to issue `gNMI.Get` method.
     * `cert_user_fake` is denied to issue `gRIBI.Get` method.
     * `cert_user_admin` is allowed to issue `gRIBI.Get` method.
-    * `cert_user_admin` is denied to issue `gNMI.Get` method.
-
 
 * Authz-1.3, "Test that there can only be one policy"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`, with `create_on` = `100` and `version` = `policy-gribi-get_v1`.
