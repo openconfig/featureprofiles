@@ -1,5 +1,7 @@
 ## Generating XML logs for Google
-
+## Jenkins Flow
+https://engci-jenkins-sjc.cisco.com/jenkins/job/team_googleb4/job/CI/job/generate_google_logs/
+## Manually 
 ### Installation
 python3 with pyyaml package is the only requirement
 
