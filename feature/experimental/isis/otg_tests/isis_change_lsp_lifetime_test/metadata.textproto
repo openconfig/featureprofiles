@@ -38,6 +38,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     isis_instance_enabled_required: true
+    isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
     isis_lsp_metadata_leafs_unsupported: true
   }
 }
