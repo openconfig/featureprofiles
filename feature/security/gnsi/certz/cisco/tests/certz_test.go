@@ -2,11 +2,11 @@ package certz_test
 
 import (
 	"context"
+	"testing"
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
-	"reflect"
-	"testing"
 )
 
 func TestMain(m *testing.M) {
@@ -64,9 +64,12 @@ func TestAddProfile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := gnsiC.Certz().AddProfile(context.Background(), tt.args.req)
-			if (err != nil) != tt.wantErr {
+			if (tt.wantErr == true) && (err == nil) {
+				t.Errorf("Expected Error But able to create profile with invalid values")
+			} else if (err != nil) && (tt.wantErr == false) {
 				t.Errorf("Server.AddProfile() error = %v, wantErr %v, %s", err, tt.wantErr, tt.args.req)
 			}
+
 		})
 	}
 }
@@ -91,7 +94,7 @@ func TestGetProfileList(t *testing.T) {
 		},
 		{
 			name:    "NIL Get SSL profile request",
-			args:    args{req: nil},
+			args:    args{},
 			want:    nil,
 			wantErr: true,
 		},
@@ -100,11 +103,13 @@ func TestGetProfileList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := gnsiC.Certz().GetProfileList(context.Background(), tt.args.req)
 			if got != nil {
-				if !reflect.DeepEqual(got.SslProfileIds, tt.want.SslProfileIds) {
-					t.Errorf("Server.GetProfileList() error: did not got the expected list")
+				if diff := cmp.Diff(got.SslProfileIds, tt.want.SslProfileIds); diff != "" {
+					t.Errorf("Server.GetProfileList() error: did not got the expected list (-want +got):\n%v", diff)
 				}
 			}
-			if (err != nil) != tt.wantErr {
+			if (tt.wantErr == true) && (err == nil) {
+				t.Errorf("Expected Error But able to get profile with invalid values")
+			} else if (err != nil) && (tt.wantErr == false) {
 				t.Errorf("Server.GetProfileList() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -146,7 +151,7 @@ func TestDeleteProfile(t *testing.T) {
 		},
 		{
 			name:    "Send NULL request",
-			args:    args{req: nil},
+			args:    args{},
 			wantErr: true,
 		},
 		{
@@ -158,7 +163,9 @@ func TestDeleteProfile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := gnsiC.Certz().DeleteProfile(context.Background(), tt.args.req)
-			if (err != nil) != tt.wantErr {
+			if (tt.wantErr == true) && (err == nil) {
+				t.Errorf("Expected Error But able to delete profile with invalid values")
+			} else if (err != nil) && (tt.wantErr == false) {
 				t.Errorf("Server.DeleteProfile() error = %v, wantErr %v, %s", err, tt.wantErr, tt.args.req)
 			}
 		})
@@ -406,7 +413,10 @@ func TestCanGenerateCSR(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := gnsiC.Certz().CanGenerateCSR(context.Background(), tt.args.req)
-			if (err != nil) != tt.wantErr {
+
+			if (tt.wantErr == true) && (err == nil) {
+				t.Errorf("Expected Error But able to generate CSR profile with invalid values")
+			} else if (err != nil) && (tt.wantErr == false) {
 				t.Errorf("Server.CanGenerateCSR() error = %v, wantErr %v, %s", err, tt.wantErr, tt.args.req)
 			}
 			if got != nil {
