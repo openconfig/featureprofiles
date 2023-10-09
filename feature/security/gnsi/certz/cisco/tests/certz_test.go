@@ -2,11 +2,11 @@ package certz_test
 
 import (
 	"context"
-	"testing"
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
+	"testing"
 )
 
 func TestMain(m *testing.M) {
