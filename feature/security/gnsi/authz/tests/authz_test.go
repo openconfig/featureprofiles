@@ -157,12 +157,14 @@ type authorizationTable struct {
 // verifyPerm takes an authorizationTable and verify the expected rpc/acess
 func (a *authorizationTable) verifyAuthorization(t *testing.T, dut *ondatra.DUTDevice) {
 	for certName, access := range a.table {
-		for _, allowedRPC := range access.allowed {
-			authz.Verify(t, dut, getSpiffeID(t, dut, certName), allowedRPC, nil, false, false)
-		}
-		for _, allowedRPC := range access.denied {
-			authz.Verify(t, dut, getSpiffeID(t, dut, certName), allowedRPC, nil, true, false)
-		}
+		t.Run(fmt.Sprintf("Validating access for user %s", certName), func(t *testing.T) {
+			for _, allowedRPC := range access.allowed {
+				authz.Verify(t, dut, getSpiffeID(t, dut, certName), allowedRPC, getTlsConfig(t, dut, certName), false, true)
+			}
+			for _, deniedRPC := range access.denied {
+				authz.Verify(t, dut, getSpiffeID(t, dut, certName), deniedRPC, getTlsConfig(t, dut, certName), true, true)
+			}
+		})
 	}
 }
 
@@ -296,9 +298,9 @@ func TestAuthz1(t *testing.T) {
 					allowed []*gnxi.RPC
 					denied  []*gnxi.RPC
 				}{
-					allowed: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET, gnxi.RPCs.GNMI_GET,
+					allowed: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_GET,
 						gnxi.RPCs.GNOI_SYSTEM_TIME, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE,
-						gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
+						gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE, gnxi.RPCs.GNMI_SET},
 				},
 				"cert_user_fake": {
 					denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET, gnxi.RPCs.GNMI_GET,
@@ -315,7 +317,7 @@ func TestAuthz1(t *testing.T) {
 					denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY,
 						gnxi.RPCs.GNOI_SYSTEM_TIME, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE,
 						gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
-					allowed: []*gnxi.RPC{gnxi.RPCs.GNMI_SET, gnxi.RPCs.GNMI_GET},
+					allowed: []*gnxi.RPC{gnxi.RPCs.GNMI_GET, gnxi.RPCs.GNMI_SET},
 				},
 				"cert_gnoi_time": {
 					denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET,

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gnsi/authz"
 	gribi "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -403,7 +404,12 @@ func GnoiSystemSwitchControlProcessor(ctx context.Context, dut *ondatra.DUTDevic
 
 // function GnoiSystemTime implements a sample request for service /gnoi.system.System/Time to validate if authz works as expected.
 func GnoiSystemTime(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.system.System/Time is not implemented")
+	gnoiC, err := dut.RawAPIs().BindingDUT().DialGNOI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	_, err = gnoiC.System().Time(ctx, &system.TimeRequest{})
+	return err
 }
 
 // function GnoiSystemTraceroute implements a sample request for service /gnoi.system.System/Traceroute to validate if authz works as expected.
@@ -453,17 +459,41 @@ func GnsiAuthzAllRPC(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Di
 
 // function GnsiAuthzGet implements a sample request for service /gnsi.authz.v1.Authz/Get to validate if authz works as expected.
 func GnsiAuthzGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnsi.authz.v1.Authz/Get is not implemented")
+	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	_, err = gnsiC.Authz().Get(ctx, &authz.GetRequest{})
+	return err
 }
 
 // function GnsiAuthzProbe implements a sample request for service /gnsi.authz.v1.Authz/Probe to validate if authz works as expected.
 func GnsiAuthzProbe(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnsi.authz.v1.Authz/Probe is not implemented")
+	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	_, err = gnsiC.Authz().Probe(ctx, &authz.ProbeRequest{User: "dummy", Rpc: "*"})
+	return err
 }
 
 // function GnsiAuthzRotate implements a sample request for service /gnsi.authz.v1.Authz/Rotate to validate if authz works as expected.
 func GnsiAuthzRotate(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnsi.authz.v1.Authz/Rotate is not implemented")
+	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	gnsiCStream, err := gnsiC.Authz().Rotate(ctx)
+	if err != nil {
+		return err
+	}
+	// TODO: send valid policy for postive cases
+	err = gnsiCStream.Send(&authz.RotateAuthzRequest{})
+	if err != nil {
+		return err
+	}
+	_, err = gnsiCStream.Recv()
+	return err
 }
 
 // function GnsiCertzAddProfile implements a sample request for service /gnsi.certz.v1.Certz/AddProfile to validate if authz works as expected.
@@ -587,7 +617,11 @@ func GribiModify(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOp
 	if err != nil {
 		return err
 	}
-	err = mStream.Send(&gribi.ModifyRequest{})
+	err = mStream.Send(&gribi.ModifyRequest{
+		Params: &gribi.SessionParameters{Redundancy: gribi.SessionParameters_SINGLE_PRIMARY,
+			Persistence: gribi.SessionParameters_PRESERVE},
+		//ElectionId: &gribi.Uint128{High: 0, Low: 1},
+	})
 	if err != nil {
 		return err
 	}

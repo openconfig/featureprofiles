@@ -142,8 +142,10 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 }
 
 // NewAuthorizationPolicy creates an empty policy
-func NewAuthorizationPolicy() *AuthorizationPolicy {
-	return &AuthorizationPolicy{}
+func NewAuthorizationPolicy(name string) *AuthorizationPolicy {
+	return &AuthorizationPolicy{
+		Name: name,
+	}
 }
 
 // Get read the applied policy from device dut. this is test api and fails the test when it fails.
@@ -206,13 +208,14 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, user string, rpc *gnxi.RPC, tl
 		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", user, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
 	}
 	if hardVerify {
-		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)), grpc.WithTimeout(time.Minute)}
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg))}
 		err := rpc.Exec(context.Background(), dut, opts)
 		if status.Code(err) != expectedExecErr {
 			if status.Code(err) == codes.Unimplemented {
-				t.Fatalf("The execution of rpc %s is failed due to error %v, please add implementation for exec function", rpc.Path, err)
+				t.Fatalf("The execution of rpc %s is failed due to error %v, please add implementation for the rpc", rpc.Path, err)
 			}
 			t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, user, dut.Name(), expectedExecErr, err)
 		}
+		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, user, dut.Name(), expectedExecErr, err)
 	}
 }
