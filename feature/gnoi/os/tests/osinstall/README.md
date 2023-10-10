@@ -71,14 +71,6 @@
         [TODO: Below step needs to be discussed to inderstand how to recover the DUT. May just need to depend on the Test infrastructure]
         * Push the backup configuration fetched in Subtest-2 bullet#2 above to the DUT to recover the DUT.
         * Mark the test as a failure due to issues with the OS upgrade and exit the test.
-          
-  4. Kill the process that manages device configuration using the "gNOI.KillProcessRequest_SIGNAL_ABRT" and restart flag set to False. This will terminate the process and will also dump a Core file, while maintaing the process in a down state. Verify if the leaf /components/component/healthz/state/status transitioned to **UNHEALTHY**.
-     
-     a. If the software module has a status of **UNHEALTHY**, issue healthZ.Get() to collect more details on the event. Also, use HealthZ.Artifact() to collect artifacts like core dump, logs etc.
-     
-     b. Initiate a gNOI.KillProcessRequest_SIGNAL_HUP operation to restart and recover the killed process.
-     
-     c. If we could successfully collect all stats and artifacts from the DUT, then mark the test as a success and exit.
  
 
 ## Process that controls configuration of a router by vendor
