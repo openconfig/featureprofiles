@@ -778,7 +778,7 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     return reserved_testbed
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
+@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*90*60, time_limit=1*90*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, images, image_url=None, force_install=False):
     logger.print("Performing Software Upgrade...")
