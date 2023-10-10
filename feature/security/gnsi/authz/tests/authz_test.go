@@ -520,40 +520,46 @@ func TestAuthz2(t *testing.T) {
 		})
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
-		newpolicy = getPolicyByName(t, "policy-invalid-no-allow-rules", policies)
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
-		jsonPolicy, err := newpolicy.Marshal()
-		if err != nil {
-			t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
-		}
-		rotateStream, err := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
-		if err != nil {
-			t.Fatalf("Could not start rotate stream %v", err)
-		}
-		defer rotateStream.CloseSend()
-		autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
-			UploadRequest: &authzpb.UploadRequest{
-				Version:   fmt.Sprintf("v0.%v", (time.Now().UnixNano())),
-				CreatedOn: uint64(time.Now().UnixMilli()),
-				Policy:    string(jsonPolicy),
-			},
-		}
-		t.Logf("Sending Authz.Rotate request on device: \n %v", autzRotateReq)
-		err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
-		if err == nil {
-			t.Logf("Authz.Rotate upload was successful, receiving response ...")
-		}
-		_, err = rotateStream.Recv()
-		if err != nil {
-			t.Fatalf("Expected Error while receiving rotate request reply %v", err)
-		}
+		t.Run("Applying policy-invalid-no-allow-rules", func(t *testing.T) {
+			newpolicy = getPolicyByName(t, "policy-invalid-no-allow-rules", policies)
+			newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+			jsonPolicy, err := newpolicy.Marshal()
+			if err != nil {
+				t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
+			}
+			rotateStream, err := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
+			if err != nil {
+				t.Fatalf("Could not start rotate stream %v", err)
+			}
+			defer rotateStream.CloseSend()
+			autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
+				UploadRequest: &authzpb.UploadRequest{
+					Version:   fmt.Sprintf("v0.%v", (time.Now().UnixNano())),
+					CreatedOn: uint64(time.Now().UnixMilli()),
+					Policy:    string(jsonPolicy),
+				},
+			}
+			t.Logf("Sending Authz.Rotate request on device: \n %v", autzRotateReq)
+			err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq})
+			if err == nil {
+				t.Logf("Authz.Rotate upload was successful, receiving response ...")
+			}
+			_, err = rotateStream.Recv()
+			if err != nil {
+				t.Fatalf("Expected Error while receiving rotate request reply %v", err)
+			}
 
-		// Close the Stream
-		rotateStream.CloseSend()
-		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
-		t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get after closing stream", func(t *testing.T) {
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, false, true)
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, true, true)
+			t.Run("Verification of Policy for read_only user to deny gRIBI Get before closing stream", func(t *testing.T) {
+				authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, true, true)
+			})
+
+			// Close the Stream
+			rotateStream.CloseSend()
+			// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
+			t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get after closing stream", func(t *testing.T) {
+				authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, tlsCertReadOnly, false, true)
+				authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, tlsCertReadOnly, true, true)
+			})
 		})
 
 	})

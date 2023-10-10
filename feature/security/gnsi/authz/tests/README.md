@@ -120,7 +120,7 @@ Prepare the following gRPC authorization policies.
       "name": "no-one-can-gribi",
       "request": {
         "paths": [
-          "/gribi.gRIBI/Modify"
+          "/gribi.gRIBI/*"
         ]
       }
     }

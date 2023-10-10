@@ -86,7 +86,7 @@
         },
         "request": {
           "paths": [
-            "/gribi.gRIBI/Modify"
+            "/gribi.gRIBI/*"
           ]
         }
       }
