@@ -169,7 +169,11 @@ func TestLinecardReboot(t *testing.T) {
 		}
 	}
 	if removableLinecard == "" {
-		t.Skipf("No removable line card found for the testing")
+		if *args.NumLinecards > 0 {
+			t.Fatalf("No removable line card found for the testing on a modular device")
+		} else {
+			t.Skipf("No removable line card found for the testing")
+		}
 	}
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
@@ -239,7 +243,11 @@ func TestFabricReboot(t *testing.T) {
 		}
 	}
 	if removableFabric == "" {
-		t.Skipf("No fabric component found for the testing")
+		if *args.NumLinecards > 0 {
+			t.Fatalf("No removable fabric component found for the testing on a modular device")
+		} else {
+			t.Skipf("No removable fabric component found for the testing")
+		}
 	}
 
 	// Fetch list of interfaces which are up prior to fabric component reboot.
