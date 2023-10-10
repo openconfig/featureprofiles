@@ -339,17 +339,19 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
+    // Devices do not support forwarding for fib failed routes.
+    bool skip_fib_failed_traffic_forwarding_check = 113;
     // Skip gNMI container OP tc.
-    bool skip_container_op = 113;
+    bool skip_container_op = 114;
     // Set ethernet from state.
-    bool dont_set_ethernet_from_state = 114;
+    bool dont_set_ethernet_from_state = 115;
     // Set subinterface to nil.
-    bool set_subinterface_nil = 115;
+    bool set_subinterface_nil = 116;
     // Reorder calls for vendor compatibility.
-    bool reorder_calls_for_vendor_compatibilty = 116;
+    bool reorder_calls_for_vendor_compatibilty = 117;
     // Add missing base config using cli.
-    bool add_missing_base_config_via_cli = 117;
-
+    bool add_missing_base_config_via_cli = 118;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
   }

@@ -14,7 +14,7 @@ timeout: 28800s
 substitutions:
     _DUT_PLATFORM: unknown
     _DUT_TESTS: ""
-    _MACHINE_TYPE: e2-standard-8
+    _MACHINE_TYPE: e2-standard-16
     _MACHINE_ARGS: ""
 options:
   pool:
