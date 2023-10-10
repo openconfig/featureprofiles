@@ -341,8 +341,10 @@ message Metadata {
     bool qos_queue_requires_id = 112;
     // Devices requires enabled leaf under isis level
     // Juniper: partnerissuetracker.corp.google.com/302661486
-    bool isis_level_enabled = 113;
-
+    bool isis_level_enabled = 114;
+    // Devices do not support forwarding for fib failed routes.
+    bool skip_fib_failed_traffic_forwarding_check = 113;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
   }
