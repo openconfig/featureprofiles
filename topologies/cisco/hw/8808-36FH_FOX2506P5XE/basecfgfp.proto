@@ -16,6 +16,7 @@ replace: {
   " port 57777\n"
   " tls-mutual\n"
   " certificate-authentication\n"
+  " service-layer\n"
   "!\n"
   "vrf mgmt\n"
   " address-family ipv4 unicast\n"
