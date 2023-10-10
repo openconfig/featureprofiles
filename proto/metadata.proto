@@ -345,7 +345,6 @@ message Metadata {
     // Juniper: b/303631436
     bool isis_interface_passive_state_unsupported = 114;
 
-
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
   }
