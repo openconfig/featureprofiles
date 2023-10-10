@@ -339,7 +339,9 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
-
+    // Devices do not support forwarding for fib failed routes.
+    bool skip_fib_failed_traffic_forwarding_check = 113;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
   }
