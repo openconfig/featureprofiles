@@ -145,6 +145,9 @@ tests:
       - mananpat
     mustpass: true
     priority: 8
+    post:
+      - name: gribi_flush
+        path: topologies/cisco/pretests/gribi_flush_test
   - name: TE-11.1 (Backup NHG Single NH)
     path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
     owners:
@@ -190,6 +193,9 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+    post:
+      - name: gribi_flush
+        path: topologies/cisco/pretests/gribi_flush_test
   - name: P4RT-2.1 (P4RT Election)
     path: feature/experimental/p4rt/tests/p4rt_election
     owners:
