@@ -1299,3 +1299,54 @@ func TestSendCommunity(t *testing.T) {
 		})
 	}
 }
+
+// Config: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/replace-peer-as
+// State:  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/replace-peer-as
+func TestASPathOptReplacePeerAS(t *testing.T) {
+
+    dut := ondatra.DUT(t, dutName)
+
+    inputs := []bool{
+        true,
+        false,
+    }
+
+    bgp_instance, bgp_as := getNextBgpInstance()
+    bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+    bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+    baseConfig := baseBgpNeighborConfig(bgp_as)
+    gnmi.Update(t, dut, bgpConfig.Config(), baseConfig)
+    //gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgp_as)
+    time.Sleep(configApplyTime)
+    defer cleanup(t, dut, bgp_instance)
+
+    for _, input := range inputs {
+        t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/replace-peer-as using value %v", input), func(t *testing.T) {
+            config := bgpConfig.Neighbor(neighbor_address).AsPathOptions().ReplacePeerAs()
+            state := bgpState.Neighbor(neighbor_address).AsPathOptions().ReplacePeerAs()
+
+            t.Run("ReplacePeerAS_Config", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+            time.Sleep(configApplyTime)
+
+            t.Run("ReplacePeerAS_State", func(t *testing.T) {
+                stateGot := gnmi.Get(t, dut, state.State())
+                fmt.Println("Check value stateGot", stateGot)
+                fmt.Println("Check value input", input)
+                if stateGot != input {
+                    t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/replace-peer-as: got %v, want %v", stateGot, input)
+                }
+            })
+
+            t.Run("ReplacePeerAS_Delete", func(t *testing.T) {
+                gnmi.Delete(t, dut, config.Config())
+                time.Sleep(configDeleteTime)
+                stateGot1 := gnmi.Get(t, dut, state.State())
+                if (stateGot1 == false) || (stateGot1 == true) {
+                    t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/replace-peer-as: got %v, want %v", stateGot1, "")
+                }
+            })
+        })
+    }
+}
+
+
