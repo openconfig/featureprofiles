@@ -36,61 +36,61 @@ tests:
     priority: 1
     mustpass: true
   - name: TE-15.1 (gRIBI Compliance)
-    path: feature/gribi/ate_tests/gribigo_compliance_test
+    path: feature/gribi/otg_tests/gribigo_compliance_test
     priority: 2
     owners:
       - mananpat
     mustpass: true
   - name: TE-2.1 (gRIBI IPv4 Entry)
-    path: feature/gribi/ate_tests/ipv4_entry_test
+    path: feature/gribi/otg_tests/ipv4_entry_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
     internal: false
   - name: TE-4.1 (Base Leader Election)
-    path: feature/gribi/ate_tests/base_leader_election_test
+    path: feature/gribi/otg_tests/base_leader_election_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-4.2 (Persistence Mode)
-    path: feature/gribi/ate_tests/persistence_mode_test
+    path: feature/gribi/otg_tests/persistence_mode_test
     priority: 4
     owners:
       - mananpat
     mustpass: true
   - name: TE-5.1 (gRIBI Get RPC)
-    path: feature/gribi/ate_tests/get_rpc_test
+    path: feature/gribi/otg_tests/get_rpc_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-3.5 (Ordering ACK Received)
-    path: feature/gribi/ate_tests/ordering_ack_test
+    path: feature/gribi/otg_tests/ordering_ack_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-3.7 (Base Hierarchical NHG Update)
-    path: feature/gribi/ate_tests/base_hierarchical_nhg_update
+    path: feature/gribi/otg_tests/base_hierarchical_nhg_update
     owners:
       - mananpat
     mustpass: true
     pr: 1855
     priority: 3
   - name: TE-3.2 (Traffic Balancing According to Weights)
-    path: feature/gribi/ate_tests/weighted_balancing_test
+    path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
     priority: 3
     timeout: 3200
   - name: TE-13.2 (gRIBI route DELETE during Failover)
-    path: feature/experimental/gribi/ate_tests/route_removal_during_failover_test/
+    path: feature/experimental/gribi/otg_tests/route_removal_during_failover_test/
     mustpass: true
     priority: 3
     # need pr/branch
   - name: TE-13.1 (gRIBI route Add during Failover)
-    path: feature/experimental/gribi/ate_tests/route_addition_during_failover_test/
+    path: feature/experimental/gribi/otg_tests/route_addition_during_failover_test/
     mustpass: true
     priority: 3
   - name: TE-3.3 (Hierarchical weight resolution)
@@ -102,46 +102,46 @@ tests:
     mustpass: true
     priority: 3
   - name: TE-6.1 (Route Removal via Flush)
-    path: feature/gribi/ate_tests/route_removal_via_flush_test
+    path: feature/gribi/otg_tests/route_removal_via_flush_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-6.2 (Route Removal In Non Default VRF)
-    path: feature/gribi/ate_tests/route_removal_non_default_vrf_test
+    path: feature/gribi/otg_tests/route_removal_non_default_vrf_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-3.6 (ACK in the Presence of Other Routes)
-    path: feature/gribi/ate_tests/ack_in_presence_other_routes
+    path: feature/gribi/otg_tests/ack_in_presence_other_routes
     skip: false
     owners:
       - mananpat
     priority: 3
     mustpass: true
   - name: TE-3.1 (Base Hierarchical Route Installation)
-    path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
+    path: feature/gribi/otg_tests/base_hierarchical_route_installation_test
     timeout: 4200
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-11.2 (Backup NHG Multiple NH)
-    path: feature/gribi/ate_tests/backup_nhg_multiple_nh_test
+    path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
     internal: false
   - name: TE-11.3 (Backup NHG Actions)
-    path: feature/experimental/gribi/ate_tests/backup_nhg_action/
+    path: feature/experimental/gribi/otg_tests/backup_nhg_action/
     owners:
       - wdolaast
     mustpass: true
     priority: 3
   - name: TE-8.1 (DUT Daemon Failure)
-    path: feature/experimental/gribi/ate_tests/dut_daemon_failure
+    path: feature/experimental/gribi/otg_tests/dut_daemon_failure
     owners:
       - mananpat
     pr: 1802
@@ -155,7 +155,7 @@ tests:
     priority: 3
     internal: false
   - name: TE-14.1 (gRIBI Scaling)
-    path: feature/gribi/ate_tests/gribi_scaling
+    path: feature/gribi/otg_tests/gribi_scaling
     timeout: 7200
     owners:
       - mananpat
@@ -524,7 +524,7 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: TE-8.2 (Supervisor Failure)
-    path: feature/gribi/ate_tests/supervisor_failure_test
+    path: feature/gribi/otg_tests/supervisor_failure_test
     owners:
       - mananpat
     skip: false
