@@ -128,6 +128,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i3 := dutDst2.NewOCInterface(dut.Port(t, "port3").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i3.GetName()).Config(), i3)
+
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port3"))
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i3.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 // verifyPortsUp asserts that each port on the device is operating.
@@ -270,7 +281,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // advertising some(faked) networks over BGP.
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Helper()
-	config := gosnappi.NewConfig()
+	config := otg.NewConfig(t)
 	port1 := config.Ports().Add().SetName("port1")
 	port2 := config.Ports().Add().SetName("port2")
 	port3 := config.Ports().Add().SetName("port3")
@@ -303,14 +314,10 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(ateDst1.Name + ".BGP4.peer")
 	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
-	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	iDut3Bgp := iDut3Dev.Bgp().SetRouterId(iDut3Ipv4.Address())
 	iDut3Bgp4Peer := iDut3Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut3Ipv4.Name()).Peers().Add().SetName(ateDst2.Name + ".BGP4.peer")
 	iDut3Bgp4Peer.SetPeerAddress(iDut3Ipv4.Gateway()).SetAsNumber(ateAS3).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut3Bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
-	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	bgpNeti1Bgp4PeerRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(ateDst1.Name + ".BGP4.Route")
 	bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(iDut2Ipv4.Address()).
@@ -439,6 +446,10 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions1 := st.GetOrCreateActions()
 	actions1.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED100)
+	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
+		actions1.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED100)
+	}
+	actions1.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(setMEDPolicy50)
 	st, err = pdef2.AppendNewStatement(aclStatement20)
@@ -447,6 +458,10 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions2 := st.GetOrCreateActions()
 	actions2.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED50)
+	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
+		actions2.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED50)
+	}
+	actions2.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	pdef3 := rp.GetOrCreatePolicyDefinition(rplAllowPolicy)
 	st, err = pdef3.AppendNewStatement("id-1")
@@ -509,10 +524,16 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateSrc.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
+	if gotInstalled, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
+		got, ok := v.Val()
+		return ok && got == wantInstalled
+	}).Await(t); !ok {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
 	}
-	if gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State()); gotSent != wantSent {
+	if gotSent, ok := gnmi.Watch(t, dut, prefixesv4.Sent().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
+		got, ok := v.Val()
+		return ok && got == wantSent
+	}).Await(t); !ok {
 		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
 	}
 }
