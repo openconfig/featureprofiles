@@ -77,7 +77,6 @@ tests:
     owners:
       - mananpat
     mustpass: true
-    pr: 1855
     priority: 3
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
@@ -144,7 +143,6 @@ tests:
     path: feature/experimental/gribi/otg_tests/dut_daemon_failure
     owners:
       - mananpat
-    pr: 1802
     mustpass: true
     priority: 8
   - name: TE-11.1 (Backup NHG Single NH)
