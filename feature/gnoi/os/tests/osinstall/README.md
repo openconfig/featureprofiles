@@ -8,7 +8,7 @@
 
 ## Procedure
 
-* Subtest-1 : OS Install on the primary and secondary controller cards. 
+* gNOI-4.1.1 : OS Install on the primary and secondary controller cards. 
    1. Install and activate a new software version on primary supervisor:
       
       a. Issue gnoi.os.Install rpc to the chassis with InstallRequest.TransferRequest message. The message should set the version to the desired new version image, and standby_supervisor to FALSE.
@@ -56,7 +56,7 @@
          * Expect that the VerifyResponse.verify_standby has the same version in messages above.
 
                
-* Subtest-2 : Configuration push verification post OS change and check health of the software-module that allows configuration.
+* gNOI-4.1.2: Configuration push verification post OS change and check health of the software-module that allows configuration.
   1. Check the health of the software-module component that allows configuration of the router and verify if it is **HEALTHY** using the leaf /components/component[**process that handles configuration of the DUT**]/healthz/state/status/
      
      a. If unhealthy, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
