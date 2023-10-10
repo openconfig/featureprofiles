@@ -702,7 +702,7 @@ func configStaticArp(p string, ipv4addr string, macAddr string, trunk bool) *oc.
 
 // TE3.7 case2 - Drain Implementation test.
 func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
-	if !deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
+	if !deviations.GRIBIMACOverrideWithStaticARP(args.dut) && args.dut.Vendor() != ondatra.NOKIA {
 		t.Skip()
 		//Testcase skipped as static arp and route config needed for other vendors
 	}
@@ -716,13 +716,14 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 	p3Flow := createFlow(t, p3FlowName, args.top, true, &atePort3)
 	p4Flow := createFlow(t, p4FlowName, args.top, true, &atePort4)
 
+	configDUTDrain(t, args.dut)
+
 	args.ate.OTG().PushConfig(t, args.top)
 	args.ate.OTG().StartProtocols(t)
 
 	// waitOTGARPEntry(t)
 	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
 
-	configDUTDrain(t, args.dut)
 	addStaticRoute(t, args.dut)
 
 	t.Logf("Adding NHG %d, NH %d and NH %d  via gRIBI", nhg1ID, nh1ID, nh2ID)
@@ -845,14 +846,13 @@ func deleteinterfaceconfig(t *testing.T, dut *ondatra.DUTDevice) {
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		ni := deviations.DefaultNetworkInstance(dut)
-		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p2.Name()+".").Subinterface().Config())
-		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p3.Name()+".").Subinterface().Config())
-		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p4.Name()+".").Subinterface().Config())
-	} else {
-		gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
-		gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
-		gnmi.Delete(t, dut, d.Interface(p4.Name()).Subinterface(0).Config())
+		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p2.Name()+"."+"0").Config())
+		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p3.Name()+"."+"0").Config())
+		gnmi.Delete(t, dut, d.NetworkInstance(ni).Interface(p4.Name()+"."+"0").Config())
 	}
+	gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
+	gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
+	gnmi.Delete(t, dut, d.Interface(p4.Name()).Subinterface(0).Config())
 }
 
 // configDUTDrain configures ports for drain test.
@@ -883,6 +883,11 @@ func configDUTDrain(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Update(t, dut, d.Interface(*i2.Name).Subinterface(0).Ipv6().Enabled().Config(), true)
 		gnmi.Update(t, dut, d.Interface(*i3.Name).Subinterface(0).Ipv6().Enabled().Config(), true)
 		gnmi.Update(t, dut, d.Interface(*i4.Name).Subinterface(0).Ipv6().Enabled().Config(), true)
+	}
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, p2)
+		fptest.SetPortSpeed(t, p3)
+		fptest.SetPortSpeed(t, p4)
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, *i2.Name, deviations.DefaultNetworkInstance(dut), 0)
