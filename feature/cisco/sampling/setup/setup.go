@@ -1,4 +1,4 @@
-// Package setup includes funtions to load oc model from a json file
+// Package setup includes functions to load oc model from a json file
 package setup
 
 import (
@@ -90,5 +90,31 @@ OUTER:
 				el.Set(reflect.Zero(f.Type))
 			}
 		}
+	}
+}
+
+// PrintStruct prints the struct in human-readable format
+func PrintStruct[T any](s *T) {
+	// Get the reflect value of the struct
+	structValue := reflect.ValueOf(*s)
+
+	// iterate over each field of the struct
+	for i := 0; i < structValue.NumField(); i++ {
+		// Get the reflect value and type of the field
+		fieldValue := structValue.Field(i)
+		fieldType := structValue.Type().Field(i)
+
+		//Check if the field is a pointer
+		if fieldValue.Kind() == reflect.Pointer && !fieldValue.IsNil() {
+			// Dereference the pointer to get actual value
+			actualValue := reflect.Indirect(fieldValue)
+
+			// Print the field name and value
+			fmt.Printf("%s: %v\n", fieldType.Name, actualValue.Interface())
+		} else {
+			// Print the field name and value
+			fmt.Printf("%s: %v\n", fieldType.Name, fieldValue.Interface())
+		}
+
 	}
 }

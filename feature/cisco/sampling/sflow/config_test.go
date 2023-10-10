@@ -2,6 +2,7 @@ package sampling_test
 
 import (
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"testing"
 	"time"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -20,7 +20,11 @@ func TestMain(m *testing.M) {
 func TestEnabledAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Sampling = setupSampling(t, dut)
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	setup.PrintStruct(defaultConfigGot)
+
+	var baseConfig = setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
 	for _, input := range testEnabledInput {
@@ -53,8 +57,10 @@ func TestEnabledAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/enabled fail: got %v", qs)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
+					if !cmp.Equal(configGot, defaultConfigGot) {
+						t.Errorf("Delete for path /sampling/sflow/config failed")
+						setup.PrintStruct(configGot)
 					}
 				}
 			})
@@ -64,6 +70,11 @@ func TestEnabledAtContainer(t *testing.T) {
 
 func TestEnabledAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	setup.PrintStruct(defaultConfigGot)
+
 	baseConfig := setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
@@ -92,14 +103,6 @@ func TestEnabledAtLeaf(t *testing.T) {
 					}
 				})
 			}
-			t.Run("Delete leaf", func(t *testing.T) {
-				gnmi.Delete(t, dut, config.Config())
-				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/enabled fail: got %v", qs)
-					}
-				}
-			})
 		})
 	}
 }
@@ -107,7 +110,11 @@ func TestEnabledAtLeaf(t *testing.T) {
 func TestSampleSizeAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Sampling = setupSampling(t, dut)
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	setup.PrintStruct(defaultConfigGot)
+
+	var baseConfig = setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
 	for _, input := range testSampleSizeInput {
@@ -140,14 +147,17 @@ func TestSampleSizeAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/sample-size fail: got %v", qs.IsPresent())
+					configGot := gnmi.GetConfig(t, dut, config.Config())
+					if !cmp.Equal(configGot, defaultConfigGot) {
+						t.Errorf("Delete for path /sampling/sflow/config failed")
+						setup.PrintStruct(configGot)
 					}
 				}
 			})
 		})
 	}
 }
+
 func TestSampleSizeAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	baseConfig := setupSampling(t, dut)

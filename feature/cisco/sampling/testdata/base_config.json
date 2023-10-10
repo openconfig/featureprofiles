@@ -28,7 +28,7 @@
     },
     "state": {
       "enabled": true,
-      "sample-size": 128,
+      "sample-size": 256,
       "agent-id-ipv4": "2.2.2.1",
       "agent-id-ipv6": "2000::1",
       "dscp":60,
