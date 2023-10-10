@@ -339,10 +339,12 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
+    // Devices do not support forwarding for fib failed routes.
+    bool skip_fib_failed_traffic_forwarding_check = 113;
     // Devices do not support interface passive state.
     // Juniper: b/303631436
-    bool isis_interface_passive_state_unsupported = 113;
-   
+    bool isis_interface_passive_state_unsupported = 114;
+
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
@@ -369,3 +371,4 @@ message Metadata {
   // is the default implying it applies to all areas.
   repeated Tags tags = 6;
 }
+
