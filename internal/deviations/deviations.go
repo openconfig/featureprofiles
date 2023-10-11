@@ -656,3 +656,13 @@ func ReorderCallsForVendorCompatibilty(dut *ondatra.DUTDevice) bool {
 func AddMissingBaseConfigViaCli(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAddMissingBaseConfigViaCli()
 }
+
+// SkipMacaddressCheck returns true if mac address for an interface via gNMI needs to be skipped.
+func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipMacaddressCheck()
+}
+
+// SkipBreakout returns true if breakout via gNMI needs to be skipped.
+func SkipBreakout(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBreakout()
+}

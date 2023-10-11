@@ -883,24 +883,26 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			// Ethernet config may not contain meaningful values if it wasn't explicitly
 			// configured, so use its current state for the config, but prune non-config leaves.
 			intf := gnmi.Get(t, dev, gnmi.OC().Interface(iname).State())
-			breakout := config.GetComponent(intf.GetHardwarePort()).GetPort().GetBreakoutMode()
 			e := intf.GetEthernet()
-			// Set port speed to unknown for non breakout interfaces
-			if breakout.GetGroup(1) == nil && e != nil {
-				e.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN)
+			if !deviations.SkipBreakout(ondatra.DUT(t, "dut")) {
+				breakout := config.GetComponent(intf.GetHardwarePort()).GetPort().GetBreakoutMode()
+				e := intf.GetEthernet()
+				// Set port speed to unknown for non breakout interfaces
+				if breakout.GetGroup(1) == nil && e != nil {
+					e.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN)
+				}
 			}
 			ygot.PruneConfigFalse(oc.SchemaTree["Interface_Ethernet"], e)
 			if e.PortSpeed != 0 && e.PortSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
 				iface.Ethernet = e
 			}
-			if iname == "MgmtEth0/RP0/CPU0/0" || iname == "MgmtEth0/RP1/CPU0/0" {
+			if (iname == "MgmtEth0/RP0/CPU0/0" || iname == "MgmtEth0/RP1/CPU0/0") && deviations.SkipMacaddressCheck(ondatra.DUT(t, "dut")) {
 				e.MacAddress = nil
 			}
-			if iface.Ethernet.AggregateId != nil {
+			if iface.Ethernet.AggregateId != nil && deviations.SkipMacaddressCheck(ondatra.DUT(t, "dut")) {
 				iface.Ethernet.MacAddress = nil
 				continue
 			}
-			iface.Ethernet.AutoNegotiate = nil
 		}
 	}
 
