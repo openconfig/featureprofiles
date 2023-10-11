@@ -597,6 +597,12 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
 
+// GRIBISkipFIBFailedTrafficForwardingCheck returns true for devices that do not
+// support fib forwarding for fib failed routes.
+func GRIBISkipFIBFailedTrafficForwardingCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipFibFailedTrafficForwardingCheck()
+}
+
 // SkipTCPNegotiatedMSSCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
 func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
@@ -629,4 +635,9 @@ func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 // BgpLlgrOcUndefined returns true if device should does not support OC path to disable BGP LLGR.
 func BgpLlgrOcUndefined(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpLlgrOcUndefined()
+
+// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
+
 }
