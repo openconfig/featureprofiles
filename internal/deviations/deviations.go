@@ -631,3 +631,8 @@ func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
 func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
+
+// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
+}
