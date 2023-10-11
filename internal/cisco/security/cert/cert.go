@@ -12,15 +12,11 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	//"flag"
 	"fmt"
-	//"strings"
-
 	"math/big"
 	"net"
 	"net/url"
 	"os"
-
 	"time"
 )
 
@@ -123,6 +119,27 @@ func PopulateCertTemplate(cname string, domainNames []string, ips []net.IP, spif
 		NotAfter:    time.Now().AddDate(0, 0, expireInDays),
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:    x509.KeyUsageDigitalSignature,
+	}
+	return certSpec, nil
+}
+
+func initCertRequest(cname string, domainNames []string, ips []net.IP, spiffeID string, expireInDays int) (*x509.CertificateRequest, error) {
+	uri, err := url.Parse(spiffeID)
+	if err != nil {
+		return nil, err
+	}
+	if err != nil {
+		return nil, err
+	}
+	// following https://github.com/spiffe/spiffe/blob/main/standards/X509-SVID.md#appendix-a-x509-field-reference
+	certSpec := &x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName:   cname,
+			Organization: []string{"OpenconfigFeatureProfiles"},
+			Country:      []string{"US"},
+		},
+		URIs:     []*url.URL{uri},
+		DNSNames: domainNames,
 	}
 	return certSpec, nil
 }
@@ -255,4 +272,73 @@ func GenRootCA(cn string, keyAlgo x509.PublicKeyAlgorithm, expireInDays int, dir
 		return nil, nil, err
 	}
 	return caPrivKey, caCert, nil
+}
+
+func GenCRS(certReq *x509.CertificateRequest, keyAlgo x509.PublicKeyAlgorithm, expireInDays int, dir string) (crypto.PrivateKey, *x509.CertificateRequest, error) {
+	var privKey crypto.PrivateKey
+	keyType := ""
+	keyBytes := []byte{}
+	keyFileName := ""
+	var err error
+	certReqFileName := ""
+	switch keyAlgo {
+	case x509.RSA:
+		privKey, err = rsa.GenerateKey(rand.Reader, 4096)
+		if err != nil {
+			return nil, nil, err
+		}
+		keyType = "RSA PRIVATE KEY"
+		keyBytes = x509.MarshalPKCS1PrivateKey(privKey.(*rsa.PrivateKey))
+		keyFileName = "key.rsa.pem"
+		certReqFileName = "cert.csr.rsa.pem"
+
+	case x509.ECDSA:
+		curve := elliptic.P256()
+		privKey, err = ecdsa.GenerateKey(curve, rand.Reader)
+		if err != nil {
+			return nil, nil, err
+		}
+		keyType = "EC PRIVATE KEY"
+		keyBytes, err = x509.MarshalECPrivateKey(privKey.(*ecdsa.PrivateKey))
+		if err != nil {
+			return nil, nil, err
+		}
+		keyFileName = "key.ecdsa.pem"
+		certReqFileName = "cert.csr.ecdsa.pem"
+	default:
+		return nil, nil, fmt.Errorf("key algorithm %v is not supported", keyAlgo)
+	}
+	// create the CA
+
+	csr, err := x509.CreateCertificateRequest(rand.Reader, certReq, privKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// pem encode
+	csrPEM := new(bytes.Buffer)
+	pem.Encode(csrPEM, &pem.Block{
+		Type:  "CERTIFICATE REQUEST",
+		Bytes: csr,
+	})
+
+	if err := os.WriteFile(dir+"/"+certReqFileName, csrPEM.Bytes(), 0444); err != nil {
+		return nil, nil, err
+	}
+
+	privKeyPEM := new(bytes.Buffer)
+	pem.Encode(privKeyPEM, &pem.Block{
+		Type:  keyType,
+		Bytes: keyBytes,
+	})
+	if err := os.WriteFile(dir+"/"+keyFileName, privKeyPEM.Bytes(), 0400); err != nil {
+		return nil, nil, err
+	}
+	// parsing it from pem to ensure the saved PEM is ok
+	pem, _ := pem.Decode(csrPEM.Bytes())
+	csrReq, err := x509.ParseCertificateRequest(pem.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	return privKey, csrReq, nil
 }
