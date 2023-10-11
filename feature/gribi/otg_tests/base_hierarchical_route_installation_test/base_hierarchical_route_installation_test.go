@@ -207,8 +207,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 	for p, ap := range atePorts {
 		dp := dutPorts[p]
 		top.Ports().Add().SetName(ap.Name)

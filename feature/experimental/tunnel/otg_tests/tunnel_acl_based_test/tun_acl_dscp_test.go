@@ -195,8 +195,7 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 
 // configureOTG configures the traffic interfaces
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	topo := otg.NewConfig(t)
+	topo := gosnappi.NewConfig()
 	t.Logf("Configuring OTG port1")
 	srcPort := topo.Ports().Add().SetName("port1")
 	srcDev := topo.Devices().Add().SetName(ateSrc.Name)
@@ -228,9 +227,9 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	v4.Dst().SetValue(dstIpv4.Address())
 	v4.Priority().Dscp().Phb().SetValue(uint32(dscp))
 	t.Logf("Pushing config to ATE and starting protocols...")
-	otg.PushConfig(t, topo)
+	ate.OTG().PushConfig(t, topo)
 	t.Logf("starting protocols...")
-	otg.StartProtocols(t)
+	ate.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
 	//	otgutils.WaitForARP(t, otg, topo, "IPv4")
 	t.Log(topo.Msg().GetCaptures())

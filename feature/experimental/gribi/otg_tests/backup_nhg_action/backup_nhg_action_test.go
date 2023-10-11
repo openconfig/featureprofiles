@@ -160,7 +160,7 @@ func TestMain(m *testing.M) {
 
 // configureATE configures ports on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 	for p, ap := range atePorts {
 		p1 := ate.Port(t, p)
 		dp := dutPorts[p]
