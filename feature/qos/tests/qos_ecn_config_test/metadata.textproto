@@ -14,3 +14,12 @@ platform_exceptions: {
     drop_weight_leaves_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    qos_queue_requires_id: true
+    qos_buffer_allocation_config_required: true
+  }
+}

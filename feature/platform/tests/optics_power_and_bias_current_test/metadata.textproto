@@ -11,6 +11,7 @@ platform_exceptions:  {
   }
   deviations:  {
     explicit_port_speed:  true
+    transceiver_thresholds_unsupported:  true
   }
 }
 platform_exceptions:  {
