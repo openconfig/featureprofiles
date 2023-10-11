@@ -249,7 +249,7 @@ func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connTyp
 	t.Helper()
 	ate := ondatra.ATE(t, "ate")
 	port1 := ate.Port(t, "port1")
-	topo := ate.OTG().NewConfig(t)
+	topo := gosnappi.NewConfig()
 
 	topo.Ports().Add().SetName(port1.ID())
 	dev := topo.Devices().Add().SetName(ateAttrs.Name)
@@ -258,7 +258,7 @@ func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connTyp
 	eth.SetMac(ateAttrs.MAC)
 
 	ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-	ip.SetAddress(ateAttrs.IPv4).SetGateway(dutAttrs.IPv4).SetPrefix(int32(ateAttrs.IPv4Len))
+	ip.SetAddress(ateAttrs.IPv4).SetGateway(dutAttrs.IPv4).SetPrefix(uint32(ateAttrs.IPv4Len))
 
 	bgp := dev.Bgp().SetRouterId(ateAttrs.IPv4)
 	peerBGP := bgp.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add()
@@ -267,7 +267,7 @@ func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connTyp
 	if auth == md5Auth {
 		peerBGP.Advanced().SetMd5Key(authPassword)
 	}
-	peerBGP.SetPeerAddress(ip.Gateway()).SetAsNumber(int32(ateParams.localAS))
+	peerBGP.SetPeerAddress(ip.Gateway()).SetAsNumber(uint32(ateParams.localAS))
 	if connectionType == connInternal {
 		peerBGP.SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	} else {
@@ -419,7 +419,7 @@ func TestPassword(t *testing.T) {
 			eth.SetMac(ateAttrs.MAC)
 
 			ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-			ip.SetAddress(ateAttrs.IPv4).SetGateway(dutAttrs.IPv4).SetPrefix(int32(ateAttrs.IPv4Len))
+			ip.SetAddress(ateAttrs.IPv4).SetGateway(dutAttrs.IPv4).SetPrefix(uint32(ateAttrs.IPv4Len))
 
 			bgp := dev.Bgp().SetRouterId(ateAttrs.IPv4)
 			peerBGP := bgp.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add()
