@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gnsi/authz"
@@ -423,7 +424,12 @@ func GnoiSystemPing(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Dia
 	if err != nil {
 		return err
 	}
-	_, err = gnoiC.System().Ping(ctx, &system.PingRequest{Destination: "192.0.2.1"})
+	pingC, err := gnoiC.System().Ping(ctx, &system.PingRequest{Destination: "192.0.2.1"})
+	if err != nil {
+		return err
+
+	}
+	_, err = pingC.Recv()
 	return err
 }
 
@@ -488,11 +494,23 @@ func GnsiAuthzRotate(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Di
 		return err
 	}
 	// TODO: send valid policy for postive cases
-	err = gnsiCStream.Send(&authz.RotateAuthzRequest{})
+	err = gnsiCStream.Send(&authz.RotateAuthzRequest{
+		RotateRequest: &authz.RotateAuthzRequest_UploadRequest{
+			UploadRequest: &authz.UploadRequest{
+				Version:   "0.0",
+				CreatedOn: uint64(time.Now().Nanosecond()),
+				Policy:    "",
+			},
+		},
+	})
 	if err != nil {
 		return err
 	}
 	_, err = gnsiCStream.Recv()
+	// invalid policy is expected since the empty policy is not allowed
+	if strings.Contains(err.Error(), "invalid policy") {
+		return nil
+	}
 	return err
 }
 
