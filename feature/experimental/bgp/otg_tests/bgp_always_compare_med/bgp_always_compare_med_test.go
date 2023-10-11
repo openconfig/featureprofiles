@@ -417,13 +417,13 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	// Apply setMed import policy on eBGP Peer1 - ATE Port2 - with MED 100.
 	// Apply setMed Import policy on eBGP Peer2 - ATE Port3 -  with MED 50.
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
-		gnmi.Replace(t, dut, dutPolicyConfPath2.ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy100})
-		gnmi.Replace(t, dut, dutPolicyConfPath3.ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy50})
+		gnmi.Replace(t, dut, dutPolicyConfPath2.ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy, setMEDPolicy100})
+		gnmi.Replace(t, dut, dutPolicyConfPath3.ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy, setMEDPolicy50})
 	} else {
 		gnmi.Replace(t, dut, dutPolicyConfPath2.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
-			ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy100})
+			ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy, setMEDPolicy100})
 		gnmi.Replace(t, dut, dutPolicyConfPath3.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
-			ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy50})
+			ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy, setMEDPolicy50})
 	}
 }
 
