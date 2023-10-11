@@ -36,7 +36,7 @@ type Testcase struct {
 	fn   func(t *testing.T)
 }
 
-// For Cisco devices, minimum and maximum Threshold values can't be the same,
+// For Cisco devices, minimum and maximum threshold values can't be the same,
 // as well as it should be a multiple of 6,144 bytes
 const (
 	Cisco_MinThreshold = (uint64(8005632))
@@ -380,9 +380,12 @@ func testCiscoECNConfig(t *testing.T) {
 	uniform := wred.GetOrCreateUniform()
 	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
 
-	if deviations.EcnSameMaxMimumThresholdUnsupported(dut) {
+	if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
 		uniform.SetMinThreshold(Cisco_MinThreshold)
 		uniform.SetMaxThreshold(Cisco_MaxThreshold)
+	} else {
+		uniform.SetMinThreshold(ecnConfig.minThreshold)
+		uniform.SetMaxThreshold(ecnConfig.maxThreshold)
 	}
 
 	uniform.SetDrop(ecnConfig.dropEnabled)
@@ -482,7 +485,7 @@ func testCiscoECNConfig(t *testing.T) {
 	if got, want := gnmi.GetConfig(t, dut, wredUniform.EnableEcn().Config()), ecnConfig.ecnEnabled; got != want {
 		t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
 	}
-	if deviations.EcnSameMaxMimumThresholdUnsupported(dut) {
+	if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
 		if got, want := gnmi.GetConfig(t, dut, wredUniform.MinThreshold().Config()), Cisco_MinThreshold; got != want {
 			t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
 		}
