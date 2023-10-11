@@ -635,9 +635,9 @@ func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 // BgpLlgrOcUndefined returns true if device should does not support OC path to disable BGP LLGR.
 func BgpLlgrOcUndefined(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpLlgrOcUndefined()
+}
 
 // QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
 func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
-
 }
