@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"testing"
 	"time"
+        "context"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+        "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+        "github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -109,4 +112,89 @@ func TestRouterId(t *testing.T) {
 			})
 		})
 	}
+}
+
+func Test_Default_Metric(t *testing.T) {
+        dut := ondatra.DUT(t, "dut")
+
+        t.Log("Remove Flowspec Config")
+        configToChange := "no flowspec \n"
+        ctx := context.Background()
+        util.GNMIWithText(ctx, t, dut, configToChange)
+        t.Run("Testing openconfig-network-instance:network-instances/network-instance/protocols/protocol/config/default-metric", func(t *testing.T) {
+
+                proto := oc.NetworkInstance_Protocol{}
+                proto.DefaultMetric = ygot.Uint32(121)
+                proto.Name = ygot.String("default")
+                proto.Identifier =  oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+
+                bgp_global := oc.NetworkInstance_Protocol_Bgp_Global{}
+                bgp_global.As = ygot.Uint32(65000)
+
+                bgp := oc.NetworkInstance_Protocol_Bgp{}
+                bgp.Global = &bgp_global
+
+                proto.Bgp = &bgp
+
+                //ni := oc.NetworkInstance{}
+
+                //key := oc.NetworkInstance_Protocol_Key{Identifier:oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, Name: "default"}
+
+                t.Logf("TC: Configuring Default Metric for default vrf")
+                t.Run("Update", func(t *testing.T) {
+                        gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Config(), &proto)
+                })
+
+                proto.DefaultMetric = ygot.Uint32(144)
+                t.Logf("TC: Configuring Default Metric for custom vrf - CISCO")
+                t.Run("Update", func(t *testing.T) {
+                        gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Config(), &proto)
+                })
+
+// Get DEFAULT-METRIC
+
+        t.Log("TC: Retrieve default-metric for DEFAULT vrf")
+        t.Run("Get", func(t *testing.T) {
+            config := gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric()
+            configGot := gnmi.GetConfig(t, dut, config.Config())
+            t.Logf("Rcvd val - %v",configGot)
+
+
+            expected_metric := ygot.Uint32(121)
+
+            if configGot == *expected_metric {
+                t.Logf("Passed expected metric")
+            } else {
+                t.Errorf("TestFAIL, Received %v Expected %v",configGot, *expected_metric)
+            }
+
+        })
+
+        t.Log("TC: Retrieve default-metric for custom vrf - CISCO")
+        t.Run("Get", func(t *testing.T) {
+            config := gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric()
+            configGot := gnmi.GetConfig(t, dut, config.Config())
+            t.Logf("Rcvd val - %v",configGot)
+
+
+            expected_metric := ygot.Uint32(144)
+
+            if configGot == *expected_metric {
+                t.Logf("Passed expected metric")
+            } else {
+                t.Errorf("TestFAIL, Received %v Expected %v",configGot, *expected_metric)
+            }
+
+        })
+
+        t.Run("Delete", func(t *testing.T) {
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric().Config())
+		})
+
+        t.Run("Delete", func(t *testing.T) {
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric().Config())
+		})
+
+
+        })
 }
