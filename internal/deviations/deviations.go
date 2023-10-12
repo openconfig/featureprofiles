@@ -632,6 +632,11 @@ func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
 
+// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
+}
+
 // ISISInterfacePassiveStateUnsupported returns true for devices that do not
 // support interface passive state.
 func ISISInterfacePassiveStateUnsupported(dut *ondatra.DUTDevice) bool {
