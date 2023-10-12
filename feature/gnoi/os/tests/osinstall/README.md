@@ -63,16 +63,18 @@
      
      a. If unhealthy, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
         * Rollback to the previous OS version by following the steps in 3, 4 and 5 above from gNOI-4.1.1 to recover the DUT from the faulty state.
-        * Mark the test as a failure due to issues with the OS upgrade and exit the test.
+        * Mark the test as a failure due to issues with the OS upgrade process and exit the test.
           
   2. Do a gNMI.GET() RPC to extract the current configuration on the DUT as backup.
      
-  3. Push test configuration to the router using gNMI.Set() RPC with "replace operation" and reverify the status of the leaf /components/component[process that handles configuration of the DUT]/healthz/state/status/.
+  3. Push test configuration to the router using gNMI.Set() RPC with "replace operation" and reverify the status of the leaf /components/component[process that handles configuration of the DUT]/healthz/state/status/. 
      
      a. If **UNHEALTHY**, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
         [TODO: Below step needs to be discussed to inderstand how to recover the DUT. May just need to depend on the Test infrastructure]
-        * Push the backup configuration fetched in Subtest-2 bullet#2 above to the DUT to recover the DUT.
+        * Push the backup configuration fetched in gNOI-4.1.2 bullet#ii above to the DUT to recover the DUT.
         * Mark the test as a failure due to issues with the OS upgrade and exit the test.
+     
+     b. If the configuration push is successful, make a gNMI.Get() RPC call and compare the configuration received with the originally pushed configuration and check if the configuration is a match. Test is a failure if either the gNMI.Get() operation fails or the configuration do not match with the one that was pushed.
 
      **Please Note:** In some implementations it is possible that the gNMI.Set operation itself would fail because the configuration being pushed to the box is not supported by the new OS. The test would be a failure in such situations.
  
