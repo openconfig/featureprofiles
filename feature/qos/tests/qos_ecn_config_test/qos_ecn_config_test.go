@@ -379,15 +379,16 @@ func testCiscoECNConfig(t *testing.T) {
 	wred := queueMgmtProfile.GetOrCreateWred()
 	uniform := wred.GetOrCreateUniform()
 	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
+	wantMinThreshold := ecnConfig.minThreshold
+	wantMaxThreshold := ecnConfig.maxThreshold
 
 	if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
-		uniform.SetMinThreshold(Cisco_MinThreshold)
-		uniform.SetMaxThreshold(Cisco_MaxThreshold)
-	} else {
-		uniform.SetMinThreshold(ecnConfig.minThreshold)
-		uniform.SetMaxThreshold(ecnConfig.maxThreshold)
+		wantMinThreshold = Cisco_MinThreshold
+		wantMaxThreshold = Cisco_MaxThreshold
 	}
 
+	uniform.SetMinThreshold(wantMinThreshold)
+	uniform.SetMaxThreshold(wantMaxThreshold)
 	uniform.SetDrop(ecnConfig.dropEnabled)
 	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
@@ -485,22 +486,22 @@ func testCiscoECNConfig(t *testing.T) {
 	if got, want := gnmi.GetConfig(t, dut, wredUniform.EnableEcn().Config()), ecnConfig.ecnEnabled; got != want {
 		t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
 	}
-	if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
-		if got, want := gnmi.GetConfig(t, dut, wredUniform.MinThreshold().Config()), Cisco_MinThreshold; got != want {
-			t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxThreshold().Config()), Cisco_MaxThreshold; got != want {
-			t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
-		}
 
+	if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
+		wantMinThreshold = Cisco_MinThreshold
+		wantMaxThreshold = Cisco_MaxThreshold
 	} else {
-		if got, want := gnmi.GetConfig(t, dut, wredUniform.MinThreshold().Config()), ecnConfig.minThreshold; got != want {
-			t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxThreshold().Config()), ecnConfig.maxThreshold; got != want {
-			t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
-		}
+		wantMinThreshold = ecnConfig.minThreshold
+		wantMaxThreshold = ecnConfig.maxThreshold
 	}
+
+	if got, want := gnmi.GetConfig(t, dut, wredUniform.MinThreshold().Config()), wantMinThreshold; got != want {
+		t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
+	}
+	if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxThreshold().Config()), wantMaxThreshold; got != want {
+		t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
+	}
+
 	if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxDropProbabilityPercent().Config()), ecnConfig.maxDropProbabilityPercent; got != want {
 		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
 	}
