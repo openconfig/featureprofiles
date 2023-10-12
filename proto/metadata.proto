@@ -341,7 +341,9 @@ message Metadata {
     bool qos_queue_requires_id = 112;
     // Devices do not support forwarding for fib failed routes.
     bool skip_fib_failed_traffic_forwarding_check = 113;
-    
+    // QOS requires buffer-allocation-profile configuration
+    bool qos_buffer_allocation_config_required = 114;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
   }
