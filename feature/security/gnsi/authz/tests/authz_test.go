@@ -50,6 +50,7 @@ type spiffe struct {
 var (
 	testInfraID = flag.String("test_infra_id", "cafyauto", "test Infra ID user for authz operation")
 	caCertPem   = flag.String("ca_cert_pem", "testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
+	commonName  = flag.Bool("common_name", true, "a pem file for ca cert that will be used to generate svid")
 	caKeyPem    = flag.String("ca_key_pem", "testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
 	usersMap    = map[string]spiffe{
 		"cert_user_admin": {
@@ -113,7 +114,7 @@ func createUser(t *testing.T, dut *ondatra.DUTDevice, user string) {
 		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
 		Password: ygot.String(password),
 	}
-	gnmi.Replace(t, dut, gnmi.OC().System().Aaa().Authentication().User(user).Config(), ocUser)
+	gnmi.Update(t, dut, gnmi.OC().System().Aaa().Authentication().User(user).Config(), ocUser)
 }
 
 func setUpUsers(t *testing.T, dut *ondatra.DUTDevice) {
@@ -131,12 +132,15 @@ func setUpUsers(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Could not create the trust bundle: %v", err)
 	}
 	for user, v := range usersMap {
-		svid, err := svid.GenSVID(user, v.spiffeID, 300, tructBundle, caKey, x509.RSA)
+		userSvid, err := svid.GenSVID("", v.spiffeID, 300, tructBundle, caKey, x509.RSA)
+		if *commonName {
+			userSvid, err = svid.GenSVID(v.spiffeID, v.spiffeID, 300, tructBundle, caKey, x509.RSA)
+		}
 		if err != nil {
 			t.Fatalf("Could not generate svid for user %s: %v", user, err)
 		}
 		tlsConf := tls.Config{
-			Certificates: []tls.Certificate{*svid},
+			Certificates: []tls.Certificate{*userSvid},
 			RootCAs:      trusBundle,
 		}
 		usersMap[user] = spiffe{
@@ -357,6 +361,7 @@ func TestAuthz1(t *testing.T) {
 }
 
 // Authz-2, Test rotation behavior
+
 func TestAuthz2(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	setUpUsers(t, dut)
