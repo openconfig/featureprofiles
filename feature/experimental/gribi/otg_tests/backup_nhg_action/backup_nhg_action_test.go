@@ -160,7 +160,7 @@ func TestMain(m *testing.M) {
 
 // configureATE configures ports on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 	for p, ap := range atePorts {
 		p1 := ate.Port(t, p)
 		dp := dutPorts[p]
@@ -210,11 +210,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 			niIntf.Interface = ygot.String(p1.Name())
 		}
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
-	}
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		for _, vrf := range []string{vrfA, vrfB, vrfC, deviations.DefaultNetworkInstance(dut)} {
-			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
-		}
 	}
 }
 
