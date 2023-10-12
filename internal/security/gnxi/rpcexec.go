@@ -44,8 +44,7 @@ func GnmiGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption
 		ygnmi.WithEncoding(gpb.Encoding_JSON_IETF),
 	}
 	_, err = ygnmi.Get[string](ctx, ygnmiC, gnmi.OC().System().Hostname().Config(), yopts...)
-	s := err.Error()
-	if strings.Contains(s, "value not present") {
+	if err != nil && strings.Contains(err.Error(), "value not present") {
 		return nil
 	}
 	return err
