@@ -29,6 +29,8 @@
          * Set the no_reboot flag to true.
          * Set the standby_supervisor to FALSE.
            
+      **Please Note:** Some implememtations do configuration verification of the existing configuration in the box before activating the changed OS version. And if the exitsing configuration isn't compatible with the new OS version then the Software activation would fail. This should be considered as a test failure and the test should exit.
+           
    2. Install and activate the same new software version on standby supervisor:
       
       a. Repeat the above process of TransferRequest. This time set the standby_supervisor to TRUE.
@@ -60,7 +62,7 @@
   1. Check the health of the software-module component that allows configuration of the router and verify if it is **HEALTHY** using the leaf /components/component[**process that handles configuration of the DUT**]/healthz/state/status/
      
      a. If unhealthy, run HealthZ.Get() and HealthZ.Artifact() RPCs on the subject component to fetch artifacts corresponding to the event.
-        * Rollback to the previous OS version by following the steps in 3, 4 and 5 above from Sub-test-1 to recover the DUT from the faulty state.
+        * Rollback to the previous OS version by following the steps in 3, 4 and 5 above from gNOI-4.1.1 to recover the DUT from the faulty state.
         * Mark the test as a failure due to issues with the OS upgrade and exit the test.
           
   2. Do a gNMI.GET() RPC to extract the current configuration on the DUT as backup.
@@ -71,13 +73,16 @@
         [TODO: Below step needs to be discussed to inderstand how to recover the DUT. May just need to depend on the Test infrastructure]
         * Push the backup configuration fetched in Subtest-2 bullet#2 above to the DUT to recover the DUT.
         * Mark the test as a failure due to issues with the OS upgrade and exit the test.
+
+     **Please Note:** In some implementations it is possible that the gNMI.Set operation itself would fail because the configuration being pushed to the box is not supported by the new OS. The test would be a failure in such situations.
  
 
 ## Process that controls configuration of a router by vendor
    * Different processes by vendors
       * Juniper: mgd
-      * Cisco:
+      * Cisco: ?
       * Arista: ConfigAgent
+      * Nokia: ?
    * NOS implementations will need to model their agent that handles device configuration as a [" component of the type SOFTWARE_MODULE"](https://github.com/openconfig/public/blob/master/release/models/platform/openconfig-platform-types.yang#L394) and represent it under the componenets/component tree
      
   
