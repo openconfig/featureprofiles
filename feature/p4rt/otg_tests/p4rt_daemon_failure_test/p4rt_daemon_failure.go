@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	syspb "github.com/openconfig/gnoi/system"
 )
 
