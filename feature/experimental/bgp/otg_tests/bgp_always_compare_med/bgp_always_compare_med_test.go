@@ -531,7 +531,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	// Pushing a blank config to clear BGP related counters
-	ate.OTG().PushConfig(t, ate.OTG().NewConfig(t))
+	ate.OTG().PushConfig(t, gosnappi.NewConfig())
 	d := &oc.Root{}
 
 	t.Run("Configure DUT interfaces", func(t *testing.T) {
