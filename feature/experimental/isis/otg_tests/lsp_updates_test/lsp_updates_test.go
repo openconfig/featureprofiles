@@ -77,7 +77,7 @@ func TestOverloadBit(t *testing.T) {
 		GetOrCreateLspBit().
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
 	ts.PushDUT(context.Background(), t)
-	if err := check.Equal[uint32](overloads.State(), 1).AwaitFor(time.Second*15, ts.DUTClient); err != nil {
+	if err := check.Equal(overloads.State(), uint32(olVal+1)).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
 	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second*3, ts.DUTClient); err != nil {
