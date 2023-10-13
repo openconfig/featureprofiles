@@ -12,6 +12,7 @@ platform_exceptions: {
   deviations: {
     route_policy_under_afi_unsupported: true
     interface_enabled: true
+    explicit_interface_in_default_vrf: true
   }
 }
 platform_exceptions: {
@@ -31,6 +32,7 @@ platform_exceptions: {
     route_policy_under_afi_unsupported: true
     interface_enabled: true
     default_network_instance: "default"
+    bgp_set_med_requires_equal_ospf_set_metric: true
   }
 }
-tags: TAGS_EDGE
+tags: TAGS_AGGREGATION

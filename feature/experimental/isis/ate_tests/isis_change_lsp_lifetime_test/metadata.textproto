@@ -25,7 +25,6 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     isis_interface_level1_disable_required: true
-    missing_isis_interface_afi_safi_enable: true
   }
 }
 platform_exceptions: {
@@ -41,4 +40,4 @@ platform_exceptions: {
     isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
   }
 }
-tags: TAGS_EDGE
+tags: TAGS_AGGREGATION
