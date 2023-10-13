@@ -631,3 +631,13 @@ func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
 func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
+
+// SkipSubInterfaceIndex returns if device should not use subinterface index.
+func SkipSubInterfaceIndex(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSubInterfaceIndex()
+}
+
+// SkipStaticNexthopCheck returns if device needs index starting from non zero
+func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
+}

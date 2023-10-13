@@ -341,7 +341,12 @@ message Metadata {
     bool qos_queue_requires_id = 112;
     // Devices do not support forwarding for fib failed routes.
     bool skip_fib_failed_traffic_forwarding_check = 113;
-    
+    // Devices need to skip sub interface index.
+    bool skip_sub_interface_index = 114;
+    // Devices has issue with nexthop index
+    // Juniper: b/304729237
+    bool skip_static_nexthop_check = 115;
+        
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
   }
