@@ -28,12 +28,12 @@ Write a few sentences or paragraphs describing the purpose and scope of the test
 
 ## Procedure
 
-* Sub Test #1 - Name of test
+* TestID-x.y.z - Name of subtest
   * Step 1
   * Step 2
   * Validation and pass fail criteria
 
-* Sub Test #2 - New of test
+* TestID-x.y.z - Name of subtest
   * Step 1
   * Step 2
   * Validation and pass fail criteria
