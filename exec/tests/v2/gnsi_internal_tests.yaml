@@ -1,6 +1,4 @@
 name:
-owners:
-  - harikri4,mbagherz
 priority: 4
 testbeds:
   - moji_sfd_gnsi
@@ -44,6 +42,7 @@ tests:
   pr: 2136
   mustpass: true
   timeout: 21000
+  
 - name: AUTHZFP2 (Authz Functional Tests with spiffe id and common id)
   path: feature/security/gnsi/authz/tests
   args:
