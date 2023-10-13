@@ -228,8 +228,10 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 
 	// Cleanup LACP and LAG configs if any to avoid potential conflicts
-	gnmi.Delete(t, tc.dut, aggPath.Config())
-	gnmi.Delete(t, tc.dut, lacpPath.Config())
+	resetBatch := &gnmi.SetBatch{}
+	gnmi.BatchDelete(resetBatch, aggPath.Config())
+	gnmi.BatchDelete(resetBatch, lacpPath.Config())
+	resetBatch.Set(t, tc.dut)
 
 	// Apply LACP config only when LAG mode is LACP
 	if tc.lagType == lagTypeLACP {
