@@ -3,7 +3,7 @@ priority: 4
 testbeds:
   - moji_sfd_gnsi
 owners:
-    
+  - mbagherz
 tests:
 - name: authz1.1 (Authz Functional Tests)
   path: feature/security/gnsi/authz/cisco/tests
@@ -15,7 +15,6 @@ tests:
   timeout: 21000
   owners:
     - harikri4
-    - mbagherz
 - name: authz1.2 (Authz HA Tests)
   path: feature/security/gnsi/authz/cisco/tests
   args:
@@ -26,7 +25,6 @@ tests:
   timeout: 21000
   owners:
     - harikri4
-    - mbagherz
 - name: authz1.3 (Authz Scale Tests)
   path: feature/security/gnsi/authz/cisco/tests
   args:
@@ -37,7 +35,6 @@ tests:
   timeout: 21000
   owners:
     - harikri4
-    - mbagherz
 - name: AUTHZFP1 (Authz Functional Tests with spiffe id (CSCwh84990) )
   path: feature/security/gnsi/authz/tests
   args:
@@ -48,7 +45,6 @@ tests:
   timeout: 21000
   owners:
     - harikri4
-    - mbagherz
   
 - name: AUTHZFP2 (Authz Functional Tests with spiffe id and common name)
   path: feature/security/gnsi/authz/tests
@@ -63,7 +59,6 @@ tests:
   path: feature/security/gnsi/certz/cisco/tests
   owners:
     - venthota
-    - mbagherz
   mustpass: true
   timeout: 21000
   internal: true
