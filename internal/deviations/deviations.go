@@ -632,6 +632,11 @@ func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
 
+// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
+}
+
 // SkipContainerOp returns true if gNMI container OP needs to be skipped.
 func SkipContainerOp(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipContainerOp()
