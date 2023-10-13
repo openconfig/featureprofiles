@@ -22,13 +22,14 @@ require (
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.4.2
 	github.com/openconfig/gribi v1.0.0
-	github.com/openconfig/gribigo v0.0.0-20230207233343-ef59db57c4fc
+	github.com/openconfig/gribigo v0.0.0-20230918211521-0717f4c7cd92
 	github.com/openconfig/kne v0.1.14
 	github.com/openconfig/ondatra v0.3.4
+	github.com/openconfig/replayer v0.0.0-20231013184647-71356c988a43
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.8.10
 	github.com/openconfig/ygot v0.29.12
-	github.com/p4lang/p4runtime v1.4.0-rc.5
+	github.com/p4lang/p4runtime v1.4.0-rc.5.0.20220728214547-13f0d02a521e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	golang.org/x/crypto v0.14.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
