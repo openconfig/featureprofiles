@@ -30,7 +30,7 @@ dut.testbed
     * SubscribeRequest once for configuration root-level metadata and verify that it is identical corresponding root-level metadata of 2nd_LARGE_CONFIGURATION.
 
 ## Configuration path coverage
-* /config/protobuf-metadata
+* /@/openconfig-metadata:protobuf-metadata
 
 ## Telemetry path coverage
 * /state/protobuf-metadata
