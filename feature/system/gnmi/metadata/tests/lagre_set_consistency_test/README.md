@@ -32,8 +32,10 @@ dut.testbed
 ## Configuration path coverage
 * /@/openconfig-metadata:protobuf-metadata
 
+> Note: WBB implementations need not support this annotation at paths deeper than the root (i.e., a configuration that contains openconfig-metadata:protobuf-metadata at any level other than under the root can be rejected). The WBB device implementation can map this to an internal path to store the configuration.
+
 ## Telemetry path coverage
-* /state/protobuf-metadata
+* /@/openconfig-metadata:protobuf-metadata
 
 ## Minimum DUT platform
 FFF
