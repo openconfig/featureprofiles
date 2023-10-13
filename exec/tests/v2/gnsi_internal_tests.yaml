@@ -43,7 +43,7 @@ tests:
   mustpass: true
   timeout: 21000
   
-- name: AUTHZFP2 (Authz Functional Tests with spiffe id and common id)
+- name: AUTHZFP2 (Authz Functional Tests with spiffe id and common name)
   path: feature/security/gnsi/authz/tests
   args:
     - '-test_infra_id="cafyauto"'
