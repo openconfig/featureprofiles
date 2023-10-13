@@ -1135,8 +1135,8 @@ github.com/openconfig/goyang v1.4.2/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+R
 github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f/go.mod h1:OoH46A2kV42cIXGyviYmAlGmn6cHjGduyC2+I9d/iVs=
 github.com/openconfig/gribi v1.0.0 h1:xMwEg0mBD+21mOxuFOw0d9dBKuIPwJEhMUUeUulZdLg=
 github.com/openconfig/gribi v1.0.0/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
-github.com/openconfig/gribigo v0.0.0-20230918211521-0717f4c7cd92 h1:qWfUG8hEk2pvho4KHKjtB0OXyByFaTFgh4DQIg73Obw=
-github.com/openconfig/gribigo v0.0.0-20230918211521-0717f4c7cd92/go.mod h1:3RD6v7w7FPU/UGLMuNjvG3ekP8NCumCaTG+8AVo+9dY=
+github.com/openconfig/gribigo v0.0.0-20231011232723-88c9b8d98d8a h1:GderYwmwEia1zkziX7x6iEuSfeN4Rl+EiEr/dNa/vjg=
+github.com/openconfig/gribigo v0.0.0-20231011232723-88c9b8d98d8a/go.mod h1:Vb7wUYPIS4JujR46QjvKeaXB74G8rqXc2FSSKUiyzaU=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 h1:t6SvvdfWCMlw0XPlsdxO8EgO+q/fXnTevDjdYREKFwU=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
 github.com/openconfig/kne v0.1.14 h1:3xHy2bP+rr+2/2uFqliWXGjMPR7umO6mvFXh/TA2aJE=
@@ -1146,8 +1146,8 @@ github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY0
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
 github.com/openconfig/ondatra v0.3.4 h1:8PLqKVbGrmJM0VCXy4FgOCA8/hRhXbMpHlYESvZtpJQ=
 github.com/openconfig/ondatra v0.3.4/go.mod h1:/jP8h2RxgTJWq7WIFwqPXAmx4Hwoys+dzMiw5lwRXkE=
-github.com/openconfig/replayer v0.0.0-20231013184647-71356c988a43 h1:2qHkynd1m1YIuG/jEAxFSLc0xMKGKMOP5yKCcNV76Go=
-github.com/openconfig/replayer v0.0.0-20231013184647-71356c988a43/go.mod h1:nh1j6QdRchOkasZ2i8O8zJYXdz6uLmnJ+M0oH8lpNIw=
+github.com/openconfig/replayer v0.0.0-20231013211236-af5e8d0821fb h1:nrrdLV8676Gv6lilOJQXfisn4+GK2Fx4d3RJeQevLu4=
+github.com/openconfig/replayer v0.0.0-20231013211236-af5e8d0821fb/go.mod h1:2wvUo9kLZ0Y5W7ziV6sInCHtDFrdxK2w2RQZRqiLGog=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygnmi v0.8.10 h1:sj2/kFkEmfgLCF6KwLiMX3QqEBT2PboVMS9mvhBDK1o=
@@ -1289,8 +1289,8 @@ go.opentelemetry.io/proto/otlp v0.7.0/go.mod h1:PqfVotwruBrMGOCsRd/89rSnXhoiJIqe
 go.opentelemetry.io/proto/otlp v0.15.0/go.mod h1:H7XAot3MsfNsj7EXtrA2q5xSNQ10UqI405h3+duxN4U=
 go.opentelemetry.io/proto/otlp v0.19.0/go.mod h1:H7XAot3MsfNsj7EXtrA2q5xSNQ10UqI405h3+duxN4U=
 go.uber.org/atomic v1.4.0/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
-go.uber.org/atomic v1.10.0 h1:9qC72Qh0+3MqyJbAn8YU5xVq1frD8bn3JtD2oXtafVQ=
-go.uber.org/atomic v1.10.0/go.mod h1:LUxbIzbOniOlMKjJjyPfpl4v+PKK2cNJn91OQbhoJI0=
+go.uber.org/atomic v1.11.0 h1:ZvwS0R+56ePWxUNi+Atn9dWONBPp/AUETXlHW0DxSjE=
+go.uber.org/atomic v1.11.0/go.mod h1:LUxbIzbOniOlMKjJjyPfpl4v+PKK2cNJn91OQbhoJI0=
 go.uber.org/multierr v1.1.0/go.mod h1:wR5kodmAFQ0UK8QlbwjlSNy0Z68gJhDJUG5sjR94q/0=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
 go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
@@ -2059,8 +2059,9 @@ k8s.io/kube-openapi v0.0.0-20230308215209-15aac26d736a/go.mod h1:y5VtZWM9sHHc2Zo
 k8s.io/utils v0.0.0-20230313181309-38a27ef9d749 h1:xMMXJlJbsU8w3V5N2FLDQ8YgU8s1EoULdbQBcAeNJkY=
 k8s.io/utils v0.0.0-20230313181309-38a27ef9d749/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 lukechampine.com/uint128 v1.1.1/go.mod h1:c4eWIwlEGaxC/+H1VguhU4PHXNWDCDMUlWdIWl2j1gk=
-lukechampine.com/uint128 v1.2.0 h1:mBi/5l91vocEN8otkC5bDLhi2KdCticRiwbdB0O+rjI=
 lukechampine.com/uint128 v1.2.0/go.mod h1:c4eWIwlEGaxC/+H1VguhU4PHXNWDCDMUlWdIWl2j1gk=
+lukechampine.com/uint128 v1.3.0 h1:cDdUVfRwDUDovz610ABgFD17nXD4/uDgVHl2sC3+sbo=
+lukechampine.com/uint128 v1.3.0/go.mod h1:c4eWIwlEGaxC/+H1VguhU4PHXNWDCDMUlWdIWl2j1gk=
 modernc.org/cc/v3 v3.36.0/go.mod h1:NFUHyPn4ekoC/JHeZFfZurN6ixxawE1BnVonP/oahEI=
 modernc.org/cc/v3 v3.36.2/go.mod h1:NFUHyPn4ekoC/JHeZFfZurN6ixxawE1BnVonP/oahEI=
 modernc.org/cc/v3 v3.36.3/go.mod h1:NFUHyPn4ekoC/JHeZFfZurN6ixxawE1BnVonP/oahEI=

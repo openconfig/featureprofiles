@@ -22,10 +22,10 @@ require (
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.4.2
 	github.com/openconfig/gribi v1.0.0
-	github.com/openconfig/gribigo v0.0.0-20230918211521-0717f4c7cd92
+	github.com/openconfig/gribigo v0.0.0-20231011232723-88c9b8d98d8a
 	github.com/openconfig/kne v0.1.14
 	github.com/openconfig/ondatra v0.3.4
-	github.com/openconfig/replayer v0.0.0-20231013184647-71356c988a43
+	github.com/openconfig/replayer v0.0.0-20231013211236-af5e8d0821fb
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.8.10
 	github.com/openconfig/ygot v0.29.12
@@ -125,7 +125,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
@@ -147,7 +147,7 @@ require (
 	k8s.io/klog/v2 v2.90.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230308215209-15aac26d736a // indirect
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749 // indirect
-	lukechampine.com/uint128 v1.2.0 // indirect
+	lukechampine.com/uint128 v1.3.0 // indirect
 	sigs.k8s.io/controller-runtime v0.14.5 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
