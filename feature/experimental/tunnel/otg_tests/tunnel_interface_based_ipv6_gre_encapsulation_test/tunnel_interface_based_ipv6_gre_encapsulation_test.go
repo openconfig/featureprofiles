@@ -204,6 +204,7 @@ func fetchEgressInterfacestatsics(t *testing.T, dut *ondatra.DUTDevice, interfac
 	t.Log("Egress interface Out pkts stats:", egressStats)
 	return egressStats
 }
+
 func fetchTunnelInterfacestatsics(t *testing.T, dut *ondatra.DUTDevice, count int) ([]uint64, []uint64) {
 	tunnelOutStats := make([]uint64, count)
 	tunnelInStats := make([]uint64, count)
@@ -215,6 +216,7 @@ func fetchTunnelInterfacestatsics(t *testing.T, dut *ondatra.DUTDevice, count in
 	t.Log("Tunnel Out pkts stats:", tunnelOutStats)
 	return tunnelInStats, tunnelOutStats
 }
+
 func verifyTrafficStatistics(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLoss bool) {
 	otg := ate.OTG()
 	t.Logf("Traffic Loss Test Validation for flow %s\n", flowName)
@@ -241,6 +243,7 @@ func verifyTrafficStatistics(t *testing.T, ate *ondatra.ATEDevice, flowName stri
 		}
 	}
 }
+
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	otg := ate.OTG()
 	t.Logf("Starting traffic")
@@ -249,8 +252,8 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Logf("Stop traffic")
 	otg.StopTraffic(t)
 }
-func configureOtgPorts(top gosnappi.Config, port *ondatra.Port, name string, mac string, ipv6Address string, ipv6Gateway string, ipv6Mask uint8) {
 
+func configureOtgPorts(top gosnappi.Config, port *ondatra.Port, name string, mac string, ipv6Address string, ipv6Gateway string, ipv6Mask uint8) {
 	top.Ports().Add().SetName(port.ID())
 	//port1
 	iDutDev := top.Devices().Add().SetName(name)
@@ -259,6 +262,7 @@ func configureOtgPorts(top gosnappi.Config, port *ondatra.Port, name string, mac
 	iDutIpv6 := iDutEth.Ipv6Addresses().Add().SetName(name + ".IPv6")
 	iDutIpv6.SetAddress(ipv6Address).SetGateway(ipv6Gateway).SetPrefix(uint32(ipv6Mask))
 }
+
 func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port1 *ondatra.Port, port2 *ondatra.Port, port3 *ondatra.Port, peer *attrs.Attributes, destMac string) {
 	t.Logf("configure IPv6 flow from %s ", port1.Name())
 	// Set config flow
@@ -289,6 +293,7 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	// Increment destination port
 	flow1ipv6.Packet().Add().Tcp().DstPort().Increment().SetStart(37001).SetCount(28000)
 }
+
 func fetchNetworkAddress(t *testing.T, address string, mask int) (string, string) {
 	addr := net.ParseIP(address)
 	var network net.IP
@@ -300,22 +305,24 @@ func fetchNetworkAddress(t *testing.T, address string, mask int) (string, string
 	//t.Logf("Network address : %s", networkWithMask)
 	return networkAlone, networkWithMask
 }
+
 func incrementAddress(t *testing.T, address string, i int, part string) string {
 	addr := net.ParseIP(address)
 	var oct int
-
-	if part == "network" {
+	switch part {
+	case "network":
 		oct = 13
-	} else if part == "host" {
+	case "host":
 		oct = 15
+	default:
+		t.Errorf("Invalid value")
 	}
-
 	for j := 0; j < i; j++ {
 		addr[oct]++
 	}
-
 	return addr.String()
 }
+
 func configureTunnelBaseOnDUT(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, a *attrs.Attributes) {
 	dutIntfs := []struct {
 		desc     string
@@ -353,6 +360,7 @@ func configureTunnelBaseOnDUT(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 	}
 }
+
 func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc string, tunnelDst string, tunnelIpv6address string, Ipv6Mask int, dut *ondatra.DUTDevice) {
 	t.Logf("Push the IPv6 tunnel endpoint config:\n%s", dut.Vendor())
 	var config string
@@ -372,6 +380,7 @@ func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc str
 		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 	}
 }
+
 func configureTunnelEndPoints(intf string, unit int, tunnelSrc string, tunnelDest string, tunnelIpv6address string, Ipv6Mask int) string {
 	return fmt.Sprintf(`
 	interfaces {
@@ -402,7 +411,6 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	nh := sr.GetOrCreateNextHop(index)
 	nh.NextHop = oc.UnionString(nexthop)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
-
 }
 
 func buildCliConfigRequest(config string) *gpb.SetRequest {
@@ -422,6 +430,7 @@ func buildCliConfigRequest(config string) *gpb.SetRequest {
 	}
 	return gpbSetRequest
 }
+
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Configure routing instance on dut")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
@@ -429,7 +438,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func verifyEcmpLoadBalance(t *testing.T, inital []uint64, final []uint64, flowCount int64, sharingIntfCont int64, firstintf int, wantLoss bool, lbTolerance int) {
-
 	expectedTotalPkts := (flowCount * trafficRatePps * trafficDuration)
 	expectedPerLinkPkts := expectedTotalPkts / sharingIntfCont
 	t.Logf("Total packets %d flow through the %d links", expectedTotalPkts, sharingIntfCont)
@@ -457,7 +465,6 @@ func verifyEcmpLoadBalance(t *testing.T, inital []uint64, final []uint64, flowCo
 			}
 		}
 	}
-
 }
 
 func verifyUnusedTunnelStatistic(t *testing.T, inital []uint64, final []uint64) {
