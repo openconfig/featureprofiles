@@ -521,7 +521,7 @@ func TestNegotiation(t *testing.T) {
 	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
 
 	for _, lagType := range lagTypes {
-		top := ate.OTG().NewConfig(t)
+		top := gosnappi.NewConfig()
 		// Clean otg with an empty config
 		ate.OTG().PushConfig(t, top)
 

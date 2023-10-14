@@ -632,7 +632,7 @@ func TestBalancing(t *testing.T) {
 		dut:     dut,
 		ate:     ate,
 		lagType: lagTypeLACP,
-		top:     ate.OTG().NewConfig(t),
+		top:     gosnappi.NewConfig(),
 
 		dutPorts: sortPorts(dut.Ports()),
 		atePorts: sortPorts(ate.Ports()),
