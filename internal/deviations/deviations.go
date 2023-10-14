@@ -632,6 +632,11 @@ func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
 }
 
+// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
+}
+
 // TunnelStatePathUnsupported returns true for devices that require configuring
 // /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
 func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
