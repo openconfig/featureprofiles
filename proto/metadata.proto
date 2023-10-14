@@ -339,12 +339,14 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
+    // Devices do not support forwarding for fib failed routes.
+    bool skip_fib_failed_traffic_forwarding_check = 113;
     // Device does not support tunnel interfaces state paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
-    bool tunnel_state_path_unsupported = 113;
+    bool tunnel_state_path_unsupported = 114;
     // Device does not support tunnel interfaces source and destination address config paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
-    bool tunnel_config_path_unsupported = 114;
+    bool tunnel_config_path_unsupported = 115;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;

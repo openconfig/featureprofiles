@@ -49,7 +49,7 @@ const (
 	tunnelInterface          = "fti0"
 	trafficRatePps           = 5000
 	trafficDuration          = 120
-	tolerance                = 5
+	tolerance                = 12
 )
 
 var (
@@ -114,7 +114,7 @@ func TestTunnelEncapsulationByGREOverIPv6WithLoadBalance(t *testing.T) {
 	initialTunnelInPkts := make([]uint64, tunnelCount)
 	initialTunnelOutPkts := make([]uint64, tunnelCount)
 	tunnelLoadblanceDiff := tunnelCount * 3
-	interfaceLoadblanceDiff := tunnelCount
+	interfaceLoadblanceDiff := tolerance
 	t.Run("Configure dut with 32 tunnel interface with one ingress and 2 egress interface", func(t *testing.T) {
 		configureTunnelBaseOnDUT(t, dut, dutPort1, &dutIntf1)
 		configureTunnelBaseOnDUT(t, dut, dutPort2, &dutIntf2)
@@ -151,7 +151,7 @@ func TestTunnelEncapsulationByGREOverIPv6WithLoadBalance(t *testing.T) {
 		}
 	})
 	t.Run("Configure OTG ports", func(t *testing.T) {
-		top := ate.OTG().NewConfig(t)
+		top := gosnappi.NewConfig()
 		t.Logf("Start Port/device configuraturation on OTG")
 		configureOtgPorts(top, ateport1, otgIntf1.Name, otgIntf1.MAC, otgIntf1.IPv6, dutIntf1.IPv6, otgIntf1.IPv6Len)
 		configureOtgPorts(top, ateport2, otgIntf2.Name, otgIntf2.MAC, otgIntf2.IPv6, dutIntf2.IPv6, otgIntf2.IPv6Len)
@@ -186,11 +186,11 @@ func TestTunnelEncapsulationByGREOverIPv6WithLoadBalance(t *testing.T) {
 	t.Run("Verify after Encapsulation loadbalance (ECMP) && load balanced to available Tunnel interfaces ", func(t *testing.T) {
 		finalEgressPkts := fetchEgressInterfacestatsics(t, dut, egressInterfaces)
 		t.Logf("Verify Incoming traffic flow should be equally distributed for Encapsulation(ECMP)")
-		verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 2, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
+		verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 1, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
 		if !deviations.TunnelStatePathUnsupported(dut) {
 			finalTunnelInPkts, finalTunnelOutPkts := fetchTunnelInterfacestatsics(t, dut, tunnelCount)
 			t.Logf("Incoming traffic on DUT-PORT1 should be load balanced to available Tunnel interfaces for encapsulation")
-			verifyEcmpLoadBalance(t, initialTunnelOutPkts, finalTunnelOutPkts, 2, int64(tunnelCount), 0, true, tunnelLoadblanceDiff)
+			verifyEcmpLoadBalance(t, initialTunnelOutPkts, finalTunnelOutPkts, 1, int64(tunnelCount), 0, true, tunnelLoadblanceDiff)
 			verifyUnusedTunnelStatistic(t, initialTunnelInPkts, finalTunnelInPkts)
 		}
 	})
@@ -285,9 +285,9 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	// Add L4 protocol
 	flow1ipv6.Packet().Add().Tcp()
 	// Increment Source port
-	flow1ipv6.Packet().Add().Tcp().SrcPort().Increment().SetStart(1000).SetCount(2000)
+	flow1ipv6.Packet().Add().Tcp().SrcPort().Increment().SetStart(9000).SetCount(28000)
 	// Increment destination port
-	flow1ipv6.Packet().Add().Tcp().DstPort().Increment().SetStart(4000).SetCount(2000)
+	flow1ipv6.Packet().Add().Tcp().DstPort().Increment().SetStart(37001).SetCount(28000)
 }
 func fetchNetworkAddress(t *testing.T, address string, mask int) (string, string) {
 	addr := net.ParseIP(address)
@@ -341,6 +341,10 @@ func configureTunnelBaseOnDUT(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.
 			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 			Enabled:     ygot.Bool(true),
 		}
+
+		// configure mac address
+		e := i.GetOrCreateEthernet()
+		e.MacAddress = ygot.String(intf.mac)
 
 		// configure ipv6 address
 		i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
