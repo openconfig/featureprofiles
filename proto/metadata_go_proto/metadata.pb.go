@@ -614,6 +614,8 @@ type Metadata_Deviations struct {
 	// Device does not support tunnel interfaces source and destination address config paths
 	// Juniper: partnerissuetracker.corp.google.com/300111031
 	TunnelConfigPathUnsupported bool `protobuf:"varint,115,opt,name=tunnel_config_path_unsupported,json=tunnelConfigPathUnsupported,proto3" json:"tunnel_config_path_unsupported,omitempty"`
+	// QOS requires buffer-allocation-profile configuration
+	QosBufferAllocationConfigRequired bool `protobuf:"varint,114,opt,name=qos_buffer_allocation_config_required,json=qosBufferAllocationConfigRequired,proto3" json:"qos_buffer_allocation_config_required,omitempty"`
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -1358,6 +1360,13 @@ func (x *Metadata_Deviations) GetQosQueueRequiresId() bool {
 func (x *Metadata_Deviations) GetSkipFibFailedTrafficForwardingCheck() bool {
 	if x != nil {
 		return x.SkipFibFailedTrafficForwardingCheck
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosBufferAllocationConfigRequired() bool {
+	if x != nil {
+		return x.QosBufferAllocationConfigRequired
 	}
 	return false
 }

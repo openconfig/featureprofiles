@@ -642,4 +642,8 @@ func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 // Tunnel source-address destination-address, encapsulation type are not supported in OC
 func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
+
+// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
 }
