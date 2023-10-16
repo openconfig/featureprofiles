@@ -53,17 +53,16 @@ const (
 	grRestartTime            = 75
 	grStaleRouteTime         = 300.0
 	ipv4SrcTraffic           = "192.0.2.2"
-	ipv6SrcTraffic           = "2001:db8::192:0:2:2"
+	ipv6SrcTraffic           = "2000:DB8::1"
 	ipv4DstTrafficStart      = "203.0.113.1"
 	ipv4DstTrafficEnd        = "203.0.113.254"
-	ipv6DstTrafficStart      = "2001:db8::203:0:113:1"
-	ipv6DstTrafficEnd        = "2001:db8::203:0:113:fe"
+	ipv6DstTrafficStart      = "2001:DB8::1"
 	Routesv4NetUnderLimit    = "203.0.113.1"
-	Routesv6NetUnderLimit    = "2001:db8::203:0:113:1"
+	Routesv6NetUnderLimit    = "2002:DB8::1"
 	Routesv4NetAtLimit       = "213.0.113.1"
-	Routesv6NetAtLimit       = "2002:db8::203:0:113:1"
+	Routesv6NetAtLimit       = "2003:DB8::1"
 	Routesv4NetOverLimit     = "223.0.113.1"
-	Routesv6NetOverLimit     = "2003:db8::203:0:113:1"
+	Routesv6NetOverLimit     = "2004:DB8::1"
 	advertisedRoutesv4Prefix = 32
 	advertisedRoutesv6Prefix = 128
 	prefixLimit              = 200
@@ -157,7 +156,7 @@ func (tc *testCase) verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 // configureATE configures the interfaces and BGP on the ATE, with port2 advertising routes.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otg := ate.OTG()
-	topo := otg.NewConfig(t)
+	topo := gosnappi.NewConfig()
 	srcPort := topo.Ports().Add().SetName("port1")
 	srcDev := topo.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
