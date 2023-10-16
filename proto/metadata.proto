@@ -35,6 +35,7 @@ message Metadata {
     TESTBED_DUT_ATE_2LINKS = 3;
     TESTBED_DUT_ATE_4LINKS = 4;
     TESTBED_DUT_ATE_9LINKS_LAG = 5;
+    TESTBED_DUT_DUT_ATE_2LINKS = 6;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -277,8 +278,6 @@ message Metadata {
     bool os_component_parent_is_chassis = 88;
     // Device does not support fabric power-admin-state leaf.
     bool skip_fabric_card_power_admin = 89;
-    // Device returns component state inactive during power down.
-    bool component_power_down_returns_inactive_state = 90;
     // Devices require configuring the same ISIS Metrics for Level 1 when
     // configuring Level 2 Metrics.
     bool isis_require_same_l1_metric_with_l2_metric = 91;
@@ -300,9 +299,53 @@ message Metadata {
     // LoopbackMode on aggregate interface.
     // Arista: partnerissuetracker.corp.google.com/297391260
     bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for linecards' CPU card.
+    bool linecard_cpu_utilization_unsupported = 98;
+    // Device does not support consistent component names for GNOI and GNMI.
+    bool consistent_component_names_unsupported = 99;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for controller cards'
+    // CPU card.
+    bool controller_card_cpu_utilization_unsupported = 100;
+    // Device does not support counter for fabric block lost packets.
+    bool fabric_drop_counter_unsupported = 101;
+    // Device does not support memory utilization related leaves for linecard components.
+    bool linecard_memory_utilization_unsupported = 102;
+    // Device does not support telemetry path
+    // /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
+    bool qos_voq_drop_counter_unsupported = 103;
+    // ATE IPv6 flow label unsupported in KNE/virtualized environments.
+    bool ate_ipv6_flow_label_unsupported = 104;
+    // Devices do not support configuring isis csnp-interval timer.
+    // Arista: partnerissuetracker.corp.google.com/299283216
+    bool isis_timers_csnp_interval_unsupported = 105;
+    // Devices do not support telemetry for isis counter:
+    // manual-address-drop-from-areas.
+    // Arista: partnerissuetracker.corp.google.com/299285115
+    bool isis_counter_manual_address_drop_from_areas_unsupported = 106;
+    // Devices do not support telemetry for isis counter: part-changes.
+    // Arista: partnerissuetracker.corp.google.com/299285991
+    bool isis_counter_part_changes_unsupported = 107;
+    // Devices do not support threshold container under /components/component/transceiver.
+    bool transceiver_thresholds_unsupported = 108;
+    // Update interface loopback mode using raw gnmi API due to server version.
+    bool interface_loopback_mode_raw_gnmi = 109;
+    // Devices do not support showing negotiated tcp mss value in bgp tcp mss telemetry.
+    // Juniper: b/300499125
+    bool skip_tcp_negotiated_mss_check = 110;
+    // Devices don't support ISIS-Lsp metadata paths: checksum, sequence-number,
+    // remaining-lifetime.
+    bool isis_lsp_metadata_leafs_unsupported = 111;
+    // QOS queue requires configuration with queue-id
+    bool qos_queue_requires_id = 112;
+    // Devices do not support forwarding for fib failed routes.
+    bool skip_fib_failed_traffic_forwarding_check = 113;
+    // QOS requires buffer-allocation-profile configuration
+    bool qos_buffer_allocation_config_required = 114;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28;
+    reserved 84, 9, 28, 90;
   }
 
   message PlatformExceptions {

@@ -8,7 +8,10 @@ protocols such as BGP, IS-IS.
 
 Feature profiles also includes a suite of
 [Ondatra](https://github.com/openconfig/ondatra) tests for validating the
-network device behavior for each defined feature.
+network device behavior for each defined feature. If you are new to Ondatra,
+please start by reading the Ondata
+[README](https://github.com/openconfig/ondatra#readme) and taking the [Ondatra
+tour](https://docs.google.com/viewer?url=https://raw.githubusercontent.com/openconfig/ondatra/main/internal/tour/tour.pdf).
 
 # Contributing
 
@@ -31,7 +34,9 @@ First, follow the
 Then follow the per-vendor instructions below for creating a KNE topology and
 running a test on it.
 
-## Arista cEOS
+## Arista
+
+### cEOS
 
 [Arista cEOS](https://www.arista.com/en/products/software-controlled-container-networking)
 images can be obtained by contacting Arista.
@@ -54,7 +59,9 @@ go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/arista/ceos/top
 kne delete topologies/kne/arista/ceos/topology.textproto
 ```
 
-## Cisco 8000e
+## Cisco
+
+### 8000e
 
 > NOTE: `8000e` images require the host supports nested virtualization.
 
@@ -78,7 +85,7 @@ go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/cisco/8000e/to
 kne delete topologies/kne/cisco/8000e/topology.textproto
 ```
 
-## Cisco XRD
+### XRD
 
 Cisco `XRD` images can be obtained by contacting Cisco.
 
@@ -100,11 +107,13 @@ go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/cisco/xrd/topo
 kne delete topologies/kne/cisco/xrd/topology.textproto
 ```
 
-## Juniper CPTX
+## Juniper
 
-> NOTE: `CPTX` images require the host supports nested virtualization.
+### cPTX
 
-Juniper `CPTX` images can be obtained by contacting Juniper.
+> NOTE: `cPTX` images require the host supports nested virtualization.
+
+Juniper `cPTX` images can be obtained by contacting Juniper.
 
 1. Create the topology:
 
@@ -124,7 +133,31 @@ go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/juniper/cptx/t
 kne delete topologies/kne/juniper/cptx/topology.textproto
 ```
 
-## Nokia SR Linux
+### ncPTX
+
+Juniper `ncPTX` images can be obtained by contacting Juniper.
+
+1. Create the topology:
+
+```
+kne create topologies/kne/juniper/ncptx/topology.textproto
+```
+
+2. Run a sample test:
+
+```
+go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/juniper/ncptx/topology.textproto -vendor_creds JUNIPER/root/Google123
+```
+
+3. Cleanup:
+
+```
+kne delete topologies/kne/juniper/ncptx/topology.textproto
+```
+
+## Nokia
+
+### SR Linux
 
 SR Linux images can be found
 [here](https://github.com/nokia/srlinux-container-image/pkgs/container/srlinux).
@@ -147,7 +180,7 @@ go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/nokia/srlinux/
 kne delete topologies/kne/nokia/srlinux/topology.textproto
 ```
 
-## Running Tests on Real Hardware
+# Running Tests on Real Hardware
 
 Tests may be run on real hardware devices using the static binding.
 
@@ -161,7 +194,7 @@ devices, as well as the desired protocol dial options. Then test it by running:
 go test ./feature/example/tests/topology_test -binding $PWD/topologies/otgdut_4.binding
 ```
 
-## Path validation
+# Path validation
 
 The `make validate_paths` target will clone the public OpenConfig definitions
 and report Feature Profiles that have invalid OpenConfig paths.

@@ -177,8 +177,7 @@ func findP4RTNodes(t *testing.T, dut *ondatra.DUTDevice) map[string]string {
 // ATE configuration with IP address
 func configureATE(t *testing.T, ate *ondatra.ATEDevice, ports []string) gosnappi.Config {
 	t.Helper()
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, ports[0])
 	atePort1.AddToOTG(top, p1, &dutPort1)
@@ -313,12 +312,12 @@ func TestP4rtConnect(t *testing.T) {
 
 	// Setup two different clients for different FAPs
 	client1 := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := client1.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := client1.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	client2 := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := client2.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := client2.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 

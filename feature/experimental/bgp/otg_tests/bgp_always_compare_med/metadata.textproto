@@ -1,18 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "4e512503-5fec-4dcf-87f4-f510dede1cd0"
-plan_id:  "RT-1.12"
-description:  "BGP always compare MED"
+uuid: "4e512503-5fec-4dcf-87f4-f510dede1cd0"
+plan_id: "RT-1.12"
+description: "BGP always compare MED"
 testbed: TESTBED_DUT_ATE_4LINKS
-platform_exceptions: {
-  platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    ipv4_missing_enabled: true
-  }
-}
 platform_exceptions: {
   platform: {
     vendor: NOKIA
@@ -20,6 +12,7 @@ platform_exceptions: {
   deviations: {
     route_policy_under_afi_unsupported: true
     interface_enabled: true
+    explicit_interface_in_default_vrf: true
   }
 }
 platform_exceptions: {
@@ -39,6 +32,7 @@ platform_exceptions: {
     route_policy_under_afi_unsupported: true
     interface_enabled: true
     default_network_instance: "default"
+    bgp_set_med_requires_equal_ospf_set_metric: true
   }
 }
-tags: TAGS_EDGE
+tags: TAGS_AGGREGATION

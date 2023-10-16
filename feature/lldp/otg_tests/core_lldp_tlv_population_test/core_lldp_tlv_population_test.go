@@ -155,7 +155,7 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	// Device configuration + Ethernet configuration.
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	srcPort := config.Ports().Add().SetName(portName)
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
@@ -307,7 +307,7 @@ func disableP4RTLLDP(t *testing.T, dut *ondatra.DUTDevice) {
 	case ondatra.ARISTA:
 		cli := `p4-runtime
 					shutdown`
-		if _, err := dut.RawAPIs().GNMI().Default(t).
+		if _, err := dut.RawAPIs().GNMI(t).
 			Set(context.Background(), cliSetRequest(cli)); err != nil {
 			t.Fatalf("Failed to disable P4RTLLDP: %v", err)
 		}

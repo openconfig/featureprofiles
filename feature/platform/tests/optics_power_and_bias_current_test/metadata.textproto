@@ -1,15 +1,24 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "fd964d62-068c-486d-8b17-912dfd48f388"
-plan_id: "gNMI-1.13"
-description: "Telemetry: Optics Power and Bias Current"
-testbed: TESTBED_DUT_ATE_2LINKS
-platform_exceptions: {
-  platform: {
-    vendor: NOKIA
+uuid:  "fd964d62-068c-486d-8b17-912dfd48f388"
+plan_id:  "gNMI-1.13"
+description:  "Optics Telemetry, Instant, threshold, and miscellaneous static info"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
   }
-  deviations: {
-    explicit_port_speed: true
+  deviations:  {
+    explicit_port_speed:  true
+    transceiver_thresholds_unsupported:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    transceiver_thresholds_unsupported:  true
   }
 }

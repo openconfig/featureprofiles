@@ -17,6 +17,7 @@ package telemetry_inventory_test
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
@@ -129,7 +130,7 @@ func TestHardwareCards(t *testing.T) {
 				nameValidation:        true,
 				partNoValidation:      true,
 				serialNoValidation:    true,
-				mfgNameValidation:     false,
+				mfgNameValidation:     true,
 				mfgDateValidation:     false,
 				hwVerValidation:       true,
 				fwVerValidation:       false,
@@ -187,7 +188,7 @@ func TestHardwareCards(t *testing.T) {
 				rrValidation:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
-				pType:                 componentType["Linecard"],
+				pType:                 oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 			},
 		}, {
 			desc: "PowerSupply",
@@ -285,6 +286,12 @@ func TestHardwareCards(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.desc == "Storage" && deviations.StorageComponentUnsupported(dut) {
 				t.Skipf("Telemetry path /components/component/storage is not supported.")
+			} else if tc.desc == "Fabric" && *args.NumLinecards <= 0 {
+				t.Skip("Skip Fabric Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Linecard" && *args.NumLinecards <= 0 {
+				t.Skip("Skip Linecard Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Supervisor" && *args.NumControllerCards <= 0 {
+				t.Skip("Skip Supervisor Telemetry check for fixed form factor devices.")
 			}
 			cards := components[tc.desc]
 			t.Logf("%s components count: %d", tc.desc, len(cards))
@@ -343,6 +350,9 @@ func isCompNameExpected(t *testing.T, name, regexpPattern string) bool {
 }
 
 func TestSwitchChip(t *testing.T) {
+	if *args.NumControllerCards <= 0 {
+		t.Skip("Skip SwitchChip Telemetry check for fixed form factor devices.")
+	}
 	dut := ondatra.DUT(t, "dut")
 
 	cardFields := properties{
@@ -518,7 +528,12 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					t.Errorf("Component %s Description: got empty string, want non-empty string", cName)
 				}
 			}
-
+			if card.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+				t.Logf("Component %s linecard/state/slot-id: %s", cName, card.GetLinecard().GetSlotId())
+				if card.GetLinecard().GetSlotId() == "" {
+					t.Errorf("Component %s LineCard SlotID: got empty string, want non-empty string", cName)
+				}
+			}
 			if p.idValidation {
 				if deviations.SwitchChipIDUnsupported(dut) {
 					t.Logf("Skipping check for Id due to deviation SwitChipIDUnsupported")
@@ -651,8 +666,18 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			if p.fwVerValidation {
 				fwVer := card.GetFirmwareVersion()
 				t.Logf("Component %s FirmwareVersion: %s", cName, fwVer)
+
+				isTransceiver := card.GetType() == componentType["Transceiver"]
+				is400G := false
+				if isTransceiver {
+					is400G = strings.Contains(card.GetTransceiver().GetEthernetPmd().String(), "ETH_400GBASE")
+				}
 				if fwVer == "" {
-					t.Errorf("Component %s FirmwareVersion: got empty string, want non-empty string", cName)
+					if isTransceiver && !is400G {
+						t.Logf("Skipping firmware-version check for %s transceiver", card.GetTransceiver().GetEthernetPmd().String())
+					} else {
+						t.Errorf("Component %s FirmwareVersion: got empty string, want non-empty string", cName)
+					}
 				}
 			}
 

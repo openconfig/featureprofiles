@@ -1,0 +1,46 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "fec5effb-efb8-4d6c-abfb-c541ad08dd36"
+plan_id: "RT-2.6"
+description: "IS-IS Hello-Padding  enabled at interface level"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    isis_interface_level1_disable_required: true
+    missing_isis_interface_afi_safi_enable: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    missing_value_for_defaults: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    isis_interface_level1_disable_required: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    missing_value_for_defaults: true
+    interface_enabled: true
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
+    isis_timers_csnp_interval_unsupported: true
+    isis_counter_manual_address_drop_from_areas_unsupported: true
+    isis_counter_part_changes_unsupported: true
+  }
+}
+tags: TAGS_AGGREGATION

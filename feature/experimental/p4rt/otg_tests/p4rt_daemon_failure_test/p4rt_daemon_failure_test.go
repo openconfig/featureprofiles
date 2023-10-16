@@ -150,8 +150,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	atePort1.AddToOTG(top, p1, &dutPort1)
@@ -282,7 +281,7 @@ func TestP4RTDaemonFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := dut.RawAPIs().GNOI().Default(t)
+	c := dut.RawAPIs().GNOI(t)
 	req := &syspb.KillProcessRequest{
 		Name:    p4rtD,
 		Pid:     uint32(pID),
