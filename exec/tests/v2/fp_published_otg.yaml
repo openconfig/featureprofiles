@@ -46,8 +46,18 @@ tests:
       - saarvind
     mustpass: true
 
-
-
+  - name: gNMI-1.3 (Benchmarking Drained Configuration Convergence Time)
+    path: feature/experimental/system/gnmi/benchmarking/ate_tests/drained_configuration_convergence_time
+    owners:
+      - agvarghe
+    mustpass: true
+    skip: true
+  - name: gNMI-1.5 (Telemetry Port Speed Test)
+    path: feature/gnmi/otg_tests/telemetry_port_speed_test
+    owners:
+      - agvarghe
+    mustpass: true
+    priority: 33
   - name: gNMI-1.10 (Telemetry Basic Check)
     path: feature/gnmi/otg_tests/telemetry_basic_check_test
       - '-arg_qos_baseconfig_present="false"'
@@ -133,7 +143,13 @@ tests:
     mustpass: true
 
 
-
+  - name: RT-1.1 (Base BGP Session Parameters)
+    path: feature/experimental/bgp/otg_tests/base_bgp_session_parameters
+    owners:
+      - arvbaska
+    mustpass: true
+    priority: 47
+    skip: false
   - name: RT-1.2 (BGP Policy and Route Installation)
     path: feature/bgp/policybase/otg_tests/route_installation_test
     owners:
@@ -149,6 +165,13 @@ tests:
     mustpass: true
     priority: 52
     skip: false
+  - name: RT-1.4 (BGP Graceful Restart)
+    path: feature/bgp/gracefulrestart/otg_tests/bgp_graceful_restart_test
+    owners:
+      - sprem
+    mustpass: true
+    priority: 54
+    skip: false
   - name: RT-1.5 (BGP Prefix Limit)
     path: feature/bgp/prefixlimit/otg_tests/bgp_prefix_limit_test
     owners:
@@ -162,6 +185,25 @@ tests:
       - mananpat
     mustpass: true
     skip: false
+  - name: RT-1.14 (BGP Long-Lived Graceful Restart)
+    path: feature/experimental/bgp/otg_tests/bgp_long_lived_graceful_restart
+    owners:
+      - sprem
+    mustpass: false
+    priority: 52
+    timeout: 4200
+  - name: RT-1.19 (BGP 2-Byte and 4-Byte ASN support)
+    path: feature/experimental/bgp/otg_tests/bgp_2byte_4byte_asn
+    owners:
+      - sprem
+    mustpass: false
+    priority: 52
+    timeout: 4200
+  - name: RT-1.24 (BGP 2-Byte and 4-Byte ASN support with policy)
+    path: feature/experimental/bgp/otg_tests/bgp_2byte_4byte_asn_policy_test
+    owners:
+      - mananpat
+    mustpass: false
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/experimental/isis/otg_tests/base_adjacencies_test
     owners:
@@ -252,6 +294,14 @@ tests:
     mustpass: true
     priority: 3
     timeout: 3200
+  - name: TE-3.3 (Hierarchical weight resolution)
+    path: feature/gribi/otg_tests/hierarchical_weight_resolution_test
+    pr: 1654
+    owners:
+      - mananpat
+    skip: false
+    mustpass: true
+    priority: 3
   - name: TE-3.5 (Ordering ACK Received)
     path: feature/gribi/otg_tests/ordering_ack_test
     owners:
