@@ -15,7 +15,7 @@ to fiber measured in ps/nm
 *   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
     output power of one is the RX input power of the other module. Connection
     between the modules should pass through an optical switch that can be
-    controlled to simulate a fiber cut.  
+    controlled through automation to simulate a fiber cut.  
 *   To establish a point to point ZR link ensure the following:
       * Both transceivers state is enabled
       * Both transceivers are set to a valid target TX output power
