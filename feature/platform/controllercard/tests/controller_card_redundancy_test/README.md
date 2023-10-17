@@ -1,4 +1,4 @@
-# gNMI-1.15 Controller Card redundnacy test
+# gNMI-1.17 Controller Card redundnacy test
 
 ## Summary
 - collect inventory data for each controller card
