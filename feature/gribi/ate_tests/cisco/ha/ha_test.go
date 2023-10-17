@@ -174,7 +174,7 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 		}
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	for i := 0; i < process_restart_count; i++ {
 		killRequest := &gnps.KillProcessRequest{Name: pName, Pid: uint32(pID), Signal: gnps.KillProcessRequest_SIGNAL_KILL, Restart: true}
 		killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
@@ -208,8 +208,8 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
 
 	// reload the HW is rfpo count is 10 or more
-	if rpfo_count == 6 {
-		gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+	if rpfo_count == 10 {
+		gnoiClient := args.dut.RawAPIs().GNOI(t)
 		rebootRequest := &gnps.RebootRequest{
 			Method: gnps.RebootMethod_COLD,
 			Force:  true,
@@ -241,7 +241,7 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 	if got, want := gnmi.Get(t, args.dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
-	gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+	gnoiClient := args.dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
@@ -971,7 +971,7 @@ func (args *testArgs) gnmiConf(t *testing.T, conf string) {
 	}
 	setRequest := &proto_gnmi.SetRequest{}
 	setRequest.Update = []*proto_gnmi.Update{updateRequest}
-	gnmiClient := args.dut.RawAPIs().GNMI().New(t)
+	gnmiClient := args.dut.RawAPIs().GNMI(t)
 	if _, err := gnmiClient.Set(args.ctx, setRequest); err != nil {
 		t.Fatalf("gNMI set request failed: %v", err)
 	}
@@ -2208,7 +2208,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 					args.ate.Traffic().Stop(t)
 				}
 
-				gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
+				gnoiClient := args.dut.RawAPIs().GNOI(t)
 				useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 				lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
 				rebootSubComponentRequest := &gnps.RebootRequest{
@@ -2471,7 +2471,7 @@ func TestHA(t *testing.T) {
 	// PBR config
 	configbasePBR(t, dut, "REPAIRED", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{}, &PBROptions{SrcIP: "222.222.222.222/32"})
 	configbasePBR(t, dut, "TE", "ipv4", 2, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	configbasePBRInt(t, dut, "Bundle-Ether120", "pbr")
+	configbasePBRInt(t, dut, "Bundle-Ether120", ".0", "pbr")
 	// RoutePolicy config
 	configRP(t, dut)
 	// configure ISIS on DUT

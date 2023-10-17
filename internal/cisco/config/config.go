@@ -27,7 +27,7 @@ func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeRel
 		t.Logf("The configuration %s \n is loaded correctly before reloading router %s", beforeReloadConfig, dut.Name())
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
 		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
 		ctx = tmpCtx
@@ -82,7 +82,7 @@ func checkCLIConfigIsApplied(output string) bool {
 
 // CMDViaGNMI push cli command to cisco router using GNMI, (have not tested well)
 func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
-	gnmiC := dut.RawAPIs().GNMI().New(t)
+	gnmiC := dut.RawAPIs().GNMI(t)
 	getRequest := &gnmi.GetRequest{
 		Prefix: &gnmi.Path{
 			Origin: "cli",
@@ -114,7 +114,7 @@ func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd s
 // TextWithGNMI applies the cfg  (cisco text config)  on the device using gnmi update.
 func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gnmi.SetResponse {
 	t.Helper()
-	gnmiC := dut.RawAPIs().GNMI().New(t)
+	gnmiC := dut.RawAPIs().GNMI(t)
 	textReplaceReq := &gnmi.Update{
 		Path: &gnmi.Path{Origin: "cli"},
 		Val: &gnmi.TypedValue{
@@ -142,7 +142,7 @@ func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg
 // GNMICommitReplace replace the router config with the cfg  (cisco text config)  on the device using gnmi replace.
 func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gnmi.SetResponse {
 	t.Helper()
-	gnmiC := dut.RawAPIs().GNMI().New(t)
+	gnmiC := dut.RawAPIs().GNMI(t)
 	textReplaceReq := &gnmi.Update{
 		Path: &gnmi.Path{Origin: "cli"},
 		Val: &gnmi.TypedValue{
@@ -170,7 +170,7 @@ func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 // GNMICommitReplaceWithOC apply the oc config and text config on the device. The result expected to be the merge of both configuations
 func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygnmi.PathStruct, ocVal interface{}) *gnmi.SetResponse {
 	t.Helper()
-	gnmiC := dut.RawAPIs().GNMI().New(t)
+	gnmiC := dut.RawAPIs().GNMI(t)
 	textReplaceReq := &gnmi.Update{
 		Path: &gnmi.Path{Origin: "cli"},
 		Val: &gnmi.TypedValue{
@@ -318,7 +318,7 @@ func (batch *BatchSetRequest) Append(ctx context.Context, t *testing.T, pathStru
 // Send sends the batchset request  using GNMI. The batch request is mix of cli update replace  and oc replace, oc update, and oc delete.
 func (batch *BatchSetRequest) Send(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetResponse {
 	t.Helper()
-	gnmiC := dut.RawAPIs().GNMI().New(t)
+	gnmiC := dut.RawAPIs().GNMI(t)
 	log.V(1).Infof("BatchSet Request: \n %s", prettySetRequest(batch.req))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
 		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*180)

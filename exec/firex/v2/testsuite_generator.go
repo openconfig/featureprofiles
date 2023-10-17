@@ -263,7 +263,9 @@ func init() {
 		env = make(map[string]string)
 		for _, e := range strings.Split(*envFlag, ",") {
 			keyValPair := strings.Split(e, "=")
-			env[strings.TrimSpace(keyValPair[0])] = strings.TrimSpace(keyValPair[1])
+			if len(keyValPair) == 2 {
+				env[strings.TrimSpace(keyValPair[0])] = strings.TrimSpace(keyValPair[1])
+			}
 		}
 	}
 

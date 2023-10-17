@@ -36,61 +36,60 @@ tests:
     priority: 1
     mustpass: true
   - name: TE-15.1 (gRIBI Compliance)
-    path: feature/gribi/ate_tests/gribigo_compliance_test
+    path: feature/gribi/otg_tests/gribigo_compliance_test
     priority: 2
     owners:
       - mananpat
     mustpass: true
   - name: TE-2.1 (gRIBI IPv4 Entry)
-    path: feature/gribi/ate_tests/ipv4_entry_test
+    path: feature/gribi/otg_tests/ipv4_entry_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
     internal: false
   - name: TE-4.1 (Base Leader Election)
-    path: feature/gribi/ate_tests/base_leader_election_test
+    path: feature/gribi/otg_tests/base_leader_election_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-4.2 (Persistence Mode)
-    path: feature/gribi/ate_tests/persistence_mode_test
+    path: feature/gribi/otg_tests/persistence_mode_test
     priority: 4
     owners:
       - mananpat
     mustpass: true
   - name: TE-5.1 (gRIBI Get RPC)
-    path: feature/gribi/ate_tests/get_rpc_test
+    path: feature/gribi/otg_tests/get_rpc_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-3.5 (Ordering ACK Received)
-    path: feature/gribi/ate_tests/ordering_ack_test
+    path: feature/gribi/otg_tests/ordering_ack_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-3.7 (Base Hierarchical NHG Update)
-    path: feature/gribi/ate_tests/base_hierarchical_nhg_update
+    path: feature/gribi/otg_tests/base_hierarchical_nhg_update
     owners:
       - mananpat
     mustpass: true
-    pr: 1855
     priority: 3
   - name: TE-3.2 (Traffic Balancing According to Weights)
-    path: feature/gribi/ate_tests/weighted_balancing_test
+    path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
     priority: 3
     timeout: 3200
   - name: TE-13.2 (gRIBI route DELETE during Failover)
-    path: feature/experimental/gribi/ate_tests/route_removal_during_failover_test/
+    path: feature/experimental/gribi/otg_tests/route_removal_during_failover_test/
     mustpass: true
     priority: 3
     # need pr/branch
   - name: TE-13.1 (gRIBI route Add during Failover)
-    path: feature/experimental/gribi/ate_tests/route_addition_during_failover_test/
+    path: feature/experimental/gribi/otg_tests/route_addition_during_failover_test/
     mustpass: true
     priority: 3
   - name: TE-3.3 (Hierarchical weight resolution)
@@ -102,51 +101,53 @@ tests:
     mustpass: true
     priority: 3
   - name: TE-6.1 (Route Removal via Flush)
-    path: feature/gribi/ate_tests/route_removal_via_flush_test
+    path: feature/gribi/otg_tests/route_removal_via_flush_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-6.2 (Route Removal In Non Default VRF)
-    path: feature/gribi/ate_tests/route_removal_non_default_vrf_test
+    path: feature/gribi/otg_tests/route_removal_non_default_vrf_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-3.6 (ACK in the Presence of Other Routes)
-    path: feature/gribi/ate_tests/ack_in_presence_other_routes
+    path: feature/gribi/otg_tests/ack_in_presence_other_routes
     skip: false
     owners:
       - mananpat
     priority: 3
     mustpass: true
   - name: TE-3.1 (Base Hierarchical Route Installation)
-    path: feature/gribi/ate_tests/base_hierarchical_route_installation_test
+    path: feature/gribi/otg_tests/base_hierarchical_route_installation_test
     timeout: 4200
     owners:
       - mananpat
     mustpass: true
     priority: 3
   - name: TE-11.2 (Backup NHG Multiple NH)
-    path: feature/gribi/ate_tests/backup_nhg_multiple_nh_test
+    path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
       - mananpat
     mustpass: true
     priority: 3
     internal: false
   - name: TE-11.3 (Backup NHG Actions)
-    path: feature/experimental/gribi/ate_tests/backup_nhg_action/
+    path: feature/experimental/gribi/otg_tests/backup_nhg_action/
     owners:
       - wdolaast
     mustpass: true
     priority: 3
   - name: TE-8.1 (DUT Daemon Failure)
-    path: feature/experimental/gribi/ate_tests/dut_daemon_failure
+    path: feature/experimental/gribi/otg_tests/dut_daemon_failure
     owners:
       - mananpat
-    pr: 1802
     mustpass: true
     priority: 8
+    post:
+      - name: gribi_flush
+        path: topologies/cisco/pretests/gribi_flush_test
   - name: TE-11.1 (Backup NHG Single NH)
     path: feature/experimental/backup_nhg/ate_tests/backup_nhg_test
     owners:
@@ -155,7 +156,7 @@ tests:
     priority: 3
     internal: false
   - name: TE-14.1 (gRIBI Scaling)
-    path: feature/gribi/ate_tests/gribi_scaling
+    path: feature/gribi/otg_tests/gribi_scaling
     timeout: 7200
     owners:
       - mananpat
@@ -169,8 +170,8 @@ tests:
     timeout: 3600
     mustpass: true
     args:
-      - '-osfile="/auto/ced-ottawa/arvbaska/b4/8000-golden-x86_64-24.1.1.202G-203G.iso"'
-      - '-osver="24.1.1.202G-203G"'
+      - '-osfile="$IMAGE_PATH"'
+      - '-osver="$IMAGE_VERSION"'
     skip: true
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
@@ -192,6 +193,9 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+    post:
+      - name: gribi_flush
+        path: topologies/cisco/pretests/gribi_flush_test
   - name: P4RT-2.1 (P4RT Election)
     path: feature/experimental/p4rt/tests/p4rt_election
     owners:
@@ -235,7 +239,6 @@ tests:
     priority: 5
     mustpass: true
     timeout: 7200
-    pr: 2126
   - name: P4RT-5.1 (Traceroute Packetin)
     path: feature/experimental/p4rt/otg_tests/traceroute_packetin_test
     owners:
@@ -326,6 +329,8 @@ tests:
     mustpass: true
     pr: 2087
     priority: 34
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
     owners:
@@ -500,6 +505,8 @@ tests:
     args:
       - '-arg_temp_sensor_name_pattern="^[0-9]/RP[0-9]/CPU[0-9].*TEMP.*"'
       - '-arg_switchchip_name_pattern="^[0-9]/[0-9]/CPU[0-9]-NPU[0-9]"'
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: gNOI-3.3 (Supervisor Switchover)
     path: feature/gnoi/system/tests/supervisor_switchover_test
     owners:
@@ -521,7 +528,7 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: TE-8.2 (Supervisor Failure)
-    path: feature/gribi/ate_tests/supervisor_failure_test
+    path: feature/gribi/otg_tests/supervisor_failure_test
     owners:
       - mananpat
     skip: false
@@ -554,6 +561,7 @@ tests:
       - saarvind
     mustpass: true
     priority: 802
+    pr: 2210
   - name: DP-1.10 (QoS policy feature config)
     path: feature/qos/otg_tests/mixed_sp_wrr_traffic_test
     owners:
@@ -611,7 +619,8 @@ tests:
     path: feature/system/gnmi/set/tests/gnmi_set_test
     owners:
       - mbagherz
-    mustpass: false
+    mustpass: true
+    pr: 2202
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
@@ -632,6 +641,8 @@ tests:
     mustpass: true
     timeout: 2400
     pr: 2071
+
+  #?
   - name: Health-1.1 (Generic Health Check)
     path: feature/experimental/system/health/tests/system_generic_health_check
     owners:
@@ -644,6 +655,51 @@ tests:
     mustpass: false
   - name: TE-9 (gRIBI MPLS Compliance)
     path: feature/gribi/otg_tests/mpls_compliance
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-1.10 (BGP Keepalive and HoldTimer Configuration Test)
+    path: feature/bgp/timers/otg_tests/bgp_keepalive_and_holdtimer_configuration_test
+    owners:
+      - mananpat
+    mustpass: true
+  - name: RT-1.23 (BGP AFI SAFI OC DEFAULTS)
+    path: feature/experimental/bgp/otg_tests/bgp_afi_safi_defaults
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-1.24 (BGP 2-Byte and 4-Byte ASN support with policy)
+    path: feature/experimental/bgp/ate_tests/bgp_2byte_4byte_asn_policy_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.7 (IS-IS Passive is enabled at interface level)
+    path: feature/experimental/isis/otg_tests/isis_interface_passive_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.8 (IS-IS metric style wide not enabled)
+    path: feature/experimental/isis/otg_tests/isis_metric_style_wide_not_enabled_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.9 (IS-IS metric style wide enabled)
+    path: feature/experimental/isis/otg_tests/isis_metric_style_wide_enabled_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.10 (IS-IS change LSP lifetime)
+    path: feature/experimental/isis/otg_tests/isis_change_lsp_lifetime_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: RT-2.11 (IS-IS Passive is enabled at the area level)
+    path: feature/experimental/isis/otg_tests/isis_interface_level_passive_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: TUN-1.9 (GRE inner packet DSCP)
+    path: feature/experimental/tunnel/otg_tests/tunnel_acl_based_test
     owners:
       - mananpat
     mustpass: false

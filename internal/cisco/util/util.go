@@ -123,7 +123,7 @@ func CheckTrafficPassViaRate(stats []*oc.Flow) []string {
 
 // ReloadDUT reloads the router using GNMI APIs
 func ReloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
 		Delay:   0,
@@ -146,7 +146,7 @@ func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, con
 			},
 		},
 	}
-	_, err := dut.RawAPIs().GNMI().Default(t).Set(ctx, r)
+	_, err := dut.RawAPIs().GNMI(t).Set(ctx, r)
 	if err != nil {
 		t.Errorf("There is error when applying the config")
 	}

@@ -100,7 +100,7 @@ func (c *Client) Start(t testing.TB) error {
 		{},
 	}
 
-	gribiC := c.DUT.RawAPIs().GRIBI().New(t)
+	gribiC := c.DUT.RawAPIs().GRIBI(t)
 	c.fluentC = fluent.NewClient()
 	c.fluentC.Connection().WithStub(gribiC)
 	if c.Persistence {

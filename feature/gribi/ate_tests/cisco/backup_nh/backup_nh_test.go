@@ -2280,7 +2280,7 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 		defer args.interfaceaction(t, intf, true)
 	}
 
-	gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := args.dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 	lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
 	rebootSubComponentRequest := &gnps.RebootRequest{

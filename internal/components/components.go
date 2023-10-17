@@ -114,7 +114,7 @@ type Y struct {
 
 // New creates a new ygnmi based helper from a *ondatra.DUTDevice.
 func New(t testing.TB, dut *ondatra.DUTDevice) Y {
-	gnmic := dut.RawAPIs().GNMI().Default(t)
+	gnmic := dut.RawAPIs().GNMI(t)
 	yc, err := ygnmi.NewClient(gnmic)
 	if err != nil {
 		t.Fatalf("Could not create ygnmi.Client: %v", err)
