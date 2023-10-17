@@ -29,9 +29,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestReplay(t *testing.T) {
-	const logFile = "grpclog.pb"
+	const logFile = "https://github.com/openconfig/featureprofiles/raw/main/feature/experimental/replay/tests/presession_test/grpclog.pb"
 	t.Logf("Parsing log file: %v", logFile)
-	rec, err := replayer.Parse(logFile)
+	rec, err := replayer.ParseURL(logFile)
 	if err != nil {
 		t.Fatalf("Parse(): cannot parse log file: %v", err)
 	}
