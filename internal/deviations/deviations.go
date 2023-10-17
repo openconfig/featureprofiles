@@ -637,6 +637,12 @@ func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
 }
 
+// BGPGlobalExtendedNextHopEncodingUnsupported returns true for devices that do not support configuring
+// BGP ExtendedNextHopEncoding at thee global level.
+func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
+}
+
 // TunnelStatePathUnsupported returns true for devices that require configuring
 // /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
 func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {

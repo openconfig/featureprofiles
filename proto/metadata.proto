@@ -343,12 +343,15 @@ message Metadata {
     bool skip_fib_failed_traffic_forwarding_check = 113;
     // QOS requires buffer-allocation-profile configuration
     bool qos_buffer_allocation_config_required = 114;
+    // Devices do not support configuring ExtendedNextHopEncoding at the BGP global level.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/203683090
+    bool bgp_global_extended_next_hop_encoding_unsupported = 115;
     // Device does not support tunnel interfaces state paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
-    bool tunnel_state_path_unsupported = 115;
+    bool tunnel_state_path_unsupported = 116;
     // Device does not support tunnel interfaces source and destination address config paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
-    bool tunnel_config_path_unsupported = 116;
+    bool tunnel_config_path_unsupported = 117;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
