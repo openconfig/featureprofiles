@@ -26,10 +26,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	gnps "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/acl"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -906,13 +908,8 @@ func findProcessByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint6
 // gNOIKillProcess kills a daemon on the DUT, given its name and pid.
 func gNOIKillProcess(t *testing.T, dut *ondatra.DUTDevice, pName string, pID uint32) {
 	t.Helper()
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
-	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
+	killResponse := gnoi.Execute(t, dut, system.NewKillProcessOperation().Name(pName).PID(pID).Signal(gnps.KillProcessRequest_SIGNAL_TERM).Restart(true))
 	t.Logf("Got kill process response: %v\n\n", killResponse)
-	if err != nil {
-		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
-	}
 }
 
 // setBgpPolicy is used to configure routing policy on DUT.
