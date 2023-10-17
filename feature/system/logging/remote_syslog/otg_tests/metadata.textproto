@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "261d317f-9bcc-43f9-a412-295ae6c008cf"
-plan_id: "gNMI-1.16"
-description: "fabric redundancy test"
+uuid: "1f83da73-9db4-43ae-a282-bc309ff64e0e"
+plan_id: "TR-6.1"
+description: "Remote Syslog feature config"
 testbed: TESTBED_DUT_ATE_2LINKS
