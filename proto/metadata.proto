@@ -343,6 +343,9 @@ message Metadata {
     bool skip_fib_failed_traffic_forwarding_check = 113;
     // QOS requires buffer-allocation-profile configuration
     bool qos_buffer_allocation_config_required = 114;
+    // Devices do not support configuring ExtendedNextHopEncoding at the BGP global level.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/203683090
+    bool bgp_global_extended_next_hop_encoding_unsupported = 115;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
