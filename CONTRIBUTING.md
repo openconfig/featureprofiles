@@ -128,12 +128,12 @@ See [addrundata](/tools/addrundata/README.md) for more info.
 
 For example:
 
-*   `feature/interface/singleton/ate_tests/singleton_test/README.md` - documents
+*   `feature/interface/singleton/otg_tests/singleton_test/README.md` - documents
     the test plan for the issue
     [RT-5.1 Singleton Interface](https://github.com/openconfig/featureprofiles/issues/111).
-*   `feature/interface/singleton/ate_tests/singleton_test/singleton_test.go`
+*   `feature/interface/singleton/otg_tests/singleton_test/singleton_test.go`
     implements the issue.
-*   `feature/interface/singleton/ate_tests/singleton_test/rundata_test.go`
+*   `feature/interface/singleton/otg_tests/singleton_test/rundata_test.go`
     contains the rundata.
 
 ## Code Should Follow The Test Plan
