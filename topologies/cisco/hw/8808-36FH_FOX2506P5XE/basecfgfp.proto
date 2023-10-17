@@ -26,6 +26,7 @@ replace: {
   " server 5.13.254.254\n"
   " server 223.255.254.254\n"
   "!\n"
+  " clock timezone EST Canada/Eastern\n"
   "telemetry model-driven\n"
   " sensor-group test\n"
   "  sensor-path openconfig-network-instance:network-instances/network-instance/afts\n"
