@@ -38,7 +38,7 @@ Test Accounting for non-gRPC records
 			- If SUCCESS, task_ids should be populated with task IDs
 			- If FAILURE, failure_cause must be populated with a failure message
 	- task_ids might be populate with platform-specific information
-- If supported, and session_info.stats != ONCE, ensure records for each connection are bracketed by LOGIN/LOGOUT records.
+- If applicable to the service type, and session_info.stats != ONCE, ensure records for each connection are bracketed by LOGIN/LOGOUT records.
 
 
 ## Config Parameter

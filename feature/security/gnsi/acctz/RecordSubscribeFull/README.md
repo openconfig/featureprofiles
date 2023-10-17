@@ -12,7 +12,7 @@ Test RecordSubscribe for all (since epoch) records
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = 0
 - Retain a copy of the Record.timestamp of the record corresponding to the first RPC sent above for use in the [Record Subscribe Partial](../RecordSubscribePartial) test.
 - Verify that accurate accounting records are returned for the commands/RPCs that were run, both permitted and denied.
-	-If start/stop accounting was enabled, each connection’s accounting should be preceded by a start (login) record for the service and the records associated with the RPCs sent during the connection should be followed by a logout record.
+	- If start/stop accounting is supported, each connection’s accounting should be preceded by a start (login) record for the service and the records associated with the RPCs sent during the connection should be followed by a logout record.
 	- For each RecordResponse returned, check/confirm that:
 		- session_info. :
 			- .{layer4_proto, local_address, local_port, remote_address, remote_port}, ip_proto must match those recorded earlier
