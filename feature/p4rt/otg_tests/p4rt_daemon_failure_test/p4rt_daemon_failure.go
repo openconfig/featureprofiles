@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	syspb "github.com/openconfig/gnoi/system"
 )
 
@@ -52,26 +53,28 @@ const (
 )
 
 var (
-	dutPort1 = attrs.Attributes{
+	dutPort1 = &attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
 		IPv4Len: ipv4PrefixLen,
+		ID:      100,
 	}
 
-	atePort1 = attrs.Attributes{
+	atePort1 = &attrs.Attributes{
 		Name:    "atePort1",
 		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	dutPort2 = attrs.Attributes{
+	dutPort2 = &attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: ipv4PrefixLen,
+		ID:      200,
 	}
 
-	atePort2 = attrs.Attributes{
+	atePort2 = &attrs.Attributes{
 		Name:    "atePort2",
 		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
@@ -90,6 +93,7 @@ var (
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Id = ygot.Uint32(a.ID)
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -122,7 +126,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
+	ifConfig1 := configInterfaceDUT(i1, dutPort1, dut)
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), ifConfig1)
 
 	n1, ok := nodes[p1.ID()]
 	if !ok {
@@ -132,7 +137,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
+	ifConfig2 := configInterfaceDUT(i2, dutPort2, dut)
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), ifConfig2)
+
 	n2, ok := nodes[p2.ID()]
 	if !ok {
 		t.Fatal("P4RT node name for port2 not found.")
@@ -153,10 +160,10 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
-	atePort1.AddToOTG(top, p1, &dutPort1)
+	atePort1.AddToOTG(top, p1, dutPort1)
 
 	p2 := ate.Port(t, "port2")
-	atePort2.AddToOTG(top, p2, &dutPort2)
+	atePort2.AddToOTG(top, p2, dutPort2)
 
 	return top
 }
@@ -248,6 +255,49 @@ func flushRoutes(t *testing.T, dut *ondatra.DUTDevice) error {
 	return nil
 }
 
+// subscribeOnChangeInterfaceID sends gnmi subscribe ON_CHANGE and fails if
+// /interfaces/interface/status/id changes from its originally configured value.
+func subscribeOnChangeInterfaceID(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Watcher[uint32] {
+	t.Helper()
+
+	p1 := dut.Port(t, "port1")
+
+	interfaceIDPath := gnmi.OC().Interface(p1.Name()).Id().State()
+	t.Logf("TRY: gnmi subscribe ON_CHANGE to %s", interfaceIDPath)
+
+	watchID := gnmi.Watch(t,
+		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+		interfaceIDPath,
+		time.Minute,
+		// Stop the gnmi.Watch() if value is invalid.
+		func(val *ygnmi.Value[uint32]) bool {
+			id, present := val.Val()
+			return !present || id != dutPort1.ID
+		})
+
+	return watchID
+}
+
+func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Watcher[string] {
+	t.Helper()
+
+	p1 := dut.Port(t, "port1")
+
+	interfaceNamePath := gnmi.OC().Interface(p1.Name()).Name().State()
+	t.Logf("TRY: subscribe ON_CHANGE to %s", interfaceNamePath)
+
+	watchName := gnmi.Watch(t,
+		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+		interfaceNamePath,
+		time.Minute,
+		func(val *ygnmi.Value[string]) bool {
+			iname, present := val.Val()
+			return present && iname == dutPort1.Name
+		})
+
+	return watchName
+}
+
 func TestP4RTDaemonFailure(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -258,6 +308,15 @@ func TestP4RTDaemonFailure(t *testing.T) {
 
 	t.Logf("Configure DUT")
 	configureDUT(t, dut)
+
+	// Verify subscribe ON_CHANGE is supported using a commonly supported OC path.
+	watchName, ok := subscribeOnChangeInterfaceName(t, dut).Await(t)
+	if !ok {
+		t.Fatalf("FAIL:  /interfaces/interface[name=%q]/state/name got:%v want:%q", dutPort1.Name, watchName, dutPort1.Name)
+	}
+
+	// Subscribe ON_CHANGE to '/interfaces/interface/state/id'.
+	watchID := subscribeOnChangeInterfaceID(t, dut)
 
 	t.Logf("Configure ATE")
 	ate := ondatra.ATE(t, "ate")
@@ -291,7 +350,7 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	resp, err := c.System().KillProcess(context.Background(), req)
 	t.Logf("Got kill process response: %v", resp)
 	if err != nil {
-		t.Fatalf("Failed to execute gNOI.KillProcess, error received: %v", err)
+		t.Fatalf("FAIL: to execute gNOI.KillProcess, error received: %v", err)
 	}
 
 	// let traffic keep running for another 10 seconds.
@@ -299,6 +358,13 @@ func TestP4RTDaemonFailure(t *testing.T) {
 
 	t.Logf("Stop traffic")
 	ate.OTG().StopTraffic(t)
+
+	// Verify interfaceID did not change since the last time we read it.
+	changedID, notOk := watchID.Await(t)
+	if notOk {
+		t.Errorf("FAIL: DUT changed /interfaces/interface/state/id  during p4rt process restart.  want:%q got:%q", dutPort1.ID, changedID.String())
+	}
+	t.Logf("OK: no change detected in /interfaces/interface/state/id want:%q got:%q", dutPort1.ID, changedID.String())
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
