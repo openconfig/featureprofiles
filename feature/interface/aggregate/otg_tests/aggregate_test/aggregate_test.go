@@ -218,6 +218,9 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	}
 	lacpPath := d.Lacp().Interface(tc.aggID)
 	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
+	if tc.lagType == lagTypeLACP {
+		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+	}
 
 	// TODO - to remove this sleep later
 	time.Sleep(5 * time.Second)
@@ -226,18 +229,6 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	tc.configDstAggregateDUT(agg, &dutDst)
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
-
-	// Cleanup LACP and LAG configs if any to avoid potential conflicts
-	resetBatch := &gnmi.SetBatch{}
-	gnmi.BatchDelete(resetBatch, aggPath.Config())
-	gnmi.BatchDelete(resetBatch, lacpPath.Config())
-	resetBatch.Set(t, tc.dut)
-
-	// Apply LACP config only when LAG mode is LACP
-	if tc.lagType == lagTypeLACP {
-		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
-	}
-
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
 
 	srcp := tc.dutPorts[0]
@@ -529,7 +520,7 @@ func TestNegotiation(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	aggID := netutil.NextAggregateInterface(t, dut)
 
-	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
+	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeSTATIC, lagTypeLACP}
 
 	for _, lagType := range lagTypes {
 		top := gosnappi.NewConfig()
