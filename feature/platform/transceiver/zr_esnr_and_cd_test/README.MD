@@ -34,12 +34,12 @@ to fiber measured in ps/nm
     *   /platform/components/component/optical-channel/state/chromatic-dispersion/min
     *   /platform/components/component/optical-channel/state/chromatic-dispersion/max
 
-*   When the modules or the devices are still in a boot stage, they should not
+*   When the modules or the devices are still in a boot stage, they must not
     stream any invalid string values like "nil" or "-inf" until valid values
     are available for streaming.
 
 *   eSNR and CD streamed values must always be of type Decimal64.
-    When link interfaces are in down state 0 should be reported as a valid
+    When link interfaces are in down state 0 must be reported as a valid
     value.
 
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 
