@@ -345,7 +345,10 @@ message Metadata {
     bool qos_buffer_allocation_config_required = 114;
     // Devices do not support interface passive state.
     // Juniper: b/303631436
-    bool isis_interface_passive_state_unsupported = 115;
+    bool isis_interface_passive_state_unsupported = 116;
+    // Devices do not support configuring ExtendedNextHopEncoding at the BGP global level.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/203683090
+    bool bgp_global_extended_next_hop_encoding_unsupported = 115;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
