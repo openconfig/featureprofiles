@@ -4,6 +4,9 @@ testbeds:
   - moji_sfd_gnsi
 owners:
   - mbagherz
+pretests:
+  - name: set_clock
+    path: exec/utils/settime
 tests:
 - name: authz1.1 (Authz Functional Tests)
   path: feature/security/gnsi/authz/cisco/tests
