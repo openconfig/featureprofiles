@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestSetTimeZone(t *testing.T) {
+func TestSetTime(t *testing.T) {
 	loc, err := time.LoadLocation(*timezone)
 	if err != nil {
 		t.Fatalf("Unknown timezone %s", *timezone)
