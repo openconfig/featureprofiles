@@ -596,10 +596,10 @@ func verifyBGPPathAttributes(t *testing.T, dut *ondatra.DUTDevice) {
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
-	pref1 := &validatePathAttribute{nbr: otgIsisPort2LoopV4, prefix: advV4Routes500kPort2, isV4: true, nexthop: atePort2.IPv4, locpref: 200, asPath: port2AsPath, community: port2CommAttr}
-	pref2 := &validatePathAttribute{nbr: otgIsisPort3LoopV4, prefix: advV4Routes500kPort3, isV4: true, nexthop: atePort3.IPv4, locpref: 300, asPath: port3AsPath, community: port3CommAttr}
-	pref3 := &validatePathAttribute{nbr: otgIsisPort2LoopV6, prefix: advV6Routes200kPort2, isV4: false, nexthop: atePort2.IPv6, locpref: 200, asPath: port2AsPath, community: port2CommAttr}
-	pref4 := &validatePathAttribute{nbr: otgIsisPort3LoopV6, prefix: advV6Routes200kPort3, isV4: false, nexthop: atePort3.IPv6, locpref: 300, asPath: port3AsPath, community: port3CommAttr}
+	pref1 := &validatePathAttribute{nbr: otgIsisPort2LoopV4, prefix: advV4Routes500kPort2, isV4: true, nexthop: atePort2.IPv4, locpref: port2LocPref, asPath: port2AsPath, community: port2CommAttr}
+	pref2 := &validatePathAttribute{nbr: otgIsisPort3LoopV4, prefix: advV4Routes500kPort3, isV4: true, nexthop: atePort3.IPv4, locpref: port3LocPref, asPath: port3AsPath, community: port3CommAttr}
+	pref3 := &validatePathAttribute{nbr: otgIsisPort2LoopV6, prefix: advV6Routes200kPort2, isV4: false, nexthop: atePort2.IPv6, locpref: port2LocPref, asPath: port2AsPath, community: port2CommAttr}
+	pref4 := &validatePathAttribute{nbr: otgIsisPort3LoopV6, prefix: advV6Routes200kPort3, isV4: false, nexthop: atePort3.IPv6, locpref: port3LocPref, asPath: port3AsPath, community: port3CommAttr}
 
 	prefList := []*validatePathAttribute{pref1, pref2, pref3, pref4}
 	rib := statePath.Rib()
