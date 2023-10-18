@@ -315,6 +315,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         install_image=False,
                         force_install=False,
                         force_reboot=False,
+                        set_clock=False,
                         smus=None):
     
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
@@ -368,6 +369,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         c |= InstallSMUs.s(smus=smus)
     if force_reboot:
         c |= ForceReboot.s()
+    if set_clock:
+        c |= SetClock.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     result = self.enqueue_child_and_get_results(c)
@@ -901,6 +904,21 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
         logger.print(f'Testbed info file: {testbed_info_path}')
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...')
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def SetClock(self, ws, internal_fp_repo_dir, reserved_testbed):
+    logger.print("Setting clock...")
+    set_clock_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/settime ' \
+            f'-timeout 10m ' \
+            f'-args ' \
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]} '
+
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    check_output(set_clock_cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
