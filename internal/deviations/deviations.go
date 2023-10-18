@@ -636,3 +636,9 @@ func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
 }
+
+// BGPGlobalExtendedNextHopEncodingUnsupported returns true for devices that do not support configuring
+// BGP ExtendedNextHopEncoding at thee global level.
+func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
+}
