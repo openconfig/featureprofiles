@@ -38,7 +38,7 @@ to fiber measured in ps/nm
     stream any invalid string values like "nil" or "-inf" until valid values
     are available for streaming.
 
-*   eSNR and CD streamed values should always be of type Decimal64.
+*   eSNR and CD streamed values must always be of type Decimal64.
     When link interfaces are in down state 0 should be reported as a valid
     value.
 
