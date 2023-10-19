@@ -346,15 +346,16 @@ message Metadata {
     // Devices do not support configuring ExtendedNextHopEncoding at the BGP global level.
     // Arista: https://partnerissuetracker.corp.google.com/issues/203683090
     bool bgp_global_extended_next_hop_encoding_unsupported = 115;
-
+    // OC unsupported for BGP LLGR disable.
+    // Juniper: b/303479602
+    bool bgp_llgr_oc_undefined = 116;
     // Devices requires enabled leaf under isis level
     // Juniper: partnerissuetracker.corp.google.com/302661486
-    bool isis_level_enabled = 116;
-
+    bool isis_level_enabled = 117;
     // Devices are having native telemetry paths for BGP RIB verification.
     // Juniper : b/306144372
-    bool bgp_rib_oc_path_unsupported = 117;
-
+    bool bgp_rib_oc_path_unsupported = 118;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
   }
