@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "44bc3e16-ee02-42c7-8122-6f066a41a488"
+plan_id:  "Replay-1.0"
+description:  "Record/replay presession test"
+testbed:  TESTBED_DUT
