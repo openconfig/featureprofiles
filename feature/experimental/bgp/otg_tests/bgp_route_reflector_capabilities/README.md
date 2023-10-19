@@ -29,24 +29,25 @@
         DUT loopback addresses should be reachable via IS-IS.
     *   Each of RR clients should advertise 500k unique ipv4 routes and 200k ipv6 routes. These prefixes
         represent internal subnets and should include some prefixes that are unique to each of the ATEs.
-        Remaining prefixes in the mix need to be common between the 2xATEs and should have identical path attributes except for the protocol next-hops.  
+        Remaining prefixes in the mix need to be common between the 2xATEs and should have identical path
+        attributes except for the protocol next-hops.
     *   RR clients and eBGP Peer should advertise 1M overlapping ipv4 routes and 600k ipv6 routes. These
         1M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.Similarly, 600k IPv6
         prefixes will represent internet prefixes. These prefixes should be common between the RR clients
-        with different path-attributes for protocol next-hop, AS-Path and community. 
-    *   The DUT Port1 has eBGP peering with ATE Port 1 and is receiving 1M IPv4 and 400k IPv6 routes.   
+        with different path-attributes for protocol next-hop, AS-Path and community.
+    *   The DUT Port1 has eBGP peering with ATE Port 1 and is receiving 1M IPv4 and 400k IPv6 routes.
         DUT should automatically determine the BGP transport source address based on the nearest interface.
-        Hence, the OC path "transport/config/local-address" shouldnt be used.    
+        Hence, the OC path "transport/config/local-address" shouldnt be used.
 
 *   Validate session state on ATE ports and DUT using telemetry.
     *   The check should also include accurately receiving values for the path 
-        "transport/state/local-address" for RRCs as well as for the EBGP peering.  
+        "transport/state/local-address" for RRCs as well as for the EBGP peering.
     *   Validate accuracy of the peer-type leaf (neighbor/config/peer-type) for EBGP and IBGP peering.
     *   Validate session state and capabilities received on DUT using telemetry.
     *   Validate route receipt.
-        *   Ensure that the DUT advertises all the IBGP learnt routes to the EBGP peer
-        *   Ensure that the DUT advertises all the EBGP learnt routes to the IBGP peers
-        *   Ensure that the DUT as RR server advertises routes learnt from each of the RRC to the other
+        *   Ensure that the DUT advertises all the IBGP learnt routes to the EBGP peer.
+        *   Ensure that the DUT advertises all the EBGP learnt routes to the IBGP peers.
+        *   Ensure that the DUT as RR server advertises routes learnt from each of the RRC to the other.
 
 *   Validate BGP route/path attributes below for each of the EBGP and IBGP learnt routes
     *   Next-Hop
