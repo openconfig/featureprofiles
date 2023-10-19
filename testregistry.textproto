@@ -836,6 +836,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNOI-3.6"
+  description: "Kill a Daemon Test"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "gNOI-4.1"
   description: "Software Upgrade"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/os/tests/osinstall/README.md"
