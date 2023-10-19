@@ -37,6 +37,10 @@ BGP policy configuration for AS Paths and Community Sets
     * Create an as-path-set/name "all_3_aspaths" as follows
       * `{ as-path-set-member = [ "100", "200", "300" ]}`
       * `{ match-set-options=ALL }`
+    * Create an as-path-set/name "no_3_aspaths" as follows
+      * `{ as-path-set-member = [ "100", "200", "300" ]}`
+      * `{ match-set-options=INVERT }`
+
   * Configure ATE to
     * Advertise routes-set-1 with as path `[100, 200, 300]`
     * Advertise routes-set-2 with as path `[100, 400, 300]`
