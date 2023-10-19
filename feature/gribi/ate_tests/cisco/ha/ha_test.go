@@ -2145,7 +2145,7 @@ func TestHA(t *testing.T) {
 	// PBR config
 	configbasePBR(t, dut, "REPAIRED", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{}, &PBROptions{SrcIP: "222.222.222.222/32"})
 	configbasePBR(t, dut, "TE", "ipv4", 2, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	configbasePBRInt(t, dut, "Bundle-Ether120", "pbr")
+	configbasePBRInt(t, dut, "Bundle-Ether120", ".0", "pbr")
 	// RoutePolicy config
 	configRP(t, dut)
 	// configure ISIS on DUT
