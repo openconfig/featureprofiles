@@ -6,7 +6,7 @@ This is a negative test to kill some Software daemons and verify if the implemen
   
 ## Procedure
 
-* Subtest-1 : Kill configuration daemon.
+* gNOI-3.6.1 : Kill configuration daemon.
 
   Kill the process that manages device configuration using the **gNOI.KillProcessRequest_SIGNAL_ABRT** and restart flag set to False. This will terminate the process and will also dump a Core file, while maintaing the process in a down state. Verify if the leaf /components/component/healthz/state/status transitioned to **UNHEALTHY**.
    1. If the software module has a status of **UNHEALTHY**, issue healthZ.Get() to collect more details on the event. Also, use HealthZ.Artifact() to collect artifacts like core dump, logs etc.
