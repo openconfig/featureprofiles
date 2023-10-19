@@ -69,7 +69,7 @@ const (
 	otgIsisPort2LoopV6   = "2001:db8::203:0:113:10"
 	otgIsisPort3LoopV4   = "203.0.113.20"
 	otgIsisPort3LoopV6   = "2001:db8::203:0:113:20"
-	clusterID            = "1122"
+	clusterID            = "198.18.0.0"
 	v4Prefixes           = true
 )
 
@@ -178,12 +178,12 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 }
 
 func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
-	nbr1v4 := &bgpNeighbor{as: ateAS, neighborip: atePort1.IPv4, isV4: true, peerGrp: peerGrpName1}
-	nbr2v4 := &bgpNeighbor{as: dutAS, neighborip: otgIsisPort2LoopV4, isV4: true, peerGrp: peerGrpName2, localAddress: dutlo0Attrs.IPv4}
-	nbr3v4 := &bgpNeighbor{as: dutAS, neighborip: otgIsisPort3LoopV4, isV4: true, peerGrp: peerGrpName2, localAddress: dutlo0Attrs.IPv4}
-	nbr1v6 := &bgpNeighbor{as: ateAS, neighborip: atePort1.IPv6, isV4: false, peerGrp: peerGrpName3}
-	nbr2v6 := &bgpNeighbor{as: dutAS, neighborip: otgIsisPort2LoopV6, isV4: false, peerGrp: peerGrpName4, localAddress: dutlo0Attrs.IPv6}
-	nbr3v6 := &bgpNeighbor{as: dutAS, neighborip: otgIsisPort3LoopV6, isV4: false, peerGrp: peerGrpName4, localAddress: dutlo0Attrs.IPv6}
+	nbr1v4 := &bgpNeighbor{as: ateAS, neighborip: atePort1.IPv4, isV4: true, peerGrp: peerGrpName1, isRR: false}
+	nbr2v4 := &bgpNeighbor{as: dutAS, neighborip: otgIsisPort2LoopV4, isV4: true, peerGrp: peerGrpName2, localAddress: dutlo0Attrs.IPv4, isRR: true}
+	nbr3v4 := &bgpNeighbor{as: dutAS, neighborip: otgIsisPort3LoopV4, isV4: true, peerGrp: peerGrpName2, localAddress: dutlo0Attrs.IPv4, isRR: true}
+	nbr1v6 := &bgpNeighbor{as: ateAS, neighborip: atePort1.IPv6, isV4: false, peerGrp: peerGrpName3, isRR: false}
+	nbr2v6 := &bgpNeighbor{as: dutAS, neighborip: otgIsisPort2LoopV6, isV4: false, peerGrp: peerGrpName4, localAddress: dutlo0Attrs.IPv6, isRR: true}
+	nbr3v6 := &bgpNeighbor{as: dutAS, neighborip: otgIsisPort3LoopV6, isV4: false, peerGrp: peerGrpName4, localAddress: dutlo0Attrs.IPv6, isRR: true}
 	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4, nbr3v4, nbr1v6, nbr2v6, nbr3v6}
 
 	dutOcRoot := &oc.Root{}
@@ -263,7 +263,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 			bgpNbrT := bgpNbr.GetOrCreateTransport()
 			bgpNbrT.LocalAddress = ygot.String(nbr.localAddress)
 		}
-		if nbr.neighborip != atePort1.IPv4 || nbr.neighborip != atePort1.IPv6 {
+		if nbr.isRR {
 			bgpNbrRouteRef := bgpNbr.GetOrCreateRouteReflector()
 			bgpNbrRouteRef.RouteReflectorClient = ygot.Bool(true)
 			bgpNbrRouteRef.RouteReflectorClusterId = oc.UnionString(clusterID)
@@ -607,22 +607,23 @@ func verifyBGPRRCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 	for _, nbr := range nbrs {
+		t.Logf("Verifying Route Reflector client capabilities for %v", nbr.nbrIP)
 		nbrPath := statePath.Neighbor(nbr.nbrIP)
 		nbrLocalAddress := gnmi.Get(t, dut, nbrPath.Transport().LocalAddress().State())
 		if nbrLocalAddress != nbr.localAddress {
-			t.Errorf("Local address is not correct, got %v and want %v", nbrLocalAddress, nbr.localAddress)
+			t.Errorf("Local address mismatch, got %v and want %v", nbrLocalAddress, nbr.localAddress)
 		}
 		nbrPeerType := gnmi.Get(t, dut, nbrPath.PeerType().State())
 		if nbrPeerType != oc.Bgp_PeerType_INTERNAL {
-			t.Errorf("Local address is not correct, got %v and want %v", nbrLocalAddress, nbr.localAddress)
+			t.Errorf("Neighbor Peer Type mismatch, got %v and want oc.Bgp_PeerType_INTERNAL", nbrPeerType)
 		}
 		routeRefClustID := gnmi.Get(t, dut, nbrPath.RouteReflector().RouteReflectorClusterId().State())
 		if routeRefClustID != oc.UnionString(clusterID) {
-			t.Errorf("Local address is not correct, got %v and want %v", nbrLocalAddress, nbr.localAddress)
+			t.Errorf("Route reflector cluster ID mismatch, got %v and want %v", routeRefClustID, clusterID)
 		}
 		routeRefClientState := gnmi.Get(t, dut, nbrPath.RouteReflector().RouteReflectorClient().State())
 		if routeRefClientState != true {
-			t.Errorf("Local address is not correct, got %v and want %v", nbrLocalAddress, nbr.localAddress)
+			t.Errorf("Route Reflector Client state mismatch, got %v and want true.", routeRefClientState)
 		}
 	}
 }
@@ -641,11 +642,11 @@ func verifyEBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 		nbrPath := statePath.Neighbor(nbr.nbrIP)
 		nbrLocalAddress := gnmi.Get(t, dut, nbrPath.Transport().LocalAddress().State())
 		if nbrLocalAddress != nbr.localAddress {
-			t.Errorf("Local address is not correct, got %v and want %v", nbrLocalAddress, nbr.localAddress)
+			t.Errorf("RR client Local address mismatch, got %v and want %v", nbrLocalAddress, nbr.localAddress)
 		}
 		nbrPeerType := gnmi.Get(t, dut, nbrPath.PeerType().State())
 		if nbrPeerType != oc.Bgp_PeerType_EXTERNAL {
-			t.Errorf("Local address is not correct, got %v and want %v", nbrLocalAddress, nbr.localAddress)
+			t.Errorf("RR client peer type mismatch, got %v and want oc.Bgp_PeerType_EXTERNAL.", nbrPeerType)
 		}
 	}
 }
@@ -749,6 +750,7 @@ type bgpNeighbor struct {
 	isV4         bool
 	peerGrp      string
 	localAddress string
+	isRR         bool
 }
 
 type validateBgpNbr struct {
