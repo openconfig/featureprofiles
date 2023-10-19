@@ -27,6 +27,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
+	"github.com/openconfig/ondatra/netutil"
 	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -57,17 +59,18 @@ const (
 	isisInstance         = "DEFAULT"
 	port2LocPref         = 50
 	port3LocPref         = 50
-	advV4Routes500kPort2 = "20.0.0.1"
-	advV4Routes500kPort3 = "30.0.0.1"
-	advV4Routes1M        = "100.0.0.0"
-	advV6Routes200kPort2 = "2001:DB8:1::"
-	advV6Routes200kPort3 = "2001:DB8:2::"
-	advV6Routes600k      = "2001:DB8:3::"
+	advV4Routes500kPort2 = "20.0.0.1"  // New IPv4 block needs to be provided by Google. - 500k v4 routes
+	advV4Routes500kPort3 = "30.0.0.1"  // New IPv4 block needs to be provided by Google. - 500k v4 routes
+	advV4Routes1M        = "100.0.0.0" // New IPv4 block needs to be provided by Google. - 1M v4 routes
+	advV6Routes200kPort2 = "2001:DB8:1::1"
+	advV6Routes200kPort3 = "2001:DB8:2::1"
+	advV6Routes600k      = "2001:DB8:3::1"
 	otgIsisPort2LoopV4   = "203.0.113.10"
 	otgIsisPort2LoopV6   = "2001:db8::203:0:113:10"
 	otgIsisPort3LoopV4   = "203.0.113.20"
 	otgIsisPort3LoopV6   = "2001:db8::203:0:113:20"
 	clusterID            = "100.1.1.1"
+	v4Prefixes           = true
 )
 
 var (
@@ -117,17 +120,17 @@ var (
 		IPv6Len: plenIPv6,
 	}
 	dutlo0Attrs = attrs.Attributes{
-		Name:    "lo0",
 		Desc:    "Loopback ip",
 		IPv4:    "203.0.113.1",
 		IPv6:    "2001:db8::203:0:113:1",
 		IPv4Len: 32,
 		IPv6Len: 128,
 	}
-	port2AsPath   = []uint32{65000, 65499, 65498}
-	port3AsPath   = []uint32{65497, 65496, 65495}
-	port2CommAttr = []oc.UnionString{"65200:200"}
-	port3CommAttr = []oc.UnionString{"65300:300"}
+	asPath      = []uint32{65000, 65499, 65498}
+	commAttr    = []oc.UnionString{"65200:200"}
+	asPath2     = []uint32{65001, 65002, 65003}
+	asPath3     = []uint32{65004, 65005, 65006}
+	commAttrExt = []oc.UnionString{"65010:100"}
 )
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -142,9 +145,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i3 := dutPort3.NewOCInterface(dut.Port(t, "port3").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i3.GetName()).Config(), i3)
 
-	loop1 := dutlo0Attrs.NewOCInterface(dutlo0Attrs.Name, dut)
+	loopIntfName := netutil.LoopbackInterface(t, dut, 0)
+	loop1 := dutlo0Attrs.NewOCInterface(loopIntfName, dut)
 	loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-	gnmi.Replace(t, dut, dc.Interface(dutlo0Attrs.Name).Config(), loop1)
+	gnmi.Replace(t, dut, dc.Interface(loopIntfName).Config(), loop1)
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
@@ -308,6 +312,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	port2 := config.Ports().Add().SetName("port2")
 	port3 := config.Ports().Add().SetName("port3")
 
+	// Port1 Configuration.
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
 	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
@@ -316,6 +321,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
 	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
+	// Port2 Configuration.
 	iDut2Dev := config.Devices().Add().SetName(atePort2.Name)
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
 	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
@@ -323,11 +329,13 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	iDut2Ipv4.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(uint32(atePort2.IPv4Len))
 	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName(atePort2.Name + ".IPv6")
 	iDut2Ipv6.SetAddress(atePort2.IPv6).SetGateway(dutPort2.IPv6).SetPrefix(uint32(atePort2.IPv6Len))
+	// Port2 Loopback Configuration.
 	iDut2LoopV4 := iDut2Dev.Ipv4Loopbacks().Add().SetName("Port2LoopV4").SetEthName(iDut2Eth.Name())
 	iDut2LoopV4.SetAddress(otgIsisPort2LoopV4)
 	iDut2LoopV6 := iDut2Dev.Ipv6Loopbacks().Add().SetName("Port2LoopV6").SetEthName(iDut2Eth.Name())
 	iDut2LoopV6.SetAddress(otgIsisPort2LoopV6)
 
+	// Port3 Configuration.
 	iDut3Dev := config.Devices().Add().SetName(atePort3.Name)
 	iDut3Eth := iDut3Dev.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetMac(atePort3.MAC)
 	iDut3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port3.Name())
@@ -335,43 +343,13 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	iDut3Ipv4.SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(uint32(atePort3.IPv4Len))
 	iDut3Ipv6 := iDut3Eth.Ipv6Addresses().Add().SetName(atePort3.Name + ".IPv6")
 	iDut3Ipv6.SetAddress(atePort3.IPv6).SetGateway(dutPort3.IPv6).SetPrefix(uint32(atePort3.IPv6Len))
+	// Port3 Loopback Configuration.
 	iDut3LoopV4 := iDut3Dev.Ipv4Loopbacks().Add().SetName("Port3LoopV4").SetEthName(iDut3Eth.Name())
 	iDut3LoopV4.SetAddress(otgIsisPort3LoopV4)
 	iDut3LoopV6 := iDut3Dev.Ipv6Loopbacks().Add().SetName("Port3LoopV6").SetEthName(iDut3Eth.Name())
 	iDut3LoopV6.SetAddress(otgIsisPort3LoopV6)
 
-	// BGP seesion
-	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
-	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
-	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-
-	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
-	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	iDut1Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-
-	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(otgIsisPort2LoopV4)
-	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2LoopV4.Name()).Peers().Add().SetName(atePort2.Name + ".BGP4.peer")
-	iDut2Bgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-	iDut2Bgp6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2LoopV6.Name()).Peers().Add().SetName(atePort2.Name + ".BGP6.peer")
-	iDut2Bgp6Peer.SetPeerAddress(dutlo0Attrs.IPv6).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
-	iDut2Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-
-	iDut3Bgp := iDut3Dev.Bgp().SetRouterId(otgIsisPort3LoopV4)
-	iDut3Bgp4Peer := iDut3Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut3LoopV4.Name()).Peers().Add().SetName(atePort3.Name + ".BGP4.peer")
-	iDut3Bgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	iDut3Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-	iDut3Bgp6Peer := iDut3Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut3LoopV6.Name()).Peers().Add().SetName(atePort3.Name + ".BGP6.peer")
-	iDut3Bgp6Peer.SetPeerAddress(dutlo0Attrs.IPv6).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
-	iDut3Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut3Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-
+	// ISIS configuration on Port2 for iBGP session establishment.
 	isisDut2 := iDut2Dev.Isis().SetName("ISIS2").SetSystemId(otgSysID2)
 	isisDut2.Basic().SetIpv4TeRouterId(atePort2.IPv4).SetHostname(isisDut2.Name()).SetLearnedLspFilter(true)
 	isisDut2.Interfaces().Add().SetEthName(iDut2Dev.Ethernets().Items()[0].Name()).
@@ -379,6 +357,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
 
+	// ISIS configuration on Port3 for iBGP session establishment.
 	isisDut3 := iDut3Dev.Isis().SetName("ISIS3").SetSystemId(otgSysID3)
 	isisDut3.Basic().SetIpv4TeRouterId(atePort3.IPv4).SetHostname(isisDut3.Name()).SetLearnedLspFilter(true)
 	isisDut3.Interfaces().Add().SetEthName(iDut3Dev.Ethernets().Items()[0].Name()).
@@ -386,136 +365,203 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
 
-	// BGP V4 routes from Port2
-	bgpNeti1Bgp4PeerRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(atePort2.Name + ".BGP4.Route")
-	bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(iDut2Ipv4.Address()).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
-		Advanced().SetLocalPreference(port2LocPref).SetIncludeLocalPreference(true)
-
-	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
-	bgpNeti1AsPath.Segments().Add().SetAsNumbers(port2AsPath).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
-
-	bgpNeti1Bgp4PeerRoutes.Communities().Add().SetAsNumber(65200).SetAsCustom(200).
-		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
-
-	bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(advV4Routes500kPort2).SetPrefix(32).
-		SetCount(routeCntV4500k).SetStep(1)
-
-	// BGP V6 routes from Port2.
-	bgpNeti1Bgp6PeerRoutes := iDut2Bgp6Peer.V6Routes().Add().SetName(atePort2.Name + ".BGP6.Route")
-	bgpNeti1Bgp6PeerRoutes.SetNextHopIpv6Address(iDut2Ipv6.Address()).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).
-		Advanced().SetLocalPreference(port2LocPref).SetIncludeLocalPreference(true)
-
-	bgpNeti1V6AsPath := bgpNeti1Bgp6PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
-	bgpNeti1V6AsPath.Segments().Add().SetAsNumbers(port2AsPath).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
-
-	bgpNeti1Bgp6PeerRoutes.Communities().Add().SetAsNumber(65200).SetAsCustom(200).
-		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
-
-	bgpNeti1Bgp6PeerRoutes.Addresses().Add().SetAddress(advV6Routes200kPort2).SetPrefix(128).
-		SetCount(routeCntV6200k).SetStep(1)
-
-	// Overlapping BGP v4 routers from Port2
-	bgpNeti1Bgp4OverLapRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(atePort2.Name + ".BGP4.Route.Overlap")
-	bgpNeti1Bgp4OverLapRoutes.SetNextHopIpv4Address(iDut2Ipv4.Address()).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
-		Advanced().SetLocalPreference(port2LocPref).SetIncludeLocalPreference(true)
-	bgpNeti1Bgp4OverLapRoutes.Addresses().Add().
-		SetAddress(advV4Routes1M).SetPrefix(32).SetCount(routeCntV41M).SetStep(1)
-
-	// Overlapping BGP v6 routers from Port2
-	bgpNeti1Bgp6OverLapRoutes := iDut2Bgp6Peer.V6Routes().Add().SetName(atePort2.Name + ".BGP6.Route.Overlap")
-	bgpNeti1Bgp6OverLapRoutes.SetNextHopIpv6Address(iDut2Ipv6.Address()).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).
-		Advanced().SetLocalPreference(port2LocPref).SetIncludeLocalPreference(true)
-	bgpNeti1Bgp6OverLapRoutes.Addresses().Add().
-		SetAddress(advV6Routes600k).SetPrefix(128).SetCount(routeCntV6600k).SetStep(1)
-
-	// BGP V4 routes from Port3.
-	bgpNeti2Bgp4PeerRoutes := iDut3Bgp4Peer.V4Routes().Add().SetName(atePort3.Name + ".BGP4.Route")
-	bgpNeti2Bgp4PeerRoutes.SetNextHopIpv4Address(iDut3Ipv4.Address()).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
-		Advanced().SetLocalPreference(port3LocPref).SetIncludeLocalPreference(true)
-
-	bgpNeti2AsPath := bgpNeti2Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
-	bgpNeti2AsPath.Segments().Add().SetAsNumbers(port3AsPath).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
-
-	bgpNeti2Bgp4PeerRoutes.Communities().Add().SetAsNumber(65300).SetAsCustom(300).
-		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
-
-	bgpNeti2Bgp4PeerRoutes.Addresses().Add().
-		SetAddress(advV4Routes500kPort3).SetPrefix(32).SetCount(routeCntV4500k).SetStep(1)
-
-	// BGP V6 routes from Port3.
-	bgpNeti2Bgp6PeerRoutes := iDut3Bgp6Peer.V6Routes().Add().SetName(atePort3.Name + ".BGP6.Route")
-	bgpNeti2Bgp6PeerRoutes.SetNextHopIpv6Address(iDut3Ipv6.Address()).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).
-		Advanced().SetLocalPreference(port3LocPref).SetIncludeLocalPreference(true)
-
-	bgpNeti2V6AsPath := bgpNeti2Bgp6PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
-	bgpNeti2V6AsPath.Segments().Add().SetAsNumbers(port3AsPath).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
-
-	bgpNeti2Bgp6PeerRoutes.Communities().Add().SetAsNumber(65300).SetAsCustom(300).
-		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
-
-	bgpNeti2Bgp6PeerRoutes.Addresses().Add().
-		SetAddress(advV6Routes200kPort3).SetPrefix(128).SetCount(routeCntV6200k).SetStep(1)
-
-	// Port 3 overlapping routes
-	bgpNeti2Bgp4OverLapRoutes := iDut3Bgp4Peer.V4Routes().Add().SetName(atePort3.Name + ".BGP4.Route.Overlap")
-	bgpNeti2Bgp4OverLapRoutes.SetNextHopIpv4Address(iDut3Ipv4.Address()).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
-		Advanced().SetLocalPreference(port3LocPref).SetIncludeLocalPreference(true)
-	bgpNeti2Bgp4OverLapRoutes.Addresses().Add().
-		SetAddress(advV4Routes1M).
-		SetPrefix(32).
-		SetCount(routeCntV41M).SetStep(1)
-
-	bgpNeti2Bgp6OverLapRoutes := iDut3Bgp6Peer.V6Routes().Add().SetName(atePort3.Name + ".BGP6.Route.Overlap")
-	bgpNeti2Bgp6OverLapRoutes.SetNextHopIpv6Address(iDut3Ipv6.Address()).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).
-		Advanced().SetLocalPreference(port3LocPref).SetIncludeLocalPreference(true)
-	bgpNeti2Bgp6OverLapRoutes.Addresses().Add().
-		SetAddress(advV6Routes600k).
-		SetPrefix(128).
-		SetCount(routeCntV6600k).SetStep(1)
-
-	// BGP V4 routes from Port1.
-	bgpNeti3Bgp4PeerRoutes := iDut1Bgp4Peer.V4Routes().Add().SetName(atePort1.Name + ".BGP4.Route")
-	bgpNeti3Bgp4PeerRoutes.SetNextHopIpv4Address(iDut1Ipv4.Address()).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	bgpNeti3Bgp4PeerRoutes.Addresses().Add().
-		SetAddress(advV4Routes1M).SetPrefix(32).SetCount(routeCntV41M).SetStep(1)
-
-	// BGP V6 routes from Port1.
-	bgpNeti3Bgp6PeerRoutes := iDut1Bgp6Peer.V6Routes().Add().SetName(atePort1.Name + ".BGP6.Route")
-	bgpNeti3Bgp6PeerRoutes.SetNextHopIpv6Address(iDut1Ipv6.Address()).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	bgpNeti3Bgp6PeerRoutes.Addresses().Add().
-		SetAddress(advV6Routes600k).SetPrefix(128).SetCount(routeCntV6600k).SetStep(1)
-
-	// Advertise ISIS routes to DUT from OTG Port2.
+	// Advertise OTG Port2 loopback address via ISIS.
 	isisPort2V4 := iDut2Dev.Isis().V4Routes().Add().SetName("ISISPort2V4").SetLinkMetric(10)
 	isisPort2V4.Addresses().Add().SetAddress(otgIsisPort2LoopV4).SetPrefix(32)
 	isisPort2V6 := iDut2Dev.Isis().V6Routes().Add().SetName("ISISPort2V6").SetLinkMetric(10)
 	isisPort2V6.Addresses().Add().SetAddress(otgIsisPort2LoopV6).SetPrefix(uint32(128))
 
-	// Advertise ISIS routes to DUT from OTG Port3.
+	// Advertise OTG Port3 loopback address via ISIS.
 	isisPort3V4 := iDut3Dev.Isis().V4Routes().Add().SetName("ISISPort3V4").SetLinkMetric(10)
 	isisPort3V4.Addresses().Add().SetAddress(otgIsisPort3LoopV4).SetPrefix(32)
 	isisPort3V6 := iDut3Dev.Isis().V6Routes().Add().SetName("ISISPort3V6").SetLinkMetric(10)
 	isisPort3V6.Addresses().Add().SetAddress(otgIsisPort3LoopV6).SetPrefix(uint32(128))
+
+	// eBGP v4 seesion on Port1.
+	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
+	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
+	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	// eBGP v6 seesion on Port1.
+	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
+	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	iDut1Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+
+	// iBGP - RR client v4 seesion on Port2.
+	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(otgIsisPort2LoopV4)
+	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2LoopV4.Name()).Peers().Add().SetName(atePort2.Name + ".BGP4.peer")
+	iDut2Bgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
+	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	// iBGP - RR client v6 seesion on Port2.
+	iDut2Bgp6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2LoopV6.Name()).Peers().Add().SetName(atePort2.Name + ".BGP6.peer")
+	iDut2Bgp6Peer.SetPeerAddress(dutlo0Attrs.IPv6).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
+	iDut2Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+	iDut2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+
+	// iBGP - RR client v4 seesion on Port3.
+	iDut3Bgp := iDut3Dev.Bgp().SetRouterId(otgIsisPort3LoopV4)
+	iDut3Bgp4Peer := iDut3Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut3LoopV4.Name()).Peers().Add().SetName(atePort3.Name + ".BGP4.peer")
+	iDut3Bgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
+	iDut3Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	// iBGP - RR client v6 seesion on Port2.
+	iDut3Bgp6Peer := iDut3Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut3LoopV6.Name()).Peers().Add().SetName(atePort3.Name + ".BGP6.peer")
+	iDut3Bgp6Peer.SetPeerAddress(dutlo0Attrs.IPv6).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
+	iDut3Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+	iDut3Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+
+	// BGP V4 routes from Port2 - 500k unique ipv4 prefixes.
+	// These prefixes represent internal subnets and are configured to advertise with
+	// same path attributes like AS-PATH and Community.
+	bgpNeti1Bgp4PeerRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(atePort2.Name + ".BGP4.Route")
+	bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(iDut2Ipv4.Address()).
+		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
+		Advanced().SetLocalPreference(port2LocPref).SetIncludeLocalPreference(true)
+	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti1AsPath.Segments().Add().SetAsNumbers(asPath).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
+	bgpNeti1Bgp4PeerRoutes.Communities().Add().SetAsNumber(65200).SetAsCustom(200).
+		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(advV4Routes500kPort2).SetPrefix(32).
+		SetCount(routeCntV4500k).SetStep(1)
+
+	// BGP V6 routes from Port2 - 200k unique ipv6 prefixes.
+	// These prefixes represent internal subnets and are configured to advertise with
+	// same path attributes like AS-PATH and Community.
+	bgpNeti1Bgp6PeerRoutes := iDut2Bgp6Peer.V6Routes().Add().SetName(atePort2.Name + ".BGP6.Route")
+	bgpNeti1Bgp6PeerRoutes.SetNextHopIpv6Address(iDut2Ipv6.Address()).
+		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).
+		Advanced().SetLocalPreference(port2LocPref).SetIncludeLocalPreference(true)
+	bgpNeti1V6AsPath := bgpNeti1Bgp6PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti1V6AsPath.Segments().Add().SetAsNumbers(asPath).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
+	bgpNeti1Bgp6PeerRoutes.Communities().Add().SetAsNumber(65200).SetAsCustom(200).
+		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	bgpNeti1Bgp6PeerRoutes.Addresses().Add().SetAddress(advV6Routes200kPort2).SetPrefix(128).
+		SetCount(routeCntV6200k).SetStep(1)
+
+	// Overlapping BGP v4 routers from Port2 - 1M overlapping ipv4 prefixes.
+	// These 1M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.
+	// These prefixes should be common between the RR clients with different path-attributes
+	// for protocol next-hop, AS-Path and community.
+	bgpNeti1Bgp4OverLapRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(atePort2.Name + ".BGP4.Route.Overlap")
+	bgpNeti1Bgp4OverLapRoutes.SetNextHopIpv4Address(iDut2Ipv4.Address()).
+		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
+		Advanced().SetLocalPreference(port2LocPref).SetIncludeLocalPreference(true)
+	bgpNeti1V4OLAsPath := bgpNeti1Bgp4OverLapRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti1V4OLAsPath.Segments().Add().SetAsNumbers(asPath2).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
+	bgpNeti1Bgp4OverLapRoutes.Communities().Add().SetAsNumber(65100).SetAsCustom(200).
+		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	bgpNeti1Bgp4OverLapRoutes.Addresses().Add().
+		SetAddress(advV4Routes1M).SetPrefix(32).SetCount(routeCntV41M).SetStep(1)
+
+	// Overlapping BGP v6 routers from Port2 - 600k overlapping ipv6 prefixes.
+	// These 1M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.
+	// These prefixes should be common between the RR clients with different path-attributes
+	// for protocol next-hop, AS-Path and community.
+	bgpNeti1Bgp6OverLapRoutes := iDut2Bgp6Peer.V6Routes().Add().SetName(atePort2.Name + ".BGP6.Route.Overlap")
+	bgpNeti1Bgp6OverLapRoutes.SetNextHopIpv6Address(iDut2Ipv6.Address()).
+		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).
+		Advanced().SetLocalPreference(port2LocPref).SetIncludeLocalPreference(true)
+	bgpNeti1V6OLAsPath := bgpNeti1Bgp6OverLapRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti1V6OLAsPath.Segments().Add().SetAsNumbers(asPath2).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
+	bgpNeti1Bgp6OverLapRoutes.Communities().Add().SetAsNumber(65100).SetAsCustom(200).
+		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	bgpNeti1Bgp6OverLapRoutes.Addresses().Add().
+		SetAddress(advV6Routes600k).SetPrefix(128).SetCount(routeCntV6600k).SetStep(1)
+
+	// BGP V4 routes from Port3 - 500k unique ipv4 prefixes.
+	// These prefixes represent internal subnets and are configured to advertise with
+	// same path attributes like AS-PATH and Community.
+	bgpNeti2Bgp4PeerRoutes := iDut3Bgp4Peer.V4Routes().Add().SetName(atePort3.Name + ".BGP4.Route")
+	bgpNeti2Bgp4PeerRoutes.SetNextHopIpv4Address(iDut3Ipv4.Address()).
+		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
+		Advanced().SetLocalPreference(port3LocPref).SetIncludeLocalPreference(true)
+	bgpNeti2AsPath := bgpNeti2Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti2AsPath.Segments().Add().SetAsNumbers(asPath).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
+	bgpNeti2Bgp4PeerRoutes.Communities().Add().SetAsNumber(65200).SetAsCustom(200).
+		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	bgpNeti2Bgp4PeerRoutes.Addresses().Add().
+		SetAddress(advV4Routes500kPort3).SetPrefix(32).SetCount(routeCntV4500k).SetStep(1)
+
+	// BGP V6 routes from Port3 - 200k unique ipv6 prefixes.
+	// These prefixes represent internal subnets and are configured to advertise with
+	// same path attributes like AS-PATH and Community.
+	bgpNeti2Bgp6PeerRoutes := iDut3Bgp6Peer.V6Routes().Add().SetName(atePort3.Name + ".BGP6.Route")
+	bgpNeti2Bgp6PeerRoutes.SetNextHopIpv6Address(iDut3Ipv6.Address()).
+		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).
+		Advanced().SetLocalPreference(port3LocPref).SetIncludeLocalPreference(true)
+	bgpNeti2V6AsPath := bgpNeti2Bgp6PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti2V6AsPath.Segments().Add().SetAsNumbers(asPath).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
+	bgpNeti2Bgp6PeerRoutes.Communities().Add().SetAsNumber(65200).SetAsCustom(200).
+		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	bgpNeti2Bgp6PeerRoutes.Addresses().Add().
+		SetAddress(advV6Routes200kPort3).SetPrefix(128).SetCount(routeCntV6200k).SetStep(1)
+
+	// Port 3 overlapping routes - 1M overlapping ipv4 prefixes.
+	// These 1M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.
+	// These prefixes should be common between the RR clients with different path-attributes
+	// for protocol next-hop, AS-Path and community.
+	bgpNeti2Bgp4OverLapRoutes := iDut3Bgp4Peer.V4Routes().Add().SetName(atePort3.Name + ".BGP4.Route.Overlap")
+	bgpNeti2Bgp4OverLapRoutes.SetNextHopIpv4Address(iDut3Ipv4.Address()).
+		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).
+		Advanced().SetLocalPreference(port3LocPref).SetIncludeLocalPreference(true)
+	bgpNeti2V4OLAsPath := bgpNeti2Bgp4OverLapRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti2V4OLAsPath.Segments().Add().SetAsNumbers(asPath3).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
+	bgpNeti2Bgp4OverLapRoutes.Communities().Add().SetAsNumber(65100).SetAsCustom(300).
+		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	bgpNeti2Bgp4OverLapRoutes.Addresses().Add().SetAddress(advV4Routes1M).SetPrefix(32).
+		SetCount(routeCntV41M).SetStep(1)
+
+	// Overlapping BGP v6 routers from Port3 - 600k overlapping ipv6 prefixes.
+	// These 1M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.
+	// These prefixes should be common between the RR clients with different path-attributes
+	// for protocol next-hop, AS-Path and community.
+	bgpNeti2Bgp6OverLapRoutes := iDut3Bgp6Peer.V6Routes().Add().SetName(atePort3.Name + ".BGP6.Route.Overlap")
+	bgpNeti2Bgp6OverLapRoutes.SetNextHopIpv6Address(iDut3Ipv6.Address()).
+		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).
+		Advanced().SetLocalPreference(port3LocPref).SetIncludeLocalPreference(true)
+	bgpNeti2V6OLAsPath := bgpNeti2Bgp6OverLapRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti2V6OLAsPath.Segments().Add().SetAsNumbers(asPath3).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
+	bgpNeti2Bgp6OverLapRoutes.Communities().Add().SetAsNumber(65100).SetAsCustom(300).
+		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	bgpNeti2Bgp6OverLapRoutes.Addresses().Add().SetAddress(advV6Routes600k).SetPrefix(128).
+		SetCount(routeCntV6600k).SetStep(1)
+
+	// BGP V4 routes from Port1 -  1M overlapping ipv4 prefixes.
+	// These 1M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.
+	// These prefixes should be common between the RR clients with different path-attributes
+	// for protocol next-hop, AS-Path and community.
+	bgpNeti3Bgp4PeerRoutes := iDut1Bgp4Peer.V4Routes().Add().SetName(atePort1.Name + ".BGP4.Route")
+	bgpNeti3Bgp4PeerRoutes.SetNextHopIpv4Address(iDut1Ipv4.Address()).
+		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+	bgpNeti3Bgp4PeerRoutes.Communities().Add().SetAsNumber(65010).SetAsCustom(100).
+		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	bgpNeti3Bgp4PeerRoutes.Addresses().Add().
+		SetAddress(advV4Routes1M).SetPrefix(32).SetCount(routeCntV41M).SetStep(1)
+
+	// BGP V6 routes from Port1 - 600k overlapping ipv6 prefixes.
+	// These 1M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.
+	// These prefixes should be common between the RR clients with different path-attributes
+	// for protocol next-hop, AS-Path and community.
+	bgpNeti3Bgp6PeerRoutes := iDut1Bgp6Peer.V6Routes().Add().SetName(atePort1.Name + ".BGP6.Route")
+	bgpNeti3Bgp6PeerRoutes.SetNextHopIpv6Address(iDut1Ipv6.Address()).
+		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+	bgpNeti3Bgp6PeerRoutes.Communities().Add().SetAsNumber(65010).SetAsCustom(100).
+		SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	bgpNeti3Bgp6PeerRoutes.Addresses().Add().
+		SetAddress(advV6Routes600k).SetPrefix(128).SetCount(routeCntV6600k).SetStep(1)
 
 	t.Logf("Pushing config to OTG and starting protocols...")
 	otg.PushConfig(t, config)
@@ -580,6 +626,29 @@ func verifyBGPRRCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func verifyEBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	t.Log("Verifying eBGP capabilities.")
+
+	nbr1v4 := &validateBgpNbr{localAddress: dutPort1.IPv4, nbrIP: atePort1.IPv4}
+	nbr1v6 := &validateBgpNbr{localAddress: dutPort1.IPv6, nbrIP: atePort1.IPv6}
+
+	nbrs := []*validateBgpNbr{nbr1v4, nbr1v6}
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+	for _, nbr := range nbrs {
+		nbrPath := statePath.Neighbor(nbr.nbrIP)
+		nbrLocalAddress := gnmi.Get(t, dut, nbrPath.Transport().LocalAddress().State())
+		if nbrLocalAddress != nbr.localAddress {
+			t.Errorf("Local address is not correct, got %v and want %v", nbrLocalAddress, nbr.localAddress)
+		}
+		nbrPeerType := gnmi.Get(t, dut, nbrPath.PeerType().State())
+		if nbrPeerType != oc.Bgp_PeerType_EXTERNAL {
+			t.Errorf("Local address is not correct, got %v and want %v", nbrLocalAddress, nbr.localAddress)
+		}
+	}
+}
+
 type validatePathAttribute struct {
 	nbr       string
 	prefix    string
@@ -595,13 +664,17 @@ func verifyBGPPathAttributes(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP route path attributes.")
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	// Path attributes for the prefixes learnt via iBGP RR clients.
+	pref1 := &validatePathAttribute{nbr: otgIsisPort2LoopV4, prefix: advV4Routes500kPort2, isV4: true, nexthop: atePort2.IPv4, locpref: port2LocPref, asPath: asPath, community: commAttr}
+	pref2 := &validatePathAttribute{nbr: otgIsisPort3LoopV4, prefix: advV4Routes500kPort3, isV4: true, nexthop: atePort3.IPv4, locpref: port3LocPref, asPath: asPath, community: commAttr}
+	pref3 := &validatePathAttribute{nbr: otgIsisPort2LoopV6, prefix: advV6Routes200kPort2, isV4: false, nexthop: atePort2.IPv6, locpref: port2LocPref, asPath: asPath, community: commAttr}
+	pref4 := &validatePathAttribute{nbr: otgIsisPort3LoopV6, prefix: advV6Routes200kPort3, isV4: false, nexthop: atePort3.IPv6, locpref: port3LocPref, asPath: asPath, community: commAttr}
 
-	pref1 := &validatePathAttribute{nbr: otgIsisPort2LoopV4, prefix: advV4Routes500kPort2, isV4: true, nexthop: atePort2.IPv4, locpref: port2LocPref, asPath: port2AsPath, community: port2CommAttr}
-	pref2 := &validatePathAttribute{nbr: otgIsisPort3LoopV4, prefix: advV4Routes500kPort3, isV4: true, nexthop: atePort3.IPv4, locpref: port3LocPref, asPath: port3AsPath, community: port3CommAttr}
-	pref3 := &validatePathAttribute{nbr: otgIsisPort2LoopV6, prefix: advV6Routes200kPort2, isV4: false, nexthop: atePort2.IPv6, locpref: port2LocPref, asPath: port2AsPath, community: port2CommAttr}
-	pref4 := &validatePathAttribute{nbr: otgIsisPort3LoopV6, prefix: advV6Routes200kPort3, isV4: false, nexthop: atePort3.IPv6, locpref: port3LocPref, asPath: port3AsPath, community: port3CommAttr}
+	// Path attributes for the prefxies learnt via eBGP peer.
+	pref5 := &validatePathAttribute{nbr: atePort1.IPv4, prefix: advV4Routes1M, isV4: true, nexthop: atePort1.IPv4, locpref: 0, asPath: []uint32{ateAS}, community: commAttrExt}
+	pref6 := &validatePathAttribute{nbr: atePort1.IPv6, prefix: advV6Routes600k, isV4: false, nexthop: atePort1.IPv6, locpref: 0, asPath: []uint32{ateAS}, community: commAttrExt}
 
-	prefList := []*validatePathAttribute{pref1, pref2, pref3, pref4}
+	prefList := []*validatePathAttribute{pref1, pref2, pref3, pref4, pref5, pref6}
 	rib := statePath.Rib()
 	var attIndex uint64
 
@@ -619,7 +692,7 @@ func verifyBGPPathAttributes(t *testing.T, dut *ondatra.DUTDevice) {
 		gotLocPref := gnmi.Get(t, dut, rib.AttrSet(attIndex).LocalPref().State())
 		gotNexthop := gnmi.Get(t, dut, rib.AttrSet(attIndex).NextHop().State())
 		gotAsPath := gnmi.Get(t, dut, rib.AttrSet(attIndex).AsSegmentMap().State())
-		// Below code will be un commented once ixia issue is fixed
+		// Below code will be un-commented once ixia issue is fixed.
 		// https://github.com/open-traffic-generator/fp-testbed-juniper/issues/33
 		/* gotCommAtt := gnmi.Get(t, dut, rib.Community(attIndex).State())
 		gotCommList := gotCommAtt.GetCommunity() */
@@ -636,7 +709,7 @@ func verifyBGPPathAttributes(t *testing.T, dut *ondatra.DUTDevice) {
 			}
 		}
 
-		// Below code will be un commented once ixia issue is fixed
+		// Below code will be un-commented once ixia issue is fixed.
 		// https://github.com/open-traffic-generator/fp-testbed-juniper/issues/33
 		/* for _, comm := range gotCommList {
 			if !cmp.Equal(comm, pref.community) {
@@ -646,39 +719,25 @@ func verifyBGPPathAttributes(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalled, wantRx, wantSent uint32) {
+func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalled, wantRx, wantSent uint32, isV4 bool) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	prefixesv4 := statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
+	var prefixPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_PrefixesPath
+	if isV4 {
+		prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
+	} else {
+		prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
+	}
+	if gotInstalled := gnmi.Get(t, dut, prefixPath.Installed().State()); gotInstalled != wantInstalled {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
 	}
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRx := gnmi.Get(t, dut, prefixesv4.ReceivedPrePolicy().State()); gotRx != wantRx {
+		if gotRx := gnmi.Get(t, dut, prefixPath.ReceivedPrePolicy().State()); gotRx != wantRx {
 			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
 		}
 	}
-	if gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State()); gotSent != wantSent {
+	if gotSent := gnmi.Get(t, dut, prefixPath.Sent().State()); gotSent != wantSent {
 		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
-	}
-	t.Logf("Prefix telemetry validation passed on DUT for peer %v", nbr)
-}
-
-func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalledv6, wantRxv6, wantSentv6 uint32) {
-	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	prefixesv6 := statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
-
-	if gotInstalledv6 := gnmi.Get(t, dut, prefixesv6.Installed().State()); gotInstalledv6 != wantInstalledv6 {
-		t.Errorf("IPV6 Installed prefixes mismatch: got %v, want %v", gotInstalledv6, wantInstalledv6)
-	}
-	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRxv6 := gnmi.Get(t, dut, prefixesv6.ReceivedPrePolicy().State()); gotRxv6 != wantRxv6 {
-			t.Errorf("IPV6 Received prefixes mismatch: got %v, want %v", gotRxv6, wantRxv6)
-		}
-	}
-	if gotSentv6 := gnmi.Get(t, dut, prefixesv6.Sent().State()); gotSentv6 != wantSentv6 {
-		t.Errorf("IPv6 Sent prefixes mismatch: got %v, want %v", gotSentv6, wantSentv6)
 	}
 	t.Logf("Prefix telemetry validation passed on DUT for peer %v", nbr)
 }
@@ -801,6 +860,11 @@ func TestBGPRouteReflectorCapabilities(t *testing.T) {
 	t.Run("Verify BGP Route Reflector capabilities", func(t *testing.T) {
 		verifyBGPRRCapabilities(t, dut)
 	})
+
+	t.Run("Verify eBGP peer capabilities", func(t *testing.T) {
+		verifyEBGPCapabilities(t, dut)
+	})
+
 	if !deviations.BGPRibOcPathUnsupported(dut) {
 		t.Run("Verify BGP route path attributes for iBGP RR routes", func(t *testing.T) {
 			verifyBGPPathAttributes(t, dut)
@@ -809,16 +873,16 @@ func TestBGPRouteReflectorCapabilities(t *testing.T) {
 
 	t.Run("Verify prefix telemetry on DUT for all iBGP and eBGP peers", func(t *testing.T) {
 		// Prefix telemetry validation for eBGP v4 Peer.
-		verifyPrefixesTelemetry(t, dut, atePort1.IPv4, routeCntV41M, routeCntV41M, (routeCntV4500k + routeCntV4500k))
+		verifyPrefixesTelemetry(t, dut, atePort1.IPv4, routeCntV41M, routeCntV41M, (routeCntV4500k + routeCntV4500k), v4Prefixes)
 		// Prefix telemetry validation for iBGP v4 Peer - Route reflector client #1.
-		verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, routeCntV4500k, (routeCntV4500k + routeCntV41M), (routeCntV4500k + routeCntV41M))
+		verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, routeCntV4500k, (routeCntV4500k + routeCntV41M), (routeCntV4500k + routeCntV41M), v4Prefixes)
 		// Prefix telemetry validation for iBGP v4 Peer - Route reflector client #2.
-		verifyPrefixesTelemetry(t, dut, otgIsisPort3LoopV4, routeCntV4500k, (routeCntV4500k + routeCntV41M), (routeCntV4500k + routeCntV41M))
+		verifyPrefixesTelemetry(t, dut, otgIsisPort3LoopV4, routeCntV4500k, (routeCntV4500k + routeCntV41M), (routeCntV4500k + routeCntV41M), v4Prefixes)
 		// Prefix telemetry validation for eBGP v6 Peer.
-		verifyPrefixesTelemetryV6(t, dut, atePort1.IPv6, routeCntV6600k, routeCntV6600k, (routeCntV6200k + routeCntV6200k))
+		verifyPrefixesTelemetry(t, dut, atePort1.IPv6, routeCntV6600k, routeCntV6600k, (routeCntV6200k + routeCntV6200k), !v4Prefixes)
 		// Prefix telemetry validation for iBGP v6 Peer - Route reflector client #1.
-		verifyPrefixesTelemetryV6(t, dut, otgIsisPort2LoopV6, routeCntV6200k, (routeCntV6200k + routeCntV6600k), (routeCntV6200k + routeCntV6600k))
+		verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, routeCntV6200k, (routeCntV6200k + routeCntV6600k), (routeCntV6200k + routeCntV6600k), !v4Prefixes)
 		// Prefix telemetry validation for iBGP v6 Peer - Route reflector client #2.
-		verifyPrefixesTelemetryV6(t, dut, otgIsisPort3LoopV6, routeCntV6200k, (routeCntV6200k + routeCntV6600k), (routeCntV6200k + routeCntV6600k))
+		verifyPrefixesTelemetry(t, dut, otgIsisPort3LoopV6, routeCntV6200k, (routeCntV6200k + routeCntV6600k), (routeCntV6200k + routeCntV6600k), !v4Prefixes)
 	})
 }

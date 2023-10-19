@@ -21,23 +21,22 @@
 *   Establish IS-IS adjacency between ATE Port2 <-> DUT Port2, ATE Port3 <-> DUT Port3.
 
 *   Establish BGP sessions as follows between ATE and DUT.
+
     *   ATE port 2 and ATE port3 are emulating RR clients peered with the DUT acting as the RR server.
     *   DUT's loopback address should be used for the IBGP peering and "transport/config/local-address"
         OC path should be used on DUT to configure BGP transport address for IBGP peering.
     *   ATE addresses used for the IBGP peering (different from ATE Port1 and ATE Port2 addreses) and
         DUT loopback addresses should be reachable via IS-IS.
-    *   Each of RR clients should advertise 500k unique ipv4 routes and 200k ipv6 routes.
-    *   RR clients and eBGP Peer should advertise 1M overlapping ipv4 routes and 600k ipv6 routes.
-    *   Similarly, 600k IPv6 prefixes will represent internet prefixes. These prefixes should be common
-        between the RR clients with different path-attributes for protocol next-hop, AS-Path and community. 
+    *   Each of RR clients should advertise 500k unique ipv4 routes and 200k ipv6 routes. These prefixes
+        represent internal subnets and should include some prefixes that are unique to each of the ATEs.
+        Remaining prefixes in the mix need to be common between the 2xATEs and should have identical path attributes except for the protocol next-hops.  
+    *   RR clients and eBGP Peer should advertise 1M overlapping ipv4 routes and 600k ipv6 routes. These
+        1M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.Similarly, 600k IPv6
+        prefixes will represent internet prefixes. These prefixes should be common between the RR clients
+        with different path-attributes for protocol next-hop, AS-Path and community. 
     *   The DUT Port1 has eBGP peering with ATE Port 1 and is receiving 1M IPv4 and 400k IPv6 routes.   
-        DUT should automatically determine the BGP transport source address based on the nearest interface. Hence, the OC path "transport/config/local-address" shouldnt be used.    
-    
-    /// ??????  Each of the IBGP peering should advertise 5M IPv4 and 2M IPv6 prefixes. Among these, 2M v4  and 1M v6 prefixes are unique. Among the 2M v4 prefixes as well, 1.5M are non RFC1918 or RFC6598 addresses and represent Internet prefixes.
-    
-    /// ??????  Balance 500k IPv4 and 400k IPv6 prefixes represent internal subnets and should include some prefixes that are unique to each of the ATEs. Remaining prefixes in the mix need to be common between the 2xATEs and should have identical path attributes except for the protocol next-hops.  
-
-  /// ??????? *   The DUT Port1 has eBGP peering with ATE Port 1 and is receiving 10M IPv4 and 3M IPv6 routes. hese simulate Internet routes. Out of these, only 1.5M v4 and 600k IPv6 prefixes are unique and will be programmed to the FIB.The DUT should automatically determine the BGP transport source address based on the nearest interface. Hence, the OC path "transport/config/local-address" shouldnt be used.
+        DUT should automatically determine the BGP transport source address based on the nearest interface.
+        Hence, the OC path "transport/config/local-address" shouldnt be used.    
 
 *   Validate session state on ATE ports and DUT using telemetry.
     *   The check should also include accurately receiving values for the path 
