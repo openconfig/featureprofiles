@@ -29,6 +29,9 @@ BGP policy configuration for AS Paths and Community Sets
       * `{ community-member = [ "10[0-9]:1" ], match-set-options=ANY }`
     * Create a community-set named `all_3_comms` with members and match options as follows
       * `{ community-member = [ "100:1", "200:2", "300:3" ], match-set-options=ALL }`
+    * Create a community-set named `no_3_comms` with members and match options as follows
+      * `{ community-member = [ "100:1", "200:2", "300:3" ], match-set-options=INVERT }`
+
   * Configure ATE to
     * Advertise 2 routes with communities `[100:1, 200:2, 300:3]`
     * Advertise 2 routes with communities `[100:1, 101:1, 200:1]`
