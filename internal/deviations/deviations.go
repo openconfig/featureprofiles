@@ -597,6 +597,12 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
 
+// GRIBISkipFIBFailedTrafficForwardingCheck returns true for devices that do not
+// support fib forwarding for fib failed routes.
+func GRIBISkipFIBFailedTrafficForwardingCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipFibFailedTrafficForwardingCheck()
+}
+
 // SkipTCPNegotiatedMSSCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
 func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
@@ -624,4 +630,15 @@ func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
 // QOSQueueRequiresID returns if device should configure QOS queue along with queue-id
 func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
+}
+
+// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
+}
+
+// BGPGlobalExtendedNextHopEncodingUnsupported returns true for devices that do not support configuring
+// BGP ExtendedNextHopEncoding at thee global level.
+func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
 }
