@@ -126,11 +126,12 @@ var (
 		IPv4Len: 32,
 		IPv6Len: 128,
 	}
-	asPath      = []uint32{65000, 65499, 65498}
-	commAttr    = []oc.UnionString{"65200:200"}
-	asPath2     = []uint32{65001, 65002, 65003}
-	asPath3     = []uint32{65004, 65005, 65006}
-	commAttrExt = []oc.UnionString{"65010:100"}
+	asPath           = []uint32{65000, 65499, 65498}
+	commAttr         = []oc.UnionString{"65200:200"}
+	asPath2          = []uint32{65001, 65002, 65003}
+	asPath3          = []uint32{65004, 65005, 65006}
+	commAttrExt      = []oc.UnionString{"65010:100"}
+	loopbackIntfName string
 )
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -145,10 +146,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i3 := dutPort3.NewOCInterface(dut.Port(t, "port3").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i3.GetName()).Config(), i3)
 
-	loopIntfName := netutil.LoopbackInterface(t, dut, 0)
-	loop1 := dutlo0Attrs.NewOCInterface(loopIntfName, dut)
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
+	loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
 	loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-	gnmi.Replace(t, dut, dc.Interface(loopIntfName).Config(), loop1)
+	gnmi.Replace(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
@@ -823,7 +824,7 @@ func TestBGPRouteReflectorCapabilities(t *testing.T) {
 	})
 
 	t.Run("Configure ISIS on DUT", func(t *testing.T) {
-		dutIsisIntfNames := []string{dut.Port(t, "port2").Name(), dut.Port(t, "port3").Name(), dutlo0Attrs.Name}
+		dutIsisIntfNames := []string{dut.Port(t, "port2").Name(), dut.Port(t, "port3").Name(), loopbackIntfName}
 		configureISIS(t, dut, dutIsisIntfNames, dutAreaAddress, dutSysID)
 	})
 
