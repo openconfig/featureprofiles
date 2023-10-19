@@ -69,7 +69,7 @@ const (
 	otgIsisPort2LoopV6   = "2001:db8::203:0:113:10"
 	otgIsisPort3LoopV4   = "203.0.113.20"
 	otgIsisPort3LoopV6   = "2001:db8::203:0:113:20"
-	clusterID            = "100.1.1.1"
+	clusterID            = "1122"
 	v4Prefixes           = true
 )
 
