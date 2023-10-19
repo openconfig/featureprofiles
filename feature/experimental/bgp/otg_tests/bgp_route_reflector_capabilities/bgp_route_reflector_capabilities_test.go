@@ -146,7 +146,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i3 := dutPort3.NewOCInterface(dut.Port(t, "port3").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i3.GetName()).Config(), i3)
 
-	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
+	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
 	loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
 	loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 	gnmi.Replace(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
@@ -811,6 +811,11 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string)
 }
 
 // TestBGPRouteReflectorCapabilities is to Validate BGP route reflector capabilities.
+// Also to ensure functionality of different OC paths for "supported-capabilities",
+// "BGP peer-type", "BGP Neighbor details" and "BGP transport session parameters".
+// It also validates that DUT advertises all the IBGP learnt routes to the EBGP peer,
+// EBGP learnt routes to the IBGP peers and advertise routes learnt from each of the RRC
+// to the other.
 func TestBGPRouteReflectorCapabilities(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
