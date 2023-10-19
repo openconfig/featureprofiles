@@ -84,13 +84,22 @@ type Options struct {
 	interfaces []string
 }
 
+// breakout struct parameters define the speed and number of physical channels
+type breakout struct {
+	breakoutSpeed       oc.E_IfEthernet_ETHERNET_SPEED
+	numPhysicalChannels *uint8
+}
+
 // showRunningConfig gets the running config from the router
 func showRunningConfig(t testing.TB, dut *ondatra.DUTDevice) string {
-	runningConfig, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show running-config")
-	if err != nil {
-		t.Fatalf("'show running-config' failed: %v", err)
+	if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
+		runningConfig, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show running-config")
+		if err != nil {
+			t.Fatalf("'show running-config' failed: %v", err)
+		}
+		return runningConfig
 	}
-	return runningConfig
+	return ""
 }
 
 // Implementation Note
@@ -121,9 +130,6 @@ func TestMain(m *testing.M) {
 
 func TestGetSet(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.SkipContainerOp(dut) {
-		*skipContainerOp = true
-	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
@@ -143,9 +149,6 @@ func TestGetSet(t *testing.T) {
 
 func TestDeleteInterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.SkipContainerOp(dut) {
-		*skipContainerOp = true
-	}
 	scope := defaultPushScope(dut)
 
 	p1 := dut.Port(t, "port1")
@@ -196,9 +199,6 @@ func TestDeleteInterface(t *testing.T) {
 
 func TestReuseIP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.SkipContainerOp(dut) {
-		*skipContainerOp = true
-	}
 
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
@@ -269,9 +269,6 @@ func TestReuseIP(t *testing.T) {
 
 func TestSwapIPs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.SkipContainerOp(dut) {
-		*skipContainerOp = true
-	}
 	scope := defaultPushScope(dut)
 
 	p1 := dut.Port(t, "port1")
@@ -312,9 +309,6 @@ func TestDeleteNonExistingVRF(t *testing.T) {
 	const vrf = "GREEN"
 
 	dut := ondatra.DUT(t, "dut")
-	if deviations.SkipContainerOp(dut) {
-		*skipContainerOp = true
-	}
 	scope := &pushScope{
 		interfaces:       nil,
 		networkInstances: []string{vrf},
@@ -330,9 +324,6 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 	const vrf = "BLUE"
 
 	dut := ondatra.DUT(t, "dut")
-	if deviations.SkipContainerOp(dut) {
-		*skipContainerOp = true
-	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
@@ -389,9 +380,6 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 
 func TestMoveInterface(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.SkipContainerOp(dut) {
-		*skipContainerOp = true
-	}
 	t.Run("DefaultToNonDefaultVRF", func(t *testing.T) {
 		testMoveInterfaceBetweenVRF(t, dut, deviations.DefaultNetworkInstance(dut), "BLUE")
 	})
@@ -816,49 +804,51 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 
 	// load the base oc config from the device state when no oc config is loaded
 	if !*baseOCConfigIsPresent {
-		intfsState := gnmi.GetAll(t, dev, gnmi.OC().InterfaceAny().State())
-		for _, intf := range intfsState {
-			ygot.PruneConfigFalse(oc.SchemaTree["Interface"], intf)
-			config.DeleteInterface(intf.GetName())
-			if intf.GetName() == "Loopback0" || intf.GetName() == "PTP0/RP1/CPU0/0" || intf.GetName() == "Null0" || intf.GetName() == "PTP0/RP0/CPU0/0" {
-				continue
-			}
-			intf.ForwardingViable = nil
-			intf.Mtu = nil
-			intf.HoldTime = nil
-			if intf.Subinterface != nil {
-				if intf.Subinterface[0].Ipv6 != nil {
-					intf.Subinterface[0].Ipv6.Autoconf = nil
+		if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
+			intfsState := gnmi.GetAll(t, dev, gnmi.OC().InterfaceAny().State())
+			for _, intf := range intfsState {
+				ygot.PruneConfigFalse(oc.SchemaTree["Interface"], intf)
+				config.DeleteInterface(intf.GetName())
+				if intf.GetName() == "Loopback0" || intf.GetName() == "PTP0/RP1/CPU0/0" || intf.GetName() == "Null0" || intf.GetName() == "PTP0/RP0/CPU0/0" {
+					continue
 				}
-			}
-			config.AppendInterface(intf)
-		}
-		vrfsStates := gnmi.GetAll(t, dev, gnmi.OC().NetworkInstanceAny().State())
-		for _, vrf := range vrfsStates {
-			// only needed for containerOp
-			if vrf.GetName() == "**iid" {
-				continue
-			}
-			if vrf.GetName() == "DEFAULT" {
-				config.NetworkInstance = nil
-				vrf.Interface = nil
-				for _, ni := range config.NetworkInstance {
-					ni.Mpls = nil
+				intf.ForwardingViable = nil
+				intf.Mtu = nil
+				intf.HoldTime = nil
+				if intf.Subinterface != nil {
+					if intf.Subinterface[0].Ipv6 != nil {
+						intf.Subinterface[0].Ipv6.Autoconf = nil
+					}
 				}
+				config.AppendInterface(intf)
 			}
-			ygot.PruneConfigFalse(oc.SchemaTree["NetworkInstance"], vrf)
-			vrf.Table = nil
-			vrf.RouteLimit = nil
-			vrf.Mpls = nil
-			for _, intf := range vrf.Interface {
-				intf.AssociatedAddressFamilies = nil
-			}
-			for _, protocol := range vrf.Protocol {
-				for _, routes := range protocol.Static {
-					routes.Description = nil
+			vrfsStates := gnmi.GetAll(t, dev, gnmi.OC().NetworkInstanceAny().State())
+			for _, vrf := range vrfsStates {
+				// only needed for containerOp
+				if vrf.GetName() == "**iid" {
+					continue
 				}
+				if vrf.GetName() == "DEFAULT" {
+					config.NetworkInstance = nil
+					vrf.Interface = nil
+					for _, ni := range config.NetworkInstance {
+						ni.Mpls = nil
+					}
+				}
+				ygot.PruneConfigFalse(oc.SchemaTree["NetworkInstance"], vrf)
+				vrf.Table = nil
+				vrf.RouteLimit = nil
+				vrf.Mpls = nil
+				for _, intf := range vrf.Interface {
+					intf.AssociatedAddressFamilies = nil
+				}
+				for _, protocol := range vrf.Protocol {
+					for _, routes := range protocol.Static {
+						routes.Description = nil
+					}
+				}
+				config.AppendNetworkInstance(vrf)
 			}
-			config.AppendNetworkInstance(vrf)
 		}
 	}
 
@@ -983,25 +973,9 @@ func (op rootOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root, _ *p
 	fptest.WriteQuery(t, "RootOp", gnmi.OC().Config(), config)
 	dut := ondatra.DUT(t, "dut")
 	if deviations.AddMissingBaseConfigViaCli(dut) {
-		running := showRunningConfig(t, dut)
-		//editing config while removing NI and interface since it will be part of another replace call
-		data := "hostname " + strings.Split(running, "hostname ")[1]
-		modifiedStr := strings.Replace(data, "\r\n", "\n", -1)
-		// remove interface config from the running configure
-		fileString := removeStatementsBetweenWords(modifiedStr, "interface ", "!", &Options{interfaces: []string{"HundredGigE", "FourHundredGigE", "TenGigE", "Bundle-Ether", "Loopback", "MgmtEth0", "FortyGigE", "PTP0/RP"}})
-		// remove router static config from the running config
-		fileString = removeStatementsBetweenWords(fileString, "router static ", "!")
-		// delete unwanted NI
-		fileString = removeStatementsBetweenWords(fileString, "vrf BLUE", "!")
-
-		cliPath, err := schemaless.NewConfig[string]("", "cli")
-		if err != nil {
-			t.Fatalf("Failed to create CLI ygnmi query: %v", err)
+		if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
+			addMissingConfigForRootReplace(t, dev, config)
 		}
-		batch := &gnmi.SetBatch{}
-		gnmi.BatchReplace(batch, cliPath, fileString)
-		gnmi.BatchReplace(batch, gnmi.OC().Config(), config)
-		batch.Set(t, dev)
 	} else {
 		gnmi.Replace(t, dev, gnmi.OC().Config(), config)
 	}
@@ -1022,6 +996,19 @@ func (op containerOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root,
 	fptest.WriteQuery(t, "ContainerOp", gnmi.OC().Config(), config)
 
 	batch := &gnmi.SetBatch{}
+	if deviations.AddMissingBaseConfigViaCli(ondatra.DUT(t, "dut")) {
+		if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
+			supContainerConfig := addMissingConfigForContainerReplace(t, dev)
+			for port, data := range supContainerConfig {
+				bmode := &oc.Component_Port_BreakoutMode{}
+				gp := bmode.GetOrCreateGroup(0)
+				gp.BreakoutSpeed = data.breakoutSpeed
+				gp.NumBreakouts = ygot.Uint8(*data.numPhysicalChannels + 1)
+				bmp := gnmi.OC().Component(port).Port().BreakoutMode()
+				gnmi.BatchReplace(batch, bmp.Config(), bmode)
+			}
+		}
+	}
 	gnmi.BatchReplace(batch, interfacesQuery, &Interfaces{Interface: config.Interface})
 	gnmi.BatchReplace(batch, networkInstancesQuery, &NetworkInstances{NetworkInstance: config.NetworkInstance})
 	batch.Set(t, dev)
@@ -1136,4 +1123,70 @@ func removeStatementsBetweenWords(inputStr, startWord, endWord string, opts ...*
 		}
 	}
 	return strings.Join(result, "\n")
+}
+
+func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) map[string]breakout {
+	intfsState := gnmi.GetAll(t, dev, gnmi.OC().InterfaceAny().State())
+	breakoutPortsMap := make(map[string]breakout) // which holds map of optic: {BreakoutSpeed:10, NumBreakouts:4}
+	port := make(map[string]uint8)
+	var trackspeed oc.E_IfEthernet_ETHERNET_SPEED
+
+	for _, intf := range intfsState {
+		if intf.HardwarePort == nil || intf.PhysicalChannel == nil {
+			continue
+		}
+		hwp := strings.Split(intf.GetHardwarePort(), "Port")[1]
+		name := strings.Split(intf.GetName(), "GigE")[1]
+		channel := strconv.Itoa(int(intf.GetPhysicalChannel()[0]))
+
+		if hwp+"/"+(channel) == name {
+			var speed oc.E_IfEthernet_ETHERNET_SPEED
+
+			_, keyExists := breakoutPortsMap[intf.GetHardwarePort()]
+			if !keyExists && speed == oc.IfEthernet_ETHERNET_SPEED_UNSET {
+				if intf.GetEthernet().PortSpeed.String() == "SPEED_100GB" {
+					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+				} else if intf.GetEthernet().PortSpeed.String() == "SPEED_10GB" {
+					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB
+				}
+			}
+
+			numChannels := make([]*uint8, len(intf.GetPhysicalChannel()))
+			truncated := uint8(intf.GetPhysicalChannel()[0])
+			numChannels[0] = &truncated
+
+			_, keyExists = port[intf.GetHardwarePort()]
+			if !keyExists {
+				breakoutPortsMap[intf.GetHardwarePort()] = breakout{numPhysicalChannels: numChannels[0], breakoutSpeed: trackspeed}
+				port[intf.GetHardwarePort()] = 0
+			}
+
+			if port[intf.GetHardwarePort()] < *numChannels[0] {
+				breakoutPortsMap[intf.GetHardwarePort()] = breakout{numPhysicalChannels: numChannels[0], breakoutSpeed: trackspeed}
+				port[intf.GetHardwarePort()] = *numChannels[0]
+			}
+		}
+	}
+	return breakoutPortsMap
+}
+
+func addMissingConfigForRootReplace(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root) {
+	batch := &gnmi.SetBatch{}
+	running := showRunningConfig(t, ondatra.DUT(t, "dut"))
+	//editing config while removing NI and interface since it will be part of another replace call
+	data := "hostname " + strings.Split(running, "hostname ")[1]
+	modifiedStr := strings.Replace(data, "\r\n", "\n", -1)
+	// remove interface config from the running configure
+	fileString := removeStatementsBetweenWords(modifiedStr, "interface ", "!", &Options{interfaces: []string{"HundredGigE", "FourHundredGigE", "TenGigE", "Bundle-Ether", "Loopback", "MgmtEth0", "FortyGigE", "PTP0/RP"}})
+	// remove router static config from the running config
+	fileString = removeStatementsBetweenWords(fileString, "router static ", "!")
+	// need to explicitly remove configured NI "BLUE" since it is still present in running config and will overwrite config parameter which doesn't set it
+	fileString = removeStatementsBetweenWords(fileString, "vrf BLUE", "!")
+	cliPath, err := schemaless.NewConfig[string]("", "cli")
+	if err != nil {
+		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
+	}
+	gnmi.BatchReplace(batch, cliPath, fileString)
+	gnmi.BatchReplace(batch, gnmi.OC().Config(), config)
+	batch.Set(t, dev)
 }
