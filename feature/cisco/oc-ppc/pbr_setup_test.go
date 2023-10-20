@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ha_test
+package oc_ppc_test
 
 import (
 	"testing"
@@ -67,11 +67,7 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
 }
 
-func configbasePBRInt(t *testing.T, dut *ondatra.DUTDevice, intf string, subif string, pbrName string) {
-	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Interface(intf + subif)
-	d := &oc.Root{}
-	data := d.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(intf + subif)
-	data.GetOrCreateInterfaceRef().Interface = ygot.String(intf)
-	data.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	gnmi.Replace(t, dut, pfpath.Config(), data)
+func configbasePBRInt(t *testing.T, dut *ondatra.DUTDevice, intf string, pbrName string) {
+	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
+	gnmi.Replace(t, dut, pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
 }

@@ -30,7 +30,7 @@ const (
 
 // configbasePBR, creates class map, policy and configures under source interface
 func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
-	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
+	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Interface("Bundle-Ether120.0")
 
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
@@ -56,8 +56,13 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 	p.AppendRule(&r)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
 
+	d := &oc.Root{}
+	data := d.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface("Bundle-Ether120.0")
+	data.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether120")
+	data.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	gnmi.Replace(t, dut, pfpath.Config(), data)
+
 	//configure PBR on ingress port
-	gnmi.Replace(t, dut, pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
 }
 
 // unconfigbasePBR, creates class map, policy and configures under source interface

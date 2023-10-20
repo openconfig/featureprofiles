@@ -118,8 +118,13 @@ for firex_id in firex_ids.split(','):
                 log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/ondatra_logs.xml")]
                 if len(log_files) == 0: 
                     continue
+                
+                try:
+                    tree = ET.parse(log_files[0])
+                except:
+                    print("Skipped " + t['name'] + " due to erroneous xml")
+                    continue
 
-                tree = ET.parse(log_files[0])
                 test_out_dir = os.path.join(out_dir, _get_test_pkg(tree))
                 test_log_file = os.path.join(test_out_dir, "test.xml")
 
