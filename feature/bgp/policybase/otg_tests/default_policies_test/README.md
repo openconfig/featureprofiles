@@ -3,11 +3,13 @@
 ## Summary
 
 Following expectation for default-policies at the peer-group and neighbor levels
-*   Default import and export policies are expected to be functional for both IBGP and EBGP peers when policy definition in the policy chain is not satisfied.
-*   For IBGP and EBGP peers, when no policy is attached, actions defined in the default-policy (when one exists) should apply.
+*   For eBGP peers, when no policy is attached all routes should be rejected for import and export per [RFC 8212](https://www.rfc-editor.org/rfc/rfc8212.html).
+    *.    TODO: OC clarification to confirm the eBGP behavior, https://github.com/openconfig/public/issues/981
+
+
 *   For IBGP peers when no policy is attached including the default-policy, default should be import and export all BGP routes.
-*   For EBGP peers when no policy is attached includign the default-policy, default should be to disallow import and export of all BGP routes.
-*   In all the above cases, BGP default-policy is applicable only to the BGP learnt routes or the routes that are redistributed in to BGP from other protocols. Import/Export of routes from other protocols should be governed by their respective policies and should not either be exported or imported based on the actions of the BGP default-policy.
+    *    TODO:  OC clarification on iBGP behavior, https://github.com/openconfig/public/issues/981
+
   
 ## Topology
 ```mermaid
