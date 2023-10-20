@@ -3,12 +3,12 @@
 ## Summary
 
 Following expectation for default-policies at the peer-group and neighbor levels
-*   For eBGP peers, when no policy is attached all routes should be rejected for import and export per [RFC 8212](https://www.rfc-editor.org/rfc/rfc8212.html).
-    *.    TODO: OC clarification to confirm the eBGP behavior, https://github.com/openconfig/public/issues/981
+* For eBGP peers, when no policy is attached all routes should be rejected for import and export per [RFC 8212](https://www.rfc-editor.org/rfc/rfc8212.html).
+    * TODO: OC clarification to confirm the eBGP behavior, https://github.com/openconfig/public/issues/981
 
 
-*   For IBGP peers when no policy is attached including the default-policy, default should be import and export all BGP routes.
-    *    TODO:  OC clarification on iBGP behavior, https://github.com/openconfig/public/issues/981
+* For IBGP peers when no policy is attached including the default-policy, default should be import and export all BGP routes.
+    * TODO:  OC clarification on iBGP behavior, https://github.com/openconfig/public/issues/981
 
   
 ## Topology
