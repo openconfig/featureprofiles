@@ -8,4 +8,3 @@ steps:
         staticcheck ./...
 options:
   machineType: 'e2-highcpu-32'
-
