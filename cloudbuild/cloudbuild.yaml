@@ -7,6 +7,6 @@ steps:
         apt-get update
         apt-get install -y libpcap-dev
         go install honnef.co/go/tools/cmd/staticcheck@latest
-        staticcheck ./...
+        GOGC=30 staticcheck ./...
 options:
   machineType: 'E2_HIGHCPU_32'
