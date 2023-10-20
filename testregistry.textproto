@@ -853,3 +853,22 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/traceroute_test/README.md"
   exec: " "
 }
+test: {
+  id: "TRANSCEIVER-1"
+  description: "400ZR Electrical Signal to Noise Ratio(eSNR) and Chromatic Dispersion(CD) telemetry values streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_esnr_and_cd_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-2"
+  description: "400ZR Optics Pre-FEC(Forward Error Correction) BER(Bit Error Rate)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/ZR_pre-fec_ber_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-3"
+  description: "400ZR Optics firmware version streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_firmware_version_test/README.md"
+  exec: " "
+}
+
