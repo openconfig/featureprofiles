@@ -582,7 +582,24 @@ func configureATEBundles(
 	// note that it seems max in otg containers is 9000 so bundle tests > 1500 bytes will fail,
 	// for whatever reason individual ports work just fine > 1500 bytes though! also, physical gear
 	// seems to work just fine as well, so we'll set this to the max we can for kne tests.
-	otgConfig.Layer1().Add().SetName("layerOne").SetPortNames(portNames).SetMtu(9000)
+	layer1 := otgConfig.Layer1().Add().
+		SetName("layerOne").
+		SetPortNames(portNames).
+		SetMtu(9000)
+
+	// set the l1 speed for the otg config based on speed setting in testbed, fallthrough case is
+	// do nothing which defaults to 10g
+	switch allAtePorts[0].Speed() {
+	case ondatra.Speed1Gb:
+		layer1.SetSpeed(gosnappi.Layer1Speed.SPEED_1_GBPS)
+	case ondatra.Speed10Gb:
+		layer1.SetSpeed(gosnappi.Layer1Speed.SPEED_10_GBPS)
+	case ondatra.Speed100Gb:
+		layer1.SetSpeed(gosnappi.Layer1Speed.SPEED_100_GBPS)
+	case ondatra.Speed400Gb:
+		layer1.SetSpeed(gosnappi.Layer1Speed.SPEED_400_GBPS)
+	default:
+	}
 
 	return otgConfig
 }
