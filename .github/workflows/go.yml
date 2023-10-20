@@ -100,7 +100,3 @@ jobs:
       run: go install github.com/mgechev/revive@latest
     - name: Run revive
       run: revive ./...
-    - name: Get staticcheck
-      run: go install honnef.co/go/tools/cmd/staticcheck@latest
-    - name: Run staticcheck
-      run: GOGC=30 staticcheck ./...

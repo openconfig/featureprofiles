@@ -1,0 +1,10 @@
+steps:
+  - name: golang:1.21
+    entrypoint: /bin/bash
+    args: 
+      - -c
+      - |
+        go install github.com/mgechev/revive@latest
+        staticcheck ./...
+options:
+  machineType: 'e2-highcpu-32'
