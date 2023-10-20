@@ -103,4 +103,10 @@ jobs:
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
-      run: GOGC=30 staticcheck ./...
+      run: |
+        # staticcheck requires a lot of free disk space in /tmp.  Free up worker
+        # space by removing unnecessary tooling.
+        rm -rf /usr/share/dotnet
+        rm -rf /usr/local/lib/android
+        rm -rf /opt/hostedtoolcache
+        GOGC=30 staticcheck ./...
