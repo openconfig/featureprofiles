@@ -39,7 +39,17 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
 * RT-7.2 : Policy definition in policy chain is not satisfied and Default Policy has ACCEPT_ROUTE action  
   * Continue with the same configuration as RT-7.1
   * Replace the default-policy REJECT-ALL with default-policy ACCEPT-ALL which has action ACCEPT_ROUTE.
-  * Ensure ACCEPT-ALL policy is applied to both IPv4-unicast and IPv6-unicast AFI-SAFI
+  * Ensure ACCEPT-ALL default-policy is applied to both IPv4-unicast and IPv6-unicast AFI-SAFI
+  * Following test expectations. If expectations not met, the test should fail.
+    * DUT:Port1 should accept import of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
+    * DUT:Port1 should allow export of IPv4-prefix4, IPv4-prefix5, IPv4-prefix6, IPv6-prefix4, IPv6-prefix5 and IPv6-prefix6
+    * DUT:Port2 should accept import of IPv4-prefix4, IPv4-prefix5, IPv4-prefix6, IPv6-prefix4, IPv6-prefix5 and IPv6-prefix6
+    * DUT:Port2 should allow export of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
+    * Ensure that DUT:Port1 is not exporting non BGP routes to ATE:PORT1
+      
+* RT-7.3 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has ACCEPT_ROUTE action
+  * Continue with the same configuration as RT-7.2. However, do not attach any non-default import/export policies to the peers at either the peer-group or neighbor levels.
+  * Ensure that the ACCEPT-ALL default-policy with default action of ACCEPT_ROUTE is appled to both IPv4-unicast and IPv6-unicast AFI-SAFI
   * Following test expectations. If expectations not met, the test should fail.
     * DUT:Port1 should accept import of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
     * DUT:Port1 should allow export of IPv4-prefix4, IPv4-prefix5, IPv4-prefix6, IPv6-prefix4, IPv6-prefix5 and IPv6-prefix6
