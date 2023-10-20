@@ -1,9 +1,10 @@
 steps:
-  - name: golang:1.21
+  - name: golang:1.21-bookworm
     entrypoint: /bin/bash
     args: 
       - -c
       - |
+        apt-get install -y libpcap-dev
         go install honnef.co/go/tools/cmd/staticcheck@latest
         staticcheck ./...
 options:
