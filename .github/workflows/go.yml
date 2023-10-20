@@ -73,8 +73,8 @@ jobs:
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
-#    - name: Go vet
-#      run: GOGC=30 go vet ./...
+    - name: Go vet
+      run: GOGC=30 go vet ./...
     - name: Gofmt
       run: |
         # gofmt always returns true, so we use grep '^' which returns
