@@ -169,22 +169,22 @@ var (
 		IPv6:    "2000::100:128:1:2",
 		IPv6Len: ipv6PrefixLen,
 	}
-	dutPort2Vlan10 = attrs.Attributes{
-		Desc:    "dutPort2Vlan10",
-		IPv4:    "100.128.10.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:128:10:1",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
-	atePort2Vlan10 = attrs.Attributes{
-		Name:    "atePort2Vlan10",
-		IPv4:    "100.128.10.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:128:10:2",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
+	// dutPort2Vlan10 = attrs.Attributes{
+	// 	Desc:    "dutPort2Vlan10",
+	// 	IPv4:    "100.128.10.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:128:10:1",
+	// 	IPv6Len: ipv6PrefixLen,
+	// 	MTU:     vlanMTU,
+	// }
+	// atePort2Vlan10 = attrs.Attributes{
+	// 	Name:    "atePort2Vlan10",
+	// 	IPv4:    "100.128.10.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:128:10:2",
+	// 	IPv6Len: ipv6PrefixLen,
+	// 	MTU:     vlanMTU,
+	// }
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
