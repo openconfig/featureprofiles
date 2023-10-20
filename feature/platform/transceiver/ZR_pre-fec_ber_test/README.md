@@ -1,4 +1,4 @@
-# gNMI-1.20: Telemetry: 400ZR Optics Pre-FEC(Forward Error Correction) BER(Bit Error Rate)
+# gNMI-1.21: Telemetry: 400ZR Optics Pre-FEC(Forward Error Correction) BER(Bit Error Rate)
 
 ## Summary
 
