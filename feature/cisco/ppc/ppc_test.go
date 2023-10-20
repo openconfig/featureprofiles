@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -39,12 +38,12 @@ const (
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx     context.Context
-	client  *gribi.Client
-	dut     *ondatra.DUTDevice
-	ate     *ondatra.ATEDevice
-	top     *ondatra.ATETopology
-	events  *monitor.CachedConsumer
+	ctx    context.Context
+	client *gribi.Client
+	dut    *ondatra.DUTDevice
+	ate    *ondatra.ATEDevice
+	top    *ondatra.ATETopology
+	// events  *monitor.CachedConsumer
 	ATELock sync.Mutex
 }
 
@@ -358,4 +357,13 @@ func TestOC_PPC(t *testing.T) {
 	t.Run("Test fabrc subsystem", func(t *testing.T) {
 		args.testOC_PPC_fabric_subsystem(t)
 	})
+
+	//how to do traffic check
+
+	te_flow := args.allFlows(t)
+	flows := append(te_flow)
+	outgoing_interface := make(map[string][]string)
+	outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+	args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+
 }
