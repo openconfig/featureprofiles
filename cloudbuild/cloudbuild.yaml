@@ -4,7 +4,7 @@ steps:
     args: 
       - -c
       - |
-        go install github.com/mgechev/revive@latest
+        go install honnef.co/go/tools/cmd/staticcheck@latest
         staticcheck ./...
 options:
   machineType: 'E2_HIGHCPU_32'
