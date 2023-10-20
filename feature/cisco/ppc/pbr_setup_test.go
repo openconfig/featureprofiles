@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oc_ppc_test
+package ppc_test
 
 import (
 	"testing"
