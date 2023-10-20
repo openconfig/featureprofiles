@@ -361,10 +361,8 @@ func TestOC_PPC(t *testing.T) {
 	//how to do traffic check
 
 	te_flow := args.allFlows(t)
-	flows := []*ondatra.Flow{}
-	flows = append(te_flow)
 	outgoing_interface := make(map[string][]string)
 	outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-	args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+	args.validateTrafficFlows(t, te_flow, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 
 }
