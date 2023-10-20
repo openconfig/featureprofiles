@@ -4,9 +4,10 @@
 
 Following expectation for default-policies at the peer-group and neighbor levels
 *   Default import and export policies are expected to be functional for both IBGP and EBGP peers when policy definition in the policy chain is not satisfied.
-*   For IBGP peers, when no policy is attached, actions defined in the default-policy (when one exists) should apply.
-*   For EBGP peers, when no policy is attached, actions defined in the default-policy (when one exists) should apply.
-
+*   For IBGP and EBGP peers, when no policy is attached, actions defined in the default-policy (when one exists) should apply.
+*   For IBGP peers when no policy is attached and a default-polciy doesnot exist, default should be import and export all BGP routes. No other protocol routes should be advertised unless redistributed.
+*   For EBGP peers when no policy is attached and a default-polciy doesnot exist, default should be disallow import and export all BGP routes.
+  
 ## Topology
 ```mermaid
 graph LR; 
