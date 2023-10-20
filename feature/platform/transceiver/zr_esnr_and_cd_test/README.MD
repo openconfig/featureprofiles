@@ -79,7 +79,7 @@ to fiber measured in ps/nm
 
 ## Config Parameter coverage
 
-*   /components/component/oc-transceiver:transceiver/oc-transceiver/config/enabled
+*   /components/component/transceiver/config/enabled
 
 ## Telemetry Parameter coverage
 
