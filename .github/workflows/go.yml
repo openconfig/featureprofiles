@@ -108,5 +108,5 @@ jobs:
         # space by removing unnecessary tooling.
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/hostedtoolcache
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
         GOGC=30 staticcheck ./...
