@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oc_ppc_test
+package ppc_test
 
 import (
 	"context"
@@ -20,26 +20,30 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
+	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"golang.org/x/exp/slices"
 )
 
 // constant variables
 const (
-	vrf1 = "TE"
+	vrf1    = "TE"
 	traffic = true
 )
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx     context.Context
-	client  *gribi.Client
-	dut     *ondatra.DUTDevice
-	ate     *ondatra.ATEDevice
-	top     *ondatra.ATETopology
-	events  *monitor.CachedConsumer
+	ctx    context.Context
+	client *gribi.Client
+	dut    *ondatra.DUTDevice
+	ate    *ondatra.ATEDevice
+	top    *ondatra.ATETopology
+	// events  *monitor.CachedConsumer
 	ATELock sync.Mutex
 }
 
@@ -47,7 +51,16 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func (a *testArgs) testOC_PPC_interface_subsystem(t *testing.T){
+func sortedInterfaces(ports []*ondatra.Port) []string {
+	var interfaces []string
+	for _, port := range ports {
+		interfaces = append(interfaces, port.Name())
+	}
+	slices.Sort(interfaces)
+	return interfaces
+}
+
+func (a *testArgs) testOC_PPC_interface_subsystem(t *testing.T) {
 	interfaces := sortedInterfaces(a.dut.Ports())
 	t.Logf("Interfaces: %s", interfaces)
 	for _, intf := range interfaces {
@@ -117,9 +130,9 @@ func (a *testArgs) testOC_PPC_interface_subsystem(t *testing.T){
 			}
 		})
 	}
-} 
+}
 
-func (a *testArgs)testOC_PPC_queuing_subsystem(t *testing.T){
+func (a *testArgs) testOC_PPC_queuing_subsystem(t *testing.T) {
 	type testCase struct {
 		desc     string
 		path     string
@@ -164,9 +177,9 @@ func (a *testArgs)testOC_PPC_queuing_subsystem(t *testing.T){
 			}
 		})
 	}
-} 
+}
 
-func (a *testArgs) testOC_PPC_lookup_subsystem(t *testing.T){
+func (a *testArgs) testOC_PPC_lookup_subsystem(t *testing.T) {
 	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().State()
 	asicDrops := gnmi.LookupAll(t, a.dut, query)
 	if len(asicDrops) == 0 {
@@ -248,13 +261,13 @@ func (a *testArgs) testOC_PPC_lookup_subsystem(t *testing.T){
 			}
 		})
 	}
-} 
+}
 
-func (a *testArgs) testOC_PPC_host_subsystem(t *testing.T){
+func (a *testArgs) testOC_PPC_host_subsystem(t *testing.T) {
 	t.Skip("skipping host subsystem")
-}	
+}
 
-func (a *testArgs) testOC_PPC_fabric_subsystem(t *testing.T){
+func (a *testArgs) testOC_PPC_fabric_subsystem(t *testing.T) {
 	t.Logf("INFO: Check no fabric drop")
 	if deviations.FabricDropCounterUnsupported(a.dut) {
 		t.Skipf("INFO: Skipping test due to deviation fabric_drop_counter_unsupported")
@@ -273,7 +286,6 @@ func (a *testArgs) testOC_PPC_fabric_subsystem(t *testing.T){
 			t.Logf("INFO: Fabric drops: %d", drop)
 		}
 	}
-}
 }
 
 func TestOC_PPC(t *testing.T) {
@@ -307,12 +319,12 @@ func TestOC_PPC(t *testing.T) {
 
 	//Creating gribi client for run across 1 subsystem
 	clientA := gribi.Client{
-		DUT:         ondatra.DUT(t, "dut"),
-		FIBACK:      true,
-		Persistence: true,
+		DUT:                   dut,
+		FibACK:                true,
+		Persistence:           true,
 		InitialElectionIDLow:  1,
 		InitialElectionIDHigh: 0,
-	}}
+	}
 	defer clientA.Close(t)
 	if err := clientA.Start(t); err != nil {
 		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
@@ -323,12 +335,11 @@ func TestOC_PPC(t *testing.T) {
 	clientA.BecomeLeader(t)
 
 	args := &testArgs{
-		ctx:        ctx,
-		clientA:    &clientA,
-		dut:        dut,
-		ate:        ate,
-		top:        top,
-		},
+		ctx:    ctx,
+		client: &clientA,
+		dut:    dut,
+		ate:    ate,
+		top:    top,
 	}
 
 	t.Run("Test interface subsystem", func(t *testing.T) {
@@ -346,4 +357,12 @@ func TestOC_PPC(t *testing.T) {
 	t.Run("Test fabrc subsystem", func(t *testing.T) {
 		args.testOC_PPC_fabric_subsystem(t)
 	})
+
+	//how to do traffic check
+
+	te_flow := args.allFlows(t)
+	outgoing_interface := make(map[string][]string)
+	outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+	args.validateTrafficFlows(t, te_flow, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+
 }
