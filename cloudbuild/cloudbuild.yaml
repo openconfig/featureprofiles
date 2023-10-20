@@ -7,4 +7,4 @@ steps:
         go install github.com/mgechev/revive@latest
         staticcheck ./...
 options:
-  machineType: 'e2-highcpu-32'
+  machineType: 'E2_HIGHCPU_32'
