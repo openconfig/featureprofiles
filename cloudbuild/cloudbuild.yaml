@@ -4,6 +4,7 @@ steps:
     args: 
       - -c
       - |
+        apt-get update
         apt-get install -y libpcap-dev
         go install honnef.co/go/tools/cmd/staticcheck@latest
         staticcheck ./...
