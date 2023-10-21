@@ -4,7 +4,6 @@ package config
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"testing"
 	"time"
@@ -28,7 +27,7 @@ func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeRel
 		t.Logf("The configuration %s \n is loaded correctly before reloading router %s", beforeReloadConfig, dut.Name())
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
 		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
 		ctx = tmpCtx
@@ -55,50 +54,19 @@ func Reload(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, beforeRel
 // TextWithSSH applies the cli confguration via ssh on the device
 func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, timeout time.Duration) string {
 	t.Helper()
+
 	sshClient := dut.RawAPIs().CLI(t)
-	defer sshClient.Close()
-	cliOut := sshClient.Stdout()
-	cliIn := sshClient.Stdin()
-	if _, err := cliIn.Write([]byte(cfg)); err != nil {
+	tctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	response, err := sshClient.SendCommand(tctx, cfg)
+	if err != nil {
 		t.Fatalf("Failed to write using ssh: %v", err)
 	}
-	buf := make([]byte, 32768) // RFC 4253 max payload size for ssh
-	ch := make(chan bool)
-	response := ""
-	go func() {
-		for {
-			n, err := cliOut.Read(buf)
-			if err != nil {
-				if err == io.EOF {
-					response = fmt.Sprintf("%s%s", response, string(buf[:n]))
-					if checkCLIConfigIsApplied(response) {
-						ch <- true
-						break
-					}
-				}
-				ch <- false
-				break
-			} else {
-				response = fmt.Sprintf("%s%s", response, string(buf[:n]))
-				if checkCLIConfigIsApplied(response) {
-					ch <- true
-					break
-				}
-			}
-			time.Sleep(1 * time.Second)
-		}
-	}()
-	select {
-	case resp := <-ch:
-		log.V(1).Infof("ssh reply: %s", response)
-		if resp {
-			return response
-		}
+	if !checkCLIConfigIsApplied(response) {
 		t.Fatalf("Response message for ssh is not as expected %s", response)
-	case <-time.After(timeout):
-		// t.Fatalf("Did not recieve the expected response (timeout)")
 	}
-	return ""
+	return response
 }
 
 func checkCLIConfigIsApplied(output string) bool {
@@ -114,7 +82,7 @@ func checkCLIConfigIsApplied(output string) bool {
 
 // CMDViaGNMI push cli command to cisco router using GNMI, (have not tested well)
 func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
-	gnmiC := dut.RawAPIs().GNMI().New(t)
+	gnmiC := dut.RawAPIs().GNMI(t)
 	getRequest := &gnmi.GetRequest{
 		Prefix: &gnmi.Path{
 			Origin: "cli",
@@ -146,7 +114,7 @@ func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd s
 // TextWithGNMI applies the cfg  (cisco text config)  on the device using gnmi update.
 func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gnmi.SetResponse {
 	t.Helper()
-	gnmiC := dut.RawAPIs().GNMI().New(t)
+	gnmiC := dut.RawAPIs().GNMI(t)
 	textReplaceReq := &gnmi.Update{
 		Path: &gnmi.Path{Origin: "cli"},
 		Val: &gnmi.TypedValue{
@@ -174,7 +142,7 @@ func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg
 // GNMICommitReplace replace the router config with the cfg  (cisco text config)  on the device using gnmi replace.
 func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gnmi.SetResponse {
 	t.Helper()
-	gnmiC := dut.RawAPIs().GNMI().New(t)
+	gnmiC := dut.RawAPIs().GNMI(t)
 	textReplaceReq := &gnmi.Update{
 		Path: &gnmi.Path{Origin: "cli"},
 		Val: &gnmi.TypedValue{
@@ -202,7 +170,7 @@ func GNMICommitReplace(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 // GNMICommitReplaceWithOC apply the oc config and text config on the device. The result expected to be the merge of both configuations
 func GNMICommitReplaceWithOC(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string, pathStruct ygnmi.PathStruct, ocVal interface{}) *gnmi.SetResponse {
 	t.Helper()
-	gnmiC := dut.RawAPIs().GNMI().New(t)
+	gnmiC := dut.RawAPIs().GNMI(t)
 	textReplaceReq := &gnmi.Update{
 		Path: &gnmi.Path{Origin: "cli"},
 		Val: &gnmi.TypedValue{
@@ -350,7 +318,7 @@ func (batch *BatchSetRequest) Append(ctx context.Context, t *testing.T, pathStru
 // Send sends the batchset request  using GNMI. The batch request is mix of cli update replace  and oc replace, oc update, and oc delete.
 func (batch *BatchSetRequest) Send(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetResponse {
 	t.Helper()
-	gnmiC := dut.RawAPIs().GNMI().New(t)
+	gnmiC := dut.RawAPIs().GNMI(t)
 	log.V(1).Infof("BatchSet Request: \n %s", prettySetRequest(batch.req))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
 		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*180)
@@ -411,47 +379,12 @@ func CLIViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd st
 		cmd = cmd + " \n"
 	}
 	sshClient := dut.RawAPIs().CLI(t)
-	defer sshClient.Close()
-	cliOut := sshClient.Stdout()
-	cliIn := sshClient.Stdin()
-	if _, err := cliIn.Write([]byte(cmd)); err != nil {
+	tctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	response, err := sshClient.SendCommand(tctx, cmd)
+	if err != nil {
 		t.Fatalf("Failed to write using ssh: %v", err)
 	}
-	buf := make([]byte, 32768) // According to RFC 4253, max payload size for ssh is 32768
-	ch := make(chan bool)
-	response := ""
-	go func() {
-		for {
-			n, err := cliOut.Read(buf)
-			if err != nil {
-				if err == io.EOF {
-					response = fmt.Sprintf("%s%s", response, string(buf[:n]))
-					if strings.HasSuffix(response, "#") {
-						ch <- true
-						break
-					}
-				}
-				ch <- false
-				break
-			} else {
-				response = fmt.Sprintf("%s%s", response, string(buf[:n]))
-				if strings.HasSuffix(response, "#") {
-					ch <- true
-					break
-				}
-			}
-			time.Sleep(1 * time.Second)
-		}
-	}()
-	select {
-	case resp := <-ch:
-		log.V(1).Infof("ssh command reply: %s", response)
-		if resp {
-			return response
-		}
-		t.Fatalf("Response message for ssh is not as expected %s", response)
-	case <-time.After(timeout):
-		t.Fatalf("Did not recieve the expected response (timeout)")
-	}
-	return ""
+	return response
 }

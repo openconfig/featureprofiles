@@ -2280,7 +2280,7 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 		defer args.interfaceaction(t, intf, true)
 	}
 
-	gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := args.dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 	lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
 	rebootSubComponentRequest := &gnps.RebootRequest{
@@ -2561,7 +2561,6 @@ func TestBackUp(t *testing.T) {
 	// Configure the DUT
 	configureDUT(t, dut)
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	defer unconfigbasePBR(t, dut)
 	// configure route-policy
 	configRP(t, dut)
 	// configure ISIS on DUT

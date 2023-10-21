@@ -206,8 +206,9 @@ testbeds:
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/topo.yaml
     baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/basefp.conf 
 
-#OTG
+# OTG
   8201-32FH-FLM254306M8_OTG:
+    hw: 8201-32FH-FLM254306M8_OTG
     owner: mananpat
     testbed: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.testbed
     binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.binding

@@ -371,7 +371,7 @@ func GetYcovClient(t *testing.T) (ycov.YangCoverageClient, error) {
 		//TODO: open a pull with ondatra to expose raw grpc connection and change this code to use that instead of unsafe pointer
 		//TODO: add support for multi dut case, the code only returns for the first dut
 		dut := ondatra.DUT(t, dutId)
-		gnoiConn := dut.RawAPIs().GNOI().New(t)
+		gnoiConn := dut.RawAPIs().GNOI(t)
 		gc := reflect.ValueOf(gnoiConn)
 		gconn := reflect.New(gc.Type()).Elem()
 		gconn.Set(gc)

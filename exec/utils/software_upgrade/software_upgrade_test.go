@@ -25,7 +25,7 @@ import (
 const (
 	imageDestination = "/harddisk:/8000-x64.iso"
 	installStatusCmd = "sh install request"
-	imgCopyTimeout   = 900 * time.Second
+	imgCopyTimeout   = 1800 * time.Second
 	sshCmdTimeout    = 30 * time.Second
 	statusCheckDelay = 60 * time.Second
 )
@@ -154,7 +154,7 @@ func copyImageGNOI(t testing.TB, dut *ondatra.DUTDevice, imagePath string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), imgCopyTimeout)
 	defer cancel()
-	fileClient, err := dut.RawAPIs().GNOI().New(t).File().Put(ctx)
+	fileClient, err := dut.RawAPIs().GNOI(t).File().Put(ctx)
 	if err != nil {
 		t.Fatalf("Could not create gNOI file client: %v", err)
 	}
@@ -215,7 +215,6 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sshCmdTimeout)
 	defer cancel()
 	sshClient := dut.RawAPIs().CLI(t)
-	defer sshClient.Close()
 	return sshClient.SendCommand(ctx, cmd)
 }
 

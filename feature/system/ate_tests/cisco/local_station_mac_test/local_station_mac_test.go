@@ -335,7 +335,7 @@ func modifyStationMac(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice,
 		}
 
 	}
-	_, err := dut.RawAPIs().GNMI().Default(t).Set(ctx, r)
+	_, err := dut.RawAPIs().GNMI(t).Set(ctx, r)
 	if err != nil {
 		t.Error("There is error when applying the config: ", err)
 
@@ -356,7 +356,7 @@ func getStationMacConfig(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 		Encoding: gnmipb.Encoding_JSON_IETF,
 	}
 
-	res, err := dut.RawAPIs().GNMI().Default(t).Get(ctx, r)
+	res, err := dut.RawAPIs().GNMI(t).Get(ctx, r)
 	if testType == "Delete Station Local Mac" {
 		if err == nil {
 			t.Fatal("Expected an error when getting configuration: ", err)

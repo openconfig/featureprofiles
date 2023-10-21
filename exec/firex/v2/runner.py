@@ -236,6 +236,31 @@ def _get_testsuite_from_xml(file_name):
     except:
         return None
 
+def _extract_env_var_from_arg(arg):
+    m = re.findall('\$[0-9a-zA-Z_]+', arg)
+    if len(m) > 0: return m[0]
+    return None
+
+def _update_arg_val_from_env(arg, extra_env_vars):
+    env_var_name = _extract_env_var_from_arg(arg)
+    if not env_var_name: return arg
+    actual_env_var_name = env_var_name[1:] # remove leading $
+    
+    if actual_env_var_name in extra_env_vars:
+        val = extra_env_vars[actual_env_var_name]
+    else:
+        val = os.getenv(actual_env_var_name)
+
+    if val: arg = arg.replace(env_var_name, val)
+    return arg
+
+def _update_test_args_from_env(test_args, extra_env_vars={}):
+    new_args = []
+    for arg in test_args.split(' '):
+        arg = _update_arg_val_from_env(arg, extra_env_vars)
+        new_args.append(arg)
+    return ' '.join(new_args)
+        
 def _check_json_output(cmd):
     return json.loads(check_output(cmd))
 
@@ -279,7 +304,7 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         return False
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
-@returns('internal_fp_repo_dir', 'reserved_testbed', 
+@returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, 
                         lineup, efr, test_name,
@@ -291,7 +316,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         force_install=False,
                         force_reboot=False,
                         smus=None):
-
+    
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
 
@@ -346,7 +371,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     result = self.enqueue_child_and_get_results(c)
-    return (internal_fp_repo_dir, result.get("reserved_testbed"),
+    return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
             result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
             result.get("slurm_jobid", None), result.get("topo_path", None), result.get("testbed", None))
 
@@ -374,6 +399,7 @@ def decommission_testbed_after_tests():
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
+                        internal_fp_repo_url,
                         internal_fp_repo_dir,
                         reserved_testbed,
                         test_name,
@@ -391,19 +417,15 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         test_html_report=False,
                         release_ixia_ports=True,
                         collect_debug_files=True,
+                        override_test_args_from_env=True,
                         testbed=None,
                         **kwargs):
-
+    
     test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
 
     test_repo_url = PUBLIC_FP_REPO_URL
     if internal_test:
-        test_repo_url = INTERNAL_FP_REPO_URL
-
-#     use_patched_repo = test_branch == 'main' and not test_revision and not test_pr
-#     if use_patched_repo:
-#         test_repo_url = INTERNAL_FP_REPO_URL
-#         test_branch = 'firex/run'
+        test_repo_url = internal_fp_repo_url
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
@@ -417,6 +439,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     test_debug=test_debug,
                     test_verbose=test_verbose,
                     collect_debug_files=collect_debug_files,
+                    override_test_args_from_env=override_test_args_from_env,
                     **kwargs)
 
     chain |= CloneRepo.s(repo_url=test_repo_url,
@@ -465,10 +488,15 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
-        test_debug=False, test_verbose=False, testbed_info_path=None, test_ignore_aborted=False,
-        test_skip=False, test_fail_skipped=False, test_show_skipped=False):
+        override_test_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
+        test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False):
 
     logger.print('Running Go test...')
+    logger.print('----- env start ----')
+    for name, value in os.environ.items():
+        logger.print("{0}: {1}".format(name, value))
+    logger.print('----- env end ----')
+    
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
@@ -484,9 +512,17 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     if os.path.exists(reserved_testbed['testbed_info_file']):
         shutil.copyfile(reserved_testbed['testbed_info_file'],
             os.path.join(test_log_directory_path, "testbed_info.txt"))
-    
+        
     go_args = ''
     test_args = test_args or ''
+
+    if override_test_args_from_env:
+        extra_args_env_vars = {}
+        if 'mtls_cert_file' in reserved_testbed:
+            extra_args_env_vars["MTLS_CERT_FILE"] = reserved_testbed['mtls_cert_file']
+        if 'mtls_key_file' in reserved_testbed:
+            extra_args_env_vars["MTLS_KEY_FILE"] = reserved_testbed['mtls_key_file']      
+        test_args = _update_test_args_from_env(test_args, extra_args_env_vars)
 
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
@@ -713,6 +749,9 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ondatra_binding_path}")
 
+        reserved_testbed['mtls_key_file'] = key_file
+        reserved_testbed['mtls_cert_file'] = cert_file
+
     reserved_testbed['testbed_file'] = ondatra_testbed_path
     reserved_testbed['testbed_info_file'] = testbed_info_path
     reserved_testbed['pyats_testbed_file'] = pyats_testbed
@@ -739,7 +778,7 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     return reserved_testbed
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
+@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*90*60, time_limit=1*90*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, images, image_url=None, force_install=False):
     logger.print("Performing Software Upgrade...")
@@ -893,7 +932,7 @@ def ReleaseIxiaPorts(self, ws, binding_file):
         logger.warning(f'Failed to release ixia ports. Ignoring...')
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=3)
+@app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def BringupIxiaController(self, reserved_testbed):
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
@@ -901,7 +940,7 @@ def BringupIxiaController(self, reserved_testbed):
     remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=3)
+@app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def TeardownIxiaController(self, reserved_testbed):
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
