@@ -405,6 +405,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-7"
+  description: "BGP default policies"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/default_policies_test/README.md"
+  exec: " "
+}
+test: {
   id: "TE-1.1"
   description: "Static ARP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/staticarp/otg_tests/static_arp_test/README.md"
