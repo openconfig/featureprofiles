@@ -17,6 +17,41 @@ nodes: {
             }
         }
     }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services: {
+        key: 443
+        value: {
+            name: "ssl"
+            inside: 443
+        }
+    }
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 9339
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 9340
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 9559
+        }
+    }
 }
 nodes: {
     name: "dut2"
@@ -34,6 +69,41 @@ nodes: {
                 key_name: "gnmiCertKey.pem"
                 key_size: 4096
             }
+        }
+    }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services: {
+        key: 443
+        value: {
+            name: "ssl"
+            inside: 443
+        }
+    }
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 9339
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 9340
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 9559
         }
     }
 }
