@@ -193,6 +193,7 @@ func testQoSOutputIntfConfig(t *testing.T, q *oc.Qos) {
 
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
+	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
 	if deviations.QOSQueueRequiresID(dut) {
 		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
 		for i, queue := range queueNames {
