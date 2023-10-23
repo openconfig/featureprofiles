@@ -23,3 +23,11 @@ platform_exceptions: {
     qos_buffer_allocation_config_required: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    state_path_unsupported: true
+  }
+}
