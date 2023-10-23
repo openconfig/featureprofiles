@@ -592,7 +592,13 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
 
-// SkipTCPNegotiatedMssCheck returns true for devices that do not
+// GRIBISkipFIBFailedTrafficForwardingCheck returns true for devices that do not
+// support fib forwarding for fib failed routes.
+func GRIBISkipFIBFailedTrafficForwardingCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipFibFailedTrafficForwardingCheck()
+}
+
+// SkipTCPNegotiatedMSSCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
 func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTcpNegotiatedMssCheck()
@@ -608,4 +614,31 @@ func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
 // Default value is false.
 func InterfaceLoopbackModeRawGnmi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceLoopbackModeRawGnmi()
+}
+
+// ISISLspMetadataLeafsUnsupported returns true for devices that don't support ISIS-Lsp
+// metadata paths: checksum, sequence-number, remaining-lifetime.
+func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspMetadataLeafsUnsupported()
+}
+
+// QOSQueueRequiresID returns if device should configure QOS queue along with queue-id
+func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
+}
+
+// BgpLlgrOcUndefined returns true if device should does not support OC path to disable BGP LLGR.
+func BgpLlgrOcUndefined(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpLlgrOcUndefined()
+}
+
+// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
+}
+
+// BGPGlobalExtendedNextHopEncodingUnsupported returns true for devices that do not support configuring
+// BGP ExtendedNextHopEncoding at thee global level.
+func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
 }

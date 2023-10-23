@@ -112,7 +112,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutOcRoot *oc.Root, aggI
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG) {
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 	iDut1Dev := config.Devices().Add().SetName(atePort1Attr.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1Attr.Name + ".Eth").SetMac(atePort1Attr.MAC)
