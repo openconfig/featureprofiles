@@ -346,7 +346,10 @@ message Metadata {
     // Devices do not support configuring ExtendedNextHopEncoding at the BGP global level.
     // Arista: https://partnerissuetracker.corp.google.com/issues/203683090
     bool bgp_global_extended_next_hop_encoding_unsupported = 115;
-
+    // OC unsupported for BGP LLGR disable.
+    // Juniper: b/303479602
+    bool bgp_llgr_oc_undefined = 116;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
   }
