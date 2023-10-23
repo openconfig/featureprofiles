@@ -195,7 +195,7 @@ func TestWeightedBalancing(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the DUT
 	configureDUT(t, dut)
