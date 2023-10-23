@@ -1274,7 +1274,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
 
-	t.Run("Disable LLGR on dut.", func(t *testing.T) {
+	if deviations.BgpLlgrOcUndefined(dut) {
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		config := disableLLGRConf(dut, dutAS)
 		t.Logf("Push the CLI config:%s", dut.Vendor())
@@ -1282,7 +1282,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 		}
-	})
+	}
 
 	d := &oc.Root{}
 	ifName := dut.Port(t, "port2").Name()
