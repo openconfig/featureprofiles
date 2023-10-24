@@ -63,12 +63,12 @@ tests:
     skip: true
   - name: gNMI-1.10 (Telemetry Basic Check)
     path: feature/gnmi/otg_tests/telemetry_basic_check_test
+    args:
       - '-arg_qos_baseconfig_present="false"'
       - '-arg_lacp_baseconfig_present="false"'
     owners:
       - agvarghe
     mustpass: true
-    pr: 1816
     priority: 34
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
@@ -260,6 +260,11 @@ tests:
     path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
     owners:
       - agvarghe
+    mustpass: true
+  - name: RT-5.6 (Interface Loopback Aggregate)
+    path: feature/experimental/interface/interface_loopback_aggregate/otg_tests/interface_loopback_aggregate
+    owners:
+      - mananpat
     mustpass: true
   - name: RT-6.1 (Core LLDP TLV Population)
     path: feature/lldp/otg_tests/core_lldp_tlv_population_test
