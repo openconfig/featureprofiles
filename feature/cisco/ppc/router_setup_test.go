@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oc_ppc_test
+package ppc_test
 
 import (
 	"fmt"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
@@ -170,22 +169,22 @@ var (
 		IPv6:    "2000::100:128:1:2",
 		IPv6Len: ipv6PrefixLen,
 	}
-	dutPort2Vlan10 = attrs.Attributes{
-		Desc:    "dutPort2Vlan10",
-		IPv4:    "100.128.10.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:128:10:1",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
-	atePort2Vlan10 = attrs.Attributes{
-		Name:    "atePort2Vlan10",
-		IPv4:    "100.128.10.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:128:10:2",
-		IPv6Len: ipv6PrefixLen,
-		MTU:     vlanMTU,
-	}
+	// dutPort2Vlan10 = attrs.Attributes{
+	// 	Desc:    "dutPort2Vlan10",
+	// 	IPv4:    "100.128.10.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:128:10:1",
+	// 	IPv6Len: ipv6PrefixLen,
+	// 	MTU:     vlanMTU,
+	// }
+	// atePort2Vlan10 = attrs.Attributes{
+	// 	Name:    "atePort2Vlan10",
+	// 	IPv4:    "100.128.10.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:128:10:2",
+	// 	IPv6Len: ipv6PrefixLen,
+	// 	MTU:     vlanMTU,
+	// }
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
@@ -203,23 +202,6 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	s6a.PrefixLength = ygot.Uint8(ipv6PrefixLen)
 
 	return i
-}
-
-// interfaceaction shuts/unshuts provided interface
-func (a *testArgs) interfaceaction(t *testing.T, action bool, port []string) {
-	ateP := a.ate.Port(t, port)
-	for _, port := range port {
-		dutP := a.dut.Port(t, port)
-		if action {
-			a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(true).Operate(t)
-			gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
-			a.dut.oc().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, oc.Interface_OperStatus_UP)
-		} else {
-			a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(false).Operate(t)
-			gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
-			a.dut.oc().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, oc.Interface_OperStatus_DOWN)
-		}
-	}
 }
 
 // configureDUT configures port1, port2 and port3 on the DUT.

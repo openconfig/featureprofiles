@@ -448,7 +448,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     repo_pr=test_pr,
                     target_dir=test_repo_dir)
 
-    chain |= GoTidy.s(repo=test_repo_dir)
+    #chain |= GoTidy.s(repo=test_repo_dir)
 
     if test_debug:
         chain |= InstallGoDelve.s()
