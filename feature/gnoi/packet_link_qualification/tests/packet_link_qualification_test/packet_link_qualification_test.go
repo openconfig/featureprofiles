@@ -23,8 +23,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
@@ -159,7 +159,7 @@ func TestListDelete(t *testing.T) {
 	gnoiClient1 := dut1.RawAPIs().GNOI(t)
 	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 
-	clients := []binding.GNOIClients{gnoiClient1, gnoiClient2}
+	clients := []gnoigo.Clients{gnoiClient1, gnoiClient2}
 	for i, client := range clients {
 		t.Logf("Check client: %d", i+1)
 		listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
@@ -337,7 +337,7 @@ func TestLinkQualification(t *testing.T) {
 		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
 		time.Sleep(sleepTime)
 		testDone := true
-		for i, client := range []binding.GNOIClients{gnoiClient1, gnoiClient2} {
+		for i, client := range []gnoigo.Clients{gnoiClient1, gnoiClient2} {
 			t.Logf("Check client: %d", i+1)
 
 			listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
@@ -367,7 +367,7 @@ func TestLinkQualification(t *testing.T) {
 
 	var generatorPktsSent, generatorPktsRxed, reflectorPktsSent, reflectorPktsRxed uint64
 
-	for i, client := range []binding.GNOIClients{gnoiClient1, gnoiClient2} {
+	for i, client := range []gnoigo.Clients{gnoiClient1, gnoiClient2} {
 		t.Logf("Check client: %d", i+1)
 		getResp, err := client.LinkQualification().Get(context.Background(), getRequest)
 		t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
