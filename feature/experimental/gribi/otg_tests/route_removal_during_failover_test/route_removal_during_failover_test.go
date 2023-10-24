@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gnoigo/system"
 	gpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
@@ -40,11 +41,11 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
 	fpb "github.com/openconfig/gnoi/file"
-	spb "github.com/openconfig/gnoi/system"
 )
 
 func TestMain(m *testing.M) {
@@ -585,13 +586,6 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	switchoverReady(t, dut, primaryBeforeSwitch)
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
-	var gnoiClient binding.GNOIClients = dut.RawAPIs().GNOI(t)
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-
 	entriesBefore := checkNIHasNEntries(ctx, client, deviations.DefaultNetworkInstance(dut), t)
 
 	// Concurrently run switchover and gribi route flush.
@@ -608,11 +602,8 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	}("gRIBi Flush")
 
 	go func(msg string) {
-		switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-		if err != nil {
-			t.Logf("Failed to perform control processor switchover with unexpected err: %v", err)
-		}
-		t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+		switchoverResponse := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondaryBeforeSwitch, deviations.GNOISubcomponentPath(dut))))
+		t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v", switchoverResponse)
 	}("Master Switchover")
 
 	// Check the response of gribi flush call. If-else loop for further verification
@@ -680,7 +671,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	// Check for coredumps in the DUT and validate that none are present post failover.
 	// Reconnect gnoi connection after switchover.
-	gnoiClient, err = dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
 	if err != nil {
 		t.Fatalf("Error dialing gNOI: %v", err)
 	}
