@@ -1020,7 +1020,7 @@ func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 	// Removing policy for the tc
 	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config())
-	defer gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
+	defer gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), "Transit")
 
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
