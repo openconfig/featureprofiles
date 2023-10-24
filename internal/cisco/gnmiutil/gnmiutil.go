@@ -666,6 +666,9 @@ func extractRequestOpts(customData map[string]interface{}) (*requestOpts, error)
 // this is an abstraction for test conciseness, based on ygot.EmitJSON function
 func EmitJSONFromGoStruct(t *testing.T, gostruct ygot.GoStruct) string {
 	t.Helper()
+	if gostruct == nil || util.IsValueNil(gostruct) {
+		return ""
+	}
 	json, err := ygot.EmitJSON(gostruct, &ygot.EmitJSONConfig{
 		Format: ygot.RFC7951,
 		Indent: "  ",
