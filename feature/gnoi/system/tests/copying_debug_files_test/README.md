@@ -13,9 +13,9 @@
 
 * gNOI-5.3.2 - Configuration daemon kill process and Health check
    * Execute gNMI subscribe ON_CHANGE to the config process in the background
-   * While subscribe is waiting for updates, Kill the process that manages device configuration using the gNOI.KillProcessRequest_SIGNAL_ABRT operation. This will terminate the process and will also dump a Core file, while maintaing the process in a down state.
-   *  Read the subscribe updates and verify if the leaf **/components/component[process that handles configuration of the DUT]/healthz/state/status** transitioned to **UNHEALTHY**. Any other state should fail the test.
-   * Since the software module has a status of UNHEALTHY, issue healthZ.Get() to collect more details on the event. Also, use HealthZ.Artifact() to collect artifacts like core dump, logs etc. The test should fail if any of these RPCs fail.
+   * While subscribe is waiting for updates, Kill the process that manages device configuration using the gNOI.KillProcessRequest_SIGNAL_ABRT operation and restart flag set to true. This will terminate the process and will also dump a Core file.
+   *  Read the subscribe updates and verify if the leaf **/components/component[process that handles configuration of the DUT]/healthz/state/status** transitioned to **UNHEALTHY**. If not, then fail the test.
+   * Since the software module had a status of UNHEALTHY, issue healthZ.Get() to collect more details on the event. Also, use HealthZ.Artifact() to collect artifacts like core dump, logs etc. The test should fail if any of these RPCs fail.
    * Push test configuration to the router using gNMI.Set() RPC with "replace operation" and reverify the status of the leaf /components/component[process that handles configuration of the DUT]/healthz/state/status/.
    * Ensure that the configuration push is successful and artifacts can be collected. If yes, mark the test as success.
   
