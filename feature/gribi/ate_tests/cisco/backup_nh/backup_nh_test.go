@@ -2561,7 +2561,6 @@ func TestBackUp(t *testing.T) {
 	// Configure the DUT
 	configureDUT(t, dut)
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	defer unconfigbasePBR(t, dut)
 	// configure route-policy
 	configRP(t, dut)
 	// configure ISIS on DUT
