@@ -260,7 +260,7 @@ replace: {
 "interface Bundle-Ether1.1\n"
 "!\n"
 "interface Bundle-Ether120\n"
-" service-policy type pbr input Transit"
+" service-policy type pbr input Transit\n"
 " ipv4 address 100.120.1.1 255.255.255.0\n"
 " mac-address 1.2.0\n"
 "!\n"
