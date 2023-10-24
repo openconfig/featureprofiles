@@ -441,8 +441,6 @@ func generateRandomIpList(cidr string, count uint32) []string {
 	for net := range netsCh {
 		gotNets = append(gotNets, strings.ReplaceAll(net, "/32", ""))
 	}
-	// Seed the random number generator with the current time
-	rand.Seed(time.Now().UnixNano())
 
 	// Make a copy of the input slice to avoid modifying the original
 	randomized := make([]string, len(gotNets))

@@ -349,7 +349,13 @@ message Metadata {
     // OC unsupported for BGP LLGR disable.
     // Juniper: b/303479602
     bool bgp_llgr_oc_undefined = 116;
-    
+    // Device does not support tunnel interfaces state paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_state_path_unsupported = 117;
+    // Device does not support tunnel interfaces source and destination address config paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_config_path_unsupported = 118;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
   }
