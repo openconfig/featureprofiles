@@ -2,6 +2,7 @@ package sampling_test
 
 import (
 	"fmt"
+	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
 	"testing"
 	"time"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -20,7 +20,14 @@ func TestMain(m *testing.M) {
 func TestEnabledAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Sampling = setupSampling(t, dut)
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
+	if json != "" {
+		t.Logf("Default config values for this path: %v", json)
+	}
+
+	var baseConfig = setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
 	for _, input := range testEnabledInput {
@@ -53,8 +60,10 @@ func TestEnabledAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/enabled fail: got %v", qs)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
+					if *configGot.Enabled != *defaultConfigGot.Enabled {
+						t.Errorf("Delete for container /sampling/sflow/config failed")
+						t.Logf("Enabled leaf does not have default value post Delete. Got:%v, Want:%v", *configGot.Enabled, *defaultConfigGot.Enabled)
 					}
 				}
 			})
@@ -64,6 +73,14 @@ func TestEnabledAtContainer(t *testing.T) {
 
 func TestEnabledAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
+	if json != "" {
+		t.Logf("Default config values for this path: %v", json)
+	}
+
 	baseConfig := setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
@@ -92,14 +109,6 @@ func TestEnabledAtLeaf(t *testing.T) {
 					}
 				})
 			}
-			t.Run("Delete leaf", func(t *testing.T) {
-				gnmi.Delete(t, dut, config.Config())
-				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/enabled fail: got %v", qs)
-					}
-				}
-			})
 		})
 	}
 }
@@ -107,13 +116,20 @@ func TestEnabledAtLeaf(t *testing.T) {
 func TestSampleSizeAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Sampling = setupSampling(t, dut)
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
+	if json != "" {
+		t.Logf("Default config values for this path: %v", json)
+	}
+
+	var baseConfig = setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
 	for _, input := range testSampleSizeInput {
 		t.Run(fmt.Sprintf("Testing /sampling/sflow/config/sample-size using value %v", input), func(t *testing.T) {
 			baseConfigSflow := baseConfig.Sflow
-			*baseConfigSflow.SampleSize = input
+			*baseConfigSflow.SampleSize = 256
 
 			config := gnmi.OC().Sampling().Sflow()
 			state := gnmi.OC().Sampling().Sflow()
@@ -140,16 +156,27 @@ func TestSampleSizeAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/sample-size fail: got %v", qs.IsPresent())
+					configGot := gnmi.GetConfig(t, dut, config.Config())
+					if *configGot.SampleSize != *defaultConfigGot.SampleSize {
+						t.Errorf("Delete for container /sampling/sflow/config failed")
+						t.Logf("sample-size leaf does not have default value post Delete. Got:%v, Want:%v", *configGot.SampleSize, *defaultConfigGot.SampleSize)
 					}
 				}
 			})
 		})
 	}
 }
+
 func TestSampleSizeAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
+	if json != "" {
+		t.Logf("Default config values for this path: %v", json)
+	}
+
 	baseConfig := setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
@@ -181,8 +208,11 @@ func TestSampleSizeAtLeaf(t *testing.T) {
 			t.Run("Delete leaf", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/sample-size fail: got %v", qs)
+					configGot := gnmi.GetConfig(t, dut, config.Config())
+					// Compare the retrieved configuration with the default sample size
+					if configGot != *defaultConfigGot.SampleSize {
+						t.Errorf("Delete for path /sampling/sflow/config failed")
+						t.Logf("SampleSize is not at default value post Delete. Got:%v, Want:%v", configGot, *defaultConfigGot.SampleSize)
 					}
 				}
 			})
