@@ -15,7 +15,6 @@
 package p4rt_daemon_failure_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -26,10 +25,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
+	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
@@ -281,18 +282,8 @@ func TestP4RTDaemonFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := dut.RawAPIs().GNOI(t)
-	req := &syspb.KillProcessRequest{
-		Name:    p4rtD,
-		Pid:     uint32(pID),
-		Signal:  syspb.KillProcessRequest_SIGNAL_TERM,
-		Restart: true,
-	}
-	resp, err := c.System().KillProcess(context.Background(), req)
+	resp := gnoi.Execute(t, dut, system.NewKillProcessOperation().Name(p4rtD).PID(uint32(pID)).Signal(syspb.KillProcessRequest_SIGNAL_TERM).Restart(true))
 	t.Logf("Got kill process response: %v", resp)
-	if err != nil {
-		t.Fatalf("Failed to execute gNOI.KillProcess, error received: %v", err)
-	}
 
 	// let traffic keep running for another 10 seconds.
 	time.Sleep(10 * time.Second)
