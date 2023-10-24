@@ -101,9 +101,6 @@ message Metadata {
     // Skip BGP TestPassword mismatch subtest if value is true.
     // Cisco: partnerissuetracker.corp.google.com/273285907
     bool skip_bgp_test_password_mismatch = 19;
-    // Device does not support interface/physicalchannel leaf.
-    // Cisco: partnerissuetracker.corp.google.com/273287821
-    bool missing_interface_physical_channel = 20;
     // Skip check for
     // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
     // leaf missing case.
@@ -357,7 +354,7 @@ message Metadata {
     bool tunnel_config_path_unsupported = 118;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 90;
+    reserved 84, 9, 28, 20, 90;
   }
 
   message PlatformExceptions {
