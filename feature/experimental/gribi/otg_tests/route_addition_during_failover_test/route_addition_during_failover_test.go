@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -39,11 +40,11 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
 	fpb "github.com/openconfig/gnoi/file"
-	spb "github.com/openconfig/gnoi/system"
 	aftspb "github.com/openconfig/gribi/v1/proto/service"
 )
 
@@ -625,17 +626,11 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	awaitSwitchoverReady(t, dut, primaryBeforeSwitch)
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-
 	// Concurrently run switchover and gribi route addition in ipBlock2.
 	virtualIPsBlock2 := createIPv4Entries(t, ipBlock2FlowArgs.ipBlock)
 
 	// Check for coredumps in the DUT and validate that none are present on DUT before switchover.
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	coreFileCheck(t, dut, gnoiClient, sysConfigTime, false)
 
 	wg := new(sync.WaitGroup)
@@ -649,11 +644,8 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-		if err != nil {
-			t.Logf("Failed to perform control processor switchover with unexpected err: %v", err)
-		}
-		t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+		switchoverResponse := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondaryBeforeSwitch, deviations.GNOISubcomponentPath(dut))))
+		t.Logf("swtichover process response: %v", switchoverResponse)
 	}()
 	wg.Wait()
 	t.Log("Concurrent switchover and route addition is completed, validate switchoverStatus now.")
