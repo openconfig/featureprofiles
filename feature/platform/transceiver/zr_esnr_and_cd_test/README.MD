@@ -1,6 +1,4 @@
-
 # TRANSCEIVER-1: Telemetry: 400ZR Electrical Signal to Noise Ratio(eSNR) and Chromatic Dispersion(CD) telemetry values streaming
-
 
 ## Summary
 
