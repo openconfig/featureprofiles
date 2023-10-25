@@ -278,12 +278,10 @@ func subscribeOnChangeInterfaceID(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Wa
 	return watchID
 }
 
-func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Watcher[string] {
+func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) *gnmi.Watcher[string] {
 	t.Helper()
 
-	p1 := dut.Port(t, "port1")
-
-	interfaceNamePath := gnmi.OC().Interface(p1.Name()).Name().State()
+	interfaceNamePath := gnmi.OC().Interface(p.Name()).Name().State()
 	t.Logf("TRY: subscribe ON_CHANGE to %s", interfaceNamePath)
 
 	watchName := gnmi.Watch(t,
@@ -292,7 +290,7 @@ func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.
 		time.Minute,
 		func(val *ygnmi.Value[string]) bool {
 			iname, present := val.Val()
-			return present && iname == dutPort1.Name
+			return present && iname == p.Name()
 		})
 
 	return watchName
@@ -300,6 +298,10 @@ func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.
 
 func TestP4RTDaemonFailure(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	if dut.Vendor() == ondatra.CISCO {
+		t.Skipf("DUT uses same process for P4RT and gNMI")
+	}
 
 	p4rtD, ok := p4rtDaemons[dut.Vendor()]
 	if !ok {
@@ -310,9 +312,10 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	configureDUT(t, dut)
 
 	// Verify subscribe ON_CHANGE is supported using a commonly supported OC path.
-	watchName, ok := subscribeOnChangeInterfaceName(t, dut).Await(t)
+	p1 := dut.Port(t, "port1")
+	watchName, ok := subscribeOnChangeInterfaceName(t, dut, p1).Await(t)
 	if !ok {
-		t.Fatalf("FAIL:  /interfaces/interface[name=%q]/state/name got:%v want:%q", dutPort1.Name, watchName, dutPort1.Name)
+		t.Fatalf("FAIL:  /interfaces/interface[name=%q]/state/name got:%v want:%q", p1.Name(), watchName, p1.Name())
 	}
 
 	// Subscribe ON_CHANGE to '/interfaces/interface/state/id'.
