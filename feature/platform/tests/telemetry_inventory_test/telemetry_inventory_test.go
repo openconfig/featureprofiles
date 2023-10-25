@@ -17,6 +17,7 @@ package telemetry_inventory_test
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
@@ -187,7 +188,7 @@ func TestHardwareCards(t *testing.T) {
 				rrValidation:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
-				pType:                 componentType["Linecard"],
+				pType:                 oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 			},
 		}, {
 			desc: "PowerSupply",
@@ -285,6 +286,12 @@ func TestHardwareCards(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.desc == "Storage" && deviations.StorageComponentUnsupported(dut) {
 				t.Skipf("Telemetry path /components/component/storage is not supported.")
+			} else if tc.desc == "Fabric" && *args.NumLinecards <= 0 {
+				t.Skip("Skip Fabric Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Linecard" && *args.NumLinecards <= 0 {
+				t.Skip("Skip Linecard Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Supervisor" && *args.NumControllerCards <= 0 {
+				t.Skip("Skip Supervisor Telemetry check for fixed form factor devices.")
 			}
 			cards := components[tc.desc]
 			t.Logf("%s components count: %d", tc.desc, len(cards))
@@ -343,6 +350,9 @@ func isCompNameExpected(t *testing.T, name, regexpPattern string) bool {
 }
 
 func TestSwitchChip(t *testing.T) {
+	if *args.NumControllerCards <= 0 {
+		t.Skip("Skip SwitchChip Telemetry check for fixed form factor devices.")
+	}
 	dut := ondatra.DUT(t, "dut")
 
 	cardFields := properties{
@@ -488,6 +498,41 @@ func TestTempSensor(t *testing.T) {
 	}
 }
 
+func TestControllerCardEmpty(t *testing.T) {
+	if *args.NumControllerCards <= 0 {
+		t.Skip("Skip ControllerCardEmpty Telemetry check for fixed form factor devices.")
+	}
+
+	dut := ondatra.DUT(t, "dut")
+	controllerCards := findComponentsListByType(t, dut)["Supervisor"]
+	if len(controllerCards) == 0 {
+		t.Fatalf("Get ControllerCard list for %q: got 0, want > 0", dut.Model())
+	}
+
+	t.Logf("ControllerCard components count: %d", len(controllerCards))
+
+	nonEmptyControllerCards := 0
+	for _, controllerCard := range controllerCards {
+		if controllerCard.Name == nil {
+			t.Errorf("Encountered a ControllerCard with no Name")
+			continue
+		}
+
+		sName := controllerCard.GetName()
+		t.Run(sName, func(t *testing.T) {
+			t.Logf("ControllerCard %s Id: %s", sName, controllerCard.GetId())
+
+			if !controllerCard.GetEmpty() {
+				nonEmptyControllerCards++
+			}
+		})
+	}
+
+	if got, want := nonEmptyControllerCards, *args.NumControllerCards; got != want {
+		t.Errorf("Number of non-empty ControllerCard: got %d, want %d", got, want)
+	}
+}
+
 func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Component, p properties) {
 	var validCards []*oc.Component
 	switch p.pType {
@@ -518,7 +563,12 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					t.Errorf("Component %s Description: got empty string, want non-empty string", cName)
 				}
 			}
-
+			if card.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+				t.Logf("Component %s linecard/state/slot-id: %s", cName, card.GetLinecard().GetSlotId())
+				if card.GetLinecard().GetSlotId() == "" {
+					t.Errorf("Component %s LineCard SlotID: got empty string, want non-empty string", cName)
+				}
+			}
 			if p.idValidation {
 				if deviations.SwitchChipIDUnsupported(dut) {
 					t.Logf("Skipping check for Id due to deviation SwitChipIDUnsupported")
@@ -651,8 +701,18 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			if p.fwVerValidation {
 				fwVer := card.GetFirmwareVersion()
 				t.Logf("Component %s FirmwareVersion: %s", cName, fwVer)
+
+				isTransceiver := card.GetType() == componentType["Transceiver"]
+				is400G := false
+				if isTransceiver {
+					is400G = strings.Contains(card.GetTransceiver().GetEthernetPmd().String(), "ETH_400GBASE")
+				}
 				if fwVer == "" {
-					t.Errorf("Component %s FirmwareVersion: got empty string, want non-empty string", cName)
+					if isTransceiver && !is400G {
+						t.Logf("Skipping firmware-version check for %s transceiver", card.GetTransceiver().GetEthernetPmd().String())
+					} else {
+						t.Errorf("Component %s FirmwareVersion: got empty string, want non-empty string", cName)
+					}
 				}
 			}
 

@@ -25,7 +25,6 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     isis_interface_level1_disable_required: true
-    missing_isis_interface_afi_safi_enable: true
   }
 }
 platform_exceptions: {
@@ -42,6 +41,7 @@ platform_exceptions: {
     isis_timers_csnp_interval_unsupported: true
     isis_counter_manual_address_drop_from_areas_unsupported: true
     isis_counter_part_changes_unsupported: true
+    isis_interface_afi_unsupported: true    
   }
 }
 tags: TAGS_AGGREGATION
