@@ -18,7 +18,7 @@ power.
   * Is mapped to component/optical-channel/ full path shown below
 
 
-## Procedure
+## TRANSCEIVER-4.1
 
 *   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
     output power of one is the RX input power of the other module. Connection
