@@ -31,7 +31,7 @@ power.
       * Both transceivers are tuned to a valid centre frequency
         example 193.1 THz
 *   With the ZR link is established as explained above, verify that the
-    following ZR transceiver telemetry paths exist and are streamed for both
+    following ZR transceiver telemetry paths exist and are streamed using `SAMPLE` mode for both
     the ZR optics
     *   /platform/components/component/optical-channel/state/input-power/instant
     *   /platform/components/component/optical-channel/state/input-power/avg
