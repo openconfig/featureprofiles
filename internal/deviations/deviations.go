@@ -303,11 +303,6 @@ func GRIBIRIBAckOnly(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRibackOnly()
 }
 
-// MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
-func MissingInterfacePhysicalChannel(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingInterfacePhysicalChannel()
-}
-
 // MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
 func MissingValueForDefaults(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingValueForDefaults()
@@ -646,4 +641,16 @@ func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
 // BGP ExtendedNextHopEncoding at thee global level.
 func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
+}
+
+// TunnelStatePathUnsupported returns true for devices that require configuring
+// /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
+func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelStatePathUnsupported()
+}
+
+// TunnelConfigPathUnsupported returns true for devices that require configuring
+// Tunnel source-address destination-address, encapsulation type are not supported in OC
+func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
 }
