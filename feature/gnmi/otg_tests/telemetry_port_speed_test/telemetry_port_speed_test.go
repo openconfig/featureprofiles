@@ -431,7 +431,6 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 					ate.OTG().SetControlState(t, portStateAction)
 				}
-				ate.Actions().NewSetPortState().WithPort(port).WithEnabled(false).Send(t)
 				time.Sleep(10 * time.Second)
 				tc.verifyDUT(t, totalPort)
 			}
