@@ -17,23 +17,23 @@ to Automatic Test Equipment (ATE).
 *   Step 1: Using components/component/[name=%s]/state get the list of transceivers and validate
     following leafs are set:
 
-    *   /components/component/[name=%s]/state/mfg-name
-    *   /components/component/[name=%s]/transceiver/state/form-factor
-    *   /components/component/[name=%s]/state/serial-no
-    *   /components/component/[name=%s]/state/part-no
-    *   /components/component/[name=%s]/state/firmware-version
+    *   /components/component/state/mfg-name
+    *   /components/component/transceiver/state/form-factor
+    *   /components/component/state/serial-no
+    *   /components/component/state/part-no
+    *   /components/component/state/firmware-version
 
-    *   Using /interfaces/interface[name=%s]/state get the list of Interfaces and
+    *   Using /interfaces/interface/state get the list of Interfaces and
         validate following leafs are set:
 
-        *   /interfaces/interface[name=%s]/state/physical-channel
-        *   /interfaces/interface[name=%s]/state/transceiver
+        *   /interfaces/interface/state/physical-channel
+        *   /interfaces/interface/state/transceiver
 
     *   Verify that the list of transceivers received are the same. This is only a
         consistency check that the vendor implemented the model correctly.
 
-        *   /components/component[name=%s]/state
-        *   /interfaces/interface[name=%s]/state/transceiver
+        *   /components/component/state
+        *   /interfaces/interface/state/transceiver
 
 *   Step 2: Get list of components of type TRANSCEIVER. Verify the instant value is
     between the corresponding lower and upper thresholds for both
@@ -64,17 +64,17 @@ to Automatic Test Equipment (ATE).
 * Step 3: 
     *   Verify the telemetry is updated after the optics power cycle.
     *   Disable the DUT transceiver (power off module 3.3V supply).
-    *   Verify /interfaces/interface[name=%s]/state/oper-status is DOWN.
+    *   Verify /interfaces/interface/state/oper-status is DOWN.
     *   Enable the DUT transceiver (power on module 3.3V supply)
-    *   Verify /interfaces/interface[name=%s]/state/oper-status is UP.
+    *   Verify /interfaces/interface/state/oper-status is UP.
     *   Repeat Step1 and Step2.
 
 * Step 4: Verify the telemetry is updated after the interface is flapped.
     *   Disable/shutdown the interface of the DUT.
     *   Verify the optics input power and output power are updated to below the corresponding low alarm threshold.
-    *   Verify /interfaces/interface[name=%s]/state/oper-status is DOWN
+    *   Verify /interfaces/interface/state/oper-status is DOWN
     *   Re-enable the interface of the DUT
-    *   Verify /interfaces/interface[name=%s]/state/oper-status is UP.
+    *   Verify /interfaces/interface/state/oper-status is UP.
     *   Repeat Step1 and Step2.
 
 ## Config Parameter coverage
@@ -88,10 +88,10 @@ to Automatic Test Equipment (ATE).
 *   /components/component/transceiver/physical-channels/channel/state/output-power/instant
 *   /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant
 *   /components/component/state/temperature/instant
-*   /components/component[name=%s]/state/mfg-name
-*   /components/component[name=%s]/transceiver/state/form-factor
+*   /components/component/state/mfg-name
+*   /components/component/transceiver/state/form-factor
 *   /components/component/state/serial-no
-*   /components/component[name=%s]/state/part-no
+*   /components/component/state/part-no
 *   /components/component/state/firmware-version
 *   /components/component/transceiver/thresholds/threshold/state/output-power-lower
 *   /components/component/transceiver/thresholds/threshold/state/output-power-upper
