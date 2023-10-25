@@ -17,11 +17,16 @@
 package telemetry_port_speed_test
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"net"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -66,6 +71,7 @@ var (
 
 	ateIPs = attrs.Attributes{
 		Name:    "ateip",
+		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
 		IPv4Len: plen4,
@@ -87,7 +93,7 @@ type testCase struct {
 
 	dut *ondatra.DUTDevice
 	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
+	top gosnappi.Config
 
 	dutPorts []*ondatra.Port
 	atePorts []*ondatra.Port
@@ -173,6 +179,23 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
+// incrementMAC uses a mac string and increments it by the given i
+func incrementMAC(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
+}
+
 func (tc *testCase) configureDUT(t *testing.T) {
 	t.Logf("dut ports = %v", tc.dutPorts)
 	if len(tc.dutPorts) < 2 {
@@ -242,32 +265,57 @@ func (tc *testCase) configureATE(t *testing.T) {
 	if len(tc.atePorts) < 2 {
 		t.Fatalf("Testbed requires at least 2 ports, got: %v", tc.atePorts)
 	}
-
-	// Don't use WithLACPEnabled which is for emulated Ixia LACP.
-	agg := tc.top.AddInterface(ateIPs.Name)
-	lag := tc.top.AddLAG("lag").WithPorts(tc.atePorts...)
-	lag.LACP().WithEnabled(tc.lagType == lagTypeLACP)
-	agg.WithLAG(lag)
-
-	// Disable FEC for 100G-FR ports because Novus does not support it.
-	is100gfr := false
-	for _, p := range tc.atePorts {
-		if p.PMD() == ondatra.PMD100GBASEFR {
-			is100gfr = true
+	agg := tc.top.Lags().Add().SetName("lag")
+	if tc.lagType == lagTypeSTATIC {
+		lagId, _ := strconv.Atoi(tc.aggID)
+		agg.Protocol().SetChoice("static").Static().SetLagId(uint32(lagId))
+		for i, p := range tc.atePorts[0:] {
+			port := tc.top.Ports().Add().SetName(p.ID())
+			newMac, err := incrementMAC(ateIPs.MAC, i+1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			agg.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
+		}
+	} else {
+		agg.Protocol().SetChoice("lacp")
+		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(ateIPs.MAC)
+		for i, p := range tc.atePorts[0:] {
+			port := tc.top.Ports().Add().SetName(p.ID())
+			newMac, err := incrementMAC(ateIPs.MAC, i+1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lagPort := agg.Ports().Add().SetPortName(port.Name())
+			lagPort.Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
+			lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(i) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 		}
 	}
-	if is100gfr {
-		agg.Ethernet().FEC().WithEnabled(false)
+
+	// Disable FEC for 100G-FR ports because Novus does not support it.
+	p100gbasefr := []string{}
+	for _, p := range tc.atePorts {
+		if p.PMD() == ondatra.PMD100GBASEFR {
+			p100gbasefr = append(p100gbasefr, p.ID())
+		}
 	}
 
-	agg.IPv4().
-		WithAddress(ateIPs.IPv4CIDR()).
-		WithDefaultGateway(dutIPs.IPv4)
-	agg.IPv6().
-		WithAddress(ateIPs.IPv6CIDR()).
-		WithDefaultGateway(dutIPs.IPv6)
+	if len(p100gbasefr) > 0 {
+		l1Settings := tc.top.Layer1().Add().SetName("L1").SetPortNames(p100gbasefr)
+		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
+		autoNegotiate := l1Settings.AutoNegotiation()
+		autoNegotiate.SetRsFec(false)
+	}
 
-	tc.top.Push(t).StartProtocols(t)
+	dstDev := tc.top.Devices().Add().SetName(agg.Name() + ".dev")
+	dstEth := dstDev.Ethernets().Add().SetName(ateIPs.Name + ".Eth").SetMac(ateIPs.MAC)
+	dstEth.Connection().SetLagName(agg.Name())
+	dstEth.Ipv4Addresses().Add().SetName(ateIPs.Name + ".IPv4").SetAddress(ateIPs.IPv4).SetGateway(dutIPs.IPv4).SetPrefix(uint32(ateIPs.IPv4Len))
+	dstEth.Ipv6Addresses().Add().SetName(ateIPs.Name + ".IPv6").SetAddress(ateIPs.IPv6).SetGateway(dutIPs.IPv6).SetPrefix(uint32(ateIPs.IPv6Len))
+
+	tc.ate.OTG().PushConfig(t, tc.top)
+	tc.ate.OTG().StartProtocols(t)
+
 }
 
 func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
@@ -292,22 +340,35 @@ func TestGNMIPortDown(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	dutPort := dut.Port(t, "port1")
 	atePort := ate.Port(t, "port1")
-	top := ate.Topology().New()
-	intf := top.AddInterface(ateIPs.Name).WithPort(atePort)
-	intf.IPv4().
-		WithAddress(ateIPs.IPv4CIDR()).
-		WithDefaultGateway(dutIPs.IPv4)
-	intf.IPv6().
-		WithAddress(ateIPs.IPv6CIDR()).
-		WithDefaultGateway(dutIPs.IPv6)
-	top.Push(t)
-	ate.Actions().NewSetPortState().WithPort(atePort).WithEnabled(false).Send(t)
+	top := gosnappi.NewConfig()
+	ateIPs.AddToOTG(top, atePort, &dutIPs)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+
+	if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort.Name()).Enabled().Config(), false)
+		gnmi.Await(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+		ate.OTG().SetControlState(t, portStateAction)
+	}
+
 	dutPortStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State())
 
 	if want := oc.Interface_OperStatus_DOWN; dutPortStatus != want {
 		t.Errorf("Get(DUT port1 status): got %v, want %v", dutPortStatus, want)
 	}
-	ate.Actions().NewSetPortState().WithPort(atePort).WithEnabled(true).Send(t)
+
+	if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort.Name()).Enabled().Config(), false)
+		gnmi.Await(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	} else {
+		portStateAction := gosnappi.NewControlState()
+		portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+		ate.OTG().SetControlState(t, portStateAction)
+	}
+
 }
 
 func TestGNMICombinedLACPSpeed(t *testing.T) {
@@ -316,7 +377,7 @@ func TestGNMICombinedLACPSpeed(t *testing.T) {
 
 	for _, lagType := range []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC} {
 		t.Run(lagType.String(), func(t *testing.T) {
-			top := ate.Topology().New()
+			top := gosnappi.NewConfig()
 			tc := &testCase{
 				minlinks: minLink,
 				lagType:  lagType,
@@ -329,8 +390,8 @@ func TestGNMICombinedLACPSpeed(t *testing.T) {
 				atePorts: sortPorts(ate.Ports()),
 				aggID:    netutil.NextAggregateInterface(t, dut),
 			}
-			tc.configureDUT(t)
 			tc.configureATE(t)
+			tc.configureDUT(t)
 			tc.verifyDUT(t, len(tc.dutPorts))
 		})
 	}
@@ -343,7 +404,7 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 
 	for _, lagType := range []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC} {
 		t.Run(lagType.String(), func(t *testing.T) {
-			top := ate.Topology().New()
+			top := gosnappi.NewConfig()
 			tc := &testCase{
 				minlinks: minLink,
 				lagType:  lagType,
@@ -355,23 +416,38 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 				atePorts: sortPorts(ate.Ports()),
 				aggID:    netutil.NextAggregateInterface(t, dut),
 			}
-			tc.configureDUT(t)
 			tc.configureATE(t)
-			for _, port := range tc.atePorts {
+			tc.configureDUT(t)
+			for index, port := range tc.atePorts {
 				totalPort--
 				if totalPort < 1 {
 					break
+				}
+				if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+					gnmi.Replace(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).Enabled().Config(), false)
+					gnmi.Await(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
+				} else {
+					portStateAction := gosnappi.NewControlState()
+					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+					ate.OTG().SetControlState(t, portStateAction)
 				}
 				ate.Actions().NewSetPortState().WithPort(port).WithEnabled(false).Send(t)
 				time.Sleep(10 * time.Second)
 				tc.verifyDUT(t, totalPort)
 			}
-			for _, port := range tc.atePorts {
+			for index, port := range tc.atePorts {
 				totalPort++
 				if totalPort > len(tc.atePorts)-1 {
 					break
 				}
-				ate.Actions().NewSetPortState().WithPort(port).WithEnabled(true).Send(t)
+				if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+					gnmi.Replace(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).Enabled().Config(), false)
+					gnmi.Await(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+				} else {
+					portStateAction := gosnappi.NewControlState()
+					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+					ate.OTG().SetControlState(t, portStateAction)
+				}
 				time.Sleep(10 * time.Second)
 				tc.verifyDUT(t, totalPort+1)
 			}
