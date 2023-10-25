@@ -1,0 +1,16 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+plan_id:  "TUN-1.1,TUN-1.2"
+description:  "Filter based GRE IPv4 and IPv6 encapsulation with load balancing"
+testbed:  TESTBED_DUT_ATE_4LINKS
+tags: TAGS_AGGREGATION
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    tunnel_acl_encapsulation_config_unsupported: true
+  }
+}
