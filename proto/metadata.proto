@@ -343,9 +343,6 @@ message Metadata {
     // Devices do not support configuring ExtendedNextHopEncoding at the BGP global level.
     // Arista: https://partnerissuetracker.corp.google.com/issues/203683090
     bool bgp_global_extended_next_hop_encoding_unsupported = 115;
-    // Devices do not support interface passive state.
-    // Juniper: b/303631436
-    bool isis_interface_passive_state_unsupported = 116;
     // OC unsupported for BGP LLGR disable.
     // Juniper: b/303479602
     bool bgp_llgr_oc_undefined = 116;
@@ -355,6 +352,9 @@ message Metadata {
     // Device does not support tunnel interfaces source and destination address config paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
     bool tunnel_config_path_unsupported = 118;
+    // Devices do not support interface passive state.
+    // Juniper: b/303631436
+    bool isis_interface_passive_state_unsupported = 119;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90;
