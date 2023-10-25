@@ -31,20 +31,22 @@ power.
       * Both transceivers are tuned to a valid centre frequency
         example 193.1 THz
 *   With the ZR link is established as explained above, verify that the
-    following ZR transceiver telemetry paths exist and are streamed using `SAMPLE` mode for both
+    following ZR transceiver telemetry paths exist and are streamed for both
     the ZR optics
-    *   /platform/components/component/optical-channel/state/input-power/instant
-    *   /platform/components/component/optical-channel/state/input-power/avg
-    *   /platform/components/component/optical-channel/state/input-power/min
-    *   /platform/components/component/optical-channel/state/input-power/max
-    *   /platform/components/component/optical-channel/state/output-power/instant
-    *   /platform/components/component/optical-channel/state/output-power/avg
-    *   /platform/components/component/optical-channel/state/output-power/min
-    *   /platform/components/component/optical-channel/state/output-power/max
-    *   /platform/components/component/transceiver/physical-channel/channel/state/input-power/instant
-    *   /platform/components/component/transceiver/physical-channel/channel/state/input-power/min
-    *   /platform/components/component/transceiver/physical-channel/channel/state/input-power/max
-    *   /platform/components/component/transceiver/physical-channel/channel/state/input-power/avg
+    *   /components/component/optical-channel/state/input-power/instant
+    *   /components/component/optical-channel/state/input-power/avg
+    *   /components/component/optical-channel/state/input-power/min
+    *   /components/component/optical-channel/state/input-power/max
+    *   /components/component/optical-channel/state/output-power/instant
+    *   /components/component/optical-channel/state/output-power/avg
+    *   /components/component/optical-channel/state/output-power/min
+    *   /components/component/optical-channel/state/output-power/max
+    *   /components/component/transceiver/physical-channel/channel/state/input-power/instant
+    *   /components/component/transceiver/physical-channel/channel/state/input-power/min
+    *   /components/component/transceiver/physical-channel/channel/state/input-power/max
+    *   /components/component/transceiver/physical-channel/channel/state/input-power/avg
+
+## TRANSCEIVER-4.2
 
 *   When the modules or the devices are still in a boot stage, they must not
     stream any invalid string values like "nil" or "-inf" until valid values
@@ -55,9 +57,10 @@ power.
     value.
 
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 
-          10 seconds is not supported a deviation to the test must be introduced
-          specifying the sample interval.```
+          10 seconds is not supported, the sampling interval used must be
+          communicated.
 
+## TRANSCEIVER-4.3
 
 *   Verify that the optics RX input and TX output power is updated after the
     interface flaps.
@@ -74,6 +77,8 @@ power.
         updated to the value in the normal range again.
         * Typical min/max value range for RX Signal Power -14 to 0 dbm.
         * Typical min/max value range for TX Output Power -13 to -9 dbm.
+
+## TRANSCEIVER-4.4
 
 *   Verify that the optics RX input and TX output power is updated after a
     fiber cut.
@@ -98,15 +103,15 @@ power.
 
 ## Telemetry Parameter coverage
 
-*   /platform/components/component/optical-channel/state/input-power/instant
-*   /platform/components/component/optical-channel/state/input-power/avg
-*   /platform/components/component/optical-channel/state/input-power/min
-*   /platform/components/component/optical-channel/state/input-power/max
-*   /platform/components/component/optical-channel/state/output-power/instant
-*   /platform/components/component/optical-channel/state/output-power/avg
-*   /platform/components/component/optical-channel/state/output-power/min
-*   /platform/components/component/optical-channel/state/output-power/max
-*   /platform/components/component/transceiver/physical-channel/channel/state/input-power/instant
-*   /platform/components/component/transceiver/physical-channel/channel/state/input-power/min
-*   /platform/components/component/transceiver/physical-channel/channel/state/input-power/max
-*   /platform/components/component/transceiver/physical-channel/channel/state/input-power/avg
+*   /components/component/optical-channel/state/input-power/instant
+*   /components/component/optical-channel/state/input-power/avg
+*   /components/component/optical-channel/state/input-power/min
+*   /components/component/optical-channel/state/input-power/max
+*   /components/component/optical-channel/state/output-power/instant
+*   /components/component/optical-channel/state/output-power/avg
+*   /components/component/optical-channel/state/output-power/min
+*   /components/component/optical-channel/state/output-power/max
+*   /components/component/transceiver/physical-channel/channel/state/input-power/instant
+*   /components/component/transceiver/physical-channel/channel/state/input-power/min
+*   /components/component/transceiver/physical-channel/channel/state/input-power/max
+*   /components/component/transceiver/physical-channel/channel/state/input-power/avg
