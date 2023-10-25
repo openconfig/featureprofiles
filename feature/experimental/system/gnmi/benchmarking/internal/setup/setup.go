@@ -179,7 +179,6 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-
 	isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
 	isisLevel2Auth.Enabled = ygot.Bool(true)
 	if deviations.ISISExplicitLevelAuthenticationConfig(dut) {
