@@ -349,6 +349,9 @@ message Metadata {
     // OC unsupported for BGP LLGR disable.
     // Juniper: b/303479602
     bool bgp_llgr_oc_undefined = 116;
+    // TTL Copy unsupported.
+    // Juniper: b/307258544
+    bool ttl_copy_unsupported = 117;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;
