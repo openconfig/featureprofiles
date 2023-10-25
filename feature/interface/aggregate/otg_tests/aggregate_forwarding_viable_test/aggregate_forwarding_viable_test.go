@@ -380,7 +380,7 @@ func (tc *testArgs) configureATE(t *testing.T) {
 		autoNegotiate.SetRsFec(false)
 	}
 
-	dstDev := tc.top.Devices().Add().SetName(agg.Name())
+	dstDev := tc.top.Devices().Add().SetName(agg.Name() + ".dev")
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
@@ -592,15 +592,15 @@ func TestAggregateForwardingViable(t *testing.T) {
 		args := &testArgs{
 			dut:      dut,
 			ate:      ate,
-			top:      ate.OTG().NewConfig(t),
+			top:      gosnappi.NewConfig(),
 			lagType:  lagType,
 			dutPorts: sortPorts(dut.Ports()),
 			atePorts: sortPorts(ate.Ports()),
 			aggID:    aggID,
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
-			args.configureDUT(t)
 			args.configureATE(t)
+			args.configureDUT(t)
 			args.verifyDUT(t)
 
 			for _, forwardingViable := range []bool{true, false} {

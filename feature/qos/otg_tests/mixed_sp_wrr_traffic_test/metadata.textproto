@@ -28,8 +28,12 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_interface_ref_definition: true
+    dequeue_delete_not_counted_as_drops: true
+    qos_octets: true
     interface_enabled: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    qos_queue_requires_id: true
   }
 }
 platform_exceptions: {
@@ -39,6 +43,5 @@ platform_exceptions: {
   deviations: {
     dequeue_delete_not_counted_as_drops: true
     interface_enabled: true
-    qos_octets: true
   }
 }
