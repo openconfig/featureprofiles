@@ -535,7 +535,7 @@ func TestMTUs(t *testing.T) {
 	mtus := []uint16{1500, 5000, 9236}
 
 	for _, mtu := range mtus {
-		top := ate.OTG().NewConfig(t)
+		top := gosnappi.NewConfig()
 		tc := &testCase{
 			mtu: mtu,
 			dut: dut,

@@ -1,0 +1,69 @@
+id {
+  name: "platform_controllercard"
+  version: 1
+}
+
+# Paths
+config_path {
+  path: "/components/component/controller-card/config/power-admin-state"
+}
+telemetry_path {
+  path: "/components/component/controller-card/state/power-admin-state"
+}
+telemetry_path {
+  path: "/components/component/state/empty"
+}
+telemetry_path {
+  path: "/components/component/state/location"
+}
+telemetry_path {
+  path: "/components/component/state/oper-status"
+}
+telemetry_path {
+  path: "/components/component/state/switchover-ready"
+}
+telemetry_path {
+  path: "/components/component/state/redundant-role"
+}
+telemetry_path {
+  path: "/components/component/state/last-switchover-time"
+}
+telemetry_path {
+  path: "/components/component/state/last-switchover-reason/trigger"
+}
+telemetry_path {
+  path: "/components/component/state/last-switchover-reason/details"
+}
+telemetry_path {
+  path: "/components/component/state/last-reboot-time"
+}
+telemetry_path {
+  path: "/components/component/state/last-reboot-reason"
+}
+telemetry_path {
+  path: "/components/component/state/description"
+}
+telemetry_path {
+  path: "/components/component/state/hardware-version"
+}
+telemetry_path {
+  path: "/components/component/state/id"
+}
+telemetry_path {
+  path: "/components/component/state/mfg-name"
+}
+telemetry_path {
+  path: "/components/component/state/name"
+}
+telemetry_path {
+  path: "/components/component/state/parent"
+}
+telemetry_path {
+  path: "/components/component/state/part-no"
+}
+telemetry_path {
+  path: "/components/component/state/serial-no"
+}
+telemetry_path {
+  path: "/components/component/state/type"
+}
