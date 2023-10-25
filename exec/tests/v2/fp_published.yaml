@@ -188,7 +188,7 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: P4RT-1.2 (P4RT Daemon Failure)
-    path: feature/experimental/p4rt/otg_tests/p4rt_daemon_failure_test
+    path: feature/p4rt/otg_tests/p4rt_daemon_failure_test
     owners:
       - sprem
     priority: 5
@@ -252,7 +252,7 @@ tests:
     priority: 5
     mustpass: true    
   - name: gNMI-1.1 (cli Origin)
-    path: feature/system/gnmi/cliorigin/ate_tests/cli_origin_test
+    path: feature/system/gnmi/cliorigin/tests/cli_origin_test
     owners:
       - agvarghe
     mustpass: true
@@ -591,7 +591,7 @@ tests:
       - saarvind
     mustpass: true
   - name: gNMI-1.2 (Benchmarking Full Configuration Replace)
-    path: feature/experimental/system/gnmi/benchmarking/ate_tests/full_configuration_replace_test
+    path: feature/experimental/system/gnmi/benchmarking/tests/full_configuration_replace_test
     owners:
       - agvarghe
     mustpass: true
