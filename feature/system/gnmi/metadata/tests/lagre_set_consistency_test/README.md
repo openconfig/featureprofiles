@@ -20,7 +20,7 @@ dut.testbed
   *  /lacp/
   *  /protobuf-metadata
 * Push 1st_LARGE_CONFIGURATION and wait for SetResponce that confirm push was sucesfull.
-* DubbscribeRequest once for configuration root-level metadata and verify that it is identical corresponding root-level metadata of 1st_LARGE_CONFIGURATION.
+* Send subscribe `ONCE` for configuration root-level metadata and verify that it is identical corresponding root-level metadata of 1st_LARGE_CONFIGURATION.
 * For REQUEST of type (GetRequest, SubscribeRequest, CapabilityRequest)
   * Repeat sending rapidly subsequent REQUEST requests for configuration root-level metadata (GetRequest, SubscribeRequest).
   * While above REQUESTS are send, push SetRequest replace with 2nd_LARGE_CONFIGURATION.
