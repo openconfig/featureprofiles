@@ -55,8 +55,8 @@ power.
     value.
 
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 
-          10 seconds is not supported, the sampling interval used must be
-          communicated.
+          10 seconds is not supported a deviation to the test must be introduced
+          specifying the sample interval.```
 
 
 *   Verify that the optics RX input and TX output power is updated after the
