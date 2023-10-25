@@ -1,4 +1,4 @@
-# gNMI-1.20: Telemetry: 400ZR RX input and TX output power telemetry values streaming. 
+# TRANSCEIVER-4: Telemetry: 400ZR RX input and TX output power telemetry values streaming. 
 
 ## Summary
 
