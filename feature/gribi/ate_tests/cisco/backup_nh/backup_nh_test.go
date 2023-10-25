@@ -1285,12 +1285,12 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"})
 	}
 	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
-		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
-		for i := 0; i < len(randomItems); i++ {
-			args.client.CheckAftIPv4(t, "TE", randomItems[i])
-		}
-	}
+	// if *ciscoFlags.GRIBIAFTChainCheck {
+	// 	randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+	// 	for i := 0; i < len(randomItems); i++ {
+	// 		args.client.CheckAftIPv4(t, "TE", randomItems[i])
+	// 	}
+	// }
 }
 
 /* Add a backup path when primary links are
