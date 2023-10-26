@@ -17,17 +17,18 @@ require (
 	github.com/open-traffic-generator/snappi/gosnappi v0.13.0
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
 	github.com/openconfig/gnmi v0.10.0
-	github.com/openconfig/gnoi v0.1.0
+	github.com/openconfig/gnoi v0.2.0
+	github.com/openconfig/gnoigo v0.0.0-20231025173800-d65570111f09
 	github.com/openconfig/gnsi v1.2.3
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.4.2
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20231011232723-88c9b8d98d8a
 	github.com/openconfig/kne v0.1.14
-	github.com/openconfig/ondatra v0.3.4
+	github.com/openconfig/ondatra v0.4.0
 	github.com/openconfig/replayer v0.0.0-20231017143923-d23179322187
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygnmi v0.8.10
+	github.com/openconfig/ygnmi v0.9.0
 	github.com/openconfig/ygot v0.29.12
 	github.com/p4lang/p4runtime v1.4.0-rc.5.0.20220728214547-13f0d02a521e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
@@ -35,7 +36,7 @@ require (
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 	golang.org/x/text v0.13.0
 	google.golang.org/api v0.143.0
-	google.golang.org/grpc v1.58.3
+	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -62,7 +63,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
@@ -84,7 +85,7 @@ require (
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/jstemmer/go-junit-report/v2 v2.0.1-0.20220823220451-7b10b4285462 // indirect
+	github.com/jstemmer/go-junit-report/v2 v2.1.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -99,7 +100,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf // indirect
 	github.com/open-traffic-generator/ixia-c-operator v0.3.4 // indirect
-	github.com/openconfig/gnoigo v0.0.0-20231012221859-8e2e9ed42daf // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
