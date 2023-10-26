@@ -60,7 +60,6 @@ const (
 	dscpEncapA2           = 18
 	dscpEncapB1           = 20
 	dscpEncapB2           = 28
-	dscpEncapNoMatch      = 30
 	ipv4OuterSrc111Addr   = "198.51.100.111/32"
 	ipv4OuterSrc222Addr   = "198.51.100.222/32"
 	ipv4OuterDst111       = "192.51.100.64"
@@ -71,11 +70,6 @@ const (
 	polName               = "pol1"
 	nhIndex               = 1
 	nhgIndex              = 1
-	gribiIPv4entry        = "192.51.100.0"
-	maskLen24             = "24"
-	maskLen32             = "32"
-	maskLen22             = "22"
-	maskLen28             = "28"
 	niDecapTeVrf          = "DECAP_TE_VRF"
 	tolerancePct          = 2
 	tolerance             = 50
@@ -86,6 +80,7 @@ const (
 	correspondingTTL      = 64
 	correspondingHopLimit = 64
 	checkTTL              = true
+	checkDecap            = true
 )
 
 var (
@@ -252,7 +247,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs, prefLen string) {
+func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs, prefWithMask string) {
 	t.Helper()
 	// Using gRIBI, install an  IPv4Entry for the prefix 192.51.100.1/24 that points to a
 	// NextHopGroup that contains a single NextHop that specifies decapsulating the IPv4
@@ -266,7 +261,15 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(nhgIndex).AddNextHop(nhIndex, 1),
 		fluent.IPv4Entry().WithNetworkInstance("DECAP_TE_VRF").
-			WithPrefix(gribiIPv4entry+"/"+prefLen).WithNextHopGroup(nhgIndex),
+			WithPrefix(prefWithMask).WithNextHopGroup(nhgIndex),
+	)
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(2).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(2).AddNextHop(2, 1),
+		fluent.IPv4Entry().WithNetworkInstance("TE_VRF_111").
+			WithPrefix("0.0.0.0/0").WithNextHopGroup(2),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -283,7 +286,12 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 		chk.IgnoreOperationID(),
 	)
 	chk.HasResult(t, args.client.Results(t),
-		fluent.OperationResult().WithIPv4Operation(gribiIPv4entry+"/"+prefLen).WithOperationType(constants.Add).
+		fluent.OperationResult().WithIPv4Operation(prefWithMask).WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
+		chk.IgnoreOperationID(),
+	)
+	chk.HasResult(t, args.client.Results(t),
+		fluent.OperationResult().WithIPv4Operation("0.0.0.0/0").WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
 		chk.IgnoreOperationID(),
 	)
@@ -312,6 +320,20 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	iDut2Ipv6.SetAddress(atePort2.IPv6).SetGateway(dutPort2.IPv6).SetPrefix(uint32(atePort2.IPv6Len))
 
 	config.Captures().Add().SetName("packetCapture").SetPortNames([]string{port2.Name()}).SetFormat(gosnappi.CaptureFormat.PCAP)
+
+	t.Logf("Pushing config to ATE and starting protocols...")
+	otg.PushConfig(t, config)
+	time.Sleep(30 * time.Second)
+	otg.StartProtocols(t)
+	time.Sleep(30 * time.Second)
+	t.Log(config.Msg().GetCaptures())
+	return config
+}
+
+func createGoodFlows(t *testing.T, config gosnappi.Config, otg *otg.OTG) {
+	t.Helper()
+
+	config.Flows().Clear()
 
 	flow1 := gosnappi.NewFlow().SetName(flow4in4)
 	flow1.Metrics().SetEnable(true)
@@ -347,6 +369,23 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	innerIPv6Header2.Src().SetValue(atePort1.IPv6)
 	innerIPv6Header2.Dst().SetValue(atePort2.IPv6)
 
+	flowList := []gosnappi.Flow{flow1, flow2}
+	for _, flow := range flowList {
+		config.Flows().Append(flow)
+	}
+
+	t.Logf("Pushing traffic flows to OTG and starting protocols...")
+	otg.PushConfig(t, config)
+	time.Sleep(30 * time.Second)
+	otg.StartProtocols(t)
+	time.Sleep(30 * time.Second)
+}
+
+func createNegTestFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG) {
+	t.Helper()
+
+	config.Flows().Clear()
+
 	flow3 := gosnappi.NewFlow().SetName(flowNegTest)
 	flow3.Metrics().SetEnable(true)
 	flow3.TxRx().Device().
@@ -364,29 +403,22 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	innerIPHeader3.Src().SetValue(atePort1.IPv4)
 	innerIPHeader3.Dst().SetValue(atePort2.IPv4)
 
-	flowList := []gosnappi.Flow{flow1, flow2, flow3}
-	for _, flow := range flowList {
-		config.Flows().Append(flow)
-	}
+	config.Flows().Append(flow3)
 
-	t.Logf("Pushing config to ATE and starting protocols...")
+	t.Logf("Pushing traffic flows to OTG and starting protocols...")
 	otg.PushConfig(t, config)
 	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
 	time.Sleep(30 * time.Second)
-	t.Log(config.Msg().GetCaptures())
-	return config
 }
 
-func sendTraffic(t *testing.T, args *testArgs, validateTTL bool) {
+func sendTraffic(t *testing.T, args *testArgs) {
 	t.Helper()
-	if !deviations.TTLCopyUnsupported(args.dut) {
-		if validateTTL {
-			cs := gosnappi.NewControlState()
-			cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-			args.otg.SetControlState(t, cs)
-		}
-	}
+
+	cs := gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+	args.otg.SetControlState(t, cs)
+
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
@@ -394,7 +426,7 @@ func sendTraffic(t *testing.T, args *testArgs, validateTTL bool) {
 	args.otg.StopTraffic(t)
 }
 
-func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss bool, validateTTL bool) {
+func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss, validateTTL, checkDecap bool) {
 	t.Helper()
 	for _, flowName := range flowList {
 		t.Logf("Verifying flow metrics for the flow %s\n", flowName)
@@ -422,54 +454,98 @@ func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss boo
 			}
 		}
 	}
-	if !deviations.TTLCopyUnsupported(args.dut) {
-		if validateTTL {
-			bytes := args.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(args.otgConfig.Ports().Items()[1].Name()))
-			f, err := os.CreateTemp("", "pcap")
-			if err != nil {
-				t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
-			}
-			if _, err := f.Write(bytes); err != nil {
-				t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
-			}
-			f.Close()
-			ValidatePackets(t, f.Name())
-		}
+	bytes := args.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(args.otgConfig.Ports().Items()[1].Name()))
+	f, err := os.CreateTemp("", "pcap")
+	if err != nil {
+		t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
 	}
+	if _, err := f.Write(bytes); err != nil {
+		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
+	}
+	f.Close()
+	ValidatePackets(t, f.Name(), validateTTL, checkDecap)
 }
 
-func ValidatePackets(t *testing.T, filename string) {
+func ValidatePackets(t *testing.T, filename string, validateTTL, checkDecap bool) {
 	t.Helper()
 	handle, err := pcap.OpenOffline(filename)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer handle.Close()
-	var v4PacketCheckCount, v6PacketCheckCount uint32 = 0, 0
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	if validateTTL {
+		validateTrafficTTL(t, packetSource)
+	}
+	if checkDecap {
+		validateTrafficDecap(t, packetSource)
+	}
+}
+
+func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
+	t.Helper()
+	dut := ondatra.DUT(t, "dut")
+	var v4PacketCheckCount, v6PacketCheckCount uint32 = 0, 0
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
-		if ipLayer != nil && v4PacketCheckCount <= 5 {
+		if ipLayer != nil && v4PacketCheckCount <= 3 {
 			v4PacketCheckCount++
 			ipPacket, _ := ipLayer.(*layers.IPv4)
-			if ipPacket.TTL != correspondingTTL {
-				t.Logf("IP TTL is: %d", ipPacket.TTL)
-				t.Errorf("IP TTL value is altered to: %d", ipPacket.TTL)
+			if !deviations.TTLCopyUnsupported(dut) {
+				if ipPacket.TTL != correspondingTTL {
+					t.Errorf("IP TTL value is altered to: %d", ipPacket.TTL)
+				}
+			}
+			InnerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
+			IpInnerLayer := InnerPacket.Layer(layers.LayerTypeIPv4)
+			if IpInnerLayer != nil {
+				t.Errorf("Packets are not decapped, Inner IP/IPv6 header is not removed.")
 			}
 		}
 		ipv6Layer := packet.Layer(layers.LayerTypeIPv6)
-		if ipv6Layer != nil && v6PacketCheckCount <= 5 {
+		if ipv6Layer != nil && v6PacketCheckCount <= 3 {
 			v6PacketCheckCount++
 			ipv6Packet, _ := ipv6Layer.(*layers.IPv6)
-			if ipv6Packet.HopLimit != correspondingHopLimit {
-				t.Logf("IPv6 hoplimit is: %d", ipv6Packet.HopLimit)
-				t.Errorf("IPv6 hoplimit value is altered to %d", ipv6Packet.HopLimit)
+			if !deviations.TTLCopyUnsupported(dut) {
+				if ipv6Packet.HopLimit != correspondingHopLimit {
+					t.Errorf("IPv6 hoplimit value is altered to %d", ipv6Packet.HopLimit)
+				}
+			}
+			InnerPacket := gopacket.NewPacket(ipv6Packet.Payload, ipv6Packet.NextLayerType(), gopacket.Default)
+			Ipv6InnerLayer := InnerPacket.Layer(layers.LayerTypeIPv6)
+			if Ipv6InnerLayer != nil {
+				t.Errorf("Packets are not decapped, Inner IP/IPv6 header is not removed.")
 			}
 		}
 	}
 }
 
+func validateTrafficDecap(t *testing.T, packetSource *gopacket.PacketSource) {
+	t.Helper()
+	for packet := range packetSource.Packets() {
+		ipLayer := packet.Layer(layers.LayerTypeIPv4)
+		if ipLayer == nil {
+			continue
+		}
+		ipPacket, _ := ipLayer.(*layers.IPv4)
+		InnerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
+		IpInnerLayer := InnerPacket.Layer(layers.LayerTypeIPv4)
+		if IpInnerLayer != nil {
+			if ipPacket.DstIP.String() != ipv4OuterDst333 {
+				t.Errorf("Negatice test for Decap failed. Traffic sent to route which does not match the decap route are decaped")
+			}
+			IpInnerPacket, _ := IpInnerLayer.(*layers.IPv4)
+			if IpInnerPacket.DstIP.String() != atePort2.IPv4 {
+				t.Errorf("Negatice test for Decap failed. Traffic sent to route which does not match the decap route are decaped")
+			}
+			t.Logf("Traffic for non decap routes passed.")
+			break
+		}
+	}
+}
+
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
+	t.Helper()
 	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	sr := static.GetOrCreateStatic(prefix)
@@ -537,20 +613,20 @@ func TestSingleDecapGribiEntry(t *testing.T) {
 	}
 
 	cases := []struct {
-		desc      string
-		prefixLen string
+		desc           string
+		prefixWithMask string
 	}{{
-		desc:      "Mask Length 24",
-		prefixLen: maskLen24,
+		desc:           "Mask Length 24",
+		prefixWithMask: "192.51.100.0/24",
 	}, {
-		desc:      "Mask Length 32",
-		prefixLen: maskLen32,
+		desc:           "Mask Length 32",
+		prefixWithMask: "192.51.100.64/32",
 	}, {
-		desc:      "Mask Length 28",
-		prefixLen: maskLen28,
+		desc:           "Mask Length 28",
+		prefixWithMask: "192.51.100.64/28",
 	}, {
-		desc:      "Mask Length 22",
-		prefixLen: maskLen22,
+		desc:           "Mask Length 22",
+		prefixWithMask: "192.51.100.0/22",
 	}}
 
 	for _, tc := range cases {
@@ -560,11 +636,27 @@ func TestSingleDecapGribiEntry(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			configureGribiRoute(ctx, t, dut, args, tc.prefixLen)
+			t.Run("Program gRIBi route", func(t *testing.T) {
+				configureGribiRoute(ctx, t, dut, args, tc.prefixWithMask)
+			})
+			// Send both 6in4 and 4in4 packets. Verify that the packets have their outer
+			// v4 header stripped and are forwarded according to the route in the DEFAULT
+			// VRF that matches the inner IP address.
+			t.Run("Create ip-in-ip and ipv6-in-ip flows, send traffic and verify decap functionality",
+				func(t *testing.T) {
+					createGoodFlows(t, otgConfig, otg)
+					sendTraffic(t, args)
+					verifyTraffic(t, args, []string{flow4in4, flow6in4}, !wantLoss, checkTTL, !checkDecap)
+				})
 
-			sendTraffic(t, args, checkTTL)
-			verifyTraffic(t, args, []string{flow4in4, flow6in4}, !wantLoss, checkTTL)
-			verifyTraffic(t, args, []string{flowNegTest}, wantLoss, !checkTTL)
+			// Test with packets with a destination address such as 192.58.200.7 that does not match
+			// the decap route, and verify that such packets are not decapped.
+			t.Run("Send traffic to non decap route and verify the behavior",
+				func(t *testing.T) {
+					createNegTestFlow(t, otgConfig, otg)
+					sendTraffic(t, args)
+					verifyTraffic(t, args, []string{flowNegTest}, !wantLoss, !checkTTL, checkDecap)
+				})
 		})
 	}
 }
