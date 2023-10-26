@@ -94,7 +94,6 @@ tests:
     priority: 3
   - name: TE-3.3 (Hierarchical weight resolution)
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
-    pr: 1654
     owners:
       - mananpat
     skip: false
@@ -193,6 +192,7 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+    pr: 2298
     post:
       - name: gribi_flush
         path: topologies/cisco/pretests/gribi_flush_test
