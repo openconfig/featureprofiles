@@ -877,4 +877,9 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_firmware_version_test/README.md"
   exec: " "
 }
-
+test: {
+  id: "TRANSCEIVER-4"
+  description: "400ZR Optics RX Input and TX Output Power streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_input_output_power_test/README.md"
+  exec: " "
+}
