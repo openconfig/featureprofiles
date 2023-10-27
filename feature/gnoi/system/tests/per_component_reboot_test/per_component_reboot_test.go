@@ -231,6 +231,10 @@ func TestFabricReboot(t *testing.T) {
 	fabrics := components.FindComponentsByType(t, dut, fabricType)
 	t.Logf("Found fabric components: %v", fabrics)
 
+	if *args.NumFabrics >= 0 && len(fabrics) != *args.NumFabrics {
+		t.Errorf("Incorrect number of fabrics: got %v, want exactly %v (specified by flag)", len(fabrics), *args.NumFabrics)
+	}
+
 	var removableFabric string
 	for _, fabric := range fabrics {
 		t.Logf("Check if %s is removable", fabric)
@@ -243,7 +247,7 @@ func TestFabricReboot(t *testing.T) {
 		}
 	}
 	if removableFabric == "" {
-		if *args.NumLinecards > 0 {
+		if *args.NumFabrics > 0 {
 			t.Fatalf("No removable fabric component found for the testing on a modular device")
 		} else {
 			t.Skipf("No removable fabric component found for the testing")
