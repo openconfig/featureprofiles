@@ -12,7 +12,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v50 v50.1.0
 	github.com/google/gopacket v1.1.19
-	github.com/google/uuid v1.3.1
+	github.com/google/uuid v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/open-traffic-generator/snappi/gosnappi v0.13.0
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
@@ -21,15 +21,15 @@ require (
 	github.com/openconfig/gnoigo v0.0.0-20231025173800-d65570111f09
 	github.com/openconfig/gnsi v1.2.3
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
-	github.com/openconfig/goyang v1.4.2
+	github.com/openconfig/goyang v1.4.3
 	github.com/openconfig/gribi v1.0.0
-	github.com/openconfig/gribigo v0.0.0-20231011232723-88c9b8d98d8a
+	github.com/openconfig/gribigo v0.0.0-20231024221855-bb56d1759075
 	github.com/openconfig/kne v0.1.14
 	github.com/openconfig/ondatra v0.4.0
-	github.com/openconfig/replayer v0.0.0-20231017143923-d23179322187
+	github.com/openconfig/replayer v0.0.0-20231027154425-b7fb1391cb3c
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.9.0
-	github.com/openconfig/ygot v0.29.12
+	github.com/openconfig/ygot v0.29.13
 	github.com/p4lang/p4runtime v1.4.0-rc.5.0.20220728214547-13f0d02a521e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	golang.org/x/crypto v0.14.0
