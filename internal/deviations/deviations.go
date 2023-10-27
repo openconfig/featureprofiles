@@ -648,3 +648,9 @@ func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
 }
+
+// MemberLinkLoopbackUnsupported returns true for devices that require configuring
+// loopback on aggregated links instead of member links.
+func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
+}
