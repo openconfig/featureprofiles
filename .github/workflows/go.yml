@@ -22,7 +22,7 @@ jobs:
       run: |
         df -h
         du -sh /home/runner
-        ls -laR /home/runner
+        du --max-depth=4 -h /home/runner | sort -rh
     - name: Cache
       uses: actions/cache@v3
       with:
@@ -36,7 +36,7 @@ jobs:
       run: |
         df -h
         du -sh /home/runner
-        ls -laR /home/runner
+        du --max-depth=4 -h /home/runner | sort -rh
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
