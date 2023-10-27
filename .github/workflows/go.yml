@@ -37,6 +37,7 @@ jobs:
         df -h
         du -sh /home/runner
         du --max-depth=4 -h /home/runner | sort -rh
+        go clean -cache
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
@@ -77,3 +78,9 @@ jobs:
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/hostedtoolcache/CodeQL
         GOGC=30 staticcheck ./...
+    - name: Check disk ending usage
+      run: |
+        df -h
+        du -sh /home/runner
+        du --max-depth=4 -h /home/runner | sort -rh
+
