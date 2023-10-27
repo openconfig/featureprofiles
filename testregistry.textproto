@@ -134,6 +134,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "IC-1"
+  description: "Integrated Circuit Utilization and Thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization/README.md"
+  exec: " "
+}
+test: {
   id: "DP-1.9"
   description: "WRR traffic test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/wrr_traffic_test/README.md"
@@ -402,6 +408,12 @@ test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/tests/core_lldp_tlv_population_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-7"
+  description: "BGP default policies"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/default_policies_test/README.md"
   exec: " "
 }
 test: {
@@ -851,5 +863,29 @@ test: {
   id: "gNOI-5.2"
   description: "Traceroute Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/traceroute_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-1"
+  description: "400ZR Electrical Signal to Noise Ratio(eSNR) and Chromatic Dispersion(CD) telemetry values streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_esnr_and_cd_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-2"
+  description: "400ZR Optics Pre-FEC(Forward Error Correction) BER(Bit Error Rate)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/ZR_pre-fec_ber_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-3"
+  description: "400ZR Optics firmware version streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_firmware_version_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-4"
+  description: "400ZR Optics RX Input and TX Output Power streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_input_output_power_test/README.md"
   exec: " "
 }

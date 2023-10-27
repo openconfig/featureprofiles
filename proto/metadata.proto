@@ -101,9 +101,6 @@ message Metadata {
     // Skip BGP TestPassword mismatch subtest if value is true.
     // Cisco: partnerissuetracker.corp.google.com/273285907
     bool skip_bgp_test_password_mismatch = 19;
-    // Device does not support interface/physicalchannel leaf.
-    // Cisco: partnerissuetracker.corp.google.com/273287821
-    bool missing_interface_physical_channel = 20;
     // Skip check for
     // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
     // leaf missing case.
@@ -295,10 +292,6 @@ message Metadata {
     // lspLifetimeInterval is configured.
     // Arista: partnerissuetracker.corp.google.com/293667850
     bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
-    // Devices require configuring LoopbackMode on member ports to enable
-    // LoopbackMode on aggregate interface.
-    // Arista: partnerissuetracker.corp.google.com/297391260
-    bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for linecards' CPU card.
     bool linecard_cpu_utilization_unsupported = 98;
@@ -349,15 +342,21 @@ message Metadata {
     // OC unsupported for BGP LLGR disable.
     // Juniper: b/303479602
     bool bgp_llgr_oc_undefined = 116;
-    // Devices requires enabled leaf under isis level
+    // Device does not support tunnel interfaces state paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_state_path_unsupported = 117;
+    // Device does not support tunnel interfaces source and destination address config paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_config_path_unsupported = 118;
+     // Devices requires enabled leaf under isis level
     // Juniper: partnerissuetracker.corp.google.com/302661486
-    bool isis_level_enabled = 117;
+    bool isis_level_enabled = 119;
     // Devices are having native telemetry paths for BGP RIB verification.
     // Juniper : b/306144372
-    bool bgp_rib_oc_path_unsupported = 118;
-    
+    bool bgp_rib_oc_path_unsupported = 120;
+   
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 90;
+    reserved 84, 9, 28, 20, 90, 97;
   }
 
   message PlatformExceptions {
