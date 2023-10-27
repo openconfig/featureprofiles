@@ -189,6 +189,51 @@ func TestLocalAs(t *testing.T) {
 	}
 }
 
+// Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/route-flap-damping
+// State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/route-flap-damping
+func TestRouteFlapDamping(t *testing.T) {
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []bool{
+		true,
+		false,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+
+	// BGP Base config
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/route-flap-damping using value %v", input), func(t *testing.T) {
+			config := bgpConfig.PeerGroup(peerGroup).RouteFlapDamping()
+			state := bgpState.PeerGroup(peerGroup).RouteFlapDamping()
+
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			time.Sleep(configApplyTime)
+
+			t.Run("Subscribe", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.State())
+				if stateGot != input {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/route-flap-damping: got %v, want %v", stateGot, input)
+				}
+			})
+
+			t.Run("Delete", func(t *testing.T) {
+				gnmi.Delete(t, dut, config.Config())
+				time.Sleep(configDeleteTime)
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/route-flap-damping fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
+
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/remove-private-as
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/remove-private-as
 func TestRemovePrivateAs(t *testing.T) {
