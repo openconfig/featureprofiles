@@ -7,14 +7,6 @@ description: "Benchmarking: Drained Configuration Convergence Time"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    missing_isis_interface_afi_safi_enable: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: NOKIA
   }
   deviations: {

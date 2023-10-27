@@ -27,6 +27,14 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_llgr_oc_undefined: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: ARISTA
   }
   deviations: {
@@ -37,6 +45,7 @@ platform_exceptions: {
     deprecated_vlan_id: true
     require_routed_subinterface_0: true
     interface_config_vrf_before_address: true
+    bgp_llgr_oc_undefined: true
   }
 }
 tags: TAGS_AGGREGATION
