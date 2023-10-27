@@ -498,8 +498,12 @@ func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 			}
 			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
+			ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
 			if ipInnerLayer != nil {
 				t.Errorf("Packets are not decapped, Inner IP/IPv6 header is not removed.")
+			}
+			if ipv6InnerLayer != nil {
+				t.Errorf("Packets are not decapped, Inner IPv6 header is not removed.")
 			}
 		}
 		ipv6Layer := packet.Layer(layers.LayerTypeIPv6)
