@@ -10,7 +10,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    interface_ref_config_unsupported: true
     ipv4_missing_enabled: true
   }
 }
