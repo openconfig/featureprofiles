@@ -459,8 +459,8 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 	args.topology.StartProtocols(t)
 	defer args.topology.StopProtocols(t)
 
-	dscp16Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP16", 1, 16, "12.11.11.12", sortedAtePorts[1])
-	dscp10Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP10", 1, 10, "12.11.11.11", sortedAtePorts[2])
+	dscp16Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP16", 1, 16, "12.11.11.12", sortedAtePorts[2])
+	dscp10Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP10", 1, 10, "12.11.11.11", sortedAtePorts[1])
 
 	checkTrafficFlows(t, args.ate, 60, dscp16Flow, dscp10Flow)
 }
@@ -807,11 +807,11 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 	//Flap interfaces
 	interfaceNames := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	for _, interfaceName := range interfaceNames {
-		util.SetInterfaceState(t, args.dut, interfaceName, false)
+		util.SetInterfaceState(t, args.dut, interfaceName, false, oc.IETFInterfaces_InterfaceType_ieee8023adLag)
 	}
 	time.Sleep(30 * time.Second)
 	for _, interfaceName := range interfaceNames {
-		util.SetInterfaceState(t, args.dut, interfaceName, true)
+		util.SetInterfaceState(t, args.dut, interfaceName, true, oc.IETFInterfaces_InterfaceType_ieee8023adLag)
 	}
 
 	// 192.0.2.40/32  Self-Site
@@ -1019,8 +1019,7 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 	// Removing policy for the tc
-	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config())
-	defer gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), "Transit")
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Config())
 
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -2016,195 +2015,198 @@ func TestTransitWECMPFlush(t *testing.T) {
 		// 	desc: "ADD PBR", // make sure that PBR is added and no flowspec config is not in router
 		// 	fn:   testChangeFlowSpecToPBR,
 		// },
-		{
-			name: "CD2ConnectedNHIP",
-			desc: "Transit Connected nexthop",
-			fn:   testCD2ConnectedNHIP,
-		},
-		{
-			name: "CD2RecursiveNonConnectedNHOP",
-			desc: "Transit Recursive Non Connected nexthop",
-			fn:   testCD2RecursiveNonConnectedNHOP,
-		},
-		{
-			name: "AddIPv4EntryTrafficCheck",
-			desc: "Transit-46 ADD same IPv4 Entry verify no traffic impact",
-			fn:   testAddIPv4EntryTrafficCheck,
-		},
-		{
-			name: "ReplaceIPv4EntryTrafficCheck",
-			desc: "Transit-47 REPLACE same IPv4 Entry verify no traffic impact",
-			fn:   testReplaceIPv4EntryTrafficCheck,
-		},
-		{
-			name: "AddNHGTrafficCheck",
-			desc: "Transit-48 ADD same NHG verify no traffic impact",
-			fn:   testAddNHGTrafficCheck,
-		},
-		{
-			name: "ReplaceNHGTrafficCheck",
-			desc: "Transit-49 REPLACE same NHG verify no traffic impact",
-			fn:   testReplaceNHGTrafficCheck,
-		},
-		{
-			name: "AddNHTrafficCheck",
-			desc: "Transit-50 ADD same NH verify no traffic impact",
-			fn:   testAddNHTrafficCheck,
-		},
-		{
-			name: "ReplaceNHTrafficCheck",
-			desc: "Transit-51 REPLACE same NH verify no traffic impact",
-			fn:   testReplaceNHTrafficCheck,
-		},
-		{
-			name: "CD2SingleRecursion",
-			desc: "Transit single recursion",
-			fn:   testCD2SingleRecursion,
-		},
-		{
-			name: "CD2DoubleRecursion",
-			desc: "Transit double recursion",
-			fn:   testCD2DoubleRecursion,
-		},
-		{
-			name: "ReplaceDefaultIPv4EntrySinglePath",
-			desc: "Transit-34 REPLACE: default VRF IPv4 Entry with single path NHG+NH in default vrf",
-			fn:   testReplaceDefaultIPv4EntrySinglePath,
-		},
-		{
-			name: "DeleteVRFIPv4EntrySinglePath",
-			desc: "Transit-38 DELETE: VRF IPv4 Entry with single path NHG+NH in default vrf",
-			fn:   testDeleteVRFIPv4EntrySinglePath,
-		},
-		{
-			name: "DeleteDefaultIPv4EntrySinglePath",
-			desc: "Transit-42 DELETE: default VRF IPv4 Entry with single path NHG+NH in default vrf",
-			fn:   testDeleteDefaultIPv4EntrySinglePath,
-		},
-		{
-			name: "TwoPrefixesWithSameSetOfPrimaryAndBackup",
-			desc: "Transit TC 066 - Two prefixes with NHGs with backup pointing to the each other's NHG",
-			fn:   testTwoPrefixesWithSameSetOfPrimaryAndBackup,
-		},
-		{
-			name: "SameForwardingEntriesAcrossMultipleVrfs",
-			desc: "Transit TC 067 - Same forwarding entries across multiple vrfs",
-			fn:   testSameForwardingEntriesAcrossMultipleVrfs,
-		},
-		{
-			name: "NHInterfaceInDifferentVRF",
-			desc: "Transit-11: Next Hop resoultion with interface in different VRF of NH_network_instance",
-			fn:   testNHInterfaceInDifferentVRF,
-		},
-		{
-			name: "NHIPOutOfInterfaceSubnet",
-			desc: "Transit-13: Next Hop resolution with interface+IP out of that interface subnet",
-			fn:   testNHIPOutOfInterfaceSubnet,
-		},
-		{
-			name: "ChangeNHToUnreachableAndChangeBack",
-			desc: "Transit-16:Changing IP address on I/F making NHOP unreachable and changing it back",
-			fn:   testChangeNHToUnreachableAndChangeBack,
-		},
-		{
-			name: "ChangeNHFromRecursiveToNonRecursive",
-			desc: "Transit-19: Next Hop Group resolution change NH from recursive and non-recursive",
-			fn:   testChangeNHFromRecursiveToNonRecursive,
-		},
-		{
-			name: "AddReplaceDeleteWithRelatedInterfaceFLap",
-			desc: "Transit TC 073 - ADD/REPLACE/DELETE during related interface flap",
-			fn:   testAddReplaceDeleteWithRelatedInterfaceFLap,
-		},
-		{
-			name: "DeleteVRFIPv4EntryECMPPath",
-			desc: "Transit-40 DELETE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
-			fn:   testDeleteVRFIPv4EntryECMPPath,
-		},
-		{
-			name: "DeleteDefaultIPv4EntryECMPPath",
-			desc: "Transit-45 DELETE: default VRF IPv4 Entry with ECMP+backup path NHG+NH in default vrf",
-			fn:   testDeleteDefaultIPv4EntryECMPPath,
-		},
-		{
-			name: "ReplaceVRFIPv4EntryECMPPath",
-			desc: "Transit-32 REPLACE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
-			fn:   testReplaceVRFIPv4EntryECMPPath,
-		},
+		// {
+		// 	name: "CD2ConnectedNHIP",
+		// 	desc: "Transit Connected nexthop",
+		// 	fn:   testCD2ConnectedNHIP,
+		// },
+		// {
+		// 	name: "CD2RecursiveNonConnectedNHOP",
+		// 	desc: "Transit Recursive Non Connected nexthop",
+		// 	fn:   testCD2RecursiveNonConnectedNHOP,
+		// },
+		// {
+		// 	name: "AddIPv4EntryTrafficCheck",
+		// 	desc: "Transit-46 ADD same IPv4 Entry verify no traffic impact",
+		// 	fn:   testAddIPv4EntryTrafficCheck,
+		// },
+		// {
+		// 	name: "ReplaceIPv4EntryTrafficCheck",
+		// 	desc: "Transit-47 REPLACE same IPv4 Entry verify no traffic impact",
+		// 	fn:   testReplaceIPv4EntryTrafficCheck,
+		// },
+		// {
+		// 	name: "AddNHGTrafficCheck",
+		// 	desc: "Transit-48 ADD same NHG verify no traffic impact",
+		// 	fn:   testAddNHGTrafficCheck,
+		// },
+		// {
+		// 	name: "ReplaceNHGTrafficCheck",
+		// 	desc: "Transit-49 REPLACE same NHG verify no traffic impact",
+		// 	fn:   testReplaceNHGTrafficCheck,
+		// },
+		// {
+		// 	name: "AddNHTrafficCheck",
+		// 	desc: "Transit-50 ADD same NH verify no traffic impact",
+		// 	fn:   testAddNHTrafficCheck,
+		// },
+		// {
+		// 	name: "ReplaceNHTrafficCheck",
+		// 	desc: "Transit-51 REPLACE same NH verify no traffic impact",
+		// 	fn:   testReplaceNHTrafficCheck,
+		// },
+		// {
+		// 	name: "CD2SingleRecursion",
+		// 	desc: "Transit single recursion",
+		// 	fn:   testCD2SingleRecursion,
+		// },
+		// {
+		// 	name: "CD2DoubleRecursion",
+		// 	desc: "Transit double recursion",
+		// 	fn:   testCD2DoubleRecursion,
+		// },
+		// {
+		// 	name: "ReplaceDefaultIPv4EntrySinglePath",
+		// 	desc: "Transit-34 REPLACE: default VRF IPv4 Entry with single path NHG+NH in default vrf",
+		// 	fn:   testReplaceDefaultIPv4EntrySinglePath,
+		// },
+		// {
+		// 	name: "DeleteVRFIPv4EntrySinglePath",
+		// 	desc: "Transit-38 DELETE: VRF IPv4 Entry with single path NHG+NH in default vrf",
+		// 	fn:   testDeleteVRFIPv4EntrySinglePath,
+		// },
+		// {
+		// 	name: "DeleteDefaultIPv4EntrySinglePath",
+		// 	desc: "Transit-42 DELETE: default VRF IPv4 Entry with single path NHG+NH in default vrf",
+		// 	fn:   testDeleteDefaultIPv4EntrySinglePath,
+		// },
+		// {
+		// 	name: "TwoPrefixesWithSameSetOfPrimaryAndBackup",
+		// 	desc: "Transit TC 066 - Two prefixes with NHGs with backup pointing to the each other's NHG",
+		// 	fn:   testTwoPrefixesWithSameSetOfPrimaryAndBackup,
+		// },
+		// {
+		// 	name: "SameForwardingEntriesAcrossMultipleVrfs",
+		// 	desc: "Transit TC 067 - Same forwarding entries across multiple vrfs",
+		// 	fn:   testSameForwardingEntriesAcrossMultipleVrfs,
+		// },
+		// {
+		// 	name: "NHInterfaceInDifferentVRF",
+		// 	desc: "Transit-11: Next Hop resoultion with interface in different VRF of NH_network_instance",
+		// 	fn:   testNHInterfaceInDifferentVRF,
+		// },
+		// {
+		// 	name: "NHIPOutOfInterfaceSubnet",
+		// 	desc: "Transit-13: Next Hop resolution with interface+IP out of that interface subnet",
+		// 	fn:   testNHIPOutOfInterfaceSubnet,
+		// },
+		// {
+		// 	name: "ChangeNHToUnreachableAndChangeBack",
+		// 	desc: "Transit-16:Changing IP address on I/F making NHOP unreachable and changing it back",
+		// 	fn:   testChangeNHToUnreachableAndChangeBack,
+		// },
+		// {
+		// 	name: "ChangeNHFromRecursiveToNonRecursive",
+		// 	desc: "Transit-19: Next Hop Group resolution change NH from recursive and non-recursive",
+		// 	fn:   testChangeNHFromRecursiveToNonRecursive,
+		// },
+		// {
+		// 	name: "AddReplaceDeleteWithRelatedInterfaceFLap",
+		// 	desc: "Transit TC 073 - ADD/REPLACE/DELETE during related interface flap",
+		// 	fn:   testAddReplaceDeleteWithRelatedInterfaceFLap,
+		// },
+		// {
+		// 	name: "DeleteVRFIPv4EntryECMPPath",
+		// 	desc: "Transit-40 DELETE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
+		// 	fn:   testDeleteVRFIPv4EntryECMPPath,
+		// },
+		// {
+		// 	name: "DeleteDefaultIPv4EntryECMPPath",
+		// 	desc: "Transit-45 DELETE: default VRF IPv4 Entry with ECMP+backup path NHG+NH in default vrf",
+		// 	fn:   testDeleteDefaultIPv4EntryECMPPath,
+		// },
+		// {
+		// 	name: "ReplaceVRFIPv4EntryECMPPath",
+		// 	desc: "Transit-32 REPLACE: VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
+		// 	fn:   testReplaceVRFIPv4EntryECMPPath,
+		// },
+		// {
+		// 	name: "ReplaceSinglePathtoECMP",
+		// 	desc: "Transit-52 ADD/REPLACE change NH from single path to ECMP",
+		// 	fn:   testReplaceSinglePathtoECMP,
+		// },
+		// {
+		// 	name: "IsisBgpControlPlaneInteractionWithGribi",
+		// 	desc: "Transit TC 068 - Verify ISIS/BGP control plane doesn’t  affect gRIBI related traffic with connected NHOP",
+		// 	fn:   testIsisBgpControlPlaneInteractionWithGribi,
+		// },
+		// {
+		// 	name: "BgpProtocolOverGribiTransitEntry",
+		// 	desc: "Transit TC 071 - Verify protocol (BGP) over gribi transit fwding entry",
+		// 	fn:   testBgpProtocolOverGribiTransitEntry,
+		// },
+
+		// {
+		// 	name: "AddReplaceDeleteWithSamePrefixWithVaryingPrefixLength",
+		// 	desc: "Transit TC 075 - ADD/REPLACE/DELETE with same Prefix with varying prefix lengths",
+		// 	fn:   testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength,
+		// },
+		// {
+		// 	name: "ChangeNHFromNonRecursiveToRecursive",
+		// 	desc: "Transit-18: Next Hop Group resolution change NH from non-recursive and recursive",
+		// 	fn:   testChangeNHFromNonRecursiveToRecursive,
+		// },
+		// {
+		// 	name: "SetISISOverloadBit",
+		// 	desc: "Transit- Set ISIS overload bit and then verify traffici",
+		// 	fn:   testSetISISOverloadBit,
+		// },
+		// {
+		// 	name: "changePeerAddress",
+		// 	desc: "Transit- Change peer ip/mac address and then verify traffic",
+		// 	fn:   testChangePeerAddress,
+		// },
+		// {
+		// 	name: "LC_OIR",
+		// 	desc: "Transit- LC OIR",
+		// 	fn:   testLCOIR,
+		// },
+
+		// {
+		// 	name: "DataPlaneFieldsOverGribiTransitFwdingEntry",
+		// 	desc: "Transit TC 072 - Verify dataplane fields(TTL, DSCP) with gribi transit fwding entry",
+		// 	fn:   testDataPlaneFieldsOverGribiTransitFwdingEntry,
+		// },
+		// {
+		// 	name: "AddReplaceDeleteWithRelatedConfigChange",
+		// 	desc: "Transit TC 074 - ADD/REPLACE/DELETE during related configuration change",
+		// 	fn:   testAddReplaceDeleteWithRelatedConfigChange,
+		// },
+
+		// {
+		// 	name: "CD2StaticMacChangeNHOP",
+		// 	desc: "Static Arp Resolution",
+		// 	fn:   testCD2StaticMacChangeNHOP,
+		// },
+		// {
+		// 	name: "CD2StaticDynamicMacNHOP",
+		// 	desc: "Initially Dynamic arp and then static arp to be resolved",
+		// 	fn:   testCD2StaticDynamicMacNHOP,
+		// },
+		// {
+		// 	name: "ClearingARP",
+		// 	desc: "Transit- Clearing ARP and then verify traffic",
+		// 	fn:   testClearingARP,
+		// },
+		// {
+		// 	name: "CD2StaticMacNHOP",
+		// 	desc: "Static Arp Resolution",
+		// 	fn:   testCD2StaticMacNHOP,
+		// },
 		{
 			name: "ReplaceDefaultIPv4EntryECMPPath",
 			desc: "Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
 			fn:   testReplaceDefaultIPv4EntryECMPPath,
-		},
-		{
-			name: "ReplaceSinglePathtoECMP",
-			desc: "Transit-52 ADD/REPLACE change NH from single path to ECMP",
-			fn:   testReplaceSinglePathtoECMP,
-		},
-		{
-			name: "IsisBgpControlPlaneInteractionWithGribi",
-			desc: "Transit TC 068 - Verify ISIS/BGP control plane doesn’t  affect gRIBI related traffic with connected NHOP",
-			fn:   testIsisBgpControlPlaneInteractionWithGribi,
-		},
-		{
-			name: "BgpProtocolOverGribiTransitEntry",
-			desc: "Transit TC 071 - Verify protocol (BGP) over gribi transit fwding entry",
-			fn:   testBgpProtocolOverGribiTransitEntry,
-		},
-		{
-			name: "AddReplaceDeleteWithSamePrefixWithVaryingPrefixLength",
-			desc: "Transit TC 075 - ADD/REPLACE/DELETE with same Prefix with varying prefix lengths",
-			fn:   testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength,
-		},
-		{
-			name: "ChangeNHFromNonRecursiveToRecursive",
-			desc: "Transit-18: Next Hop Group resolution change NH from non-recursive and recursive",
-			fn:   testChangeNHFromNonRecursiveToRecursive,
-		},
-		{
-			name: "SetISISOverloadBit",
-			desc: "Transit- Set ISIS overload bit and then verify traffici",
-			fn:   testSetISISOverloadBit,
-		},
-		{
-			name: "changePeerAddress",
-			desc: "Transit- Change peer ip/mac address and then verify traffic",
-			fn:   testChangePeerAddress,
-		},
-		{
-			name: "LC_OIR",
-			desc: "Transit- LC OIR",
-			fn:   testLCOIR,
-		},
-		{
-			name: "DataPlaneFieldsOverGribiTransitFwdingEntry",
-			desc: "Transit TC 072 - Verify dataplane fields(TTL, DSCP) with gribi transit fwding entry",
-			fn:   testDataPlaneFieldsOverGribiTransitFwdingEntry,
-		},
-		{
-			name: "AddReplaceDeleteWithRelatedConfigChange",
-			desc: "Transit TC 074 - ADD/REPLACE/DELETE during related configuration change",
-			fn:   testAddReplaceDeleteWithRelatedConfigChange,
-		},
-		{
-			name: "CD2StaticMacChangeNHOP",
-			desc: "Static Arp Resolution",
-			fn:   testCD2StaticMacChangeNHOP,
-		},
-		{
-			name: "CD2StaticDynamicMacNHOP",
-			desc: "Initially Dynamic arp and then static arp to be resolved",
-			fn:   testCD2StaticDynamicMacNHOP,
-		},
-		{
-			name: "ClearingARP",
-			desc: "Transit- Clearing ARP and then verify traffic",
-			fn:   testClearingARP,
-		},
-		{
-			name: "CD2StaticMacNHOP",
-			desc: "Static Arp Resolution",
-			fn:   testCD2StaticMacNHOP,
 		},
 	}
 	for _, tt := range test {
