@@ -1006,3 +1006,41 @@ func TestASPathOptReplacePeerAS(t *testing.T) {
         })
     }
 }
+
+
+// Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
+// State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/state/enabled
+func TestPeerGrpAfiSafiUseMultiplePathsEnabled(t *testing.T) {
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []bool{
+		true,
+		false,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	baseConfig := baseBgpPeerGroupConfig(bgp_as)
+	baseConfig.PeerGroup[peerGroup].GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	gnmi.Update(t, dut, bgpConfig.Config(), baseConfig)
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/use-multiple-paths/config/enabled using value %v", input), func(t *testing.T) {
+			config := bgpConfig.PeerGroup(peerGroup).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled()
+			//state := bgpState.PeerGroup(peerGroup).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled()
+
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			time.Sleep(configApplyTime)
+
+			t.Run("UseMultiplePathsEnabled_State", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, bgpState.PeerGroup(peerGroup).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled().State())
+				if stateGot != input {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/state/enabled: got %v, want %v", stateGot, input)
+				}
+			})
+		})
+	}
+}
