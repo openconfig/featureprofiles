@@ -496,9 +496,9 @@ func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 					t.Errorf("IP TTL value is altered to: %d", ipPacket.TTL)
 				}
 			}
-			InnerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
-			IpInnerLayer := InnerPacket.Layer(layers.LayerTypeIPv4)
-			if IpInnerLayer != nil {
+			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
+			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
+			if ipInnerLayer != nil {
 				t.Errorf("Packets are not decapped, Inner IP/IPv6 header is not removed.")
 			}
 		}
@@ -511,9 +511,9 @@ func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 					t.Errorf("IPv6 hoplimit value is altered to %d", ipv6Packet.HopLimit)
 				}
 			}
-			InnerPacket := gopacket.NewPacket(ipv6Packet.Payload, ipv6Packet.NextLayerType(), gopacket.Default)
-			Ipv6InnerLayer := InnerPacket.Layer(layers.LayerTypeIPv6)
-			if Ipv6InnerLayer != nil {
+			innerPacket := gopacket.NewPacket(ipv6Packet.Payload, ipv6Packet.NextLayerType(), gopacket.Default)
+			ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
+			if ipv6InnerLayer != nil {
 				t.Errorf("Packets are not decapped, Inner IP/IPv6 header is not removed.")
 			}
 		}
@@ -528,14 +528,14 @@ func validateTrafficDecap(t *testing.T, packetSource *gopacket.PacketSource) {
 			continue
 		}
 		ipPacket, _ := ipLayer.(*layers.IPv4)
-		InnerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
-		IpInnerLayer := InnerPacket.Layer(layers.LayerTypeIPv4)
-		if IpInnerLayer != nil {
+		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
+		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
+		if ipInnerLayer != nil {
 			if ipPacket.DstIP.String() != ipv4OuterDst333 {
 				t.Errorf("Negatice test for Decap failed. Traffic sent to route which does not match the decap route are decaped")
 			}
-			IpInnerPacket, _ := IpInnerLayer.(*layers.IPv4)
-			if IpInnerPacket.DstIP.String() != atePort2.IPv4 {
+			ipInnerPacket, _ := ipInnerLayer.(*layers.IPv4)
+			if ipInnerPacket.DstIP.String() != atePort2.IPv4 {
 				t.Errorf("Negatice test for Decap failed. Traffic sent to route which does not match the decap route are decaped")
 			}
 			t.Logf("Traffic for non decap routes passed.")
