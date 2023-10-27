@@ -530,7 +530,7 @@ func validateTrafficDecap(t *testing.T, packetSource *gopacket.PacketSource) {
 		ipPacket, _ := ipLayer.(*layers.IPv4)
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
-		if ipInnerLayer != nil {
+		if ipInnerLayer == nil {
 			if ipPacket.DstIP.String() != ipv4OuterDst333 {
 				t.Errorf("Negatice test for Decap failed. Traffic sent to route which does not match the decap route are decaped")
 			}
@@ -562,23 +562,32 @@ func TestSingleDecapGribiEntry(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := gosnappi.NewConfig()
 
-	t.Log("Configure Default Network Instance")
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	t.Run("Configure Default Network Instance", func(t *testing.T) {
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
+	})
 
-	t.Log("Configure Non-Default Network Instances")
-	configNonDefaultNetworkInstance(t, dut)
+	t.Run("Configure Non-Default Network Instances", func(t *testing.T) {
+		configNonDefaultNetworkInstance(t, dut)
+	})
 
-	configureDUT(t, dut)
+	t.Run("Configure interfaces on DUT", func(t *testing.T) {
+		configureDUT(t, dut)
+	})
 
-	t.Log("Apply vrf selectioin policy to DUT port-1")
-	configureVrfSelectionPolicy(t, dut)
+	t.Run("Apply vrf selectioin policy to DUT port-1", func(t *testing.T) {
+		configureVrfSelectionPolicy(t, dut)
+	})
 
 	otg := ate.OTG()
-	otgConfig := configureOTG(t, otg)
+	var otgConfig gosnappi.Config
+	t.Run("Configure OTG", func(t *testing.T) {
+		otgConfig = configureOTG(t, otg)
+	})
 
-	t.Log("Add static route for validating negative traffic test.")
 	negTestAddr := fmt.Sprintf("%s/%d", ipv4OuterDst333, uint32(32))
-	configStaticRoute(t, dut, negTestAddr, atePort2.IPv4)
+	t.Run("Add static route for validating negative traffic test", func(t *testing.T) {
+		configStaticRoute(t, dut, negTestAddr, atePort2.IPv4)
+	})
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
