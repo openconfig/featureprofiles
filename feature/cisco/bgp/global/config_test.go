@@ -335,3 +335,145 @@ func TestGlobalAfiSafiUseMultiplePathsEnabled1(t *testing.T) {
 		})
     }
 }
+
+// Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric tests the configuration of the BGP global ignore-next-hop-igp-metric leaf
+//
+// Config: /network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/config/ignore-next-hop-igp-metric
+// State: /network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/state/ignore-next-hop-igp-metric
+func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, "\n")
+
+	t.Log("Testing openconfig-network-instance:network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/config/ignore-next-hop-igp-metric \n")
+
+	t.Run("Test", func(t *testing.T) {
+
+		booleanVal := false
+		routeselopt := oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions {
+			IgnoreNextHopIgpMetric: &booleanVal,
+		}
+		bgp := oc.NetworkInstance_Protocol_Bgp {
+			Global: &oc.NetworkInstance_Protocol_Bgp_Global {
+				As: ygot.Uint32(1),
+			},
+		}
+		bgp.Global.RouteSelectionOptions = &routeselopt
+
+		/*
+		 * default VRF
+		 */
+		path := gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Global().RouteSelectionOptions()//.IgnoreNextHopIgpMetric()
+
+		/*
+		 * Add ignore-next-hop-igp-metric config
+		 */
+		t.Log("Update the ignore-next-hop-igp-metric = true")
+		t.Run("Update", func(t *testing.T) {
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Config(), &bgp)
+		})
+
+		/*
+		 * Replace ignore-next-hop-igp-metric value to true and verify
+		 */
+		t.Log("Replace ignore-next-hop-igp-metric value to true")
+		t.Run("Replace", func(t *testing.T) {
+			booleanVal = true
+			routeselopt = oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions {
+				IgnoreNextHopIgpMetric: &booleanVal,
+			}
+			gnmi.Replace(t, dut, path.Config(), &routeselopt)
+		})
+
+		t.Log("Verify after replace")
+		t.Run("Get", func(t *testing.T) {
+			configGot := gnmi.GetConfig(t, dut, path.Config())
+
+			if *configGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
+				t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *configGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
+			} else {
+				t.Logf("Passed: Configured ignore-next-hop-igp-metric = Obtained ignore-next-hop-igp-metric = %v", *configGot.IgnoreNextHopIgpMetric)
+			}
+		})
+
+		/*
+		 * Verify state for ignore-next-hop-igp-metric
+		 */ 
+		t.Log("Get-State for ignore-next-hop-igp-metric")
+		t.Run("Get-State", func(t *testing.T) {
+			stateGot := gnmi.Get(t, dut, path.State())
+ 
+			if *stateGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
+				t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *stateGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
+			} else {
+				t.Logf("Passed: Configured ignore-next-hop-igp-metric = Obtained ignore-next-hop-igp-metric = %v", *stateGot.IgnoreNextHopIgpMetric)
+			}
+		})
+
+		/*
+		 * Delete Configuration
+		 */
+		t.Log("Delete Configuration")
+		t.Run("Delete", func(t *testing.T) {
+			gnmi.Delete(t, dut, path.Config())
+		})
+
+		/*
+		 * VRF1 VRF
+		 */
+		 path = gnmi.OC().NetworkInstance("VRF1").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Global().RouteSelectionOptions()//.IgnoreNextHopIgpMetric()
+
+		 /*
+		  * Add ignore-next-hop-igp-metric config
+		  */
+		 t.Log("Update the ignore-next-hop-igp-metric = true")
+		 t.Run("Update", func(t *testing.T) {
+			 gnmi.Update(t, dut, gnmi.OC().NetworkInstance("VRF1").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Config(), &bgp)
+		 })
+
+		 /*
+		  * Replace ignore-next-hop-igp-metric value to true and verify
+		  */
+		 t.Log("Replace ignore-next-hop-igp-metric value to true")
+		 t.Run("Replace", func(t *testing.T) {
+			 booleanVal = true
+			 routeselopt = oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions {
+				 IgnoreNextHopIgpMetric: &booleanVal,
+			 }
+			 gnmi.Replace(t, dut, path.Config(), &routeselopt)
+		 })
+
+		 t.Log("Verify after replace")
+		 t.Run("Get", func(t *testing.T) {
+			 configGot := gnmi.GetConfig(t, dut, path.Config())
+
+			 if *configGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
+				 t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *configGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
+			 } else {
+				 t.Logf("Passed: Configured ignore-next-hop-igp-metric = Obtained ignore-next-hop-igp-metric = %v", *configGot.IgnoreNextHopIgpMetric)
+			 }
+		 })
+
+		 /*
+		  * Verify state for ignore-next-hop-igp-metric
+		  */ 
+		 t.Log("Get-State for ignore-next-hop-igp-metric")
+		 t.Run("Get-State", func(t *testing.T) {
+			 stateGot := gnmi.Get(t, dut, path.State())
+  
+			 if *stateGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
+				 t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *stateGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
+			 } else {
+				 t.Logf("Passed: Configured ignore-next-hop-igp-metric = Obtained ignore-next-hop-igp-metric = %v", *stateGot.IgnoreNextHopIgpMetric)
+			 }
+		 })
+
+		 /*
+		  * Delete Configuration
+		  */
+		 t.Log("Delete Configuration")
+		 t.Run("Delete", func(t *testing.T) {
+			 gnmi.Delete(t, dut, path.Config())
+		 })
+	})
+}
