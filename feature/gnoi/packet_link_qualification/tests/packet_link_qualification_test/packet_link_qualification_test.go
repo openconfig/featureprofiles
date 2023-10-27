@@ -350,6 +350,19 @@ func TestLinkQualification(t *testing.T) {
 				if listResp.GetResults()[j].GetState() != plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED {
 					testDone = false
 				}
+				if listResp.GetResults()[j].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+					if client == gnoiClient1 {
+						t.Logf("Checking link under qualificaton (generator) interface oper-status (dut: %v, dp: %v)", dut1.Name(), dp1.Name())
+						if got, want := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State()), oc.Interface_OperStatus_TESTING; got != want {
+							t.Errorf("Interface(%v) oper-status: got %v, want %v", dp1.Name(), got, oc.Interface_OperStatus_TESTING)
+						}
+					} else if client == gnoiClient2 {
+						t.Logf("Checking link under qualificaton (reflector) interface oper-status (dut: %v, dp: %v)", dut2.Name(), dp2.Name())
+						if got, want := gnmi.Get(t, dut2, gnmi.OC().Interface(dp2.Name()).OperStatus().State()), oc.Interface_OperStatus_TESTING; got != want {
+							t.Errorf("Interface(%v) oper-status: got %v, want %v", dp2.Name(), got, oc.Interface_OperStatus_TESTING)
+						}
+					}
+				}
 			}
 			if len(listResp.GetResults()) == 0 {
 				testDone = false

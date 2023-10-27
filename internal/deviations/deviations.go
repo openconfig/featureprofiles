@@ -529,12 +529,6 @@ func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) b
 	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
 }
 
-// AggregateLoopbackModeRequiresMemberPortLoopbackMode returns true for devices that require
-// configuring LoopbackMode on member ports to enable LoopbackMode on aggregate interface.
-func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
-}
-
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
 // /components/component/cpu/utilization/state/avg for linecards' CPU card.
 // Default value is false.

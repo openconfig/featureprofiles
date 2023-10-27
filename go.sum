@@ -1004,6 +1004,8 @@ github.com/google/uuid v1.1.2/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/google/uuid v1.3.1 h1:KjJaJ9iWZ3jOFZIf1Lqf4laDRCasjl0BCmnEGxkdLb4=
 github.com/google/uuid v1.3.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/google/uuid v1.4.0 h1:MtMxsa51/r9yyhkyLsVeVt0B+BGQZzpQiTQ4eHZ8bc4=
+github.com/google/uuid v1.4.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/googleapis/enterprise-certificate-proxy v0.0.0-20220520183353-fd19c99a87aa/go.mod h1:17drOmN3MwGY7t0e+Ei9b45FFGA3fBs3x36SsCg1hq8=
 github.com/googleapis/enterprise-certificate-proxy v0.1.0/go.mod h1:17drOmN3MwGY7t0e+Ei9b45FFGA3fBs3x36SsCg1hq8=
 github.com/googleapis/enterprise-certificate-proxy v0.2.0/go.mod h1:8C0jb7/mgJe/9KK8Lm7X9ctZC2t60YyIpYEI16jx0Qg=
@@ -1153,11 +1155,15 @@ github.com/openconfig/goyang v0.2.2/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+R
 github.com/openconfig/goyang v0.2.9/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+RrNkXRd3W8=
 github.com/openconfig/goyang v1.4.2 h1:inJe/BwVSBIhDN003MVKPUNeLDlLPJrvNV+ZsXdKNxc=
 github.com/openconfig/goyang v1.4.2/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+RrNkXRd3W8=
+github.com/openconfig/goyang v1.4.3 h1:9sr+l1vRbON0cMZxmogMhI8JiNqIf1uJoN8o4OdNqxI=
+github.com/openconfig/goyang v1.4.3/go.mod h1:vX61x01Q46AzbZUzG617vWqh/cB+aisc+RrNkXRd3W8=
 github.com/openconfig/gribi v0.1.1-0.20210423184541-ce37eb4ba92f/go.mod h1:OoH46A2kV42cIXGyviYmAlGmn6cHjGduyC2+I9d/iVs=
 github.com/openconfig/gribi v1.0.0 h1:xMwEg0mBD+21mOxuFOw0d9dBKuIPwJEhMUUeUulZdLg=
 github.com/openconfig/gribi v1.0.0/go.mod h1:VFqGH2ZPFIfnKTimP4/AQB4OK0eySW5muJNFxXAwP6k=
 github.com/openconfig/gribigo v0.0.0-20231011232723-88c9b8d98d8a h1:GderYwmwEia1zkziX7x6iEuSfeN4Rl+EiEr/dNa/vjg=
 github.com/openconfig/gribigo v0.0.0-20231011232723-88c9b8d98d8a/go.mod h1:Vb7wUYPIS4JujR46QjvKeaXB74G8rqXc2FSSKUiyzaU=
+github.com/openconfig/gribigo v0.0.0-20231024221855-bb56d1759075 h1:tNrt1DaXoHi6iSSuMZgZXeRBhpHUOsyg75xdCY/z58U=
+github.com/openconfig/gribigo v0.0.0-20231024221855-bb56d1759075/go.mod h1:T6A11G1rP6F7XiKX/CNoFDbDHP0Nk2RyvvFqf3uQtl4=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 h1:t6SvvdfWCMlw0XPlsdxO8EgO+q/fXnTevDjdYREKFwU=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
 github.com/openconfig/kne v0.1.14 h1:3xHy2bP+rr+2/2uFqliWXGjMPR7umO6mvFXh/TA2aJE=
@@ -1170,6 +1176,8 @@ github.com/openconfig/ondatra v0.4.0 h1:6ClDYy6QqPvSNVS59L7u4iavzIfpQQGOChQ59Kyd
 github.com/openconfig/ondatra v0.4.0/go.mod h1:5amId7t1tGasu9Y0NpV5EZ/0uXAisiUVteYu2Aj3TJc=
 github.com/openconfig/replayer v0.0.0-20231017143923-d23179322187 h1:BLLFxnn1kDFxx02WWd+gbGNScunzfRd+r+q7Ab3fHFc=
 github.com/openconfig/replayer v0.0.0-20231017143923-d23179322187/go.mod h1:IV6R35V5mbZbMdRjn1nIn+T//9s4vFPGhiRAgGSYqlQ=
+github.com/openconfig/replayer v0.0.0-20231027154425-b7fb1391cb3c h1:MOmc5EWf8AWJFVsJGsOI3JVY1lR9MLJYpzIgDbNfmtY=
+github.com/openconfig/replayer v0.0.0-20231027154425-b7fb1391cb3c/go.mod h1:qWxkJVt7w/SWhrTyxwAWGHUG1nT2hqDRtL74u5SuMh0=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygnmi v0.9.0 h1:u3NJNoJLJZu3c+93ZgKas65mggykNg6UT/cGEnQSTzU=
@@ -1179,6 +1187,8 @@ github.com/openconfig/ygot v0.10.4/go.mod h1:oCQNdXnv7dWc8scTDgoFkauv1wwplJn5Hsp
 github.com/openconfig/ygot v0.13.2/go.mod h1:kJN0yCXIH07dOXvNBEFm3XxXdnDD5NI6K99tnD5x49c=
 github.com/openconfig/ygot v0.29.12 h1:LjjeaRGdGEOWhldSm0fr8YarPlTgy2fCAaCvY+3pO3Y=
 github.com/openconfig/ygot v0.29.12/go.mod h1:RNnn1ytQ8GZV5LPts36l0cyoRjsYYpruiruJEvmU2sg=
+github.com/openconfig/ygot v0.29.13 h1:2YbW/k/t0uuXIoxLy0zrvBHgd1YyUCosIGFLzt3vsYQ=
+github.com/openconfig/ygot v0.29.13/go.mod h1:RKbkt2O+aFotfHPCXRbyQs4c7rmM5DuEuCnZfBSnYew=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/p4lang/p4runtime v1.4.0-rc.5.0.20220728214547-13f0d02a521e h1:AfZKoikDXbZ7zWvO/lvCRzLo7i6lM+gNleYVMxPiWyQ=
 github.com/p4lang/p4runtime v1.4.0-rc.5.0.20220728214547-13f0d02a521e/go.mod h1:m9laObIMXM9N1ElGXijc66/MSM5eheZJLRLxg/TG+fU=
