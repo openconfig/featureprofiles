@@ -263,10 +263,10 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort + "0")
+	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort + ".0")
 	gnmi.Delete(t, dut, pfpath.Config())
 
-	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort + "0")
+	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort + ".0")
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
