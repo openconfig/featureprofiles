@@ -299,10 +299,6 @@ func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice, p *ond
 func TestP4RTDaemonFailure(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	if dut.Vendor() == ondatra.CISCO {
-		t.Skipf("DUT uses same process for P4RT and gNMI")
-	}
-
 	p4rtD, ok := p4rtDaemons[dut.Vendor()]
 	if !ok {
 		t.Fatalf("Please add support for vendor %v in var p4rtDaemons", dut.Vendor())
@@ -362,12 +358,15 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	t.Logf("Stop traffic")
 	ate.OTG().StopTraffic(t)
 
-	// Verify interfaceID did not change since the last time we read it.
-	changedID, notOk := watchID.Await(t)
-	if notOk {
-		t.Errorf("FAIL: DUT changed /interfaces/interface/state/id  during p4rt process restart.  want:%q got:%q", dutPort1.ID, changedID.String())
+	// Skip check for CISCO devices that use the same process for P4RT & gNMI.
+	if dut.Vendor() != ondatra.CISCO {
+		// Verify interfaceID did not change since the last time we read it.
+		changedID, notOk := watchID.Await(t)
+		if notOk {
+			t.Errorf("FAIL: DUT changed /interfaces/interface/state/id  during p4rt process restart.  want:%q got:%q", dutPort1.ID, changedID.String())
+		}
+		t.Logf("OK: no change detected in /interfaces/interface/state/id want:%q got:%q", dutPort1.ID, changedID.String())
 	}
-	t.Logf("OK: no change detected in /interfaces/interface/state/id want:%q got:%q", dutPort1.ID, changedID.String())
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	txPackets := float32(recvMetric.GetCounters().GetOutPkts())
