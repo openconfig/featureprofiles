@@ -637,15 +637,6 @@ func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
 }
 
-// ISISLevelEnabled returns if device should enable isis under level.
-func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
-}
-
-func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
-}
-
 // TunnelStatePathUnsupported returns true for devices that require configuring
 // /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
 func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
@@ -656,4 +647,14 @@ func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 // Tunnel source-address destination-address, encapsulation type are not supported in OC
 func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
+}
+
+// ISISLevelEnabled returns true if device requires to enable under isis level leaf.
+func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
+}
+
+// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
+func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
 }
