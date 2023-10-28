@@ -272,7 +272,7 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
 	// Configure default NI and forwarding policy.
-	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort + "0")
+	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort + ".0")
 	gnmi.Replace(t, dut, intfConfPath.Config(), intf)
 
 	// Restart Protocols after policy change
