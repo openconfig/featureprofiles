@@ -50,13 +50,16 @@ traffic validation.
     * Label stack `[100, 42]`
     * Label stack `[100, 42, 43, 44, 45]`
 
-### TE-9.3: Pop Top MPLS Label
+## TE-9.5: Pop 1 Push N Labels
 
-* Configure DUT with a destination interface connected to an ATE. The ATE is
-  configured to have assigned address 192.0.2.2.
-* Program DUT with a label forwarding entry matching label 100 and specifying to
-  pop the top label.
-* Validate that gRIBI transactions are successfully processed by the server.
+* Configure DUT with destination interface connected to an ATE. The ATE is
+  configured to have assigned address `192.0.2.2`.
+* Program DUT with a label forwarding entry matching label 100 and label 200,
+  pointing to a next-hop that is programmed to pop the top label, and:
+   - push label 100 - resulting in a swap for incoming label 100, and a push of
+     100 for incoming label 200.
+   - push stack `[100, 200, 300, 400]`
+   - push stack `[100, 200, 300, 400, 500, 600]`
 
 ## Protocol/RPC Parameter coverage
 
