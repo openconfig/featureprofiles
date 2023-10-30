@@ -1,7 +1,7 @@
-# gNMI-1.19: gNMI subscribe with sample mode for backplane capacity counters
+# gNMI-1.18: gNMI subscribe with sample mode for backplane capacity counters
 
 ## Summary
-WBB is required to support gNMI Subscribe with sample mode for various counters.
+WBB is required to support gNMI Subscribe with SAMPLE or ON_CHANGE mode for various counters.
 This test if to verify that DUT supports gNMI Subscribe with sample mode, updating
 the available backplane capacity counters correctly while forwarding traffic
 
@@ -13,63 +13,77 @@ the available backplane capacity counters correctly while forwarding traffic
 
 ## Testbed type
 
-*   https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_9.testbed
+*   https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed
 
 ## Procedure
 
-*   Connect DUT port-1 through 9 to ATE port-1 through 9
+### gNMI-1.18.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2322]
 
-*   Configure IPv4/IPv6 addresses on all the 9 interfaces
+*   Connect DUT port-1 and 2 to ATE port-1 and 2 respectively
 
-*   Using gNMI subscribe with sample mode and an interval of 10 seconds
-    validate the backplane capacity before any traffic is sent and during the phases
-    This will happen at 0 Seconds 
+    *   For MFF DUT ports 1 and 2 SHOULD be on different linecards
 
-*   Phase 1 (initiate traffic immediately):
+*   Configure IPv4/IPv6 addresses on the interfaces
 
-    *   Initiate traffic as per below threshold:
+*   Using gNMI subscribe with "SAMPLE" mode
+
+    *   Run the test twice, once with a SAMPLE interval of 10 Seconds and once again
+        with a SAMPLE interval of 15 seconds for the below telemetry path
+
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
+
+    *   Initiate traffic:
+
+        *   Initiate traffic as per below threshold:
     
-         Port number   | Interface1(line rate %)
-        -------------- | -----------------------
-        Port1          | 20
-        Port2          | 20
-        Port3          | 20
-        Port4          | 20
-        Port5          | 20
-        Port6          | 20
-        Port7          | 20
-        Port8          | 20
-        Port9          | 20
+             Port number   | Interface1(line rate %)
+            -------------- | -----------------------
+            Port1          | 20%
+            Port2          | 20%
 
-*   We should get second sample at 10 seconds
+    *   Validate that we are receiving consumed capacity metrics at the selected SAMPLE interval
 
-*   Phase 2 (after 10 seconds):
+        *   Increase the traffic as per below threshold
 
-    *   Initiate traffic as per below threshold:
-    
-         Port number   | Interface1(line rate %)
-        -------------- | -----------------------
-        Port1          | 80
-        Port2          | 80
-        Port3          | 80
-        Port4          | 80
-        Port5          | 80
-        Port6          | 80
-        Port7          | 80
-        Port8          | 80
-        Port9          | 80
+             Port number   | Interface1(line rate %)
+            -------------- | -----------------------
+            Port1          | 70%
+            Port2          | 70%
 
-*   We should get third sample at 10 seconds
+    *   Validate we are now receiving increased consumed capacity metrics at the selected SAMPLE interval
 
-*   Ensure available backplane capacity shows a decrease at every sample interval
+### gNMI-1.18.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2323]
+
+*   Connect DUT port-1 and 2 to ATE port-1 and 2 respectively
+
+    *   For MFF DUT ports 1 and 2 SHOULD be on different linecards
+
+*   Configure IPv4/IPv6 addresses on the interfaces
+
+*   Use gNMI subscribe with "ON_CHANGE" mode for the below telemetry paths
+
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/total
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
+
+*   Disable one of the available FABRIC component
+
+    *   set /components/component/{fabric}/config/power-admin-state to POWER_DISABLED
+
+*   Validate that we recieve changed metrics of a lower value for each of the telemetry paths
+
+*   Enable the FABRIC component that was disabled in the previous step
+
+    *   Set /components/component/{fabric|linecard|controller-card}/config/power-admin-state to POWER_ENABLED
+
+*   Validate that we recieve changed metrics of a higher value for each of the telemetry paths
 
 ## Config parameter coverage
 
-*   Interfaces
-
-    *   /interfaces/interface/config/enabled
-    *   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled
-    *   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled
+*   /interfaces/interface/config/enabled
+*   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled
+*   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled
+*   /components/component/{fabric}/config/power-admin-state
 
 ## Telemetry parameter coverage (gNMI subscribe with sample every 10 seconds)
 
@@ -77,3 +91,14 @@ the available backplane capacity counters correctly while forwarding traffic
 *   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
 *   /components/component/integrated-circuit/backplane-facing-capacity/state/total
 *   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+
+## Protocol/RPC Parameter Coverage
+
+* gNMI
+  * Set
+  * Update
+  * Subscribe
+
+## Required DUT platform
+
+* MFF

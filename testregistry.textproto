@@ -146,12 +146,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "DP-1.10"
-  description: "gNMI subscribe with sample mode for output queue counters"
-  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/qos/otg_tests/sampled_output_queue_counters_test/README.md"
-  exec: " "
-}
-test: {
   id: "OC-1.1"
   description: "System Configuration"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/tests/system_base_test/README.md"
@@ -795,12 +789,6 @@ test: {
 }
 test: {
   id: "gNMI-1.18"
-  description: "gNMI subscribe with sample mode for interface counters"
-  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/interface/sampled_interface_counters_test/README.md"
-  exec: " "
-}
-test: {
-  id: "gNMI-1.19"
   description: "gNMI subscribe with sample mode for backplane capacity counters"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/README.md"
   exec: " "
