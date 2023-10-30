@@ -94,12 +94,12 @@ tests:
     priority: 3
   - name: TE-3.3 (Hierarchical weight resolution)
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_test
-    pr: 1654
     owners:
       - mananpat
     skip: false
     mustpass: true
     priority: 3
+    pr: 2314
   - name: TE-6.1 (Route Removal via Flush)
     path: feature/gribi/otg_tests/route_removal_via_flush_test
     owners:
@@ -126,6 +126,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 2314
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -162,6 +163,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 2314
   - name: gNOI-4.1 (Software Upgrade)
     path: feature/gnoi/os/tests/osinstall
     owners:
@@ -193,6 +195,7 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+    pr: 2298
     post:
       - name: gribi_flush
         path: topologies/cisco/pretests/gribi_flush_test
@@ -275,7 +278,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
-    pr: 2079
   - name: RT-5.3 (Aggregate Balancing)
     path: feature/interface/aggregate/otg_tests/balancing_test
     owners:
@@ -294,12 +296,14 @@ tests:
       - sprem
     mustpass: true
     priority: 30
+    pr: 2314
   - name: RT-3.1 (Policy based VRF selection)
     path: feature/experimental/policy/policy_vrf_selection/otg_tests/base_vrf_selection
     owners:
       - sprem
     mustpass: true
     priority: 30
+    pr: 2314
   - name: RT-5.1 (Singleton Interface)
     path: feature/interface/singleton/otg_tests/singleton_test
     timeout: 7200
@@ -327,7 +331,6 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    pr: 2087
     priority: 34
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
@@ -620,8 +623,7 @@ tests:
     owners:
       - mbagherz
     mustpass: true
-    pr: 928
-    internal: true
+    pr: 2202
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
@@ -641,7 +643,6 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
-    pr: 2071
 
   #?
   - name: Health-1.1 (Generic Health Check)
