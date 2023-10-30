@@ -35,6 +35,8 @@ Verify that interface packet counters are properly incremented in every streamin
 * Generate IPv4 and IPv6  traffic flow of packet size 4000B and IPv4 Don't Fragment bit set,  from ATE port-1 to ATE port-2 at constant rate, ensure:
     * Set Port2 MTUs [^1] of 1500
     * Verify that  for period of 300seconds difference between 2 consecutive reports of below counters for DUT's Port1 and Port2 is constant and > 0:
+      * `/interfaces/interface[name=Port2]/state/counters/out-pkts`
+      * `/interfaces/interface[name=Port2]/state/counters/out-octets`
       * `/interfaces/interface[name=Port2]/state/counters/out-discards`
       * `/interfaces/interface[name=Port1]/state/counters/in-pkts`
       * `/interfaces/interface[name=Port1]/state/counters/in-octets`
@@ -49,6 +51,7 @@ Verify that interface packet counters are properly incremented in every streamin
     * Verify that  for period of 300seconds difference between 2 consecutive reports of below counters for DUT's Port1 and Port2 is constant and > 0:
       * `/interfaces/interface[name=Port2]/state/counters/out-pkts`
       * `/interfaces/interface[name=Port2]/state/counters/out-octets`
+      * `/interfaces/interface[name=Port2]/state/counters/out-discards`
       * `/interfaces/interface[name=Port1]/state/counters/in-pkts`
       * `/interfaces/interface[name=Port1]/state/counters/in-octets`
     * Verify that  for period of 300seconds values returned by below couters for DUT's Port1 and Port2 are constatnt, and that Port1 `in-rate` is equal to Port2 `out-rate`
