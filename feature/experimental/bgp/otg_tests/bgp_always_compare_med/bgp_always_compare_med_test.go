@@ -281,7 +281,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // advertising some(faked) networks over BGP.
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Helper()
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 	port2 := config.Ports().Add().SetName("port2")
 	port3 := config.Ports().Add().SetName("port3")

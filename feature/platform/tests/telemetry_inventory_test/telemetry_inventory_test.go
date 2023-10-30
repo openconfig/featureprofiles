@@ -188,7 +188,7 @@ func TestHardwareCards(t *testing.T) {
 				rrValidation:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
-				pType:                 componentType["Linecard"],
+				pType:                 oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 			},
 		}, {
 			desc: "PowerSupply",
@@ -498,6 +498,41 @@ func TestTempSensor(t *testing.T) {
 	}
 }
 
+func TestControllerCardEmpty(t *testing.T) {
+	if *args.NumControllerCards <= 0 {
+		t.Skip("Skip ControllerCardEmpty Telemetry check for fixed form factor devices.")
+	}
+
+	dut := ondatra.DUT(t, "dut")
+	controllerCards := findComponentsListByType(t, dut)["Supervisor"]
+	if len(controllerCards) == 0 {
+		t.Fatalf("Get ControllerCard list for %q: got 0, want > 0", dut.Model())
+	}
+
+	t.Logf("ControllerCard components count: %d", len(controllerCards))
+
+	nonEmptyControllerCards := 0
+	for _, controllerCard := range controllerCards {
+		if controllerCard.Name == nil {
+			t.Errorf("Encountered a ControllerCard with no Name")
+			continue
+		}
+
+		sName := controllerCard.GetName()
+		t.Run(sName, func(t *testing.T) {
+			t.Logf("ControllerCard %s Id: %s", sName, controllerCard.GetId())
+
+			if !controllerCard.GetEmpty() {
+				nonEmptyControllerCards++
+			}
+		})
+	}
+
+	if got, want := nonEmptyControllerCards, *args.NumControllerCards; got != want {
+		t.Errorf("Number of non-empty ControllerCard: got %d, want %d", got, want)
+	}
+}
+
 func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Component, p properties) {
 	var validCards []*oc.Component
 	switch p.pType {
@@ -528,7 +563,12 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					t.Errorf("Component %s Description: got empty string, want non-empty string", cName)
 				}
 			}
-
+			if card.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+				t.Logf("Component %s linecard/state/slot-id: %s", cName, card.GetLinecard().GetSlotId())
+				if card.GetLinecard().GetSlotId() == "" {
+					t.Errorf("Component %s LineCard SlotID: got empty string, want non-empty string", cName)
+				}
+			}
 			if p.idValidation {
 				if deviations.SwitchChipIDUnsupported(dut) {
 					t.Logf("Skipping check for Id due to deviation SwitChipIDUnsupported")
