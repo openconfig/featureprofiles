@@ -205,3 +205,204 @@ func PushToIPPacket(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, b
 		})
 	}
 }
+
+// PopTopLabel creates a test whereby the top label of an input packet is popped.
+// The DUT is expected to be in a topology where 192.0.2.2 is a valid next-hop. Packets
+// with label 100 will have this label popped from the stack.
+func PopTopLabel(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, trafficFunc TrafficFunc) {
+	defer electionID.Add(1)
+	defer flushServer(t, c)
+
+	ops := []func(){
+		func() {
+			c.Modify().AddEntry(t,
+				fluent.NextHopEntry().
+					WithNetworkInstance(defaultNIName).
+					WithIndex(1).
+					WithIPAddress("192.0.2.2").
+					WithPopTopLabel())
+
+			c.Modify().AddEntry(t,
+				fluent.NextHopGroupEntry().
+					WithNetworkInstance(defaultNIName).
+					WithID(1).
+					AddNextHop(1, 1))
+
+			// Specify MPLS label that is pointed to our pop next-hop.
+			c.Modify().AddEntry(t,
+				fluent.LabelEntry().
+					WithLabel(100).
+					WithNetworkInstance(defaultNIName).
+					WithNextHopGroupNetworkInstance(defaultNIName).
+					WithNextHopGroup(1))
+		},
+	}
+
+	res := modify(t, c, ops)
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithMPLSOperation(100).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopGroupOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	if trafficFunc != nil {
+		t.Run("pop-top-label, traffic test", func(t *testing.T) {
+			trafficFunc(t, nil)
+		})
+	}
+}
+
+// PopNLabels programs a gRIBI server with a LFIB entry matching label 100
+// that pops the labels specified in popLabels from the stack. If trafficFunc
+// is non-nil it is called after the gRIBI programming is verified.
+//
+// The DUT is expected to be in a topology where 192.0.2.2 resolves to
+// a valid next-hop.
+func PopNLabels(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, popLabels []uint32, trafficFunc TrafficFunc) {
+	defer electionID.Add(1)
+	defer flushServer(t, c)
+
+	ops := []func(){
+		func() {
+			c.Modify().AddEntry(t,
+				fluent.NextHopEntry().
+					WithNetworkInstance(defaultNIName).
+					WithIndex(1).
+					WithIPAddress("192.0.2.2"))
+
+			c.Modify().AddEntry(t,
+				fluent.NextHopGroupEntry().
+					WithNetworkInstance(defaultNIName).
+					WithID(1).
+					AddNextHop(1, 1))
+
+			c.Modify().AddEntry(t,
+				fluent.LabelEntry().
+					WithLabel(100).
+					WithPoppedLabelStack(popLabels...).
+					WithNetworkInstance(defaultNIName).
+					WithNextHopGroup(1))
+		},
+	}
+
+	res := modify(t, c, ops)
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithMPLSOperation(100).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopGroupOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	if trafficFunc != nil {
+		t.Run("pop-n-labels, traffic test", func(t *testing.T) {
+			trafficFunc(t, nil)
+		})
+	}
+}
+
+// PopOnePushN implements a test whereby one (the top) label is popped, and N labels as specified
+// by pushLabels are pushed to the stack for an input MPLS packet. Two LFIB entries (100 and 200)
+// are created. If trafficFunc is non-nil it is called after the gRIBI programming has been validated.
+//
+// The DUT is expected to be in a topology where 192.0.2.2 is a resolvable next-hop.
+func PopOnePushN(t *testing.T, c *fluent.GRIBIClient, defaultNIName string, pushLabels []uint32, trafficFunc TrafficFunc) {
+	defer electionID.Add(1)
+	defer flushServer(t, c)
+
+	ops := []func(){
+		func() {
+			c.Modify().AddEntry(t,
+				fluent.NextHopEntry().
+					WithNetworkInstance(defaultNIName).
+					WithIndex(1).
+					WithIPAddress("192.0.2.2").
+					WithPopTopLabel().
+					WithPushedLabelStack(pushLabels...))
+
+			c.Modify().AddEntry(t,
+				fluent.NextHopGroupEntry().
+					WithNetworkInstance(defaultNIName).
+					WithID(1).
+					AddNextHop(1, 1))
+
+			for _, label := range []uint32{100, 200} {
+				c.Modify().AddEntry(t,
+					fluent.LabelEntry().
+						WithLabel(label).
+						WithNetworkInstance(defaultNIName).
+						WithNextHopGroup(1))
+			}
+		},
+	}
+
+	res := modify(t, c, ops)
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopGroupOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	chk.HasResult(t, res,
+		fluent.OperationResult().
+			WithNextHopOperation(1).
+			WithProgrammingResult(fluent.InstalledInRIB).
+			WithOperationType(constants.Add).
+			AsResult(),
+		chk.IgnoreOperationID())
+
+	for _, label := range []uint64{100, 200} {
+		chk.HasResult(t, res,
+			fluent.OperationResult().
+				WithMPLSOperation(label).
+				WithProgrammingResult(fluent.InstalledInRIB).
+				WithOperationType(constants.Add).
+				AsResult(),
+			chk.IgnoreOperationID())
+	}
+
+	if trafficFunc != nil {
+		t.Run("pop-one-push-N, traffic test", func(t *testing.T) {
+			trafficFunc(t, nil)
+		})
+	}
+}
