@@ -1,6 +1,0 @@
-name: oc-qos
-owner: saarvind@cisco.com
-topology: topologies/cisco/pyvxr/topo.yaml
-tests:
-- name: QOS OC leaf level coverage 
-  path: feature/cisco/qos/...
