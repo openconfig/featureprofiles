@@ -41,7 +41,7 @@ Verify that interface packet counters are properly incremented in every streamin
     * Verify that  for period of 300seconds values returned by below couters for DUT's Port1 and Port2 are constatnt:
       * `/interfaces/interface/state/out-rate`
       * `/interfaces/interface/state/in-rate`
-## Test Case 3 [TODO: https://github.com/openconfig/featureprofiles/issues/2148]
+### Sub Test 3 [TODO: https://github.com/openconfig/featureprofiles/issues/2148]
 Verify that interface packet counters are properly incremented in every streaming telemetry report
 * Subscribe to all interface counters of DUT Port1 and DUT Port 2 and with 30s interval.
 * Generate IPv4 and IPv6  traffic flow of packet size 4000B and IPv4 Don't Fragment bit set,  from ATE port-1 to ATE port-2 at constant rate, ensure:
