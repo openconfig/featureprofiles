@@ -81,10 +81,10 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.P
 func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	ttl := 2
 
-	counter0p1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State())
-	t.Logf("Initial number of packets on ATE port %s: %d", "port1", counter0p1)
-	counter0p2 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
-	t.Logf("Initial number of packets on ATE port %s: %d", "port2", counter0p2)
+	counter0p1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(portids[0]).Counters().InFrames().State())
+	t.Logf("Initial number of packets on ATE port %s: %d", portids[0], counter0p1)
+	counter0p2 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(portids[1]).Counters().InFrames().State())
+	t.Logf("Initial number of packets on ATE port %s: %d", portids[1], counter0p2)
 
 	packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, args.useIpv4, uint8(ttl), 100, args.metadata)
 	if err != nil {
@@ -99,41 +99,41 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 	time.Sleep(60 * time.Second)
 
 	// Check packet counters after packet out
-	counter1p1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State())
-	t.Logf("Final number of packets on ATE port %s: %d", "port1", counter1p1)
-	counter1p2 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
-	t.Logf("Final number of packets on ATE port %s: %d", "port2", counter1p2)
+	counter1p1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(portids[0]).Counters().InFrames().State())
+	t.Logf("Final number of packets on ATE port %s: %d", portids[0], counter1p1)
+	counter1p2 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(portids[1]).Counters().InFrames().State())
+	t.Logf("Final number of packets on ATE port %s: %d", portids[1], counter1p2)
 
 	// Verify InPkts stats to check P4RT stream
-	t.Logf("Received %v packets on ATE port %s", counter1p1-counter0p1, "port1")
-	t.Logf("Received %v packets on ATE port %s", counter1p2-counter0p2, "port2")
+	t.Logf("Received %v packets on ATE port %s", counter1p1-counter0p1, portids[0])
+	t.Logf("Received %v packets on ATE port %s", counter1p2-counter0p2, portids[1])
 
 	switch args.trafficPort {
-	case "port1":
+	case portids[0]:
 		// should receive all packets on port1
 		if !gotAllPackets(counter1p1, counter0p1, packetCount) {
-			t.Fatalf("Not all the packets are received on ATE port %s", "port1")
+			t.Fatalf("Not all the packets are received on ATE port %s", portids[0])
 		}
 		// should receive no packets on port2
 		if gotAllPackets(counter1p2, counter0p2, packetCount) {
-			t.Fatalf("Unexpected packets received on ATE port %s", "port2")
+			t.Fatalf("Unexpected packets received on ATE port %s", portids[1])
 		}
-	case "port2":
+	case portids[1]:
 		// should receive all packets on port2
 		if !gotAllPackets(counter1p2, counter0p2, packetCount) {
-			t.Fatalf("Not all the packets are received on ATE port %s", "port2")
+			t.Fatalf("Not all the packets are received on ATE port %s", portids[1])
 		}
 		// should receive no packets on port1
 		if gotAllPackets(counter1p1, counter0p1, packetCount) {
-			t.Fatalf("Unexpected packets received on ATE port %s", "port1")
+			t.Fatalf("Unexpected packets received on ATE port %s", portids[0])
 		}
 	default:
 		// should not receive packets on any port
 		if gotAllPackets(counter1p1, counter0p1, packetCount) {
-			t.Fatalf("Unexpected packets received on ATE port %s", "port1")
+			t.Fatalf("Unexpected packets received on ATE port %s", portids[0])
 		}
 		if gotAllPackets(counter1p2, counter0p2, packetCount) {
-			t.Fatalf("Unexpected packets received on ATE port %s", "port2")
+			t.Fatalf("Unexpected packets received on ATE port %s", portids[1])
 		}
 	}
 }
