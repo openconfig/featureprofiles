@@ -420,8 +420,7 @@ func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) 
 // configureATE configures the interfaces and BGP protocols on an OTG, including advertising some
 // (faked) networks over BGP.
 func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
-
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	srcPort := config.Ports().Add().SetName("port1")
 	dstPort := config.Ports().Add().SetName("port2")
 
@@ -596,9 +595,7 @@ func TestEstablish(t *testing.T) {
 
 	// Configure Network instance type on DUT.
 	t.Log("Configure Network Instance type")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	// Configure BGP+Neighbors on the DUT.
 	t.Logf("Start DUT BGP Config")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")

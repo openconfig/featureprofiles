@@ -303,11 +303,6 @@ func GRIBIRIBAckOnly(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRibackOnly()
 }
 
-// MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
-func MissingInterfacePhysicalChannel(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingInterfacePhysicalChannel()
-}
-
 // MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
 func MissingValueForDefaults(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingValueForDefaults()
@@ -534,12 +529,6 @@ func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) b
 	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
 }
 
-// AggregateLoopbackModeRequiresMemberPortLoopbackMode returns true for devices that require
-// configuring LoopbackMode on member ports to enable LoopbackMode on aggregate interface.
-func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
-}
-
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
 // /components/component/cpu/utilization/state/avg for linecards' CPU card.
 // Default value is false.
@@ -597,6 +586,18 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
 
+// GRIBISkipFIBFailedTrafficForwardingCheck returns true for devices that do not
+// support fib forwarding for fib failed routes.
+func GRIBISkipFIBFailedTrafficForwardingCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipFibFailedTrafficForwardingCheck()
+}
+
+// SkipTCPNegotiatedMSSCheck returns true for devices that do not
+// support telemetry to check negotiated tcp mss value.
+func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipTcpNegotiatedMssCheck()
+}
+
 // TransceiverThresholdsUnsupported returns true if the device does not support threshold container under /components/component/transceiver.
 // Default value is false.
 func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
@@ -607,4 +608,43 @@ func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
 // Default value is false.
 func InterfaceLoopbackModeRawGnmi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceLoopbackModeRawGnmi()
+}
+
+// ISISLspMetadataLeafsUnsupported returns true for devices that don't support ISIS-Lsp
+// metadata paths: checksum, sequence-number, remaining-lifetime.
+func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspMetadataLeafsUnsupported()
+}
+
+// QOSQueueRequiresID returns if device should configure QOS queue along with queue-id
+func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
+}
+
+// BgpLlgrOcUndefined returns true if device should does not support OC path to disable BGP LLGR.
+func BgpLlgrOcUndefined(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpLlgrOcUndefined()
+}
+
+// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
+}
+
+// BGPGlobalExtendedNextHopEncodingUnsupported returns true for devices that do not support configuring
+// BGP ExtendedNextHopEncoding at thee global level.
+func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
+}
+
+// TunnelStatePathUnsupported returns true for devices that require configuring
+// /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
+func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelStatePathUnsupported()
+}
+
+// TunnelConfigPathUnsupported returns true for devices that require configuring
+// Tunnel source-address destination-address, encapsulation type are not supported in OC
+func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
 }

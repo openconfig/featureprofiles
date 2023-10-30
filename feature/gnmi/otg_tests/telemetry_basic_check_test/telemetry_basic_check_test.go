@@ -150,9 +150,6 @@ func TestInterfaceOperStatus(t *testing.T) {
 
 func TestInterfacePhysicalChannel(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.MissingInterfacePhysicalChannel(dut) {
-		t.Skip("Test is skipped due to MissingInterfacePhysicalChannel deviation")
-	}
 	dp := dut.Port(t, "port1")
 
 	phyChannel := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).PhysicalChannel().State())
@@ -791,7 +788,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	otg := ate.OTG()
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
 	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").SetMac("02:00:01:01:01:01")

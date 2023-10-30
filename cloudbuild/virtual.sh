@@ -53,6 +53,9 @@ case ${platform} in
   juniper_cptx)
     vendor_creds=JUNIPER/root/Google123
     ;;
+  juniper_ncptx)
+    vendor_creds=JUNIPER/root/Google123
+    ;;
   cisco_8000e)
     vendor_creds=CISCO/cisco/cisco123
     ;;
@@ -111,6 +114,7 @@ for dut_test in ${dut_tests}; do
   kne_topology=$(metadata_kne_topology "${test_path}")
   sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/kne/"${kne_topology}"
+  sed -i "s/ncptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/ncptx:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/xrd:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/xrd:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/srlinux:latest/us-west1-docker.pkg.dev\/gep-kne\/nokia\/srlinux:ga/g" /tmp/kne/"${kne_topology}"
