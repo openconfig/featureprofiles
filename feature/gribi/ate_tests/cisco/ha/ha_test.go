@@ -760,7 +760,6 @@ func (a *testArgs) scaleNHG(t *testing.T, nhg_start uint64, nhg_scale int, bkgNH
 			nhg.WithBackupNHG(bkgNHG)
 		}
 		if len(opts) != 0 {
-			rand.Seed(time.Now().UnixNano())
 			min := 10
 			max := 70
 			value := rand.Intn(max-min+1) + min
@@ -768,7 +767,6 @@ func (a *testArgs) scaleNHG(t *testing.T, nhg_start uint64, nhg_scale int, bkgNH
 			nhs_start = nhs_start + 1
 		} else {
 			for j := 0; j < nh_prefix_TE; j++ {
-				rand.Seed(time.Now().UnixNano())
 				min := 10
 				max := 70
 				value := rand.Intn(max-min+1) + min
@@ -2077,7 +2075,6 @@ func test_triggers(t *testing.T, args *testArgs) {
 				// kill previous gribi client
 				args.client.Close(t)
 
-				rand.Seed(time.Now().UnixNano())
 				min := 57344
 				max := 57998
 				for k := 0; k < grpc_repeat; k++ {

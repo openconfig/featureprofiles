@@ -134,9 +134,10 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.
 	}
 	glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	// Configure ISIS enable flag at interface level
-	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
-		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if deviations.ISISInterfaceAfiUnsupported(dut) {
+		intf.Af = nil
 	}
 }
 
@@ -204,8 +205,7 @@ func New(t testing.TB) (*TestSession, error) {
 	// that don't use an ATE.
 	if ate, ok := ondatra.ATEs(t)["ate"]; ok {
 		s.ATE = ate
-		otg := s.ATE.OTG()
-		s.ATETop = otg.NewConfig(t)
+		s.ATETop = gosnappi.NewConfig()
 		s.ATEPort1 = s.ATE.Port(t, "port1")
 		s.ATEPort2 = s.ATE.Port(t, "port2")
 		s.ATEIntf1 = ATEISISAttrs.AddToOTG(s.ATETop, s.ATEPort1, DUTISISAttrs)
