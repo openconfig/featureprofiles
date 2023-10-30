@@ -84,6 +84,9 @@ func configureDUTPort1(t *testing.T, dut *ondatra.DUTDevice, dutOcRoot *oc.Root,
 	dutOcPath := gnmi.OC()
 	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", dut), dutOcPath.Config(), dutOcRoot)
 	gnmi.Update(t, dut, dutOcPath.Config(), dutOcRoot)
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dutPort1)
+	}
 }
 
 // configureDUT configures AE interface and adds port1 to AE.
@@ -112,7 +115,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutOcRoot *oc.Root, aggI
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG) {
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 	iDut1Dev := config.Devices().Add().SetName(atePort1Attr.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1Attr.Name + ".Eth").SetMac(atePort1Attr.MAC)
@@ -264,10 +267,7 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 				t.Errorf("Failed to update interface loopback mode")
 			}
 		} else {
-			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
-			if deviations.AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut) {
-				gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
-			}
+			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
 		}
 	})
 
