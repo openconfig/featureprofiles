@@ -16,6 +16,13 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: '1.21'
+    - name: Free additional disk space
+      run: |
+        # Go build cache requires a lot of disk.  Reclaim
+        # extra container space by removing unnecessary tooling.
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
     - name: Checkout code
       uses: actions/checkout@v3
     - name: Check disk usage
@@ -37,7 +44,6 @@ jobs:
         df -h
         du -sh /home/runner
         du --max-depth=4 -h /home/runner | sort -rh
-        go clean -cache
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
@@ -71,16 +77,5 @@ jobs:
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
-      run: |
-        # staticcheck requires a lot of free disk space in /tmp.  Free up worker
-        # space by removing unnecessary tooling.
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/hostedtoolcache/CodeQL
-        GOGC=30 staticcheck ./...
-    - name: Check disk ending usage
-      run: |
-        df -h
-        du -sh /home/runner
-        du --max-depth=4 -h /home/runner | sort -rh
+      run: GOGC=30 staticcheck ./...
 
