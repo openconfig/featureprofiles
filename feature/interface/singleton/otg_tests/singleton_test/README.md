@@ -6,7 +6,7 @@ Singleton L3 interface (non-LAG) is supported on DUT.
 
 ## Procedure
 
-### Test Case 1
+### Sub Test 1
 
 For each port speed and breakout port configuration that need to be tested, add
 a new testbed configuration with the desired port types.
