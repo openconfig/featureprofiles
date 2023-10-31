@@ -1,4 +1,4 @@
-# Replay-1.0: Record/replay presession test
+# Replay-1.0: Record/replay diff command trees test
 
 ## Summary
 
