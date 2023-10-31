@@ -75,7 +75,6 @@ type checker struct {
 
 	mu        sync.Mutex
 	startTime time.Time
-	endTime   time.Time
 	prevCores coreFiles
 }
 
