@@ -1,4 +1,4 @@
-# Replay-1.0: Record/replay diff command trees test
+# Replay-1.1: Record/replay diff command trees test
 
 ## Summary
 
