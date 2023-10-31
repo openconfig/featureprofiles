@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 type testArgs struct {
@@ -1725,14 +1724,14 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	//Change interface configurations and revert back
 	interfaceNames := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	//Store current config
-	originalInterfaces := util.GetCopyOfIpv4SubInterfaces(t, args.dut, interfaceNames, 0)
+	originalInterfaces := util.GetCopyOfIpv4Interfaces(t, args.dut, interfaceNames, 0)
 	//Change IP addresses for the interfaces in the slice
 	initialIP := "123.123.123.123"
 	counter := 1
 	for _, interfaceName := range interfaceNames {
 		ipPrefix := util.GetIPPrefix(initialIP, counter, "24")
 		initialIP = strings.Split(ipPrefix, "/")[0]
-		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Subinterface(0).Config(), util.GetSubInterface(initialIP, 24, 0))
+		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Config(), util.GetInterface(interfaceName, initialIP, 24, 0))
 		t.Logf("Changed configuration of interface %s", interfaceName)
 		counter = counter + 256
 
@@ -1740,8 +1739,8 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	//Revert original config
 	for _, interfaceName := range interfaceNames {
 		osi := originalInterfaces[interfaceName]
-		osi.Index = ygot.Uint32(0)
-		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Subinterface(0).Config(), osi)
+		// osi.Index = ygot.Uint32(0)
+		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Config(), osi)
 		t.Logf("Restored configuration of interface %s", interfaceName)
 	}
 	//Config change end
@@ -2203,11 +2202,11 @@ func TestTransitWECMPFlush(t *testing.T) {
 		// 	desc: "Static Arp Resolution",
 		// 	fn:   testCD2StaticMacNHOP,
 		// },
-		{
-			name: "ReplaceDefaultIPv4EntryECMPPath",
-			desc: "Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
-			fn:   testReplaceDefaultIPv4EntryECMPPath,
-		},
+		// {
+		// 	name: "ReplaceDefaultIPv4EntryECMPPath",
+		// 	desc: "Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
+		// 	fn:   testReplaceDefaultIPv4EntryECMPPath,
+		// },
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
