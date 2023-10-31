@@ -842,3 +842,505 @@ func TestRotateReqWithFinalizeEcdsa(t *testing.T) {
 	t.Logf("Delete Profile was successful, %v", delprofile)
 
 }
+
+func TestRotateReqWithFinalizeNegative(t *testing.T) {
+
+	os.Mkdir("testdata/", 0755)
+	defer os.RemoveAll("testdata/")
+
+	// Adding New SSL Profile
+	dut := ondatra.DUT(t, "dut")
+	gnsiC := dut.RawAPIs().GNSI(t)
+	profile_id := "rotatecertznegative"
+	profiles, err := gnsiC.Certz().AddProfile(context.Background(), &certzpb.AddProfileRequest{SslProfileId: profile_id})
+	if err != nil {
+		t.Fatalf("Unexpected Error in getting profile list: %v", err)
+	}
+	t.Logf("Profile add successful, %v", profiles)
+
+	//Generating Self-signed Cert
+	_, _, err = cert.GenRootCA("ROOTCA", x509.RSA, 100, "testdata/")
+
+	if err != nil {
+		t.Fatalf("Generation of root ca using rsa is failed: %v", err)
+	}
+	caKey, caCert, err := cert.LoadKeyPair("testdata/cakey.rsa.pem", "testdata/cacert.rsa.pem")
+	if err != nil {
+		t.Fatalf("Could not load the generated key and cer: %v", err)
+	}
+	//Generating Server Cert & Signed from CA
+	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.IPv4(10, 105, 237, 37)}, "test", 100)
+	if err != nil {
+		t.Fatalf("Could not generate the cert template: %v", err)
+	}
+	tlscert, err := cert.GenerateCert(certTemp, caCert, caKey, x509.RSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificate template: %v", err)
+	}
+	err = cert.SaveTLSCertInPems(tlscert, "testdata/server_key_rsa.pem", "testdata/server_cert_rsa.pem", x509.RSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificates: %v", err)
+	}
+	//Rotate with Server cert & key
+
+	certPEMtoload, err := ioutil.ReadFile("testdata/server_cert_rsa.pem")
+	if err != nil {
+		log.Exit("Failed to read cert file", err)
+	}
+	privKeyPEMtoload, err := ioutil.ReadFile("testdata/server_key_rsa.pem")
+	if err != nil {
+		log.Exit("Failed to read key file", err)
+	}
+	var expired_cert = `-----BEGIN CERTIFICATE-----
+	MIIBjTCCAROgAwIBAgIBATAKBggqhkjOPQQDAzAWMRQwEgYDVQQDEwtleGFtcGxl
+	LmNvbTAeFw0yMzA5MDYwNTMxNTdaFw0yMzA5MDYwNTMyMDdaMBYxFDASBgNVBAMT
+	C2V4YW1wbGUuY29tMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEcebqv4ACjUQNaJVE
+	sokZTeNgRRAJzGfZoW20RAYaekIPZZSAiT7iU/JuL+GIlJvtlFVQl5Jcb5XOV4nO
+	G2lk/mTKQI+tVS/jaBNeo+7ksIA5ly+82l+Id5M7Y6TNNxxGozUwMzAOBgNVHQ8B
+	Af8EBAMCBaAwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAKBggq
+	hkjOPQQDAwNoADBlAjEAxmC2wcSyf9vGcrlIJ2k+9D19d9KCvB8N8TvrGePbz6kp
+	fiPmdzFVJSYwTABYR2zxAjAMLKNv1F898l1eZXBUSBETIUUGrIQGXMq5p3QD6zQF
+	xw+P9fXxxL5HKoCrTksitAo=
+	-----END CERTIFICATE-----`
+
+	type testRequest struct {
+		req *certzpb.RotateCertificateRequest
+	}
+	tests := []struct {
+		desc     string
+		testCase testRequest
+		wantErr  bool
+	}{
+
+		{
+			desc: "Rotate with empty entity",
+			testCase: testRequest{
+				req: &certzpb.RotateCertificateRequest{
+					ForceOverwrite: true,
+					SslProfileId:   profile_id,
+					RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
+						Certificates: &certzpb.UploadRequest{
+							Entities: []*certzpb.Entity{},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			desc: "Rotate Leaf certificate with garbage privatekey",
+			testCase: testRequest{
+				req: &certzpb.RotateCertificateRequest{
+					ForceOverwrite: true,
+					SslProfileId:   profile_id,
+					RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
+						Certificates: &certzpb.UploadRequest{
+							Entities: []*certzpb.Entity{
+								{
+									Version:   "1.0",
+									CreatedOn: 123456789,
+									Entity: &certzpb.Entity_CertificateChain{
+										CertificateChain: &certzpb.CertificateChain{
+											Certificate: &certzpb.Certificate{
+												Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+												Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+												Certificate: certPEMtoload,
+												PrivateKey:  certPEMtoload,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			desc: "Rotate expired Leaf certificate",
+			testCase: testRequest{
+				req: &certzpb.RotateCertificateRequest{
+					ForceOverwrite: true,
+					SslProfileId:   profile_id,
+					RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
+						Certificates: &certzpb.UploadRequest{
+							Entities: []*certzpb.Entity{
+								{
+									Version:   "1.0",
+									CreatedOn: 123456789,
+									Entity: &certzpb.Entity_CertificateChain{
+										CertificateChain: &certzpb.CertificateChain{
+											Certificate: &certzpb.Certificate{
+												Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+												Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+												Certificate: []byte(expired_cert),
+												PrivateKey:  privKeyPEMtoload,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			desc: "Rotate Leaf certificate for non-existent profile id",
+			testCase: testRequest{
+				req: &certzpb.RotateCertificateRequest{
+					ForceOverwrite: true,
+					SslProfileId:   "non-existent",
+					RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
+						Certificates: &certzpb.UploadRequest{
+							Entities: []*certzpb.Entity{
+								{
+									Version:   "1.0",
+									CreatedOn: 123456789,
+									Entity: &certzpb.Entity_CertificateChain{
+										CertificateChain: &certzpb.CertificateChain{
+											Certificate: &certzpb.Certificate{
+												Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+												Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+												Certificate: certPEMtoload,
+												PrivateKey:  privKeyPEMtoload,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+
+			r, err := gnsiC.Certz().Rotate(context.Background())
+			if err != nil {
+				log.Exit("failed to get stream:", err)
+			}
+			//var response *certzpb.RotateCertificateResponse
+
+			t.Logf("request: %+v", tt.testCase.req)
+			err = r.Send(tt.testCase.req)
+			if err != nil {
+				t.Fatalf("Send failed.%v", err)
+			}
+			_, err = r.Recv()
+			if (tt.wantErr == true) && (err == nil) {
+				t.Errorf("Expected Error But able to rotate profile with invalid values")
+			}
+		})
+	}
+	//Delete rotated profile-id
+	delprofile, err := gnsiC.Certz().DeleteProfile(context.Background(), &certzpb.DeleteProfileRequest{SslProfileId: profile_id})
+	if err != nil {
+		t.Fatalf("Unexpected Error in deleting profile list: %v", err)
+	}
+	t.Logf("Delete Profile was successful, %v", delprofile)
+}
+
+func TestRotateReqWithFinalizeRsaValidate(t *testing.T) {
+	os.Mkdir("testdatarsa/", 0755)
+	defer os.RemoveAll("testdatarsa/")
+
+	os.Mkdir("testdataecdsa/", 0755)
+	defer os.RemoveAll("testdataecdsa/")
+
+	// Adding New SSL Profile
+
+	dut := ondatra.DUT(t, "dut")
+	gnsiC := dut.RawAPIs().GNSI(t)
+	profile_id := "rotatecertzvalidate"
+	profiles, err := gnsiC.Certz().AddProfile(context.Background(), &certzpb.AddProfileRequest{SslProfileId: profile_id})
+
+	if err != nil {
+		t.Fatalf("Unexpected Error in adding profile list: %v", err)
+	}
+	t.Logf("Profile add successful %v", profiles)
+
+	//Generating Self-signed RSA Cert
+
+	_, _, err = cert.GenRootCA("ROOTCA", x509.RSA, 100, "testdatarsa/")
+
+	if err != nil {
+		t.Fatalf("Generation of root ca using rsa is failed: %v", err)
+	}
+	caKeyrsa, caCertrsa, err := cert.LoadKeyPair("testdatarsa/cakey.rsa.pem", "testdatarsa/cacert.rsa.pem")
+	if err != nil {
+		t.Fatalf("Could not load the generated key and cer: %v", err)
+	}
+	//Generating Server Cert & Signed from RSA CA
+	certTemprsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.IPv4(10, 105, 237, 37)}, "test", 100)
+	if err != nil {
+		t.Fatalf("Could not generate the cert template: %v", err)
+	}
+	tlscertrsa, err := cert.GenerateCert(certTemprsa, caCertrsa, caKeyrsa, x509.RSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificate template: %v", err)
+	}
+	err = cert.SaveTLSCertInPems(tlscertrsa, "testdatarsa/server_key_rsa.pem", "testdatarsa/server_cert_rsa.pem", x509.RSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificates: %v", err)
+	}
+	//Rotate with RSA Server cert & key
+
+	certPEMtoloadRSA, err := ioutil.ReadFile("testdatarsa/server_cert_rsa.pem")
+	if err != nil {
+		log.Exit("Failed to read cert file", err)
+	}
+	privKeyPEMtoloadRSA, err := ioutil.ReadFile("testdatarsa/server_key_rsa.pem")
+	if err != nil {
+		log.Exit("Failed to read key file", err)
+	}
+
+	//Generating Self-signed ECDSA Cert
+	_, _, err = cert.GenRootCA("ROOTCA", x509.ECDSA, 100, "testdataecdsa/")
+
+	if err != nil {
+		t.Fatalf("Generation of root ca using ecdsa is failed: %v", err)
+	}
+	caKeyecdsa, caCertecdsa, err := cert.LoadKeyPair("testdataecdsa/cakey.ecdsa.pem", "testdataecdsa/cacert.ecdsa.pem")
+	if err != nil {
+		t.Fatalf("Could not load the generated key and cer: %v", err)
+	}
+	//Generating Server Cert & Signed from CA
+	certTempecdsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.IPv4(10, 105, 237, 37)}, "test", 100)
+	if err != nil {
+		t.Fatalf("Could not generate the cert template: %v", err)
+	}
+	tlscertecdsa, err := cert.GenerateCert(certTempecdsa, caCertecdsa, caKeyecdsa, x509.ECDSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificate template: %v", err)
+	}
+	err = cert.SaveTLSCertInPems(tlscertecdsa, "testdataecdsa/server_key.pem", "testdataecdsa/server_cert.pem", x509.ECDSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificates: %v", err)
+	}
+	stream, err := gnsiC.Certz().Rotate(context.Background())
+	if err != nil {
+		log.Exit("failed to get stream:", err)
+	}
+	var response *certzpb.RotateCertificateResponse
+
+	//ROTATE with RSA TRUSTBUNDLE
+	certificatesrsa, err := readCertificatesFromFile("testdatarsa/cacert.rsa.pem")
+	if err != nil {
+		log.Exit("failed to read bundle", err)
+	}
+	var certChainMessageRSA certzpb.CertificateChain
+	var x509toPEM = func(cert *x509.Certificate) []byte {
+		return pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		})
+	}
+	for i, cert := range certificatesrsa {
+		certMessage := &certzpb.Certificate{
+			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			Certificate: x509toPEM(cert),
+		}
+		if i > 0 {
+			certChainMessageRSA.Parent = &certzpb.CertificateChain{
+				Certificate: certMessage,
+				Parent:      certChainMessageRSA.Parent,
+			}
+		} else {
+			certChainMessageRSA = certzpb.CertificateChain{
+				Certificate: certMessage,
+			}
+		}
+	}
+
+	//ROTATE with ECDSA TRUSTBUNDLE
+	certificatesecdsa, err := readCertificatesFromFile("testdataecdsa/cacert.ecdsa.pem")
+	if err != nil {
+		log.Exit("failed to read bundle", err)
+	}
+	var certChainMessageECDSA certzpb.CertificateChain
+	var x509toECDSAPEM = func(cert *x509.Certificate) []byte {
+		return pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		})
+	}
+	for i, cert := range certificatesecdsa {
+		certMessage := &certzpb.Certificate{
+			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			Certificate: x509toECDSAPEM(cert),
+		}
+		if i > 0 {
+			certChainMessageECDSA.Parent = &certzpb.CertificateChain{
+				Certificate: certMessage,
+				Parent:      certChainMessageECDSA.Parent,
+			}
+		} else {
+			certChainMessageECDSA = certzpb.CertificateChain{
+				Certificate: certMessage,
+			}
+		}
+	}
+
+	request := &certzpb.RotateCertificateRequest{
+		ForceOverwrite: true,
+		SslProfileId:   profile_id,
+		RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
+			Certificates: &certzpb.UploadRequest{
+				Entities: []*certzpb.Entity{
+					{
+						Version:   "1.0",
+						CreatedOn: 123456789,
+						Entity: &certzpb.Entity_CertificateChain{
+							CertificateChain: &certzpb.CertificateChain{
+								Certificate: &certzpb.Certificate{
+									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									Certificate: certPEMtoloadRSA,
+									PrivateKey:  privKeyPEMtoloadRSA,
+								},
+							},
+						},
+					},
+					{
+						Version:   "1.0",
+						CreatedOn: 123456789,
+						Entity: &certzpb.Entity_TrustBundle{
+							TrustBundle: &certChainMessageRSA,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	log.V(1).Info("RotateTBRequest:\n", proto.MarshalTextString(request))
+	if err = stream.Send(request); err != nil {
+		log.Exit("failed to send RotateRequest:", err)
+	}
+	if response, err = stream.Recv(); err != nil {
+		log.Exit("failed to receive RotateCertificateTBResponse:", err)
+	}
+	log.V(1).Info("RotateTBCertificateResponse:\n", proto.MarshalTextString(response))
+
+	//FINALIZE ROTATE REQUEST
+	request = &certzpb.RotateCertificateRequest{
+		ForceOverwrite: true,
+		SslProfileId:   profile_id,
+		RotateRequest:  &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}},
+	}
+	log.V(1).Info("RotateFinalizeReq:\n", proto.MarshalTextString(request))
+	if err := stream.Send(request); err != nil {
+		log.Exit("failed to send RotateRequest:", err)
+	}
+	if _, err = stream.Recv(); err != nil {
+		if err != io.EOF {
+			log.Exit("Failed, finalize Rotation is cancelled", err)
+		}
+	}
+	log.V(1).Info("RotateCertificateFinalize: Success, stream has ended")
+
+	//CONFIG NEW gNSI CLI
+	t.Log("Config new gNSI CLI")
+	configToChange := "grpc gnsi service certz ssl-profile-id rotatecertzvalidate \n"
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, configToChange)
+
+	//Get-profile with rotated CERTS
+	profilelist, err := gnsiC.Certz().GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
+	if err != nil {
+		t.Fatalf("Unexpected Error in getting profile list: %v", err)
+	}
+	t.Logf("Profile list get was successful, %v", profilelist)
+
+	//Create a new stream for this Rotate
+
+	stream1, err := gnsiC.Certz().Rotate(context.Background())
+	if err != nil {
+		log.Exit("failed to get stream:", err)
+	}
+	var response1 *certzpb.RotateCertificateResponse
+
+	//Rotate with Validate ECDSA
+	request = &certzpb.RotateCertificateRequest{
+		ForceOverwrite: true,
+		SslProfileId:   profile_id,
+		RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
+			Certificates: &certzpb.UploadRequest{
+				Entities: []*certzpb.Entity{
+					{
+						Version:   "1.0",
+						CreatedOn: 123456789,
+						Entity: &certzpb.Entity_CertificateChain{
+							CertificateChain: &certzpb.CertificateChain{
+								Certificate: &certzpb.Certificate{
+									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									Certificate: certPEMtoloadRSA,
+									PrivateKey:  privKeyPEMtoloadRSA,
+								},
+							},
+						},
+					},
+					{
+						Version:   "1.0",
+						CreatedOn: 123456789,
+						Entity: &certzpb.Entity_TrustBundle{
+							TrustBundle: &certChainMessageECDSA,
+						},
+					},
+				},
+			},
+		},
+	}
+	log.V(1).Info("RotateTBRequest:\n", proto.MarshalTextString(request))
+	if err = stream1.Send(request); err != nil {
+		log.Exit("failed to send RotateRequest:", err)
+	}
+	if response1, err = stream1.Recv(); err != nil {
+		log.Exit("failed to receive RotateCertificateTBResponse:", err)
+	}
+	log.V(1).Info("RotateTBCertificateResponse:\n", proto.MarshalTextString(response1))
+
+	//Can-generate-csr with new rotated certs
+	params := certzpb.CSRParams{
+
+		CsrSuite: certzpb.CSRSuite(2),
+
+		CommonName: "ems.cisco.com",
+
+		Country: "IN",
+	}
+	csrrequest := &certzpb.CanGenerateCSRRequest{
+		Params: &params}
+	got, err := gnsiC.Certz().CanGenerateCSR(context.Background(), csrrequest)
+
+	log.V(1).Info("sending CanGenerateCSRRequest to validate:\n", proto.MarshalTextString(csrrequest))
+	//response, err := clientT.CanGenerateCSR(context.Background(), csrrequest)
+	if got == nil {
+		log.Exit("Able to do CanGenerateCSR finalize with invalid cert", err)
+	}
+	log.Info("CanGenerateCSRResponse:\n", proto.MarshalTextString(response))
+
+	//UnCONFIG NEW gNSI CLI
+	t.Log("UnConfig new gNSI CLI")
+	configToremove := "no grpc gnsi service certz ssl-profile-id rotatecertzvalidate \n"
+	ctx = context.Background()
+	util.GNMIWithText(ctx, t, dut, configToremove)
+
+	//Delete rotated profile-id
+	delprofile, err := gnsiC.Certz().DeleteProfile(context.Background(), &certzpb.DeleteProfileRequest{SslProfileId: profile_id})
+	if err != nil {
+		t.Fatalf("Unexpected Error in deleting profile list: %v", err)
+	}
+	t.Logf("Delete Profile was successful, %v", delprofile)
+
+}
