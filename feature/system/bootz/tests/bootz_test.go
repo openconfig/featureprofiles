@@ -38,6 +38,7 @@ var (
 	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
 	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
+
 var (
 	invalidISO     = flag.String("invalid_iso", "/var/www/html/invalid.iso", "Provide the path for invalid ISO eg: /var/www/html/invalid.iso")
 	validISO       = flag.String("valid_iso", "/var/www/html/valid.iso", "Provide the path for invalid ISO eg: /var/www/html/valid.iso")
