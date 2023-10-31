@@ -303,11 +303,6 @@ func GRIBIRIBAckOnly(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRibackOnly()
 }
 
-// MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
-func MissingInterfacePhysicalChannel(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingInterfacePhysicalChannel()
-}
-
 // MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
 func MissingValueForDefaults(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingValueForDefaults()
@@ -532,12 +527,6 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 // configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
 func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
-}
-
-// AggregateLoopbackModeRequiresMemberPortLoopbackMode returns true for devices that require
-// configuring LoopbackMode on member ports to enable LoopbackMode on aggregate interface.
-func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
 }
 
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path

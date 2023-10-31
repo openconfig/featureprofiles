@@ -32,13 +32,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/gnoigo/system"
 	gpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnoi"
@@ -105,7 +105,7 @@ var (
 )
 
 // coreFileCheck function is used to check if any cores found during test execution.
-func coreFilecheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient binding.GNOIClients, sysConfigTime uint64) {
+func coreFilecheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, sysConfigTime uint64) {
 	// vendorCoreFilePath and vendorCoreProcName should be provided to fetch core file on dut.
 	if _, ok := vendorCoreFilePath[dut.Vendor()]; !ok {
 		t.Fatalf("Please add support for vendor %v in var vendorCoreFilePath ", dut.Vendor())

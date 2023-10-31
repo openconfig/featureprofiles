@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
@@ -137,7 +138,7 @@ func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 	return gpb.NewGNMIClient(conn), nil
 }
 
-func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (binding.GNOIClients, error) {
+func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoigo.Clients, error) {
 	dialer, err := d.r.gnoi(d.Name())
 	if err != nil {
 		return nil, err
@@ -146,7 +147,7 @@ func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (bind
 	if err != nil {
 		return nil, err
 	}
-	return gnoiConn{conn: conn}, nil
+	return gnoigo.NewClients(conn), nil
 }
 
 func (d *staticDUT) DialGNSI(ctx context.Context, opts ...grpc.DialOption) (binding.GNSIClients, error) {
