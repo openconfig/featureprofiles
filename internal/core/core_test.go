@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/gnmi/errdiff"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/eventlis"
 	"github.com/openconfig/ondatra/fakebind"
@@ -31,7 +32,7 @@ import (
 )
 
 type fakeGNOI struct {
-	*binding.AbstractGNOIClients
+	gnoigo.Clients
 	fakeFileClient *fakeFileClient
 }
 
@@ -91,7 +92,7 @@ func TestCoreValidator(t *testing.T) {
 						Name:   "dut1",
 					},
 				},
-				DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (binding.GNOIClients, error) {
+				DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (gnoigo.Clients, error) {
 					return nil, fmt.Errorf("gnoi dial failed")
 				},
 			},
@@ -108,7 +109,7 @@ func TestCoreValidator(t *testing.T) {
 						Name:   "dut1",
 					},
 				},
-				DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (binding.GNOIClients, error) {
+				DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (gnoigo.Clients, error) {
 					return &fakeGNOI{
 						fakeFileClient: &fakeFileClient{
 							statResponses: []any{
@@ -144,7 +145,7 @@ func TestCoreValidator(t *testing.T) {
 						Name:   "dut1",
 					},
 				},
-				DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (binding.GNOIClients, error) {
+				DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (gnoigo.Clients, error) {
 					return &fakeGNOI{
 						fakeFileClient: &fakeFileClient{
 							statResponses: []any{
@@ -188,7 +189,7 @@ func TestCoreValidator(t *testing.T) {
 						Name:   "dut1",
 					},
 				},
-				DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (binding.GNOIClients, error) {
+				DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (gnoigo.Clients, error) {
 					return &fakeGNOI{
 						fakeFileClient: &fakeFileClient{
 							statResponses: []any{
@@ -246,7 +247,7 @@ func TestCoreValidator(t *testing.T) {
 						Name:   "dut1",
 					},
 				},
-				DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (binding.GNOIClients, error) {
+				DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (gnoigo.Clients, error) {
 					return &fakeGNOI{
 						fakeFileClient: &fakeFileClient{
 							statResponses: []any{
@@ -337,7 +338,7 @@ func TestEventCallback(t *testing.T) {
 					Vendor: opb.Device_ARISTA,
 				},
 			},
-			DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (binding.GNOIClients, error) {
+			DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (gnoigo.Clients, error) {
 				return &fakeGNOI{
 					fakeFileClient: &fakeFileClient{
 						statResponses: []any{
@@ -356,7 +357,7 @@ func TestEventCallback(t *testing.T) {
 					Name:   "dut1",
 				},
 			},
-			DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (binding.GNOIClients, error) {
+			DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (gnoigo.Clients, error) {
 				return &fakeGNOI{
 					fakeFileClient: &fakeFileClient{
 						statResponses: []any{
@@ -385,7 +386,7 @@ func TestEventCallback(t *testing.T) {
 					Name:   "dut1",
 				},
 			},
-			DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (binding.GNOIClients, error) {
+			DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (gnoigo.Clients, error) {
 				return &fakeGNOI{
 					fakeFileClient: &fakeFileClient{
 						statResponses: []any{
@@ -423,7 +424,7 @@ func TestEventCallback(t *testing.T) {
 					Name:   "dut1",
 				},
 			},
-			DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (binding.GNOIClients, error) {
+			DialGNOIFn: func(_ context.Context, _ ...grpc.DialOption) (gnoigo.Clients, error) {
 				return &fakeGNOI{
 					fakeFileClient: &fakeFileClient{
 						statResponses: []any{
