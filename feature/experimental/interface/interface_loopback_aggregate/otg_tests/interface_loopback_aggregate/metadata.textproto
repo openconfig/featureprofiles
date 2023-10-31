@@ -11,7 +11,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    aggregate_loopback_mode_requires_member_port_loopback_mode: true
   }
 }
 platform_exceptions: {
@@ -20,5 +19,14 @@ platform_exceptions: {
   }
   deviations: {
     interface_loopback_mode_raw_gnmi: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_port_speed: true
   }
 }
