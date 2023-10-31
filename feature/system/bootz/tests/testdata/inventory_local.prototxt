@@ -1,0 +1,44 @@
+options {
+    bootzserver: "bootzip:...."
+    artifact_dir: "../testdata/"
+}
+chassis {
+    name: "test"
+    serial_number: "XYZ"
+    manufacturer: "Cisco"
+    bootloader_password_hash: "ABCD123"
+    dhcp_config {
+            hardware_address: "ab:cd"
+            ip_address: "A.B.C.D/24"
+            gateway: "A.B.0.1"
+            bootzserver: "bootz://A.B.0.1:8009/grpc"
+    }
+    controller_cards {
+        serial_number: "XYZ"
+        part_number: "8201"
+        dhcp_config {
+            hardware_address: "ab:cd"
+            ip_address: "A.B.C.D/24"
+            gateway: "5.38.0.1"
+            bootzserver: "bootz://A.B.0.1:8009/grpc"
+
+        }
+        ownership_voucher : "vouchher"
+    }
+    software_image {
+        name: "Default Image" 
+		version: "24.1.1.14I"
+		url: "https://A.B.C.B/sample.iso"
+		os_image_hash: "XYZ"
+		hash_algorithm: "sha256"
+    }
+    boot_mode: BOOT_MODE_SECURE
+    config {
+        boot_config {
+            vendor_config_file: "../testdata/cisco.cfg"
+        }
+        gnsi_config {
+            authz_upload_file: "../testdata/authz.prototext"
+        }
+    }
+}

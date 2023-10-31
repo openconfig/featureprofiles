@@ -1,0 +1,20 @@
+wrongOP: {
+    path: {
+        origin: "openconfig"
+        elem:  {
+            name:  "network-instances"
+        }
+        elem:  {
+            name:  "network-instance"
+            key:  {
+                key:  "name"
+                value:  "DEFAULT"
+            }
+        }
+    }
+    val:  {
+        json_ietf_val:  "{\n  \"openconfig-network-instance:config\": {\n    \"name\": \"DEFAULT\",\n    \"type\": \"openconfig-network-instance-types:DEFAULT_INSTANCE\"\n  },\n  \"openconfig-network-instance:name\": \"DEFAULT\"\n}"
+    }
+}
+
+

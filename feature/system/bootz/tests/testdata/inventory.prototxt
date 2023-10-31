@@ -1,0 +1,34 @@
+options {
+    bootzserver: "bootzip:...."
+    artifact_dir: "../testdata/"
+}
+chassis {
+    name: "test"
+    serial_number: "FOC2503NLRY"
+    manufacturer: "Cisco"
+    bootloader_password_hash: "ABCD123"
+    dhcp_config {
+    }
+    controller_cards {
+        serial_number: "FOC2448P0P2"
+        part_number: "8201"
+        dhcp_config {
+        }
+        ownership_voucher : ""
+    }
+    software_image {
+        name: "Default Image" 
+		version: "24.1.1.14I"
+		url: "http://5.38.4.249/8000-x64-24.1.1.13I.iso"
+		os_image_hash: "87adc241061842df7118dd538b1d6c1bd58a0b31ebabd1f8a8bfd2f36bf4defc"
+		hash_algorithm: "sha256"
+    }
+    boot_mode: BOOT_MODE_INSECURE
+    config {
+        boot_config {
+            vendor_config_file: "../testdata/cisco.cfg"
+        }
+        gnsi_config {
+        }
+    }
+}

@@ -1,0 +1,3 @@
+version: "v0.1694813669807611349",
+created_on: 1694813669807,
+policy: "{\"name\":\"default\",\"allow_rules\": [{\"request\":{\"paths\":[\"*\"]}}]}"
