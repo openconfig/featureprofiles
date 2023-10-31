@@ -1,6 +1,5 @@
 [Unit]
 Description="CNTR"
-After=EOS.target
 
 [Service]
 Type=simple

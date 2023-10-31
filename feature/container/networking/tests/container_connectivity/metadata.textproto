@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "5e46a336-0e6c-4b65-ac49-8b925aacb46c"
-plan_id: "TUN-1.9"
-description: "GRE inner packet DSCP"
+uuid: "dc9a9682-8ec1-4ca0-8f54-635d690bb488"
+plan_id: "CNTR-2"
+description: "Container network connectivity tests"
 testbed: TESTBED_DUT_ATE_2LINKS

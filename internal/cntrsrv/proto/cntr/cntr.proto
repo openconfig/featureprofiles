@@ -6,7 +6,7 @@ import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 
 option java_multiple_files = true;
-option go_package="github.co/openconfig/featureprofiles/feature/container/networking/cntrsrv/proto/cntr;cntr";
+option go_package="github.co/openconfig/featureprofiles/internal/cntrsrv/proto/cntr;cntr";
 
 // Service Cntr is a CoNTaineR service that runs on a network device
 // that is exposed to ONDATRA tests, it allows in-container behaviours
