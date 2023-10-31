@@ -14,6 +14,7 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/kr/pretty v0.3.1
 	github.com/open-traffic-generator/snappi/gosnappi v0.13.0
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
 	github.com/openconfig/gnmi v0.10.0
@@ -25,6 +26,7 @@ require (
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20231011232723-88c9b8d98d8a
 	github.com/openconfig/kne v0.1.14
+	github.com/openconfig/lemming v0.3.2-0.20230914210403-c6484d12af0a
 	github.com/openconfig/ondatra v0.4.0
 	github.com/openconfig/replayer v0.0.0-20231017143923-d23179322187
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
@@ -39,6 +41,7 @@ require (
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v2 v2.4.0
+	k8s.io/klog/v2 v2.90.1
 )
 
 require (
@@ -87,7 +90,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jstemmer/go-junit-report/v2 v2.1.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
@@ -145,7 +147,6 @@ require (
 	k8s.io/api v0.26.3 // indirect
 	k8s.io/apimachinery v0.26.3 // indirect
 	k8s.io/client-go v0.26.3 // indirect
-	k8s.io/klog/v2 v2.90.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230308215209-15aac26d736a // indirect
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749 // indirect
 	lukechampine.com/uint128 v1.3.0 // indirect
