@@ -658,4 +658,3 @@ func SkipSubInterfaceIndex(dut *ondatra.DUTDevice) bool {
 func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
-
