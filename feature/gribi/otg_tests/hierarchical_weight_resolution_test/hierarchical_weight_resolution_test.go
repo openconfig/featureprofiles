@@ -694,7 +694,7 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	ctx := context.Background()
 
 	// Configure ATE ports and start Ethernet+IPv4.
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 	atePort1.configureATE(t, top, ate)
 	atePort2.configureATE(t, top, ate)
 
