@@ -348,6 +348,8 @@ message Metadata {
     // Device does not support tunnel interfaces source and destination address config paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
     bool tunnel_config_path_unsupported = 118;
+    // Devices do not support configuring Interface-ref under Static-Route Next-Hop
+    bool static_route_next_hop_interface_ref_unsupported = 119;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;

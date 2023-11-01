@@ -648,3 +648,8 @@ func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
 }
+
+// StaticRouteNextHopInterfaceRefUnsupported returns if device does not support Interface-ref under static-route next-hop
+func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNextHopInterfaceRefUnsupported()
+}
