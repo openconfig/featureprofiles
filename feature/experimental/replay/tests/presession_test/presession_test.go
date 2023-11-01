@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 func TestReplay(t *testing.T) {
 	const logFile = "grpclog.pb"
 	t.Logf("Parsing log file: %v", logFile)
-	rec := replayer.Parse(t, logFile)
+	rec := replayer.ParseFile(t, logFile)
 
 	dut := ondatra.DUT(t, "dut")
 	portMap := map[string]string{}
