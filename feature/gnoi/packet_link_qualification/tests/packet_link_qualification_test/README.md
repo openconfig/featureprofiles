@@ -61,7 +61,7 @@ between 2 DUTs.
             its teardown.
         *   TeardownDuration: The amount time required to bring the interface
             back to pre-test state.
-    * [TODO: issue#2244] verify generator interface oper-state is 'TESTING'
+    *       Verify generator interface oper-state is 'TESTING'
 *   Set another device as the FAR_END (reflector) device for Packet Based Link
     Qual.
     *   Issue gnoi.LinkQualification Create RPC to the device and provide
@@ -72,7 +72,7 @@ between 2 DUTs.
         *   EndpointType: Qualification_end set as FAR_END.
         *   RPCSyncedTiming:
             *   Reflector timers should be same as the ones on the generator.
-        * [TODO: issue#2244] verify reflector interface oper-state is 'TESTING'
+        *   Verify reflector interface oper-state is 'TESTING'
 *   Get the result by issuing gnoi.LinkQualification Get RPC to gather the
     result of link qualification. Provide the following parameter:
     *   Id: The identifier used above on the NEAR_END side.

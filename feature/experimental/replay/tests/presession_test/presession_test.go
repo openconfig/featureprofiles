@@ -31,10 +31,7 @@ func TestMain(m *testing.M) {
 func TestReplay(t *testing.T) {
 	const logFile = "https://github.com/openconfig/featureprofiles/raw/main/feature/experimental/replay/tests/presession_test/grpclog.pb"
 	t.Logf("Parsing log file: %v", logFile)
-	rec, err := replayer.ParseURL(logFile)
-	if err != nil {
-		t.Fatalf("Parse(): cannot parse log file: %v", err)
-	}
+	rec := replayer.ParseURL(t, logFile)
 
 	dut := ondatra.DUT(t, "dut")
 	portMap := map[string]string{}
@@ -66,10 +63,7 @@ func TestReplay(t *testing.T) {
 
 	t.Logf("Replaying parsed log to device %v", dut.Name())
 	ctx := context.Background()
-	results, err := replayer.Replay(ctx, rec, clients)
-	if err != nil {
-		t.Fatalf("Replay(): got error replaying record: %v", err)
-	}
+	results := replayer.Replay(ctx, t, rec, clients)
 
 	// Validate that all gRIBI requests were programmed successfully.
 	for _, result := range results.GRIBI() {
@@ -79,7 +73,7 @@ func TestReplay(t *testing.T) {
 	}
 
 	// Validate that resulting gRIBI state matches the recorded one.
-	if diff := results.GRIBIDiff(rec); diff != "" {
+	if diff := replayer.GRIBIDiff(rec, results); diff != "" {
 		t.Errorf("Replay(): unexpected diff in final gRIBI state (-want,+got): %v", diff)
 	}
 
