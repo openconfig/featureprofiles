@@ -157,14 +157,16 @@ func copyImageSCP(t testing.TB, d *targetInfo, imagePath string) {
 		}
 	}()
 
+	defer func() {
+		ticker.Stop()
+		close(tickerQuit)
+	}()
+
 	if err := scpClient.CopyFileToRemote(imagePath, imageDestination, &scp.FileTransferOption{
 		Timeout: imgCopyTimeout,
 	}); err != nil {
 		t.Fatalf("Error copying image to target %s (%s:%s): %v", d.dut, d.sshIp, d.sshPort, err)
 	}
-
-	ticker.Stop()
-	close(tickerQuit)
 }
 
 func copyImageGNOI(t testing.TB, dut *ondatra.DUTDevice, imagePath string) {
