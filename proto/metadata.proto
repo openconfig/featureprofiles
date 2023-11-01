@@ -292,10 +292,6 @@ message Metadata {
     // lspLifetimeInterval is configured.
     // Arista: partnerissuetracker.corp.google.com/293667850
     bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
-    // Devices require configuring LoopbackMode on member ports to enable
-    // LoopbackMode on aggregate interface.
-    // Arista: partnerissuetracker.corp.google.com/297391260
-    bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for linecards' CPU card.
     bool linecard_cpu_utilization_unsupported = 98;
@@ -354,7 +350,7 @@ message Metadata {
     bool tunnel_config_path_unsupported = 118;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90;
+    reserved 84, 9, 28, 20, 90, 97;
   }
 
   message PlatformExceptions {
