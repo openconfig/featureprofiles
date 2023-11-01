@@ -51,7 +51,7 @@ bootserver can initialize the devices configuration into the provided configurat
     * OS version is the same
     * System configuration is as expected.
 
-### bootz-3: Validate Software image in bootz configuration
+### bootz-2: Validate Software image in bootz configuration
 
 This test validates the bootz behavior based changes to software version.
 
