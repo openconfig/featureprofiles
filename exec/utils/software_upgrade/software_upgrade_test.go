@@ -144,7 +144,7 @@ func copyImageSCP(t testing.TB, d *targetInfo, imagePath string) {
 	defer scpClient.Close()
 
 	ticker := time.NewTicker(1 * time.Minute)
-	tickerQuit := make(chan struct{})
+	tickerQuit := make(chan bool)
 
 	go func() {
 		for {
@@ -159,7 +159,7 @@ func copyImageSCP(t testing.TB, d *targetInfo, imagePath string) {
 
 	defer func() {
 		ticker.Stop()
-		close(tickerQuit)
+		tickerQuit <- true
 	}()
 
 	if err := scpClient.CopyFileToRemote(imagePath, imageDestination, &scp.FileTransferOption{
