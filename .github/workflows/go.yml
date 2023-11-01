@@ -50,7 +50,6 @@ jobs:
         uses: shogo82148/actions-goveralls@v1
         with:
           path-to-profile: profile.cov
-
   static_analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
@@ -59,6 +58,13 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: '1.21'
+    # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
+    # space for the container by removing unnecessary tooling.
+    - name: Free additional disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
     - name: Checkout code
       uses: actions/checkout@v3
     - name: Cache
@@ -103,10 +109,4 @@ jobs:
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
-      run: |
-        # staticcheck requires a lot of free disk space in /tmp.  Free up worker
-        # space by removing unnecessary tooling.
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/hostedtoolcache/CodeQL
-        GOGC=30 staticcheck ./...
+      run: GOGC=30 staticcheck ./...
