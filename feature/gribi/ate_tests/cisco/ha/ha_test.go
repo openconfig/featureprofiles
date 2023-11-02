@@ -2313,7 +2313,6 @@ func test_triggers(t *testing.T, args *testArgs) {
 			}
 
 			if processes[i] == "grpc_AF_change" {
-				t.Skip("skipping grpc_AF_change till we have the fix")
 				// kill previous gribi client
 				args.client.Close(t)
 
@@ -2324,20 +2323,24 @@ func test_triggers(t *testing.T, args *testArgs) {
 						t.Logf("This is RPFO #%d", rpfo_count)
 						args.rpfo(args.ctx, t, true)
 					}
-					sshClient := args.dut.RawAPIs().CLI(t)
+
+					t.Logf("set grpc af mode to ipv6")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv6 \n commit \n")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "show grpc")
+
 					time.Sleep(10 * time.Second)
 
-					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv6 \n commit \n", 30*time.Second)
-					response, _ := sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("grpc value after configuring ipv6 af %s", response)
+					t.Logf("set grpc af mode to ipv4")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv4 \n commit \n")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "show grpc")
 
-					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv4 \n commit \n", 30*time.Second)
-					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("grpc value after configuring only ipv4 af %s", response)
+					time.Sleep(10 * time.Second)
 
-					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family dual \n commit \n", 30*time.Second)
-					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("grpc value after configuring dual af %s", response)
+					t.Logf("set grpc af mode to dual")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "configure \n grpc \n address-family dual \n commit \n")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "show grpc")
+
+					time.Sleep(10 * time.Second)
 
 					client := gribi.Client{
 						DUT:                   args.dut,
@@ -2363,7 +2366,6 @@ func test_triggers(t *testing.T, args *testArgs) {
 			}
 
 			if processes[i] == "grpc_config_change" {
-				t.Skip("skipping grpc_config_chang till we have the fix")
 				// kill previous gribi client
 				args.client.Close(t)
 
@@ -2376,23 +2378,20 @@ func test_triggers(t *testing.T, args *testArgs) {
 						t.Logf("This is RPFO #%d", rpfo_count)
 						args.rpfo(args.ctx, t, true)
 					}
-					sshClient := args.dut.RawAPIs().CLI(t)
-					time.Sleep(10 * time.Second)
 
 					port := rand.Intn(max-min+1) + min
 
-					response, _ := sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("initial grpc values: %s", response)
+					t.Logf("set grpc value to no-tls and random port")
+					config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no-tls \n port %s \n commit \n", strconv.Itoa(port)))
+					config.CMDViaGNMI(args.ctx, t, args.dut, "show grpc")
 
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no-tls \n port %s \n commit \n", strconv.Itoa(port)), 30*time.Second)
+					time.Sleep(10 * time.Second)
 
-					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("grpc value after no-tls and random port %s", response)
+					t.Logf("set grpc value to no no-tls and no manually configured port")
+					config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no no-tls \n no port %s \n commit \n", strconv.Itoa(port)))
+					config.CMDViaGNMI(args.ctx, t, args.dut, "show grpc")
 
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no no-tls \n no port %s \n commit \n", strconv.Itoa(port)), 30*time.Second)
-
-					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("grpc value with no no-tls and no port %s configured", response)
+					time.Sleep(10 * time.Second)
 
 					client := gribi.Client{
 						DUT:                   args.dut,
@@ -2581,11 +2580,11 @@ func TestHA(t *testing.T) {
 		// 	desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
 		// 	fn:   testRestart_multiple_process,
 		// },
-		// {
-		//  name: "Triggers",
-		//  desc: "With traffic running, validate multiple triggers",
-		//  fn:   test_triggers,
-		// },
+		{
+			name: "Triggers",
+			desc: "With traffic running, validate multiple triggers",
+			fn:   test_triggers,
+		},
 		// {
 		//  name: "check multiple clients",
 		//  desc: "With traffic running, validate use of multiple clients",
