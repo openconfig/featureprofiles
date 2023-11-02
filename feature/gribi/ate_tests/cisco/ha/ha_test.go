@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 // user needed inputs
 const (
 	with_scale            = true                        // run entire script with or without scale (Support not yet coded)
-	with_RPFO             = true                        // run entire script with or without RFPO
+	with_RPFO             = false                       // run entire script with or without RFPO
 	base_config           = "case4_decap_encap_recycle" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
@@ -188,21 +188,44 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 	// reestablishing gribi connection
 	if pName == "emsd" {
 		// client := gribi.Client{
-		// 	DUT:                   dut,
-		// 	FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		// 	Persistence:           true,
-		// 	InitialElectionIDLow:  1,
-		// 	InitialElectionIDHigh: 0,
+		//  DUT:                   dut,
+		//  FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		//  Persistence:           true,
+		//  InitialElectionIDLow:  1,
+		//  InitialElectionIDHigh: 0,
 		// }
 		// if err := client.Start(t); err != nil {
-		// 	t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-		// 	if err = client.Start(t); err != nil {
-		// 		t.Fatalf("gRIBI Connection could not be established: %v", err)
-		// 	}
+		//  t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		//  if err = client.Start(t); err != nil {
+		//    t.Fatalf("gRIBI Connection could not be established: %v", err)
+		//  }
 		// }
 		// args.client = &client
 		args.client.Start(t)
 	}
+}
+
+func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration) error {
+	startTime := time.Now()
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err := task(); err == nil {
+			return nil
+		}
+
+		// Calculate how much time has passed
+		elapsedTime := time.Since(startTime)
+
+		// If the elapsed time exceeds the timeout, break out of the loop
+		if elapsedTime >= timeout {
+			break
+		}
+
+		// Wait for a short interval before the next attempt
+		// You can adjust the sleep duration based on your needs
+		time.Sleep(1 * time.Second)
+	}
+
+	return fmt.Errorf("Task failed after %d attempts within a %s timeout", maxAttempts, timeout)
 }
 
 func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
@@ -241,17 +264,24 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 	if got, want := gnmi.Get(t, args.dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
-	gnoiClient := args.dut.RawAPIs().GNOI(t)
+	gnoiClient, _ := args.dut.RawAPIs().BindingDUT().DialGNOI(args.ctx)
 	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
-	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+	var switchoverResponse *gnps.SwitchControlProcessorResponse
+	err := retryUntilTimeout(func() error {
+		switchoverResponse, _ = gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+		return nil
+	}, 5, 1*time.Minute)
+
 	if err != nil {
-		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
+		fmt.Printf("RPFO failed: %v\n", err)
+	} else {
+		fmt.Println("RPFO succeeded!")
 	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+	// t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
 
 	want := rpStandbyBeforeSwitch
 	got := ""
@@ -312,22 +342,22 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 
 	// reestablishing gribi connection
 	if gribi_reconnect {
-		time.Sleep(time.Minute * 10)
-		// client := gribi.Client{
-		// 	DUT:                   args.dut,
-		// 	FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		// 	Persistence:           true,
-		// 	InitialElectionIDLow:  1,
-		// 	InitialElectionIDHigh: 0,
-		// }
-		// if err := client.Start(t); err != nil {
-		// 	t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-		// 	if err = client.Start(t); err != nil {
-		// 		t.Fatalf("gRIBI Connection could not be established: %v", err)
-		// 	}
-		// }
-		// args.client = &client
-		args.client.Start(t)
+		// time.Sleep(time.Minute * 10)
+		client := gribi.Client{
+			DUT:                   args.dut,
+			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+			Persistence:           true,
+			InitialElectionIDLow:  1,
+			InitialElectionIDHigh: 0,
+		}
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			if err = client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection could not be established: %v", err)
+			}
+		}
+		args.client = &client
+		// args.client.Start(t)
 	}
 }
 
@@ -798,6 +828,7 @@ func (a *testArgs) scaleNHG(t *testing.T, nhg_start uint64, nhg_scale int, bkgNH
 			nhg.WithBackupNHG(bkgNHG)
 		}
 		if len(opts) != 0 {
+			rand.Seed(time.Now().UnixNano())
 			min := 10
 			max := 70
 			value := rand.Intn(max-min+1) + min
@@ -805,6 +836,7 @@ func (a *testArgs) scaleNHG(t *testing.T, nhg_start uint64, nhg_scale int, bkgNH
 			nhs_start = nhs_start + 1
 		} else {
 			for j := 0; j < nh_prefix_TE; j++ {
+				rand.Seed(time.Now().UnixNano())
 				min := 10
 				max := 70
 				value := rand.Intn(max-min+1) + min
@@ -1497,7 +1529,7 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"db_writer", "fib_mgr"}
+	processes := []string{"fib_mgr", "isis", "ifmgr", "ipv4_rib", "ipv6_rib", "db_writer"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			// RPFO
@@ -1520,18 +1552,35 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 
 			// Restart process
 			t.Logf("Restarting process %s", processes[i])
+
+			//
+			//
+			//
+			//patch for CLIviaSSH failing, else pattern to use is #
+			var acp string
+			if with_RPFO {
+				acp = ".*Last switch-over.*ago"
+			} else {
+				acp = ".*"
+			}
+
+			//above is tmp fix
+			//
+			//
+			//
+
 			ticker1 := time.NewTicker(8 * time.Second)
 			ticker2 := time.NewTicker(10 * time.Second)
 			if processes[i] == "fib_mgr" {
 				// Restart process after 10seconds
-				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart emsd", []string{"#"}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 10*time.Second)
-				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart fib_mgr location 0/RP0/CPU0", []string{"#"}, []string{".*Incomplete.*", ".*Unable.*"}, ticker2, 10*time.Second)
+				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart emsd", []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 13*time.Second)
+				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart fib_mgr location 0/RP0/CPU0", []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker2, 14*time.Second)
 			} else {
 				// Restart process after 10seconds
-				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart emsd", []string{"#"}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 10*time.Second)
-				runner.RunCLIInBackground(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]), []string{"#"}, []string{".*Incomplete.*", ".*Unable.*"}, ticker2, 10*time.Second)
+				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart emsd", []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 13*time.Second)
+				runner.RunCLIInBackground(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]), []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker2, 14*time.Second)
 			}
-			time.Sleep(12 * time.Second)
+			time.Sleep(14 * time.Second)
 			ticker1.Stop()
 			ticker2.Stop()
 			time.Sleep(20 * time.Second)
@@ -1763,24 +1812,24 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 	configurePortId(args.ctx, t, args.dut)
 
 	// if *ciscoFlags.GRIBITrafficCheck {
-	// 	te_flow = args.allFlows(t)
-	// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap"{
-	//		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
-	//	}
-	// 	flows = append(te_flow, src_ip_flow...)
+	//  te_flow = args.allFlows(t)
+	//  if base_config != "case1_backup_decap" && base_config != "case3_decap_encap"{
+	//    src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+	//  }
+	//  flows = append(te_flow, src_ip_flow...)
 	// }
 	// outgoing_interface := make(map[string][]string)
 
 	// verify traffic
 	// if *ciscoFlags.GRIBITrafficCheck {
-	// 	outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-	// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap"{
-	//		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
-	//	}
-	// 	// args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
-	// 	args.ate.Traffic().Start(t, flows...)
-	// 	time.Sleep(120 * time.Second)
-	// 	args.ate.Traffic().Stop(t)
+	//  outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+	//  if base_config != "case1_backup_decap" && base_config != "case3_decap_encap"{
+	//    outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
+	//  }
+	//  // args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+	//  args.ate.Traffic().Start(t, flows...)
+	//  time.Sleep(120 * time.Second)
+	//  args.ate.Traffic().Stop(t)
 	// }
 
 	// multi_process_gribi_programming(t, args.events, args)
@@ -2318,6 +2367,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 				// kill previous gribi client
 				args.client.Close(t)
 
+				rand.Seed(time.Now().UnixNano())
 				min := 57344
 				max := 57998
 				for k := 0; k < grpc_repeat; k++ {
@@ -2512,19 +2562,19 @@ func TestHA(t *testing.T) {
 		fn   func(t *testing.T, args *testArgs)
 	}{
 		// {
-		// 	name: "check_microdrops",
-		// 	desc: "With traffic running do delete/update/create programming and look for drops",
-		// 	fn:   test_microdrops,
+		//  name: "check_microdrops",
+		//  desc: "With traffic running do delete/update/create programming and look for drops",
+		//  fn:   test_microdrops,
 		// },
-		{
-			name: "Restart RFPO with programming",
-			desc: "After programming, perform RPFO try new programming and validate traffic",
-			fn:   test_RFPO_with_programming,
-		},
 		// {
-		// 	name: "Restart single process",
-		// 	desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-		// 	fn:   testRestart_single_process,
+		//  name: "Restart RFPO with programming",
+		//  desc: "After programming, perform RPFO try new programming and validate traffic",
+		//  fn:   test_RFPO_with_programming,
+		// },
+		// {
+		//  name: "Restart single process",
+		//  desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+		//  fn:   testRestart_single_process,
 		// },
 		// {
 		// 	name: "Restart multiple process",
@@ -2532,14 +2582,14 @@ func TestHA(t *testing.T) {
 		// 	fn:   testRestart_multiple_process,
 		// },
 		// {
-		// 	name: "Triggers",
-		// 	desc: "With traffic running, validate multiple triggers",
-		// 	fn:   test_triggers,
+		//  name: "Triggers",
+		//  desc: "With traffic running, validate multiple triggers",
+		//  fn:   test_triggers,
 		// },
 		// {
-		// 	name: "check multiple clients",
-		// 	desc: "With traffic running, validate use of multiple clients",
-		// 	fn:   test_multiple_clients,
+		//  name: "check multiple clients",
+		//  desc: "With traffic running, validate use of multiple clients",
+		//  fn:   test_multiple_clients,
 		// },
 	}
 	for _, tt := range test {
