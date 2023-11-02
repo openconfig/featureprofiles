@@ -319,7 +319,7 @@ func TestLinkQualification(t *testing.T) {
 	generatorCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), generatorCreateRequest)
 	t.Logf("LinkQualification().Create() generatorCreateResp: %v, err: %v", generatorCreateResp, err)
 	if err != nil {
-		t.Errorf("Failed to handle generator LinkQualification().Create(): %v", err)
+		t.Fatalf("Failed to handle generator LinkQualification().Create(): %v", err)
 	}
 	if got, want := generatorCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
 		t.Errorf("generatorCreateResp: got %v, want %v", got, want)
@@ -328,7 +328,7 @@ func TestLinkQualification(t *testing.T) {
 	reflectorCreateResp, err := gnoiClient2.LinkQualification().Create(context.Background(), reflectorCreateRequest)
 	t.Logf("LinkQualification().Create() reflectorCreateResp: %v, err: %v", reflectorCreateResp, err)
 	if err != nil {
-		t.Errorf("Failed to handle reflector LinkQualification().Create(): %v", err)
+		t.Fatalf("Failed to handle reflector LinkQualification().Create(): %v", err)
 	}
 	if got, want := reflectorCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
 		t.Errorf("reflectorCreateResp: got %v, want %v", got, want)
