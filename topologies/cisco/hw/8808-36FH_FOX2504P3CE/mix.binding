@@ -125,11 +125,7 @@ ates {
     target: "10.85.84.194"
     skip_verify: true
     username: "admin"
-    password: "Admin@123"
-    #target: "10.85.84.194
-    skip_verify: true
-    #username: "admin"
-    #password: "ixia123!"
+    password: "ixia123!"
     #session_id: 1
   }
 
