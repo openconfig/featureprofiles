@@ -1,16 +1,18 @@
-# gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - client becomes silent
+# ACCTZ-5.1 - gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - client becomes silent
 
-Test RecordSubscribe connection termination after idle timeout following 1 RecprdSubscribe RPC and 1 idle timeout refresh RPC
+## Summary
+Test RecordSubscribe connection termination after idle timeout following 1 RecordSubscribe RPC and 1 idle timeout refresh RPC
 
 ## Procedure
 
 - Establish gNSI connection
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = now()
 - Discard received records
-- wait 100 seconds
+- wait until nearly the idletimeout period (default: 120 seconds)
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = now()
 - Discard received records
-- Verify that the DUT closes the gNSI connection after ~ 120 seconds of idle time.
+- Wait at least longer than the idletimeout period
+- Verify that the DUT closes the gNSI connection at or shortly after the idletimeout period.
 
 ## Config Parameter
 ### Prefix:

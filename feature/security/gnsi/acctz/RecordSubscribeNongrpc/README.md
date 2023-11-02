@@ -1,18 +1,18 @@
-# gNSI.acctz.v1 (Accounting) Test Record Subscribe Non-gRPC
+# ACCTZ-3.1 - gNSI.acctz.v1 (Accounting) Test Record Subscribe Non-gRPC
 
+## Summary
 Test Accounting for non-gRPC records
 
 ## Procedure
-
-- For each of the applicable service classes in gnmi. gnsi.acctz.v1.CommandService.CmdServiceType:
-	- Connect to a non-”System” address on the DUT, recording the local and remote IP addresses and port numbers,
+- Record the time T0 for use later in this test
+- For each of the supported service classes in gnsi.acctz.v1.CommandService.CmdServiceType:
+	- Connect to a non-System-address on the DUT, recording the local and remote IP addresses and port numbers,
 	- Run a few commands that should be permitted and a few that should be denied. If command abbreviation is permitted, at least one command and its arguments should be abbreviated.
 	- disconnect
 - Establish gNSI connection to the DUT.
-- Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = to the timestamp retained in ACCT1.2
-- Retain a copy of the Record.timestamp of the first returned record for ACCT1.2
+- Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = T0
 - Verify that accurate accounting records are returned for the commands/RPCs that were run, both permitted and denied.
-- If start/stop accounting was enabled, each connection’s accounting should be preceded by a start (login) record for the service and the records associated with the RPCs sent during the connection should be followed by a logout record.
+- If start/stop accounting was enabled, each connection's accounting should be preceded by a start (login) record for the service and the records associated with the RPCs sent during the connection should be followed by a logout record.
 - For each RecordResponse returned, check/confirm that:
 	- session_info. :
 		- .{layer4_proto, local_address, local_port, remote_address, remote_port}, ip_proto must match those recorded earlier

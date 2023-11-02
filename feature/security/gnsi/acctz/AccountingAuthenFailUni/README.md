@@ -1,11 +1,12 @@
-# gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Uni-transaction
+# ACCTZ-8.1 - gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Uni-transaction
 
+## Summary
 Test Accounting for authentication failures of uni-transaction logins
 
 ## Procedure
 
-- Record the current time, T0
-- For each of the possible RecordResponse.service_request.service_type that is authenticated per-transaction:
+- Record the time T0 for use later in this test
+- For each of the supported RecordResponse.service_request.service_type that is authenticated per-transaction:
 	- Connect to the DUT, recording the local and remote IP addresses and port numbers,
 	- Provide invalid user credentials (including an empty username, unconfigured username, empty password, invalid password, wrong SSH key/certificate, etc),
 	- disconnect

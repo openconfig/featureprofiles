@@ -1,11 +1,12 @@
-# gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation
+# ACCTZ-9.1 - gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation
 
+## Summary
 Test Accounting for changing current privilege level, if supported.
 
 ## Procedure
 
-- Record the current time, T0
-- For each of the possible RecordResponse.service_request.service_type that supports privilege escalation:
+- Record the time T0 for use later in this test
+- For each of the supported RecordResponse.service_request.service_type that supports privilege escalation:
 	- Connect to the DUT, recording the local and remote IP addresses and port numbers,
 	- change privilege level,
 	- disconnect

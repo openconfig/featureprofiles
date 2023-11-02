@@ -1,11 +1,12 @@
-# gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction
+# ACCTZ-7.1 - gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction
 
+## Summary
 Test Accounting for authentication failures of multi-transaction logins
 
 ## Procedure
 
-- Record the current time, T0
-- For each of the possible RecordResponse.service_request.service_type that is not authenticated per-transaction:
+- Record the time T0 for use later in this test
+- For each of the supported RecordResponse.service_request.service_type that is not authenticated per-transaction:
 	- Connect to the DUT, recording the local and remote IP addresses and port numbers,
 	- Provide invalid user credentials (including an empty username, unconfigured username, empty password, invalid password, wrong SSH key/certificate, etc),
 	- disconnect

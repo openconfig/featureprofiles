@@ -1,12 +1,13 @@
-# gNSI.acctz.v1 (Accounting) Test Accounting Authentication Error - Multi-transaction
+# ACCTZ-10.1 - gNSI.acctz.v1 (Accounting) Test Accounting Authentication Error - Multi-transaction
 
+## Summary
 Test Accounting for authentication errors in the authentication service
 for multi-transaction logins.  For example, unreachable TACACS+ server(s).
 
 ## Procedure
 
-- Record the current time, T0
-- For one of the possible RecordResponse.service_request.service_type that is not authenticated per-transaction:
+- Record the time T0 for use later in this test
+- For one of the supported RecordResponse.service_request.service_type that is not authenticated per-transaction:
 	- Connect to the DUT, recording the local and remote IP addresses and port numbers,
 	- Provide the valid user credentials configured in [Accounting Authentication Error - Config](../AccountingAuthenErrorConfig/)
 	- disconnect
