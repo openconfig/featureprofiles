@@ -6,8 +6,6 @@ import json
 import os
 
 GO_BIN = 'go'
-
-FP_REPO_DIR = '.'
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
 def check_output(cmd, **kwargs):
@@ -175,7 +173,8 @@ args = parser.parse_args()
 testbed_id = args.testbed
 command = args.command
 
-reserved_testbed = _get_testbed_by_id(FP_REPO_DIR, testbed_id)
+fp_repo_dir = os.getenv('FP_REPO_DIR', '.')
+reserved_testbed = _get_testbed_by_id(fp_repo_dir, testbed_id)
 pname = reserved_testbed['id'].lower()
 
 with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as f:
