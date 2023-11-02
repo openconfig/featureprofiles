@@ -2,11 +2,23 @@ import subprocess
 import tempfile
 import argparse
 import yaml
+import json
 import os
+
+GO_BIN = 'go'
 
 FP_REPO_DIR = '.'
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
+def check_output(cmd, **kwargs):
+    kwargs['shell'] = True
+    kwargs['text'] = True
+    output = subprocess.check_output(cmd, **kwargs).strip()
+    if output != "":
+        print(output)
+    return output
+    
+    
 def _resolve_path_if_needed(dir, path):
     if path[0] != '/':
         return os.path.join(dir, path)
@@ -91,12 +103,73 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     with open(docker_file, 'w') as fp:
         fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
 
+def _write_otg_binding(fp_repo_dir, reserved_testbed, otg_binding_file):
+    otg_info = reserved_testbed['otg']
+
+    # convert binding to json
+    with tempfile.NamedTemporaryFile() as of:
+        outFile = of.name
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/tojson ' \
+            f'-binding {reserved_testbed["binding"]} ' \
+            f'-out {outFile}'
+
+        check_output(cmd, cwd=fp_repo_dir)
+        
+        with open(outFile, 'r') as fp:
+            j = json.load(fp)
+
+    #TODO: support multiple ates
+    for ate in j.get('ates', []):
+        for p in ate.get('ports', []):
+            parts = p['name'].split('/')
+            p['name'] = '{chassis};{card};{port}'.format(chassis=ate['name'], card=parts[0], port=parts[1]) 
+
+        ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port'])
+        ate['options'] = {
+            'username': 'admin',
+            'password': 'admin'
+        }
+
+        ate['otg'] = {
+            'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port']),
+            'insecure': True,
+            'timeout': 30
+        }
+
+        ate['gnmi'] = {
+            'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=otg_info['gnmi_port']),
+            'skip_verify': True,
+            'timeout': 30
+        }
+
+        if 'ixnetwork' in ate:
+            del ate['ixnetwork']
+
+        break
+
+    # convert binding to prototext
+    with tempfile.NamedTemporaryFile() as f:
+        tmp_binding_file = f.name
+        with open(tmp_binding_file, "w") as outfile:
+            outfile.write(json.dumps(j))
+            
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/fromjson ' \
+            f'-binding {tmp_binding_file} ' \
+            f'-out {otg_binding_file}'
+
+        check_output(cmd, cwd=fp_repo_dir)
+
 parser = argparse.ArgumentParser(description='Manage OTG container for a testbed')
 command_parser = parser.add_subparsers(title="command", dest="command", help="command to run", required=True)
 start_parser = command_parser.add_parser("start", help="start OTG container")
 start_parser.add_argument('testbed', help="testbed id")
 stop_parser = command_parser.add_parser("stop", help="stop OTG container")
 stop_parser.add_argument('testbed', help="testbed id")
+binding_parser = command_parser.add_parser("binding", help="generate OTG binding")
+binding_parser.add_argument('testbed', help="testbed id")
+binding_parser.add_argument('out_file', help="output file")
 args = parser.parse_args()
 
 testbed_id = args.testbed
@@ -112,24 +185,18 @@ with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as
         docker_compose_file_path = f.name
         docker_compose_file_name = os.path.basename(docker_compose_file_path)
         _write_otg_docker_compose_file(docker_compose_file_path, reserved_testbed)
-        output = subprocess.check_output(
-            f'scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {docker_compose_file_path} {kne_host}:/tmp/{docker_compose_file_name}', 
-            shell=True,
-            text=True
+        check_output(
+            f'scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {docker_compose_file_path} {kne_host}:/tmp/{docker_compose_file_name}'
         )
-        print(output)
-
-        output = subprocess.check_output(
-            f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} up -d --force-recreate', 
-            shell=True,
-            text=True
+        check_output(
+            f'ssh -q -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} up -d --force-recreate'
         )
-        print(output)
 
     elif command == "stop":
-        output = subprocess.check_output(
-            f'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} down',
-            shell=True,
-            text=True
+        check_output(
+            f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} down'
         )
-        print(output)
+        
+    elif command == "binding":
+        out_file = _resolve_path_if_needed(os.getcwd(), args.out_file)
+        _write_otg_binding(FP_REPO_DIR, reserved_testbed, out_file)
