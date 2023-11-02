@@ -1,4 +1,4 @@
-package bgp_global_test
+package bgp_test
 
 import (
 	"fmt"

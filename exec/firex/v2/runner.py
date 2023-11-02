@@ -104,21 +104,29 @@ def _otg_docker_compose_template(control_port, gnmi_port):
     return f"""
 version: "2"
 services:
-  ixia-c-controller:
-    image: ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-4399
+  controller:
+    image: ghcr.io/open-traffic-generator/keng-controller:0.1.0-3
     restart: always
     ports:
       - "{control_port}:40051"
     depends_on:
-      ixia-c-ixhw-server:
+      layer23-hw-server:
         condition: service_started
     command:
       - "--accept-eula"
       - "--debug"
-      - "--ixia-c-ixhw-server"
-      - "ixia-c-ixhw-server:5001"
-  ixia-c-ixhw-server:
-    image: ghcr.io/open-traffic-generator/ixia-c-ixhw-server:0.12.1-2
+      - "--keng-layer23-hw-server"
+      - "layer23-hw-server:5001"
+    environment:
+      - LICENSE_SERVERS=10.85.70.247
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+  layer23-hw-server:
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:0.13.0-2
     restart: always
     command:
       - "dotnet"
@@ -126,19 +134,31 @@ services:
       - "--trace"
       - "--log-level"
       - "trace"
-  ixia-c-gnmi-server:
-    image: ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.12.2
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+  gnmi-server:
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:1.13.0
     restart: always
     ports:
       - "{gnmi_port}:50051"
     depends_on:
-      ixia-c-controller:
+      controller:
         condition: service_started
     command:
       - "-http-server"
-      - "https://ixia-c-controller:8443"
+      - "https://controller:8443"
       - "--debug"
-    """
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+"""
 
 def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     if not 'otg' in reserved_testbed:
@@ -448,7 +468,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     repo_pr=test_pr,
                     target_dir=test_repo_dir)
 
-    chain |= GoTidy.s(repo=test_repo_dir)
+    #chain |= GoTidy.s(repo=test_repo_dir)
 
     if test_debug:
         chain |= InstallGoDelve.s()
