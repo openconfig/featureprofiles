@@ -63,7 +63,7 @@ case ${platform} in
     vendor_creds=CISCO/cisco/cisco123
     ;;
   nokia_srlinux)
-    vendor_creds=NOKIA/admin/NokiaSrl1!
+    vendor_creds=NOKIA/admin/admin
     ;;
   openconfig_lemming)
     vendor_creds=OPENCONFIG/admin/admin
