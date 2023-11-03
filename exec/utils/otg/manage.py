@@ -156,8 +156,11 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, otg_binding_file):
             f'./exec/utils/binding/fromjson ' \
             f'-binding {tmp_binding_file} ' \
             f'-out {otg_binding_file}'
-
+            
         check_output(cmd, cwd=fp_repo_dir)
+        
+        baseconf_file = _resolve_path_if_needed(fp_repo_dir, reserved_testbed['baseconf'])
+        check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {otg_binding_file}")
 
 parser = argparse.ArgumentParser(description='Manage OTG container for a testbed')
 command_parser = parser.add_subparsers(title="command", dest="command", help="command to run", required=True)
@@ -173,7 +176,7 @@ args = parser.parse_args()
 testbed_id = args.testbed
 command = args.command
 
-fp_repo_dir = os.getenv('FP_REPO_DIR', '.')
+fp_repo_dir = os.getenv('FP_REPO_DIR', os.getcwd())
 reserved_testbed = _get_testbed_by_id(fp_repo_dir, testbed_id)
 pname = reserved_testbed['id'].lower()
 
