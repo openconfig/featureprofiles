@@ -1,6 +1,7 @@
 import subprocess
 import tempfile
 import argparse
+import shutil
 import yaml
 import json
 import os
@@ -162,15 +163,33 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, otg_binding_file):
         baseconf_file = _resolve_path_if_needed(fp_repo_dir, reserved_testbed['baseconf'])
         check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {otg_binding_file}")
 
+def _write_ate_binding(fp_repo_dir, reserved_testbed, ate_binding_file):
+    shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["binding"]), ate_binding_file)
+    baseconf_file = _resolve_path_if_needed(fp_repo_dir, reserved_testbed['baseconf'])
+    check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {ate_binding_file}")
+    
+def _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file):
+    shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["testbed"]), testbed_file)
+
+def _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, setup_file):
+    setup_script = f"""
+export TESTBED={testbed_file}
+export ATE_BINDING={ate_binding_file}
+export OTG_BINDING={otg_binding_file}
+    """.strip()
+
+    with open(setup_file, 'w') as fp:
+        fp.write(setup_script)
+    
 parser = argparse.ArgumentParser(description='Manage OTG container for a testbed')
 command_parser = parser.add_subparsers(title="command", dest="command", help="command to run", required=True)
 start_parser = command_parser.add_parser("start", help="start OTG container")
 start_parser.add_argument('testbed', help="testbed id")
 stop_parser = command_parser.add_parser("stop", help="stop OTG container")
 stop_parser.add_argument('testbed', help="testbed id")
-binding_parser = command_parser.add_parser("binding", help="generate OTG binding")
-binding_parser.add_argument('testbed', help="testbed id")
-binding_parser.add_argument('out_file', help="output file")
+bindings_parser = command_parser.add_parser("bindings", help="generate Ondatra bindings")
+bindings_parser.add_argument('testbed', help="testbed id")
+bindings_parser.add_argument('--out_dir', default='', help="output directory")
 args = parser.parse_args()
 
 testbed_id = args.testbed
@@ -180,10 +199,35 @@ fp_repo_dir = os.getenv('FP_REPO_DIR', os.getcwd())
 reserved_testbed = _get_testbed_by_id(fp_repo_dir, testbed_id)
 pname = reserved_testbed['id'].lower()
 
-with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as f:
-    kne_host = reserved_testbed['otg']['host']
+if command == "bindings":
+    if args.out_dir:
+        out_dir = _resolve_path_if_needed(os.getcwd(), args.out_dir)
+    else:
+        out_dir = _resolve_path_if_needed(os.getcwd(), f'{pname}_bindings')
 
-    if command == "start":
+    os.makedirs(out_dir, exist_ok=True)
+    
+    otg_binding_file = os.path.join(out_dir, 'otg.binding')
+    ate_binding_file = os.path.join(out_dir, 'ate.binding')
+    testbed_file = os.path.join(out_dir, 'dut.testbed')
+    setup_file = os.path.join(out_dir, 'setup.sh')
+    
+    _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file)
+    _write_ate_binding(fp_repo_dir, reserved_testbed, ate_binding_file)
+    _write_otg_binding(fp_repo_dir, reserved_testbed, otg_binding_file)
+    _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, setup_file)
+    print('You can run the following command to setup your enviroment:')
+    print(f'source {setup_file}')
+    
+elif command == "stop":
+    kne_host = reserved_testbed['otg']['host']
+    check_output(
+        f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} down'
+    )
+
+elif command == "start":
+    with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as f:
+        kne_host = reserved_testbed['otg']['host']
         docker_compose_file_path = f.name
         docker_compose_file_name = os.path.basename(docker_compose_file_path)
         _write_otg_docker_compose_file(docker_compose_file_path, reserved_testbed)
@@ -193,12 +237,3 @@ with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as
         check_output(
             f'ssh -q -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} up -d --force-recreate'
         )
-
-    elif command == "stop":
-        check_output(
-            f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} down'
-        )
-        
-    elif command == "binding":
-        out_file = _resolve_path_if_needed(os.getcwd(), args.out_file)
-        _write_otg_binding(fp_repo_dir, reserved_testbed, out_file)
