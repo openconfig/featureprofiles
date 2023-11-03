@@ -12,7 +12,7 @@ Test Accounting for non-gRPC records
 - Establish gNSI connection to the DUT.
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = T0
 - Verify that accurate accounting records are returned for the commands/RPCs that were run, both permitted and denied.
-- If start/stop accounting was enabled, each connection's accounting should be preceded by a start (login) record for the service and the records associated with the RPCs sent during the connection should be followed by a logout record.
+- If start/stop accounting is supported, each connection's accounting should be preceded by a start (login) record for the service and the records associated with the RPCs sent during the connection should be followed by a logout record.
 - For each RecordResponse returned, check/confirm that:
 	- session_info. :
 		- .{layer4_proto, local_address, local_port, remote_address, remote_port}, ip_proto must match those recorded earlier

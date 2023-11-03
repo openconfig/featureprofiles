@@ -14,7 +14,7 @@ for multi-transaction logins.  For example, unreachable TACACS+ server(s).
 - Establish gNSI connection to the DUT.
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = T0
 - Verify that accurate accounting records are returned for the commands/RPCs authentication failures.
-- If start/stop accounting was enabled, each authentication failure should have an accompanying LOGIN accounting record.
+- If start/stop accounting is supported, each authentication failure should have an accompanying LOGIN accounting record.
 - For the RecordResponse correlated to the connection made above, check/confirm that:
 	- session_info. :
 		- .{layer4_proto, local_address, local_port, remote_address, remote_port}, ip_proto must match those recorded earlier
