@@ -273,8 +273,6 @@ message Metadata {
     bool os_component_parent_is_supervisor_or_linecard = 87;
     // Parent of OS component is of type CHASSIS.
     bool os_component_parent_is_chassis = 88;
-    // Device does not support fabric power-admin-state leaf.
-    bool skip_fabric_card_power_admin = 89;
     // Devices require configuring the same ISIS Metrics for Level 1 when
     // configuring Level 2 Metrics.
     bool isis_require_same_l1_metric_with_l2_metric = 91;
@@ -350,7 +348,7 @@ message Metadata {
     bool tunnel_config_path_unsupported = 118;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97;
+    reserved 84, 9, 28, 20, 90, 97, 89;
   }
 
   message PlatformExceptions {
