@@ -7,6 +7,7 @@ Verify configuration of sflow and sFlow sample data.
 ## Procedure
 
 * SFLOW-1.1 Configure sFlow on DUT
+  * Configure DUT and ATE with 2 ports
   * Configure DUT to send sflow samples to ATE port 2
   * Set sample source address, sample size 256Bytes, one sample per 1M packets and DSCP=32
 
@@ -15,14 +16,8 @@ Verify configuration of sflow and sFlow sample data.
     * Traffic Profile
         | Traffic Item | PPS    | Packet Size | L3  | L4  |
         | ------------ | ------ | ----------- | --- | --- |
-        | sflow1       | 1000   | 64          | IP  | TCP |
-        | sflow2       | 10000  | 64          | IP  | TCP |
         | sflow3       | 100000 | 64          | IP  | TCP |
-        | mflow1       | 1000   | 512         | IP  | TCP |
-        | mflow2       | 10000  | 512         | IP  | TCP |
         | mflow3       | 100000 | 512         | IP  | TCP |
-        | lflow1       | 1000   | 1500        | IP  | TCP |
-        | lflow2       | 10000  | 1500        | IP  | TCP |
         | lflow3       | 100000 | 1500        | IP  | TCP |
 
 * Verify captured packets are formatted like an sFlow packet
@@ -31,8 +26,8 @@ Verify configuration of sflow and sFlow sample data.
   * Verify sample packet is set with DSCP=32
 
 * SFLOW-1.3 Additional sflow packet verifications
-  * Verify captured packets contain additional SFlow fields
-    * Sampled interface is reported accurately
+  * Using the same packets captured in SFLOW-1.2 verify
+    * Sampled interface field shows DUT Port 1
     * Ingress and Egress interfaces are correct
     * "Extended-router" container exists and contains are accurate for different flow types,
       * Naked IP v/s IP-IP encaped flows
