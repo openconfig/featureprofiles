@@ -788,6 +788,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNMI-1.18"
+  description: "gNMI subscribe with sample mode for backplane capacity counters"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/README.md"
+  exec: " "
+}
+test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/ate_tests/telemetry_inventory_test/README.md"
@@ -887,11 +893,5 @@ test: {
   id: "TRANSCEIVER-4"
   description: "400ZR Optics RX Input and TX Output Power streaming"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_input_output_power_test/README.md"
-  exec: " "
-}
-test: {
-  id: "TRANSCEIVER-5"
-  description: "400ZR Optics channel frequency and output launch power setting"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_tunable_parameters_test/README.md"
   exec: " "
 }
