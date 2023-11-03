@@ -102,7 +102,7 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     with open(docker_file, 'w') as fp:
         fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
 
-def _write_otg_binding(fp_repo_dir, reserved_testbed, otg_binding_file):
+def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file):
     otg_info = reserved_testbed['otg']
 
     # convert binding to json
@@ -158,21 +158,22 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, otg_binding_file):
             f'-binding {tmp_binding_file} ' \
             f'-out {otg_binding_file}'
             
-        check_output(cmd, cwd=fp_repo_dir)
-        
-        baseconf_file = _resolve_path_if_needed(fp_repo_dir, reserved_testbed['baseconf'])
+        check_output(cmd, cwd=fp_repo_dir)        
         check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {otg_binding_file}")
 
-def _write_ate_binding(fp_repo_dir, reserved_testbed, ate_binding_file):
+def _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["binding"]), ate_binding_file)
-    baseconf_file = _resolve_path_if_needed(fp_repo_dir, reserved_testbed['baseconf'])
     check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {ate_binding_file}")
     
 def _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["testbed"]), testbed_file)
+    
+def _write_baseconf_file(fp_repo_dir, reserved_testbed, baseconf_file):
+    shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["baseconf"]), baseconf_file)
 
-def _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, setup_file):
+def _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file):
     setup_script = f"""
+export BASECONF={baseconf_file}
 export TESTBED={testbed_file}
 export ATE_BINDING={ate_binding_file}
 export OTG_BINDING={otg_binding_file}
@@ -210,12 +211,14 @@ if command == "bindings":
     otg_binding_file = os.path.join(out_dir, 'otg.binding')
     ate_binding_file = os.path.join(out_dir, 'ate.binding')
     testbed_file = os.path.join(out_dir, 'dut.testbed')
+    baseconf_file = os.path.join(out_dir, 'dut.baseconf')
     setup_file = os.path.join(out_dir, 'setup.sh')
     
+    _write_baseconf_file(fp_repo_dir, reserved_testbed, baseconf_file)
     _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file)
-    _write_ate_binding(fp_repo_dir, reserved_testbed, ate_binding_file)
-    _write_otg_binding(fp_repo_dir, reserved_testbed, otg_binding_file)
-    _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, setup_file)
+    _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file)
+    _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file)
+    _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file)
     print('You can run the following command to setup your enviroment:')
     print(f'source {setup_file}')
     
