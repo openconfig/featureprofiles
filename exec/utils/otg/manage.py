@@ -198,4 +198,4 @@ with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as
         
     elif command == "binding":
         out_file = _resolve_path_if_needed(os.getcwd(), args.out_file)
-        _write_otg_binding(FP_REPO_DIR, reserved_testbed, out_file)
+        _write_otg_binding(fp_repo_dir, reserved_testbed, out_file)
