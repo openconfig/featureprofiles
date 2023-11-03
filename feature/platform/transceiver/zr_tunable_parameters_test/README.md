@@ -19,7 +19,7 @@ launch power and verify corresponding telemetry values.
     between the modules should pass through an optical switch that can be
     controlled through automation to simulate a fiber cut.  
 *   To establish a point to point ZR link ensure the following:
-      * Both transceivers states are enabled
+      * Both transceivers states are enabled.
       * Validate setting 400ZR optics module tunable laser center frequency
         across frequency range 196.100 - 191.400 THz for 100GHz grid.
       * Validate setting 400ZR optics module tunable laser center frequency
@@ -57,10 +57,9 @@ launch power and verify corresponding telemetry values.
 ## TRANSCEIVER-5.2
 
 *   When the modules or the devices are still in a boot stage, they must not
-    stream any invalid string values like "nil" or "-inf" until valid values
-    are available for streaming.
+    stream any invalid string values like "nil" or "-inf".
 
-*   Frequency must be specified as uint64. Streamed values for frequency
+*   Frequency must be specified as uint64 in MHz. Streamed values for frequency
     offset must be of type decimal64.
 
 *   TX Output power must be of type decimal64.
