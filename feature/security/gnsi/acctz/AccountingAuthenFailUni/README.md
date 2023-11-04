@@ -19,9 +19,9 @@ Test Accounting for authentication failures of uni-transaction logins
 		- .{layer4_proto, local_address, local_port, remote_address, remote_port}, ip_proto must match those recorded earlier
 		- channel_id = 0 for ssh and grpc.
 		- .tty must be populated and correct, if applicable to the platform & access method, else omitted
-		- .status must equal LOGIN:
+		- .status must equal ONCE:
 			- .authen.type must equal the authentication method used.
-			- .authen.status must equal FAIL or ERROR, and cause should be populated.
+			- .authen.status must equal FAIL, and cause should be populated.
 			- .authen.cause should be populated with reason(s) for the failure.
 		- .user.identity must match the username sent to authenticate to the DUT
 		- .user.privilege_level should be omitted.
