@@ -21,7 +21,7 @@ Test Accounting for authentication failures of multi-transaction logins
 		- .tty must be populated and correct, if applicable to the platform & access method, else omitted
 		- .status must equal LOGIN:
 			- .authen.type must equal the authentication method used.
-			- .authen.status must equal FAIL or ERROR, and cause should be populated.
+			- .authen.status must equal FAIL, and cause should be populated.
 			- .authen.cause should be populated with reason(s) for the failure.
 		- .user.identity must match the username sent to authenticate to the DUT
 		- .user.privilege_level should be omitted.
