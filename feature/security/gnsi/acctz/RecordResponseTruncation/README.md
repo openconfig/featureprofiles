@@ -8,7 +8,7 @@ Test Record Response Truncation boolean is set
 	- Run a few commands
 	- disconnect
 - Establish gNSI connection to the DUT.
-- Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = now() - 1 year
+- Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = (openconfig-system.system-global-state.boot-time - 24 hours)
 - Verify that RecordResponse.history_istruncated = true.  It should be true because there should be no records in the history equal to nor pre-dating this RecordRequest.timestamp.
 
 ## Config Parameter
