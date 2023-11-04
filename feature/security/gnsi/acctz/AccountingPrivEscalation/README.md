@@ -14,14 +14,14 @@ Test Accounting for changing current privilege level, if supported.
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = T0
 - Verify that accurate accounting records are returned for the commands/RPCs authentication failures.
 - If start/stop accounting is supported, each authentication failure should have an accompanying session_info.status = LOGIN accounting record.
-- For each RecordResponse correlated to each connection made above, check/confirm that:
+- For each RecordResponse correlated to each privilege escalation, check/confirm that:
 	- session_info. :
 		- .{layer4_proto, local_address, local_port, remote_address, remote_port}, ip_proto must match those recorded earlier
 		- channel_id = 0 for ssh and grpc.
 		- .tty must be populated and correct, if applicable to the platform & access method, else omitted
 		- .status must equal ENABLE:
 			- .authen.type must equal the authentication method used.
-			- .authen.status must equal FAIL or ERROR, and cause should be populated.
+			- .authen.status must equal FAIL, and cause should be populated.
 			- .authen.cause should be populated with reason(s) for the failure.
 		- .user.identity must match the username sent to authenticate to the DUT
 		- .user.privilege_level must be populated with the new privilege level
