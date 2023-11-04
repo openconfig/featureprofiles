@@ -9,8 +9,8 @@ for multi-transaction logins.  For example, unreachable TACACS+ server(s).
 - Record the time T0 for use later in this test
 - For one of the supported RecordResponse.service_request.service_type that is not authenticated per-transaction:
 	- Connect to the DUT, recording the local and remote IP addresses and port numbers,
-	- Provide the valid user credentials configured in [Accounting Authentication Error - Config](../AccountingAuthenErrorConfig/)
-	- disconnect
+	- Provide a some combination of invalid authentication (eg: valid user but invalid password)
+	- Disconnect
 - Establish gNSI connection to the DUT.
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = T0
 - Verify that accurate accounting records are returned for the commands/RPCs authentication failures.
