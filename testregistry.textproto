@@ -812,6 +812,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNMI-2"
+  description: "Gnmi Subscriptionlist Test"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "gNOI-2.1"
   description: "Packet-based Link Qualification"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test/README.md"
