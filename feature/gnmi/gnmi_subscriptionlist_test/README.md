@@ -27,6 +27,8 @@ This is to test for gNMI `Subscription` to multiple paths with different `Subscr
     * /components/component/state/parent
     * /components/component/state/oper-status
     * /interfaces/interface/state/forwarding-viable
+    * /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-ca
+pacity
   * SubscriptionMode: TARGET_DEFINED
     * /interfaces/interface/state/counters/in-unicast-pkts
     * /interfaces/interface/state/counters/in-broadcast-pkts
@@ -47,5 +49,3 @@ This is to test for gNMI `Subscription` to multiple paths with different `Subscr
     * /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
     * /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
     * /components/component/integrated-circuit/backplane-facing-capacity/state/total”
-    * /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-ca
-pacity
