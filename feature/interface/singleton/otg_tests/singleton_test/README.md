@@ -25,8 +25,6 @@ a new testbed configuration with the desired port types.
 * Validate that port speed is reported correctly and that port telemetry
     matches expected negotiated speeds for forced, auto-negotiation, and
     auto-negotiation while overriding port speed and duplex.
-  * TODO: If the port is a breakout, ensure that all breakout ports are
-        correctly reported.
 * For IPv4 and IPv6:
   * With traffic flow from ATE port-1 to ATE port-2, ensure:
     * For MTUs [^1] of 1500, 5000, 9236:
@@ -73,17 +71,28 @@ a new testbed configuration with the desired port types.
 *   Ensure inbound and outbound unicast counters are the same
 *   Ensure counters increment at the selected SAMPLE interval
 
+### RT-5.1.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2338]
+#### Removal of Interface config should return an error if breakout-mode is still configured
+
+*   Configure breakout on DUT port-1
+*   Validate breakout is reported correctly
+*   Try removing the interface without removing the breakout
+    *   Expect the operation to error out
+*   Remove the breakout and then remove the interface
+    *   Validate that the interface is removed
+
 ## Config Parameter Coverage
 
 * /interfaces/interface/config/name
 * /interfaces/interface/config/description
 * /interfaces/interface/config/enabled
+* /interfaces/interface/config/id
 * /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu
 * /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu
-* /interfaces/interface/config/id
 * /interfaces/interface/ethernet/config/mac-address
 * /interfaces/interface/ethernet/config/port-speed
 * /interfaces/interface/ethernet/config/duplex-mode
+* /components/component/port/breakout-mode
 
 ## Telemetry Parameter Coverage
 
@@ -126,13 +135,15 @@ a new testbed configuration with the desired port types.
 * /interfaces/interface/state/id
 * /interfaces/interface/state/counters/in-fcs-errors
 * /interfaces/interface/state/counters/carrier-transitions
+* /components/component/port/breakout-mode/groups/group/
 
 ## Protocol/RPC Parameter Coverage
 
 * gNMI
+  * Set
   * Get
   * Subscribe
 
 ## Minimum DUT Platform Requirement
 
-vRX
+FFF
