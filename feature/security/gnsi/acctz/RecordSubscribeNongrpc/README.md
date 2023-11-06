@@ -12,13 +12,13 @@ Test Accounting for non-gRPC records
 - Establish gNSI connection to the DUT.
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = T0
 - Verify that accurate accounting records are returned for the commands/RPCs that were run, both permitted and denied.
-- If start/stop accounting is supported, each connection's accounting should be preceded by a start (login) record for the service and the records associated with the RPCs sent during the connection should be followed by a logout record.
+- If start/stop accounting is supported, each connection's accounting should be preceded by a start (login) record for the service and the records associated with the command/RPCs sent during the connection should be followed by a logout record.
 - For each RecordResponse returned, check/confirm that:
 	- session_info. :
 		- .{layer4_proto, local_address, local_port, remote_address, remote_port}, ip_proto must match those recorded earlier
 		- channel_id = 0 for ssh and grpc.
 		- .tty must be populated and correct, if applicable to the platform & access method, else omitted
-		- .status must equal the operation, else UNSPECIFIED if there is no corresponding enumeration.  It must equal ONCE for connections where each RPC/command is authenticated (eg: gRPC metadata authen).  If the operation was not LOGIN, ONCE, or ENABLE, authen must be omitted, else it must be populated:
+		- .status must equal the operation, else UNSPECIFIED if there is no corresponding enumeration.  It must equal ONCE for connections where each command/RPC is authenticated (eg: HTTP metadata authen).  If the operation was not LOGIN, ONCE, or ENABLE, authen must be omitted, else it must be populated:
 			- .authen.type must equal the authentication method used.
 			- .authen.status must equal the status of the authentication operation.  if FAIL or ERROR, cause should be populated, if SUCCESS, cause might be populated.
 		- .user.identity must match the username used to authenticate to the DUT
@@ -31,10 +31,10 @@ Test Accounting for non-gRPC records
 		- .cmd_args must equal the arguments to the command.  Abbreviated arguments that are not user-freeform, must be expanded by the DUT.
 		- If any of the .cmd or .cmd_args are truncated, {cmd,cmd_args}_istruncated must be true, else false.
 	- for authorization:
-		- .status must equal the expected and true authorization status for the RPC
+		- .status must equal the expected and true authorization status for the command/RPC
 		- if .status is PERMIT, .detail  might be populated with additional information
 		- if .status is DENY or ERROR, .detail should be populated with the reason
-		- grpc_service.status must equal the status of the RPC operation, SUCCESS or FAILURE
+		- command_service.status must equal the status of the command/RPC operation, SUCCESS or FAILURE
 			- If SUCCESS, task_ids should be populated with task IDs
 			- If FAILURE, failure_cause must be populated with a failure message
 	- task_ids might be populated with platform-specific information
