@@ -649,12 +649,6 @@ func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
 }
 
-// MemberLinkLoopbackUnsupported returns true for devices that require configuring
-// loopback on aggregated links instead of member links.
-func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
-}
-
 // EcnSameMinMaxThresholdUnsupported returns true for devices that don't support the same minimum and maximum threshold values
 // CISCO: minimum and maximum threshold values are not the same, the difference between minimum and maximum threshold value should be 6144.
 func EcnSameMinMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
@@ -674,4 +668,10 @@ func QosSetWeightConfigUnsupported(dut *ondatra.DUTDevice) bool {
 // QosGetStatePathUnsupported returns whether the device does not support get state leaves under qos.
 func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
+}
+
+// MemberLinkLoopbackUnsupported returns true for devices that require configuring
+// loopback on aggregated links instead of member links.
+func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
 }
