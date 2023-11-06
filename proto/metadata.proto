@@ -348,9 +348,17 @@ message Metadata {
     // Device does not support tunnel interfaces source and destination address config paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
     bool tunnel_config_path_unsupported = 118;
+    // Cisco: Device does not support same minimun and maximum threshold value in QOS ECN config.
+    bool ecn_same_min_max_threshold_unsupported = 119;
+    // Cisco: QOS requires scheduler configuration.
+    bool qos_scheduler_config_required = 120;
+    // Cisco: Device does not support set weight config under QOS ECN configuration.
+    bool qos_set_weight_config_unsupported = 121;
+    // Cisco: Device does not support these get state path.
+    bool qos_get_state_path_unsupported = 122;
     // Devices does not support member link loopback
     // Juniper: b/307763669
-    bool member_link_loopback_unsupported = 119;
+    bool member_link_loopback_unsupported = 123;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;
