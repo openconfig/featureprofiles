@@ -45,18 +45,6 @@ Verify that DUT supports QoS config and forward QoS traffic correctly.
 
 *   Test results should be the same for port speeds 100G and 400G.
 
-*   Counters should be also verified for each test case:
-
-    *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-    *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
-    *   transmit-pkts should be equal to the number of Rx pkts on Ixia port
-    *   dropped-pkts should be equal to diff between the number of Tx and the
-        number Rx pkts on Ixia ports
-
-*   Latency:
-
-    *   Should be < 100000ns
-
 ## Procedure
 
 *   Connect DUT port-1 to ATE port-1, DUT port-2 to ATE port-2 and DUT port-3 to
@@ -67,6 +55,18 @@ Verify that DUT supports QoS config and forward QoS traffic correctly.
     *   Configure strict priority queues for NC1.
     *   Configure WRR for AF4, AF3, AF2, AF1, BE0 and BE1 with weight 48, 12, 8, 4, 1
         and 1 respectively.
+
+*   Counters should be verified for each test case:
+
+    *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
+    *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+    *   transmit-pkts should be equal to the number of Rx pkts on Ixia port
+    *   dropped-pkts should be equal to diff between the number of Tx and the
+        number Rx pkts on Ixia ports
+
+*   Latency:
+
+    *   Should be < 100000ns
 
 *   Non-oversubscription traffic test case 1 with 80% of aggregated linerate
 
@@ -93,6 +93,22 @@ Verify that DUT supports QoS config and forward QoS traffic correctly.
     BE1           | 0.5                     | 0.5                     | 100                   | 100
 
 *   Verify that there is no traffic loss
+
+####   DP-1.14.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2321]
+
+*   Initiate traffic
+
+*   Counters should be verified using gNMI subscribe with sample mode
+
+    *   Run the test twice, once with a SAMPLE interval of 10 Seconds and once again
+        with a SAMPLE interval of 15 seconds for the below telemetry paths
+
+        *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
+        *   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
+        *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+        *   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
+
+ *   Ensure counter of all queues increment at the selected SAMPLE interval
 
 ## Config parameter coverage
 
@@ -138,3 +154,13 @@ Verify that DUT supports QoS config and forward QoS traffic correctly.
 *   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
 *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
 *   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
+
+## Protocol/RPC Parameter Coverage
+
+* gNMI
+  * Get
+  * Subscribe
+
+## Required DUT platform
+
+* FFF
