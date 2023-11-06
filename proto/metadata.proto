@@ -348,12 +348,6 @@ message Metadata {
     // Device does not support tunnel interfaces source and destination address config paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
     bool tunnel_config_path_unsupported = 118;
-    // Devices need to skip sub interface index.
-    bool skip_sub_interface_index = 119;
-    // Devices has issue with nexthop index
-    // Juniper: b/304729237
-    bool skip_static_nexthop_check = 120;
-       
     // Cisco: Device does not support same minimun and maximum threshold value in QOS ECN config.
     bool ecn_same_min_max_threshold_unsupported = 119;
     // Cisco: QOS requires scheduler configuration.
@@ -362,7 +356,11 @@ message Metadata {
     bool qos_set_weight_config_unsupported = 121;
     // Cisco: Device does not support these get state path.
     bool qos_get_state_path_unsupported = 122;
-    
+    // Devices need to skip sub interface index.
+    bool skip_sub_interface_index = 123;
+    // Devices has issue with nexthop index
+    // Juniper: b/304729237
+    bool skip_static_nexthop_check = 124;   
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;
