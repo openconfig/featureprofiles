@@ -362,8 +362,7 @@ message Metadata {
     // Devices requires enabled leaf under isis level
     // Juniper: partnerissuetracker.corp.google.com/302661486
     bool isis_level_enabled = 124;
-    
-    
+        
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;
   }
