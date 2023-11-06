@@ -660,6 +660,7 @@ replace: {
 "hw-module profile pbr vrf-redirect\n"
 "hw-module profile qos qos-stats-push-collection\n"
 "hw-module profile npu-compatibility Q200\n"
+"hw-module profile npu-compatibility-force Q200\n"
 "cef proactive-arp-nd enable\n"
 "ipv4 virtual address vrf mgmt 5.78.26.26/16\n"
 "end\n"
