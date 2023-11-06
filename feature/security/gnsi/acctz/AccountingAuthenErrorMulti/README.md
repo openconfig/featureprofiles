@@ -28,7 +28,7 @@ for multi-transaction logins.  For example, unreachable TACACS+ server(s).
 		- .user.privilege_level should be omitted.
 	- timestamp is after (greater than) RecordRequest.timestamp
 	- session_info.service_request.serivce_type must equal the service used.
-	- cmd_service. or grpc_service: 
+	- cmd_service or grpc_service: 
 		- .service_type must equal the service used
 		- all other fields should be omitted.
 	- for authorization:
