@@ -37,7 +37,7 @@ Test Accounting for non-gRPC records
 		- grpc_service.status must equal the status of the RPC operation, SUCCESS or FAILURE
 			- If SUCCESS, task_ids should be populated with task IDs
 			- If FAILURE, failure_cause must be populated with a failure message
-	- task_ids might be populate with platform-specific information
+	- task_ids might be populated with platform-specific information
 - If applicable to the service type, and session_info.stats != ONCE, ensure records for each connection are bracketed by LOGIN/LOGOUT records.
 
 
