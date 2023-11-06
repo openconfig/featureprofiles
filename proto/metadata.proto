@@ -348,6 +348,12 @@ message Metadata {
     // Device does not support tunnel interfaces source and destination address config paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
     bool tunnel_config_path_unsupported = 118;
+    // Devices exports routes from all protocols to BGP if the export-policy is ACCEPT
+    // Juniper: b/308970803
+    bool skip_non_bgp_route_export_check = 119;
+    // Devices requires enabled leaf under isis level
+    // Juniper: partnerissuetracker.corp.google.com/302661486
+    bool isis_level_enabled = 120;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;
