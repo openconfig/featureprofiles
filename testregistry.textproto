@@ -788,6 +788,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNMI-1.18"
+  description: "gNMI subscribe with sample mode for backplane capacity counters"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/README.md"
+  exec: " "
+}
+test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/ate_tests/telemetry_inventory_test/README.md"
