@@ -45,7 +45,7 @@ type fakeFileClient struct {
 	statResponses []any
 }
 
-func (f *fakeFileClient) Stat(ctx context.Context, in *fpb.StatRequest, opts ...grpc.CallOption) (*fpb.StatResponse, error) {
+func (f *fakeFileClient) Stat(_ context.Context, _ *fpb.StatRequest, _ ...grpc.CallOption) (*fpb.StatResponse, error) {
 	if len(f.statResponses) == 0 {
 		return nil, fmt.Errorf("no more responses")
 	}
