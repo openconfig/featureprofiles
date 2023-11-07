@@ -23,7 +23,7 @@ var enCiscoCommands encryptionCommands
 // performs factory reset
 func factoryReset(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 	createFiles(t, dut, devicePaths)
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	facRe, err := gnoiClient.FactoryReset().Start(context.Background(), &frpb.StartRequest{FactoryOs: false, ZeroFill: false})
 	if err != nil {
 		t.Fatalf("Failed to initiate Factory Reset on the device, Error : %v ", err)
@@ -32,7 +32,7 @@ func factoryReset(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 	time.Sleep(2 * time.Minute)
 	deviceBootStatus(t, dut)
 	dutNew := ondatra.DUT(t, "dut")
-	checkFiles(t, dutNew)
+	checkFiles(t, dutNew, filesCreated, true)
 	t.Log("Factory reset successfull")
 }
 

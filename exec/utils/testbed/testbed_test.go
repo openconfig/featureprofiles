@@ -36,7 +36,6 @@ func TestShowVersion(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 	sshClient := dut.RawAPIs().CLI(t)
-	defer sshClient.Close()
 
 	content := ""
 	for _, cmd := range commands {

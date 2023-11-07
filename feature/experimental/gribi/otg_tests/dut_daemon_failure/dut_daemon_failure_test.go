@@ -26,11 +26,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gnps "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gnoigo/system"
 	grps "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -96,16 +98,16 @@ var (
 )
 
 // configInterfaceDUT configures the DUT interfaces.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -121,27 +123,26 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -170,8 +171,12 @@ func stopAndVerifyTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 
 	time.Sleep(time.Minute)
 
-	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
-	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+	txPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
+	rxPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
+
+	if txPkts == 0 {
+		t.Fatalf("TxPkts == 0, want > 0")
+	}
 
 	if got := (txPkts - rxPkts) * 100 / txPkts; got != 0 {
 		t.Errorf("FAIL: LossPct for flow named %s got %v, want 0", flowName, got)
@@ -192,18 +197,18 @@ type testArgs struct {
 // after programming the necessary nexthop and nexthop-group.
 func addRoute(ctx context.Context, t *testing.T, args *testArgs, clientA *gribi.Client) {
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via clientA", ateDstNetCIDR)
-	clientA.AddNH(t, nhIndex, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
+	clientA.AddNH(t, nhIndex, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInRIB)
+	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInRIB)
+	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, deviations.DefaultNetworkInstance(args.dut), "", fluent.InstalledInRIB)
 }
 
 // verifyAFT verifies through AFT Telemetry if a route is present on the DUT.
 func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through AFT Telemetry that %s is active", ateDstNetCIDR)
-	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		prefix, present := val.Val()
-		return present && prefix == ateDstNetCIDR
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	}
@@ -221,9 +226,9 @@ func verifyTraffic(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 // verifyGRIBIGet verifies through gRIBI Get RPC if a route is present on the DUT.
-func verifyGRIBIGet(ctx context.Context, t *testing.T, clientA *gribi.Client) {
+func verifyGRIBIGet(ctx context.Context, t *testing.T, clientA *gribi.Client, dut *ondatra.DUTDevice) {
 	t.Logf("Verify through gRIBI Get RPC that %s is present", ateDstNetCIDR)
-	getResponse, err := clientA.Fluent(t).Get().WithNetworkInstance(*deviations.DefaultNetworkInstance).WithAFT(fluent.IPv4).Send()
+	getResponse, err := clientA.Fluent(t).Get().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithAFT(fluent.IPv4).Send()
 	if err != nil {
 		t.Errorf("Cannot Get: %v", err)
 	}
@@ -246,13 +251,8 @@ func verifyGRIBIGet(ctx context.Context, t *testing.T, clientA *gribi.Client) {
 
 // gNOIKillProcess kills a daemon on the DUT, given its name and pid.
 func gNOIKillProcess(ctx context.Context, t *testing.T, args *testArgs, pName string, pID uint32) {
-	gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
-	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
-	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
+	killResponse := gnoi.Execute(t, args.dut, system.NewKillProcessOperation().Name(pName).PID(pID).Signal(gnps.KillProcessRequest_SIGNAL_TERM).Restart(true))
 	t.Logf("Got kill process response: %v\n\n", killResponse)
-	if err != nil {
-		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
-	}
 }
 
 // findProcessByName uses telemetry to find out the PID of a process
@@ -399,7 +399,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 		}
 
 		t.Run("VerifyGRIBIGet", func(t *testing.T) {
-			verifyGRIBIGet(ctx, t, clientA)
+			verifyGRIBIGet(ctx, t, clientA, dut)
 		})
 	})
 

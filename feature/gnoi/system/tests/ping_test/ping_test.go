@@ -111,8 +111,8 @@ func TestGNOIPing(t *testing.T) {
 	if len(ipv6Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, lbIntf, *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, lbIntf, deviations.DefaultNetworkInstance(dut), 0)
 	}
 	commonExpectedIPv4Reply := &spb.PingResponse{
 		Source:   ipv4Addrs[0].GetIp(),
@@ -402,7 +402,7 @@ func TestGNOIPing(t *testing.T) {
 		expectedStats: commonExpectedReplyStats,
 	}}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Logf("Sent ping request: %v\n\n", tc.pingRequest)

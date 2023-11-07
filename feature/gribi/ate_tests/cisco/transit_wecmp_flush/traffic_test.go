@@ -29,6 +29,7 @@ import (
 var (
 	ixiaTopology   = make(map[string]*ondatra.ATETopology)
 	sortedAtePorts []string //keep sorted ports for ate, the first port is the send and the rest are recive
+	portID         []string //list of PortIDs for ATE ports
 )
 
 func getIXIATopology(t *testing.T, ateName string) *ondatra.ATETopology {
@@ -45,13 +46,16 @@ func getIXIATopology(t *testing.T, ateName string) *ondatra.ATETopology {
 
 func generateBaseScenario(t *testing.T, ate *ondatra.ATEDevice, topoobj *ondatra.ATETopology) {
 	sortedAtePorts = []string{}
-	for _, port := range ate.Device.Ports() {
-		sortedAtePorts = append(sortedAtePorts, port.Name())
+	for _, portid := range ate.Ports() {
+		portID = append(portID, portid.ID())
+		sort.Strings(portID)
+	}
+	for _, port := range portID {
+		sortedAtePorts = append(sortedAtePorts, ate.Port(t, port).Name())
 	}
 	if len(sortedAtePorts) < 2 {
 		t.Fatalf("At least two ports are required for the test")
 	}
-	sort.Strings(sortedAtePorts)
 	if len(strings.Split(sortedAtePorts[0], "/")) != 2 {
 		t.Fatalf("Ate port name expected to be in format int/int, e.g., 1/6")
 	}

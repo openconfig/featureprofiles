@@ -75,12 +75,12 @@ func configurePortId(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) 
 
 func setupP4RTClients(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) ([]*p4rt_client.P4RTClient, error) {
 	leader := p4rt_client.P4RTClient{}
-	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	follower := p4rt_client.P4RTClient{}
-	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
@@ -128,7 +128,7 @@ func setupP4RTClients(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice)
 		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
 		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
 		Config: &p4_v1.ForwardingPipelineConfig{
-			P4Info: &p4Info,
+			P4Info: p4Info,
 			Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
 				Cookie: 159,
 			},

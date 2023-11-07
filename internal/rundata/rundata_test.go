@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra/binding"
 )
 
@@ -115,9 +116,15 @@ func TestTopology(t *testing.T) {
 }
 
 func TestProperties(t *testing.T) {
-	TestPlanID = "UnitTest-1.1"
-	TestDescription = "This is a Unit Test"
-	TestUUID = "123e4567-e89b-42d3-8456-426614174000"
+	const (
+		wantUUID        = "TestProperties123"
+		wantPlanID      = "TestProperties"
+		wantDescription = "TestProperties unit test"
+	)
+
+	metadataGetFn = func() *mpb.Metadata {
+		return &mpb.Metadata{Uuid: wantUUID, PlanId: wantPlanID, Description: wantDescription}
+	}
 
 	*knownIssueURL = "https://example.com"
 
@@ -125,9 +132,9 @@ func TestProperties(t *testing.T) {
 	t.Log(got)
 
 	for wantk, wantv := range map[string]string{
-		"test.plan_id":     TestPlanID,
-		"test.description": TestDescription,
-		"test.uuid":        TestUUID,
+		"test.uuid":        wantUUID,
+		"test.plan_id":     wantPlanID,
+		"test.description": wantDescription,
 		"known_issue_url":  *knownIssueURL,
 	} {
 		if gotv := got[wantk]; gotv != wantv {

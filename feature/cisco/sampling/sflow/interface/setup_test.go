@@ -23,6 +23,7 @@ var (
 	testInterfaceIngressSamplingRate []uint32 = []uint32{
 		60,
 	}
+	//lint:ignore U1000 Ignore unused function temporarily for debugging
 	testInterfaceEgressSamplingRate []uint32 = []uint32{
 		70,
 	}

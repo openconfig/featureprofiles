@@ -43,8 +43,8 @@ var (
 		"cef", "cef platform", "ofa", "insight", "rib", "fabric",
 		"service-layer", "grpc", "spi", "hw-ac", "bundles", "cfgmgr",
 		"ctrace", "ethernet interfaces", "fabric link-include", "p4rt",
-		"interface", "optics", "pfi", "platform-fwd", "rdsfs", "sysdb",
-		"telemetry model-driven", "routing isis", "linux networking",
+		"interface", "optics", "pfi", "platform-fwd", "pbr", "rdsfs", "sysdb",
+		"telemetry model-driven", "routing isis", "routing bgp", "linux networking",
 		"install",
 	}
 	pipedCmds = []string{
@@ -97,7 +97,6 @@ func TestCollectDebugFiles(t *testing.T) {
 		ctx := context.Background()
 		dut := ondatra.DUT(t, dutID)
 		sshClient := dut.RawAPIs().CLI(t)
-		defer sshClient.Close()
 
 		for _, cmd := range commands {
 			testt.CaptureFatal(t, func(t testing.TB) {

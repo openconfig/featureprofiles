@@ -1,4 +1,4 @@
-package bgp_peergroup_test
+package bgp_test
 
 import (
 	"fmt"

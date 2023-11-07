@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "38497de1-f488-46f1-b972-15e51c3ca531"
+plan_id: "backup_nh_test"
+description: "backup nhg"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    deviation_default_network_instance: true
+  }
+}

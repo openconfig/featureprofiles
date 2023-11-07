@@ -1,9 +1,0 @@
-name: factory_reset
-skip: true 
-owner: sahubbal@cisco.com
-testbed: topologies/cisco/hw/8201-RP_FOC2503NLRY/testbed
-binding: topologies/cisco/hw/8201-RP_FOC2503NLRY/binding
-tests:
-- name: factory_reset 
-  path: feature/cisco/sztp/factory_reset_test.go
-  timeout: 5400 

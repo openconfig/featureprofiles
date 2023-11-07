@@ -23,9 +23,9 @@ import (
 
 func getaftnh(t *testing.T, dut *ondatra.DUTDevice, ipv4prefix string, ipv4nwinstance string, nhgnwinstance string) (nh []uint64, nhg uint64) {
 
-	nexthopgroup := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ipv4nwinstance).Afts().Ipv4Entry(ipv4prefix).NextHopGroup().State())
-	t.Logf("NextHopGroup VALUE : %d", nexthopgroup)
-	nhgval := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(nhgnwinstance).Afts().NextHopGroup(nexthopgroup).State())
+	ipv4Entry := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(ipv4nwinstance).Afts().Ipv4Entry(ipv4prefix).State())
+	t.Logf("NextHopGroup VALUE : %d", ipv4Entry.GetNextHopGroup())
+	nhgval := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(nhgnwinstance).Afts().NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
 
 	var nhlist []uint64
 	for i := range nhgval.NextHop {
@@ -40,5 +40,5 @@ func getaftnh(t *testing.T, dut *ondatra.DUTDevice, ipv4prefix string, ipv4nwins
 		t.Logf("NextHop Programmed Index VALUE : %d", pindex)
 
 	}
-	return nhlist, nexthopgroup
+	return nhlist, ipv4Entry.GetNextHopGroup()
 }

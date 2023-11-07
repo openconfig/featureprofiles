@@ -131,7 +131,7 @@ func testPing(t *testing.T, event *monitor.CachedConsumer, args ...interface{}) 
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	pingRequest := &spb.PingRequest{
 		Destination: ipv4Addrs[0].GetIp(),
 		Source:      ipv4Addrs[0].GetIp(),
@@ -208,7 +208,7 @@ func testBatchADDReplaceDeleteIPV4(t *testing.T, events *monitor.CachedConsumer,
 out:
 	for {
 		for _, prefix := range prefixes {
-			path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
+			path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix)
 			strpath := gnmiutil.PathStructToString(path)
 			_, found := events.Cache.Get(strpath)
 			if found {
@@ -223,7 +223,7 @@ out:
 	}
 	// check to make sure we have update for all prefixes
 	for _, prefix := range prefixes {
-		path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix).Prefix()
+		path := gnmi.OC().NetworkInstance(*ciscoFlags.NonDefaultNetworkInstance).Afts().Ipv4Entry(prefix)
 		strpath := gnmiutil.PathStructToString(path)
 		for {
 			_, found := events.Cache.Get(strpath)

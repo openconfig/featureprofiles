@@ -27,7 +27,7 @@ func ConfigRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RoutePo
 		return errors.Errorf("cannot reuse routing policy definition %v", err)
 	}
 
-	statement, err := rpd.NewStatement(policy.Name + "stmt")
+	statement, err := rpd.AppendNewStatement(policy.Name + "stmt")
 	if err != nil {
 		return errors.Errorf("cannot reuse routing policy definition %v", err)
 	}
@@ -49,7 +49,7 @@ func ReplaceRPL(dev *ondatra.DUTDevice, t *testing.T, policy *proto.Input_RouteP
 		return errors.Errorf("cannot reuse routing policy definition %v", err)
 	}
 
-	statement, err := rpd.NewStatement(policy.Name + "stmt")
+	statement, err := rpd.AppendNewStatement(policy.Name + "stmt")
 	if err != nil {
 		return errors.Errorf("cannot reuse routing policy definition %v", err)
 	}

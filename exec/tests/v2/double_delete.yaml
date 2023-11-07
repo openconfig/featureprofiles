@@ -1,0 +1,15 @@
+name: double_delete 
+owners: 
+  - wdolaast
+testbeds:
+  - 8808-1DUT-1ATE-FURY
+tests:
+- name: Double_delete 
+  path: feature/gribi/ate_tests/cisco/double_delete
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master
+  args:
+    - '-gribi_aft_check=false'
+    - '-gribi_aft_chain_check=false'

@@ -7,6 +7,7 @@
 duts {
   id: "dut"
   vendor: CISCO
+  hardware_model: "CISCO-8808"
   ports {
     id: "port1"
     speed: S_10GB
@@ -37,6 +38,10 @@ duts {
   }
   ports {
     id: "port8"
+    speed: S_10GB
+  }
+  ports {
+    id: "port9"
     speed: S_10GB
   }
 }
@@ -66,6 +71,9 @@ ates {
   }
   ports {
     id: "port8"
+  }
+  ports {
+    id: "port9"
   }
 }
 
@@ -98,6 +106,7 @@ links {
   a: "dut:port6"
   b: "ate:port6"
 }
+
 links {
   a: "dut:port7"
   b: "ate:port7"
@@ -106,5 +115,10 @@ links {
 links {
   a: "dut:port8"
   b: "ate:port8"
+}
+
+links {
+  a: "dut:port9"
+  b: "ate:port9"
 }
 

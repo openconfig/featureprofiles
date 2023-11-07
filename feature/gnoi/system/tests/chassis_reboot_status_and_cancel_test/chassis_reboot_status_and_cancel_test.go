@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 
 func TestRebootStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 
 	cases := []struct {
 		desc          string
@@ -88,7 +88,7 @@ func TestRebootStatus(t *testing.T) {
 	}
 
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
-	if !*deviations.GNOIStatusWithEmptySubcomponent {
+	if !deviations.GNOIStatusWithEmptySubcomponent(dut) {
 		statusReq.Subcomponents = append(statusReq.Subcomponents, getSubCompPath(t, dut))
 	}
 	for _, tc := range cases {
@@ -136,7 +136,7 @@ func TestRebootStatus(t *testing.T) {
 
 func TestCancelReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 
 	rebootRequest := &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
@@ -160,7 +160,7 @@ func TestCancelReboot(t *testing.T) {
 		t.Fatalf("Failed to request reboot with unexpected err: %v", err)
 	}
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
-	if !*deviations.GNOIStatusWithEmptySubcomponent {
+	if !deviations.GNOIStatusWithEmptySubcomponent(dut) {
 		statusReq.Subcomponents = append(statusReq.Subcomponents, getSubCompPath(t, dut))
 	}
 	rebootStatus, err := gnoiClient.System().RebootStatus(context.Background(), statusReq)
@@ -199,5 +199,6 @@ func getSubCompPath(t *testing.T, dut *ondatra.DUTDevice) *tpb.Path {
 	if len(controllerCards) == 2 {
 		_, activeRP = components.FindStandbyRP(t, dut, controllerCards)
 	}
-	return components.GetSubcomponentPath(activeRP)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	return components.GetSubcomponentPath(activeRP, useNameOnly)
 }

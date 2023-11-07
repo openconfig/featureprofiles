@@ -20,7 +20,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -158,22 +157,13 @@ var (
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if *deviations.InterfaceEnabled {
-		i.Enabled = ygot.Bool(true)
-	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
-		s4.Enabled = ygot.Bool(true)
-	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
-		s6.Enabled = ygot.Bool(true)
-	}
 	s6a := s6.GetOrCreateAddress(a.IPv6)
 	s6a.PrefixLength = ygot.Uint8(ipv6PrefixLen)
 
@@ -262,7 +252,7 @@ func configRP(t *testing.T, dut *ondatra.DUTDevice) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateRoutingPolicy()
 	pdef := inst.GetOrCreatePolicyDefinition("ALLOW")
-	stmt1 := pdef.GetOrCreateStatement("1")
+	stmt1, _ := pdef.AppendNewStatement("1")
 	stmt1.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	dutNode := gnmi.OC().RoutingPolicy()

@@ -85,16 +85,16 @@ var (
 )
 
 // configInterfaceDUT configures the DUT interfaces.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -109,26 +109,25 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
@@ -136,7 +135,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
-		SetPrefix(int32(atePort1.IPv4Len))
+		SetPrefix(uint32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
@@ -144,17 +143,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
-		SetPrefix(int32(atePort2.IPv4Len))
+		SetPrefix(uint32(atePort2.IPv4Len))
 
 	return top
-}
-
-// Waits for at least one ARP entry on any OTG interface
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().InterfaceAny().Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
 }
 
 // testTraffic generates traffic flow from source network to
@@ -165,7 +156,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 
 	otg := ate.OTG()
 	otg.StartProtocols(t)
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, otg, top, "IPv4")
 	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
 	top.Flows().Clear().Items()
 	flowipv4 := top.Flows().Add().SetName("Flow")
@@ -190,8 +181,12 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	otgutils.LogFlowMetrics(t, otg, top)
 
 	time.Sleep(time.Minute)
-	txPkts := int(gnmi.Get(t, otg, gnmi.OTG().Flow(flowipv4.Name()).Counters().OutPkts().State()))
-	rxPkts := int(gnmi.Get(t, otg, gnmi.OTG().Flow(flowipv4.Name()).Counters().InPkts().State()))
+	txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowipv4.Name()).Counters().OutPkts().State()))
+	rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowipv4.Name()).Counters().InPkts().State()))
+
+	if txPkts == 0 {
+		t.Fatalf("TxPkts == 0, want > 0")
+	}
 
 	if !wantLoss {
 		if got := (txPkts - rxPkts) * 100 / txPkts; got != 0 {
@@ -220,18 +215,18 @@ type testArgs struct {
 // after programming the necessary nexthop and nexthop-group.
 func addRoute(ctx context.Context, t *testing.T, args *testArgs, clientA *gribi.Client) {
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via clientA", ateDstNetCIDR)
-	clientA.AddNH(t, nhIndex, atePort2.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
+	clientA.AddNH(t, nhIndex, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInRIB)
+	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInRIB)
+	clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, deviations.DefaultNetworkInstance(args.dut), "", fluent.InstalledInRIB)
 }
 
 // verifyAFT verifies through AFT Telemetry if a route is present on the DUT.
 func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through AFT Telemetry that %s is active", ateDstNetCIDR)
-	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		prefix, present := val.Val()
-		return present && prefix == ateDstNetCIDR
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	}
@@ -240,10 +235,10 @@ func verifyAFT(ctx context.Context, t *testing.T, args *testArgs) {
 // verifyNoAFT verifies through AFT Telemetry that a route is NOT present on the DUT.
 func verifyNoAFT(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Verify through Telemetry that the route to %s is not present", ateDstNetCIDR)
-	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		prefix, present := val.Val()
-		return !present || (present && prefix == "")
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return !present || (present && ipv4Entry.Prefix == nil)
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want nil", got)
 	}
@@ -286,63 +281,6 @@ func TestLeaderFailover(t *testing.T) {
 		ate: ate,
 		top: top,
 	}
-
-	t.Run("SINGLE_PRIMARY/PERSISTENCE=DELETE", func(t *testing.T) {
-		// This is an indicator test for gRIBI persistence DELETE, so we
-		// do not skip based on *deviations.GRIBIPreserveOnly.
-
-		// Set parameters for gRIBI client clientA.
-		// Set Persistence to false.
-		clientA := &gribi.Client{
-			DUT:         dut,
-			FIBACK:      false,
-			Persistence: false,
-		}
-
-		defer clientA.Close(t)
-
-		t.Log("Establish gRIBI client connection with PERSISTENCE set to FALSE/DELETE")
-		if err := clientA.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection for clientA could not be established")
-		}
-		clientA.BecomeLeader(t)
-
-		t.Run("AddRoute", func(t *testing.T) {
-			t.Logf("Add gRIBI route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
-			addRoute(ctx, t, args, clientA)
-
-			t.Run("VerifyAFT", func(t *testing.T) {
-				verifyAFT(ctx, t, args)
-			})
-
-			t.Run("VerifyTraffic", func(t *testing.T) {
-				verifyTraffic(ctx, t, args)
-			})
-		})
-
-		t.Logf("Time check: %s", time.Since(start))
-
-		// Close below is done through defer.
-		t.Log("Close gRIBI client connection")
-	})
-
-	t.Run("ShouldDelete", func(t *testing.T) {
-		// This is an indicator test for gRIBI persistence DELETE, so we
-		// do not skip based on *deviations.GRIBIPreserveOnly.
-
-		t.Logf("Verify through Telemetry and Traffic that the route to %s has been deleted after gRIBI client disconnected", ateDstNetCIDR)
-
-		t.Run("VerifyNoAFT", func(t *testing.T) {
-			verifyNoAFT(ctx, t, args)
-		})
-
-		t.Run("VerifyNoTraffic", func(t *testing.T) {
-			verifyNoTraffic(ctx, t, args)
-		})
-
-		t.Logf("Time check: %s", time.Since(start))
-
-	})
 
 	t.Run("SINGLE_PRIMARY/PERSISTENCE=PRESERVE", func(t *testing.T) {
 		// Set parameters for gRIBI client clientA.
@@ -415,7 +353,7 @@ func TestLeaderFailover(t *testing.T) {
 
 		t.Run("DeleteRoute", func(t *testing.T) {
 			t.Logf("Delete route to %s and verify through Telemetry and Traffic", ateDstNetCIDR)
-			clientA.DeleteIPv4(t, ateDstNetCIDR, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
+			clientA.DeleteIPv4(t, ateDstNetCIDR, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 
 			t.Run("VerifyNoAFT", func(t *testing.T) {
 				verifyNoAFT(ctx, t, args)

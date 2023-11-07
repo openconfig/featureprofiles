@@ -51,28 +51,22 @@ package rundata
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
+	"flag"
+
+	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/ondatra/binding"
 )
 
 var (
-	// TestPlanID should be set by a test to self-report the test plan ID.
-	TestPlanID string
-
-	// TestDescription should be set by a test to self-report the one-line description.
-	TestDescription string
-
-	// TestUUID should be set by a test to self-report the test UUID.
-	TestUUID string
-)
-
-var (
 	knownIssueURL = flag.String("known_issue_url", "", "Report a known issue that explains why the test fails.  This should be a URL to the issue tracker.")
+
+	// Stub out for unit tests.
+	metadataGetFn = metadata.Get
 )
 
 // topology summarizes the topology from the reservation.
@@ -100,17 +94,19 @@ func topology(resv *binding.Reservation) string {
 
 // Properties builds the test properties map representing run data.
 func Properties(ctx context.Context, resv *binding.Reservation) map[string]string {
+	md := metadataGetFn()
+
 	m := make(map[string]string)
 	local(m)
 
-	if TestPlanID != "" {
-		m["test.plan_id"] = TestPlanID
+	if uuid := md.GetUuid(); uuid != "" {
+		m["test.uuid"] = uuid
 	}
-	if TestDescription != "" {
-		m["test.description"] = TestDescription
+	if planID := md.GetPlanId(); planID != "" {
+		m["test.plan_id"] = planID
 	}
-	if TestUUID != "" {
-		m["test.uuid"] = TestUUID
+	if desc := md.GetDescription(); desc != "" {
+		m["test.description"] = desc
 	}
 
 	if *knownIssueURL != "" {

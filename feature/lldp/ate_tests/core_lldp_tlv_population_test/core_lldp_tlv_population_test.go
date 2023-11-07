@@ -15,6 +15,7 @@
 package core_lldp_tlv_population_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -26,6 +27,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
@@ -61,11 +64,15 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			dut, dutConf := configureNode(t, "dut1", test.lldpEnabled)
 			ate, ateConf := configureNode(t, "dut2", true) // lldp is always enabled for the ATE
+
+			disableP4RTLLDP(t, dut)
+			disableP4RTLLDP(t, ate)
+
 			dutPort := dut.Port(t, portName)
 			atePort := ate.Port(t, portName)
 
-			verifyNodeConfig(t, dut, dutPort, dutConf, test.lldpEnabled)
 			verifyNodeConfig(t, ate, atePort, ateConf, true)
+			verifyNodeConfig(t, dut, dutPort, dutConf, test.lldpEnabled)
 			if test.lldpEnabled {
 				verifyNodeTelemetry(t, dut, ate, dutPort, atePort, test.lldpEnabled)
 				verifyNodeTelemetry(t, ate, dut, atePort, dutPort, test.lldpEnabled)
@@ -74,6 +81,13 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 			}
 		})
 	}
+
+	// disable LLDP before releasing the devices.
+	dut := ondatra.DUT(t, "dut1")
+	ate := ondatra.DUT(t, "dut2")
+
+	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
+	gnmi.Replace(t, ate, gnmi.OC().Lldp().Enabled().Config(), false)
 }
 
 // configureNode configures LLDP on a single node.
@@ -86,6 +100,10 @@ func configureNode(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDev
 
 	if lldpEnabled {
 		gnmi.Replace(t, node, lldp.Interface(p.Name()).Enabled().Config(), lldpEnabled)
+	}
+
+	if deviations.InterfaceEnabled(node) {
+		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
 	}
 
 	return node, gnmi.GetConfig(t, node, lldp.Config())
@@ -124,11 +142,11 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 }
 
 // verifyNodeTelemetry verifies the telemetry values from the node such as port LLDP neighbor info.
-func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, peerPort *ondatra.Port, lldpEnabled bool) {
+func verifyNodeTelemetry(t *testing.T, node, peer *ondatra.DUTDevice, nodePort, peerPort *ondatra.Port, lldpEnabled bool) {
 	interfacePath := gnmi.OC().Lldp().Interface(nodePort.Name())
 
 	// LLDP Disabled
-	if !*deviations.MissingValueForDefaults {
+	if !deviations.MissingValueForDefaults(node) {
 		lldpTelemetry := gnmi.Get(t, node, gnmi.OC().Lldp().Enabled().State())
 		if lldpEnabled != lldpTelemetry {
 			t.Errorf("LLDP enabled telemetry got: %t, want: %t.", lldpTelemetry, lldpEnabled)
@@ -146,12 +164,12 @@ func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, p
 				return true
 			}
 			gotLen = len(intf.Neighbor)
-			if *deviations.LLDPInterfaceConfigOverrideGlobal {
+			if deviations.LLDPInterfaceConfigOverrideGlobal(node) {
 				return gotLen > 0
 			}
 			return gotLen == 0
 		}).Await(t); !ok {
-			if *deviations.LLDPInterfaceConfigOverrideGlobal {
+			if deviations.LLDPInterfaceConfigOverrideGlobal(node) {
 				t.Errorf("Number of neighbors got: %d, want: non-zero.", gotLen)
 			} else {
 				t.Errorf("Number of neighbors got: %d, want: 0.", gotLen)
@@ -187,4 +205,32 @@ func verifyNodeTelemetry(t *testing.T, node, peer gnmi.DeviceOrOpts, nodePort, p
 		SystemName:    peerState.SystemName,
 	}
 	confirm.State(t, wantNbrState, gotNbrState)
+}
+
+func disableP4RTLLDP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := `p4-runtime
+					shutdown`
+		if _, err := dut.RawAPIs().GNMI(t).
+			Set(context.Background(), cliSetRequest(cli)); err != nil {
+			t.Fatalf("Failed to disable P4RTLLDP: %v", err)
+		}
+	}
+}
+
+func cliSetRequest(config string) *gpb.SetRequest {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
 }

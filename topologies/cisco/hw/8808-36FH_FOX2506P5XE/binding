@@ -61,8 +61,12 @@
 
 options {
   username: "cafyauto"
-#  username: "cisco"
   password: "cisco123"
+  insecure: false 
+  skip_verify: false
+  trust_bundle_file: "$TRUST_BUNDLE_FILE"
+  cert_file: "$CERT_FILE"
+  key_file:  "$KEY_FILE"
 }
 
 duts {
@@ -75,28 +79,41 @@ duts {
  
   options {
     insecure: false 
-    skip_verify: true
+    skip_verify: false
+    mutual_tls: true
     username: "cafyauto"
     password: "cisco123"
   }
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.159:47402"
+   target: "10.85.84.159:47402"
+   #target: "10.85.84.159:9339" 
   }
   gnmi {
-    target: "10.85.84.159:47402"
-     #target: "172.26.228.238:64812" 
+      target: "10.85.84.159:47402"
+     # default grpc mapping : 57777  target: "10.85.84.159:47402"
+     #target: "10.85.84.159:9339" 
   }
 
   gribi{
-    target: "10.85.84.159:47402"
+     # default grpc mapping : 57777  target: "10.85.84.159:47402"
+     #target: "10.85.84.159:9340"
+     target: "10.85.84.159:47402"
   }
   ssh{
     target: "10.85.84.159:47403"
   }
   p4rt{
-    target: "10.85.84.159:47402"
+     # default grpc mapping : 57777  target: "10.85.84.159:47402"
+     #target: "10.85.84.159:9559"
+     target: "10.85.84.159:47402"
+  }
+  
+  gnsi{
+     # default grpc mapping : 57777  target: "10.85.84.159:47402"
+     #target: "10.85.84.159:9559"
+     target: "10.85.84.159:47402"
   }
 
 # Before this binding can be used with a topology, add ports mapping
@@ -160,19 +177,19 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "1/53"  # Change this to the actual port name.
+    name: "1/49"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "1/54"  # Change this to the actual port name.
+    name: "1/50"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "1/55"  # Change this to the actual port name.
+    name: "1/51"  # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "1/56"  # Change this to the actual port name.
+    name: "1/52"  # Change this to the actual port name.
   }
   #ports {
   #  id: "port5"

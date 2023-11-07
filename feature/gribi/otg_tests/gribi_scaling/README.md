@@ -9,6 +9,8 @@ Validate gRIBI scaling requirements.
 *   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2.
 *   Create 64 L3 sub-interfaces under DUT port-2 and corresponding 64 L3
     sub-interfaces on ATE port-2
+*   On DUT port-1 and ATE port-1 create a single L3 interface
+*   On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-1 (based on src. IP match criteria)
 *   Establish gRIBI client connection with DUT negotiating FIBACK as the
     requested ack_type and make it become leader.
 *   Using gRIBI Modify RPC install the following IPv4Entry sets, and validate

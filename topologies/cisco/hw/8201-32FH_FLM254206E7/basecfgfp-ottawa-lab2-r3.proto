@@ -55,6 +55,8 @@ replace: {
 "  destination transport-method http\n"
 " !\n"
 "!\n"
+"lpts punt police location 0/RP0/CPU0\n"
+" exception ttl-expiry rate 1700\n"
 "interface TenGigE0/0/0/1/0\n"
  " no shutdown\n"
 "!\n"

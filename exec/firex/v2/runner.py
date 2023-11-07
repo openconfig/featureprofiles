@@ -12,8 +12,9 @@ from microservices.runners.runner_base import FireXRunnerBase
 from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
-from helper import CommandFailed
+from helper import CommandFailed, remote_exec
 from getpass import getuser
+import xml.etree.ElementTree as ET
 from pathlib import Path
 import shutil
 import random
@@ -38,21 +39,47 @@ INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
 
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
+MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.pem'
+MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.cert.pem'
+MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.pem'
+
 whitelist_arguments([
     'test_html_report',
     'release_ixia_ports',
+    'test_ignore_aborted',
+    'test_skip',
+    'test_fail_skipped',
+    'test_show_skipped',
 ])
 
-class GoTestSegFaultException(Exception):
-    pass
+def _get_go_root_path(ws=None):
+    p = os.path.join('/nobackup', getuser())
+    if os.access(p, os.W_OK | os.X_OK):
+        return p
+    return ws
+        
 
-def _get_go_env():
-    gorootpath = os.path.join('/nobackup', getuser())
+def _get_go_path():
+    return os.path.join(_get_go_root_path(), 'go')
+
+def _get_go_bin_path():
+    return os.path.join(_get_go_path(), 'bin')
+
+def _get_go_env(ws=None):
+    PATH = "{}:{}".format(
+        os.path.dirname(GO_BIN), os.environ["PATH"]
+    )
+
+    gorootpath = _get_go_root_path(ws)
+    gocache = os.path.join(gorootpath, '.gocache')
+    os.makedirs(gocache, exist_ok=True)
+
     return {
-        'GOPATH': os.path.join(gorootpath, 'go'),
-        'GOCACHE': os.path.join(gorootpath, '.gocache'),
-	'GOTMPDIR': os.path.join(gorootpath, '.gocache'),
-        'GOROOT': '/auto/firex/sw/go'
+        'GOPATH': _get_go_path(),
+        'GOCACHE': gocache,
+        'GOTMPDIR': gocache,
+        'GOROOT': '/auto/firex/sw/go',
+        'PATH': PATH
     }
 
 def _resolve_path_if_needed(dir, path):
@@ -72,6 +99,95 @@ def _gnmi_set_file_template(conf):
   }
 }
     """
+
+def _otg_docker_compose_template(control_port, gnmi_port):
+    return f"""
+version: "2"
+services:
+  controller:
+    image: ghcr.io/open-traffic-generator/keng-controller:firex
+    restart: always
+    ports:
+      - "{control_port}:40051"
+    depends_on:
+      layer23-hw-server:
+        condition: service_started
+    command:
+      - "--accept-eula"
+      - "--debug"
+      - "--keng-layer23-hw-server"
+      - "layer23-hw-server:5001"
+    environment:
+      - LICENSE_SERVERS=10.85.70.247
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+  layer23-hw-server:
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:firex
+    restart: always
+    command:
+      - "dotnet"
+      - "otg-ixhw.dll"
+      - "--trace"
+      - "--log-level"
+      - "trace"
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+  gnmi-server:
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:firex
+    restart: always
+    ports:
+      - "{gnmi_port}:50051"
+    depends_on:
+      controller:
+        condition: service_started
+    command:
+      - "-http-server"
+      - "https://controller:8443"
+      - "--debug"
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+"""
+
+def _write_otg_docker_compose_file(docker_file, reserved_testbed):
+    if not 'otg' in reserved_testbed:
+        return
+    otg_info = reserved_testbed['otg']
+    with open(docker_file, 'w') as fp:
+        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
+
+# def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
+#     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
+#     key_file = MTLS_DEFAULT_KEY_FILE
+#     cert_file = MTLS_DEFAULT_CERT_FILE
+
+#     if 'trust_bundle_file' in testbed:
+#         tb_file = _resolve_path_if_needed(internal_fp_repo_dir, testbed['trust_bundle_file'])
+#     if 'cert_file' in testbed:
+#         cert_file = _resolve_path_if_needed(internal_fp_repo_dir, testbed['cert_file'])
+#     if 'key_file' in testbed:
+#         key_file = _resolve_path_if_needed(internal_fp_repo_dir, testbed['key_file'])
+        
+#     return f"""
+#     options {{
+#         insecure: false
+#         skip_verify: false
+#         trust_bundle_file: "{tb_file}"
+#         cert_file: "{cert_file}"
+#         key_file:  "{key_file}"
+#     }}
+# """
 
 def _sim_get_vrf(base_conf_file):
     intf_re = r'interface.*?MgmtEth0\/RP0\/CPU0/0(.|\n)*?(\bvrf(\b.*\b))(.|\n)*?!'
@@ -107,6 +223,64 @@ def _cli_to_gnmi_set_file(cli_file, gnmi_file, extra_conf=[]):
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
 
+def _get_dummy_suite_xml(test_name, fail):
+    if fail: 
+        failures = 1
+        body = '<failure message="Failed"></failure>'
+    else:
+        failures = 0
+        body = "<system-out></system-out>"
+
+    return f"""<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+    <!-- This dummy xunit result has been automatically generated since the test was aborted. -->
+    <!-- Check test logs for error details. -->
+    <testsuite name="{test_name}" tests="1" failures="{failures}" errors="0" skipped="0">
+        <testcase name="dummy">
+            {body}
+        </testcase>
+    </testsuite>
+</testsuites>
+    """
+
+def _write_dummy_xml_output(test_name, xml_file, fail):
+    with open(xml_file, 'w') as fp:
+        fp.write(_get_dummy_suite_xml(test_name, fail))
+
+def _get_testsuite_from_xml(file_name):
+    try:
+        tree = ET.parse(file_name)
+        for suite in tree.findall("testsuite"):
+            return suite
+        return None
+    except:
+        return None
+
+def _extract_env_var_from_arg(arg):
+    m = re.findall('\$[0-9a-zA-Z_]+', arg)
+    if len(m) > 0: return m[0]
+    return None
+
+def _update_arg_val_from_env(arg, extra_env_vars):
+    env_var_name = _extract_env_var_from_arg(arg)
+    if not env_var_name: return arg
+    actual_env_var_name = env_var_name[1:] # remove leading $
+    
+    if actual_env_var_name in extra_env_vars:
+        val = extra_env_vars[actual_env_var_name]
+    else:
+        val = os.getenv(actual_env_var_name)
+
+    if val: arg = arg.replace(env_var_name, val)
+    return arg
+
+def _update_test_args_from_env(test_args, extra_env_vars={}):
+    new_args = []
+    for arg in test_args.split(' '):
+        arg = _update_arg_val_from_env(arg, extra_env_vars)
+        new_args.append(arg)
+    return ' '.join(new_args)
+        
 def _check_json_output(cmd):
     return json.loads(check_output(cmd))
 
@@ -119,14 +293,17 @@ def _get_locks_dir(testbed_logs_dir):
 def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
     with open(_get_testbeds_file(internal_fp_repo_dir), 'r') as fp:
         tf = yaml.safe_load(fp)
-        for t in tf['testbeds']:
-            if t['id'] == testbed_id:
-                return t
-    raise Exception(f'Testbed ${testbed_id} not found')
+        if testbed_id in tf['testbeds']:
+            tb = tf['testbeds'][testbed_id]
+            tb['id'] = testbed_id
+            return tb
+    raise Exception(f'Testbed {testbed_id} not found')
 
 def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     try:
-        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {testbed_id}')
+        testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
+        id = testbed.get('hw', testbed_id)
+        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {id}')
         if output['status'] == 'ok':
             return output['testbed']
         return None
@@ -134,30 +311,32 @@ def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         return None
 
 def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
-    logger.print(f'Releasing testbed {testbed_id}')
+    testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
+    id = testbed.get('hw', testbed_id)
+    logger.print(f'Releasing testbed {id}')
     try:
-        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {testbed_id}')
+        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {id}')
         if output['status'] != 'ok':
-            logger.warn(f'Cannot release testbed {testbed_id}: {output["status"]}')
+            logger.warn(f'Cannot release testbed {id}: {output["status"]}')
         return True
     except:
-        logger.warn(f'Cannot release testbed {testbed_id}')
+        logger.warn(f'Cannot release testbed {id}')
         return False
 
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
-@returns('internal_fp_repo_dir', 'reserved_testbed', 'ondatra_binding_path', 
-		'ondatra_testbed_path', 'testbed_info_path', 
-        'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 
-        'topo_path', 'testbed')
-def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
+@returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
+        'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
+def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, 
+                        lineup, efr, test_name,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
-                        collect_tb_info=True,
+                        collect_tb_info=False,
                         install_image=False,
-                        ignore_install_errors=False,
-                        force_reboot=False):
-
+                        force_install=False,
+                        force_reboot=False,
+                        smus=None):
+    
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
 
@@ -180,9 +359,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
 
     using_sim = reserved_testbed and reserved_testbed.get('sim', False) 
     if using_sim:
-        overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
-        reserved_testbed.update(overrides)
-
         topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
         with open(topo_file, "r") as fp:
             topo_yaml = yaml.safe_load(fp)
@@ -206,15 +382,16 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, test_name,
 
     c |= GenerateOndatraTestbedFiles.s()
     if install_image and not using_sim:
-        c |= SoftwareUpgrade.s(ignore_install_errors=ignore_install_errors)
-        c |= ForceReboot.s()
-    elif force_reboot:
+        c |= SoftwareUpgrade.s(force_install=force_install)
+        force_reboot = False
+    if smus:
+        c |= InstallSMUs.s(smus=smus)
+    if force_reboot:
         c |= ForceReboot.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
     result = self.enqueue_child_and_get_results(c)
-    return (internal_fp_repo_dir, reserved_testbed, result["ondatra_binding_path"], 
-            result["ondatra_testbed_path"], result["testbed_info_path"], 
+    return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
             result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
             result.get("slurm_jobid", None), result.get("topo_path", None), result.get("testbed", None))
 
@@ -238,11 +415,13 @@ def max_testbed_requests():
 def decommission_testbed_after_tests():
     if 'B4_FIREX_DECOMMISSION_TESTBED' in os.environ:
         return bool(int(os.environ.get('B4_FIREX_DECOMMISSION_TESTBED')))
-    return False
+    return True
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
+                        internal_fp_repo_url,
                         internal_fp_repo_dir,
+                        reserved_testbed,
                         test_name,
                         test_path,
                         test_branch='main',
@@ -253,27 +432,25 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         fp_pre_tests=[],
                         fp_post_tests=[],
                         internal_test=False,
-                        test_debug=True,
+                        test_debug=False,
                         test_verbose=True,
                         test_html_report=False,
                         release_ixia_ports=True,
+                        collect_debug_files=True,
+                        override_test_args_from_env=True,
                         testbed=None,
                         **kwargs):
-
+    
     test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
 
     test_repo_url = PUBLIC_FP_REPO_URL
     if internal_test:
-        test_repo_url = INTERNAL_FP_REPO_URL
-
-    use_patched_repo = test_branch == 'main' and not test_revision and not test_pr
-    if use_patched_repo:
-        test_repo_url = INTERNAL_FP_REPO_URL
-        test_branch = 'firex/run'
+        test_repo_url = internal_fp_repo_url
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
                     internal_fp_repo_dir=internal_fp_repo_dir,
+                    reserved_testbed=reserved_testbed,
                     test_repo_dir=test_repo_dir,
                     test_name=test_name,
                     test_path=test_path,
@@ -281,6 +458,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     test_timeout=test_timeout,
                     test_debug=test_debug,
                     test_verbose=test_verbose,
+                    collect_debug_files=collect_debug_files,
+                    override_test_args_from_env=override_test_args_from_env,
                     **kwargs)
 
     chain |= CloneRepo.s(repo_url=test_repo_url,
@@ -289,10 +468,18 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     repo_pr=test_pr,
                     target_dir=test_repo_dir)
 
-    chain |= GoTidy.s(repo=test_repo_dir)
+    #chain |= GoTidy.s(repo=test_repo_dir)
 
-    if release_ixia_ports and '/ate_tests/' in test_path:
-        chain |= ReleaseIxiaPorts.s()
+    if test_debug:
+        chain |= InstallGoDelve.s()
+
+    if release_ixia_ports:
+        chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
+
+    reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
+    if 'otg' in test_path:
+        reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
+        chain |= BringupIxiaController.s()
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
@@ -306,46 +493,61 @@ def b4_chain_provider(ws, testsuite_id, cflow,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if test_html_report:
-        chain |= GoReporting.s()
+    if 'otg' in test_path:
+        chain |= TeardownIxiaController.s()
 
     if cflow and testbed:
         chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
     return chain
 
 # noinspection PyPep8Naming
-@app.task(bind=True, base=FireXRunnerBase, max_retries=2, autoretry_for=[GoTestSegFaultException])
+@app.task(bind=True, base=FireXRunnerBase)
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
-        test_repo_dir, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path, 
-        test_path, test_args=None, test_timeout=0, test_debug=False, test_verbose=False, testbed_info_path=None):
-    
+        test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
+        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
+        override_test_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
+        test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False):
+
     logger.print('Running Go test...')
-    json_results_file = Path(test_log_directory_path) / f'go_logs.json'
+    logger.print('----- env start ----')
+    for name, value in os.environ.items():
+        logger.print("{0}: {1}".format(name, value))
+    logger.print('----- env end ----')
+    
+    # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
 
     check_output(f'rm -rf {test_logs_dir_in_ws}')
     silent_mkdir(test_logs_dir_in_ws)
 
-    shutil.copyfile(ondatra_binding_path,
+    shutil.copyfile(reserved_testbed['binding_file'],
             os.path.join(test_log_directory_path, "ondatra_binding.txt"))
-    shutil.copyfile(ondatra_testbed_path,
+    shutil.copyfile(reserved_testbed['testbed_file'],
             os.path.join(test_log_directory_path, "ondatra_testbed.txt"))
 
-    if os.path.exists(testbed_info_path):
-        shutil.copyfile(testbed_info_path,
+    if os.path.exists(reserved_testbed['testbed_info_file']):
+        shutil.copyfile(reserved_testbed['testbed_info_file'],
             os.path.join(test_log_directory_path, "testbed_info.txt"))
-    
+        
     go_args = ''
     test_args = test_args or ''
+
+    if override_test_args_from_env:
+        extra_args_env_vars = {}
+        if 'mtls_cert_file' in reserved_testbed:
+            extra_args_env_vars["MTLS_CERT_FILE"] = reserved_testbed['mtls_cert_file']
+        if 'mtls_key_file' in reserved_testbed:
+            extra_args_env_vars["MTLS_KEY_FILE"] = reserved_testbed['mtls_key_file']      
+        test_args = _update_test_args_from_env(test_args, extra_args_env_vars)
 
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
 
-    test_args += f' -binding {ondatra_binding_path} -testbed {ondatra_testbed_path} '
+    test_args += f' -binding {reserved_testbed["binding_file"]} -testbed {reserved_testbed["testbed_file"]} -xml "{xml_results_file}" '
     if test_verbose:
         test_args += f'-v 5 ' \
             f'-alsologtostderr'
@@ -354,60 +556,56 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     if test_timeout == 0: test_timeout = inactivity_timeout
     if test_timeout > 0: inactivity_timeout = 2*test_timeout
 
-    go_args = f'{go_args} ' \
-                f'-json ' \
-                f'-p 1 ' \
-                f'-timeout {test_timeout}s'
+    go_args_prefix = '-'
+    if test_debug:
+        go_args_prefix = '-test.'
 
-    cmd = f'{GO_BIN} test -v ./{test_path} {go_args} -args {test_args} ' \
-            f'-xml "{xml_results_file}"'
+    go_args = f'{go_args} ' \
+                f'{go_args_prefix}v ' \
+                f'{go_args_prefix}parallel 1 ' \
+                f'{go_args_prefix}timeout {test_timeout}s'
+
+    if test_debug:
+        dlv_bin = os.path.join(_get_go_bin_path(), 'dlv')
+        cmd = f'{dlv_bin} test ./{test_path} -- {go_args} {test_args}'
+    else:
+        cmd = f'{GO_BIN} test ./{test_path} {go_args} -args {test_args}'
 
     start_time = self.get_current_time()
     start_timestamp = int(time.time())
 
     try:
-        self.run_script(cmd,
-                        inactivity_timeout=inactivity_timeout,
-                        ok_nonzero_returncodes=(1,),
-                        extra_env_vars=_get_go_env(),
-                        cwd=test_repo_dir)
+        if not test_skip:
+            self.run_script(cmd,
+                            inactivity_timeout=inactivity_timeout,
+                            ok_nonzero_returncodes=(1,),
+                            extra_env_vars=_get_go_env(ws),
+                            cwd=test_repo_dir)
         stop_time = self.get_current_time()
     finally:
-        have_output = self.console_output_file and Path(self.console_output_file).is_file()
-        have_xml_output = xml_results_file and Path(xml_results_file).is_file()
-
-        if have_output:
-            shutil.copyfile(self.console_output_file, json_results_file)
-
-        if have_xml_output:
+        # if self.console_output_file and Path(self.console_output_file).is_file():
+        #     shutil.copyfile(self.console_output_file, json_results_file)
+        
+        suite = _get_testsuite_from_xml(xml_results_file)
+        if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
-            if test_debug:
-                with open(xml_results_file, 'r') as f:
-                    if 'failures="0"' not in f.read():
-                        self.enqueue_child(CollectDebugFiles.s(
-                            internal_fp_repo_dir=internal_fp_repo_dir, 
-                            ondatra_binding_path=ondatra_binding_path, 
-                            ondatra_testbed_path=ondatra_testbed_path, 
-                            test_log_directory_path=test_log_directory_path,
-                            timestamp=start_timestamp
-                        ))
-        elif have_output:
-            with open(json_results_file, 'r') as f:
-                content = f.read() 
-                if 'segmentation fault (core dumped)' in content:
-                    raise GoTestSegFaultException
+            if collect_debug_files and suite.attrib['failures'] != '0':
+                self.enqueue_child(CollectDebugFiles.s(
+                    ws=ws,
+                    internal_fp_repo_dir=internal_fp_repo_dir, 
+                    reserved_testbed=reserved_testbed, 
+                    test_log_directory_path=test_log_directory_path,
+                    timestamp=start_timestamp
+                ))
+        elif test_ignore_aborted or test_skip:
+            _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
-
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
-        else: 
+        elif not test_show_skipped: 
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
-
-        log_filepath = Path(test_log_directory_path) / 'output_from_json.log'
-        write_output_from_results_json(json_results_file, log_filepath)
-        log_file = str(log_filepath) if log_filepath.exists() else self.console_output_file
-        return None, xunit_results_filepath, log_file, start_time, stop_time
+        return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
 @app.task(bind=True, max_retries=5, autoretry_for=[git.GitCommandError])
 def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=None):
@@ -444,14 +642,79 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-@app.task(base=FireX, bind=True, returns=('ondatra_testbed_path', 'ondatra_binding_path', 'testbed_info_path', 'install_lock_file', 'testbed'))
+def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
+    if 'otg' not in reserved_testbed:
+        shutil.copyfile(reserved_testbed["ate_binding_file"], reserved_testbed["otg_binding_file"])
+        return
+
+    otg_info = reserved_testbed['otg']
+
+    # convert binding to json
+    with tempfile.NamedTemporaryFile() as of:
+        outFile = of.name
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/tojson ' \
+            f'-binding {reserved_testbed["ate_binding_file"]} ' \
+            f'-out {outFile}'
+
+        env = dict(os.environ)
+        env.update(_get_go_env(ws))
+        
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+        with open(outFile, 'r') as fp:
+            j = json.load(fp)
+
+    #TODO: support multiple ates
+    for ate in j.get('ates', []):
+        for p in ate.get('ports', []):
+            parts = p['name'].split('/')
+            p['name'] = '{chassis};{card};{port}'.format(chassis=ate['name'], card=parts[0], port=parts[1]) 
+
+        ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port'])
+        ate['options'] = {
+            'username': 'admin',
+            'password': 'admin'
+        }
+
+        ate['otg'] = {
+            'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port']),
+            'insecure': True,
+            'timeout': 100
+        }
+
+        ate['gnmi'] = {
+            'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=otg_info['gnmi_port']),
+            'skip_verify': True,
+            'timeout': 30
+        }
+
+        if 'ixnetwork' in ate:
+            del ate['ixnetwork']
+
+        break
+
+    # convert binding to prototext
+    with tempfile.NamedTemporaryFile() as f:
+        tmp_binding_file = f.name
+        with open(tmp_binding_file, "w") as outfile:
+            outfile.write(json.dumps(j))
+            
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/fromjson ' \
+            f'-binding {tmp_binding_file} ' \
+            f'-out {reserved_testbed["otg_binding_file"]}'
+
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+
+@app.task(base=FireX, bind=True, returns=('reserved_testbed'))
 def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed, test_name, **kwargs):
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
     ondatra_testbed_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.testbed')
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
+    ondatra_otg_binding_path = os.path.join(ws, f'ondatra_otg_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
-    install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
+    otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
     
     if reserved_testbed.get('sim', False):
@@ -488,24 +751,38 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
-        install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
-            f'testbed_{reserved_testbed["id"]}_install.lock')
-
-        overrides = reserved_testbed.get('overrides', {}).get(test_name, {})
-        reserved_testbed.update(overrides)
 
         hw_testbed_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['testbed'])
         hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])
         hw_baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
         
+        tb_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
+        key_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
+        cert_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
+
         shutil.copyfile(hw_testbed_file_path, ondatra_testbed_path)
         shutil.copyfile(hw_binding_file_path, ondatra_binding_path)
         shutil.copyfile(hw_baseconf_file_path, ondatra_baseconf_path)
-        check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
 
-    logger.print(f'Ondatra testbed file: {ondatra_testbed_path}')
-    logger.print(f'Ondatra binding file: {ondatra_binding_path}')
-    return ondatra_testbed_path, ondatra_binding_path, testbed_info_path, install_lock_file, pyats_testbed
+        check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
+        check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ondatra_binding_path}")
+        check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ondatra_binding_path}")
+        check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ondatra_binding_path}")
+
+        reserved_testbed['mtls_key_file'] = key_file
+        reserved_testbed['mtls_cert_file'] = cert_file
+
+    reserved_testbed['testbed_file'] = ondatra_testbed_path
+    reserved_testbed['testbed_info_file'] = testbed_info_path
+    reserved_testbed['pyats_testbed_file'] = pyats_testbed
+    reserved_testbed['ate_binding_file'] = ondatra_binding_path
+    reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
+    reserved_testbed['otg_docker_compose_file'] = otg_docker_compose_file
+    reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
+
+    _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
+    _write_otg_docker_compose_file(otg_docker_compose_file, reserved_testbed)
+    return reserved_testbed
 
 @app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
     soft_time_limit=12*60*60, time_limit=12*60*60)
@@ -521,47 +798,67 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     return reserved_testbed
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
-def SoftwareUpgrade(self, ws, internal_fp_repo_dir, testbed_logs_dir, 
-                    reserved_testbed, ondatra_binding_path, ondatra_testbed_path, 
-                    install_lock_file, images, ignore_install_errors=False):
-    if os.path.exists(install_lock_file):
-        return
-    Path(install_lock_file).touch()
-
+@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*90*60, time_limit=1*90*60)
+def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
+                    reserved_testbed, images, image_url=None, force_install=False):
     logger.print("Performing Software Upgrade...")
+    
+    if image_url: img = image_url
+    else: img = images[0]
     su_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/software_upgrade ' \
             f'-timeout 60m ' \
             f'-args ' \
-            f'-testbed {ondatra_testbed_path} ' \
-            f'-binding {ondatra_binding_path} ' \
-            f'-imagePath "{images[0]}"'
-    try:
-        env = dict(os.environ)
-        env.update(_get_go_env())
-        check_output(su_command, env=env, cwd=internal_fp_repo_dir)
-    except:
-        if not ignore_install_errors:
-            _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
-            os.remove(install_lock_file)
-            raise
-        else: logger.warning(f'Software upgrade failed. Ignoring...')
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-imagePath "{img}" ' \
+            f'-lineup {lineup} ' \
+            f'-efr {efr} '
+
+    if force_install:
+        su_command += f'-force'
+
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    output = check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+    #TODO: find a better way?
+    if not 'Image already installed' in output:
+        self.enqueue_child(ForceReboot.s(
+            ws=ws,
+            internal_fp_repo_dir=internal_fp_repo_dir, 
+            reserved_testbed=reserved_testbed,
+        ))
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
-def ForceReboot(self, ws, internal_fp_repo_dir, ondatra_binding_path, ondatra_testbed_path):
+def ForceReboot(self, ws, internal_fp_repo_dir, reserved_testbed):
     logger.print("Rebooting...")
     reboot_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/reboot ' \
             f'-timeout 30m ' \
             f'-args ' \
-            f'-testbed {ondatra_testbed_path} ' \
-            f'-binding {ondatra_binding_path} '
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]}'
 
     env = dict(os.environ)
-    env.update(_get_go_env())
+    env.update(_get_go_env(ws))
     check_output(reboot_command, env=env, cwd=internal_fp_repo_dir)
+
+# noinspection PyPep8Naming
+@app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
+def InstallSMUs(self, ws, internal_fp_repo_dir, reserved_testbed, smus):
+    logger.print("Installing SMUs...")
+    smu_install_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/smu_install ' \
+            f'-timeout 30m ' \
+            f'-args ' \
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-smus {smus} '
+
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    check_output(smu_install_cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -578,26 +875,25 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path, 
-        ondatra_testbed_path, test_log_directory_path, timestamp):
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp):
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
         tmp_binding_file = f.name
-        shutil.copyfile(ondatra_binding_path, tmp_binding_file)
+        shutil.copyfile(reserved_testbed['binding_file'], tmp_binding_file)
         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
     collect_debug_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/debug ' \
             f'-timeout 60m ' \
             f'-args ' \
-            f'-testbed {ondatra_testbed_path} ' \
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
             f'-binding {tmp_binding_file} ' \
             f'-outDir {test_log_directory_path}/debug_files ' \
             f'-timestamp {str(timestamp)}'
     try:
         env = dict(os.environ)
-        env.update(_get_go_env())
+        env.update(_get_go_env(ws))
         check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
@@ -606,9 +902,8 @@ def CollectDebugFiles(self, internal_fp_repo_dir, ondatra_binding_path,
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path, 
-        ondatra_testbed_path, testbed_info_path):
-    if os.path.exists(testbed_info_path):
+def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
+    if os.path.exists(reserved_testbed['testbed_info_file']):
         return
 
     logger.print("Collecting testbed info...")
@@ -616,12 +911,12 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
             f'./exec/utils/testbed ' \
             f'-timeout 10m ' \
             f'-args ' \
-            f'-testbed {ondatra_testbed_path} ' \
-            f'-binding {ondatra_binding_path} ' \
-            f'-outFile {testbed_info_path}'
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-outFile {reserved_testbed["testbed_info_file"]}'
     try:
         env = dict(os.environ)
-        env.update(_get_go_env())
+        env.update(_get_go_env(ws))
         check_output(testbed_info_cmd, env=env, cwd=internal_fp_repo_dir)
         logger.print(f'Testbed info file: {testbed_info_path}')
     except:
@@ -629,34 +924,48 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, ondatra_binding_path,
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def GoTidy(self, repo):
+def GoTidy(self, ws, repo):
     env = dict(os.environ)
-    env.update(_get_go_env())
+    env.update(_get_go_env(ws))
     logger.print(
         check_output(f'{GO_BIN} mod tidy', env=env, cwd=repo)
     )
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def ReleaseIxiaPorts(self, ws, ondatra_binding_path):
+def InstallGoDelve(self, ws, repo):
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    logger.print(
+        check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=repo)
+    )
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def ReleaseIxiaPorts(self, ws, binding_file):
     logger.print("Releasing ixia ports...")
     try:
         logger.print(
-            check_output(f'{IXIA_RELEASE_BIN} {ondatra_binding_path}')
+            check_output(f'{IXIA_RELEASE_BIN} {binding_file}')
         )
     except:
         logger.warning(f'Failed to release ixia ports. Ignoring...')
 
-@app.task(bind=True)
-def GoReporting(self, internal_fp_repo_dir, test_log_directory_path):
-    logger.print("Generating HTML report...")
-    json_log_file = os.path.join(test_log_directory_path, f'go_logs.json')
-    html_report = os.path.join(test_log_directory_path, f'results.html')
-    try:
-        check_output(f'{PYTHON_BIN} {internal_fp_repo_dir}/exec/utils/reporting/gotest2html.py "{json_log_file}"', 
-            file=html_report) 
-    except:
-        logger.warning(f'Failed to generate HTML report. Ignoring...')
+# noinspection PyPep8Naming
+@app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
+def BringupIxiaController(self, reserved_testbed):
+    pname = reserved_testbed["id"].lower()
+    docker_file = reserved_testbed["otg_docker_compose_file"]
+    cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
+    remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+
+# noinspection PyPep8Naming
+@app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
+def TeardownIxiaController(self, reserved_testbed):
+    pname = reserved_testbed["id"].lower()
+    docker_file = reserved_testbed["otg_docker_compose_file"]
+    cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
+    remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
 @register_testbed_file_generator('b4')
 @app.task(bind=True, returns=('testbed', 'tb_data', 'testbed_path'))

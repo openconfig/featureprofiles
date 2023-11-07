@@ -23,19 +23,19 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.70.112:60699"
+    target: "10.85.84.159:60699"
   }
   gnmi {
-    target: "10.85.70.112:60699"
+    target: "10.85.84.159:60699"
   }
   gribi{
-    target: "10.85.70.112:60699"
+    target: "10.85.84.159:60699"
   }
   ssh{
-    target: "10.85.70.112:58005" 
+    target: "10.85.84.159:58005" 
   }
   p4rt{
-    target: "10.85.70.112:60699"
+    target: "10.85.84.159:60699"
   }
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
@@ -71,6 +71,10 @@ duts {
     id: "port8"
     name: "TenGigE0/0/0/2/3"  # Change this to the actual port name.
   }
+  ports {
+    id: "port9"
+    name: "TenGigE0/0/0/32/0"  # Change this to the actual port name.
+  }
 }
 
 ates {
@@ -82,10 +86,10 @@ ates {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
     #target: "10.85.232.95:19187"
-    target :"10.85.84.194"
+    target :"10.85.84.119"
     skip_verify: true
     username: "admin"
-    password: "ixia123!"
+    password: "Admin@123"
     #session_id: 1 
   }
 
@@ -122,5 +126,9 @@ ates {
   ports {
     id: "port8"
     name: "10/30"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port9"
+    name: "10/33"  # Change this to the actual port name.
   }
 }

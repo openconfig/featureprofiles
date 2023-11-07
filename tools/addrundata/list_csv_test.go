@@ -5,26 +5,27 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 func TestListCSV(t *testing.T) {
 	ts := testsuite{
 		"feature/foo/bar/ate_tests/qux_test": &testcase{
-			markdown: parsedData{
-				testPlanID:      "YY-2.1",
-				testDescription: "Qux Functional Test",
+			markdown: &mpb.Metadata{
+				PlanId:      "YY-2.1",
+				Description: "Qux Functional Test",
 			},
 		},
 		"feature/foo/bar/otg_tests/qux_test": &testcase{
-			markdown: parsedData{
-				testPlanID:      "YY-2.1",
-				testDescription: "Qux Functional Test",
+			markdown: &mpb.Metadata{
+				PlanId:      "YY-2.1",
+				Description: "Qux Functional Test",
 			},
 		},
 		"feature/foo/baz/quuz_test": &testcase{
-			markdown: parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Quuz Functional Test",
+			markdown: &mpb.Metadata{
+				PlanId:      "XX-1.1",
+				Description: "Quuz Functional Test",
 			},
 		},
 	}
@@ -65,13 +66,13 @@ func TestFeatureFromTestDir(t *testing.T) {
 func TestSortedByTestPlanID(t *testing.T) {
 	ts := testsuite{
 		"feature/foo/bar/ate_tests/qux_test": &testcase{
-			markdown: parsedData{testPlanID: "YY-2.1"},
+			markdown: &mpb.Metadata{PlanId: "YY-2.1"},
 		},
 		"feature/foo/bar/otg_tests/qux_test": &testcase{
-			markdown: parsedData{testPlanID: "YY-2.1"},
+			markdown: &mpb.Metadata{PlanId: "YY-2.1"},
 		},
 		"feature/foo/baz/quuz_test": &testcase{
-			markdown: parsedData{testPlanID: "XX-1.1"},
+			markdown: &mpb.Metadata{PlanId: "XX-1.1"},
 		},
 	}
 

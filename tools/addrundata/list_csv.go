@@ -28,8 +28,8 @@ func listCSV(w io.Writer, featuredir string, ts testsuite) error {
 		}
 		feature := featureFromTestDir(reldir)
 		feature = strings.TrimPrefix(feature, "feature/")
-		pd := ts[k].markdown
-		row := []string{feature, pd.testPlanID, pd.testDescription, reldir}
+		md := ts[k].markdown
+		row := []string{feature, md.PlanId, md.Description, reldir}
 		if err := cw.Write(row); err != nil {
 			break
 		}
@@ -57,8 +57,8 @@ func sortedByTestPlanID(ts testsuite) []string {
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool {
-		idi := ts[keys[i]].markdown.testPlanID
-		idj := ts[keys[j]].markdown.testPlanID
+		idi := ts[keys[i]].markdown.PlanId
+		idj := ts[keys[j]].markdown.PlanId
 		if idi == idj {
 			return keys[i] < keys[j]
 		}

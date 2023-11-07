@@ -4,7 +4,6 @@ package coverage
 import (
 	"fmt"
 	"go/ast"
-	"go/types"
 	"regexp"
 	"strings"
 
@@ -67,18 +66,37 @@ func run(pass *analysis.Pass) (interface{}, error) {
 						if selexpr.Sel.Name == "Replace" || selexpr.Sel.Name == "Update" ||
 							selexpr.Sel.Name == "Delete" || selexpr.Sel.Name == "Get" ||
 							selexpr.Sel.Name == "Watch" {
-
-							t := pass.TypesInfo.TypeOf(selexpr.X)
-							if strings.HasPrefix(t.String(), "*github.com/openconfig/ondatra/") {
-								tDeref := t.(*types.Pointer).Elem()
-								tNamed := tDeref.(*types.Named)
-								tName := tNamed.Obj().Id()
-								tPkg := tNamed.Obj().Pkg()
-								m := new(pathMap)
-								pass.ImportPackageFact(tPkg, m)
-								fmt.Printf("%v,%v,%v,%v,%v\n", pass.Fset.Position(selexpr.Pos()),
-									pkgPath, funcName, selexpr.Sel.Name, m.getPath(tName))
+							if len(node.Args) < 3 {
+								return true
 							}
+
+							t := pass.TypesInfo.TypeOf(node.Args[2])
+							if !strings.HasPrefix(t.String(), "github.com/openconfig/ygnmi") {
+								return true
+							}
+
+							ast.Inspect(node.Args[2], func(node ast.Node) bool {
+								switch node := node.(type) {
+								case *ast.CallExpr:
+									selexpr, ok := node.Fun.(*ast.SelectorExpr)
+									if !ok {
+										return true
+									}
+									if selexpr.Sel.Name != "State" && selexpr.Sel.Name != "Config" {
+										return true
+									}
+
+									o := pass.TypesInfo.ObjectOf(selexpr.Sel)
+									m := new(pathMap)
+									pass.ImportPackageFact(o.Pkg(), m)
+									p := m.getPath(o.String())
+									if p != "" {
+										fmt.Printf("%v,%v,%v,%v,%v\n", pass.Fset.Position(selexpr.Pos()),
+											pkgPath, funcName, selexpr.Sel.Name, p)
+									}
+								}
+								return true
+							})
 						}
 					}
 					return true
@@ -92,15 +110,16 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func handleOndatraPkg(pass *analysis.Pass) (interface{}, error) {
-	if !strings.HasPrefix(pass.Pkg.Path(), "github.com/openconfig/ondatra") {
+	if !strings.HasPrefix(pass.Pkg.Path(), "github.com/openconfig/ondatra/gnmi") {
 		return nil, nil
 	}
-	docRe := regexp.MustCompile(`(.+)\srepresents\sthe\s(?:wildcard\sversion\sof\sthe\s)?(/.+)\sYANG\sschema\selement.`)
+
+	docRe := regexp.MustCompile(`Path from root:.*?"(/.+)"`)
 
 	for _, file := range pass.Files {
 		ast.Inspect(file, func(node ast.Node) bool {
 			switch decl := node.(type) {
-			case *ast.GenDecl:
+			case *ast.FuncDecl:
 				doc := decl.Doc.Text()
 				matches := docRe.FindStringSubmatch(doc)
 				if matches == nil {
@@ -108,9 +127,9 @@ func handleOndatraPkg(pass *analysis.Pass) (interface{}, error) {
 				}
 				m := new(pathMap)
 				pass.ImportPackageFact(pass.Pkg, m)
-				tName := matches[1]
-				path := "/" + strings.Join(strings.Split(matches[2], "/")[2:], "/")
-				m.putPath(tName, path)
+				id := pass.TypesInfo.ObjectOf(decl.Name).String()
+				path := matches[1]
+				m.putPath(id, path)
 				pass.ExportPackageFact(m)
 			}
 			return true

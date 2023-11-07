@@ -6,9 +6,10 @@ BGP Graceful Restart
 
 ## Procedure
 
-*   Establish BGP sessions between:
+*   Establish eBGP sessions between:
     *   ATE port-1 and DUT port-1
     *   ATE port-2 and DUT port-2
+    *   Configure allow route-policy under BGP peer-group address-family
 *   Validate received capabilities at DUT and ATE reflect support for graceful
     restart.
 *   For IPv4 and IPv6 routes:

@@ -1,0 +1,10 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+#
+# This is a testdata file. It lives in the same directory as metadata_text.go,
+# to test that the metadata is read from the same directory as the test itself.
+
+uuid: "TestProperties123"
+plan_id: "TestProperties"
+description: "TestProperties unit test"
+testbed: TESTBED_DUT

@@ -43,7 +43,7 @@ duts {
     target: "10.106.211.41:57783"
   }
   ssh{
-    target: "10.106.211.41:62641"
+    target: "10.106.211.41:62643"
   }
 
   # Before this binding can be used with a topology, add ports mapping
@@ -90,10 +90,11 @@ ates {
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
-    target: "172.21.178.129"
-    skip_verify: true
+    target: "10.85.84.194"
     username: "admin"
-    password: "ixia123!" 
+    password: "ixia123!"
+    skip_verify: true
+    #session_id: 1 
   }
 
   # Before this binding can be used with a topology, add ports mapping

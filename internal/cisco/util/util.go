@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gribigo/client"
@@ -21,6 +22,17 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+)
+
+const (
+	PTISIS         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
+	DUTAreaAddress = "47.0001"
+	DUTSysID       = "0000.0000.0001"
+	ISISName       = "osiris"
+	pLen4          = 30
+	pLen6          = 126
+	PTBGP          = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	BGPAS          = 65000
 )
 
 // FlapInterface flaps Interface and check State
@@ -111,7 +123,7 @@ func CheckTrafficPassViaRate(stats []*oc.Flow) []string {
 
 // ReloadDUT reloads the router using GNMI APIs
 func ReloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
 		Delay:   0,
@@ -134,7 +146,7 @@ func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, con
 			},
 		},
 	}
-	_, err := dut.RawAPIs().GNMI().Default(t).Set(ctx, r)
+	_, err := dut.RawAPIs().GNMI(t).Set(ctx, r)
 	if err != nil {
 		t.Errorf("There is error when applying the config")
 	}
@@ -181,7 +193,6 @@ func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK flue
 	// If randomise is specified, we go and do the operations in a random order.
 	// In this case, the caller MUST
 	if randomise {
-		rand.Seed(time.Now().UnixNano())
 		rand.Shuffle(len(ops), func(i, j int) { ops[i], ops[j] = ops[j], ops[i] })
 	}
 
@@ -357,7 +368,6 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *oc.Interface_Su
 // to activate fault point use true and to deactivate use false
 func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []string, componentName string, faultPointNumber string, returnValue string, activate bool) {
 	cliHandle := dut.RawAPIs().CLI(t)
-	defer cliHandle.Close()
 	for _, lineCard := range lcNumber {
 		var fimActivate string
 		var fimDeactivate string
@@ -393,4 +403,65 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 
 	}
 
+}
+
+// addISISOC, configures ISIS on DUT
+func AddISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
+	t.Helper()
+
+	dev := &oc.Root{}
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
+	isis := prot.GetOrCreateIsis()
+	glob := isis.GetOrCreateGlobal()
+	glob.Net = []string{fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)}
+	glob.LevelCapability = 2
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf := isis.GetOrCreateInterface(ifaceName)
+	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+	intf.Enabled = ygot.Bool(true)
+	intf.HelloPadding = 1
+	intf.Passive = ygot.Bool(false)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	level := isis.GetOrCreateLevel(2)
+	level.MetricStyle = 2
+
+	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
+	gnmi.Update(t, dut, dutNode.Config(), dutConf)
+}
+
+// addBGPOC, configures ISIS on DUT
+func AddBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
+	t.Helper()
+
+	dev := &oc.Root{}
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	prot := inst.GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
+	bgp := prot.GetOrCreateBgp()
+	glob := bgp.GetOrCreateGlobal()
+	glob.As = ygot.Uint32(BGPAS)
+	glob.RouterId = ygot.String("1.1.1.1")
+	glob.GetOrCreateGracefulRestart().Enabled = ygot.Bool(true)
+	glob.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+
+	pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP")
+	pg.PeerAs = ygot.Uint32(64001)
+	pg.LocalAs = ygot.Uint32(63001)
+	pg.PeerGroupName = ygot.String("BGP-PEER-GROUP")
+
+	peer := bgp.GetOrCreateNeighbor(neighbor)
+	peer.PeerGroup = ygot.String("BGP-PEER-GROUP")
+	peer.GetOrCreateEbgpMultihop().Enabled = ygot.Bool(true)
+	peer.GetOrCreateEbgpMultihop().MultihopTtl = ygot.Uint8(255)
+	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
+	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
+
+	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
+	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }

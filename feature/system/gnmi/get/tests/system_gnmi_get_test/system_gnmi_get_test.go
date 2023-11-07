@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
@@ -118,7 +119,10 @@ func TestGNMIGet(t *testing.T) {
 
 	for _, tt := range tests {
 		dut := ondatra.DUT(t, "dut")
-		gnmiC := dut.RawAPIs().GNMI().New(t)
+		// Not assuming that oc base config  is loaded.
+		// Config the hostname to prevent the test failure when oc base config is not loaded
+		gnmi.Replace(t, dut, gnmi.OC().System().Hostname().Config(), "ondatraHost")
+		gnmiC := dut.RawAPIs().GNMI(t)
 
 		t.Run(tt.desc, func(t *testing.T) {
 			gotRes, err := gnmiC.Get(context.Background(), tt.inGetRequest)

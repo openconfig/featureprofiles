@@ -8,31 +8,30 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 var testsuiteForTT = testsuite{
 	"feature/foo/bar/ate_tests/qux_test": &testcase{
-		existing: parsedData{
-			testPlanID:      "YY-2.1",
-			testDescription: "Qux Functional Test",
-			testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-			hasData:         true,
+		existing: &mpb.Metadata{
+			Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+			PlanId:      "YY-2.1",
+			Description: "Qux Functional Test",
 		},
 	},
 	"feature/foo/bar/otg_tests/qux_test": &testcase{
-		existing: parsedData{
-			testPlanID:      "YY-2.1",
-			testDescription: "Qux Functional Test",
-			testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-			hasData:         true,
+		existing: &mpb.Metadata{
+			Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+			PlanId:      "YY-2.1",
+			Description: "Qux Functional Test",
 		},
 	},
 	"feature/foo/baz/quuz_test": &testcase{
-		existing: parsedData{
-			testPlanID:      "XX-1.1",
-			testDescription: "Quuz Functional Test",
-			testUUID:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
-			hasData:         true,
+		existing: &mpb.Metadata{
+			Uuid:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
+			PlanId:      "XX-1.1",
+			Description: "Quuz Functional Test",
 		},
 	},
 }
@@ -83,7 +82,7 @@ func TestListTestTracker_Merge(t *testing.T) {
 	}
 }
 
-var jsopt = cmp.AllowUnexported(ttCase{}, parsedData{})
+var jsopts = []cmp.Option{cmp.AllowUnexported(ttCase{}), protocmp.Transform()}
 
 func TestTTBuildPlan(t *testing.T) {
 	got, ok := ttBuildPlan(testsuiteForTT, "")
@@ -94,13 +93,13 @@ func TestTTBuildPlan(t *testing.T) {
 	want := ttPlan{
 		"XX-1": ttSuite{
 			"a5413d74-5b44-49d2-b4e7-84c9751d50be": &ttCase{
-				parsedData: testsuiteForTT["feature/foo/baz/quuz_test"].existing,
-				testDirs:   map[string]string{"": "feature/foo/baz/quuz_test"},
+				metadata: testsuiteForTT["feature/foo/baz/quuz_test"].existing,
+				testDirs: map[string]string{"": "feature/foo/baz/quuz_test"},
 			},
 		},
 		"YY-2": ttSuite{
 			"c857db98-7b2c-433c-b9fb-4511b42edd78": &ttCase{
-				parsedData: testsuiteForTT["feature/foo/bar/ate_tests/qux_test"].existing,
+				metadata: testsuiteForTT["feature/foo/bar/ate_tests/qux_test"].existing,
 				testDirs: map[string]string{
 					"ate_tests": "feature/foo/bar/ate_tests/qux_test",
 					"otg_tests": "feature/foo/bar/otg_tests/qux_test",
@@ -109,7 +108,7 @@ func TestTTBuildPlan(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(want, got, jsopt); diff != "" {
+	if diff := cmp.Diff(want, got, jsopts...); diff != "" {
 		t.Errorf("ttBuildPlan -want,+got:\n%s", diff)
 	}
 }
@@ -124,19 +123,17 @@ func TestTTBuildPlan_MissingData(t *testing.T) {
 func TestTTBuildPlan_DisallowReuseUUID(t *testing.T) {
 	ts := testsuite{
 		"feature/foo/bar/ate_tests/qux_test": &testcase{
-			existing: parsedData{
-				testPlanID:      "YY-2.1",
-				testDescription: "Qux Functional Test",
-				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-				hasData:         true,
+			existing: &mpb.Metadata{
+				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+				PlanId:      "YY-2.1",
+				Description: "Qux Functional Test",
 			},
 		},
 		"feature/foo/baz/quuz_test": &testcase{
-			existing: parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Quuz Functional Test",
-				testUUID:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
-				hasData:         true,
+			existing: &mpb.Metadata{
+				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
+				PlanId:      "XX-1.1",
+				Description: "Quuz Functional Test",
 			},
 		},
 	}
@@ -226,28 +223,28 @@ func TestTTPlan_Merge(t *testing.T) {
 	ttp := ttPlan{
 		"XX-1": ttSuite{
 			"0eac5b62-ab22-449d-9a9a-255b05572641": &ttCase{
-				parsedData: parsedData{
-					testPlanID:      "XX-1.1",
-					testDescription: "Foo",
-					testUUID:        "0eac5b62-ab22-449d-9a9a-255b05572641",
+				metadata: &mpb.Metadata{
+					Uuid:        "0eac5b62-ab22-449d-9a9a-255b05572641",
+					PlanId:      "XX-1.1",
+					Description: "Foo",
 				},
 			},
 		},
 		"XX-2": ttSuite{
 			"f842057d-0100-4198-a18d-593b2bf3610e": &ttCase{
-				parsedData: parsedData{
-					testPlanID:      "XX-2.1",
-					testDescription: "Bar",
-					testUUID:        "f842057d-0100-4198-a18d-593b2bf3610e",
+				metadata: &mpb.Metadata{
+					Uuid:        "f842057d-0100-4198-a18d-593b2bf3610e",
+					PlanId:      "XX-2.1",
+					Description: "Bar",
 				},
 			},
 		},
 		"YY-1": ttSuite{
 			"12cd2de3-69af-4aa6-a3d6-a2d5fbdb86c6": &ttCase{
-				parsedData: parsedData{
-					testPlanID:      "YY-1.1",
-					testDescription: "Xyzzy",
-					testUUID:        "12cd2de3-69af-4aa6-a3d6-a2d5fbdb86c6",
+				metadata: &mpb.Metadata{
+					Uuid:        "12cd2de3-69af-4aa6-a3d6-a2d5fbdb86c6",
+					PlanId:      "YY-1.1",
+					Description: "Xyzzy",
 				},
 			},
 		},
@@ -370,13 +367,13 @@ func TestChildSuite(t *testing.T) {
 func TestTTSuite_SortedKeys(t *testing.T) {
 	tts := ttSuite{
 		"864550d6-e843-4301-846a-a1998a23bb5a": &ttCase{
-			parsedData: parsedData{testPlanID: "XX-1.10"},
+			metadata: &mpb.Metadata{PlanId: "XX-1.10"},
 		},
 		"e9345234-fc59-44f3-9d21-00b57137fb40": &ttCase{
-			parsedData: parsedData{testPlanID: "XX-1.1a"},
+			metadata: &mpb.Metadata{PlanId: "XX-1.1a"},
 		},
 		"bc261bca-d50f-42db-80f9-7c955c4e3889": &ttCase{
-			parsedData: parsedData{testPlanID: "XX-1.2"},
+			metadata: &mpb.Metadata{PlanId: "XX-1.2"},
 		},
 	}
 	want := []string{
@@ -445,31 +442,31 @@ func TestTTSuite_Merge(t *testing.T) {
 
 	tts := ttSuite{
 		"d2d462b4-db36-4159-9152-744dc6168ba8": &ttCase{
-			parsedData: parsedData{
-				testPlanID:      "XX-1.1",
-				testDescription: "Apple",
-				testUUID:        "d2d462b4-db36-4159-9152-744dc6168ba8",
+			metadata: &mpb.Metadata{
+				Uuid:        "d2d462b4-db36-4159-9152-744dc6168ba8",
+				PlanId:      "XX-1.1",
+				Description: "Apple",
 			},
 		},
 		"755ae14f-7d1a-465a-8cfb-f1674ea68763": &ttCase{
-			parsedData: parsedData{
-				testPlanID:      "XX-1.2",
-				testDescription: "Banana",
-				testUUID:        "755ae14f-7d1a-465a-8cfb-f1674ea68763",
+			metadata: &mpb.Metadata{
+				Uuid:        "755ae14f-7d1a-465a-8cfb-f1674ea68763",
+				PlanId:      "XX-1.2",
+				Description: "Banana",
 			},
 		},
 		"c2cb54c0-2acc-4fd8-8c2a-7f9ccb9ea192": &ttCase{
-			parsedData: parsedData{
-				testPlanID:      "XX-1.3",
-				testDescription: "Cherry",
-				testUUID:        "c2cb54c0-2acc-4fd8-8c2a-7f9ccb9ea192",
+			metadata: &mpb.Metadata{
+				Uuid:        "c2cb54c0-2acc-4fd8-8c2a-7f9ccb9ea192",
+				PlanId:      "XX-1.3",
+				Description: "Cherry",
 			},
 		},
 		"f7372990-dfb2-4a8f-acfb-c7a31b29522c": &ttCase{
-			parsedData: parsedData{
-				testPlanID:      "XX-1.4",
-				testDescription: "Durian",
-				testUUID:        "f7372990-dfb2-4a8f-acfb-c7a31b29522c",
+			metadata: &mpb.Metadata{
+				Uuid:        "f7372990-dfb2-4a8f-acfb-c7a31b29522c",
+				PlanId:      "XX-1.4",
+				Description: "Durian",
 			},
 		},
 	}
@@ -711,10 +708,10 @@ func TestTTCase_Merge(t *testing.T) {
 	}
 
 	ttc := &ttCase{
-		parsedData: parsedData{
-			testPlanID:      "XX-1.1",
-			testDescription: "Quuz Functional Test",
-			testUUID:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
+		metadata: &mpb.Metadata{
+			Uuid:        "a5413d74-5b44-49d2-b4e7-84c9751d50be",
+			PlanId:      "XX-1.1",
+			Description: "Quuz Functional Test",
 		},
 	}
 

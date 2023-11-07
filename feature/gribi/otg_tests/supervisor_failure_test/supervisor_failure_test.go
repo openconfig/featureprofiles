@@ -26,14 +26,15 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
-	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -94,16 +95,16 @@ var (
 )
 
 // configInterfaceDUT configures the interface with the Address.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled && !*deviations.IPv4MissingEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -119,26 +120,26 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
 
-	if *deviations.ExplicitPortSpeed {
+	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 	}
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
 // configureATE configures port1 and port2 on the ATE and adding a flow with port1 as the source and port2 as destination
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -160,15 +161,16 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 // Function to verify traffic
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
-	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
+	txPkts := flowMetrics.GetOutPkts()
+	rxPkts := flowMetrics.GetInPkts()
 
 	if txPkts == 0 {
 		t.Errorf("txPackets is 0")
 		return
 	}
-	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
-		t.Errorf("LossPct for flow %s got %v, want 0", flowName, got)
+	if got := 100 * float32(txPkts-rxPkts) / float32(txPkts); got > 0 {
+		t.Errorf("LossPct for flow %s got %f, want 0", flowName, got)
 	} else {
 		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
 	}
@@ -189,7 +191,7 @@ func routeInstall(ctx context.Context, t *testing.T, args *testArgs) {
 	// Add an IPv4Entry for 203.0.113.0/24 pointing to ATE port-2 via gRIBI-A,
 	// ensure that the entry is active through AFT telemetry
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via gRIBI-A", ateDstNetCIDR)
-	vrf := *deviations.DefaultNetworkInstance
+	vrf := deviations.DefaultNetworkInstance(args.dut)
 	args.clientA.AddNH(t, nhIndex, atePort2.IPv4, vrf, fluent.InstalledInRIB)
 	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, vrf, fluent.InstalledInRIB)
 	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, vrf, "", fluent.InstalledInRIB)
@@ -234,9 +236,12 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch 
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
-	if gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger() != switchTrigger {
-		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want USER_INITIATED.",
-			gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger().String())
+	wantTrigger := switchTrigger
+	if deviations.GNOISwitchoverReasonMissingUserInitiated(dut) {
+		wantTrigger = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_SYSTEM_INITIATED
+	}
+	if got, want := gnmi.Get(t, dut, primary.LastSwitchoverReason().State()).GetTrigger(), wantTrigger; got != want {
+		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s.", got, want)
 	}
 
 	if !gnmi.Lookup(t, dut, primary.LastRebootTime().State()).IsPresent() {
@@ -323,16 +328,8 @@ func TestSupFailure(t *testing.T) {
 		t.Fatalf("Controller %q did not become switchover-ready before test.", primaryBeforeSwitch)
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
-	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+	switchoverResponse := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondaryBeforeSwitch, deviations.GNOISubcomponentPath(dut))))
+	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v", switchoverResponse)
 
 	startSwitchover := time.Now()
 	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
@@ -369,12 +366,15 @@ func TestSupFailure(t *testing.T) {
 	}
 
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR; got != want {
-		t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
-	} else {
-		t.Logf("ipv4-entry found for %s after controller switchover..", got)
+	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(ateDstNetCIDR)
+	if _, found := gnmi.Watch(t, args.dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		value, present := val.Val()
+		return present && value.GetPrefix() == ateDstNetCIDR
+	}).Await(t); !found {
+		t.Fatalf("Could not find prefix %s in telemetry AFT", ateDstNetCIDR)
 	}
+	t.Logf("ipv4-entry found for %s after controller switchover..", ateDstNetCIDR)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	verifyTraffic(t, args.ate)
