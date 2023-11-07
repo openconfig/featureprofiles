@@ -58,6 +58,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 			mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
 			mplsT.ProgramGRIBI(t)
 			mplsT.ValidateProgramming(t)
+			mplsT.Cleanup(t)
 		})
 	}
 }
@@ -84,6 +85,7 @@ func TestMPLSPushToIP(t *testing.T) {
 			mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
 			mplsT.ProgramGRIBI(t)
 			mplsT.ValidateProgramming(t)
+			mplsT.Cleanup(t)
 		})
 	}
 }
@@ -118,6 +120,7 @@ func TestPopNLabels(t *testing.T) {
 			mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
 			mplsT.ProgramGRIBI(t)
 			mplsT.ValidateProgramming(t)
+			mplsT.Cleanup(t)
 		})
 	}
 }
@@ -142,5 +145,6 @@ func TestPopOnePushN(t *testing.T) {
 		mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
 		mplsT.ProgramGRIBI(t)
 		mplsT.ValidateProgramming(t)
+		mplsT.Cleanup(t)
 	}
 }

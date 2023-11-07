@@ -57,6 +57,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 			mplsT.ValidateProgramming(t)
 			mplsT.ConfigureFlows(t, ondatra.ATE(t, "ate"))
 			mplsT.RunFlows(t, ondatra.ATE(t, "ate"), 10*time.Second, lossTolerance)
+			mplsT.Cleanup(t)
 		})
 	}
 }

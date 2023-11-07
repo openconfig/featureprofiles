@@ -132,7 +132,7 @@ func (g *GRIBIMPLSTest) ConfigureDevices(t *testing.T, dut *ondatra.DUTDevice, a
 	time.Sleep(1 * time.Second)
 	ate.OTG().StartProtocols(t)
 
-	g.config = otgCfg
+	g.otgConfig = otgCfg
 }
 
 func (g *GRIBIMPLSTest) ProgramGRIBI(t *testing.T) {
@@ -425,6 +425,13 @@ func (g *GRIBIMPLSTest) RunFlows(t *testing.T, ate *ondatra.ATEDevice, runtime t
 	default:
 		t.Fatalf("traffic validation invalid for test type %v", g.mode)
 	}
+}
+
+// Cleanup cleans up the underlying gRIBI server to remove any entries.
+func (g *GRIBIMPLSTest) Cleanup(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	g.flushServer(t, ctx)
 }
 
 // modify performs a set of operations (in ops) on the supplied gRIBI client,
