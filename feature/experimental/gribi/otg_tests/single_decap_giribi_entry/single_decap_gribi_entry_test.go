@@ -64,7 +64,7 @@ const (
 	ipv4OuterSrc222Addr   = "198.51.100.222/32"
 	ipv4OuterDst111       = "192.51.100.64"
 	ipv4OuterSrc111       = "198.51.100.111"
-	ipv4OuterDst333       = "203.0.113.1"
+	ipv4OuterDst333       = "192.58.200.7"
 	prot4                 = 4
 	prot41                = 41
 	polName               = "pol1"
@@ -626,25 +626,20 @@ func TestSingleDecapGribiEntry(t *testing.T) {
 	}
 
 	cases := []struct {
-		desc   string
-		prefix string
-		mask   string
+		desc           string
+		prefixWithMask string
 	}{{
-		desc:   "Mask Length 24",
-		prefix: "192.51.100.0",
-		mask:   "24",
+		desc:           "Mask Length 24",
+		prefixWithMask: "192.51.100.0/24",
 	}, {
-		desc:   "Mask Length 32",
-		prefix: "192.51.100.64",
-		mask:   "32",
+		desc:           "Mask Length 32",
+		prefixWithMask: "192.51.100.64/32",
 	}, {
-		desc:   "Mask Length 28",
-		prefix: "192.51.100.64",
-		mask:   "28",
+		desc:           "Mask Length 28",
+		prefixWithMask: "192.51.100.64/28",
 	}, {
-		desc:   "Mask Length 22",
-		prefix: "192.51.100.0",
-		mask:   "22",
+		desc:           "Mask Length 22",
+		prefixWithMask: "192.51.100.0/22",
 	}}
 
 	for _, tc := range cases {
@@ -654,9 +649,8 @@ func TestSingleDecapGribiEntry(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			prefixWithMask := fmt.Sprintf("%s/%s", tc.prefix, tc.mask)
 			t.Run("Program gRIBi route", func(t *testing.T) {
-				configureGribiRoute(ctx, t, dut, args, prefixWithMask)
+				configureGribiRoute(ctx, t, dut, args, tc.prefixWithMask)
 			})
 			// Send both 6in4 and 4in4 packets. Verify that the packets have their outer
 			// v4 header stripped and are forwarded according to the route in the DEFAULT
@@ -672,7 +666,7 @@ func TestSingleDecapGribiEntry(t *testing.T) {
 					}
 				})
 
-			// Test with packets with a destination address 203.0.113.1 such as that does not match
+			// Test with packets with a destination address such as 192.58.200.7 that does not match
 			// the decap route, and verify that such packets are not decapped.
 			t.Run("Send traffic to non decap route and verify the behavior",
 				func(t *testing.T) {
