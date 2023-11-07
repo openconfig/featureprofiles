@@ -64,7 +64,7 @@ const (
 	ipv4OuterSrc222Addr   = "198.51.100.222/32"
 	ipv4OuterDst111       = "192.51.100.64"
 	ipv4OuterSrc111       = "198.51.100.111"
-	ipv4OuterDst333       = "192.58.200.7"
+	ipv4OuterDst333       = "203.0.113.1"
 	prot4                 = 4
 	prot41                = 41
 	polName               = "pol1"
@@ -666,7 +666,7 @@ func TestSingleDecapGribiEntry(t *testing.T) {
 					}
 				})
 
-			// Test with packets with a destination address such as 192.58.200.7 that does not match
+			// Test with packets with a destination address 203.0.113.1 such as that does not match
 			// the decap route, and verify that such packets are not decapped.
 			t.Run("Send traffic to non decap route and verify the behavior",
 				func(t *testing.T) {
