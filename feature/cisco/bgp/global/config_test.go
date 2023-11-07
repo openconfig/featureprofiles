@@ -1,18 +1,18 @@
 package bgp_global_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
-        "context"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-        "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-        "github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -123,137 +123,134 @@ func TestRouterId(t *testing.T) {
 }
 
 func Test_Default_Metric(t *testing.T) {
-        dut := ondatra.DUT(t, "dut")
+	dut := ondatra.DUT(t, "dut")
 
-        t.Log("Remove Flowspec Config")
-        configToChange := "no flowspec \n"
-        ctx := context.Background()
-        util.GNMIWithText(ctx, t, dut, configToChange)
-        t.Run("Testing openconfig-network-instance:network-instances/network-instance/protocols/protocol/config/default-metric", func(t *testing.T) {
+	t.Log("Remove Flowspec Config")
+	configToChange := "no flowspec \n"
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, configToChange)
+	t.Run("Testing openconfig-network-instance:network-instances/network-instance/protocols/protocol/config/default-metric", func(t *testing.T) {
 
-                proto := oc.NetworkInstance_Protocol{}
-                proto.DefaultMetric = ygot.Uint32(121)
-                proto.Name = ygot.String("default")
-                proto.Identifier =  oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+		proto := oc.NetworkInstance_Protocol{}
+		proto.DefaultMetric = ygot.Uint32(121)
+		proto.Name = ygot.String("default")
+		proto.Identifier = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 
-                bgp_global := oc.NetworkInstance_Protocol_Bgp_Global{}
-                bgp_global.As = ygot.Uint32(65000)
+		bgp_global := oc.NetworkInstance_Protocol_Bgp_Global{}
+		bgp_global.As = ygot.Uint32(65000)
 
-                bgp := oc.NetworkInstance_Protocol_Bgp{}
-                bgp.Global = &bgp_global
+		bgp := oc.NetworkInstance_Protocol_Bgp{}
+		bgp.Global = &bgp_global
 
-                proto.Bgp = &bgp
+		proto.Bgp = &bgp
 
-                t.Logf("TC: Configuring Default Metric for default vrf")
-                t.Run("Update", func(t *testing.T) {
-                        gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Config(), &proto)
-                })
-
-                proto.DefaultMetric = ygot.Uint32(144)
-                t.Logf("TC: Configuring Default Metric for custom vrf - CISCO")
-                t.Run("Update", func(t *testing.T) {
-                        gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Config(), &proto)
-                })
-
-// Get DEFAULT-METRIC
-
-        t.Log("TC: Retrieve default-metric for DEFAULT vrf")
-        t.Run("Get", func(t *testing.T) {
-            config := gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
-            t.Logf("Rcvd val - %v",configGot)
-
-
-            expected_metric := ygot.Uint32(121)
-
-            if configGot == *expected_metric {
-                t.Logf("Passed expected metric")
-            } else {
-                t.Errorf("TestFAIL, Received %v Expected %v",configGot, *expected_metric)
-            }
-
-        })
-
-        t.Log("TC: Retrieve default-metric for custom vrf - CISCO")
-        t.Run("Get", func(t *testing.T) {
-            config := gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric()
-            configGot := gnmi.GetConfig(t, dut, config.Config())
-            t.Logf("Rcvd val - %v",configGot)
-
-
-            expected_metric := ygot.Uint32(144)
-
-            if configGot == *expected_metric {
-                t.Logf("Passed expected metric")
-            } else {
-                t.Errorf("TestFAIL, Received %v Expected %v",configGot, *expected_metric)
-            }
-
-        })
-
-        t.Run("Delete", func(t *testing.T) {
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric().Config())
+		t.Logf("TC: Configuring Default Metric for default vrf")
+		t.Run("Update", func(t *testing.T) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Config(), &proto)
 		})
 
-        t.Run("Delete", func(t *testing.T) {
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric().Config())
+		proto.DefaultMetric = ygot.Uint32(144)
+		t.Logf("TC: Configuring Default Metric for custom vrf - CISCO")
+		t.Run("Update", func(t *testing.T) {
+			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Config(), &proto)
 		})
-        })
+
+		// Get DEFAULT-METRIC
+
+		t.Log("TC: Retrieve default-metric for DEFAULT vrf")
+		t.Run("Get", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+			t.Logf("Rcvd val - %v", configGot)
+
+			expected_metric := ygot.Uint32(121)
+
+			if configGot == *expected_metric {
+				t.Logf("Passed expected metric")
+			} else {
+				t.Errorf("TestFAIL, Received %v Expected %v", configGot, *expected_metric)
+			}
+
+		})
+
+		t.Log("TC: Retrieve default-metric for custom vrf - CISCO")
+		t.Run("Get", func(t *testing.T) {
+			config := gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric()
+			configGot := gnmi.GetConfig(t, dut, config.Config())
+			t.Logf("Rcvd val - %v", configGot)
+
+			expected_metric := ygot.Uint32(144)
+
+			if configGot == *expected_metric {
+				t.Logf("Passed expected metric")
+			} else {
+				t.Errorf("TestFAIL, Received %v Expected %v", configGot, *expected_metric)
+			}
+
+		})
+
+		t.Run("Delete", func(t *testing.T) {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric().Config())
+		})
+
+		t.Run("Delete", func(t *testing.T) {
+			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric().Config())
+		})
+	})
 }
-
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/config/enabled
 // State: /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/state/enabled
 func TestGlobalAfiSafiUseMultiplePathsEnabled(t *testing.T) {
-    dut := ondatra.DUT(t, dutName)
+	dut := ondatra.DUT(t, dutName)
 	ctx := context.Background()
 	util.GNMIWithText(ctx, t, dut, "\n")
 
-    inputs := []bool{
-        true,
-        false,
-    }
+	inputs := []bool{
+		true,
+		false,
+	}
 
-    bgp_instance := bgpInstance
-    bgp_as := bgpAs
+	bgp_instance := bgpInstance
+	bgp_as := bgpAs
 
-    bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-    bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 
-    gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgp_as)
-    time.Sleep(configApplyTime)
+	gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgp_as)
+	time.Sleep(configApplyTime)
 
-    global_addr_family_config := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
-    t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, global_addr_family_config.Config(), true) })
-    time.Sleep(configApplyTime)
+	global_addr_family_config := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, global_addr_family_config.Config(), true) })
+	time.Sleep(configApplyTime)
 
-    bgp := baseBgpGlobalConfig(bgp_as)
-    afiSafiConfig := bgp.Global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-    umpConfig := afiSafiConfig.GetOrCreateUseMultiplePaths()
-    umpConfig.GetOrCreateIbgp().SetMaximumPaths(5)
-    umpConfig.GetOrCreateEbgp().SetMaximumPaths(6)
+	bgp := baseBgpGlobalConfig(bgp_as)
+	afiSafiConfig := bgp.Global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	umpConfig := afiSafiConfig.GetOrCreateUseMultiplePaths()
+	umpConfig.GetOrCreateIbgp().SetMaximumPaths(5)
+	umpConfig.GetOrCreateEbgp().SetMaximumPaths(6)
 
-    defer cleanup(t, dut, bgp_instance)
+	defer cleanup(t, dut, bgp_instance)
 
-    for _, input := range inputs {
-        umpConfig.SetEnabled(input)
+	for _, input := range inputs {
+		umpConfig.SetEnabled(input)
 
-        t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, bgpConfig.Config(), bgp) })
-        time.Sleep(configApplyTime)
+		t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, bgpConfig.Config(), bgp) })
+		time.Sleep(configApplyTime)
 
-	t.Run("UseMultiplePathsEnabled_State", func(t *testing.T) {
-		stateGot := gnmi.Get(t, dut, bgpState.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled().State())
-		if stateGot != input {
-                    t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/config/enabled: got %v, want %v", stateGot, input)
-		}
-	})
-	t.Run("Subscribe", func(t *testing.T) {
-		stateGot := gnmi.Get(t, dut, bgpState.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled().State())
-		if stateGot != input {
-		    t.Errorf("State Telemetr: /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/config/enabled: got %v, want %v", stateGot, input)
-		}
-	})
-    }
+		t.Run("UseMultiplePathsEnabled_State", func(t *testing.T) {
+			stateGot := gnmi.Get(t, dut, bgpState.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled().State())
+			if stateGot != input {
+				t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/config/enabled: got %v, want %v", stateGot, input)
+			}
+		})
+		t.Run("Subscribe", func(t *testing.T) {
+			stateGot := gnmi.Get(t, dut, bgpState.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled().State())
+			if stateGot != input {
+				t.Errorf("State Telemetr: /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/config/enabled: got %v, want %v", stateGot, input)
+			}
+		})
+	}
 }
 
 // Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric tests the configuration of the BGP global ignore-next-hop-igp-metric leaf
@@ -270,11 +267,11 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 	t.Run("Test", func(t *testing.T) {
 
 		booleanVal := true
-		routeselopt := oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions {
+		routeselopt := oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions{
 			IgnoreNextHopIgpMetric: &booleanVal,
 		}
-		bgp := oc.NetworkInstance_Protocol_Bgp {
-			Global: &oc.NetworkInstance_Protocol_Bgp_Global {
+		bgp := oc.NetworkInstance_Protocol_Bgp{
+			Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 				As: ygot.Uint32(bgpAs),
 			},
 		}
@@ -310,7 +307,7 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 		t.Log("Replace ignore-next-hop-igp-metric value to false")
 		t.Run("Replace", func(t *testing.T) {
 			booleanVal = false
-			routeselopt = oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions {
+			routeselopt = oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions{
 				IgnoreNextHopIgpMetric: &booleanVal,
 			}
 			gnmi.Replace(t, dut, path.Config(), &routeselopt)
@@ -329,11 +326,11 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 
 		/*
 		 * Verify state for ignore-next-hop-igp-metric
-		 */ 
+		 */
 		t.Log("Get-State for ignore-next-hop-igp-metric")
 		t.Run("Get-State", func(t *testing.T) {
 			stateGot := gnmi.Get(t, dut, path.State())
- 
+
 			if *stateGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
 				t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *stateGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
 			} else {
@@ -352,22 +349,22 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 		/*
 		 * VRF1 VRF
 		 */
-		 booleanVal = true
-		 routeselopt = oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions {
-		 	IgnoreNextHopIgpMetric: &booleanVal,
-		 }
-		 path = gnmi.OC().NetworkInstance("VRF1").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Global().RouteSelectionOptions()
+		booleanVal = true
+		routeselopt = oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions{
+			IgnoreNextHopIgpMetric: &booleanVal,
+		}
+		path = gnmi.OC().NetworkInstance("VRF1").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Global().RouteSelectionOptions()
 
-		 /*
-		  * Add ignore-next-hop-igp-metric config
-		  */
-		 t.Log("Update the ignore-next-hop-igp-metric = true")
-		 t.Run("Update", func(t *testing.T) {
-			 gnmi.Update(t, dut, path.Config(), &routeselopt)
-		 })
+		/*
+		 * Add ignore-next-hop-igp-metric config
+		 */
+		t.Log("Update the ignore-next-hop-igp-metric = true")
+		t.Run("Update", func(t *testing.T) {
+			gnmi.Update(t, dut, path.Config(), &routeselopt)
+		})
 
-		 t.Log("Verify after update")
-		 t.Run("Get", func(t *testing.T) {
+		t.Log("Verify after update")
+		t.Run("Get", func(t *testing.T) {
 			configGot := gnmi.GetConfig(t, dut, path.Config())
 
 			if *configGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
@@ -377,49 +374,49 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 			}
 		})
 
-		 /*
-		  * Replace ignore-next-hop-igp-metric value to true and verify
-		  */
-		 t.Log("Replace ignore-next-hop-igp-metric value to false")
-		 t.Run("Replace", func(t *testing.T) {
-			 booleanVal = false
-			 routeselopt = oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions {
-				 IgnoreNextHopIgpMetric: &booleanVal,
-			 }
-			 gnmi.Replace(t, dut, path.Config(), &routeselopt)
-		 })
+		/*
+		 * Replace ignore-next-hop-igp-metric value to true and verify
+		 */
+		t.Log("Replace ignore-next-hop-igp-metric value to false")
+		t.Run("Replace", func(t *testing.T) {
+			booleanVal = false
+			routeselopt = oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions{
+				IgnoreNextHopIgpMetric: &booleanVal,
+			}
+			gnmi.Replace(t, dut, path.Config(), &routeselopt)
+		})
 
-		 t.Log("Verify after replace")
-		 t.Run("Get", func(t *testing.T) {
-			 configGot := gnmi.GetConfig(t, dut, path.Config())
+		t.Log("Verify after replace")
+		t.Run("Get", func(t *testing.T) {
+			configGot := gnmi.GetConfig(t, dut, path.Config())
 
-			 if *configGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
-				 t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *configGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
-			 } else {
-				 t.Logf("Passed: Configured ignore-next-hop-igp-metric = Obtained ignore-next-hop-igp-metric = %v", *configGot.IgnoreNextHopIgpMetric)
-			 }
-		 })
+			if *configGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
+				t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *configGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
+			} else {
+				t.Logf("Passed: Configured ignore-next-hop-igp-metric = Obtained ignore-next-hop-igp-metric = %v", *configGot.IgnoreNextHopIgpMetric)
+			}
+		})
 
-		 /*
-		  * Verify state for ignore-next-hop-igp-metric
-		  */ 
-		 t.Log("Get-State for ignore-next-hop-igp-metric")
-		 t.Run("Get-State", func(t *testing.T) {
-			 stateGot := gnmi.Get(t, dut, path.State())
-  
-			 if *stateGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
-				 t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *stateGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
-			 } else {
-				 t.Logf("Passed: Configured ignore-next-hop-igp-metric = Obtained ignore-next-hop-igp-metric = %v", *stateGot.IgnoreNextHopIgpMetric)
-			 }
-		 })
+		/*
+		 * Verify state for ignore-next-hop-igp-metric
+		 */
+		t.Log("Get-State for ignore-next-hop-igp-metric")
+		t.Run("Get-State", func(t *testing.T) {
+			stateGot := gnmi.Get(t, dut, path.State())
 
-		 /*
-		  * Delete Configuration
-		  */
-		 t.Log("Delete Configuration")
-		 t.Run("Delete", func(t *testing.T) {
-			 gnmi.Delete(t, dut, path.Config())
-		 })
+			if *stateGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
+				t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *stateGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
+			} else {
+				t.Logf("Passed: Configured ignore-next-hop-igp-metric = Obtained ignore-next-hop-igp-metric = %v", *stateGot.IgnoreNextHopIgpMetric)
+			}
+		})
+
+		/*
+		 * Delete Configuration
+		 */
+		t.Log("Delete Configuration")
+		t.Run("Delete", func(t *testing.T) {
+			gnmi.Delete(t, dut, path.Config())
+		})
 	})
 }
