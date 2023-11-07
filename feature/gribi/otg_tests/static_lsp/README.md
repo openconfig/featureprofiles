@@ -11,7 +11,7 @@ Validate static lsp functionality.
 *  Match incoming label (1000001)
 *  Set IP next-hop
 *  Set egress interface
-*  Set the action to pop label (implicit_null)
+*  Set the action to pop label
 *  Start 2 traffic flows with specified MPLS tags IPv4-MPLS[1000002]-MPLS[1000001]
 *  Verify that traffic is received at ATE2 with MPLS label [1000001] removed
 
