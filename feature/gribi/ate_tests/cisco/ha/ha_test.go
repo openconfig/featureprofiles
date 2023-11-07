@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
@@ -54,6 +55,7 @@ func TestMain(m *testing.M) {
 const (
 	with_scale            = true                        // run entire script with or without scale (Support not yet coded)
 	with_RPFO             = false                       // run entire script with or without RFPO
+	subscription_timout   = 60                          // set background subscription timeout value in minutes
 	base_config           = "case4_decap_encap_recycle" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
@@ -1808,31 +1810,31 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 	args.ATELock = sync.Mutex{}
 	testGroup := &sync.WaitGroup{}
 
-	configureDeviceId(args.ctx, t, args.dut)
-	configurePortId(args.ctx, t, args.dut)
-
 	// if *ciscoFlags.GRIBITrafficCheck {
-	//  te_flow = args.allFlows(t)
-	//  if base_config != "case1_backup_decap" && base_config != "case3_decap_encap"{
-	//    src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
-	//  }
-	//  flows = append(te_flow, src_ip_flow...)
+	// 	te_flow = args.allFlows(t)
+	// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+	// 		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+	// 	}
+	// 	flows = append(te_flow, src_ip_flow...)
 	// }
 	// outgoing_interface := make(map[string][]string)
 
 	// verify traffic
 	// if *ciscoFlags.GRIBITrafficCheck {
-	//  outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-	//  if base_config != "case1_backup_decap" && base_config != "case3_decap_encap"{
-	//    outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
-	//  }
-	//  // args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
-	//  args.ate.Traffic().Start(t, flows...)
-	//  time.Sleep(120 * time.Second)
-	//  args.ate.Traffic().Stop(t)
+	// 	outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+	// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+	// 		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
+	// 	}
+	// 	// args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+	// 	args.ate.Traffic().Start(t, flows...)
+	// 	time.Sleep(120 * time.Second)
+	// 	args.ate.Traffic().Stop(t)
 	// }
 
 	// multi_process_gribi_programming(t, args.events, args)
+
+	configureDeviceId(args.ctx, t, args.dut)
+	configurePortId(args.ctx, t, args.dut)
 	p4rtPacketOut(t, args.events, args)
 	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
 	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
@@ -2585,9 +2587,9 @@ func TestHA(t *testing.T) {
 			fn:   test_triggers,
 		},
 		// {
-		//  name: "check multiple clients",
-		//  desc: "With traffic running, validate use of multiple clients",
-		//  fn:   test_multiple_clients,
+		// 	name: "check multiple clients",
+		// 	desc: "With traffic running, validate use of multiple clients",
+		// 	fn:   test_multiple_clients,
 		// },
 	}
 	for _, tt := range test {
@@ -2610,9 +2612,15 @@ func TestHA(t *testing.T) {
 					t.Fatalf("gRIBI Connection could not be established: %v", err)
 				}
 			}
-
 			//Monitor and eventConsumer
 			t.Log("creating event monitor")
+			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("DEFAULT").Afts().State(), subscription_timout*time.Minute)
+			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
+			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
+			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
+			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
+			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
+
 			eventConsumer := monitor.NewCachedConsumer(2*time.Hour, /*expiration time for events in the cache*/
 				1 /*number of events for keep for each leaf*/)
 			// monitor := monitor.GNMIMonior{
