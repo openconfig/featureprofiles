@@ -113,6 +113,7 @@ func PopulateCertTemplate(cname string, domainNames []string, ips []net.IP, spif
 			Organization: []string{"OpenconfigFeatureProfiles"},
 			Country:      []string{"US"},
 		},
+		IPAddresses: ips,
 		URIs:        []*url.URL{uri},
 		DNSNames:    domainNames,
 		NotBefore:   time.Now(),

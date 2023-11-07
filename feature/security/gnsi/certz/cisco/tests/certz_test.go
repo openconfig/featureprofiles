@@ -2,6 +2,7 @@ package certz_test
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"io"
@@ -9,15 +10,19 @@ import (
 	"net"
 	"os"
 	"testing"
+	"time"
 
 	log "github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	cert "github.com/openconfig/featureprofiles/internal/cisco/security/cert"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 func TestMain(m *testing.M) {
@@ -463,7 +468,7 @@ func readCertificatesFromFile(filename string) ([]*x509.Certificate, error) {
 
 	return certificates, nil
 }
-func TestRotateReqWithFinalizeRsa(t *testing.T) {
+func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 	os.Mkdir("testdata/", 0755)
 	defer os.RemoveAll("testdata/")
 
@@ -503,6 +508,20 @@ func TestRotateReqWithFinalizeRsa(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not generate certificates: %v", err)
 	}
+	//Generating Client Cert & Signed from CA
+	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.IPv4(1, 1, 1, 1)}, "test", 100)
+	if err != nil {
+		t.Fatalf("Could not generate the cert template: %v", err)
+	}
+	tlscert1, err := cert.GenerateCert(certTemp1, caCert, caKey, x509.RSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificate template: %v", err)
+	}
+	err = cert.SaveTLSCertInPems(tlscert1, "testdata/client_key.pem", "testdata/client_cert.pem", x509.RSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificates: %v", err)
+	}
+
 	//Rotate with Server cert & key
 
 	certPEMtoload, err := ioutil.ReadFile("testdata/server_cert.pem")
@@ -513,46 +532,6 @@ func TestRotateReqWithFinalizeRsa(t *testing.T) {
 	if err != nil {
 		log.Exit("Failed to read key file", err)
 	}
-
-	stream, err := gnsiC.Certz().Rotate(context.Background())
-	if err != nil {
-		log.Exit("failed to get stream:", err)
-	}
-	var response *certzpb.RotateCertificateResponse
-
-	request := &certzpb.RotateCertificateRequest{
-		ForceOverwrite: true,
-		SslProfileId:   profile_id,
-		RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
-			Certificates: &certzpb.UploadRequest{
-				Entities: []*certzpb.Entity{
-					{
-						Version:   "1.0",
-						CreatedOn: 123456789,
-						Entity: &certzpb.Entity_CertificateChain{
-							CertificateChain: &certzpb.CertificateChain{
-								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoload,
-									PrivateKey:  privKeyPEMtoload,
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	log.V(1).Info("RotateCertificateRequest:\n", proto.MarshalTextString(request))
-	if err = stream.Send(request); err != nil {
-		log.Exit("failed to send RotateRequest:", err)
-	}
-	if response, err = stream.Recv(); err != nil {
-		log.Exit("failed to receive RotateCertificateResponse:", err)
-	}
-	log.V(1).Info("RotateCertificateResponse:\n", proto.MarshalTextString(response))
-	t.Logf("Rotate successful %v", request)
 
 	//ROTATE with TRUSTBUNDLE
 	certificates, err := readCertificatesFromFile("testdata/cacert.rsa.pem")
@@ -583,12 +562,33 @@ func TestRotateReqWithFinalizeRsa(t *testing.T) {
 			}
 		}
 	}
-	request = &certzpb.RotateCertificateRequest{
+
+	stream, err := gnsiC.Certz().Rotate(context.Background())
+	if err != nil {
+		log.Exit("failed to get stream:", err)
+	}
+	var response *certzpb.RotateCertificateResponse
+
+	request := &certzpb.RotateCertificateRequest{
 		ForceOverwrite: true,
 		SslProfileId:   profile_id,
 		RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
 			Certificates: &certzpb.UploadRequest{
 				Entities: []*certzpb.Entity{
+					{
+						Version:   "1.0",
+						CreatedOn: 123456789,
+						Entity: &certzpb.Entity_CertificateChain{
+							CertificateChain: &certzpb.CertificateChain{
+								Certificate: &certzpb.Certificate{
+									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									Certificate: certPEMtoload,
+									PrivateKey:  privKeyPEMtoload,
+								},
+							},
+						},
+					},
 					{
 						Version:   "1.0",
 						CreatedOn: 123456789,
@@ -600,14 +600,15 @@ func TestRotateReqWithFinalizeRsa(t *testing.T) {
 			},
 		},
 	}
-	log.V(1).Info("RotateTBRequest:\n", proto.MarshalTextString(request))
+	log.V(1).Info("RotateCertificateRequest:\n", proto.MarshalTextString(request))
 	if err = stream.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
 	}
 	if response, err = stream.Recv(); err != nil {
-		log.Exit("failed to receive RotateCertificateTBResponse:", err)
+		log.Exit("failed to receive RotateCertificateResponse:", err)
 	}
-	log.V(1).Info("RotateTBCertificateResponse:\n", proto.MarshalTextString(response))
+	log.V(1).Info("RotateCertificateResponse:\n", proto.MarshalTextString(response))
+	t.Logf("Rotate successful %v", request)
 
 	//FINALIZE ROTATE REQUEST
 	request = &certzpb.RotateCertificateRequest{
@@ -625,6 +626,7 @@ func TestRotateReqWithFinalizeRsa(t *testing.T) {
 		}
 	}
 	log.V(1).Info("RotateCertificateFinalize: Success, stream has ended")
+	stream.CloseSend()
 
 	//CONFIG NEW gNSI CLI
 	t.Log("Config new gNSI CLI")
@@ -632,8 +634,29 @@ func TestRotateReqWithFinalizeRsa(t *testing.T) {
 	ctx := context.Background()
 	util.GNMIWithText(ctx, t, dut, configToChange)
 
+	//Creating New gNSI Connection with rotated certs
+	tlsCerts := tls.Certificate{Certificate: tlscert1.Certificate,
+		PrivateKey: tlscert1.PrivateKey}
+	var rootca *x509.Certificate
+	roots := x509.NewCertPool()
+
+	for _, cert := range certificates {
+		rootca = cert
+	}
+	roots.AddCert(rootca)
+
+	tlsConf := tls.Config{
+		Certificates: []tls.Certificate{tlsCerts},
+		RootCAs:      roots,
+	}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf))}
+	gnsiCNew, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts[len(opts)-1])
+	if err != nil {
+		t.Errorf("ERR %v", err)
+	}
+
 	//Get-profile with rotated CERTS
-	profilelist, err := gnsiC.Certz().GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
+	profilelist, err := gnsiCNew.Certz().GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
 	if err != nil {
 		t.Fatalf("Unexpected Error in getting profile list: %v", err)
 	}
@@ -654,7 +677,7 @@ func TestRotateReqWithFinalizeRsa(t *testing.T) {
 
 }
 
-func TestRotateReqWithFinalizeEcdsa(t *testing.T) {
+func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 	os.Mkdir("testdata/", 0755)
 	defer os.RemoveAll("testdata/")
 
@@ -692,6 +715,21 @@ func TestRotateReqWithFinalizeEcdsa(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not generate certificates: %v", err)
 	}
+
+	//Generating Client Cert & Signed from CA
+	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.IPv4(1, 1, 1, 1)}, "test", 100)
+	if err != nil {
+		t.Fatalf("Could not generate the cert template: %v", err)
+	}
+	tlscert1, err := cert.GenerateCert(certTemp1, caCert, caKey, x509.ECDSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificate template: %v", err)
+	}
+	err = cert.SaveTLSCertInPems(tlscert1, "testdata/client_key.pem", "testdata/client_cert.pem", x509.ECDSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificates: %v", err)
+	}
+
 	//Rotate with Server cert & Server key
 
 	certPEMtoload, err := ioutil.ReadFile("testdata/server_cert.pem")
@@ -708,40 +746,6 @@ func TestRotateReqWithFinalizeEcdsa(t *testing.T) {
 		log.Exit("failed to get stream:", err)
 	}
 	var response *certzpb.RotateCertificateResponse
-
-	request := &certzpb.RotateCertificateRequest{
-		ForceOverwrite: true,
-		SslProfileId:   profile_id,
-		RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
-			Certificates: &certzpb.UploadRequest{
-				Entities: []*certzpb.Entity{
-					{
-						Version:   "1.0",
-						CreatedOn: 123456789,
-						Entity: &certzpb.Entity_CertificateChain{
-							CertificateChain: &certzpb.CertificateChain{
-								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoload,
-									PrivateKey:  privKeyPEMtoload,
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	log.V(1).Info("RotateCertificateRequest:\n", proto.MarshalTextString(request))
-	if err = stream.Send(request); err != nil {
-		log.Exit("failed to send RotateRequest:", err)
-	}
-	if response, err = stream.Recv(); err != nil {
-		log.Exit("failed to receive RotateCertificateResponse:", err)
-	}
-	log.V(1).Info("RotateCertificateResponse:\n", proto.MarshalTextString(response))
-	t.Logf("Rotate successful %v", request)
 
 	//ROTATE with TRUSTBUNDLE
 	certificates, err := readCertificatesFromFile("testdata/cacert.ecdsa.pem")
@@ -772,12 +776,27 @@ func TestRotateReqWithFinalizeEcdsa(t *testing.T) {
 			}
 		}
 	}
-	request = &certzpb.RotateCertificateRequest{
+
+	request := &certzpb.RotateCertificateRequest{
 		ForceOverwrite: true,
 		SslProfileId:   profile_id,
 		RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
 			Certificates: &certzpb.UploadRequest{
 				Entities: []*certzpb.Entity{
+					{
+						Version:   "1.0",
+						CreatedOn: 123456789,
+						Entity: &certzpb.Entity_CertificateChain{
+							CertificateChain: &certzpb.CertificateChain{
+								Certificate: &certzpb.Certificate{
+									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									Certificate: certPEMtoload,
+									PrivateKey:  privKeyPEMtoload,
+								},
+							},
+						},
+					},
 					{
 						Version:   "1.0",
 						CreatedOn: 123456789,
@@ -797,6 +816,7 @@ func TestRotateReqWithFinalizeEcdsa(t *testing.T) {
 		log.Exit("failed to receive RotateCertificateTBResponse:", err)
 	}
 	log.V(1).Info("RotateTBCertificateResponse:\n", proto.MarshalTextString(response))
+	t.Logf("Rotate successful %v", request)
 
 	//FINALIZE ROTATE REQUEST
 	request = &certzpb.RotateCertificateRequest{
@@ -821,8 +841,29 @@ func TestRotateReqWithFinalizeEcdsa(t *testing.T) {
 	ctx := context.Background()
 	util.GNMIWithText(ctx, t, dut, configToChange)
 
+	//Creating New gNSI Connection with rotated certs
+	tlsCerts := tls.Certificate{Certificate: tlscert1.Certificate,
+		PrivateKey: tlscert1.PrivateKey}
+	var rootca *x509.Certificate
+	roots := x509.NewCertPool()
+
+	for _, cert := range certificates {
+		rootca = cert
+	}
+	roots.AddCert(rootca)
+
+	tlsConf := tls.Config{
+		Certificates: []tls.Certificate{tlsCerts},
+		RootCAs:      roots,
+	}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf))}
+	gnsiCNew, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts[len(opts)-1])
+	if err != nil {
+		t.Errorf("ERR %v", err)
+	}
+
 	//Get-profile with rotated CERTS
-	profilelist, err := gnsiC.Certz().GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
+	profilelist, err := gnsiCNew.Certz().GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
 	if err != nil {
 		t.Fatalf("Unexpected Error in getting profile list: %v", err)
 	}
@@ -830,7 +871,7 @@ func TestRotateReqWithFinalizeEcdsa(t *testing.T) {
 
 	//UnCONFIG NEW gNSI CLI
 	t.Log("UnConfig new gNSI CLI")
-	configToremove := "no grpc gnsi service certz ssl-profile-id rotatecertz \n"
+	configToremove := "no grpc gnsi service certz ssl-profile-id rotatecertzecdsa \n"
 	ctx = context.Background()
 	util.GNMIWithText(ctx, t, dut, configToremove)
 
@@ -842,7 +883,6 @@ func TestRotateReqWithFinalizeEcdsa(t *testing.T) {
 	t.Logf("Delete Profile was successful, %v", delprofile)
 
 }
-
 func TestRotateReqWithFinalizeNegative(t *testing.T) {
 
 	os.Mkdir("testdata/", 0755)
@@ -1047,7 +1087,7 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 	t.Logf("Delete Profile was successful, %v", delprofile)
 }
 
-func TestRotateReqWithFinalizeRsaValidate(t *testing.T) {
+func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	os.Mkdir("testdatarsa/", 0755)
 	defer os.RemoveAll("testdatarsa/")
 
@@ -1090,6 +1130,21 @@ func TestRotateReqWithFinalizeRsaValidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not generate certificates: %v", err)
 	}
+
+	//Generating RSA Client Cert & Signed from CA
+	certTemp1rsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.IPv4(1, 1, 1, 1)}, "test", 100)
+	if err != nil {
+		t.Fatalf("Could not generate the cert template: %v", err)
+	}
+	tlscert1, err := cert.GenerateCert(certTemp1rsa, caCertrsa, caKeyrsa, x509.RSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificate template: %v", err)
+	}
+	err = cert.SaveTLSCertInPems(tlscert1, "testdatarsa/client_key.pem", "testdatarsa/client_cert.pem", x509.RSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificates: %v", err)
+	}
+
 	//Rotate with RSA Server cert & key
 
 	certPEMtoloadRSA, err := ioutil.ReadFile("testdatarsa/server_cert_rsa.pem")
@@ -1120,7 +1175,7 @@ func TestRotateReqWithFinalizeRsaValidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not generate certificate template: %v", err)
 	}
-	err = cert.SaveTLSCertInPems(tlscertecdsa, "testdataecdsa/server_key.pem", "testdataecdsa/server_cert.pem", x509.ECDSA)
+	err = cert.SaveTLSCertInPems(tlscertecdsa, "testdataecdsa/server_key_ecdsa.pem", "testdataecdsa/server_cert_ecdsa.pem", x509.ECDSA)
 	if err != nil {
 		t.Fatalf("Could not generate certificates: %v", err)
 	}
@@ -1130,7 +1185,32 @@ func TestRotateReqWithFinalizeRsaValidate(t *testing.T) {
 	}
 	var response *certzpb.RotateCertificateResponse
 
-	//ROTATE with RSA TRUSTBUNDLE
+	//Generating ECDSA Client Cert & Signed from CA
+	certTemp1ecdsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.IPv4(1, 1, 1, 1)}, "test", 100)
+	if err != nil {
+		t.Fatalf("Could not generate the cert template: %v", err)
+	}
+	tlscert2, err := cert.GenerateCert(certTemp1ecdsa, caCertecdsa, caKeyecdsa, x509.ECDSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificate template: %v", err)
+	}
+	err = cert.SaveTLSCertInPems(tlscert2, "testdataecdsa/client_key.pem", "testdataecdsa/client_cert.pem", x509.ECDSA)
+	if err != nil {
+		t.Fatalf("Could not generate certificates: %v", err)
+	}
+
+	//Rotate with ECDSA Server cert & key
+
+	/*certPEMtoloadECDSA, err := ioutil.ReadFile("testdataecdsa/server_cert_ecdsa.pem")
+	if err != nil {
+		log.Exit("Failed to read cert file", err)
+	}
+	privKeyPEMtoloadECDSA, err := ioutil.ReadFile("testdataecdsa/server_key_ecdsa.pem")
+	if err != nil {
+		log.Exit("Failed to read key file", err)
+	}*/
+
+	//RSA TRUSTBUNDLE
 	certificatesrsa, err := readCertificatesFromFile("testdatarsa/cacert.rsa.pem")
 	if err != nil {
 		log.Exit("failed to read bundle", err)
@@ -1160,7 +1240,7 @@ func TestRotateReqWithFinalizeRsaValidate(t *testing.T) {
 		}
 	}
 
-	//ROTATE with ECDSA TRUSTBUNDLE
+	//ECDSA TRUSTBUNDLE
 	certificatesecdsa, err := readCertificatesFromFile("testdataecdsa/cacert.ecdsa.pem")
 	if err != nil {
 		log.Exit("failed to read bundle", err)
@@ -1247,6 +1327,7 @@ func TestRotateReqWithFinalizeRsaValidate(t *testing.T) {
 		}
 	}
 	log.V(1).Info("RotateCertificateFinalize: Success, stream has ended")
+	stream.CloseSend()
 
 	//CONFIG NEW gNSI CLI
 	t.Log("Config new gNSI CLI")
@@ -1254,8 +1335,26 @@ func TestRotateReqWithFinalizeRsaValidate(t *testing.T) {
 	ctx := context.Background()
 	util.GNMIWithText(ctx, t, dut, configToChange)
 
+	//Creating New gNSI Connection with RSA rotated certs
+	tlsCerts := tls.Certificate{Certificate: tlscert1.Certificate,
+		PrivateKey: tlscert1.PrivateKey}
+	var rootca *x509.Certificate
+	roots := x509.NewCertPool()
+
+	for _, cert := range certificatesrsa {
+		rootca = cert
+	}
+	roots.AddCert(rootca)
+
+	tlsConf := tls.Config{
+		Certificates: []tls.Certificate{tlsCerts},
+		RootCAs:      roots,
+	}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf))}
+	gnsiCNew, _ := dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts[len(opts)-1])
+
 	//Get-profile with rotated CERTS
-	profilelist, err := gnsiC.Certz().GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
+	profilelist, err := gnsiCNew.Certz().GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
 	if err != nil {
 		t.Fatalf("Unexpected Error in getting profile list: %v", err)
 	}
@@ -1301,6 +1400,7 @@ func TestRotateReqWithFinalizeRsaValidate(t *testing.T) {
 			},
 		},
 	}
+
 	log.V(1).Info("RotateTBRequest:\n", proto.MarshalTextString(request))
 	if err = stream1.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
@@ -1310,31 +1410,48 @@ func TestRotateReqWithFinalizeRsaValidate(t *testing.T) {
 	}
 	log.V(1).Info("RotateTBCertificateResponse:\n", proto.MarshalTextString(response1))
 
-	//Can-generate-csr with new rotated certs
-	params := certzpb.CSRParams{
+	//Creating New gNSI Connection with RSA Server Cert &  ECDSA  Trustbundle with out Finalise
 
-		CsrSuite: certzpb.CSRSuite(2),
+	/*tlsCerts = tls.Certificate{Certificate: tlscert2.Certificate,
+	PrivateKey: tlscert2.PrivateKey}*/
+	var rootcaecdsa *x509.Certificate
+	rootecdsa := x509.NewCertPool()
 
-		CommonName: "ems.cisco.com",
-
-		Country: "IN",
+	for _, cert := range certificatesecdsa {
+		rootcaecdsa = cert
 	}
-	csrrequest := &certzpb.CanGenerateCSRRequest{
-		Params: &params}
-	got, err := gnsiC.Certz().CanGenerateCSR(context.Background(), csrrequest)
+	rootecdsa.AddCert(rootcaecdsa)
 
-	log.V(1).Info("sending CanGenerateCSRRequest to validate:\n", proto.MarshalTextString(csrrequest))
-	//response, err := clientT.CanGenerateCSR(context.Background(), csrrequest)
-	if got == nil {
-		log.Exit("Able to do CanGenerateCSR finalize with invalid cert", err)
+	tlsConf = tls.Config{
+		Certificates: []tls.Certificate{tlsCerts},
+		RootCAs:      rootecdsa,
 	}
-	log.Info("CanGenerateCSRResponse:\n", proto.MarshalTextString(response))
+
+	opts1 := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf))}
+
+	retryOpt := grpc_retry.WithPerRetryTimeout(time.Duration(2) * time.Second)
+	opts = append(opts1,
+		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
+		grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
+	)
+	var cancelFunc context.CancelFunc
+	ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(2)*time.Second)
+	defer cancelFunc()
+
+	_, err = dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts[len(opts)-1])
+	if err != nil {
+		t.Log("Expected Failure, Error:", err)
+	} else {
+		t.Errorf("Connection established with wrong certs, which is not expected")
+	}
+	stream1.CloseSend()
 
 	//UnCONFIG NEW gNSI CLI
 	t.Log("UnConfig new gNSI CLI")
 	configToremove := "no grpc gnsi service certz ssl-profile-id rotatecertzvalidate \n"
 	ctx = context.Background()
 	util.GNMIWithText(ctx, t, dut, configToremove)
+	t.Log("Removed gNSI Profile config Successfully")
 
 	//Delete rotated profile-id
 	delprofile, err := gnsiC.Certz().DeleteProfile(context.Background(), &certzpb.DeleteProfileRequest{SslProfileId: profile_id})
