@@ -97,7 +97,7 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: P4RT-1.2 (P4RT Daemon Failure)
-    path: feature/experimental/p4rt/otg_tests/p4rt_daemon_failure_test
+    path: feature/p4rt/otg_tests/p4rt_daemon_failure_test
     owners:
       - sprem
     priority: 5
