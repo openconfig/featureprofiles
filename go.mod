@@ -25,6 +25,7 @@ require (
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20231031140438-9a293da13ff9
 	github.com/openconfig/kne v0.1.14
+	github.com/openconfig/lemming v0.3.2-0.20230914210403-c6484d12af0a
 	github.com/openconfig/ondatra v0.4.0
 	github.com/openconfig/replayer v0.0.0-20231031192218-5462382820d4
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07

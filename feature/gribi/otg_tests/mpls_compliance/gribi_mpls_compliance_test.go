@@ -44,11 +44,20 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
-	_ = mplsutil.PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+	for numLabels := 1; numLabels <= maxLabelDepth; numLabels++ {
+		t.Run(fmt.Sprintf("push %d labels", numLabels), func(t *testing.T) {
+			labels := []uint32{}
+			for i := 0; i < numLabels; i++ {
+				labels = append(labels, uint32(baseLabel+i))
+			}
 
-	for i := 1; i <= maxLabelDepth; i++ {
-		t.Run(fmt.Sprintf("push %d labels", i), func(t *testing.T) {
-			mplsutil.PushLabelStack(t, c, deviations.DefaultNetworkInstance(dut), baseLabel, i, sleepFn)
+			mplsT := mplsutil.New(c, mplsutil.PushToMPLS, deviations.DefaultNetworkInstance(dut), &mplsutil.Args{
+				LabelsToPush: labels,
+			})
+
+			mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+			mplsT.ProgramGRIBI(t)
+			mplsT.ValidateProgramming(t)
 		})
 	}
 }
@@ -61,13 +70,20 @@ func TestMPLSPushToIP(t *testing.T) {
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
-	_ = mplsutil.PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
-
 	baseLabel := 42
 	numLabels := 20
 	for i := 1; i <= numLabels; i++ {
 		t.Run(fmt.Sprintf("push %d labels to IP", i), func(t *testing.T) {
-			mplsutil.PushToIPPacket(t, c, deviations.DefaultNetworkInstance(dut), baseLabel, i, sleepFn)
+			labels := []uint32{}
+			for i := 0; i < numLabels; i++ {
+				labels = append(labels, uint32(baseLabel+i))
+			}
+			mplsT := mplsutil.New(c, mplsutil.PushToIP, deviations.DefaultNetworkInstance(dut), &mplsutil.Args{
+				LabelsToPush: labels,
+			})
+			mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+			mplsT.ProgramGRIBI(t)
+			mplsT.ValidateProgramming(t)
 		})
 	}
 }
@@ -80,9 +96,10 @@ func TestPopTopLabel(t *testing.T) {
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
-	_ = mplsutil.PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
-
-	mplsutil.PopTopLabel(t, c, deviations.DefaultNetworkInstance(dut), sleepFn)
+	mplsT := mplsutil.New(c, mplsutil.PopTopLabel, deviations.DefaultNetworkInstance(dut), nil)
+	mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+	mplsT.ProgramGRIBI(t)
+	mplsT.ValidateProgramming(t)
 }
 
 // TestPopNLabels validates the gRIBI actions that are used to pop N labels from a
@@ -93,11 +110,14 @@ func TestPopNLabels(t *testing.T) {
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
-	_ = mplsutil.PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
-
 	for _, stack := range [][]uint32{{100}, {100, 42}, {100, 42, 43, 44, 45}} {
 		t.Run(fmt.Sprintf("pop N labels, stack %v", stack), func(t *testing.T) {
-			mplsutil.PopNLabels(t, c, deviations.DefaultNetworkInstance(dut), stack, sleepFn)
+			mplsT := mplsutil.New(c, mplsutil.PopNLabels, deviations.DefaultNetworkInstance(dut), &mplsutil.Args{
+				LabelsToPop: stack,
+			})
+			mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+			mplsT.ProgramGRIBI(t)
+			mplsT.ValidateProgramming(t)
 		})
 	}
 }
@@ -110,16 +130,17 @@ func TestPopOnePushN(t *testing.T) {
 	c := fluent.NewClient()
 	c.Connection().WithStub(gribic)
 
-	_ = mplsutil.PushBaseConfigs(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
-
 	stacks := [][]uint32{
 		{100}, // swap for label 100, pop+push for label 200
 		{100, 200, 300, 400},
 		{100, 200, 300, 400, 500, 600},
 	}
 	for _, stack := range stacks {
-		t.Run(fmt.Sprintf("pop one, push N, stack: %v", stack), func(t *testing.T) {
-			mplsutil.PopOnePushN(t, c, deviations.DefaultNetworkInstance(dut), stack, sleepFn)
+		mplsT := mplsutil.New(c, mplsutil.PopOnePushN, deviations.DefaultNetworkInstance(dut), &mplsutil.Args{
+			LabelsToPop: stack,
 		})
+		mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+		mplsT.ProgramGRIBI(t)
+		mplsT.ValidateProgramming(t)
 	}
 }
