@@ -126,6 +126,7 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+    timeout: 7200
   - name: P4RT-6.1 (Required Packet I/O rate Performance)
     path: feature/experimental/p4rt/otg_tests/performance_test
     owners:
