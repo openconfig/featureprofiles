@@ -303,11 +303,6 @@ func GRIBIRIBAckOnly(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRibackOnly()
 }
 
-// MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
-func MissingInterfacePhysicalChannel(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingInterfacePhysicalChannel()
-}
-
 // MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
 func MissingValueForDefaults(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingValueForDefaults()
@@ -534,12 +529,6 @@ func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) b
 	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
 }
 
-// AggregateLoopbackModeRequiresMemberPortLoopbackMode returns true for devices that require
-// configuring LoopbackMode on member ports to enable LoopbackMode on aggregate interface.
-func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
-}
-
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
 // /components/component/cpu/utilization/state/avg for linecards' CPU card.
 // Default value is false.
@@ -656,4 +645,37 @@ func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
 // SkipV6TrafficCheckPostDecap returns true for devices which does not support v6 translation.
 func SkipV6TrafficCheckPostDecap(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipV6TrafficCheckPostDecap()
+}
+
+// TunnelStatePathUnsupported returns true for devices that require configuring
+// /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
+func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelStatePathUnsupported()
+}
+
+// TunnelConfigPathUnsupported returns true for devices that require configuring
+// Tunnel source-address destination-address, encapsulation type are not supported in OC
+func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
+}
+
+// EcnSameMinMaxThresholdUnsupported returns true for devices that don't support the same minimum and maximum threshold values
+// CISCO: minimum and maximum threshold values are not the same, the difference between minimum and maximum threshold value should be 6144.
+func EcnSameMinMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnSameMinMaxThresholdUnsupported()
+}
+
+// QosSchedulerConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QosSchedulerConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSchedulerConfigRequired()
+}
+
+// QosSetWeightConfigUnsupported returns whether the device does not support set weight leaves under qos ecn.
+func QosSetWeightConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSetWeightConfigUnsupported()
+}
+
+// QosGetStatePathUnsupported returns whether the device does not support get state leaves under qos.
+func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
 }
