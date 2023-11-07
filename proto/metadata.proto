@@ -352,6 +352,8 @@ message Metadata {
     // TTL Copy unsupported.
     // Juniper: b/307258544
     bool ttl_copy_unsupported = 117;
+    // Juniper: b/309625079
+    bool skip_v6traffic_check_post_decap = 118;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 90;

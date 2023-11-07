@@ -659,7 +659,11 @@ func TestSingleDecapGribiEntry(t *testing.T) {
 				func(t *testing.T) {
 					createGoodFlows(t, otgConfig, otg)
 					sendTraffic(t, args)
-					verifyTraffic(t, args, []string{flow4in4, flow6in4}, !wantLoss, checkTTL, !checkDecap)
+					if deviations.SkipV6TrafficCheckPostDecap(dut) {
+						verifyTraffic(t, args, []string{flow4in4}, !wantLoss, checkTTL, !checkDecap)
+					} else {
+						verifyTraffic(t, args, []string{flow4in4, flow6in4}, !wantLoss, checkTTL, !checkDecap)
+					}
 				})
 
 			// Test with packets with a destination address such as 192.58.200.7 that does not match

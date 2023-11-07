@@ -19,6 +19,7 @@ platform_exceptions: {
   }
   deviations: {
     ttl_copy_unsupported: true
+    skip_v6traffic_check_post_decap: true
   }
 }
 platform_exceptions: {

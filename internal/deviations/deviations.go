@@ -648,7 +648,12 @@ func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
 }
 
-// TTL copy unsupported.
+// TTLCopyUnsupported returns true for devices which does not support TTL copy.
 func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
+}
+
+// SkipV6TrafficCheckPostDecap returns true for devices which does not support v6 translation.
+func SkipV6TrafficCheckPostDecap(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipV6TrafficCheckPostDecap()
 }
