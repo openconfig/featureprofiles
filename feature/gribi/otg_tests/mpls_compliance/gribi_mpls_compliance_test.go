@@ -4,10 +4,8 @@
 package gribi_mpls_compliance_test
 
 import (
-	"flag"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/feature/gribi/mplsutil"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -22,14 +20,6 @@ const (
 	// maxLabelDepth is the maximum number of labels that should be pushed on the stack.
 	maxLabelDepth = 20
 )
-
-var (
-	sleep = flag.Int("sleep", 0, "seconds to sleep within test before exiting")
-)
-
-// sleepFn is a function that is called by default to pause the test in a specific state before exiting.
-// It reads the sleep duration from the provided flag.
-func sleepFn(_ *testing.T, _ []uint32) { time.Sleep(time.Duration(*sleep) * time.Second) }
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

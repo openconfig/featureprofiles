@@ -17,11 +17,6 @@ import (
 const (
 	// baseLabel indicates the minimum label to use on a packet.
 	baseLabel = 42
-	// destinationLabel is a label that is programmed as a forwarding entry.
-	destinationLabel = 100
-	// innerLabel is a label used within the label stack (to ensure that the egress device's
-	// payload is MPLS).
-	innerLabel = 5000
 	// maximumStackDepth is the maximum number of labels to be pushed onto the packet.
 	maximumStackDepth = 20
 	// lossTolerance is the number of packets that can be lost within a flow before the
