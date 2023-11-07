@@ -850,14 +850,15 @@ func TestErrHndlTreatasWDR(t *testing.T) {
 				}
 			})
 
-			t.Run("TreatasWDR_Delete", func(t *testing.T) {
-				gnmi.Delete(t, dut, config.Config())
-				time.Sleep(configDeleteTime)
-				stateGot := gnmi.Get(t, dut, state.State())
-				if stateGot != false {
-					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/error-handling/state/treat-as-withdraw: got %v, want %v", stateGot, false)
-				}
-			})
+                        t.Run("TreatasWDR_Delete", func(t *testing.T) {
+                                gnmi.Delete(t, dut, config.Config())
+                                time.Sleep(configDeleteTime)
+                                if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
+                                        t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/error-handling/state/treat-as-withdraw: fail: got %v", qs)
+                                }
+                        })
+
+
 		})
 	}
 }
@@ -900,9 +901,8 @@ func TestASPathOptDisablePeerAS(t *testing.T) {
 			t.Run("DisablePeerAS_Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
-				stateGot := gnmi.Get(t, dut, state.State())
-				if (stateGot == false) || (stateGot == true) {
-					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/state/disable-peer-as-filter: got %v, want %v", stateGot, "")
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/config/disable-peer-as-filter fail: got %v", qs)
 				}
 			})
 		})
@@ -944,14 +944,15 @@ func TestASPathOptAllowOwnAS(t *testing.T) {
 				}
 			})
 
-			t.Run("AllowOwnAS_Delete", func(t *testing.T) {
-				gnmi.Delete(t, dut, config.Config())
-				time.Sleep(configDeleteTime)
-				stateGot := gnmi.Get(t, dut, state.State())
-				if stateGot != 0 {
-					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/state/allow-own-as: got %v, want %v", stateGot, 0)
-				}
-			})
+                        t.Run("AllowOwnAS_Delete", func(t *testing.T) {
+                                gnmi.Delete(t, dut, config.Config())
+                                time.Sleep(configDeleteTime)
+                                if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint8]) bool { return true }).Await(t); qs.IsPresent() {
+                                        t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/config/allow-own-as: got %v, want %v", qs, "")
+                                }
+                        })
+
+
 		})
 	}
 }
@@ -997,7 +998,8 @@ func TestSendCommunity(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				time.Sleep(configDeleteTime)
 				stateGot := gnmi.Get(t, dut, state.State())
-				if stateGot != oc.Bgp_CommunityType_UNSET {
+				if stateGot != oc.Bgp_CommunityType_NONE {
+			//	if stateGot != oc.Bgp_CommunityType_UNSET {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/send-community: got %v, want %v", stateGot, 0)
 				}
 			})
@@ -1043,10 +1045,9 @@ func TestASPathOptReplacePeerAS(t *testing.T) {
             t.Run("ReplacePeerAS_Delete", func(t *testing.T) {
                 gnmi.Delete(t, dut, config.Config())
                 time.Sleep(configDeleteTime)
-                stateGot := gnmi.Get(t, dut, state.State())
-                if (stateGot == false) || (stateGot == true) {
-                    t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/state/replace-peer-as-filter: got %v, want %v", stateGot, "")
-                }
+		if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
+			t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/config/replace-peer-as fail: got %v", qs)
+		}
             })
         })
     }
@@ -1084,6 +1085,13 @@ func TestPeerGrpAfiSafiUseMultiplePathsEnabled(t *testing.T) {
 				stateGot := gnmi.Get(t, dut, bgpState.PeerGroup(peerGroup).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled().State())
 				if stateGot != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/state/enabled: got %v, want %v", stateGot, input)
+				}
+			})
+
+			t.Run("Subscribe", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut,bgpState.PeerGroup(peerGroup).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled().State())
+				if stateGot != input {
+					t.Errorf("State-Telemetry /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/state/enabled: got %v, want %v", stateGot, input)
 				}
 			})
 		})
