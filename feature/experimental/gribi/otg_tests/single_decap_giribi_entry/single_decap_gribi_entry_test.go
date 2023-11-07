@@ -626,20 +626,25 @@ func TestSingleDecapGribiEntry(t *testing.T) {
 	}
 
 	cases := []struct {
-		desc           string
-		prefixWithMask string
+		desc   string
+		prefix string
+		mask   string
 	}{{
-		desc:           "Mask Length 24",
-		prefixWithMask: "192.51.100.0/24",
+		desc:   "Mask Length 24",
+		prefix: "192.51.100.0",
+		mask:   "24",
 	}, {
-		desc:           "Mask Length 32",
-		prefixWithMask: "192.51.100.64/32",
+		desc:   "Mask Length 32",
+		prefix: "192.51.100.64",
+		mask:   "32",
 	}, {
-		desc:           "Mask Length 28",
-		prefixWithMask: "192.51.100.64/28",
+		desc:   "Mask Length 28",
+		prefix: "192.51.100.64",
+		mask:   "28",
 	}, {
-		desc:           "Mask Length 22",
-		prefixWithMask: "192.51.100.0/22",
+		desc:   "Mask Length 22",
+		prefix: "192.51.100.0",
+		mask:   "22",
 	}}
 
 	for _, tc := range cases {
@@ -649,8 +654,9 @@ func TestSingleDecapGribiEntry(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			prefixWithMask := fmt.Sprintf("%s/%s", tc.prefix, tc.mask)
 			t.Run("Program gRIBi route", func(t *testing.T) {
-				configureGribiRoute(ctx, t, dut, args, tc.prefixWithMask)
+				configureGribiRoute(ctx, t, dut, args, prefixWithMask)
 			})
 			// Send both 6in4 and 4in4 packets. Verify that the packets have their outer
 			// v4 header stripped and are forwarded according to the route in the DEFAULT
