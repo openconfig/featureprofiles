@@ -637,16 +637,6 @@ func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
 }
 
-// TTLCopyUnsupported returns true for devices which does not support TTL copy.
-func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
-}
-
-// SkipV6TrafficCheckPostDecap returns true for devices which does not support v6 translation.
-func SkipV6TrafficCheckPostDecap(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipV6TrafficCheckPostDecap()
-}
-
 // TunnelStatePathUnsupported returns true for devices that require configuring
 // /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
 func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
@@ -678,4 +668,14 @@ func QosSetWeightConfigUnsupported(dut *ondatra.DUTDevice) bool {
 // QosGetStatePathUnsupported returns whether the device does not support get state leaves under qos.
 func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
+}
+
+// TTLCopyUnsupported returns true for devices which does not support TTL copy.
+func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
+}
+
+// SkipV6TrafficCheckPostDecap returns true for devices which does not support v6 translation.
+func SkipV6TrafficCheckPostDecap(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipV6TrafficCheckPostDecap()
 }

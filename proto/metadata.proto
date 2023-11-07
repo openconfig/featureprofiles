@@ -342,11 +342,6 @@ message Metadata {
     // OC unsupported for BGP LLGR disable.
     // Juniper: b/303479602
     bool bgp_llgr_oc_undefined = 116;
-    // TTL Copy unsupported.
-    // Juniper: b/307258544
-    bool ttl_copy_unsupported = 117;
-    // Juniper: b/309625079
-    bool skip_v6traffic_check_post_decap = 118;
     // Device does not support tunnel interfaces state paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
     bool tunnel_state_path_unsupported = 117;
@@ -361,6 +356,11 @@ message Metadata {
     bool qos_set_weight_config_unsupported = 121;
     // Cisco: Device does not support these get state path.
     bool qos_get_state_path_unsupported = 122;
+    // TTL Copy unsupported.
+    // Juniper: b/307258544
+    bool ttl_copy_unsupported = 123;
+    // Juniper: b/309625079
+    bool skip_v6traffic_check_post_decap = 124;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;
