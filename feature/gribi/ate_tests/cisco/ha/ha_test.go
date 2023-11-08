@@ -2614,12 +2614,11 @@ func TestHA(t *testing.T) {
 			}
 			//Monitor and eventConsumer
 			t.Log("creating event monitor")
-			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("DEFAULT").Afts().State(), subscription_timout*time.Minute)
-			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
-			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
-			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
-			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
-			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
+			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(15*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
+			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
+			// gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
+			// gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
+			// gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
 
 			eventConsumer := monitor.NewCachedConsumer(2*time.Hour, /*expiration time for events in the cache*/
 				1 /*number of events for keep for each leaf*/)
