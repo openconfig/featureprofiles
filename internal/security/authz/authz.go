@@ -114,25 +114,24 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 	}
 	t.Logf("Sending Authz.Rotate request on device: \n %s", prettyPrint(autzRotateReq))
 	err = rotateStream.Send(&authz.RotateAuthzRequest{RotateRequest: autzRotateReq, ForceOverwrite: forcOverwrite})
-	if err == nil {
-		t.Logf("Authz.Rotate upload was successful, receiving response ...")
-		_, err = rotateStream.Recv()
-		if err != nil {
-			t.Fatalf("Error while receiving rotate request reply %v", err)
-		}
-		// validate Result
-		_, tempPolicy := Get(t, dut)
-		if !cmp.Equal(p, tempPolicy) {
-			t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p, tempPolicy))
-		}
-		finalizeRotateReq := &authz.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authz.FinalizeRequest{}}
-		err = rotateStream.Send(&authz.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
-		t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%s", prettyPrint(finalizeRotateReq))
-		if err != nil {
-			t.Fatalf("Error while finalizing rotate request  %v", err)
-		}
-	} else {
+	if err != nil {
 		t.Fatalf("Error while uploading prob request reply %v", err)
+	}
+	t.Logf("Authz.Rotate upload was successful, receiving response ...")
+	_, err = rotateStream.Recv()
+	if err != nil {
+		t.Fatalf("Error while receiving rotate request reply %v", err)
+	}
+	// validate Result
+	_, tempPolicy := Get(t, dut)
+	if !cmp.Equal(p, tempPolicy) {
+		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p, tempPolicy))
+	}
+	finalizeRotateReq := &authz.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authz.FinalizeRequest{}}
+	err = rotateStream.Send(&authz.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
+	t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%s", prettyPrint(finalizeRotateReq))
+	if err != nil {
+		t.Fatalf("Error while finalizing rotate request  %v", err)
 	}
 	_, finalPolicy := Get(t, dut)
 	if !cmp.Equal(p, finalPolicy) {
