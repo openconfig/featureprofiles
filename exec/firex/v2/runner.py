@@ -545,7 +545,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         test_args = _update_test_args_from_env(test_args, extra_args_env_vars)
 
     test_args = f'{test_args} ' \
-        f'-log_dir {test_logs_dir_in_ws}'
+        f'-log_dir {test_logs_dir_in_ws} ' \
+        f'-outputs_dir {test_logs_dir_in_ws}'
 
     test_args += f' -binding {reserved_testbed["binding_file"]} -testbed {reserved_testbed["testbed_file"]} -xml "{xml_results_file}" '
     if test_verbose:
