@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // Package authz_test performs functional tests for authz service
+// TODO: Streaming Validation will be done in the subsequent PR
 package authz_test
 
 import (
