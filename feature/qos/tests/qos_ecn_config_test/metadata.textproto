@@ -43,6 +43,5 @@ platform_exceptions: {
     qos_set_weight_config_unsupported: true
     qos_get_state_path_unsupported: true
     qos_scheduler_config_required: true
-    interface_ref_config_unsupported: true
   }
 }
