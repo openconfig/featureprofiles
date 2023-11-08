@@ -134,6 +134,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "IC-1"
+  description: "Integrated Circuit Utilization and Thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization/README.md"
+  exec: " "
+}
+test: {
   id: "DP-1.9"
   description: "WRR traffic test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/wrr_traffic_test/README.md"
@@ -408,6 +414,12 @@ test: {
   id: "RT-7"
   description: "BGP default policies"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/default_policies_test/README.md"
+  exec: " "
+}
+test: {
+  id: "SFLOW-1"
+  description: "sFlow Configuration and Traffic Sampling"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/README.md"
   exec: " "
 }
 test: {
@@ -782,6 +794,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNMI-1.18"
+  description: "gNMI subscribe with sample mode for backplane capacity counters"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/README.md"
+  exec: " "
+}
+test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/ate_tests/telemetry_inventory_test/README.md"
@@ -877,4 +895,9 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_firmware_version_test/README.md"
   exec: " "
 }
-
+test: {
+  id: "TRANSCEIVER-4"
+  description: "400ZR Optics RX Input and TX Output Power streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_input_output_power_test/README.md"
+  exec: " "
+}
