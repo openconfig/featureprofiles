@@ -511,10 +511,24 @@ func (tc *testArgs) verifyCounterDiff(t *testing.T, before, after []*oc.Interfac
 func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable bool) {
 	var want []float64
 	lp := newLinkPairs(tc.dut, tc.ate)
+	pName := tc.dutPorts[1].Name()
+
 	// Update the interface config of one port in port-channel when the forwarding flag is set as false.
 	if !forwardingViable {
 		t.Log("First port does not forward traffic because it is marked as not viable.")
-		gnmi.Update(t, tc.dut, gnmi.OC().Interface(tc.dutPorts[1].Name()).ForwardingViable().Config(), forwardingViable)
+		gnmi.Update(t, tc.dut, gnmi.OC().Interface(pName).ForwardingViable().Config(), forwardingViable)
+	}
+
+	v := gnmi.Lookup(t, tc.dut, gnmi.OC().Interface(pName).ForwardingViable().State())
+	got, present := v.Val()
+	t.Logf("First port %s forwarding-viable: got %v, present %v, want %v", pName, got, present, forwardingViable)
+	switch {
+	case present && got != forwardingViable:
+		t.Errorf("First port %s forwarding-viable: got %t, want %t", pName, got, forwardingViable)
+	case !present && !deviations.MissingValueForDefaults(tc.dut):
+		t.Errorf("First port %s forwarding-viable value not found", pName)
+	case !present && deviations.MissingValueForDefaults(tc.dut) && !forwardingViable:
+		t.Errorf("First port %s forwarding-viable defaults true not equal to %t", pName, forwardingViable)
 	}
 
 	i1 := ateSrc.Name

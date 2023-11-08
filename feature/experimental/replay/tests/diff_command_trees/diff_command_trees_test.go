@@ -29,9 +29,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestReplay(t *testing.T) {
-	const logFile = "https://github.com/openconfig/featureprofiles/raw/main/feature/experimental/replay/tests/diff_command_trees/grpclog.pb"
+	const logFile = "grpclog.pb"
 	t.Logf("Parsing log file: %v", logFile)
-	rec := replayer.ParseURL(t, logFile)
+	rec := replayer.ParseFile(t, logFile)
 
 	dut := ondatra.DUT(t, "dut")
 	portMap := map[string]string{}
