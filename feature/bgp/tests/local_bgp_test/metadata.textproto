@@ -22,7 +22,6 @@ platform_exceptions: {
   deviations: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
-    route_policy_under_afi_unsupported: true
     missing_value_for_defaults: true
     interface_enabled: true
   }
