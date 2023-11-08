@@ -679,7 +679,7 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
         ate['otg'] = {
             'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port']),
             'insecure': True,
-            'timeout': 30
+            'timeout': 100
         }
 
         ate['gnmi'] = {
