@@ -417,6 +417,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "SFLOW-1"
+  description: "sFlow Configuration and Traffic Sampling"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/README.md"
+  exec: " "
+}
+test: {
   id: "TE-1.1"
   description: "Static ARP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/staticarp/otg_tests/static_arp_test/README.md"
