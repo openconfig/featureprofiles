@@ -292,10 +292,6 @@ message Metadata {
     // lspLifetimeInterval is configured.
     // Arista: partnerissuetracker.corp.google.com/293667850
     bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
-    // Devices require configuring LoopbackMode on member ports to enable
-    // LoopbackMode on aggregate interface.
-    // Arista: partnerissuetracker.corp.google.com/297391260
-    bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for linecards' CPU card.
     bool linecard_cpu_utilization_unsupported = 98;
@@ -352,12 +348,20 @@ message Metadata {
     // Device does not support tunnel interfaces source and destination address config paths
     // Juniper: partnerissuetracker.corp.google.com/300111031
     bool tunnel_config_path_unsupported = 118;
+    // Cisco: Device does not support same minimun and maximum threshold value in QOS ECN config.
+    bool ecn_same_min_max_threshold_unsupported = 119;
+    // Cisco: QOS requires scheduler configuration.
+    bool qos_scheduler_config_required = 120;
+    // Cisco: Device does not support set weight config under QOS ECN configuration.
+    bool qos_set_weight_config_unsupported = 121;
+    // Cisco: Device does not support these get state path.
+    bool qos_get_state_path_unsupported = 122;
     // Devices requires enabled leaf under isis level
     // Juniper: partnerissuetracker.corp.google.com/302661486
-    bool isis_level_enabled = 119;
-
+    bool isis_level_enabled = 123;
+    
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90;
+    reserved 84, 9, 28, 20, 90, 97;
   }
 
   message PlatformExceptions {
