@@ -51,6 +51,7 @@ var (
 		ondatra.ARISTA:  16,
 		ondatra.CISCO:   6,
 		ondatra.JUNIPER: 8,
+		ondatra.NOKIA:   16,
 	}
 )
 
