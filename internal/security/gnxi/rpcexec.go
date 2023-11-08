@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gnsi/authz"
 	gribi "github.com/openconfig/gribi/v1/proto/service"
@@ -15,8 +16,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // function AllRPC implements a sample request for service * to validate if authz works as expected.
