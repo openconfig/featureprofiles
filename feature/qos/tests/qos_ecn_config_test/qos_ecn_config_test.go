@@ -36,6 +36,13 @@ type Testcase struct {
 	fn   func(t *testing.T, q *oc.Qos)
 }
 
+// For Cisco devices, minimum and maximum threshold values can't be the same,
+// as well as it should be a multiple of 6,144 bytes
+const (
+	CiscoMinThreshold = (uint64(8005632))
+	CiscoMaxThreshold = (uint64(8011776))
+)
+
 var (
 	QoSEcnConfigTestcases = []Testcase{
 		{
@@ -110,21 +117,167 @@ func testECNConfig(t *testing.T, q *oc.Qos) {
 	uniform := wred.GetOrCreateUniform()
 	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
 	uniform.SetDrop(ecnConfig.dropEnabled)
-	uniform.SetMinThreshold(ecnConfig.minThreshold)
-	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
+	wantMinThreshold := ecnConfig.minThreshold
+	wantMaxThreshold := ecnConfig.maxThreshold
+	if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
+		wantMinThreshold = CiscoMinThreshold
+		wantMaxThreshold = CiscoMaxThreshold
+	}
+	uniform.SetMinThreshold(wantMinThreshold)
+	uniform.SetMaxThreshold(wantMaxThreshold)
 	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
-	uniform.SetWeight(ecnConfig.weight)
+	if !deviations.QosSetWeightConfigUnsupported(dut) {
+		uniform.SetWeight(ecnConfig.weight)
+	}
+	if deviations.QosSchedulerConfigRequired(dut) {
+		schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
+		schedulerPolicy.SetName("scheduler")
+		dp := dut.Port(t, "port2")
+		i := q.GetOrCreateInterface(dp.Name())
+		i.SetInterfaceId(dp.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
+
+		queueName := []string{"NC1", "AF4", "AF3", "AF2", "AF1", "BE0", "BE1"}
+
+		for i, queue := range queueName {
+			q1 := q.GetOrCreateQueue(queue)
+			q1.Name = ygot.String(queue)
+			queueid := len(queueName) - i
+			q1.QueueId = ygot.Uint8(uint8(queueid))
+
+		}
+		cases := []struct {
+			desc         string
+			sequence     uint32
+			priority     oc.E_Scheduler_Priority
+			inputID      string
+			inputType    oc.E_Input_InputType
+			weight       uint64
+			queueName    string
+			targetGrpoup string
+			ecnProfile   string
+			scheduler    string
+		}{{
+			desc:         "scheduler-policy-BE1",
+			sequence:     uint32(1),
+			priority:     oc.Scheduler_Priority_UNSET,
+			inputType:    oc.Input_InputType_QUEUE,
+			weight:       uint64(1),
+			queueName:    "BE1",
+			targetGrpoup: "target-group-BE1",
+			ecnProfile:   "DropProfile",
+			scheduler:    "scheduler",
+		}, {
+			desc:         "scheduler-policy-BE0",
+			sequence:     uint32(1),
+			priority:     oc.Scheduler_Priority_UNSET,
+			inputType:    oc.Input_InputType_QUEUE,
+			weight:       uint64(4),
+			queueName:    "BE0",
+			targetGrpoup: "target-group-BE0",
+			ecnProfile:   "DropProfile",
+			scheduler:    "scheduler",
+		}, {
+			desc:         "scheduler-policy-AF1",
+			sequence:     uint32(1),
+			priority:     oc.Scheduler_Priority_UNSET,
+			inputType:    oc.Input_InputType_QUEUE,
+			weight:       uint64(8),
+			queueName:    "AF1",
+			targetGrpoup: "target-group-AF1",
+			ecnProfile:   "DropProfile",
+			scheduler:    "scheduler",
+		}, {
+			desc:         "scheduler-policy-AF2",
+			sequence:     uint32(1),
+			priority:     oc.Scheduler_Priority_UNSET,
+			inputType:    oc.Input_InputType_QUEUE,
+			weight:       uint64(16),
+			queueName:    "AF2",
+			ecnProfile:   "DropProfile",
+			scheduler:    "scheduler",
+			targetGrpoup: "target-group-AF2",
+		}, {
+			desc:         "scheduler-policy-AF3",
+			sequence:     uint32(1),
+			priority:     oc.Scheduler_Priority_UNSET,
+			inputType:    oc.Input_InputType_QUEUE,
+			weight:       uint64(32),
+			queueName:    "AF3",
+			targetGrpoup: "target-group-AF3",
+			ecnProfile:   "DropProfile",
+			scheduler:    "scheduler",
+		}, {
+			desc:         "scheduler-policy-AF4",
+			sequence:     uint32(0),
+			priority:     oc.Scheduler_Priority_STRICT,
+			inputType:    oc.Input_InputType_QUEUE,
+			weight:       uint64(6),
+			queueName:    "AF4",
+			targetGrpoup: "target-group-AF4",
+			ecnProfile:   "DropProfile",
+			scheduler:    "scheduler",
+		}, {
+			desc:         "scheduler-policy-NC1",
+			sequence:     uint32(0),
+			priority:     oc.Scheduler_Priority_STRICT,
+			inputType:    oc.Input_InputType_QUEUE,
+			weight:       uint64(7),
+			queueName:    "NC1",
+			targetGrpoup: "target-group-NC1",
+			ecnProfile:   "DropProfile",
+			scheduler:    "scheduler",
+		}}
+
+		t.Logf("qos scheduler policies config cases: %v", cases)
+		for _, tc := range cases {
+			t.Run(tc.desc, func(t *testing.T) {
+				s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
+				s.SetSequence(tc.sequence)
+				s.SetPriority(tc.priority)
+				input := s.GetOrCreateInput(tc.queueName)
+				input.SetId(tc.queueName)
+				input.SetInputType(tc.inputType)
+				input.SetQueue(tc.queueName)
+				input.SetWeight(tc.weight)
+
+				output := i.GetOrCreateOutput()
+				schedulerPolicy := output.GetOrCreateSchedulerPolicy()
+				schedulerPolicy.SetName(tc.scheduler)
+				queue := output.GetOrCreateQueue(tc.queueName)
+				queue.SetQueueManagementProfile(tc.ecnProfile)
+				queue.SetName(tc.queueName)
+
+			})
+		}
+	}
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	// Verify the QueueManagementProfile is applied by checking the telemetry path state values.
 	wredUniform := gnmi.OC().Qos().QueueManagementProfile("DropProfile").Wred().Uniform()
-	if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
-		t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
-	}
-	if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), ecnConfig.maxDropProbabilityPercent; got != want {
-		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
+	if deviations.QosGetStatePathUnsupported(dut) {
+		if got, want := gnmi.GetConfig(t, dut, wredUniform.EnableEcn().Config()), ecnConfig.ecnEnabled; got != want {
+			t.Errorf("wredUniform.EnableEcn().Config(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxDropProbabilityPercent().Config()), ecnConfig.maxDropProbabilityPercent; got != want {
+			t.Errorf("wredUniform.MaxDropProbabilityPercent().Config(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.GetConfig(t, dut, wredUniform.MinThreshold().Config()), wantMinThreshold; got != want {
+			t.Errorf("wredUniform.MinThreshold().Config(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxThreshold().Config()), wantMaxThreshold; got != want {
+			t.Errorf("wredUniform.MaxThreshold().Config(): got %v, want %v", got, want)
+		}
+	} else {
+		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
+			t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), ecnConfig.maxDropProbabilityPercent; got != want {
+			t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
+		}
+
 	}
 	if !deviations.StatePathsUnsupported(dut) {
 		if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
@@ -236,6 +389,17 @@ func testQoSOutputIntfConfig(t *testing.T, q *oc.Qos) {
 			}
 			if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), tc.ecnProfile; got != want {
 				t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
+			}
+		}
+		if deviations.QosGetStatePathUnsupported(dut) {
+			if got, want := gnmi.GetConfig(t, dut, policy.Name().Config()), tc.scheduler; got != want {
+				t.Errorf("policy.Name().Config(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.GetConfig(t, dut, outQueue.Name().Config()), tc.queueName; got != want {
+				t.Errorf("outQueue.Name().Config(): got %v, want %v", got, want)
+			}
+			if got, want := gnmi.GetConfig(t, dut, outQueue.QueueManagementProfile().Config()), tc.ecnProfile; got != want {
+				t.Errorf("outQueue.QueueManagementProfile().Config(): got %v, want %v", got, want)
 			}
 		}
 	}
