@@ -43,7 +43,7 @@ import (
 
 type spiffe struct {
 	spiffeID string
-	// tls config that is created created using ca bundle and svid of the user
+	// tls config that is created using ca bundle and svid of the user
 	tslConf *tls.Config
 }
 
@@ -749,4 +749,59 @@ func TestAuthz4(t *testing.T) {
 	if resp.GetCreatedOn() != expCreatedOn {
 		t.Errorf("Created On has Changed to %v from Expected Created On %v after Reboot Trigger", resp.GetCreatedOn(), expCreatedOn)
 	}
+	// Verify all results match per the above table for policy policy-normal-1
+	authTable := authorizationTable{
+		table: map[string]access{
+			"cert_user_admin": struct {
+				allowed []*gnxi.RPC
+				denied  []*gnxi.RPC
+			}{
+				allowed: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_GET,
+					gnxi.RPCs.GNOI_SYSTEM_TIME, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE, gnxi.RPCs.GNMI_SET},
+			},
+			"cert_user_fake": {
+				denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET, gnxi.RPCs.GNMI_GET,
+					gnxi.RPCs.GNOI_SYSTEM_TIME, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
+			},
+			"cert_gribi_modify": {
+				denied: []*gnxi.RPC{gnxi.RPCs.GNMI_SET, gnxi.RPCs.GNMI_GET,
+					gnxi.RPCs.GNOI_SYSTEM_TIME, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
+				allowed: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY},
+			},
+			"cert_gnmi_set": {
+				denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY,
+					gnxi.RPCs.GNOI_SYSTEM_TIME, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
+				allowed: []*gnxi.RPC{gnxi.RPCs.GNMI_GET, gnxi.RPCs.GNMI_SET},
+			},
+			"cert_gnoi_time": {
+				denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET,
+					gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE, gnxi.RPCs.GNMI_GET,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
+				allowed: []*gnxi.RPC{gnxi.RPCs.GNOI_SYSTEM_TIME},
+			},
+			"cert_gnoi_ping": {
+				denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE, gnxi.RPCs.GNMI_GET,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE, gnxi.RPCs.GNOI_SYSTEM_TIME},
+				allowed: []*gnxi.RPC{gnxi.RPCs.GNOI_SYSTEM_PING},
+			},
+			"cert_gnsi_probe": {
+				denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNMI_GET,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNOI_SYSTEM_TIME},
+				allowed: []*gnxi.RPC{gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
+			},
+			"cert_read_only": {
+				denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNOI_SYSTEM_TIME,
+					gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
+				allowed: []*gnxi.RPC{gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GNMI_GET},
+			},
+		},
+	}
+	authTable.verifyAuthorization(t, dut)
 }
