@@ -356,6 +356,8 @@ message Metadata {
     bool qos_set_weight_config_unsupported = 121;
     // Cisco: Device does not support these get state path.
     bool qos_get_state_path_unsupported = 122;
+    // Devices which require to use interface-id format of interface name + .subinterface index with Interface-ref container
+    bool interface_ref_interface_id_format = 123;    
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;
