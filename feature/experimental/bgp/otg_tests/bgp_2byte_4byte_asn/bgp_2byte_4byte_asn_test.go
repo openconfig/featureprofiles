@@ -64,6 +64,11 @@ func TestMain(m *testing.M) {
 }
 
 func TestBgpSession(t *testing.T) {
+	t.Log("Clear ATE configuration")
+	ate := ondatra.ATE(t, "ate")
+	top := gosnappi.NewConfig()
+	ate.OTG().PushConfig(t, top)
+
 	t.Log("Configure DUT interface")
 	dut := ondatra.DUT(t, "dut")
 	dc := gnmi.OC()
