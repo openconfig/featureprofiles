@@ -68,7 +68,7 @@ duts {
     target: "10.85.191.7:58000" 
   }
   p4rt{
-   target: "10.85.191.7:58000"
+   target: "10.85.191.7:57779"
   }
 
   # Before this binding can be used with a topology, add ports mapping
