@@ -51,7 +51,7 @@ jobs:
         # Create symlink
         go list -f "{{ .Dir }} "${PROTOBUF_IMPORT_DIR}"/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
         cd "${fp_proto_dir}"
-        find . -name \*.proto -exec api-linter -I./"${PROTOBUF_IMPORT_DIR}" --disable-rule all --enable-rule core {} \+
+        find . -name \*.proto -exec api-linter -I"${OLDPWD}"/"${PROTOBUF_IMPORT_DIR}" --disable-rule all --enable-rule core {} \+
     - name: Compile topology binding textprotos
       run: |
         fail=0
