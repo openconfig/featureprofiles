@@ -669,3 +669,8 @@ func QosSetWeightConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
 }
+
+// ISISLevelEnabled returns if device should enable isis under level.
+func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
+}
