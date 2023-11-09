@@ -38,7 +38,9 @@ const (
 	rejectCommunity     = "REJECT-COMMUNITY"
 	rejectAspath        = "REJECT-AS-PATH"
 	aclStatement1       = "10"
-	aclStatement2       = "50"
+	aclStatement2       = "20"
+	aclStatement3       = "50"
+	aclStatement4       = "60"
 	prefixSubnetRangeV4 = "30..32"
 	prefixSubnetRangeV6 = "126..128"
 	globalAsNumber      = 999
@@ -167,16 +169,20 @@ func TestBgpSession(t *testing.T) {
 			pol := applyBgpPolicy(rejectPrefix, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
 			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
+			deleteBgpPolicy(t, dut, tc.nbr.isV4)
+			verifyPrefixesTelemetry(t, dut, 3, tc.nbr.isV4)
 
 			t.Log("Apply BGP policy for rejecting prefix with community filter")
 			pol = applyBgpPolicy(rejectCommunity, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
-			verifyPrefixesTelemetry(t, dut, 1, tc.nbr.isV4)
+			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
+			deleteBgpPolicy(t, dut, tc.nbr.isV4)
+			verifyPrefixesTelemetry(t, dut, 3, tc.nbr.isV4)
 
 			t.Log("Apply BGP policy for rejecting prefix with as-path regex filter")
 			pol = applyBgpPolicy(rejectAspath, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
-			verifyPrefixesTelemetry(t, dut, 0, tc.nbr.isV4)
+			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 
 			t.Log("Clear BGP Configs on ATE")
 			tc.ateConf.StopProtocols(t)
@@ -252,12 +258,18 @@ func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool) *oc.RoutingPolicy {
 	}
 	pdef := rp.GetOrCreatePolicyDefinition(rejectPrefix)
 
-	stmt5, err := pdef.AppendNewStatement(aclStatement1)
+	stmt10, err := pdef.AppendNewStatement(aclStatement1)
 	if err != nil {
 		t.Errorf("Error while creating new statement %v", err)
 	}
-	stmt5.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
-	stmt5.GetOrCreateConditions().GetOrCreateMatchPrefixSet().PrefixSet = ygot.String(rejectPrefix)
+	stmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+	stmt10.GetOrCreateConditions().GetOrCreateMatchPrefixSet().PrefixSet = ygot.String(rejectPrefix)
+
+	stmt20, err := pdef.AppendNewStatement(aclStatement2)
+	if err != nil {
+		t.Errorf("Error while creating new statement %v", err)
+	}
+	stmt20.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	commSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySet)
 	commSet.CommunitySetName = ygot.String(communitySet)
@@ -269,18 +281,25 @@ func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool) *oc.RoutingPolicy {
 	commSet.SetCommunityMember(communityMembers)
 	pdefComm := rp.GetOrCreatePolicyDefinition(rejectCommunity)
 
-	stmt50, err := pdefComm.AppendNewStatement(aclStatement2)
+	stmt50, err := pdefComm.AppendNewStatement(aclStatement3)
 	if err != nil {
 		t.Errorf("Error while creating new statement %v", err)
 	}
 	stmt50.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 	stmt50.GetOrCreateConditions().GetOrCreateBgpConditions().CommunitySet = ygot.String(communitySet)
 
+	stmt60, err := pdefComm.AppendNewStatement(aclStatement4)
+	if err != nil {
+		t.Errorf("Error while creating new statement %v", err)
+	}
+	stmt60.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
 	return rp
 }
 
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled uint32, isV4 bool) {
 	t.Helper()
+	t.Logf("Verify BGP prefix count")
 	if isV4 {
 		verifyPrefixesTelemetryV4(t, dut, wantInstalled)
 	} else {
@@ -429,6 +448,18 @@ func applyBgpPolicy(policyName string, dut *ondatra.DUTDevice, isV4 bool) *oc.Ne
 	rpl.SetImportPolicy([]string{policyName})
 
 	return niProto
+}
+
+func deleteBgpPolicy(t *testing.T, dut *ondatra.DUTDevice, isV4 bool) {
+	t.Helper()
+	t.Logf("Delete BGP policy on DUT")
+	aftType := oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
+	if isV4 {
+		aftType = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+	}
+
+	policyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup("ATE").AfiSafi(aftType).ApplyPolicy().Config()
+	gnmi.Delete(t, dut, policyConfPath)
 }
 
 func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
