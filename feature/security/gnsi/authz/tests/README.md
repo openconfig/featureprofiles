@@ -323,10 +323,7 @@ For each of the scenarios in this section, we need to exercise the following 3 a
   2. Ensure all results match per the following:
     // TODO: Clarify what fake user is here? a user with invalid certificate?
     * `cert_user_fake` is denied to issue `gNMI.Get` method.
-    * `cert_user_fake` is denied to issue `gRIBI.Get` method.
     * `cert_user_admin` is allowed to issue `gRIBI.Get` method.
-    * `cert_user_admin` is denied to issue `gNMI.Get` method.
-
 
 * Authz-1.3, "Test that there can only be one policy"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-gribi-get`, with `create_on` = `100` and `version` = `policy-gribi-get_v1`.
