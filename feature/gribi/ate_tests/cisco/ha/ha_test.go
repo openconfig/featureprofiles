@@ -1836,21 +1836,31 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 
 	// multi_process_gribi_programming(t, args.events, args)
 
-	configureDeviceId(args.ctx, t, args.dut)
-	configurePortId(args.ctx, t, args.dut)
-	p4rtPacketOut(t, args.events, args)
-	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
+	// configureDeviceId(args.ctx, t, args.dut)
+	// configurePortId(args.ctx, t, args.dut)
+	// p4rtPacketOut(t, args.events, args)
 	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
+
+	//runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
+	runner.RunTestInBackground(args.ctx, t, time.NewTimer(30*time.Second), testGroup, args.events, multi_process_gnmi, args)
 
 	testGroup.Wait()
 }
 
 //lint:ignore U1000 Ignore unused function temporarily for debugging
 func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
-
 	// base programming
 	arg := args[0].(*testArgs)
 	baseProgramming(arg.ctx, t, arg)
+}
+
+func multi_process_gnmi(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
+	arg := args[0].(*testArgs)
+	adminStatus := gnmi.Get(t, arg.dut, gnmi.OC().Interface(arg.dut.Port(t, "port1").Name()).AdminStatus().State())
+	t.Logf("Got %s AdminStatus from telmetry: %v", arg.dut.Port(t, "port1").Name(), adminStatus)
+	if adminStatus != oc.Interface_AdminStatus_UP {
+		t.Errorf("Get(DUT port1 OperStatus): got %v, want %v", adminStatus, oc.Interface_AdminStatus_UP)
+	}
 }
 
 func test_triggers(t *testing.T, args *testArgs) {
@@ -2564,11 +2574,11 @@ func TestHA(t *testing.T) {
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		{
-			name: "check_microdrops",
-			desc: "With traffic running do delete/update/create programming and look for drops",
-			fn:   test_microdrops,
-		},
+		// {
+		// 	name: "check_microdrops",
+		// 	desc: "With traffic running do delete/update/create programming and look for drops",
+		// 	fn:   test_microdrops,
+		// },
 		// {
 		// 	name: "Restart RFPO with programming",
 		// 	desc: "After programming, perform RPFO try new programming and validate traffic",
@@ -2589,11 +2599,11 @@ func TestHA(t *testing.T) {
 		// 	desc: "With traffic running, validate multiple triggers",
 		// 	fn:   test_triggers,
 		// },
-		// {
-		// 	name: "check multiple clients",
-		// 	desc: "With traffic running, validate use of multiple clients",
-		// 	fn:   test_multiple_clients,
-		// },
+		{
+			name: "check multiple clients",
+			desc: "With traffic running, validate use of multiple clients",
+			fn:   test_multiple_clients,
+		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2617,8 +2627,8 @@ func TestHA(t *testing.T) {
 			}
 			//Monitor and eventConsumer
 			t.Log("creating event monitor")
-			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(15*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
-			gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
+			// gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(15*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
+			// gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
 			// gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
 			// gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
 			// gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), gnmi.OC().NetworkInstance("TE").Afts().State(), subscription_timout*time.Minute)
