@@ -50,6 +50,13 @@ jobs:
         go list -f "${PROTOBUF_IMPORT_DIR}/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 dirname | sort | uniq | xargs mkdir -p
         # Create symlink
         go list -f "{{ .Dir }} "${PROTOBUF_IMPORT_DIR}"/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
+        echo debug1
+        find "${fp_proto_dir}" -name \*.proto
+        echo debug2
+        find -name \*.proto
+        echo debug3
+        # mkdir -p ${PROTOBUF_IMPORT_DIR}/github.com/openconfig/featureprofiles
+        # cp -r proto ${PROTOBUF_IMPORT_DIR}/github.com/openconfig/featureprofiles
         find "${fp_proto_dir}" -name \*.proto -exec api-linter -I./"${PROTOBUF_IMPORT_DIR}" --disable-rule all --enable-rule core {} \+
     - name: Compile topology binding textprotos
       run: |
