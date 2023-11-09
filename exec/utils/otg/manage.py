@@ -188,6 +188,8 @@ start_parser = command_parser.add_parser("start", help="start OTG container")
 start_parser.add_argument('testbed', help="testbed id")
 stop_parser = command_parser.add_parser("stop", help="stop OTG container")
 stop_parser.add_argument('testbed', help="testbed id")
+restart_parser = command_parser.add_parser("restart", help="restart OTG container")
+restart_parser.add_argument('testbed', help="testbed id")
 bindings_parser = command_parser.add_parser("bindings", help="generate Ondatra bindings")
 bindings_parser.add_argument('testbed', help="testbed id")
 bindings_parser.add_argument('--out_dir', default='', help="output directory")
@@ -222,13 +224,13 @@ if command == "bindings":
     print('You can run the following command to setup your enviroment:')
     print(f'source {setup_file}')
     
-elif command == "stop":
+if command in ["stop", "restart"]:
     kne_host = reserved_testbed['otg']['host']
     check_output(
         f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} down'
     )
 
-elif command == "start":
+if command in ["start", "restart"]:
     with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as f:
         kne_host = reserved_testbed['otg']['host']
         docker_compose_file_path = f.name
