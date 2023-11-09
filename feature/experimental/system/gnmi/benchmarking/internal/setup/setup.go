@@ -176,6 +176,9 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
 	isisLevel2Auth := isisLevel2.GetOrCreateAuthentication()
 	isisLevel2Auth.Enabled = ygot.Bool(true)
 	if deviations.ISISExplicitLevelAuthenticationConfig(dut) {
