@@ -9,7 +9,7 @@ import (
 
 // cisco tests flags.
 var (
-	GRIBITrafficCheck = flag.Bool("gribi_traffic_check", false,
+	GRIBITrafficCheck = flag.Bool("gribi_traffic_check", true,
 		"This enable/disable traffic check for gribi tests.")
 
 	GRIBIAFTCheck = flag.Bool("gribi_aft_check", true,
