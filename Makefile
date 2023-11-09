@@ -46,6 +46,7 @@ proto/metadata_go_proto/metadata.pb.go: proto/metadata.proto
 proto/ocpaths_go_proto/ocpaths.pb.go: proto/ocpaths.proto
 	mkdir -p proto/ocpaths_go_proto
 	protoc --proto_path=proto --go_out=./ --go_opt=Mocpaths.proto=proto/ocpaths_go_proto ocpaths.proto
+	goimports -w proto/ocpaths_go_proto/ocpaths.pb.go
 
 proto/nosimage_go_proto/nosimage.pb.go: proto/nosimage.proto
 	mkdir -p proto/nosimage_go_proto
