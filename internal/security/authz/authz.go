@@ -192,7 +192,10 @@ func (p *AuthorizationPolicy) PrettyPrint() string {
 // Verify uses prob to validate if the user access for a certain rpc is expected.
 // It also execute the rpc when hardVerif is set to true and verifies if it matches the expectation.
 func Verify(t testing.TB, dut *ondatra.DUTDevice, user string, rpc *gnxi.RPC, tlsCfg *tls.Config, expectDeny, hardVerify bool) {
-	gnsiC := dut.RawAPIs().GNSI(t)
+	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
+	if err != nil {
+		t.Fatalf("Could not connect gnsi %v", err)
+	}
 	resp, err := gnsiC.Authz().Probe(context.Background(), &authz.ProbeRequest{User: user, Rpc: rpc.Path})
 	if err != nil {
 		t.Fatalf("Prob Request %s failed on dut %s", prettyPrint(&authz.ProbeRequest{User: user, Rpc: rpc.Path}), dut.Name())
