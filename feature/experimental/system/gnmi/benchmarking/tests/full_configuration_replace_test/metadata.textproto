@@ -24,6 +24,7 @@ platform_exceptions: {
   }
   deviations: {
     route_policy_under_afi_unsupported: true
+    isis_level_enabled: true
   }
 }
 platform_exceptions: {
