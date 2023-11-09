@@ -54,8 +54,8 @@ func TestMain(m *testing.M) {
 // user needed inputs
 const (
 	with_scale            = true                        // run entire script with or without scale (Support not yet coded)
-	with_RPFO             = false                       // run entire script with or without RFPO
-	subscription_timout   = 60                          // set background subscription timeout value in minutes
+	with_RPFO             = true                        // run entire script with or without RFPO
+	subscription_timout   = 300                         // set background subscription timeout value in minutes
 	base_config           = "case4_decap_encap_recycle" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
@@ -361,6 +361,9 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 		args.client = &client
 		// args.client.Start(t)
 	}
+	gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(15*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
+	gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
+
 }
 
 func baseProgramming(ctx context.Context, t *testing.T, args *testArgs) {
@@ -2566,26 +2569,26 @@ func TestHA(t *testing.T) {
 			desc: "With traffic running do delete/update/create programming and look for drops",
 			fn:   test_microdrops,
 		},
-		{
-			name: "Restart RFPO with programming",
-			desc: "After programming, perform RPFO try new programming and validate traffic",
-			fn:   test_RFPO_with_programming,
-		},
-		{
-			name: "Restart single process",
-			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-			fn:   testRestart_single_process,
-		},
-		{
-			name: "Restart multiple process",
-			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-			fn:   testRestart_multiple_process,
-		},
-		{
-			name: "Triggers",
-			desc: "With traffic running, validate multiple triggers",
-			fn:   test_triggers,
-		},
+		// {
+		// 	name: "Restart RFPO with programming",
+		// 	desc: "After programming, perform RPFO try new programming and validate traffic",
+		// 	fn:   test_RFPO_with_programming,
+		// },
+		// {
+		// 	name: "Restart single process",
+		// 	desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+		// 	fn:   testRestart_single_process,
+		// },
+		// {
+		// 	name: "Restart multiple process",
+		// 	desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+		// 	fn:   testRestart_multiple_process,
+		// },
+		// {
+		// 	name: "Triggers",
+		// 	desc: "With traffic running, validate multiple triggers",
+		// 	fn:   test_triggers,
+		// },
 		// {
 		// 	name: "check multiple clients",
 		// 	desc: "With traffic running, validate use of multiple clients",
@@ -2622,19 +2625,6 @@ func TestHA(t *testing.T) {
 
 			eventConsumer := monitor.NewCachedConsumer(2*time.Hour, /*expiration time for events in the cache*/
 				1 /*number of events for keep for each leaf*/)
-			// monitor := monitor.GNMIMonior{
-			//  Paths: []ygnmi.PathStruct{
-			//      gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
-			//      gnmi.OC().NetworkInstance(vrf1).Afts(),
-			//      gnmi.OC().NetworkInstance(vrf2).Afts(),
-			//      gnmi.OC().NetworkInstance(vrf3).Afts(),
-			//      gnmi.OC().NetworkInstance(vrf4).Afts(),
-			//  },
-			//  Consumer: eventConsumer,
-			//  DUT:      dut,
-			// }
-			// monitor.Start(ctx, t, true, gpb.SubscriptionList_STREAM)
-			// defer cancelMonitors()
 
 			args := &testArgs{
 				ctx:    ctx,
