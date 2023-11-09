@@ -23,8 +23,6 @@ syntax = "proto3";
 
 package openconfig.ocpaths;
 
-option go_package = "github.com/openconfig/featureprofiles/proto/ocpaths";
-
 // OCPaths is the complete list of all OpenConfig paths associated with some
 // entity (e.g. NOS, or path requirements list for a particular device role).
 message OCPaths {

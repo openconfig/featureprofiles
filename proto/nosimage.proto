@@ -19,8 +19,6 @@ syntax = "proto3";
 
 package openconfig.profiles.nosimage;
 
-option go_package = "github.com/openconfig/featureprofiles/proto/nosimage";
-
 import "github.com/openconfig/featureprofiles/proto/ocpaths.proto";
 import "github.com/openconfig/ondatra/proto/testbed.proto";
 import "google/protobuf/timestamp.proto";

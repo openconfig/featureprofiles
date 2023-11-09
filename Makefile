@@ -49,5 +49,5 @@ proto/ocpaths_go_proto/ocpaths.pb.go: proto/ocpaths.proto
 
 proto/nosimage_go_proto/nosimage.pb.go: proto/nosimage.proto
 	mkdir -p proto/nosimage_go_proto
-	protoc -I="${GOPATH}/src" --proto_path=proto --go_out=./proto/nosimage_go_proto --go_opt=paths=source_relative nosimage.proto
+	protoc -I="${GOPATH}/src" --proto_path=proto --go_out=./proto/nosimage_go_proto --go_opt=paths=source_relative --go_opt=Mnosimage.proto=proto/nosimage_go_proto --go_opt=Mgithub.com/openconfig/featureprofiles/proto/ocpaths.proto=github.com/openconfig/featureprofiles/proto/ocpaths_go_proto nosimage.proto
 	goimports -w proto/nosimage_go_proto/nosimage.pb.go
