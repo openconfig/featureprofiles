@@ -171,8 +171,9 @@ def _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file):
 def _write_baseconf_file(fp_repo_dir, reserved_testbed, baseconf_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["baseconf"]), baseconf_file)
 
-def _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file):
+def _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file):
     setup_script = f"""
+export TESTBED_ID={testbed_id}
 export BASECONF={baseconf_file}
 export TESTBED={testbed_file}
 export ATE_BINDING={ate_binding_file}
@@ -220,7 +221,7 @@ if command == "bindings":
     _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file)
     _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file)
     _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file)
-    _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file)
+    _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file)
     print('You can run the following command to setup your enviroment:')
     print(f'source {setup_file}')
     
