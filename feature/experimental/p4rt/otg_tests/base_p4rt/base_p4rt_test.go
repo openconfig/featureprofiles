@@ -465,7 +465,7 @@ func TestP4rtConnect(t *testing.T) {
 		})
 		expected_entity = expected_update[0]
 		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
-			t.Errorf("Table entry for traceroute %s", err)
+			t.Errorf("TableEntry for traceroute v4 & ttl=1: %s", err)
 		}
 
 		// Construct expected table for traceroute v4 & TTL = 0 to match with received table entry
@@ -480,7 +480,7 @@ func TestP4rtConnect(t *testing.T) {
 		})
 		expected_entity = expected_update[0]
 		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
-			t.Errorf("Table entry for traceroute %s", err)
+			t.Errorf("TableEntry for traceroute v4 & ttl=0: %s", err)
 		}
 		// Construct expected table for traceroute v4 & TTL = 2 to match with received table entry
 		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
@@ -494,7 +494,7 @@ func TestP4rtConnect(t *testing.T) {
 		})
 		expected_entity = expected_update[0]
 		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
-			t.Errorf("Table entry for traceroute %s", err)
+			t.Errorf("TableEntry for traceroute v4 & ttl=2: %s", err)
 		}
 
 		// Construct expected table for traceroute v6 & TTL = 0 to match with received table entry
@@ -509,7 +509,7 @@ func TestP4rtConnect(t *testing.T) {
 		})
 		expected_entity = expected_update[0]
 		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
-			t.Errorf("Table entry for traceroute %s", err)
+			t.Errorf("TableEntry for traceroute v6 & ttl=0: %s", err)
 		}
 
 		// Construct expected table for traceroute v6 & TTL = 1 to match with received table entry
@@ -524,7 +524,7 @@ func TestP4rtConnect(t *testing.T) {
 		})
 		expected_entity = expected_update[0]
 		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
-			t.Errorf("Table entry for traceroute %s", err)
+			t.Errorf("TableEntry for traceroute v6 & ttl=1: %s", err)
 		}
 		// Construct expected table for traceroute v6 & TTL = 2 to match with received table entry
 		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
@@ -538,7 +538,7 @@ func TestP4rtConnect(t *testing.T) {
 		})
 		expected_entity = expected_update[0]
 		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
-			t.Errorf("Receoved wrong TableEntry for traceroute: %s", err)
+			t.Errorf("TableEntry for traceroute v6 & ttl=2: %s", err)
 		}
 
 	}
