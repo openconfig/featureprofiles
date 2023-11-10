@@ -41,9 +41,8 @@ a new testbed configuration with the desired port types.
   * Verify that the traffic flow from ATE port-1 to ATE port-2 is
             now working after the interface is back up.
 ### RT-5.1.3 - Verify accurate reporting of `hardware-port` on all interfaces:
-* The test should start with taking an inventory of all available interfaces on the DUT irrespective of their admin-status or breakout state.
-* The test should check for `/interfaces/interface/state/hardware-port` reporting on all available physical interfaces in the DUT irrespective of their admin-status or breakout state
-* Compare results in both the bullets above and confirm that the DUT is not missing reporting of `state/hardware-port` on any physical interface irrespective of their breakout state. If missed, the test is a failure. 
+* Get an inventory of all the physical interfaces on the DUT using `GET /interfaces/interface/`
+* For every interface, verify `interfaces/interface/state/hardware-port` is populated with a reference to `/components/component/name`
 
 ## Config Parameter Coverage
 
@@ -98,6 +97,7 @@ a new testbed configuration with the desired port types.
 * /interfaces/interface/state/id
 * /interfaces/interface/state/counters/in-fcs-errors
 * /interfaces/interface/state/counters/carrier-transitions
+* /components/component/name
 
 ## Protocol/RPC Parameter Coverage
 
