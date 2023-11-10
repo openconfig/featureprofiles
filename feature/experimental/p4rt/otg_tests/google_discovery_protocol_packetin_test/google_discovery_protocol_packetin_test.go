@@ -267,7 +267,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 					}
 
 					metaData := packet.Pkt.GetMetadata()
-					if len(metaData) < 2 {
+					if len(metaData) != 2 {
 						t.Fatalf("Incorrect number of Metadata headers, want: %v, got: %v", 2, len(metaData))
 					}
 					for _, data := range metaData {
