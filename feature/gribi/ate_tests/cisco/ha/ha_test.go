@@ -54,8 +54,8 @@ func TestMain(m *testing.M) {
 // user needed inputs
 const (
 	with_scale            = true                        // run entire script with or without scale (Support not yet coded)
-	with_RPFO             = true                        // run entire script with or without RFPO
-	subscription_timout   = 300                         // set background subscription timeout value in minutes
+	with_RPFO             = false                       // run entire script with or without RFPO
+	subscription_timout   = 65                          // set background subscription timeout value in minutes
 	base_config           = "case4_decap_encap_recycle" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
@@ -1812,9 +1812,18 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 	args.ATELock = sync.Mutex{}
 	testGroup := &sync.WaitGroup{}
 
+	// run p4rt client
 	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
-	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
-	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(30*time.Second), testGroup, args.events, multi_process_gnmi, args)
+
+	// run gribi client
+	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
+
+	// run gnmi client
+	runner.RunTestInBackground(args.ctx, t, time.NewTimer(30*time.Second), testGroup, args.events, multi_process_gnmi, args)
+
+	// run ate traffic check for gribi programming
+	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(2*time.Minute), testGroup, args.events, multi_process_traffic, args)
+
 	testGroup.Wait()
 }
 
@@ -1837,26 +1846,26 @@ func multi_process_gnmi(t *testing.T, events *monitor.CachedConsumer, args ...in
 }
 
 // func multi_process_traffic(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
-//if *ciscoFlags.GRIBITrafficCheck {
-// 	te_flow = args.allFlows(t)
-// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
-// 		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+// 	arg := args[0].(*testArgs)
+// 	// create new flows and start traffic
+// 	if *ciscoFlags.GRIBITrafficCheck {
+// 		te_flow = arg.allFlows(t)
+// 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+// 			src_ip_flow = arg.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+// 		}
+// 		flows = append(te_flow, src_ip_flow...)
 // 	}
-// 	flows = append(te_flow, src_ip_flow...)
-// }
-// outgoing_interface := make(map[string][]string)
 
-// verify traffic
-// if *ciscoFlags.GRIBITrafficCheck {
-// 	outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
-// 		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
+// 	outgoing_interface := make(map[string][]string)
+
+// 	// verify traffic
+// 	if *ciscoFlags.GRIBITrafficCheck {
+// 		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+// 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+// 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+// 		}
+// 		arg.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 // 	}
-// 	// args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
-// 	args.ate.Traffic().Start(t, flows...)
-// 	time.Sleep(120 * time.Second)
-// 	args.ate.Traffic().Stop(t)
-// }
 // }
 
 func test_triggers(t *testing.T, args *testArgs) {
@@ -2567,31 +2576,31 @@ func TestHA(t *testing.T) {
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		// {
-		// 	name: "check_microdrops",
-		// 	desc: "With traffic running do delete/update/create programming and look for drops",
-		// 	fn:   test_microdrops,
-		// },
-		// {
-		// 	name: "Restart RFPO with programming",
-		// 	desc: "After programming, perform RPFO try new programming and validate traffic",
-		// 	fn:   test_RFPO_with_programming,
-		// },
-		// {
-		// 	name: "Restart single process",
-		// 	desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-		// 	fn:   testRestart_single_process,
-		// },
-		// {
-		// 	name: "Restart multiple process",
-		// 	desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-		// 	fn:   testRestart_multiple_process,
-		// },
-		// {
-		// 	name: "Triggers",
-		// 	desc: "With traffic running, validate multiple triggers",
-		// 	fn:   test_triggers,
-		// },
+		{
+			name: "check_microdrops",
+			desc: "With traffic running do delete/update/create programming and look for drops",
+			fn:   test_microdrops,
+		},
+		{
+			name: "Restart RFPO with programming",
+			desc: "After programming, perform RPFO try new programming and validate traffic",
+			fn:   test_RFPO_with_programming,
+		},
+		{
+			name: "Restart single process",
+			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+			fn:   testRestart_single_process,
+		},
+		{
+			name: "Restart multiple process",
+			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+			fn:   testRestart_multiple_process,
+		},
+		{
+			name: "Triggers",
+			desc: "With traffic running, validate multiple triggers",
+			fn:   test_triggers,
+		},
 		{
 			name: "check multiple clients",
 			desc: "With traffic running, validate use of multiple clients",
@@ -2620,10 +2629,10 @@ func TestHA(t *testing.T) {
 			}
 			//Monitor and eventConsumer
 			t.Log("creating event monitor")
-			// if !with_RPFO {
-			// 	gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
-			// 	gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
-			// }
+			if !with_RPFO {
+				gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
+				gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
+			}
 			eventConsumer := monitor.NewCachedConsumer(2*time.Hour, /*expiration time for events in the cache*/
 				1 /*number of events for keep for each leaf*/)
 

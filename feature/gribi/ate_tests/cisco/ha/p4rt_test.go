@@ -256,6 +256,14 @@ func p4rtPacketOut(t *testing.T, events *monitor.CachedConsumer, args ...interfa
 	ate := arg.ate
 	ctx := arg.ctx
 
+	p1 := dut.Port(t, "port1")
+	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portID)}
+	gnmi.Update(t, dut, gnmi.OC().Interface(p1.Name()).Config(), i1)
+
+	p2 := dut.Port(t, "port2")
+	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portID + 1)}
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), i2)
+
 	// Configure P4RT device-id
 	configureDeviceId(ctx, t, dut)
 
