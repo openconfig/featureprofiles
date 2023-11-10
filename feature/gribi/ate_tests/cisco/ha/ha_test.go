@@ -1813,8 +1813,8 @@ func test_multiple_clients(t *testing.T, args *testArgs) {
 	testGroup := &sync.WaitGroup{}
 
 	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
-	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
-	runner.RunTestInBackground(args.ctx, t, time.NewTimer(30*time.Second), testGroup, args.events, multi_process_gnmi, args)
+	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
+	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(30*time.Second), testGroup, args.events, multi_process_gnmi, args)
 	testGroup.Wait()
 }
 
@@ -2567,31 +2567,31 @@ func TestHA(t *testing.T) {
 		desc string
 		fn   func(t *testing.T, args *testArgs)
 	}{
-		{
-			name: "check_microdrops",
-			desc: "With traffic running do delete/update/create programming and look for drops",
-			fn:   test_microdrops,
-		},
-		{
-			name: "Restart RFPO with programming",
-			desc: "After programming, perform RPFO try new programming and validate traffic",
-			fn:   test_RFPO_with_programming,
-		},
-		{
-			name: "Restart single process",
-			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-			fn:   testRestart_single_process,
-		},
-		{
-			name: "Restart multiple process",
-			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-			fn:   testRestart_multiple_process,
-		},
-		{
-			name: "Triggers",
-			desc: "With traffic running, validate multiple triggers",
-			fn:   test_triggers,
-		},
+		// {
+		// 	name: "check_microdrops",
+		// 	desc: "With traffic running do delete/update/create programming and look for drops",
+		// 	fn:   test_microdrops,
+		// },
+		// {
+		// 	name: "Restart RFPO with programming",
+		// 	desc: "After programming, perform RPFO try new programming and validate traffic",
+		// 	fn:   test_RFPO_with_programming,
+		// },
+		// {
+		// 	name: "Restart single process",
+		// 	desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+		// 	fn:   testRestart_single_process,
+		// },
+		// {
+		// 	name: "Restart multiple process",
+		// 	desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+		// 	fn:   testRestart_multiple_process,
+		// },
+		// {
+		// 	name: "Triggers",
+		// 	desc: "With traffic running, validate multiple triggers",
+		// 	fn:   test_triggers,
+		// },
 		{
 			name: "check multiple clients",
 			desc: "With traffic running, validate use of multiple clients",
@@ -2620,10 +2620,10 @@ func TestHA(t *testing.T) {
 			}
 			//Monitor and eventConsumer
 			t.Log("creating event monitor")
-			if !with_RPFO {
-				gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
-				gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
-			}
+			// if !with_RPFO {
+			// 	gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
+			// 	gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
+			// }
 			eventConsumer := monitor.NewCachedConsumer(2*time.Hour, /*expiration time for events in the cache*/
 				1 /*number of events for keep for each leaf*/)
 

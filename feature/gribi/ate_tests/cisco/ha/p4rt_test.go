@@ -46,7 +46,7 @@ var (
 	p4InfoFile                                = flag.String("p4info_file_location", "./wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName                                = "p4rt"
 	gdpInLayers           layers.EthernetType = 0x6007
-	deviceID                                  = *ygot.Uint64(2)
+	deviceID                                  = *ygot.Uint64(1)
 	portID                                    = *ygot.Uint32(10)
 	electionID                                = *ygot.Uint64(100)
 	METADATA_INGRESS_PORT                     = *ygot.Uint32(1)
