@@ -39,37 +39,23 @@ var enCiscoCommands encryptionCommands
 
 // creating files before factory reset
 func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
-	cli := dut.RawAPIs().CLI(t)
 	for _, folderPath := range devicePaths {
 		fPath := path.Join(folderPath, "devrandom.log")
-		_, err := cli.SendCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
-		if err != nil {
-			t.Fatalf("Failed to create file devrandom.log in the path %v, Error: %v ", folderPath, err)
-		}
+		dut.CLI().Run(t, fmt.Sprintf(fileCreateDevRand, fPath))
 		t.Log("Check if the file is created")
 		time.Sleep(30 * time.Second)
 		filesCreated = append(filesCreated, fPath)
 		fPath = path.Join(folderPath, ".devrandom.log")
-		_, err = cli.SendCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
-		if err != nil {
-			t.Fatalf("Failed to create file .devrandom.log in the path %v, Error: %v", folderPath, err)
-
-		}
+		dut.CLI().Run(t, fmt.Sprintf(fileCreateDevRand, fPath))
 
 		filesCreated = append(filesCreated, fPath)
 		fPath = path.Join(folderPath, "largeFile.log")
-		_, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(fileCreate, 100, fPath))
-		if err != nil {
-			t.Fatalf("Failed to create file largeFile.log in the path %v, Error: %v", folderPath, err)
-		}
+		dut.CLI().Run(t, fmt.Sprintf(fileCreate, 100, fPath))
 
 		filesCreated = append(filesCreated, fPath)
 	}
 	for _, f := range filesCreated {
-		resp, err := cli.SendCommand(context.Background(), fmt.Sprintf(checkFileExists, f))
-		if err != nil {
-			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, f), err)
-		}
+		resp := dut.CLI().Run(t, fmt.Sprintf(checkFileExists, f))
 		t.Logf("%v", resp)
 		if !strings.Contains(resp, fileExists) {
 			t.Fatalf("Unable to Create a file object %s in device %s", f, dut.Name())
