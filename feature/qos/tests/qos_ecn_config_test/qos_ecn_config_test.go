@@ -258,16 +258,16 @@ func testECNConfig(t *testing.T, q *oc.Qos) {
 	// Verify the QueueManagementProfile is applied by checking the telemetry path state values.
 	wredUniform := gnmi.OC().Qos().QueueManagementProfile("DropProfile").Wred().Uniform()
 	if deviations.QosGetStatePathUnsupported(dut) {
-		if got, want := gnmi.GetConfig(t, dut, wredUniform.EnableEcn().Config()), ecnConfig.ecnEnabled; got != want {
+		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().Config()), ecnConfig.ecnEnabled; got != want {
 			t.Errorf("wredUniform.EnableEcn().Config(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxDropProbabilityPercent().Config()), ecnConfig.maxDropProbabilityPercent; got != want {
+		if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().Config()), ecnConfig.maxDropProbabilityPercent; got != want {
 			t.Errorf("wredUniform.MaxDropProbabilityPercent().Config(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.GetConfig(t, dut, wredUniform.MinThreshold().Config()), wantMinThreshold; got != want {
+		if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().Config()), wantMinThreshold; got != want {
 			t.Errorf("wredUniform.MinThreshold().Config(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxThreshold().Config()), wantMaxThreshold; got != want {
+		if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().Config()), wantMaxThreshold; got != want {
 			t.Errorf("wredUniform.MaxThreshold().Config(): got %v, want %v", got, want)
 		}
 	} else {
@@ -396,13 +396,13 @@ func testQoSOutputIntfConfig(t *testing.T, q *oc.Qos) {
 			}
 		}
 		if deviations.QosGetStatePathUnsupported(dut) {
-			if got, want := gnmi.GetConfig(t, dut, policy.Name().Config()), tc.scheduler; got != want {
+			if got, want := gnmi.Get(t, dut, policy.Name().Config()), tc.scheduler; got != want {
 				t.Errorf("policy.Name().Config(): got %v, want %v", got, want)
 			}
-			if got, want := gnmi.GetConfig(t, dut, outQueue.Name().Config()), tc.queueName; got != want {
+			if got, want := gnmi.Get(t, dut, outQueue.Name().Config()), tc.queueName; got != want {
 				t.Errorf("outQueue.Name().Config(): got %v, want %v", got, want)
 			}
-			if got, want := gnmi.GetConfig(t, dut, outQueue.QueueManagementProfile().Config()), tc.ecnProfile; got != want {
+			if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().Config()), tc.ecnProfile; got != want {
 				t.Errorf("outQueue.QueueManagementProfile().Config(): got %v, want %v", got, want)
 			}
 		}

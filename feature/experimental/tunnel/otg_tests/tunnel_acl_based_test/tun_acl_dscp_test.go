@@ -159,7 +159,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	iFace := d1.GetOrCreateAcl().GetOrCreateInterface(ifName)
 	aclConf := configACLInterface(t, iFace, ifName)
 	gnmi.Replace(t, dut, aclConf.Config(), iFace)
-	fptest.LogQuery(t, "ACL config:\n", aclConf.Config(), gnmi.GetConfig(t, dut, aclConf.Config()))
+	fptest.LogQuery(t, "ACL config:\n", aclConf.Config(), gnmi.Get(t, dut, aclConf.Config()))
 }
 
 // configACLInterface configures the ACL attachment on interface

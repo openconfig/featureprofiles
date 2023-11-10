@@ -64,7 +64,7 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 
 	t.Logf("Step 2: Retrieve current root OC config")
 	runningConfig := showRunningConfig(t, dut)
-	r := gnmi.GetConfig(t, dut, gnmi.OC().Config())
+	r := gnmi.Get(t, dut, gnmi.OC().Config())
 
 	t.Logf("Step 3: Test that replacing device with current config is accepted and is a no-op.")
 	var result *ygnmi.Result
@@ -111,11 +111,11 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 	}
 
 	// Validate new OC config has been accepted.
-	gotQueue := gnmi.GetConfig(t, dut, qosPath.Queue(tCase.queueName).Config())
+	gotQueue := gnmi.Get(t, dut, qosPath.Queue(tCase.queueName).Config())
 	if got := gotQueue.GetName(); got != tCase.queueName {
 		t.Errorf("Get(DUT queue name): got %v, want %v", got, tCase.queueName)
 	}
-	gotFG := gnmi.GetConfig(t, dut, qosPath.ForwardingGroup(tCase.forwardGroupName).Config())
+	gotFG := gnmi.Get(t, dut, qosPath.ForwardingGroup(tCase.forwardGroupName).Config())
 	if got := gotFG.GetName(); got != tCase.forwardGroupName {
 		t.Errorf("Get(DUT forwarding group name): got %v, want %v", got, tCase.forwardGroupName)
 	}
