@@ -901,3 +901,9 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_input_output_power_test/README.md"
   exec: " "
 }
+test: {
+  id: "TRANSCEIVER-5"
+  description: "400ZR channel frequency and output TX launch power setting"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_tunable_parameters_test/README.md"
+  exec: " "
+}
