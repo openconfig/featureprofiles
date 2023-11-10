@@ -16,7 +16,6 @@ package ha_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"math/rand"
 	"net"
@@ -98,14 +97,12 @@ const (
 
 // global variables
 var (
-	prefixes           = []string{}
-	repair_prefix      = []string{}
-	flows              = []*ondatra.Flow{}
-	te_flow            = []*ondatra.Flow{}
-	src_ip_flow        = []*ondatra.Flow{}
-	p4rtNodeName       = flag.String("p4rt_node_name", "0/0/CPU0-NPU0", "component name for P4RT Node")
-	rpfo_count         = 0 // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
-	which_traffic_call = 0
+	prefixes      = []string{}
+	repair_prefix = []string{}
+	flows         = []*ondatra.Flow{}
+	te_flow       = []*ondatra.Flow{}
+	src_ip_flow   = []*ondatra.Flow{}
+	rpfo_count    = 0 // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
 )
 
 // NHScaleOptions
@@ -833,18 +830,18 @@ func (a *testArgs) scaleNHG(t *testing.T, nhg_start uint64, nhg_scale int, bkgNH
 			nhg.WithBackupNHG(bkgNHG)
 		}
 		if len(opts) != 0 {
-			rand.Seed(time.Now().UnixNano())
+			r := rand.New(rand.NewSource(time.Now().UnixNano()))
 			min := 10
 			max := 70
-			value := rand.Intn(max-min+1) + min
+			value := r.Intn(max-min+1) + min
 			nhg.AddNextHop(nhs_start, uint64(value))
 			nhs_start = nhs_start + 1
 		} else {
 			for j := 0; j < nh_prefix_TE; j++ {
-				rand.Seed(time.Now().UnixNano())
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
 				min := 10
 				max := 70
-				value := rand.Intn(max-min+1) + min
+				value := r.Intn(max-min+1) + min
 				nhg.AddNextHop(nhs_start, uint64(value))
 				nhs_start = nhs_start + 1
 			}
@@ -2389,7 +2386,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 				// kill previous gribi client
 				args.client.Close(t)
 
-				rand.Seed(time.Now().UnixNano())
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
 				min := 57344
 				max := 57998
 				for k := 0; k < grpc_repeat; k++ {
@@ -2399,7 +2396,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						args.rpfo(args.ctx, t, true)
 					}
 
-					port := rand.Intn(max-min+1) + min
+					port := r.Intn(max-min+1) + min
 
 					t.Logf("set grpc value to no-tls and random port")
 					config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no-tls \n port %s \n commit \n", strconv.Itoa(port)))
