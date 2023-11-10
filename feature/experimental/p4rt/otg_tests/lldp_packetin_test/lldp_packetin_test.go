@@ -202,6 +202,9 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 
 			metaData := packet.Pkt.GetMetadata()
+			if len(metaData) < 2 {
+				t.Fatalf("Metadata is missing")
+			}
 			for _, data := range metaData {
 				switch data.GetMetadataId() {
 				case metadataIngressPort:
