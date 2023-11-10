@@ -550,6 +550,9 @@ func TestPBR(t *testing.T) {
 			pfIntfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 			pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
 			pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+			if deviations.InterfaceRefConfigUnsupported(dut) {
+				pfIntf.InterfaceRef = nil
+			}
 			pfIntf.SetApplyVrfSelectionPolicy(args.policyName)
 			gnmi.Update(t, dut, pfIntfConfPath.Config(), pfIntf)
 
