@@ -146,15 +146,6 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 		nv4.PeerAs = ygot.Uint32(nbr.as)
 		nv4.Enabled = ygot.Bool(true)
 
-		// Neighbor level config is always applied.
-		if nbr.isV4 == true {
-			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(true)
-		} else {
-			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(true)
-		}
-
 		switch afiSafiLevel {
 		case globalLevel:
 			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
@@ -163,6 +154,14 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 			extNh.ExtendedNextHopEncoding = ygot.Bool(true)
 			if deviations.BGPGlobalExtendedNextHopEncodingUnsupported(dut) {
 				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast = nil
+			}
+		case nbrLevel:
+			if nbr.isV4 == true {
+				af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+				af4.Enabled = ygot.Bool(true)
+			} else {
+				af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+				af6.Enabled = ygot.Bool(true)
 			}
 		case peerGrpLevel:
 			pg1af4 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -302,10 +301,10 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 	nbrs := []*bgpNeighbor{nbr1, nbr2, nbr3, nbr4}
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	var nbrPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafiPathAny
+	var nbrPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AfiSafiNamePathAny
 
 	for _, nbr := range nbrs {
-		nbrPath = statePath.Neighbor(nbr.neighborip).AfiSafiAny()
+		nbrPath = statePath.Neighbor(nbr.neighborip).AfiSafiAny().AfiSafiName()
 
 		capabilities := map[oc.E_BgpTypes_AFI_SAFI_TYPE]bool{
 			oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: false,
@@ -313,7 +312,7 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 		}
 
 		for _, cap := range gnmi.GetAll(t, dut, nbrPath.State()) {
-			capabilities[cap.GetAfiSafiName()] = cap.GetActive()
+			capabilities[cap] = true
 		}
 
 		switch afiSafiLevel {
