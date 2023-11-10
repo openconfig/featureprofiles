@@ -286,6 +286,8 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 							if !found {
 								t.Fatalf("Egress Port Id is not matching expectation.")
 							}
+						default:
+							t.Errorf("Received an unrecognized metadata with id %v", data.GetMetadataId())
 						}
 					}
 				}
