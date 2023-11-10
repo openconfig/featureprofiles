@@ -1,7 +1,8 @@
 # gNMI-1.14 OpenConfig metadata consistency during large config push
 
 ## Summary
-This test verify if OpenConfig metadata leaf at root is updated according to pushed config and not reverted or otherway modified if any rapid, concurrent non-write requests are served while setRequest is in process and SetResponce is not recived yet.
+This test verify if OpenConfig metadata leaf at root is updated according to pushed config and not reverted or otherway modified, Even if many rapid, concurrent non-write requests are served while setRequest is in process (and SetResponse is not send yet).
+In case metadata leaf at root value changes, test fails.
 
 ## Topology
 dut.testbed
@@ -19,7 +20,7 @@ dut.testbed
   *  /lldp/
   *  /lacp/
   *  /protobuf-metadata
-* Push 1st_LARGE_CONFIGURATION and wait for SetResponce that confirm push was sucesfull.
+* Push 1st_LARGE_CONFIGURATION and wait for SetResponse that confirm push was sucesfull.
 * Send subscribe `ONCE` for configuration root-level metadata and verify that it is identical corresponding root-level metadata of 1st_LARGE_CONFIGURATION.
 * For REQUEST of type (GetRequest, SubscribeRequest, CapabilityRequest)
   * Repeat sending rapidly subsequent REQUEST requests for configuration root-level metadata (GetRequest, SubscribeRequest).
