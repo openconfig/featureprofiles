@@ -26,10 +26,12 @@ launch power and verify corresponding telemetry values.
         across frequency range 196.100 - 191.375 THz for 75GHz grid.  
       * Specific frequency details can be found in 400ZR implementation
         agreement under sections 15.1 ad 15.2 Operating frequency channel
-        definitions.
+        definitions. Link to IA below,
+          * https://www.oiforum.com/wp-content/uploads/OIF-400ZR-01.0_reduced2.pdf
       * Validate adjustable range of transmit output power across -13 to -9 dBm
         range in steps of 1dB. So the module’s output power will be set to -13,
-        -12, -11, -10, -9 dBm in each step.
+        -12, -11, -10, -9 dBm in each step. As an example this can be validated
+        for the module's default frequency of 193.1 THz.  
 
 *   With the ZR link established as explained above, for each configured
     frequency and TX output power value verify that the following ZR
@@ -49,6 +51,9 @@ launch power and verify corresponding telemetry values.
 * With above streamed data verify
     * For each center frequency, laser frequency offset should not be more than
       +/- 1.8 GHz max.
+    * For each center frequency, streamed value should be in Mhz units. Test
+      should fail if the streamed value is in Hz or THz units. As an example
+      193.1 THz would be 193100000 in MHz.
     * When set to a specific target output power, transmit power control
       absolute accuracy should be within +/- 1 dBm of the target value.
     * For reported data check for validity: min <= avg/instant <= max
@@ -74,7 +79,9 @@ launch power and verify corresponding telemetry values.
         set in the normal range.
     *   Disable or shut down the interface on the DUT.
     *   Verify with interfaces in down state both optics are streaming uint 0
-        value for frequency and decimal64 for TX output power.
+        value for frequency.
+    *   Verify for the TX output power with interface in down state a decimal64
+        value of -40 dB is streamed.
     *   Re-enable the interfaces on the DUT.
     *   Verify the ZR optics tune back to the correct frequency and TX output
         power as per the configuration and related telemetry values are updated
