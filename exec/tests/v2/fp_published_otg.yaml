@@ -97,7 +97,7 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: P4RT-1.2 (P4RT Daemon Failure)
-    path: feature/experimental/p4rt/otg_tests/p4rt_daemon_failure_test
+    path: feature/p4rt/otg_tests/p4rt_daemon_failure_test
     owners:
       - sprem
     priority: 5
@@ -126,6 +126,7 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+    timeout: 7200
   - name: P4RT-6.1 (Required Packet I/O rate Performance)
     path: feature/experimental/p4rt/otg_tests/performance_test
     owners:

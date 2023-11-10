@@ -105,7 +105,7 @@ def _otg_docker_compose_template(control_port, gnmi_port):
 version: "2"
 services:
   controller:
-    image: ghcr.io/open-traffic-generator/keng-controller:0.1.0-3
+    image: ghcr.io/open-traffic-generator/keng-controller:firex
     restart: always
     ports:
       - "{control_port}:40051"
@@ -126,7 +126,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:0.13.0-2
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:firex
     restart: always
     command:
       - "dotnet"
@@ -141,7 +141,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: ghcr.io/open-traffic-generator/otg-gnmi-server:1.13.0
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:firex
     restart: always
     ports:
       - "{gnmi_port}:50051"
@@ -545,7 +545,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         test_args = _update_test_args_from_env(test_args, extra_args_env_vars)
 
     test_args = f'{test_args} ' \
-        f'-log_dir {test_logs_dir_in_ws}'
+        f'-log_dir {test_logs_dir_in_ws} ' \
+        f'-outputs_dir {test_logs_dir_in_ws}'
 
     test_args += f' -binding {reserved_testbed["binding_file"]} -testbed {reserved_testbed["testbed_file"]} -xml "{xml_results_file}" '
     if test_verbose:
@@ -679,7 +680,7 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
         ate['otg'] = {
             'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port']),
             'insecure': True,
-            'timeout': 30
+            'timeout': 100
         }
 
         ate['gnmi'] = {
