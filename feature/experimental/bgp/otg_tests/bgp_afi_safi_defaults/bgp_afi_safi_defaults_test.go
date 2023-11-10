@@ -94,6 +94,11 @@ var (
 	nbr2 = &bgpNeighbor{as: ateAS, neighborip: atePort1.IPv6, isV4: false, peerGrp: peerGrpName2}
 	nbr3 = &bgpNeighbor{as: dutAS, neighborip: atePort2.IPv4, isV4: true, peerGrp: peerGrpName1}
 	nbr4 = &bgpNeighbor{as: dutAS, neighborip: atePort2.IPv6, isV4: false, peerGrp: peerGrpName2}
+
+	otgPort1V4Peer = "atePort1.BGP4.peer"
+	otgPort1V6Peer = "atePort1.BGP6.peer"
+	otgPort2V4Peer = "atePort2.BGP4.peer"
+	otgPort2V6Peer = "atePort2.BGP6.peer"
 )
 
 // configureDUT configures all the interfaces on the DUT.
@@ -119,9 +124,8 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 }
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ateSrc and ateDst.
-func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, afiSafiLevel string) *oc.NetworkInstance_Protocol {
+func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, afiSafiLevel string, nbrs []*bgpNeighbor, isV4Only bool) *oc.NetworkInstance_Protocol {
 	t.Helper()
-	nbrs := []*bgpNeighbor{nbr1, nbr2, nbr3, nbr4}
 	dutOcRoot := &oc.Root{}
 	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -146,29 +150,20 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 		nv4.PeerAs = ygot.Uint32(nbr.as)
 		nv4.Enabled = ygot.Bool(true)
 
-		// Neighbor level config is always applied.
-		if nbr.isV4 == true {
-			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(true)
-		} else {
-			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(true)
-		}
-
 		switch afiSafiLevel {
 		case globalLevel:
 			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-			extNh := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast()
-			extNh.ExtendedNextHopEncoding = ygot.Bool(true)
+			if !isV4Only {
+				extNh := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast()
+				extNh.ExtendedNextHopEncoding = ygot.Bool(true)
+			}
 			if deviations.BGPGlobalExtendedNextHopEncodingUnsupported(dut) {
 				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast = nil
 			}
 		case peerGrpLevel:
 			pg1af4 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			pg1af4.Enabled = ygot.Bool(true)
-			ext1Nh := pg1af4.GetOrCreateIpv4Unicast()
-			ext1Nh.ExtendedNextHopEncoding = ygot.Bool(true)
 			pg1af6 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			pg1af6.Enabled = ygot.Bool(true)
 
@@ -178,51 +173,41 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 			ext2Nh.ExtendedNextHopEncoding = ygot.Bool(true)
 			pg2af6 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			pg2af6.Enabled = ygot.Bool(true)
+		case nbrLevel:
+			if nbr.isV4 == true {
+				af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+				af4.Enabled = ygot.Bool(true)
+			} else {
+				af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+				af6.Enabled = ygot.Bool(true)
+			}
 		}
 	}
 	return niProto
 }
 
-func verifyOtgBgpTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state string) {
+func verifyOtgBgpTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state string, otgPeerList []string) {
 	t.Helper()
-	for _, d := range c.Devices().Items() {
-		for _, ip := range d.Bgp().Ipv4Interfaces().Items() {
-			for _, configPeer := range ip.Peers().Items() {
-				nbrPath := gnmi.OTG().BgpPeer(configPeer.Name())
-				_, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
-					currState, ok := val.Val()
-					return ok && currState.String() == state
-				}).Await(t)
-				if !ok {
-					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
-				}
-			}
-		}
-		for _, ip := range d.Bgp().Ipv6Interfaces().Items() {
-			for _, configPeer := range ip.Peers().Items() {
-				nbrPath := gnmi.OTG().BgpPeer(configPeer.Name())
-				_, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
-					currState, ok := val.Val()
-					return ok && currState.String() == state
-				}).Await(t)
-				if !ok {
-					t.Errorf("No BGP neighbor formed for peer %s", configPeer.Name())
-				}
-			}
+	for _, configPeer := range otgPeerList {
+		nbrPath := gnmi.OTG().BgpPeer(configPeer)
+		_, ok := gnmi.Watch(t, otg, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+			currState, ok := val.Val()
+			return ok && currState.String() == state
+		}).Await(t)
+		if !ok {
+			t.Errorf("No BGP neighbor formed for peer %s", configPeer)
 		}
 	}
 }
 
 // verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
-func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrsList []*bgpNeighbor) {
 	t.Helper()
-	var nbrIP = []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6}
 	t.Logf("Verifying BGP state.")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
-	for _, nbr := range nbrIP {
-		nbrPath := bgpPath.Neighbor(nbr)
-		// Get BGP adjacency state.
+	for _, nbr := range nbrsList {
+		nbrPath := bgpPath.Neighbor(nbr.neighborip)
 		t.Logf("Waiting for BGP neighbor to establish...")
 		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			state, ok := val.Val()
@@ -232,9 +217,9 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatal("No BGP neighbor formed")
 		}
 		state, _ := status.Val()
-		t.Logf("BGP adjacency for %s: %v", nbr, state)
+		t.Logf("BGP adjacency for %s: %v", nbr.neighborip, state)
 		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
-			t.Errorf("BGP peer %s status got %d, want %d", nbr, state, want)
+			t.Errorf("BGP peer %s status got %d, want %d", nbr.neighborip, state, want)
 		}
 	}
 }
@@ -265,23 +250,23 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	// BGP seesion
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
-	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
+	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(otgPort1V4Peer)
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
-	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
+	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(otgPort1V6Peer)
 	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	iDut1Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
-	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(atePort2.Name + ".BGP4.peer")
+	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(otgPort2V4Peer)
 	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
-	iDut2Bgp6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2Ipv6.Name()).Peers().Add().SetName(atePort2.Name + ".BGP6.peer")
+	iDut2Bgp6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2Ipv6.Name()).Peers().Add().SetName(otgPort2V6Peer)
 	iDut2Bgp6Peer.SetPeerAddress(iDut2Ipv6.Gateway()).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
 	iDut2Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
@@ -296,10 +281,9 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 }
 
 // verifyBGPCapabilities is used to Verify BGP capabilities like route refresh as32 and mpbgp.
-func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel string) {
+func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel string, nbrs []*bgpNeighbor) {
 	t.Helper()
 	t.Log("Verifying BGP AFI-SAFI capabilities.")
-	nbrs := []*bgpNeighbor{nbr1, nbr2, nbr3, nbr4}
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	var nbrPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafiPathAny
@@ -389,21 +373,39 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 	cases := []struct {
 		desc         string
 		afiSafiLevel string
+		nbrs         []*bgpNeighbor
+		isV4Only     bool
+		otgPeerList  []string
 	}{{
 		desc:         "Validate AFI-SAFI OC defaults at neighbor level",
 		afiSafiLevel: nbrLevel,
+		nbrs:         []*bgpNeighbor{nbr1, nbr2, nbr3, nbr4},
+		isV4Only:     false,
+		otgPeerList:  []string{otgPort1V4Peer, otgPort1V6Peer, otgPort2V4Peer, otgPort2V6Peer},
 	}, {
 		desc:         "Validate AFI-SAFI OC defaults at peer group level",
 		afiSafiLevel: peerGrpLevel,
+		nbrs:         []*bgpNeighbor{nbr1, nbr2, nbr3, nbr4},
+		isV4Only:     false,
+		otgPeerList:  []string{otgPort1V4Peer, otgPort1V6Peer, otgPort2V4Peer, otgPort2V6Peer},
 	}, {
-		desc:         "Validate AFI-SAFI OC defaults at global level",
+		desc:         "Validate AFI-SAFI OC defaults at global level for V4 peers",
 		afiSafiLevel: globalLevel,
+		nbrs:         []*bgpNeighbor{nbr1, nbr3},
+		isV4Only:     true,
+		otgPeerList:  []string{otgPort1V4Peer, otgPort2V4Peer},
+	}, {
+		desc:         "Validate AFI-SAFI OC defaults at global level for V6 peers",
+		afiSafiLevel: globalLevel,
+		nbrs:         []*bgpNeighbor{nbr2, nbr4},
+		isV4Only:     false,
+		otgPeerList:  []string{otgPort1V6Peer, otgPort2V6Peer},
 	}}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Run("Configure BGP Neighbors", func(t *testing.T) {
 				bgpClearConfig(t, dut)
-				dutConf := bgpCreateNbr(t, dutAS, ateAS, dut, tc.afiSafiLevel)
+				dutConf := bgpCreateNbr(t, dutAS, ateAS, dut, tc.afiSafiLevel, tc.nbrs, tc.isV4Only)
 				gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 				fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
 			})
@@ -419,9 +421,9 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 			})
 
 			t.Run("Verify BGP telemetry", func(t *testing.T) {
-				verifyBgpTelemetry(t, dut)
-				verifyOtgBgpTelemetry(t, otg, otgConfig, "ESTABLISHED")
-				verifyBgpCapabilities(t, dut, tc.afiSafiLevel)
+				verifyBgpTelemetry(t, dut, tc.nbrs)
+				verifyOtgBgpTelemetry(t, otg, otgConfig, "ESTABLISHED", tc.otgPeerList)
+				verifyBgpCapabilities(t, dut, tc.afiSafiLevel, tc.nbrs)
 			})
 		})
 	}
