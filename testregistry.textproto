@@ -907,3 +907,9 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_tunable_parameters_test/README.md"
   exec: " "
 }
+test: {
+  id: "TRANSCEIVER-6"
+  description: "400ZR channel Q-value streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_db_q_value_test/README.md"
+  exec: " "
+}
