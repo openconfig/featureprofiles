@@ -25,10 +25,10 @@ require (
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20231031140438-9a293da13ff9
 	github.com/openconfig/kne v0.1.14
-	github.com/openconfig/ondatra v0.4.2
+	github.com/openconfig/ondatra v0.4.3
 	github.com/openconfig/replayer v0.0.0-20231031192218-5462382820d4
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygnmi v0.9.0
+	github.com/openconfig/ygnmi v0.10.0
 	github.com/openconfig/ygot v0.29.15
 	github.com/p4lang/p4runtime v1.4.0-rc.5.0.20220728214547-13f0d02a521e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
