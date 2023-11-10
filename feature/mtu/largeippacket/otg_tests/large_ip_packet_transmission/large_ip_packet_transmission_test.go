@@ -326,12 +326,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 func verifyDUTPort(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 	configuredInterfaceMtu := gnmi.Get(t, dut, gnmi.OC().Interface(portName).Mtu().State())
-	configuredIpv4SubInterfaceMtu := gnmi.GetConfig(
+	configuredIpv4SubInterfaceMtu := gnmi.Get(
 		t,
 		dut,
 		gnmi.OC().Interface(portName).Subinterface(subInterfaceIndex).Ipv4().Mtu().Config(),
 	)
-	configuredIpv6SubInterfaceMtu := gnmi.GetConfig(
+	configuredIpv6SubInterfaceMtu := gnmi.Get(
 		t,
 		dut,
 		gnmi.OC().Interface(portName).Subinterface(subInterfaceIndex).Ipv6().Mtu().Config(),
