@@ -29,6 +29,7 @@ platform_exceptions: {
   }
   deviations: {
     state_path_unsupported: true
+    interface_ref_config_unsupported: true
   }
 }
 platform_exceptions: {
