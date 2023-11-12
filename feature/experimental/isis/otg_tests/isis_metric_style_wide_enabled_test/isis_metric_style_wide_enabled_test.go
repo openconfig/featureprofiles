@@ -76,7 +76,6 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 
 	// Level configs.
 	level := isis.GetOrCreateLevel(2)
-	level.Enabled = ygot.Bool(true)
 	level.LevelNumber = ygot.Uint8(2)
 	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
