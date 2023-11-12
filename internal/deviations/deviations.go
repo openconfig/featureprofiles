@@ -648,3 +648,34 @@ func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
 }
+
+// EcnSameMinMaxThresholdUnsupported returns true for devices that don't support the same minimum and maximum threshold values
+// CISCO: minimum and maximum threshold values are not the same, the difference between minimum and maximum threshold value should be 6144.
+func EcnSameMinMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnSameMinMaxThresholdUnsupported()
+}
+
+// QosSchedulerConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QosSchedulerConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSchedulerConfigRequired()
+}
+
+// QosSetWeightConfigUnsupported returns whether the device does not support set weight leaves under qos ecn.
+func QosSetWeightConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSetWeightConfigUnsupported()
+}
+
+// QosGetStatePathUnsupported returns whether the device does not support get state leaves under qos.
+func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
+}
+
+// Devices which require to use interface-id format of interface name + .subinterface index with Interface-ref container
+func InterfaceRefInterfaceIdFormat(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()
+}
+
+// ISISLevelEnabled returns if device should enable isis under level.
+func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
+}

@@ -11,6 +11,7 @@ platform_exceptions:  {
   }
   deviations:  {
     skip_tcp_negotiated_mss_check:  true
+    isis_level_enabled: true
   }
 }
 platform_exceptions: {

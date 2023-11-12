@@ -75,7 +75,6 @@ type checker struct {
 
 	mu        sync.Mutex
 	startTime time.Time
-	endTime   time.Time
 	prevCores coreFiles
 }
 
@@ -199,7 +198,7 @@ func createReport(d map[string]dutCoreFiles) string {
 	return b.String()
 }
 
-func registerAfter(e *eventlis.AfterTestsEvent) error {
+func registerAfter(_ *eventlis.AfterTestsEvent) error {
 	cores := validator.stop()
 	foundCores := false
 	for _, files := range cores {

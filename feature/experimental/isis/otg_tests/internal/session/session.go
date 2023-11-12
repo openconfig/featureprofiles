@@ -123,6 +123,10 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	level := isis.GetOrCreateLevel(2)
 	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	// Configure ISIS enabled flag at level
+	if deviations.ISISLevelEnabled(dut) {
+		level.Enabled = ygot.Bool(true)
+	}
 	intf := isis.GetOrCreateInterface(ifaceName)
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
