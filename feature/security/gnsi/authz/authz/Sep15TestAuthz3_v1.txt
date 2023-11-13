@@ -1,0 +1,9 @@
+
+*** Reserving the testbed...
+
+=== RUN   TestMain
+    could not reset device 8808: rpc error: code = PermissionDenied desc = unauthorized RPC request rejected
+--- FAIL: TestMain (0.00s)
+F0915 00:15:46.593348   28748 ondatra.go:60] 
+exit status 1
+FAIL	github.com/openconfig/featureprofiles/feature/security/gnsi/authz/tests	2.667s
