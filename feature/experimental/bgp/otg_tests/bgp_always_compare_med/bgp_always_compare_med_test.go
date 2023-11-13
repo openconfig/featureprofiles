@@ -572,7 +572,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 		configPolicy(t, dut, d)
 		dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
 
 	t.Run("Configure SET MED on DUT", func(t *testing.T) {
