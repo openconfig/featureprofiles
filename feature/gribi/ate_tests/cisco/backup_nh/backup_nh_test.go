@@ -2717,11 +2717,12 @@ func TestBackUp(t *testing.T) {
 			desc: "Inject relevent faults for Add IPV4 ",
 			fn:   testFaultInjectAddIPv4,
 		},
-		{
-			name: "FaultInjectDeleteIPv4",
-			desc: "Inject relevent faults for Delete IPv4",
-			fn:   testFaultInjectDeleteIPv4,
-		},
+		// Decommissioning the TC due to CSCwe05268
+		// {
+		// 	name: "FaultInjectDeleteIPv4",
+		// 	desc: "Inject relevent faults for Delete IPv4",
+		// 	fn:   testFaultInjectDeleteIPv4,
+		// },
 		{
 			name: "FaultInjectUpdateNHG",
 			desc: "Inject relevent faults for Update NHG pointing to the old NH ",
