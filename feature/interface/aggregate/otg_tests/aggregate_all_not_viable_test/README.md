@@ -31,7 +31,6 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
 |            |    | |     |             |       | |        |     `-------'|
 |            |    | |     |             |       | |        |     .-------.|
 |            |    : ;     |             |       | |        |    (  pfx5,  )
-|            |     '      |             |       | |        |    (  pfx6   )
 |            |  LAG_1     |             +-------+-+--------+     `-------'|
 +------------+            +-------------+ p9    : ;   p9   +--------------+
                                                  '
@@ -50,8 +49,7 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
 - Configure VRF selection policy that redirect traffic with DSCP=AF2 to be forwarded in VRF_X FIB.
 - Establish iBGP between ATE and DUT over LGA_1 using LAG_1 interface IPs and advertise prefix pfx3 with BGP NH from pfx2 range.
 - Programm via gRIBI route in VRF_X for prefix pfx4 with single NHG pointing LAG_2 (all  ports are forwarding-viable at this point).
-- [TODO] Programm via gRIBI route in VRF_X for prefix pfx5 with single NHG pointing LAG_2 and backup NHG pointing LAG3 (all  ports are forwarding-viable at this point).
-- [TODO] Programm via gRIBI route in VRF_X for prefix pfx6 with single NHG pointing LAG_2 and backup NHG pointing IPinIP decap and lookup in default vrf (all  ports are forwarding-viable at this point).
+- [TODO] Programm via gRIBI route in VRF_X for prefix pfx5 with single NHG pointing LAG_2 and backup NHG pointing IPinIP decap and lookup in default vrf (all  ports are forwarding-viable at this point).
 
   
 - For ISIS cost of LAG_2 lower then ISIS cost of LAG_3:
@@ -77,7 +75,7 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
     - ensure there are no packet losses in steady state (no congestion) for
       traffic from ATE LAG_1 to ATE LAG_3 (pfx_2, pfx3).
     - [TODO] ensure there are no packet losses in steady state (no congestion) for
-      traffic from ATE LAG_1 to ATE LAG_3 (pfx5, pfx6).
+      traffic from ATE LAG_1 to ATE LAG_3 (pfx5).
     - Ensure there is no traffic received on DUT LAG_3
     - Ensure that traffic from ATE port1 to pfx2, pfx3 are transmitted via DUT
       LAG3
@@ -114,7 +112,7 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
     - ensure there are no packet losses in steady state (no congestion) for
       traffic from ATE LAG_1 to ATE LAG_3 (pfx_2, pfx3).
     - [TODO] ensure there are no packet losses in steady state (no congestion) for
-      traffic from ATE LAG_1 to ATE LAG_3 (pfx5, pfx6).     
+      traffic from ATE LAG_1 to ATE LAG_3 (pfx5).     
     - Ensure that traffic from ATE port1 to pfx2, pfx3 are transmitted via DUT
       LAG3
     - Ensure that traffic from ATE port1 to pfx4 are discarded on DUT
