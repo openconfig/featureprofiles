@@ -674,3 +674,8 @@ func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
 }
+
+// SkipBgpSessionCheckWithoutAfisafi returns if device needs to skip checking AFI-SAFI disable.
+func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
+}
