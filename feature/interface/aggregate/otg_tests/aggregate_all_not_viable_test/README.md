@@ -98,13 +98,16 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
   - Make the forwarding-viable transitions from TRUE --> FALSE on ports 3-7
     within the LAG_2 on the DUT
     - ensure that only DUT port 2 of LAG_2 and all ports of LAG_3 ports has bidirectional
-    traffic. The traffic split between LAG_2 and LAG_3 should be 50:50.
+    traffic.
+    - [TODO] ensure traffic from ATE LAG_1 to each (pfx2, pfx3, pfx4, pfx5) split between LAG_2 and LAG_3 is be 1:2 (wECMP)
+    - [TODO] ensure traffic from each(pfx2, pfx3, pfx4, pfx5) to ATE LAG_1 split between LAG_2 and LAG_3 is be 3:1 (wECMP)
     - Ensure there is no traffic transmitted out of DUT ports 3-7
     - ensure that traffic is received on all port2-7 and ports8-9 and delivered to ATE port1
     - ensure there are no packet losses in steady state (no congestion).
   - Disable/deactive laser on ATE port2; All LAG_2 members are either down (port2) or
     set with forwarding-viable=FALSE.
     - Ensure ISIS adjacency is UP on DUT LAG_2 and ATE LAG_2
+    - [TODO] ensure traffic from each(pfx2, pfx3, pfx4, pfx5) to ATE LAG_1 split between LAG_2 and LAG_3 is be 5:2 (wECMP)
     - Ensure there is no traffic transmitted out of  DUT ports 2-7 (LAG_2)
     - ensure that traffic received on all port3-7 and ports8-9 is delivered to ATE LAG_1
     - ensure there are no packet losses in steady state (no congestion) for
@@ -118,6 +121,8 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
     - Ensure that traffic from ATE port1 to pfx4 are discarded on DUT
   - Make the forwarding-viable transitions from FALSE --> TRUE on a ports 7
     within the LAG_2 on the DUT
+    - [TODO] ensure traffic from ATE LAG_1 to each (pfx2, pfx3, pfx4, pfx5) split between LAG_2 and LAG_3 is be 1:2 (wECMP)
+    - [TODO] ensure traffic from each(pfx2, pfx3, pfx4, pfx5) to ATE LAG_1 split between LAG_2 and LAG_3 is be 5:2 (wECMP)
     - ensure that only DUT port 7 of LAG_2 and all ports of LAG_3 ports has bidirectional traffic.
     - Ensure there is no traffic transmitted out of  DUT ports 2-6
     - ensure that traffic received on all port3-7 and ports8-9 is delivered to ATE port1
@@ -129,7 +134,7 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
 
 It is foreseen that implementation may drop ISIS adjacency if all members of LAG
 are set with forwarding-viable = FALSE. This scenario may be
-handled via the yet to be defined deviation `logicalInterfaceUPonNonViableAll`.
+handled via the yet to be defined deviation `logicalInterfaceDownOnNonViableAll`.
 
 ## Config Parameter coverage
 
