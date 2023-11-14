@@ -72,7 +72,6 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 
 	// Level configs.
 	level2 := isis.GetOrCreateLevel(2)
-	level2.Enabled = ygot.Bool(true)
 	level2.LevelNumber = ygot.Uint8(2)
 
 	// Authentication configs.
