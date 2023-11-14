@@ -1171,8 +1171,8 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Generate flows over ISIS and BGP sessions.
-	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "transit_wecmp_isis_1", "transit_wecmp_isis_2", "isis", 16)
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 16)
+	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "transit_wecmp_isis_1", "transit_wecmp_isis_2", "isis", 0)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 0)
 	scaleFlow := getScaleFlow(t, args.topology.Interfaces(), args.ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.90, isisFlow, bgpFlow, scaleFlow)
@@ -1216,7 +1216,7 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 
 	//Configure BGP on TGN
 	//Generate DSCP48 flow
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 48)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 0)
 
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, bgpFlow)
@@ -1578,14 +1578,14 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 		10: 100,
 	}
 	prefixes1 := []string{}
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+	for i := 0; i < 10; i++ {
 		prefixes1 = append(prefixes1, util.GetIPPrefix("101.1.1.1", i, "32"))
 	}
 	weights4 := map[uint64]uint64{
 		20: 100,
 	}
 	prefixes2 := []string{}
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+	for i := 0; i < 10; i++ {
 		prefixes2 = append(prefixes2, util.GetIPPrefix("102.1.1.1", i, "32"))
 	}
 
@@ -1599,10 +1599,10 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 
 	//Outer header TTL decrements by 1, DSCP stays same over gRIBI forwarding entry.
 	//flow with dscp=48, ttl=100
-	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "transit_wecmp_isis_2", "dscpTtlFlow", 16, 100)
+	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "network102", "dscpTtlFlow", 48, 100)
 	//add acl with dscp=48, ttl=99. Transit traffic will have ttl decremented by 1
 	aclName := "ttl_dscp"
-	aclConfig := util.GetIpv4Acl(aclName, 10, 16, 99, oc.Acl_FORWARDING_ACTION_ACCEPT)
+	aclConfig := util.GetIpv4Acl(aclName, 10, 48, 99, oc.Acl_FORWARDING_ACTION_ACCEPT)
 	gnmi.Update(t, args.dut, gnmi.OC().Acl().Config(), aclConfig)
 
 	//delete acl
@@ -2144,7 +2144,6 @@ func TestTransitWECMPFlush(t *testing.T) {
 			desc: "Transit TC 071 - Verify protocol (BGP) over gribi transit fwding entry",
 			fn:   testBgpProtocolOverGribiTransitEntry,
 		},
-
 		{
 			name: "AddReplaceDeleteWithSamePrefixWithVaryingPrefixLength",
 			desc: "Transit TC 075 - ADD/REPLACE/DELETE with same Prefix with varying prefix lengths",
@@ -2170,7 +2169,6 @@ func TestTransitWECMPFlush(t *testing.T) {
 			desc: "Transit- LC OIR",
 			fn:   testLCOIR,
 		},
-
 		{
 			name: "DataPlaneFieldsOverGribiTransitFwdingEntry",
 			desc: "Transit TC 072 - Verify dataplane fields(TTL, DSCP) with gribi transit fwding entry",
