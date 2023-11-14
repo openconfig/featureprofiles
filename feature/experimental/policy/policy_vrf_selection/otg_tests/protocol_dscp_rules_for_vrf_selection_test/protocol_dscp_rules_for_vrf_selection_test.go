@@ -542,8 +542,12 @@ func TestPBR(t *testing.T) {
 			// apply pbr policy on ingress interface
 			p1 := port1.Name()
 			d := &oc.Root{}
-			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
-			pfIntfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(p1)
+			interfaceID := p1
+			if deviations.InterfaceRefInterfaceIdFormat(dut) {
+				interfaceID = p1 + ".0"
+			}
+			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
+			pfIntfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 			pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
 			pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 			if deviations.InterfaceRefConfigUnsupported(dut) {
