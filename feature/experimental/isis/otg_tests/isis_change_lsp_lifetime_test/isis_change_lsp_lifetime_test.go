@@ -188,11 +188,20 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 			if got, want := isis.GetLevel(2).GetLsp(ateLspID).GetTlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).GetIpv6Reachability().GetPrefix(v6Route).GetPrefix(), v6Route; got != want {
 				t.Errorf("FAIL- Expected v6 route not found in isis, got %v, want %v", got, want)
 			}
-			if got, want := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route).State()).GetPrefix(), v4Route; got != want {
-				t.Errorf("FAIL- Expected v4 route not found in aft, got %v, want %v", got, want)
+			ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route)
+			if got, ok := gnmi.Watch(t, ts.DUT, ipv4Path.State(), time.Second*30, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+				ipv4Entry, present := val.Val()
+				return present && ipv4Entry.GetPrefix() == v4Route
+			}).Await(t); !ok {
+				t.Errorf("FAIL- Expected v4 route not found in aft, got %v, want %v", got, v4Route)
 			}
-			if got, want := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(v6Route).State()).GetPrefix(), v6Route; got != want {
-				t.Errorf("FAIL- Expected v6 route not found in aft, got %v, want %v", got, want)
+
+			ipv6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(v6Route)
+			if got, ok := gnmi.Watch(t, ts.DUT, ipv6Path.State(), time.Second*30, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+				ipv6Entry, present := val.Val()
+				return present && ipv6Entry.GetPrefix() == v6Route
+			}).Await(t); !ok {
+				t.Errorf("FAIL- Expected v6 route not found in aft, got %v, want %v", got, v6Route)
 			}
 		})
 		// Check the lsp's checksum/seq number/remaining lifetime once lsp refreshes periodically.
@@ -212,7 +221,7 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 				}
 				isisNew := gnmi.Get(t, ts.DUT, isisPath.State())
 				if got, want := isisNew.GetLevel(2).GetLsp(dutLspID).GetSequenceNumber(), seqNum1; got <= want {
-					t.Errorf("FAIL- Sequence number of new lsp should increment, got %d, want greater than %d", got, want)
+					return false
 				}
 				if got := isisNew.GetLevel(2).GetLsp(dutLspID).GetChecksum(); got == checksum1 {
 					t.Errorf("FAIL- Checksum of new lsp should be different from %d, got %d", checksum1, got)

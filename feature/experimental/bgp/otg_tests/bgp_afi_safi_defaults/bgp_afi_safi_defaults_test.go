@@ -146,15 +146,6 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 		nv4.PeerAs = ygot.Uint32(nbr.as)
 		nv4.Enabled = ygot.Bool(true)
 
-		// Neighbor level config is always applied.
-		if nbr.isV4 == true {
-			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(true)
-		} else {
-			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(true)
-		}
-
 		switch afiSafiLevel {
 		case globalLevel:
 			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
@@ -163,6 +154,14 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 			extNh.ExtendedNextHopEncoding = ygot.Bool(true)
 			if deviations.BGPGlobalExtendedNextHopEncodingUnsupported(dut) {
 				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast = nil
+			}
+		case nbrLevel:
+			if nbr.isV4 == true {
+				af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+				af4.Enabled = ygot.Bool(true)
+			} else {
+				af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+				af6.Enabled = ygot.Bool(true)
 			}
 		case peerGrpLevel:
 			pg1af4 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -405,7 +404,7 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 				bgpClearConfig(t, dut)
 				dutConf := bgpCreateNbr(t, dutAS, ateAS, dut, tc.afiSafiLevel)
 				gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-				fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+				fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 			})
 
 			otg := ate.OTG()
