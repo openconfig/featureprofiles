@@ -16,7 +16,6 @@
 package mixed_oc_cli_origin_support_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -40,11 +39,7 @@ type testCase struct {
 // showRunningConfig returns the output of 'show running-config' on the device.
 func showRunningConfig(t *testing.T, dut *ondatra.DUTDevice) string {
 	t.Helper()
-	runningConfig, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show running-config")
-	if err != nil {
-		t.Fatalf("'show running-config' failed: %v", err)
-	}
-	return runningConfig
+	return dut.CLI().Run(t, "show running-config")
 }
 
 // testQoSWithCLIAndOCUpdates carries out a mixed-origin test for a QoS test case.
