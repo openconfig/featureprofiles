@@ -30,7 +30,7 @@ message NOSImageProfile {
   // The name of the vendor's network operating system.
   string nos = 2;
 
-  // Vendor network operating system version.
+  // Vendor network operating system version. This should match the output of the OC Path  /system/state/software-version.
   string software_version = 3;
 
   // release_date indicates the date the network operating system is released.
