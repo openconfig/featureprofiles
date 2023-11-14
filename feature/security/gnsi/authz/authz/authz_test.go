@@ -42,6 +42,11 @@ import (
 	authzpb "github.com/openconfig/gnsi/authz"
 )
 
+const (
+	maxRebootTime   = 900 // Unit is Seconds
+	maxCompWaitTime = 600
+)
+
 type spiffe struct {
 	spiffeID string
 	// tls config that is created using ca bundle and svid of the user
@@ -49,7 +54,7 @@ type spiffe struct {
 }
 
 var (
-	testInfraID = flag.String("test_infra_id", "cafyauto", "test Infra ID user for authz operation")
+	testInfraID = flag.String("test_infra_id", "cafyauto", "SPIFFE-ID used by test Infra ID user for authz operation")
 	caCertPem   = flag.String("ca_cert_pem", "testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
 	commonName  = flag.Bool("common_name", true, "a pem file for ca cert that will be used to generate svid")
 	caKeyPem    = flag.String("ca_key_pem", "testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
@@ -81,17 +86,11 @@ var (
 	}
 )
 
-const (
-	maxRebootTime   = 900
-	maxCompWaitTime = 600
-)
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 func loadPolicyFromJsonFile(t *testing.T, dut *ondatra.DUTDevice, file_path string) []authz.AuthorizationPolicy {
-
 	// Open the JSON file.
 	file, err := os.Open(file_path)
 	if err != nil {
@@ -120,7 +119,7 @@ func createUser(t *testing.T, dut *ondatra.DUTDevice, user string) {
 
 func setUpUsers(t *testing.T, dut *ondatra.DUTDevice) {
 	createUser(t, dut, "cisco")
-	caKey, tructBundle, err := svid.LoadKeyPair(*caKeyPem, *caCertPem)
+	caKey, trustBundle, err := svid.LoadKeyPair(*caKeyPem, *caCertPem)
 	if err != nil {
 		t.Fatalf("Could not load ca key/cert: %v", err)
 	}
@@ -133,9 +132,9 @@ func setUpUsers(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Could not create the trust bundle: %v", err)
 	}
 	for user, v := range usersMap {
-		userSvid, err := svid.GenSVID("", v.spiffeID, 300, tructBundle, caKey, x509.RSA)
+		userSvid, err := svid.GenSVID("", v.spiffeID, 300, trustBundle, caKey, x509.RSA)
 		if *commonName {
-			userSvid, err = svid.GenSVID(v.spiffeID, v.spiffeID, 300, tructBundle, caKey, x509.RSA)
+			userSvid, err = svid.GenSVID(v.spiffeID, v.spiffeID, 300, trustBundle, caKey, x509.RSA)
 		}
 		if err != nil {
 			t.Fatalf("Could not generate svid for user %s: %v", user, err)
@@ -155,11 +154,12 @@ type access struct {
 	allowed []*gnxi.RPC
 	denied  []*gnxi.RPC
 }
+
 type authorizationTable struct {
 	table map[string]access
 }
 
-// verifyPerm takes an authorizationTable and verify the expected rpc/acess
+// verifyPerm takes an authorization Table and verify the expected rpc/access
 func (a *authorizationTable) verifyAuthorization(t *testing.T, dut *ondatra.DUTDevice) {
 	for certName, access := range a.table {
 		t.Run(fmt.Sprintf("Validating access for user %s", certName), func(t *testing.T) {
