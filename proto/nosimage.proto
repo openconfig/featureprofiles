@@ -40,4 +40,8 @@ message NOSImageProfile {
 
   // list of ocpaths supported by the network operating system
   repeated openconfig.ocpaths.OCPath ocpaths = 5;
+  // List of OpenConfig RPC's which are suppored by the network operating system.  ocrpc is a gRPC path specification.
+  // Format: <protocol>.<protopath>.<service>.<rpc>
+  // Example: gnoi.healthz.Healthz.Get
+  repeated string ocrpc = 6;
 }
