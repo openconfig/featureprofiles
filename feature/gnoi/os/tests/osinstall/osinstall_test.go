@@ -185,7 +185,6 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noReb
 }
 
 // fetchStandbySupervisorStatus checks if the DUT has a standby supervisor available in a working state.
-
 func (tc *testCase) fetchStandbySupervisorStatus(ctx context.Context, t *testing.T) {
 	r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
 	if err != nil {
@@ -289,7 +288,6 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) 
 
 // verifyInstall validates the OS.Verify RPC returns no failures and version numbers match the
 // newly requested software version.
-
 func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 	rebootWait := time.Minute
 	deadline := time.Now().Add(*timeout)
