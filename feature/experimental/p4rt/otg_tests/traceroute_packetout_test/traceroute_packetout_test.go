@@ -53,8 +53,6 @@ const (
 var (
 	p4InfoFile = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName = "p4rt"
-	portids    []string
-	nodename   string
 )
 
 func dMAC(t *testing.T, dut *ondatra.DUTDevice) string {
@@ -106,22 +104,22 @@ func TestMain(m *testing.M) {
 }
 
 // configureDUT configures port1 and port2 on the DUT.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, portids []string) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
-	p1 := dut.Port(t, portids[0]).Name()
+	p1 := dut.Port(t, "port1").Name()
 	i1 := dutPort1.NewOCInterface(p1, dut)
 	i1.Id = ygot.Uint32(ingressPortId)
 	gnmi.Replace(t, dut, d.Interface(p1).Config(), i1)
 
-	p2 := dut.Port(t, portids[1]).Name()
+	p2 := dut.Port(t, "port2").Name()
 	i2 := dutPort2.NewOCInterface(p2, dut)
 	i2.Id = ygot.Uint32(egressPortId)
 	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
 
 	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dut.Port(t, portids[0]))
-		fptest.SetPortSpeed(t, dut.Port(t, portids[1]))
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1, deviations.DefaultNetworkInstance(dut), 0)
@@ -130,53 +128,24 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, portids []string) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice, portids []string) gosnappi.Config {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top := gosnappi.NewConfig()
 
-	p1 := ate.Port(t, portids[0])
+	p1 := ate.Port(t, "port1")
 	atePort1.AddToOTG(top, p1, &dutPort1)
 
-	p2 := ate.Port(t, portids[1])
+	p2 := ate.Port(t, "port2")
 	atePort2.AddToOTG(top, p2, &dutPort2)
 	return top
 }
 
-// selectPort returns repeating <P4RTNodeName> with highest frequency and port-ids associated with it
-func selectPort(t *testing.T, dut *ondatra.DUTDevice) (string, []string) {
-	nodes := p4rtutils.P4RTNodesByPort(t, dut)
-	selectPort := make(map[string]int)
-	for _, num := range nodes {
-		selectPort[num] = selectPort[num] + 1
-	}
-
-	for k, v := range selectPort {
-		if v == 2 {
-			nodename = k
-		}
-	}
-
-	if nodename == "" {
-		t.Fatalf("Need atleast 2 ports in same P4RT Node, found none")
-	}
-
-	if nodes["port1"] == nodename {
-		portids = append(portids, "port1")
-	}
-	if nodes["port2"] == nodename {
-		portids = append(portids, "port2")
-	}
-	if nodes["port3"] == nodename {
-		portids = append(portids, "port3")
-	}
-	if nodes["port4"] == nodename {
-		portids = append(portids, "port4")
-	}
-	return nodename, portids
-
-}
-
 // configureDeviceIDs configures p4rt device-id on the DUT.
-func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, p4rtNode string) {
+func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	p4rtNode, ok := nodes["port2"]
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port2")
+	}
 	t.Logf("Configuring P4RT Node: %s", p4rtNode)
 	c := oc.Component{}
 	c.Name = ygot.String(p4rtNode)
@@ -247,23 +216,23 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 func TestPacketOut(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
-	p4rtNode, portids := selectPort(t, dut)
+	configureDUT(t, dut)
 
-	configureDUT(t, dut, portids)
 	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate, portids)
+	top := configureATE(t, ate)
+
 	otg := ate.OTG()
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 
-	configureDeviceID(ctx, t, dut, p4rtNode)
+	configureDeviceID(ctx, t, dut)
 
 	client := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := client.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	sm := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, portids[0]).Name()).Ethernet().MacAddress().State())
+	sm := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 	srcMAC, err := net.ParseMAC(sm)
 	if err != nil {
 		t.Fatalf("Couldn't parse Source MAC: %v", err)
@@ -358,13 +327,13 @@ func getExpectedTrafficPort(meta []*p4v1.PacketMetadata) string {
 	for _, m := range meta {
 		// submit_to_ingress
 		if m.MetadataId == 2 && m.Value[0] == 1 {
-			return portids[0]
+			return "port1"
 		}
 	}
 	for _, m := range meta {
 		// egress_port
 		if m.MetadataId == 1 && string(m.Value) == fmt.Sprint(egressPortId) {
-			return portids[1]
+			return "port2"
 		}
 	}
 	return ""
