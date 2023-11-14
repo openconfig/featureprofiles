@@ -27,7 +27,8 @@ message NOSImageProfile {
   // The name of the vendor.
   ondatra.Device.Vendor vendor_id = 1;
 
-  // The name of the vendor's network operating system.
+  // The name of the vendor's network operating system.  This should be the same string as output by /components/component/state/mfg-name from the component TYPE=OPERATING_SYSTEM.
+
   string nos = 2;
 
   // Vendor network operating system version. This should match the output of the OC Path  /system/state/software-version.
