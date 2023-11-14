@@ -649,16 +649,6 @@ func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
 }
 
-// SkipSubInterfaceIndex returns if device should not use subinterface index.
-func SkipSubInterfaceIndex(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSubInterfaceIndex()
-}
-
-// SkipStaticNexthopCheck returns if device needs index starting from non zero
-func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
-}
-
 // EcnSameMinMaxThresholdUnsupported returns true for devices that don't support the same minimum and maximum threshold values
 // CISCO: minimum and maximum threshold values are not the same, the difference between minimum and maximum threshold value should be 6144.
 func EcnSameMinMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
@@ -688,4 +678,14 @@ func InterfaceRefInterfaceIdFormat(dut *ondatra.DUTDevice) bool {
 // ISISLevelEnabled returns if device should enable isis under level.
 func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
+}
+
+// SkipSubInterfaceIndex returns if device should not use subinterface index.
+func SkipSubInterfaceIndex(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSubInterfaceIndex()
+}
+
+// SkipStaticNexthopCheck returns if device needs index starting from non zero
+func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
