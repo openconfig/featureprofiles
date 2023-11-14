@@ -106,7 +106,7 @@ func configureNode(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDev
 		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
 	}
 
-	return node, gnmi.GetConfig(t, node, lldp.Config())
+	return node, gnmi.Get(t, node, lldp.Config())
 }
 
 // verifyNodeConfig verifies the config by comparing against the telemetry state object.

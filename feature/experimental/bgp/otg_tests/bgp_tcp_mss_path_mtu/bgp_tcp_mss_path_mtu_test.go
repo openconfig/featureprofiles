@@ -310,7 +310,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 		dut1Nbrs := []*bgpNeighbor{dut1Nbr1v4, dut1Nbr1v6}
 		dut1Conf := bgpCreateNbr(t, dut1, "", dut1Port2.IPv4, dut1AS, dut1Nbrs)
 		gnmi.Replace(t, dut1, dut1ConfPath.Config(), dut1Conf)
-		fptest.LogQuery(t, "DUT1 BGP Config", dut1ConfPath.Config(), gnmi.GetConfig(t, dut1, dut1ConfPath.Config()))
+		fptest.LogQuery(t, "DUT1 BGP Config", dut1ConfPath.Config(), gnmi.Get(t, dut1, dut1ConfPath.Config()))
 	})
 
 	otg := ate.OTG()
@@ -390,7 +390,7 @@ func TestTcpMssPathMtu(t *testing.T) {
 		dut2Nbrs := []*bgpNeighbor{dut2Nbr1v4}
 		dut2Conf := bgpCreateNbr(t, dut2, authPWd, dut2Port1.IPv4, dut2AS, dut2Nbrs)
 		gnmi.Replace(t, dut2, dut2ConfPath.Config(), dut2Conf)
-		fptest.LogQuery(t, "DUT2 BGP Config", dut2ConfPath.Config(), gnmi.GetConfig(t, dut2, dut2ConfPath.Config()))
+		fptest.LogQuery(t, "DUT2 BGP Config", dut2ConfPath.Config(), gnmi.Get(t, dut2, dut2ConfPath.Config()))
 	})
 
 	t.Run("Configure iBGP session ATE Port1 - DUT2", func(t *testing.T) {

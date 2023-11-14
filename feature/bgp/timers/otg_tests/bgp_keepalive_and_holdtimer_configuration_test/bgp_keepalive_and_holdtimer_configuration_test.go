@@ -429,7 +429,7 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 	t.Logf("Start DUT BGP Config")
 	dutBgpTimerConf := tc.bgpTimersConfig(t, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutBgpTimerConf)
-	fptest.LogQuery(t, "Updated DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "Updated DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	// Verify Port Status
 	t.Log(" Verifying port status")
 	t.Run("verifyPortsUp", func(t *testing.T) {
@@ -490,7 +490,7 @@ func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := bgpCreateNbr(dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	// ATE Configuration.
 	t.Log("Start ATE Config")
 	otgConfig := configureATE(t, ate)
