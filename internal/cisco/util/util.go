@@ -193,7 +193,6 @@ func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK flue
 	// If randomise is specified, we go and do the operations in a random order.
 	// In this case, the caller MUST
 	if randomise {
-		rand.Seed(time.Now().UnixNano())
 		rand.Shuffle(len(ops), func(i, j int) { ops[i], ops[j] = ops[j], ops[i] })
 	}
 

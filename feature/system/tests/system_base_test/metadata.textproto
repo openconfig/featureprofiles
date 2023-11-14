@@ -1,15 +1,15 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "ec59d852-0828-4607-bea5-fbe2340c5414"
-plan_id: "OC-1.1"
-description: "System Configuration"
-testbed: TESTBED_DUT_ATE_2LINKS
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
+uuid:  "ec59d852-0828-4607-bea5-fbe2340c5414"
+plan_id:  "System-1"
+description:  "System testing"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
   }
-  deviations: {
-    cli_takes_precedence_over_oc: true
+  deviations:  {
+    cli_takes_precedence_over_oc:  true
   }
 }

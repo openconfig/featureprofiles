@@ -29,6 +29,8 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -173,6 +175,51 @@ func TestInterfaceCounters(t *testing.T) {
 	}
 }
 
+func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath) bool {
+	if deviations.InterfaceCountersFromContainer(dut) {
+		time.Sleep(10 * time.Second)
+		return true
+	}
+	inSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Counters().InUnicastPkts().State(), 90*time.Second)
+	outSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Counters().OutUnicastPkts().State(), 90*time.Second)
+
+	inPkts := inSamples.Await(t)
+	outPkts := outSamples.Await(t)
+
+	if len(inPkts) < 2 || len(outPkts) < 2 {
+		t.Fatalf("did not get enough samples: in counters: %s out counters %s",
+			inPkts, outPkts)
+	}
+	t.Logf("Sample Size Incoming Packets: %d, Sample Size Outgoing Packets: %d", len(inPkts), len(outPkts))
+	var pktCounterOK = true
+	// check counters for first and last sample interval, they shouldn't be equal
+	inValFirst, _ := inPkts[0].Val()
+	outValFirst, _ := outPkts[0].Val()
+	inValFinal, _ := inPkts[len(inPkts)-1].Val()
+	outValFinal, _ := outPkts[len(inPkts)-1].Val()
+
+	if inValFinal == inValFirst || outValFinal == outValFirst {
+		t.Logf("Counters not incremented: Initial Incoming Packets: %d, Final Incoming Packets: %d", inValFirst, inValFinal)
+		t.Logf("Counters not incremented: Initial Outgoing Packets: %d,  Final Outgoing Packets: %d", outValFirst, outValFinal)
+		pktCounterOK = false
+		return pktCounterOK
+	}
+
+	for i := 1; i < len(inPkts); i++ {
+		inValOld, _ := inPkts[i-1].Val()
+		outValOld, _ := outPkts[i-1].Val()
+		inValLatest, _ := inPkts[i].Val()
+		outValLatest, _ := outPkts[i].Val()
+		t.Logf("Incoming Packets: %d, Outgoing Packets: %d", inValLatest, outValLatest)
+		if inValLatest == inValOld || outValLatest == outValOld || (inValLatest-inValOld != outValLatest-outValOld) {
+			t.Logf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d", inValLatest-inValOld, outValLatest-outValOld)
+			pktCounterOK = false
+			break
+		}
+	}
+	return pktCounterOK
+}
+
 func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath) (map[string]uint64, map[string]uint64) {
 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
 	if deviations.InterfaceCountersFromContainer(dut) {
@@ -208,7 +255,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	otg := ate.OTG()
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
 	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").SetMac("02:00:01:01:01:01")
@@ -268,7 +315,9 @@ func TestIntfCounterUpdate(t *testing.T) {
 	waitOTGARPEntry(t)
 
 	otg.StartTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(2 * time.Second)
+	// Check incoming and outgoing interface counters updated per second
+	inAndOutPktsPerSecoundCounterOK := validateInAndOutPktsPerSecond(t, dut, i1, i2)
 	otg.StopTraffic(t)
 
 	// Check interface status is up.
@@ -336,6 +385,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 		if got, want := dutOutPktsAfterTraffic[k]-dutOutPktsBeforeTraffic[k], ateOutPkts[k]; got < want {
 			t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 		}
+	}
+	// Validate per second interface counters are updated
+	if !inAndOutPktsPerSecoundCounterOK {
+		t.Error("Interface Packet Counters are not updated per second")
 	}
 }
 

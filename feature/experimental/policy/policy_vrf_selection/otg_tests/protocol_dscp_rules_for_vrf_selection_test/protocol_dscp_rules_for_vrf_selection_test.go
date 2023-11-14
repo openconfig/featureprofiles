@@ -147,7 +147,7 @@ func TestMain(m *testing.M) {
 
 // configureATE configures port1, port2 and vlans on port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) gosnappi.Config {
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	top.Ports().Add().SetName(p1.ID())

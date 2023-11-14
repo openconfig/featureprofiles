@@ -11,6 +11,7 @@ replace: {
   " secret 10 $6$zCA6f111muUgCf1.$LSzgfdc2NPI.AOglnOkzNb.ioHSbohtqv112MJSEyRpP7g7Kqup3bXBxKo4j9Sq2Nz6akg6nHT0auEPP/AyfH1\n"
   "!\n"
   "aaa accounting commands default start-stop local\n"
+  "aaa map-to username cafyauto spiffe-id any \n"
   "grpc\n"
   " vrf mgmt\n"
   " port 57777\n"

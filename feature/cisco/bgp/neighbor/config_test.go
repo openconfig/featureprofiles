@@ -1,4 +1,4 @@
-package bgp_neighbor_test
+package bgp_test
 
 import (
 	"context"

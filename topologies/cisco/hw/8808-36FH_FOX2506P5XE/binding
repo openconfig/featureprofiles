@@ -177,19 +177,19 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "1/53"  # Change this to the actual port name.
+    name: "1/49"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "1/54"  # Change this to the actual port name.
+    name: "1/50"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "1/55"  # Change this to the actual port name.
+    name: "1/51"  # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "1/56"  # Change this to the actual port name.
+    name: "1/52"  # Change this to the actual port name.
   }
   #ports {
   #  id: "port5"
