@@ -51,14 +51,14 @@ func TestMotdBanner(t *testing.T) {
 			gnmi.Replace(t, dut, config.Config(), testCase.banner)
 
 			t.Run("Get MOTD Config", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if configGot != testCase.banner {
 					t.Errorf("Config MOTD Banner: got %s, want %s", configGot, testCase.banner)
 				}
 			})
 
 			t.Run("Get MOTD Telemetry", func(t *testing.T) {
-				stateGot := gnmi.GetConfig(t, dut, state.Config())
+				stateGot := gnmi.Get(t, dut, state.Config())
 				if stateGot != testCase.banner {
 					t.Errorf("Telemetry MOTD Banner: got %v, want %s", stateGot, testCase.banner)
 				}
@@ -101,12 +101,12 @@ func TestLoginBanner(t *testing.T) {
 
 			gnmi.Replace(t, dut, config.Config(), testCase.banner)
 
-			configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.Get(t, dut, config.Config())
 			if configGot != testCase.banner {
 				t.Errorf("Config Login Banner: got %s, want %s", configGot, testCase.banner)
 			}
 
-			stateGot := gnmi.GetConfig(t, dut, state.Config())
+			stateGot := gnmi.Get(t, dut, state.Config())
 			if stateGot != testCase.banner {
 				t.Errorf("Telemetry Login Banner: got %v, want %s", stateGot, testCase.banner)
 			}

@@ -194,6 +194,9 @@ func TestLinecardReboot(t *testing.T) {
 	}
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
 
+	t.Logf("Wait for 10s to allow the sub component's reboot process to start")
+	time.Sleep(10 * time.Second)
+
 	rebootDeadline := time.Now().Add(linecardBoottime)
 	for retry := true; retry; {
 		t.Log("Waiting for 10 seconds before checking.")
