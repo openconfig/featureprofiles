@@ -182,14 +182,6 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 			ext2Nh.ExtendedNextHopEncoding = ygot.Bool(true)
 			pg2af6 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			pg2af6.Enabled = ygot.Bool(true)
-		case nbrLevel:
-			if nbr.isV4 {
-				af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-				af4.Enabled = ygot.Bool(true)
-			} else {
-				af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-				af6.Enabled = ygot.Bool(true)
-			}
 		case afiSafiSetToFalse:
 			t.Log("AFI-SAFI is set to false")
 			if nbr.isV4 {
