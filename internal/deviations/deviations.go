@@ -679,3 +679,13 @@ func QosSetWeightConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
 }
+
+// Devices which require to use interface-id format of interface name + .subinterface index with Interface-ref container
+func InterfaceRefInterfaceIdFormat(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()
+}
+
+// ISISLevelEnabled returns if device should enable isis under level.
+func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
+}

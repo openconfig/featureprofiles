@@ -16,7 +16,6 @@
 package mixed_oc_cli_origin_support_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -40,11 +39,7 @@ type testCase struct {
 // showRunningConfig returns the output of 'show running-config' on the device.
 func showRunningConfig(t *testing.T, dut *ondatra.DUTDevice) string {
 	t.Helper()
-	runningConfig, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show running-config")
-	if err != nil {
-		t.Fatalf("'show running-config' failed: %v", err)
-	}
-	return runningConfig
+	return dut.CLI().Run(t, "show running-config")
 }
 
 // testQoSWithCLIAndOCUpdates carries out a mixed-origin test for a QoS test case.
@@ -64,7 +59,7 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 
 	t.Logf("Step 2: Retrieve current root OC config")
 	runningConfig := showRunningConfig(t, dut)
-	r := gnmi.GetConfig(t, dut, gnmi.OC().Config())
+	r := gnmi.Get(t, dut, gnmi.OC().Config())
 
 	t.Logf("Step 3: Test that replacing device with current config is accepted and is a no-op.")
 	var result *ygnmi.Result
@@ -111,11 +106,11 @@ func testQoSWithCLIAndOCUpdates(t *testing.T, dut *ondatra.DUTDevice, tCase test
 	}
 
 	// Validate new OC config has been accepted.
-	gotQueue := gnmi.GetConfig(t, dut, qosPath.Queue(tCase.queueName).Config())
+	gotQueue := gnmi.Get(t, dut, qosPath.Queue(tCase.queueName).Config())
 	if got := gotQueue.GetName(); got != tCase.queueName {
 		t.Errorf("Get(DUT queue name): got %v, want %v", got, tCase.queueName)
 	}
-	gotFG := gnmi.GetConfig(t, dut, qosPath.ForwardingGroup(tCase.forwardGroupName).Config())
+	gotFG := gnmi.Get(t, dut, qosPath.ForwardingGroup(tCase.forwardGroupName).Config())
 	if got := gotFG.GetName(); got != tCase.forwardGroupName {
 		t.Errorf("Get(DUT forwarding group name): got %v, want %v", got, tCase.forwardGroupName)
 	}
