@@ -301,10 +301,10 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 	nbrs := []*bgpNeighbor{nbr1, nbr2, nbr3, nbr4}
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	var nbrPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AfiSafiNamePathAny
+	var nbrPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafiPathAny
 
 	for _, nbr := range nbrs {
-		nbrPath = statePath.Neighbor(nbr.neighborip).AfiSafiAny().AfiSafiName()
+		nbrPath = statePath.Neighbor(nbr.neighborip).AfiSafiAny()
 
 		capabilities := map[oc.E_BgpTypes_AFI_SAFI_TYPE]bool{
 			oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: false,
@@ -312,7 +312,7 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 		}
 
 		for _, cap := range gnmi.GetAll(t, dut, nbrPath.State()) {
-			capabilities[cap] = true
+			capabilities[cap.GetAfiSafiName()] = cap.GetActive()
 		}
 
 		switch afiSafiLevel {
