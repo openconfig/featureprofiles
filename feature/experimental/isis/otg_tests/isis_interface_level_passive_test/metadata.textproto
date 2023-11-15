@@ -44,4 +44,12 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true    
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+  }
+}
 tags: TAGS_AGGREGATION

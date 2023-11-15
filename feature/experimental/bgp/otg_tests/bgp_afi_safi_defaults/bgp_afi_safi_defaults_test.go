@@ -152,6 +152,9 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 			extNh := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast()
 			extNh.ExtendedNextHopEncoding = ygot.Bool(true)
+			if deviations.BGPGlobalExtendedNextHopEncodingUnsupported(dut) {
+				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast = nil
+			}
 		case nbrLevel:
 			if nbr.isV4 == true {
 				af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -298,10 +301,10 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 	nbrs := []*bgpNeighbor{nbr1, nbr2, nbr3, nbr4}
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	var nbrPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_AfiSafiNamePathAny
+	var nbrPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafiPathAny
 
 	for _, nbr := range nbrs {
-		nbrPath = statePath.Neighbor(nbr.neighborip).AfiSafiAny().AfiSafiName()
+		nbrPath = statePath.Neighbor(nbr.neighborip).AfiSafiAny()
 
 		capabilities := map[oc.E_BgpTypes_AFI_SAFI_TYPE]bool{
 			oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: false,
@@ -309,7 +312,7 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 		}
 
 		for _, cap := range gnmi.GetAll(t, dut, nbrPath.State()) {
-			capabilities[cap] = true
+			capabilities[cap.GetAfiSafiName()] = cap.GetActive()
 		}
 
 		switch afiSafiLevel {
@@ -337,6 +340,24 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 			}
 		}
 	}
+}
+
+// bgpClearConfig removes all BGP configuration from the DUT.
+func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	resetBatch := &gnmi.SetBatch{}
+	gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+
+	if deviations.NetworkInstanceTableDeletionRequired(dut) {
+		tablePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableAny()
+		for _, table := range gnmi.LookupAll[*oc.NetworkInstance_Table](t, dut, tablePath.Config()) {
+			if val, ok := table.Val(); ok {
+				if val.GetProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP {
+					gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Table(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, val.GetAddressFamily()).Config())
+				}
+			}
+		}
+	}
+	resetBatch.Set(t, dut)
 }
 
 type bgpNeighbor struct {
@@ -368,10 +389,10 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 		desc         string
 		afiSafiLevel string
 	}{{
-		desc:         "Validate AFI-SAFI OC defaults at neighbor level.",
+		desc:         "Validate AFI-SAFI OC defaults at neighbor level",
 		afiSafiLevel: nbrLevel,
 	}, {
-		desc:         "Validate AFI-SAFI OC defaults at peer group level.",
+		desc:         "Validate AFI-SAFI OC defaults at peer group level",
 		afiSafiLevel: peerGrpLevel,
 	}, {
 		desc:         "Validate AFI-SAFI OC defaults at global level",
@@ -380,10 +401,10 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Run("Configure BGP Neighbors", func(t *testing.T) {
-				gnmi.Delete(t, dut, dutConfPath.Config())
+				bgpClearConfig(t, dut)
 				dutConf := bgpCreateNbr(t, dutAS, ateAS, dut, tc.afiSafiLevel)
 				gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-				fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+				fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 			})
 
 			otg := ate.OTG()

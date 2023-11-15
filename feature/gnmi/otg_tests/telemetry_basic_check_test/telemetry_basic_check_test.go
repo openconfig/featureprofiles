@@ -51,6 +51,7 @@ var (
 		ondatra.ARISTA:  16,
 		ondatra.CISCO:   6,
 		ondatra.JUNIPER: 8,
+		ondatra.NOKIA:   16,
 	}
 )
 
@@ -150,9 +151,6 @@ func TestInterfaceOperStatus(t *testing.T) {
 
 func TestInterfacePhysicalChannel(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.MissingInterfacePhysicalChannel(dut) {
-		t.Skip("Test is skipped due to MissingInterfacePhysicalChannel deviation")
-	}
 	dp := dut.Port(t, "port1")
 
 	phyChannel := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).PhysicalChannel().State())
