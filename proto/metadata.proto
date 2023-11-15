@@ -355,27 +355,30 @@ message Metadata {
     // Cisco: Device does not support set weight config under QOS ECN configuration.
     bool qos_set_weight_config_unsupported = 121;
     // Cisco: Device does not support these get state path.
-    bool qos_get_state_path_unsupported = 122; 
+    bool qos_get_state_path_unsupported = 122;
     // Devices requires enabled leaf under isis level
     // Juniper: partnerissuetracker.corp.google.com/302661486
     bool isis_level_enabled = 123;
     // Devices which require to use interface-id format of interface name + .subinterface index with Interface-ref container
     bool interface_ref_interface_id_format = 124;
+    // Devices does not support member link loopback
+    // Juniper: b/307763669
+    bool member_link_loopback_unsupported = 125;
     // Skip gNMI container OP tc.
-    bool skip_container_op = 125;
+    bool skip_container_op = 126;
     // Set ethernet from state.
-    bool dont_set_ethernet_from_state = 126;
+    bool dont_set_ethernet_from_state = 127;
     // Set subinterface to nil.
-    bool set_subinterface_nil = 127;
+    bool set_subinterface_nil = 128;
     // Reorder calls for vendor compatibility.
-    bool reorder_calls_for_vendor_compatibilty = 128;
+    bool reorder_calls_for_vendor_compatibilty = 129;
     // Add missing base config using cli.
-    bool add_missing_base_config_via_cli = 129;
+    bool add_missing_base_config_via_cli = 130;
     // skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
-    bool skip_macaddress_check = 130;
+    bool skip_macaddress_check = 131;
 	  // skip_breakout returns true if breakout via gNMI needs to be skipped.
-    bool skip_breakout = 131;
-
+    bool skip_breakout = 132;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;
   }
