@@ -20,11 +20,12 @@ syntax = "proto3";
 package openconfig.profiles.nosimage;
 
 import "github.com/openconfig/featureprofiles/proto/ocpaths.proto";
+import "github.com/openconfig/featureprofiles/proto/ocrpcs.proto";
 import "github.com/openconfig/ondatra/proto/testbed.proto";
 import "google/protobuf/timestamp.proto";
 
 // NOSImageProfile - A network operating system and version which provides
-// support for a list of OpenConfig paths.
+// support for a list of OpenConfig paths and RPCs.
 message NOSImageProfile {
   // The vendor for the image.
   ondatra.Device.Vendor vendor_id = 1;
@@ -46,4 +47,7 @@ message NOSImageProfile {
 
   // OpenConfig Paths supported by the network operating system.
   openconfig.ocpaths.OCPaths ocpaths = 5;
+
+  // OpenConfig RPCs supported by the network operating system.
+  openconfig.ocrpcs.OCRPCs ocrpcs = 6;
 }
