@@ -20,7 +20,7 @@ Q-value is the decibel (dB) value representing signal BER.
 
 *   With the link ZR link established as explained above, verify that the
     following ZR transceiver telemetry paths exist and are streamed for both
-    the ZR optics
+    the ZR optics.
     *   /terminal-device/logical-channels/channel/otn/state/q-value/instant
     *   /terminal-device/logical-channels/channel/otn/state/q-value/avg
     *   /terminal-device/logical-channels/channel/otn/state/q-value/min
