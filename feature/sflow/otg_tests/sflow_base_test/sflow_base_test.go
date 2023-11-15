@@ -35,13 +35,12 @@ const (
 	plenIPv4      = 30
 	plenIPv6      = 126
 	lossTolerance = 0
-	nexthop       = "192.0.2.6" // points to ateDst port
 )
 
 var (
 	staticRoute = &cfgplugins.StaticRouteCfg{
 		NIName:  "DEFAULT",
-		Prefix:  "192.0.128.0/30",
+		Prefix:  "192.0.2.128/30",
 		Nexthop: "192.0.2.6",
 	}
 	dutSrc = &attrs.Attributes{
