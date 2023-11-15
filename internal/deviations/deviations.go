@@ -674,6 +674,12 @@ func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
 }
 
+// MemberLinkLoopbackUnsupported returns true for devices that require configuring
+// loopback on aggregated links instead of member links.
+func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
+}
+
 // SkipPlqInterfaceOperStatusCheck returns true for devices that do not support
 // PLQ operational status check for interfaces
 func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
