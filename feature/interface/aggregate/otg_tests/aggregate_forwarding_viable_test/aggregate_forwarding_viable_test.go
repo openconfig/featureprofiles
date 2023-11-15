@@ -279,7 +279,9 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 	}
 	lacpPath := d.Lacp().Interface(tc.aggID)
 	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
-	gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+	if tc.lagType == lagTypeLACP {
+		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+	}
 
 	agg := &oc.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
@@ -601,7 +603,7 @@ func TestAggregateForwardingViable(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	aggID := netutil.NextAggregateInterface(t, dut)
 
-	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
+	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeSTATIC, lagTypeLACP}
 	for _, lagType := range lagTypes {
 		args := &testArgs{
 			dut:      dut,
