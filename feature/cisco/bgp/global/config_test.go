@@ -347,13 +347,13 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 		})
 
 		/*
-		 * VRF1 VRF
+		 * VRF
 		 */
 		booleanVal = true
 		routeselopt = oc.NetworkInstance_Protocol_Bgp_Global_RouteSelectionOptions{
 			IgnoreNextHopIgpMetric: &booleanVal,
 		}
-		path = gnmi.OC().NetworkInstance("VRF1").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Global().RouteSelectionOptions()
+		path = gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Global().RouteSelectionOptions()
 
 		/*
 		 * Add ignore-next-hop-igp-metric config
