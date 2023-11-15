@@ -47,9 +47,11 @@ message OCPath {
 
   // Suffix for featureprofiles/feature/<featureprofileid> to which this OCPath
   // is associated.
+  // The string must match openconfig.profiles.FeatureProfileID in
+  // https://github.com/openconfig/featureprofiles/blob/main/proto/feature.proto.
   // This destination featureprofiles folder serves as a grouping of the paths
   // related to the tests which appear in this folder and subfolders the folder.
-  string featureprofileid = 6;
+  string featureprofileid = 3;
 }
 
 // OCPathConstraint enumerates platform_types that are required to be supported
