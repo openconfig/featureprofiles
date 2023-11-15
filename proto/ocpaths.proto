@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// OCPaths -- Specifies a list of OpenConfig paths.
+// ocpaths.proto defines a specification of OpenConfig path support or
+// requirements of a networking entity.
 //
-// This data set is distinct from
+// This specification is distinct from
 // github.com/openconfig/featureprofiles/proto/feature.proto, which describes
 // the relationship between featureprofiles tests and OC paths and is used to
 // report test coverage of those paths.
@@ -26,22 +27,26 @@ package openconfig.ocpaths;
 // OCPaths is the complete list of all OpenConfig paths associated with some
 // entity (e.g. NOS, or path requirements list for a particular device role).
 message OCPaths {
-  // ocpath is repeated for each required OpenConfig path.
-  repeated OCPath ocpath = 1;
+  // Required OpenConfig paths for this entity.
+  repeated OCPath ocpaths = 1;
+
+  // The semantic version of the OpenConfig public models release
+  // (https://github.com/openconfig/public) associated with the list of
+  // OpenConfig paths.
+  string version = 2;
 }
 
 // OCPath is an individual OpenConfig path path.
 message OCPath {
-  // name -- flattened OC path without prefixes.
+  // Flattened OC path without prefixes.
   string name = 1;
 
-  // ocpath_constraint specifies a limited portion of the OC model that a given
-  // path is needed to support.
+  // Specifies a limited portion of the OC model that a given path is needed to
+  // support.
   OCPathConstraint ocpath_constraint = 2;
 
-  // featureprofileid is the suffix for the
-  // featureprofiles/feature/<featureprofileid> to which this OCPath is
-  // associated.
+  // Suffix for featureprofiles/feature/<featureprofileid> to which this OCPath
+  // is associated.
   // This destination featureprofiles folder serves as a grouping of the paths
   // related to the tests which appear in this folder and subfolders the folder.
   string featureprofileid = 6;

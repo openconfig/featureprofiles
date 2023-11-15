@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// NOSImageProfile - A network operating system and version which provides
-// a list of ocpaths.
+// nosimage.proto defines a specification of OpenConfig support provided by a
+// particular network operating system image.
 
 syntax = "proto3";
 
@@ -23,25 +23,27 @@ import "github.com/openconfig/featureprofiles/proto/ocpaths.proto";
 import "github.com/openconfig/ondatra/proto/testbed.proto";
 import "google/protobuf/timestamp.proto";
 
+// NOSImageProfile - A network operating system and version which provides
+// support for a list of OpenConfig paths.
 message NOSImageProfile {
-  // The name of the vendor.
+  // The vendor for the image.
   ondatra.Device.Vendor vendor_id = 1;
 
-  // The name of the vendor's network operating system.  This should be the same string as output by /components/component/state/mfg-name from the component TYPE=OPERATING_SYSTEM.
-
+  // The name of the vendor's network operating system.
+  // This should be the same string as output by
+  // /components/component/state/mfg-name from the component
+  // TYPE=OPERATING_SYSTEM.
   string nos = 2;
 
-  // Vendor network operating system version. This should match the output of the OC Path  /system/state/software-version.
+  // Vendor network operating system version.
+  // This should match the output of the OpenConfig Path
+  // /system/state/software-version.
   string software_version = 3;
 
-  // release_date indicates the date the network operating system is released.
+  // The date the network operating system is released.
   // The date could be a value in the future indicating a future release.
   google.protobuf.Timestamp release_date = 4;
 
-  // list of ocpaths supported by the network operating system
-  repeated openconfig.ocpaths.OCPath ocpaths = 5;
-  // List of OpenConfig RPC's which are suppored by the network operating system.  ocrpc is a gRPC path specification.
-  // Format: <protocol>.<protopath>.<service>.<rpc>
-  // Example: gnoi.healthz.Healthz.Get
-  repeated string ocrpc = 6;
+  // OpenConfig Paths supported by the network operating system.
+  openconfig.ocpaths.OCPaths ocpaths = 5;
 }
