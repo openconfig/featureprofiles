@@ -17,11 +17,11 @@ package cfgplugins
 import (
 	"errors"
 
-	"github.com/openconfig/ygot/ygot/ygot"
-	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
-	"github.com/openconfig/ondatra/gnmi/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
-	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra"
 )
 
 // StaticRouteCfg defines commonly used attributes for setting a static route

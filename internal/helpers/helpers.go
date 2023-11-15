@@ -22,13 +22,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/v2/encoding/prototext/prototext"
-	"github.com/golang/ygot/ygot/ygot"
-	gpb "github.com/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
-	"github.com/openconfig/ondatra/gnmi/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
-	"github.com/openconfig/ondatra/ondatra"
-	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 // FetchOperStatusUPIntfs function uses telemetry to generate a list of all up interfaces.

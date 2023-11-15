@@ -15,11 +15,11 @@
 package cfgplugins
 
 import (
-	"github.com/golang/ygot/ygot/ygot"
-	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
-	"github.com/openconfig/ondatra/gnmi/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
-	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // NewSFlowGlobalCfg takes optional input of sflow global and sfcollector and returns OC

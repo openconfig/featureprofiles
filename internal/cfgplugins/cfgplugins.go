@@ -27,8 +27,8 @@
 package cfgplugins
 
 import (
-	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
-	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/ondatra"
 )
 
 // normalizeNIName applies deviations related to NetworkInterface names
