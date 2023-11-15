@@ -363,9 +363,6 @@ message Metadata {
     bool interface_ref_interface_id_format = 124;   
     // Devices need to skip sub interface index.
     bool skip_sub_interface_index = 125;
-    // Devices has issue with nexthop index
-    // Juniper: b/304729237
-    bool skip_static_nexthop_check = 126;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;

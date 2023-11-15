@@ -33,13 +33,3 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    skip_static_nexthop_check: true
-  }
-}
-
-

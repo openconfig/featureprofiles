@@ -466,14 +466,8 @@ func TestStaticProtocol(t *testing.T) {
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticName)
 
 	var q1, q2 ygnmi.SingletonQuery[string]
-	if deviations.SkipStaticNexthopCheck(dut) {
-		q1 = sp.Static(prefix1).NextHop("1").InterfaceRef().Interface().State()
-		q2 = sp.Static(prefix2).NextHop("1").InterfaceRef().Interface().State()
-	} else {
-		q1 = sp.Static(prefix1).NextHop("0").InterfaceRef().Interface().State()
-		q2 = sp.Static(prefix2).NextHop("0").InterfaceRef().Interface().State()
-
-	}
+	q1 = sp.Static(prefix1).NextHop("0").InterfaceRef().Interface().State()
+	q2 = sp.Static(prefix2).NextHop("0").InterfaceRef().Interface().State()
 
 	scope := &pushScope{
 		interfaces:       []string{p1.Name(), p2.Name()},

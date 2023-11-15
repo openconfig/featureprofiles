@@ -684,8 +684,3 @@ func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 func SkipSubInterfaceIndex(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSubInterfaceIndex()
 }
-
-// SkipStaticNexthopCheck returns if device needs index starting from non zero
-func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
-}
