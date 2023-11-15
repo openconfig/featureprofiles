@@ -100,11 +100,15 @@ testbeds:
   8808_FOX2625PLW8_v6_gNMI:
     <<: *8808_FOX2625PLW8_DEFAULTS
     binding: topologies/cisco/hw/8808_FOX2625PLW8/binding_gnmi_v6
-    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto  
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto 
   8808_FOX2625PLW8_v6_gNMI_fury:
     <<: *8808_FOX2625PLW8_DEFAULTS
     binding: topologies/cisco/hw/8808_FOX2625PLW8/binding_gnmi_v6_fury
-    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto      
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto     
+  8808_FOX2625PLW8_GB_Transit_WECMP:
+    <<: *8808_FOX2625PLW8_DEFAULTS
+    binding: topologies/cisco/hw/8808_FOX2625PLW8/binding_gnmi_v6
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt_PBR_GB.proto
 
   moji_sfd: &moji_sfd_DEFAULTS
     hw: moji_sfd

@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 type testArgs struct {
@@ -459,8 +458,8 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 	args.topology.StartProtocols(t)
 	defer args.topology.StopProtocols(t)
 
-	dscp16Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP16", 1, 16, "12.11.11.12", sortedAtePorts[1])
-	dscp10Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP10", 1, 10, "12.11.11.11", sortedAtePorts[2])
+	dscp16Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP16", 1, 16, "12.11.11.12", sortedAtePorts[2])
+	dscp10Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP10", 1, 10, "12.11.11.11", sortedAtePorts[1])
 
 	checkTrafficFlows(t, args.ate, 60, dscp16Flow, dscp10Flow)
 }
@@ -807,11 +806,11 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 	//Flap interfaces
 	interfaceNames := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	for _, interfaceName := range interfaceNames {
-		util.SetInterfaceState(t, args.dut, interfaceName, false)
+		util.SetInterfaceState(t, args.dut, interfaceName, false, oc.IETFInterfaces_InterfaceType_ieee8023adLag)
 	}
 	time.Sleep(30 * time.Second)
 	for _, interfaceName := range interfaceNames {
-		util.SetInterfaceState(t, args.dut, interfaceName, true)
+		util.SetInterfaceState(t, args.dut, interfaceName, true, oc.IETFInterfaces_InterfaceType_ieee8023adLag)
 	}
 
 	// 192.0.2.40/32  Self-Site
@@ -1019,8 +1018,7 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 	// Removing policy for the tc
-	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config())
-	defer gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Config())
 
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -1173,8 +1171,8 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Generate flows over ISIS and BGP sessions.
-	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "transit_wecmp_isis_1", "transit_wecmp_isis_2", "isis", 16)
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 16)
+	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "transit_wecmp_isis_1", "transit_wecmp_isis_2", "isis", 0)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 0)
 	scaleFlow := getScaleFlow(t, args.topology.Interfaces(), args.ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.90, isisFlow, bgpFlow, scaleFlow)
@@ -1218,7 +1216,7 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 
 	//Configure BGP on TGN
 	//Generate DSCP48 flow
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 48)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 0)
 
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, bgpFlow)
@@ -1580,14 +1578,14 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 		10: 100,
 	}
 	prefixes1 := []string{}
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+	for i := 0; i < 10; i++ {
 		prefixes1 = append(prefixes1, util.GetIPPrefix("101.1.1.1", i, "32"))
 	}
 	weights4 := map[uint64]uint64{
 		20: 100,
 	}
 	prefixes2 := []string{}
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+	for i := 0; i < 10; i++ {
 		prefixes2 = append(prefixes2, util.GetIPPrefix("102.1.1.1", i, "32"))
 	}
 
@@ -1601,10 +1599,10 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 
 	//Outer header TTL decrements by 1, DSCP stays same over gRIBI forwarding entry.
 	//flow with dscp=48, ttl=100
-	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "transit_wecmp_isis_2", "dscpTtlFlow", 16, 100)
+	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "network102", "dscpTtlFlow", 48, 100)
 	//add acl with dscp=48, ttl=99. Transit traffic will have ttl decremented by 1
 	aclName := "ttl_dscp"
-	aclConfig := util.GetIpv4Acl(aclName, 10, 16, 99, oc.Acl_FORWARDING_ACTION_ACCEPT)
+	aclConfig := util.GetIpv4Acl(aclName, 10, 48, 99, oc.Acl_FORWARDING_ACTION_ACCEPT)
 	gnmi.Update(t, args.dut, gnmi.OC().Acl().Config(), aclConfig)
 
 	//delete acl
@@ -1726,14 +1724,14 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	//Change interface configurations and revert back
 	interfaceNames := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	//Store current config
-	originalInterfaces := util.GetCopyOfIpv4SubInterfaces(t, args.dut, interfaceNames, 0)
+	originalInterfaces := util.GetCopyOfIpv4Interfaces(t, args.dut, interfaceNames, 0)
 	//Change IP addresses for the interfaces in the slice
 	initialIP := "123.123.123.123"
 	counter := 1
 	for _, interfaceName := range interfaceNames {
 		ipPrefix := util.GetIPPrefix(initialIP, counter, "24")
 		initialIP = strings.Split(ipPrefix, "/")[0]
-		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Subinterface(0).Config(), util.GetSubInterface(initialIP, 24, 0))
+		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Config(), util.GetInterface(interfaceName, initialIP, 24, 0))
 		t.Logf("Changed configuration of interface %s", interfaceName)
 		counter = counter + 256
 
@@ -1741,8 +1739,8 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	//Revert original config
 	for _, interfaceName := range interfaceNames {
 		osi := originalInterfaces[interfaceName]
-		osi.Index = ygot.Uint32(0)
-		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Subinterface(0).Config(), osi)
+		// osi.Index = ygot.Uint32(0)
+		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Config(), osi)
 		t.Logf("Restored configuration of interface %s", interfaceName)
 	}
 	//Config change end
@@ -2132,11 +2130,6 @@ func TestTransitWECMPFlush(t *testing.T) {
 			fn:   testReplaceVRFIPv4EntryECMPPath,
 		},
 		{
-			name: "ReplaceDefaultIPv4EntryECMPPath",
-			desc: "Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
-			fn:   testReplaceDefaultIPv4EntryECMPPath,
-		},
-		{
 			name: "ReplaceSinglePathtoECMP",
 			desc: "Transit-52 ADD/REPLACE change NH from single path to ECMP",
 			fn:   testReplaceSinglePathtoECMP,
@@ -2186,6 +2179,7 @@ func TestTransitWECMPFlush(t *testing.T) {
 			desc: "Transit TC 074 - ADD/REPLACE/DELETE during related configuration change",
 			fn:   testAddReplaceDeleteWithRelatedConfigChange,
 		},
+
 		{
 			name: "CD2StaticMacChangeNHOP",
 			desc: "Static Arp Resolution",
@@ -2205,6 +2199,11 @@ func TestTransitWECMPFlush(t *testing.T) {
 			name: "CD2StaticMacNHOP",
 			desc: "Static Arp Resolution",
 			fn:   testCD2StaticMacNHOP,
+		},
+		{
+			name: "ReplaceDefaultIPv4EntryECMPPath",
+			desc: "Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
+			fn:   testReplaceDefaultIPv4EntryECMPPath,
 		},
 	}
 	for _, tt := range test {

@@ -171,8 +171,9 @@ def _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file):
 def _write_baseconf_file(fp_repo_dir, reserved_testbed, baseconf_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["baseconf"]), baseconf_file)
 
-def _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file):
+def _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file):
     setup_script = f"""
+export TESTBED_ID={testbed_id}
 export BASECONF={baseconf_file}
 export TESTBED={testbed_file}
 export ATE_BINDING={ate_binding_file}
@@ -188,6 +189,8 @@ start_parser = command_parser.add_parser("start", help="start OTG container")
 start_parser.add_argument('testbed', help="testbed id")
 stop_parser = command_parser.add_parser("stop", help="stop OTG container")
 stop_parser.add_argument('testbed', help="testbed id")
+restart_parser = command_parser.add_parser("restart", help="restart OTG container")
+restart_parser.add_argument('testbed', help="testbed id")
 bindings_parser = command_parser.add_parser("bindings", help="generate Ondatra bindings")
 bindings_parser.add_argument('testbed', help="testbed id")
 bindings_parser.add_argument('--out_dir', default='', help="output directory")
@@ -218,17 +221,17 @@ if command == "bindings":
     _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file)
     _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file)
     _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file)
-    _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file)
+    _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file)
     print('You can run the following command to setup your enviroment:')
     print(f'source {setup_file}')
     
-elif command == "stop":
+if command in ["stop", "restart"]:
     kne_host = reserved_testbed['otg']['host']
     check_output(
         f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} down'
     )
 
-elif command == "start":
+if command in ["start", "restart"]:
     with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as f:
         kne_host = reserved_testbed['otg']['host']
         docker_compose_file_path = f.name

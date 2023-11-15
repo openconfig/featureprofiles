@@ -252,6 +252,37 @@ func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceN
 	return copiedSubInterfaces
 }
 
+// GetInterface returns subinterface
+func GetInterface(interfaceName string, ipv4 string, prefixlen uint8, index uint32) *oc.Interface {
+	i := &oc.Interface{Type: oc.IETFInterfaces_InterfaceType_ieee8023adLag, Enabled: ygot.Bool(true),
+		Name: ygot.String(interfaceName)}
+	s := i.GetOrCreateSubinterface(index)
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(ipv4)
+	a.PrefixLength = ygot.Uint8(prefixlen)
+	return i
+}
+
+// GetCopyOfIpv4Interfaces returns subinterface ipv4 address
+func GetCopyOfIpv4Interfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string, index uint32) map[string]*oc.Interface {
+	copiedSubInterfaces := make(map[string]*oc.Interface)
+	for _, interfaceName := range interfaceNames {
+		a := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).Subinterface(index).Ipv4().State())
+		copiedSubInterfaces[interfaceName] = &oc.Interface{}
+		copiedSubInterfaces[interfaceName].Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		copiedSubInterfaces[interfaceName].Enabled = ygot.Bool(true)
+		copiedSubInterfaces[interfaceName].Name = ygot.String(interfaceName)
+		ipv4 := copiedSubInterfaces[interfaceName].GetOrCreateSubinterface(index).GetOrCreateIpv4()
+		for _, ipval := range a.Address {
+			t.Logf("*** Copying address: %v/%v for interface %s", ipval.GetIp(), ipval.GetPrefixLength(), interfaceName)
+			ipv4addr := ipv4.GetOrCreateAddress(ipval.GetIp())
+			ipv4addr.PrefixLength = ygot.Uint8(ipval.GetPrefixLength())
+		}
+
+	}
+	return copiedSubInterfaces
+}
+
 // AddAteISISL2 appends ISIS configuration to ATETOPO obj
 func AddAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaID, networkName string, metric uint32, prefix string, count uint32) {
 
