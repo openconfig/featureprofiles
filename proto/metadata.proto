@@ -360,7 +360,7 @@ message Metadata {
     // Juniper: partnerissuetracker.corp.google.com/302661486
     bool isis_level_enabled = 123;
     // Devices which require to use interface-id format of interface name + .subinterface index with Interface-ref container
-    bool interface_ref_interface_id_format = 124;   
+    bool interface_ref_interface_id_format = 124;
     // Devices does not support member link loopback
     // Juniper: b/307763669
     bool member_link_loopback_unsupported = 125;
