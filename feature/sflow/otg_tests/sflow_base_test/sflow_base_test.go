@@ -35,14 +35,13 @@ const (
 	plenIPv4      = 30
 	plenIPv6      = 126
 	lossTolerance = 0
-	prefix        = "192.0.3.0/30" // static default route used on DUT
-	nexthop       = "192.0.2.6"    // points to ateDst port
+	nexthop       = "192.0.2.6" // points to ateDst port
 )
 
 var (
 	staticRoute = &cfgplugins.StaticRouteCfg{
 		NIName:  "DEFAULT",
-		Prefix:  "192.0.3.0/30",
+		Prefix:  "192.0.128.0/30",
 		Nexthop: "192.0.2.6",
 	}
 	dutSrc = &attrs.Attributes{

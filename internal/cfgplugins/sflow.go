@@ -36,7 +36,7 @@ func NewSFlowGlobalCfg(batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow, d *ondat
 		// c.EgressSamplingRate = ygot.Uint32(1000000),  TODO: verify if EgressSamplingRate is a required DUT feature
 		c.Dscp = ygot.Uint8(8)
 		coll := new(oc.Sampling_Sflow_Collector)
-		coll.SetAddress("192.0.3.1")
+		coll.SetAddress("192.0.2.127")
 		coll.SetPort(6343)
 		coll.SetSourceAddress("192.0.2.5")
 		coll.SetNetworkInstance(deviations.DefaultNetworkInstance(d))
@@ -56,7 +56,7 @@ func NewSFlowCollector(batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow_Collector
 	c := new(oc.Sampling_Sflow_Collector)
 
 	if newcfg == nil {
-		c.SetAddress("192.0.3.1")
+		c.SetAddress("192.0.2.127")
 		c.SetPort(6343)
 		c.SetSourceAddress("192.0.2.5")
 	} else {
