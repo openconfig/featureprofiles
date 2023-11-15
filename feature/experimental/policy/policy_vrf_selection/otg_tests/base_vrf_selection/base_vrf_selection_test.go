@@ -263,10 +263,14 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
+	interfaceID := ingressPort
+	if deviations.InterfaceRefInterfaceIdFormat(dut) {
+		interfaceID = ingressPort + ".0"
+	}
+	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 	gnmi.Delete(t, dut, pfpath.Config())
 
-	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
@@ -275,7 +279,7 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 	}
 
 	// Configure default NI and forwarding policy.
-	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
+	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 	gnmi.Replace(t, dut, intfConfPath.Config(), intf)
 
 	// Restart Protocols after policy change
