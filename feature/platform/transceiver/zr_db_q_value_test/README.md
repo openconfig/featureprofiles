@@ -38,7 +38,7 @@ Q-value is the decibel (dB) value representing signal BER.
 
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 
           10 seconds is not supported, the sampling interval used must be
-          communicated.
+          specified by adding a deviation to the test.
 
 
 *   Verify that the optics Q-value is updated after the interface flaps.
