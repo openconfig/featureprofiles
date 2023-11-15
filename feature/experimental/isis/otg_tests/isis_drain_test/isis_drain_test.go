@@ -287,7 +287,7 @@ func configureATE(t *testing.T, ate *otg.OTG) gosnappi.Config {
 	lag2.Protocol().SetChoice("static").Static().SetLagId(2)
 	lag2.Ports().Add().SetPortName(p2.Name()).Ethernet().SetMac(lag2MAC).SetName("LAGRx-2")
 
-	lag2Dev := cfg.Devices().Add().SetName(lag2.Name())
+	lag2Dev := cfg.Devices().Add().SetName(lag2.Name() + ".dev")
 	lag2Eth := lag2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
 	lag2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetLagName(lag2.Name())
 	lag2IPv4 := lag2Eth.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4")
@@ -300,7 +300,7 @@ func configureATE(t *testing.T, ate *otg.OTG) gosnappi.Config {
 	lag3.Protocol().SetChoice("static").Static().SetLagId(3)
 	lag3.Ports().Add().SetPortName(p3.Name()).Ethernet().SetMac(lag3MAC).SetName("LAGRx-3")
 
-	lag3Dev := cfg.Devices().Add().SetName(lag3.Name())
+	lag3Dev := cfg.Devices().Add().SetName(lag3.Name() + ".dev")
 	lag3Eth := lag3Dev.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetMac(atePort3.MAC)
 	lag3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetLagName(lag3.Name())
 	lag3IPv4 := lag3Eth.Ipv4Addresses().Add().SetName(atePort3.Name + ".IPv4")
