@@ -44,8 +44,13 @@ Q-value is the decibel (dB) value representing signal BER.
 *   Verify that the optics Q-value is updated after the interface flaps.
 
     *   Enable a pair of ZR interfaces on the DUT as explained above.
+    *   Subscribe SAMPLE to the above q-value leafs with a sample rate of 10
+        seconds.
     *   Verify the ZR optics Q-value PMs are in the normal range.
-    *   Disable or shut down the interface on the DUT.
+    *   Use /components/component/transceiver/config/enabled to disable the
+        transceiver, wait 20 seconds and then re-enable the transceiver.
+    *   Verify that the q-value leafs report '0' during the reboot and no value
+        of nil or -inf is reported.
     *   Re-enable the interfaces on the DUT.
     *   Verify the ZR optics pre FEC PM is updated to the value in the normal
         range again. Typical expected value should be greater than 7 dB.
