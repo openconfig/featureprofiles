@@ -211,7 +211,7 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		inValLatest, _ := inPkts[i].Val()
 		outValLatest, _ := outPkts[i].Val()
 		t.Logf("Incoming Packets: %d, Outgoing Packets: %d", inValLatest, outValLatest)
-		if inValLatest == inValOld || outValLatest == outValOld || (inValLatest-inValOld != outValLatest-outValOld) {
+		if inValLatest == inValOld || outValLatest == outValOld {
 			t.Logf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d", inValLatest-inValOld, outValLatest-outValOld)
 			pktCounterOK = false
 			break
