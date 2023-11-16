@@ -325,7 +325,7 @@ func TestAuthz1(t *testing.T) {
 			},
 			//},
 		}
-		authTable.verifyAuthorization(t, dut)
+		authTable.verifyAuthorization(t, dut, authTable)
 	})
 }
 
@@ -772,5 +772,5 @@ func TestAuthz4(t *testing.T) {
 		},
 		//},
 	}
-	authTable.verifyAuthorization(t, dut)
+	authTable.verifyAuthorization(t, dut, authTable)
 }
