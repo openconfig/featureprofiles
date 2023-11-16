@@ -92,51 +92,61 @@ func TestGNMIMetadataAnnotation(t *testing.T) {
 			protoMsg:    &gpb.ModelData{Name: "Test model data", Organization: "Google", Version: "1.0"},
 			receivedMsg: &gpb.ModelData{},
 		},
+		{
+			// This case is designed to set metadata annotation with a large payload.
+			desc: "Set metadata annotation with large payload",
+			protoMsg: &gpb.Update{Path: &gpb.Path{}, Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{AsciiVal: string(make([]rune, 1024))},
+			}},
+			receivedMsg: &gpb.Update{},
+		},
 	}
 
 	for _, tc := range cases {
-		t.Log(tc.desc)
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		//Not assuming that hostname is already configured
-		hostnameConfigPath := gnmi.OC().System().Hostname()
-		gnmi.Replace(t, dut, hostnameConfigPath.Config(), string("ondatraHost"))
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Log(tc.desc)
+			gnmiClient := dut.RawAPIs().GNMI(t)
+			//Not assuming that hostname is already configured
+			hostnameConfigPath := gnmi.OC().System().Hostname()
+			gnmi.Replace(t, dut, hostnameConfigPath.Config(), string("ondatraHost"))
 
-		t.Log("Build an annotated gNMI SetRequest from proto message")
-		gpbSetRequest, err := buildMetadataAnnotation(t, tc.protoMsg)
-		if err != nil {
-			t.Errorf("Cannot build a gNMI SetRequest from proto message: %v", err)
-		}
+			t.Log("Build an annotated gNMI SetRequest from proto message")
+			gpbSetRequest, err := buildMetadataAnnotation(t, tc.protoMsg)
+			if err != nil {
+				t.Errorf("Cannot build a gNMI SetRequest from proto message: %v", err)
+			}
 
-		t.Log("Appending an update to the annotated gNMI SetRequest")
-		// accompaniedPath and accompaniedUpdateVal can be any valid oc path and value
-		accompaniedPath := gnmi.OC().System().Hostname().Config().PathStruct()
-		accompaniedUpdateVal := gnmi.Get[string](t, dut, gnmi.OC().System().Hostname().Config())
-		gpbSetRequest.Update = append(gpbSetRequest.Update, buildGNMIUpdate(t, accompaniedPath, &accompaniedUpdateVal))
+			t.Log("Appending an update to the annotated gNMI SetRequest")
+			// accompaniedPath and accompaniedUpdateVal can be any valid oc path and value
+			accompaniedPath := gnmi.OC().System().Hostname().Config().PathStruct()
+			accompaniedUpdateVal := gnmi.Get[string](t, dut, gnmi.OC().System().Hostname().Config())
+			gpbSetRequest.Update = append(gpbSetRequest.Update, buildGNMIUpdate(t, accompaniedPath, &accompaniedUpdateVal))
 
-		t.Log("gnmiClient Set metadata annotation")
-		if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Errorf("gnmi.Set unexpected error: %v", err)
-		}
+			t.Log("gnmiClient Set metadata annotation")
+			if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+				t.Errorf("gnmi.Set unexpected error: %v", err)
+			}
 
-		t.Log("gnmiClient Get metadata annotation")
-		getResponse, err := gnmiClient.Get(context.Background(), &gpb.GetRequest{
-			Path: []*gpb.Path{{
-				Elem: []*gpb.PathElem{},
-			}},
-			Type:     gpb.GetRequest_CONFIG,
-			Encoding: gpb.Encoding_JSON_IETF,
+			t.Log("gnmiClient Get metadata annotation")
+			getResponse, err := gnmiClient.Get(context.Background(), &gpb.GetRequest{
+				Path: []*gpb.Path{{
+					Elem: []*gpb.PathElem{},
+				}},
+				Type:     gpb.GetRequest_CONFIG,
+				Encoding: gpb.Encoding_JSON_IETF,
+			})
+			if err != nil {
+				t.Fatalf("Cannot fetch metadata annotation from the DUT: %v", err)
+			}
+
+			receivedProtoMsg := tc.receivedMsg
+			if err := extractMetadataAnnotation(t, getResponse, receivedProtoMsg); err != nil {
+				t.Errorf("Extracts metadata protobuf message from getResponse with error: %v", err)
+			}
+			if diff := cmp.Diff(tc.protoMsg, receivedProtoMsg, protocmp.Transform()); diff != "" {
+				t.Errorf("MyFunction(%s) diff (-want +got):\n%s", tc.protoMsg, diff)
+			}
 		})
-		if err != nil {
-			t.Fatalf("Cannot fetch metadata annotation from the DUT: %v", err)
-		}
-
-		receivedProtoMsg := tc.receivedMsg
-		if err := extractMetadataAnnotation(t, getResponse, receivedProtoMsg); err != nil {
-			t.Errorf("Extracts metadata protobuf message from getResponse with error: %v", err)
-		}
-		if diff := cmp.Diff(tc.protoMsg, receivedProtoMsg, protocmp.Transform()); diff != "" {
-			t.Errorf("MyFunction(%s) diff (-want +got):\n%s", tc.protoMsg, diff)
-		}
 	}
 }
 
@@ -252,5 +262,4 @@ func buildGNMIUpdate(t *testing.T, yPath ygnmi.PathStruct, val interface{}) *gpb
 			},
 		},
 	}
-
 }
