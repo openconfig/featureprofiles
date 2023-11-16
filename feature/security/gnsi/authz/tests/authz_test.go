@@ -177,7 +177,7 @@ func TestAuthz1(t *testing.T) {
 	t.Run("Authz-1.1, - Test empty source", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
@@ -198,7 +198,7 @@ func TestAuthz1(t *testing.T) {
 	t.Run("Authz-1.2, Test Empty Request", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
@@ -231,7 +231,7 @@ func TestAuthz1(t *testing.T) {
 		// Pre-Test Section
 		dut := ondatra.DUT(t, "dut")
 		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate - 1
@@ -261,7 +261,7 @@ func TestAuthz1(t *testing.T) {
 	t.Run("Authz-1.4, Test Normal Policy", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
@@ -341,7 +341,7 @@ func TestAuthz2(t *testing.T) {
 	t.Run("Authz-2.1, Test only one rotation request at a time", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
@@ -413,7 +413,7 @@ func TestAuthz2(t *testing.T) {
 	t.Run("Authz-2.2, Test Rollback When Connection Closed", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
@@ -477,7 +477,7 @@ func TestAuthz2(t *testing.T) {
 	t.Run("Authz-2.3, Test Rollback on Invalid Policy", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
@@ -540,7 +540,7 @@ func TestAuthz2(t *testing.T) {
 	t.Run("Authz-2.4, Test Force_Overwrite when the Version does not change", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 		defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
@@ -601,7 +601,7 @@ func TestAuthz3(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	setUpBaseline(t, dut)
 	_, policyBefore := authz.Get(t, dut)
-	t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+	t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 	defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 	// Fetch the Desired Authorization Policy object.
@@ -613,11 +613,11 @@ func TestAuthz3(t *testing.T) {
 	expCreatedOn := uint64(time.Now().UnixMilli())
 	expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
 	newpolicy.Rotate(t, dut, expCreatedOn, expVersion, false)
-	t.Logf("New Rotated Authz Policy is %s", newpolicy.PrettyPrint())
+	t.Logf("New Rotated Authz Policy is %s", newpolicy.PrettyPrint(t))
 	// Wait for 30s, intial gNSI.Get and validate the value of version, created_on and gRPC policy content does not change.
 	time.Sleep(30 * time.Second)
 	_, finalPolicy := authz.Get(t, dut)
-	t.Logf("Authz Policy after waiting for 30 seconds is %s", finalPolicy.PrettyPrint())
+	t.Logf("Authz Policy after waiting for 30 seconds is %s", finalPolicy.PrettyPrint(t))
 
 	// Version and Created On Field Verification
 	t.Logf("Performing Authz.Get request on device %s", dut.Name())
@@ -643,7 +643,7 @@ func TestAuthz4(t *testing.T) {
 	// Pre-Test Section
 	dut := ondatra.DUT(t, "dut")
 	_, policyBefore := authz.Get(t, dut)
-	t.Logf("Authz Policy of the Device %s before the Reboot Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
+	t.Logf("Authz Policy of the Device %s before the Reboot Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 	defer policyBefore.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 	// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
@@ -652,7 +652,7 @@ func TestAuthz4(t *testing.T) {
 	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
 	expCreatedOn := uint64(time.Now().UnixMilli())
 	expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
-	t.Logf("New Authz Policy is %s", newpolicy.PrettyPrint())
+	t.Logf("New Authz Policy is %s", newpolicy.PrettyPrint(t))
 	newpolicy.Rotate(t, dut, expCreatedOn, expVersion, false)
 
 	// Trigger Section - Reboot
