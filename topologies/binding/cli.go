@@ -32,10 +32,6 @@ func newCLI(sc *ssh.Client) (*cli, error) {
 	return &cli{ssh: sc}, nil
 }
 
-func (c *cli) SendCommand(ctx context.Context, cmd string) (string, error) {
-	return binding.SendCommandUsingRun(ctx, cmd, c)
-}
-
 func (c *cli) RunCommand(_ context.Context, cmd string) (binding.CommandResult, error) {
 	sess, err := c.ssh.NewSession()
 	if err != nil {
