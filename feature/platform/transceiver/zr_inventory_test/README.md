@@ -2,8 +2,7 @@
 
 ## Summary
 
-Validate 400ZR modules report inventory information part number and serial
-number.
+Validate 400ZR modules report correct inventory information.
 
 ## Procedure
 
@@ -14,6 +13,12 @@ number.
 
     *   /platform/components/component/state/serial-no
     *   /platform/components/component/state/part-no
+    *   /platform/components/component/state/type
+    *   /platform/components/component/state/description
+    *   /platform/components/component/state/mfg-name
+    *   /platform/components/component/state/mfg-date
+    *   /platform/components/component/state/hardware-version
+    *   /platform/components/component/state/firmware-version
 
 *   Validate the streamed inventory information data is of type String.
 
@@ -81,3 +86,9 @@ number.
 
 *   /platform/components/component/state/serial-no
 *   /platform/components/component/state/part-no
+*   /platform/components/component/state/type
+*   /platform/components/component/state/description
+*   /platform/components/component/state/mfg-name
+*   /platform/components/component/state/mfg-date
+*   /platform/components/component/state/hardware-version
+*   /platform/components/component/state/firmware-version
