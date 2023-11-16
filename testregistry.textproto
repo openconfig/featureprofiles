@@ -425,7 +425,7 @@ test: {
 test: {
   id: "RT-8"
   description: "Singleton with breakouts"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
   exec: " "
 }
 test: {
