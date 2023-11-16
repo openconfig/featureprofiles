@@ -42,7 +42,6 @@ tests:
   path: feature/security/gnsi/authz/tests
   args:
     - '-test_infra_id="cafyauto"'
-    - '-common_name=false'
   pr: 2136
   mustpass: true
   timeout: 21000
@@ -53,7 +52,6 @@ tests:
   path: feature/security/gnsi/authz/tests
   args:
     - '-test_infra_id="cafyauto"'
-    - '-common_name=true'
   pr: 2136
   mustpass: true
   timeout: 21000
