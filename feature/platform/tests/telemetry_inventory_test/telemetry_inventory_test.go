@@ -801,3 +801,57 @@ func TestHeatsinkTempSensor(t *testing.T) {
 	// TODO: Add heatsink-temperature-sensor test case here once supported.
 	t.Skipf("/components/component[name=<heatsink-temperature-sensor>]/state/temperature/instant is not supported.")
 }
+
+func TestInterfaceComponentHierarchy(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+
+	numHardwareIntfs := 0
+	integratedCircuits := make(map[string]*oc.Component)
+
+	t.Run("Interface to Integrated Circuit mapping", func(t *testing.T) {
+		for _, intf := range intfs {
+			if intf.GetHardwarePort() == "" {
+				continue
+			}
+			t.Run(intf.GetHardwarePort(), func(t *testing.T) {
+				numHardwareIntfs++
+				c := gnmi.Get(t, dut, gnmi.OC().Component(intf.GetHardwarePort()).State())
+				for {
+					if c.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+						break
+					}
+					if c.GetParent() == "" {
+						t.Fatalf("Couldn't get parent for component: %s", c.GetName())
+					}
+					c = gnmi.Get(t, dut, gnmi.OC().Component(c.GetParent()).State())
+				}
+				integratedCircuits[c.GetName()] = c
+			})
+		}
+	})
+	if len(integratedCircuits) == 0 {
+		t.Fatalf("Couldn't find integrated circuits for %q", dut.Model())
+	}
+	chassis := make(map[string]*oc.Component)
+	t.Run("Integrated Circuit to Chassis mapping", func(t *testing.T) {
+		for _, ic := range integratedCircuits {
+			t.Run(ic.GetName(), func(t *testing.T) {
+				c := ic
+				for {
+					if c.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS {
+						break
+					}
+					if c.GetParent() == "" {
+						t.Fatalf("Couldn't get parent for component: %s", c.GetName())
+					}
+					c = gnmi.Get(t, dut, gnmi.OC().Component(c.GetParent()).State())
+				}
+				chassis[c.GetName()] = c
+			})
+		}
+	})
+	if len(chassis) == 0 {
+		t.Fatalf("Couldn't find chassis for %q", dut.Model())
+	}
+}
