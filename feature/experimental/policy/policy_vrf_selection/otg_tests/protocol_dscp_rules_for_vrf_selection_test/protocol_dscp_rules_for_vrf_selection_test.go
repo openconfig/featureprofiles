@@ -543,7 +543,7 @@ func TestPBR(t *testing.T) {
 			p1 := port1.Name()
 			d := &oc.Root{}
 			interfaceID := p1
-			if deviations.InterfaceRefInterfaceIdFormat(dut) {
+			if deviations.InterfaceRefInterfaceIDFormat(dut) {
 				interfaceID = p1 + ".0"
 			}
 			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
