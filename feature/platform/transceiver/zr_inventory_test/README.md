@@ -51,6 +51,27 @@ number.
     *   Telemetry subscription should be ON_CHANGE and there should be no
         streamed inventory data in this state.
 
+*   Verify the module inventory information updates when transceiver under test
+    is swapped with a different one.
+    *   Make sure ZR module plugged in the host and properly recognized.
+    *   Verify module is reporting valid inventory information.
+    *   Swap the module with a different one and validate that the new
+        inventory information is correctly streamed now.  
+    *   Telemetry subscription should be ON_CHANGE and streamed data should
+        be of type String.
+
+*   Verify the module inventory information updates when transceiver is
+    physically removed from the router port.
+    *   Make sure ZR module plugged in the host and properly recognized.
+    *   Verify module is reporting valid inventory information.
+    *   Physically remove the module from the router port and verify the
+        relevant component inventory leaves for the transceiver port under test
+        are no longer streamed.
+    *   When a component is physically removed explicit deletes for the
+        relevant entity leaves should be streamed to clear any stale data.
+    *   Telemetry subscription should be ON_CHANGE and streamed data should
+        be of type String.
+
 ## Config Parameter coverage
 
 *   /components/component/transceiver/config/enabled
