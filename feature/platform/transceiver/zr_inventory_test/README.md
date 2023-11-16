@@ -42,7 +42,7 @@ number.
 
 ## Config Parameter coverage
 
-*   /components/component/oc-transceiver:transceiver/oc-transceiver/config/enabled
+*   /components/component/transceiver/config/enabled
 *   /interfaces/interface/config/enabled
 
 ## Telemetry Parameter coverage
