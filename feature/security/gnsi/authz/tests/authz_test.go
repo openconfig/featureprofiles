@@ -349,10 +349,10 @@ func TestAuthz2(t *testing.T) {
 		newpolicy := authz.GetPolicyByName(t, "policy-everyone-can-gnmi-not-gribi", policies)
 		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
 		jsonPolicy, err := newpolicy.Marshal()
-		// Rotate Request 1
 		if err != nil {
 			t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
 		}
+		// Rotate Request 1
 		rotateStream, err := dut.RawAPIs().GNSI(t).Authz().Rotate(context.Background())
 		if err != nil {
 			t.Fatalf("Could not start rotate stream %v", err)
