@@ -22,10 +22,10 @@ import (
 
 	"crypto/tls"
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/security/gnxi"
 	"github.com/openconfig/gnsi/authz"
@@ -180,10 +180,11 @@ func prettyPrint(i interface{}) string {
 }
 
 // PrettyPrint prints policy p in a pretty format.
-func (p *AuthorizationPolicy) PrettyPrint() string {
+func (p *AuthorizationPolicy) PrettyPrint(t *testing.T) string {
 	prettyTex, err := json.MarshalIndent(p, "", "    ")
 	if err != nil {
-		glog.Warningf("PrettyPrint of an authz policy is failed due to err: %v", err)
+		//glog.Warningf("PrettyPrint of an authz policy is failed due to err: %v", err)
+		t.Logf("PrettyPrint of an authz policy is failed due to err: %v", err)
 		return ""
 	}
 	return string(prettyTex)
@@ -220,4 +221,33 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, user string, rpc *gnxi.RPC, tl
 		}
 		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, user, dut.Name(), expectedExecErr, err)
 	}
+}
+
+// Load Policy from the JSON File
+func LoadPolicyFromJsonFile(t *testing.T, dut *ondatra.DUTDevice, file_path string) []AuthorizationPolicy {
+	// Open the JSON file.
+	file, err := os.Open(file_path)
+	if err != nil {
+		t.Fatalf("Not expecting error while opening policy file %v", err)
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	var policies []AuthorizationPolicy
+	err1 := decoder.Decode(&policies)
+	if err1 != nil {
+		t.Fatalf("Not expecting error while decoding policy %v", err)
+	}
+	return policies
+}
+
+// GetPolicyByName Gets the authorization policy with the specified name.
+func GetPolicyByName(t *testing.T, policyName string, policies []AuthorizationPolicy) AuthorizationPolicy {
+	for _, policy := range policies {
+		if policy.Name == policyName {
+			return policy
+		}
+	}
+	t.Fatalf("Requested policy %s is not found", policyName)
+	return AuthorizationPolicy{}
 }
