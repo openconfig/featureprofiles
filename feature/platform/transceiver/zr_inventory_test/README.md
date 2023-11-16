@@ -46,13 +46,17 @@ Validate 400ZR modules report correct inventory information.
     *   Telemetry subscription should be ON_CHANGE and streamed data should
         be of type String.
 
-*   Verify the module behaviour when transceiver state is set to disabled.
+*   Verify the module behaviour and related inventory information when
+    transceiver state is set to disabled.
 
     *   With ZR module plugged in the host and properly recognized.
     *   Use /components/component/transceiver/config/enabled to disable the
         module transceiver state, wait 20 seconds. 
     *   Verify the ZR module is powered off and no inventory information
         reported via the streaming telemetry paths above in this state.
+    *   When a component is powered off and is dropped from the inventory list
+        explicit deletes for the relevant entity leaves should be streamed
+        to clear any stale data.
     *   Telemetry subscription should be ON_CHANGE and there should be no
         streamed inventory data in this state.
 
@@ -62,18 +66,6 @@ Validate 400ZR modules report correct inventory information.
     *   Verify module is reporting valid inventory information.
     *   Swap the module with a different one and validate that the new
         inventory information is correctly streamed now.  
-    *   Telemetry subscription should be ON_CHANGE and streamed data should
-        be of type String.
-
-*   Verify the module inventory information updates when transceiver is
-    physically removed from the router port.
-    *   Make sure ZR module plugged in the host and properly recognized.
-    *   Verify module is reporting valid inventory information.
-    *   Physically remove the module from the router port and verify the
-        relevant component inventory leaves for the transceiver port under test
-        are no longer streamed.
-    *   When a component is physically removed explicit deletes for the
-        relevant entity leaves should be streamed to clear any stale data.
     *   Telemetry subscription should be ON_CHANGE and streamed data should
         be of type String.
 
