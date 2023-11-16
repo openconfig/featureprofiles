@@ -23,22 +23,33 @@ number.
     *   With ZR module plugged in the host and properly recognized 
     *   Verify the ZR optics inventory is correctly reported via the 
         streaming telemetry paths above.
-    *   Reset the optic through software.
+    *   Reset the optic by enabling and disabling the transceiver state
+        through /components/component/transceiver/config/enabled.
+    *   Wait atleast 20 seconds in between toggling transceiver state.
     *   Verify the ZR optics still reports correct inventory information.
     *   Telemetry subscription should be ON_CHANGE and streamed data should
         be of type String.
 
 *   Verify that the modules inventory information is reported correctly when
-    interface and transceiver states are disabled.
+    interface state is disabled.
 
     *   With ZR module plugged in the host and properly recognized
-    *   Use /components/component/transceiver/config/enabled and 
-        /components/component/transceiver/config/enabled to disable the
-        transceiver and inetrface state, wait 20 seconds. 
+    *   Use /interfaces/interface/config/enabled to disable the module
+        interface state, wait 20 seconds. 
     *   Verify the ZR optics inventory information is correctly reported via
-        the streaming telemetry path above in this state.
+        the streaming telemetry paths above in this state.
     *   Telemetry subscription should be ON_CHANGE and streamed data should
         be of type String.
+
+*   Verify the module behaviour when transceiver state is set to disabled.
+
+    *   With ZR module plugged in the host and properly recognized.
+    *   Use /components/component/transceiver/config/enabled to disable the
+        module transceiver state, wait 20 seconds. 
+    *   Verify the ZR module is powered off and no inventory information
+        reported via the streaming telemetry paths above in this state.
+    *   Telemetry subscription should be ON_CHANGE and there should be no
+        streamed inventory data in this state.
 
 ## Config Parameter coverage
 
