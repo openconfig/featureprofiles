@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -487,12 +488,27 @@ func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDVal
 	}
 
 	// compare Med val with expected for each of the recieved routes.
-	for _, prefix := range bgpPrefixes {
-		if prefix.GetMultiExitDiscriminator() != wantMEDValue {
-			t.Errorf("Received Prefix Med %d Expected Med %d for Prefix %v", prefix.GetMultiExitDiscriminator(), wantMEDValue, prefix.GetAddress())
+	wantMED := []uint32{}
+	for i := 0; i < routeCount; i++ {
+		wantMED = append(wantMED, uint32(wantMEDValue))
+	}
+
+checkMEDLoop:
+	for repeat := 10; repeat > 0; repeat-- {
+		gotMED := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().MultiExitDiscriminator().State())
+		diff := cmp.Diff(wantMED, gotMED)
+		switch {
+		case diff == "":
+			t.Logf("MED values are as expected")
+			break checkMEDLoop
+		case diff != "" && repeat > 0:
+			t.Logf("MED values not as expected , wait for 10 sec before retry. want %v , got %v", wantMED, gotMED)
+			time.Sleep(10 * time.Second)
+		case diff != "" && repeat == 0:
+			t.Errorf("MED values are not as expected. want %v, got %v", gotMED, wantMED)
 		}
 	}
-	t.Logf("Received Prefixes are verified for Proper MED value %d", wantMEDValue)
+
 }
 
 // verifyBGPCapabilities is used to Verify BGP capabilities like route refresh as32 and mpbgp.
@@ -629,7 +645,6 @@ func TestAlwaysCompareMED(t *testing.T) {
 		}
 
 	})
-
 	t.Run("Verify MED on received routes at ATE Port1 after removing MED settings", func(t *testing.T) {
 		t.Log("Verify BGP prefix telemetry.")
 		verifyPrefixesTelemetry(t, dut, 0, routeCount)
