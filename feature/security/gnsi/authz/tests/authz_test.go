@@ -410,7 +410,7 @@ func TestAuthz2(t *testing.T) {
 
 	})
 
-	t.Run("Authz-2.2, Authz-2.2, Test Rollback When Connection Closed", func(t *testing.T) {
+	t.Run("Authz-2.2, Test Rollback When Connection Closed", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint())
