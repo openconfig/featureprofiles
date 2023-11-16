@@ -42,6 +42,7 @@ replace: {
 "grpc\n"
 " vrf mgmt\n"
 " tls-mutual\n"
+" certificate-authentication"\n
 " gnmi\n"
 " !\n"
 " gribi\n"
