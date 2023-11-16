@@ -837,7 +837,7 @@ test: {
 test: {
   id: "gNMI-2"
   description: "Gnmi Subscriptionlist Test"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test/README.md"
   exec: " "
 }
 test: {
