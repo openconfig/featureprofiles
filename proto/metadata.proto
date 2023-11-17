@@ -359,10 +359,14 @@ message Metadata {
     // Devices requires enabled leaf under isis level
     // Juniper: partnerissuetracker.corp.google.com/302661486
     bool isis_level_enabled = 123;
+    // Devices which require to use interface-id format of interface name + .subinterface index with Interface-ref container
+    bool interface_ref_interface_id_format = 124;
+    // Devices does not support member link loopback
+    // Juniper: b/307763669
+    bool member_link_loopback_unsupported = 125;
     // Devices are having native telemetry paths for BGP RIB verification.
     // Juniper : b/306144372
-    bool bgp_rib_oc_path_unsupported = 124;
-    
+    bool bgp_rib_oc_path_unsupported = 126;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;
