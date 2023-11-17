@@ -680,3 +680,14 @@ func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
 func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
 }
+
+// InterfaceRefInterfaceIDFormat returns if device is required to use interface-id format of interface name + .subinterface index with Interface-ref container
+func InterfaceRefInterfaceIDFormat(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()
+}
+
+// MemberLinkLoopbackUnsupported returns true for devices that require configuring
+// loopback on aggregated links instead of member links.
+func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
+}
