@@ -686,7 +686,7 @@ func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
 }
 
-// SkipSubInterfaceIndex returns if device should not use subinterface index.
-func SkipSubInterfaceIndex(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSubInterfaceIndex()
+// SkipStaticNexthopCheck returns if device needs index starting from non zero
+func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
