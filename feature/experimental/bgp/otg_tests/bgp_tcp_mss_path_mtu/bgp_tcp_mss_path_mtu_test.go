@@ -35,8 +35,8 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// The testbed consists of ate:port1 -> dut:port1 and
-// dut:port2 -> ate:port2.  The first pair is called the "source"
+// The testbed consists of ate:port1 -> dut1:port1 and
+// dut1:port2 -> dut2:port1.  The first pair is called the "source"
 // pair, and the second the "destination" pair.
 //
 // 	ATE   Port-1 192.0.2.2 --------  DUT-1 Port-1 192.0.2.1
@@ -110,13 +110,13 @@ func configureDUT(t *testing.T) {
 }
 
 // bgpCreateNbr creates bgp configuration on dut device.
-func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice, authPwd, routerId string, localAs uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
+func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice, authPwd, routerID string, localAs uint32, nbrs []*bgpNeighbor) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
-	global.RouterId = ygot.String(routerId)
+	global.RouterId = ygot.String(routerID)
 	global.As = ygot.Uint32(localAs)
 
 	pg1 := bgp.GetOrCreatePeerGroup(peerGrpName1)
@@ -168,18 +168,19 @@ func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrIP []string) {
 
 func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutAreaAddress, dutSysID string) {
 	d := &oc.Root{}
-	dutConfIsisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	prot.Enabled = ygot.Bool(true)
 	isis := prot.GetOrCreateIsis()
 	globalISIS := isis.GetOrCreateGlobal()
-	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
+	if deviations.ISISInstanceEnabledRequired(dut) {
+		globalISIS.Instance = ygot.String(isisInstance)
+	}
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
@@ -188,13 +189,22 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 		isisIntf := isis.GetOrCreateInterface(intf)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		// Configure ISIS level at global mode if true else at interface mode
+		if deviations.ISISInterfaceLevel1DisableRequired(dut) {
+			isisIntf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+		} else {
+			isisIntf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+		}
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
 		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
 		isisIntfLevelAfi.Enabled = ygot.Bool(true)
+		if deviations.ISISInterfaceAfiUnsupported(dut) {
+			isisIntfLevel.Af = nil
+		}
 	}
-	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), prot)
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
@@ -273,6 +283,39 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
+func configureIntfMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, mtu uint16) {
+	switch {
+	case deviations.OmitL2MTU(dut):
+		b := &gnmi.SetBatch{}
+		gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Mtu().Config(), mtu)
+		gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv6().Mtu().Config(), uint32(mtu))
+		b.Set(t, dut)
+	default:
+		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Mtu().Config(), mtu)
+	}
+}
+
+func deleteIntfMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) {
+	switch {
+	case deviations.OmitL2MTU(dut):
+		b := &gnmi.SetBatch{}
+		gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Mtu().Config())
+		gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv6().Mtu().Config())
+		b.Set(t, dut)
+	default:
+		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Mtu().Config())
+	}
+}
+
+func intfMTU(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) uint16 {
+	switch {
+	case deviations.OmitL2MTU(dut):
+		return gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Mtu().State())
+	default:
+		return gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Mtu().State())
+	}
+}
+
 type bgpNeighbor struct {
 	as         uint32
 	neighborip string
@@ -286,17 +329,13 @@ func TestTcpMssPathMtu(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 	ate := ondatra.ATE(t, "ate")
 
-	dutList := []*ondatra.DUTDevice{dut1, dut2}
-
 	t.Run("Configure DUT1 and DUT2 interfaces", func(t *testing.T) {
 		configureDUT(t)
 	})
 
 	t.Run("Configure DEFAULT network instance on both DUT1 and DUT2", func(t *testing.T) {
-		for _, dut := range dutList {
-			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-		}
+		fptest.ConfigureDefaultNetworkInstance(t, dut1)
+		fptest.ConfigureDefaultNetworkInstance(t, dut2)
 	})
 
 	dut1ConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut1)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -325,22 +364,22 @@ func TestTcpMssPathMtu(t *testing.T) {
 		verifyBGPTelemetry(t, dut1, dut1NbrIP)
 	})
 
-	dut1Port1Path := gnmi.OC().Interface(dut1.Port(t, "port1").Name())
 	if !deviations.SkipTCPNegotiatedMSSCheck(dut1) {
 		t.Run("Verify that the default TCP MSS value is set below the default interface MTU value.", func(t *testing.T) {
 			// Fetch interface MTU value to compare negotiated tcp mss.
-			gotIntfMTU := gnmi.Get(t, dut1, dut1Port1Path.Mtu().State())
-			if gotTcpMss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTcpMss > gotIntfMTU || gotTcpMss == 0 {
-				t.Errorf("Obtained TCP MSS for BGP v4 on dut1 is not as expected, got is %v, want non zero and less than %v", gotTcpMss, mtu4096B)
+			gotIntfMTU := intfMTU(t, dut1, dut1.Port(t, "port1"))
+			if gotTCPMss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTCPMss > gotIntfMTU || gotTCPMss == 0 {
+				t.Errorf("Obtained TCP MSS for BGP v4 on dut1 is not as expected, got is %v, want non zero and less than %v", gotTCPMss, mtu4096B)
 			}
-			if gotTcp6Mss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().State()); gotTcp6Mss > gotIntfMTU || gotTcp6Mss == 0 {
-				t.Errorf("Obtained TCP MSS for BGP v6 peer on dut1 is not as expected, got is %v, want non zero and less than %v", gotTcp6Mss, mtu4096B)
+			if gotTCP6Mss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().State()); gotTCP6Mss > gotIntfMTU || gotTCP6Mss == 0 {
+				t.Errorf("Obtained TCP MSS for BGP v6 peer on dut1 is not as expected, got is %v, want non zero and less than %v", gotTCP6Mss, mtu4096B)
 			}
 		})
 	}
 	t.Run("Change the Interface MTU to the ATE port as 5040.", func(t *testing.T) {
 		t.Logf("Configure DUT1 interface MTU to %v", mtu5040B)
-		gnmi.Replace(t, dut1, dut1Port1Path.Mtu().Config(), mtu5040B)
+		configureIntfMTU(t, dut1, dut1.Port(t, "port1"), mtu5040B)
+
 		t.Logf("Configure DUT1 BGP TCP-MSS value to %v", mtu4096B)
 		gnmi.Replace(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().Config(), mtu4096B)
 		gnmi.Replace(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().Config(), mtu4096B)
@@ -359,18 +398,17 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	t.Run("Verify BGP TCP MSS value", func(t *testing.T) {
 		t.Logf("Verify DUT1 BGP TCP-MSS value is to %v for both BGP v4 and v6 sessions.", mtu4096B)
-		if gotTcpMss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTcpMss != mtu4096B {
-			t.Errorf("Obtained TCP MSS for BGP v4 on dut1 is not as expected, got is %v, want %v", gotTcpMss, mtu4096B)
+		if gotTCPMss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTCPMss != mtu4096B {
+			t.Errorf("Obtained TCP MSS for BGP v4 on dut1 is not as expected, got is %v, want %v", gotTCPMss, mtu4096B)
 		}
-		if gotTcp6Mss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().State()); gotTcp6Mss != mtu4096B {
-			t.Errorf("Obtained TCP MSS for BGP v6 peer on dut1 is not as expected, got is %v, want %v", gotTcp6Mss, mtu4096B)
+		if gotTCP6Mss := gnmi.Get(t, dut1, dut1ConfPath.Bgp().Neighbor(atePort1.IPv6).Transport().TcpMss().State()); gotTCP6Mss != mtu4096B {
+			t.Errorf("Obtained TCP MSS for BGP v6 peer on dut1 is not as expected, got is %v, want %v", gotTCP6Mss, mtu4096B)
 		}
 	})
 
 	t.Run("Remove configured BGP TCP MSS for v4 and v6 neighbors on DUT1", func(t *testing.T) {
-		dut1Port1Path := gnmi.OC().Interface(dut1.Port(t, "port1").Name())
 		gnmi.Delete(t, dut1, dut1ConfPath.Config())
-		gnmi.Delete(t, dut1, dut1Port1Path.Mtu().Config())
+		deleteIntfMTU(t, dut1, dut1.Port(t, "port1"))
 	})
 
 	t.Run("Configure ISIS Neighbors on DUT1 and ATE", func(t *testing.T) {
@@ -403,14 +441,13 @@ func TestTcpMssPathMtu(t *testing.T) {
 		verifyBGPTelemetry(t, dut2, dut2NbrIP)
 	})
 
-	t.Run("Configure MTU on ATE1:port1, DUT2:port2 and Enable PMTU discovery on DUT2", func(t *testing.T) {
+	t.Run("Configure MTU on ATE1:port1, DUT2:port1 and Enable PMTU discovery on DUT2", func(t *testing.T) {
 		// MTU on the DUT1:port1 towards ATE1:port1 is left at default.
 		// ATE1:port1 interface towards DUT1:port1 is set at 5040B
 		// OTG Port1 MTU is set to 5040B in configOTG.
 
-		// DUT2:port2 MTU is set at 5040B.
-		dut2Port1Path := gnmi.OC().Interface(dut2.Port(t, "port1").Name())
-		gnmi.Replace(t, dut2, dut2Port1Path.Mtu().Config(), mtu5040B)
+		// DUT2:port1 MTU is set at 5040B.
+		configureIntfMTU(t, dut2, dut2.Port(t, "port1"), mtu5040B)
 		// Enable PMTU discovery on DUT2.
 		gnmi.Replace(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().MtuDiscovery().Config(), true)
 	})
@@ -429,8 +466,8 @@ func TestTcpMssPathMtu(t *testing.T) {
 
 	if !deviations.SkipTCPNegotiatedMSSCheck(dut2) {
 		t.Run("Validate that the min MSS value has been adjusted to be below 1500 bytes on the tcp session.", func(t *testing.T) {
-			if gotTcpMss := gnmi.Get(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTcpMss > mtu1500B || gotTcpMss == 0 {
-				t.Errorf("Obtained TCP MSS for BGP v4 on dut2 is not as expected, got %v, want non zero value and less then %v", gotTcpMss, mtu1500B)
+			if gotTCPMss := gnmi.Get(t, dut2, dut2ConfPath.Bgp().Neighbor(atePort1.IPv4).Transport().TcpMss().State()); gotTCPMss > mtu1500B || gotTCPMss == 0 {
+				t.Errorf("Obtained TCP MSS for BGP v4 on dut2 is not as expected, got %v, want non zero value and less then %v", gotTCPMss, mtu1500B)
 			}
 		})
 	}
