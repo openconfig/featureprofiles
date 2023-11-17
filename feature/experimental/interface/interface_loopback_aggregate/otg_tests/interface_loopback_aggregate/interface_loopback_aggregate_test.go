@@ -267,7 +267,11 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 				t.Errorf("Failed to update interface loopback mode")
 			}
 		} else {
-			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
+			if deviations.MemberLinkLoopbackUnsupported(dut) {
+				gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
+			} else {
+				gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
+			}
 		}
 	})
 
