@@ -680,12 +680,13 @@ func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
 }
 
-// SkipBgpSessionCheckWithoutAfisafi returns if device needs to skip checking AFI-SAFI disable.
-func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
-
-  // MemberLinkLoopbackUnsupported returns true for devices that require configuring
+// MemberLinkLoopbackUnsupported returns true for devices that require configuring
 // loopback on aggregated links instead of member links.
 func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
+}
+
+// SkipBgpSessionCheckWithoutAfisafi returns if device needs to skip checking AFI-SAFI disable.
+func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
 }

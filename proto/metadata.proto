@@ -361,12 +361,11 @@ message Metadata {
     bool isis_level_enabled = 123;
     // Devices which require to use interface-id format of interface name + .subinterface index with Interface-ref container
     bool interface_ref_interface_id_format = 124;   
-    // Juniper: b/310698466
-    bool skip_bgp_session_check_without_afisafi = 125;
-    bool interface_ref_interface_id_format = 124;
     // Devices does not support member link loopback
     // Juniper: b/307763669
     bool member_link_loopback_unsupported = 125;
+    // Juniper: b/310698466
+    bool skip_bgp_session_check_without_afisafi = 126;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97;
