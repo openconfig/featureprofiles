@@ -27,10 +27,10 @@ import (
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -145,8 +145,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	atePort1.AddToOTG(top, p1, &dutPort1)
@@ -262,12 +261,12 @@ func TestPacketIn(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
@@ -353,9 +352,9 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 		ipHeader := flow.Packet().Add().Ipv4()
 		ipHeader.Src().SetValue(atePort1.IPv4)
 		ipHeader.Dst().SetValue(atePort2.IPv4)
-		ipHeader.TimeToLive().SetValue(int32(TTL))
-		flow.Size().SetFixed(int32(frameSize))
-		flow.Rate().SetPps(int64(frameRate))
+		ipHeader.TimeToLive().SetValue(uint32(TTL))
+		flow.Size().SetFixed(uint32(frameSize))
+		flow.Rate().SetPps(uint64(frameRate))
 		return []gosnappi.Flow{flow}
 
 	} else {
@@ -367,9 +366,9 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 		ipv6Header := flow.Packet().Add().Ipv6()
 		ipv6Header.Src().SetValue(atePort1.IPv6)
 		ipv6Header.Dst().SetValue(atePort2.IPv6)
-		ipv6Header.HopLimit().SetValue(int32(TTL))
-		flow.Size().SetFixed(int32(frameSize))
-		flow.Rate().SetPps(int64(frameRate))
+		ipv6Header.HopLimit().SetValue(uint32(TTL))
+		flow.Size().SetFixed(uint32(frameSize))
+		flow.Rate().SetPps(uint64(frameRate))
 		return []gosnappi.Flow{flow}
 	}
 }

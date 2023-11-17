@@ -24,9 +24,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/knebind/solver"
 	"github.com/openconfig/ygot/ygot"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
@@ -168,7 +168,7 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 				},
 			},
 		}
-		gnmiClient := dut.RawAPIs().GNMI().Default(t)
+		gnmiClient := dut.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring User: %v", err)
 		}
@@ -179,10 +179,15 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 
 func TestAuthentication(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	serviceMap := dut.CustomData(solver.KNEServiceMapKey).(map[string]*tpb.Service)
-	sshService, ok := serviceMap["ssh"]
-	if !ok {
-		t.Fatal("No SSH service available on dut")
+	var servDUT interface {
+		Service(string) (*tpb.Service, error)
+	}
+	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &servDUT); err != nil {
+		t.Fatalf("DUT does not support Service function: %v", err)
+	}
+	sshService, err := servDUT.Service("ssh")
+	if err != nil {
+		t.Fatal(err)
 	}
 	sshIP := sshService.GetOutsideIp()
 

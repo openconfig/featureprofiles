@@ -14,3 +14,35 @@ platform_exceptions: {
     drop_weight_leaves_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    qos_queue_requires_id: true
+    qos_buffer_allocation_config_required: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    state_path_unsupported: true
+    interface_ref_config_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    state_path_unsupported: true
+    drop_weight_leaves_unsupported: true
+    qos_queue_requires_id: true
+    ecn_same_min_max_threshold_unsupported: true
+    qos_set_weight_config_unsupported: true
+    qos_get_state_path_unsupported: true
+    qos_scheduler_config_required: true
+  }
+}
