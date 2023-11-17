@@ -190,8 +190,6 @@ message Metadata {
     bool omit_l2_mtu = 50;
     // Skip power admin for controller card
     bool skip_controller_card_power_admin = 51;
-    // Skip PLQ packets count check.
-    bool skip_plq_packets_count_check = 55;
     // Device requires the banner to have a delimiter character.
     string banner_delimiter = 60;
     // Allowed tolerance for BGP traffic flow while comparing for pass or fail
@@ -364,9 +362,12 @@ message Metadata {
     // Devices does not support member link loopback
     // Juniper: b/307763669
     bool member_link_loopback_unsupported = 125;
-    
+    // Device does not support PLQ operational status check on interface
+    // Juniper: b/308990185
+    bool skip_plq_interface_oper_status_check = 126;
+
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97;
+    reserved 84, 9, 28, 20, 90, 97, 55;
   }
 
   message PlatformExceptions {
