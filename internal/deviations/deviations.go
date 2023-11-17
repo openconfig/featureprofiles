@@ -670,12 +670,6 @@ func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
 }
 
-// SkipNonBgpRouteExportCheck returns true for devices that exports routes from all
-// protocols to BGP if the export-policy is ACCEPT.
-func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
-}
-
 // ISISLevelEnabled returns true if device requires to enable under isis level leaf.
 func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
@@ -690,4 +684,10 @@ func InterfaceRefInterfaceIDFormat(dut *ondatra.DUTDevice) bool {
 // loopback on aggregated links instead of member links.
 func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
+}
+
+// SkipNonBgpRouteExportCheck returns true for devices that exports routes from all
+// protocols to BGP if the export-policy is ACCEPT.
+func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
 }
