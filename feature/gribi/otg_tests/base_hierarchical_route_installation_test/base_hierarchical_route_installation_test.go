@@ -138,17 +138,10 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), ni)
 
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, nonDefaultVRF)
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-	}
-
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, defNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	gnmi.Replace(t, dut, defNIPath.PolicyForwarding().Config(), configurePBF(dut))
 }
 
@@ -201,8 +194,12 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
-	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	interfaceID := ingressPort
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = ingressPort + ".0"
+	}
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
+	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
@@ -214,8 +211,7 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 	for p, ap := range atePorts {
 		dp := dutPorts[p]
 		top.Ports().Add().SetName(ap.Name)
@@ -224,7 +220,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 		eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".IPv4").
 			SetAddress(ap.IPv4).SetGateway(dp.IPv4).
-			SetPrefix(int32(ap.IPv4Len))
+			SetPrefix(uint32(ap.IPv4Len))
 	}
 	return top
 }

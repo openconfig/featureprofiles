@@ -126,8 +126,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dc.Interface(p2).Config(), i2)
 	// Configure Network instance type on DUT
 	t.Log("Configure/update Network Instance")
-	dutConfNIPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
@@ -163,25 +162,24 @@ type config struct {
 
 // configureATE configures the interfaces and BGP on the ATE, with port2 advertising routes.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
-	otg := ate.OTG()
-	topo := otg.NewConfig(t)
+	topo := gosnappi.NewConfig()
 	srcPort := topo.Ports().Add().SetName("port1")
 	srcDev := topo.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
 	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
 	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
-	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	srcIpv6 := srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
-	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
+	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
 	dstPort := topo.Ports().Add().SetName("port2")
 	dstDev := topo.Devices().Add().SetName(ateDst.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dstPort.Name())
 	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
-	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
-	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
+	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
 
 	// Setup ATE BGP route v4 advertisement
 	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
@@ -244,8 +242,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 	v6DstIncrement := v6.Dst().Increment().SetStart(advertisedRoutesv6Net).SetCount(prefixLimit)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
-	otg.PushConfig(t, topo)
-	otg.StartProtocols(t)
+	ate.OTG().PushConfig(t, topo)
+	ate.OTG().StartProtocols(t)
 
 	return &config{topo, dstBgp4PeerRoutes, dstBgp6PeerRoutes, v4DstIncrement, v6DstIncrement}
 }
@@ -267,8 +265,8 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16, dut *
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(localAs)
@@ -334,7 +332,7 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16, dut *
 			}
 		}
 	}
-	return ni_proto
+	return niProto
 }
 
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
@@ -537,17 +535,17 @@ func configureBGPRoutes(t *testing.T, configElement *config, routeCount uint32) 
 	configElement.bgpv4RR.Addresses().Add().
 		SetAddress(advertisedRoutesv4Net).
 		SetPrefix(advertisedRoutesv4Prefix).
-		SetCount(int32(routeCount))
+		SetCount(uint32(routeCount))
 
 	configElement.bgpv6RR.Addresses().Clear()
 	configElement.bgpv6RR.Addresses().Add().
 		SetAddress(advertisedRoutesv6Net).
 		SetPrefix(advertisedRoutesv6Prefix).
-		SetCount(int32(routeCount))
+		SetCount(uint32(routeCount))
 
 	// Modifying the OTG flows
-	configElement.flowV4Incr.SetCount(int32(routeCount))
-	configElement.flowV6Incr.SetCount(int32(routeCount))
+	configElement.flowV4Incr.SetCount(uint32(routeCount))
+	configElement.flowV6Incr.SetCount(uint32(routeCount))
 
 	otg.PushConfig(t, configElement.topo)
 	otg.StartProtocols(t)

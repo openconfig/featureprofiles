@@ -28,10 +28,11 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -48,7 +49,8 @@ var (
 	p4InfoFile          = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
 	gdpSrcMAC           = flag.String("gdp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
 	streamName          = "p4rt"
-	gdpMAC              = "00:0a:da:f0:f0:f0"
+	gdpDstMAC           = "00:0a:da:f0:f0:f0"
+	myStationMAC        = "00:1A:11:00:00:01"
 	gdpEtherType        = uint32(0x6007)
 	deviceID            = uint64(1)
 	portID              = uint32(10)
@@ -158,15 +160,16 @@ func decodePacket(t *testing.T, packetData []byte) (string, string, uint16, laye
 
 // testTraffic sends traffic flow for duration seconds and returns the
 // number of packets sent out.
-func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int) map[string]uint64 {
+func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, duration int) map[string]uint64 {
 	t.Helper()
 	for _, flow := range flows {
-		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
+		flow.TxRx().Port().SetTxName("port1").SetRxName("port2")
 		flow.Metrics().SetEnable(true)
 		top.Flows().Append(flow)
 	}
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Duration(duration) * time.Second)
@@ -176,6 +179,9 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	total := map[string]uint64{}
 	for _, fName := range fNames {
 		total[fName] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(fName).Counters().OutPkts().State())
+		if total[fName] == 0 {
+			t.Errorf("Coundn't send packets out for flow: %s", fName)
+		}
 	}
 
 	return total
@@ -205,8 +211,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	defer programmTableEntry(ctx, t, leader, args.packetIO, true)
 
 	// Send GDP traffic from ATE
-	srcEndPoint := ateInterface(t, args.top, "port1")
-	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlows(args.ate, 300, 2), srcEndPoint, 20)
+	pktOut := testTraffic(t, args.top, args.ate, args.packetIO.GetTrafficFlows(args.ate, 300, 2), 20)
 	validateTrafficAtATE(t, args.ate, pktOut)
 
 	packetInTests := []struct {
@@ -226,6 +231,9 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
 			pktCount := pktOut["GDPWithVlan"] + pktOut["GDPWithoutVlan"]
+			if !test.wantPkts {
+				pktCount = 0
+			}
 			// Extract packets from PacketIn message sent to p4rt client
 			_, packets, err := test.client.StreamChannelGetPackets(&streamName, pktCount, 30*time.Second)
 			if err != nil {
@@ -279,7 +287,12 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 					}
 				}
 			}
-
+			if !test.wantPkts {
+				if gdpWithoutVlanPkts+gdpWithVlanPkts != 0 {
+					t.Fatalf("Number of GDP packets got: %d, want: 0", gdpWithoutVlanPkts+gdpWithVlanPkts)
+				}
+				return
+			}
 			if got, want := gdpWithoutVlanPkts, pktOut["GDPWithoutVlan"]; got != want {
 				t.Errorf("Number of GDP without Vlan PacketIn, got: %d, want: %d", got, want)
 			}
@@ -342,12 +355,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, p2)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
+	gnmi.Replace(t, dut, gnmi.OC().System().MacAddress().RoutingMac().Config(), myStationMAC)
 }
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	atePort1.AddToOTG(top, p1, &dutPort1)
@@ -441,7 +454,7 @@ func getGDPParameter(t *testing.T) PacketIO {
 	return &GDPPacketIO{
 		PacketIOPacket: PacketIOPacket{
 			SrcMAC:       gdpSrcMAC,
-			DstMAC:       &gdpMAC,
+			DstMAC:       &gdpDstMAC,
 			EthernetType: &gdpEtherType,
 		},
 		IngressPort: fmt.Sprint(portID),
@@ -464,12 +477,12 @@ func TestPacketIn(t *testing.T) {
 	configureDeviceID(ctx, t, dut)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
@@ -522,38 +535,37 @@ func (gdp *GDPPacketIO) GetTrafficFlows(ate *ondatra.ATEDevice, frameSize uint32
 	eth1 := f1.Packet().Add().Ethernet()
 	eth1.Src().SetValue(*gdp.SrcMAC)
 	eth1.Dst().SetValue(*gdp.DstMAC)
-	eth1.EtherType().SetValue(int32(0x8100))
+	eth1.EtherType().SetValue(uint32(0x8100))
 
 	vlan := f1.Packet().Add().Vlan()
-	vlan.Id().SetValue(int32(vlanID))
-	vlan.Tpid().SetValue(int32(*gdp.EthernetType))
+	vlan.Id().SetValue(uint32(vlanID))
+	vlan.Tpid().SetValue(uint32(*gdp.EthernetType))
 
-	f1.Size().SetFixed(int32(frameSize))
-	f1.Rate().SetPps(int64(frameRate))
+	f1.Size().SetFixed(uint32(frameSize))
+	f1.Rate().SetPps(uint64(frameRate))
 
 	f2 := gosnappi.NewFlow()
 	f2.SetName("GDPWithoutVlan")
 	eth2 := f2.Packet().Add().Ethernet()
 	eth2.Src().SetValue(*gdp.SrcMAC)
 	eth2.Dst().SetValue(*gdp.DstMAC)
-	eth2.EtherType().SetValue(int32(*gdp.EthernetType))
+	eth2.EtherType().SetValue(uint32(*gdp.EthernetType))
 
-	f2.Size().SetFixed(int32(frameSize))
-	f2.Rate().SetPps(int64(frameRate))
+	f2.Size().SetFixed(uint32(frameSize))
+	f2.Rate().SetPps(uint64(frameRate))
 
 	f3 := gosnappi.NewFlow()
 	f3.SetName("NonGDP")
-	eth3 := f1.Packet().Add().Ethernet()
+	eth3 := f3.Packet().Add().Ethernet()
 	eth3.Src().SetValue(*gdp.SrcMAC)
-	eth3.Dst().SetValue(*gdp.DstMAC)
-	eth3.EtherType().SetValue(int32(0x0800))
+	eth3.Dst().SetValue(myStationMAC)
 	ip3 := f3.Packet().Add().Ipv4()
 	ip3.Src().SetValue(atePort1.IPv4)
 	ip3.Dst().SetValue(atePort2.IPv4)
 	ip3.TimeToLive().SetValue(3)
 
-	f3.Size().SetFixed(int32(frameSize))
-	f3.Rate().SetPps(int64(frameRate))
+	f3.Size().SetFixed(uint32(frameSize))
+	f3.Rate().SetPps(uint64(frameRate))
 	return []gosnappi.Flow{f1, f2, f3}
 }
 
@@ -565,13 +577,4 @@ func (gdp *GDPPacketIO) GetEgressPort() []string {
 // GetIngressPort return expected ingress port info in PacketIn.
 func (gdp *GDPPacketIO) GetIngressPort() string {
 	return gdp.IngressPort
-}
-
-func ateInterface(t *testing.T, topo gosnappi.Config, portID string) gosnappi.Port {
-	for _, p := range topo.Ports().Items() {
-		if p.Name() == portID {
-			return p
-		}
-	}
-	return nil
 }

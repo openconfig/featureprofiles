@@ -269,8 +269,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 
 	// Configure Network instance type on DUT
 	t.Log("Configure Network Instance")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	t.Log("Configure BGP")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -283,7 +282,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	// Configure Md5 auth password.
 	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
 
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
 	// ATE Configuration.
 	t.Log("Configure port and BGP configs on ATE")
@@ -367,7 +366,7 @@ func TestPassword(t *testing.T) {
 	t.Log("Configure matching Md5 auth password on DUT")
 	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
 
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
 	// ATE Configuration.
 	t.Log("Configure port and BGP configs on ATE")
@@ -470,7 +469,7 @@ func TestParameters(t *testing.T) {
 			bgpClearConfig(t, dut)
 			t.Log("Configure BGP Configs on DUT")
 			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
-			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 			t.Log("Configure BGP on ATE")
 			tc.ateConf.Push(t)
 			tc.ateConf.StartProtocols(t)
