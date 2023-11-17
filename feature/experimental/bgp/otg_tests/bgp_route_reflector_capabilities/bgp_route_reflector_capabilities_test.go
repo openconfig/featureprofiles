@@ -841,7 +841,7 @@ func TestBGPRouteReflectorCapabilities(t *testing.T) {
 		gnmi.Delete(t, dut, dutConfPath.Config())
 		dutConf := bgpCreateNbr(dutAS, ateAS, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
 
 	otg := ate.OTG()
