@@ -1,0 +1,72 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// ocpaths.proto defines a specification of OpenConfig path support or
+// requirements of a networking entity.
+//
+// This specification is distinct from
+// github.com/openconfig/featureprofiles/proto/feature.proto, which describes
+// the relationship between featureprofiles tests and OC paths and is used to
+// report test coverage of those paths.
+
+syntax = "proto3";
+
+package openconfig.ocpaths;
+
+// OCPaths is the complete list of all OpenConfig paths associated with some
+// entity (e.g. NOS, or path requirements list for a particular device role).
+message OCPaths {
+  // Required OpenConfig paths for this entity.
+  repeated OCPath ocpaths = 1;
+
+  // The semantic version of the OpenConfig public models release
+  // (https://github.com/openconfig/public) associated with the list of
+  // OpenConfig paths.
+  string version = 2;
+}
+
+// OCPath is an individual OpenConfig path path.
+message OCPath {
+  // Flattened OC path without prefixes.
+  string name = 1;
+
+  // Specifies a limited portion of the OC model that a given path is needed to
+  // support.
+  OCPathConstraint ocpath_constraint = 2;
+
+  // Suffix for featureprofiles/feature/<featureprofileid> to which this OCPath
+  // is associated.
+  // The string must match openconfig.profiles.FeatureProfileID in
+  // https://github.com/openconfig/featureprofiles/blob/main/proto/feature.proto.
+  // This destination featureprofiles folder serves as a grouping of the paths
+  // related to the tests which appear in this folder and subfolders the folder.
+  string featureprofileid = 3;
+}
+
+// OCPathConstraint enumerates platform_types that are required to be supported
+// for all /components/component paths. All OCPath.name which contain a
+// /components/component path, must also set the oc-platform-type the path
+// applies to. OCPathConstraint may be used for any other oc paths when a subset
+// of types, enums or identities are required.
+//
+// For example, the path /components/component/state/software-version could have
+// platform_type constraints of BIOS, BOOT_LOADER and OPERATING_SYSTEM
+//
+// In the future, additional types of constraints can be defined by adding more
+// fields for each type of constraint
+message OCPathConstraint {
+  oneof constraint {
+    string platform_type = 1;
+  }
+}
