@@ -15,18 +15,9 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    secondary_backup_path_traffic_failover: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_gribi_under_network_instance: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     static_protocol_name: "static"

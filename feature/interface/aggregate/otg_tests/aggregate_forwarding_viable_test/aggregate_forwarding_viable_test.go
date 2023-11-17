@@ -279,7 +279,9 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 	}
 	lacpPath := d.Lacp().Interface(tc.aggID)
 	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
-	gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+	if tc.lagType == lagTypeLACP {
+		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+	}
 
 	agg := &oc.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
@@ -334,14 +336,14 @@ func (tc *testArgs) configureATE(t *testing.T) {
 	d0 := tc.top.Devices().Add().SetName(ateSrc.Name)
 	srcEth := d0.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
 	srcEth.Connection().SetPortName(p0.ID())
-	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
-	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
+	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
+	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
 	// Adding the rest of the ports to the configuration and to the LAG
 	agg := tc.top.Lags().Add().SetName(ateDst.Name)
 	if tc.lagType == lagTypeSTATIC {
 		lagId, _ := strconv.Atoi(tc.aggID)
-		agg.Protocol().SetChoice("static").Static().SetLagId(int32(lagId))
+		agg.Protocol().SetChoice("static").Static().SetLagId(uint32(lagId))
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateDst.MAC, i+1)
@@ -361,15 +363,30 @@ func (tc *testArgs) configureATE(t *testing.T) {
 			}
 			lagPort := agg.Ports().Add().SetPortName(port.Name())
 			lagPort.Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
-			lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(int32(i) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
+			lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(i) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 		}
 	}
 
-	dstDev := tc.top.Devices().Add().SetName(agg.Name())
+	// Disable FEC for 100G-FR ports because Novus does not support it.
+	p100gbasefr := []string{}
+	for _, p := range tc.atePorts {
+		if p.PMD() == ondatra.PMD100GBASEFR {
+			p100gbasefr = append(p100gbasefr, p.ID())
+		}
+	}
+
+	if len(p100gbasefr) > 0 {
+		l1Settings := tc.top.Layer1().Add().SetName("L1").SetPortNames(p100gbasefr)
+		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
+		autoNegotiate := l1Settings.AutoNegotiation()
+		autoNegotiate.SetRsFec(false)
+	}
+
+	dstDev := tc.top.Devices().Add().SetName(agg.Name() + ".dev")
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetLagName(agg.Name())
-	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
-	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
+	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
+	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
 
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
@@ -393,10 +410,10 @@ func incrementMAC(mac string, i int) (string, error) {
 }
 
 // generates a list of random tcp ports values
-func generateRandomPortList(count int) []int32 {
-	a := make([]int32, count)
+func generateRandomPortList(count uint) []uint32 {
+	a := make([]uint32, count)
 	for index := range a {
-		a[index] = int32(rand.Intn(65536-1) + 1)
+		a[index] = uint32(rand.Intn(65536-1) + 1)
 	}
 	return a
 }
@@ -496,10 +513,24 @@ func (tc *testArgs) verifyCounterDiff(t *testing.T, before, after []*oc.Interfac
 func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable bool) {
 	var want []float64
 	lp := newLinkPairs(tc.dut, tc.ate)
+	pName := tc.dutPorts[1].Name()
+
 	// Update the interface config of one port in port-channel when the forwarding flag is set as false.
 	if !forwardingViable {
 		t.Log("First port does not forward traffic because it is marked as not viable.")
-		gnmi.Update(t, tc.dut, gnmi.OC().Interface(tc.dutPorts[1].Name()).ForwardingViable().Config(), forwardingViable)
+		gnmi.Update(t, tc.dut, gnmi.OC().Interface(pName).ForwardingViable().Config(), forwardingViable)
+	}
+
+	v := gnmi.Lookup(t, tc.dut, gnmi.OC().Interface(pName).ForwardingViable().State())
+	got, present := v.Val()
+	t.Logf("First port %s forwarding-viable: got %v, present %v, want %v", pName, got, present, forwardingViable)
+	switch {
+	case present && got != forwardingViable:
+		t.Errorf("First port %s forwarding-viable: got %t, want %t", pName, got, forwardingViable)
+	case !present && !deviations.MissingValueForDefaults(tc.dut):
+		t.Errorf("First port %s forwarding-viable value not found", pName)
+	case !present && deviations.MissingValueForDefaults(tc.dut) && !forwardingViable:
+		t.Errorf("First port %s forwarding-viable defaults true not equal to %t", pName, forwardingViable)
 	}
 
 	i1 := ateSrc.Name
@@ -572,20 +603,20 @@ func TestAggregateForwardingViable(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	aggID := netutil.NextAggregateInterface(t, dut)
 
-	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
+	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeSTATIC, lagTypeLACP}
 	for _, lagType := range lagTypes {
 		args := &testArgs{
 			dut:      dut,
 			ate:      ate,
-			top:      ate.OTG().NewConfig(t),
+			top:      gosnappi.NewConfig(),
 			lagType:  lagType,
 			dutPorts: sortPorts(dut.Ports()),
 			atePorts: sortPorts(ate.Ports()),
 			aggID:    aggID,
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
-			args.configureDUT(t)
 			args.configureATE(t)
+			args.configureDUT(t)
 			args.verifyDUT(t)
 
 			for _, forwardingViable := range []bool{true, false} {

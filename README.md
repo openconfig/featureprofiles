@@ -1,13 +1,17 @@
 # Feature Profiles
 
-Feature profiles define groups of OpenConfig paths that can be invoked on
+Feature profiles defines groups of OpenConfig paths that can be invoked on
 network devices. A feature profile may contain configuration, telemetry,
 operational or any other paths that a device exposes. Example management plane
 device APIs are gNMI, and gNOI. Example control plane APIs are gRIBI, and
 protocols such as BGP, IS-IS.
 
-Feature profiles also include a suite of tests for validating the network device
-behavior for each defined feature.
+Feature profiles also includes a suite of
+[Ondatra](https://github.com/openconfig/ondatra) tests for validating the
+network device behavior for each defined feature. If you are new to Ondatra,
+please start by reading the Ondata
+[README](https://github.com/openconfig/ondatra#readme) and taking the [Ondatra
+tour](https://docs.google.com/viewer?url=https://raw.githubusercontent.com/openconfig/ondatra/main/internal/tour/tour.pdf).
 
 # Contributing
 
@@ -20,16 +24,19 @@ the
 or by opening a GitHub
 [issue](https://github.com/openconfig/featureprofiles/issues).
 
-# Examples
+# Running Tests on Virtual Devices
 
-Tests below are implemented using the
-[ONDATRA](https://github.com/openconfig/ondatra) test framework with the
+Tests may be run on virtual devices using the
 [Kubernetes Network Emulation](https://github.com/openconfig/kne) binding.
 
-Before creating a topology, follow the
-[steps for deploying a cluster](https://github.com/openconfig/kne/blob/main/docs/create_topology.md#deploy-a-cluster).
+First, follow the
+[steps for deploying a KNE cluster](https://github.com/openconfig/kne/blob/main/docs/create_topology.md#deploy-a-cluster).
+Then follow the per-vendor instructions below for creating a KNE topology and
+running a test on it.
 
-## Arista cEOS
+## Arista
+
+### cEOS
 
 [Arista cEOS](https://www.arista.com/en/products/software-controlled-container-networking)
 images can be obtained by contacting Arista.
@@ -52,7 +59,9 @@ go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/arista/ceos/top
 kne delete topologies/kne/arista/ceos/topology.textproto
 ```
 
-## Cisco 8000e
+## Cisco
+
+### 8000e
 
 > NOTE: `8000e` images require the host supports nested virtualization.
 
@@ -67,7 +76,7 @@ kne create topologies/kne/cisco/8000e/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/cisco/8000e/topology.textproto -vendor_creds CISCO/cisco/cisco123
+go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/cisco/8000e/topology.textproto -vendor_creds CISCO/cisco/cisco123
 ```
 
 3. Cleanup:
@@ -76,7 +85,7 @@ go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/cisco/8000e/top
 kne delete topologies/kne/cisco/8000e/topology.textproto
 ```
 
-## Cisco XRD
+### XRD
 
 Cisco `XRD` images can be obtained by contacting Cisco.
 
@@ -89,7 +98,7 @@ kne create topologies/kne/cisco/xrd/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/cisco/xrd/topology.textproto -vendor_creds CISCO/cisco/cisco123
+go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/cisco/xrd/topology.textproto -vendor_creds CISCO/cisco/cisco123
 ```
 
 3. Cleanup:
@@ -98,11 +107,13 @@ go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/cisco/xrd/topol
 kne delete topologies/kne/cisco/xrd/topology.textproto
 ```
 
-## Juniper CPTX
+## Juniper
 
-> NOTE: `CPTX` images require the host supports nested virtualization.
+### cPTX
 
-Juniper `CPTX` images can be obtained by contacting Juniper.
+> NOTE: `cPTX` images require the host supports nested virtualization.
+
+Juniper `cPTX` images can be obtained by contacting Juniper.
 
 1. Create the topology:
 
@@ -113,7 +124,7 @@ kne create topologies/kne/juniper/cptx/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/juniper/cptx/topology.textproto -vendor_creds JUNIPER/root/Google123
+go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/juniper/cptx/topology.textproto -vendor_creds JUNIPER/root/Google123
 ```
 
 3. Cleanup:
@@ -122,7 +133,31 @@ go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/juniper/cptx/to
 kne delete topologies/kne/juniper/cptx/topology.textproto
 ```
 
-## Nokia SR Linux
+### ncPTX
+
+Juniper `ncPTX` images can be obtained by contacting Juniper.
+
+1. Create the topology:
+
+```
+kne create topologies/kne/juniper/ncptx/topology.textproto
+```
+
+2. Run a sample test:
+
+```
+go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/juniper/ncptx/topology.textproto -vendor_creds JUNIPER/root/Google123
+```
+
+3. Cleanup:
+
+```
+kne delete topologies/kne/juniper/ncptx/topology.textproto
+```
+
+## Nokia
+
+### SR Linux
 
 SR Linux images can be found
 [here](https://github.com/nokia/srlinux-container-image/pkgs/container/srlinux).
@@ -136,7 +171,7 @@ kne create topologies/kne/nokia/srlinux/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/nokia/srlinux/topology.textproto -vendor_creds NOKIA/admin/NokiaSrl1!
+go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/nokia/srlinux/topology.textproto -vendor_creds NOKIA/admin/admin
 ```
 
 3. Cleanup:
@@ -145,40 +180,21 @@ go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/nokia/srlinux/t
 kne delete topologies/kne/nokia/srlinux/topology.textproto
 ```
 
-## Static Binding (Experimental)
+# Running Tests on Real Hardware
 
-The static binding supports ATE based testing with a real hardware device. It
-assumes that there is one ATE hooked up to one DUT in the testbed, and their
-ports are connected pairwise. They are defined in `topologies/atedut_*.testbed`
-with three variants: 2 ports, 4 ports, and 12 ports.
+Tests may be run on real hardware devices using the static binding.
 
-*   The 2 port variant is able to run the vast majority of the control plane
-    tests.
-*   The 4 port variant is required by some VRF based or data plane tests.
-*   The 12 port variant is required by the aggregate interface (static LAG and
-    LACP) tests.
-
-Setup: edit `topologies/atedut_12.binding` to specify the mapping from testbed
-topology to the actual hardware as well as the dial options.
-
-Testing:
+The static binding supports the testbeds in the `topologies/*.testbed` files.
+The mapping between the IDs in the testbed file and the physical devices are
+provided by the corresponding `topologies/*.binding` files. To try it out, edit
+`otgdut_4.binding` to specify the mapping from testbed IDs to actual hardware
+devices, as well as the desired protocol dial options. Then test it by running:
 
 ```
-cd ./topologies/ate_tests/topology_test
-go test . -testbed ../../atedut_12.testbed -binding ../../atedut_12.binding
+go test ./feature/example/tests/topology_test -binding $PWD/topologies/otgdut_4.binding
 ```
 
-> :exclamation: **NOTE**: when `go test` runs a test, the current working
-> directory is set to the path of the test package, so the testbed and binding
-> files are relative to the test package and not to the source root. It is
-> recommended to just `cd` to the test package to be consistent.
-
-> :warning: **WARNING**: the topology\_test is derived from a similar test used
-> at Google. The test code compiles but is not tested because we have not hooked
-> up Google's testing environment to the open-sourced static binding. This is an
-> early preview meant to demonstrate Ondatra API usage.
-
-## Path validation
+# Path validation
 
 The `make validate_paths` target will clone the public OpenConfig definitions
 and report Feature Profiles that have invalid OpenConfig paths.

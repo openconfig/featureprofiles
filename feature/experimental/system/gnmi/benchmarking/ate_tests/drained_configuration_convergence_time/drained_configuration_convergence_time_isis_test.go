@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/setup"
+	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/internal/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -48,7 +48,15 @@ func setISISMetric(t *testing.T, dut *ondatra.DUTDevice) {
 			intfName = dp.Name() + ".0"
 		}
 		dutISISPathIntfAF := dutISISPath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		gnmi.Replace(t, dut, dutISISPathIntfAF.Metric().Config(), setup.ISISMetric)
+		if deviations.ISISRequireSameL1MetricWithL2Metric(dut) {
+			b := &gnmi.SetBatch{}
+			gnmi.BatchReplace(b, dutISISPathIntfAF.Metric().Config(), setup.ISISMetric)
+			l1AF := dutISISPath.Interface(intfName).Level(1).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+			gnmi.BatchReplace(b, l1AF.Metric().Config(), setup.ISISMetric)
+			b.Set(t, dut)
+		} else {
+			gnmi.Replace(t, dut, dutISISPathIntfAF.Metric().Config(), setup.ISISMetric)
+		}
 	}
 }
 

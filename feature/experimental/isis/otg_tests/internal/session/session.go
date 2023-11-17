@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/netinstisis"
 	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -97,7 +98,7 @@ var (
 )
 
 // ISISPath is shorthand for ProtocolPath().Isis().
-func ISISPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_Protocol_IsisPath {
+func ISISPath(dut *ondatra.DUTDevice) *netinstisis.NetworkInstance_Protocol_IsisPath {
 	return ProtocolPath(dut).Isis()
 }
 
@@ -111,12 +112,10 @@ func ProtocolPath(dut *ondatra.DUTDevice) *networkinstance.NetworkInstance_Proto
 func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.DUTDevice) {
 	inst := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	if !deviations.ISISprotocolEnabledNotRequired(dut) {
-		prot.Enabled = ygot.Bool(true)
-	}
+	prot.Enabled = ygot.Bool(true)
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
-	if !deviations.ISISInstanceEnabledNotRequired(dut) {
+	if deviations.ISISInstanceEnabledRequired(dut) {
 		glob.Instance = ygot.String(ISISName)
 	}
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
@@ -124,6 +123,10 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	level := isis.GetOrCreateLevel(2)
 	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	// Configure ISIS enabled flag at level
+	if deviations.ISISLevelEnabled(dut) {
+		level.Enabled = ygot.Bool(true)
+	}
 	intf := isis.GetOrCreateInterface(ifaceName)
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
@@ -135,9 +138,10 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.
 	}
 	glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	// Configure ISIS enable flag at interface level
-	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
-		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if deviations.ISISInterfaceAfiUnsupported(dut) {
+		intf.Af = nil
 	}
 }
 
@@ -189,7 +193,7 @@ func New(t testing.TB) (*TestSession, error) {
 	s := &TestSession{}
 	s.DUT = ondatra.DUT(t, "dut")
 	var err error
-	s.DUTClient, err = ygnmi.NewClient(s.DUT.RawAPIs().GNMI().Default(t), ygnmi.WithTarget(s.DUT.ID()))
+	s.DUTClient, err = ygnmi.NewClient(s.DUT.RawAPIs().GNMI(t), ygnmi.WithTarget(s.DUT.ID()))
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to gNMI on %v: %w", s.DUT, err)
 	}
@@ -205,8 +209,7 @@ func New(t testing.TB) (*TestSession, error) {
 	// that don't use an ATE.
 	if ate, ok := ondatra.ATEs(t)["ate"]; ok {
 		s.ATE = ate
-		otg := s.ATE.OTG()
-		s.ATETop = otg.NewConfig(t)
+		s.ATETop = gosnappi.NewConfig()
 		s.ATEPort1 = s.ATE.Port(t, "port1")
 		s.ATEPort2 = s.ATE.Port(t, "port2")
 		s.ATEIntf1 = ATEISISAttrs.AddToOTG(s.ATETop, s.ATEPort1, DUTISISAttrs)
@@ -277,7 +280,10 @@ func (s *TestSession) PushDUT(ctx context.Context, t testing.TB) error {
 	}
 
 	// Push the ISIS protocol
-	if _, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE); err != nil {
+	if _, err := ygnmi.Update(ctx, s.DUTClient, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).Config(), &oc.NetworkInstance{
+		Name: ygot.String(deviations.DefaultNetworkInstance(s.DUT)),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+	}); err != nil {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).GetOrCreateProtocol(PTISIS, ISISName)
@@ -351,12 +357,12 @@ func (s *TestSession) MustATEInterface(t testing.TB, portID string) gosnappi.Dev
 }
 
 // GetPacketLoss returns the packet loss for a given flow
-func (s *TestSession) GetPacketLoss(t testing.TB, flow gosnappi.Flow) int64 {
+func (s *TestSession) GetPacketLoss(t testing.TB, flow gosnappi.Flow) float32 {
 	t.Helper()
 	flowMetric := gnmi.Get(t, s.ATE.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	txPackets := flowMetric.GetCounters().GetOutPkts()
-	rxPackets := flowMetric.GetCounters().GetInPkts()
-	lossPct := int64((txPackets - rxPackets) * 100 / txPackets)
+	txPackets := float32(flowMetric.GetCounters().GetOutPkts())
+	rxPackets := float32(flowMetric.GetCounters().GetInPkts())
+	lossPct := (txPackets - rxPackets) * 100 / txPackets
 
 	if txPackets == 0 {
 		return -1

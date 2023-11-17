@@ -98,7 +98,7 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	rpStandby, rpActive := components.FindStandbyRP(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
@@ -156,7 +156,6 @@ func TestLinecardReboot(t *testing.T) {
 		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
 	}
 
-	t.Logf("Find a removable line card to reboot.")
 	var removableLinecard string
 	for _, lc := range validCards {
 		t.Logf("Check if %s is removable", lc)
@@ -170,10 +169,14 @@ func TestLinecardReboot(t *testing.T) {
 		}
 	}
 	if removableLinecard == "" {
-		t.Fatalf("Component(lc).Removable().Get(t): got none, want non-empty")
+		if *args.NumLinecards > 0 {
+			t.Fatalf("No removable line card found for the testing on a modular device")
+		} else {
+			t.Skipf("No removable line card found for the testing")
+		}
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
@@ -190,6 +193,9 @@ func TestLinecardReboot(t *testing.T) {
 		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
 	}
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+
+	t.Logf("Wait for 10s to allow the sub component's reboot process to start")
+	time.Sleep(10 * time.Second)
 
 	rebootDeadline := time.Now().Add(linecardBoottime)
 	for retry := true; retry; {
@@ -228,7 +234,10 @@ func TestFabricReboot(t *testing.T) {
 	fabrics := components.FindComponentsByType(t, dut, fabricType)
 	t.Logf("Found fabric components: %v", fabrics)
 
-	t.Logf("Find a removable fabric component to reboot.")
+	if *args.NumFabrics >= 0 && len(fabrics) != *args.NumFabrics {
+		t.Errorf("Incorrect number of fabrics: got %v, want exactly %v (specified by flag)", len(fabrics), *args.NumFabrics)
+	}
+
 	var removableFabric string
 	for _, fabric := range fabrics {
 		t.Logf("Check if %s is removable", fabric)
@@ -241,7 +250,11 @@ func TestFabricReboot(t *testing.T) {
 		}
 	}
 	if removableFabric == "" {
-		t.Fatalf("Component(fabric).Removable().Get(t): got none, want non-empty")
+		if *args.NumFabrics > 0 {
+			t.Fatalf("No removable fabric component found for the testing on a modular device")
+		} else {
+			t.Skipf("No removable fabric component found for the testing")
+		}
 	}
 
 	// Fetch list of interfaces which are up prior to fabric component reboot.
@@ -249,7 +262,7 @@ func TestFabricReboot(t *testing.T) {
 	t.Logf("OperStatusUP interfaces before reboot: %v", intfsOperStatusUPBeforeReboot)
 
 	// Fetch a new gnoi client.
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,

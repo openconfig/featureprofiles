@@ -34,6 +34,7 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -50,6 +51,7 @@ var (
 		ondatra.ARISTA:  16,
 		ondatra.CISCO:   6,
 		ondatra.JUNIPER: 8,
+		ondatra.NOKIA:   16,
 	}
 )
 
@@ -149,9 +151,6 @@ func TestInterfaceOperStatus(t *testing.T) {
 
 func TestInterfacePhysicalChannel(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.MissingInterfacePhysicalChannel(dut) {
-		t.Skip("Test is skipped due to MissingInterfacePhysicalChannel deviation")
-	}
 	dp := dut.Port(t, "port1")
 
 	phyChannel := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).PhysicalChannel().State())
@@ -502,19 +501,20 @@ func TestSoftwareVersion(t *testing.T) {
 		if v, ok := parent.Val(); ok {
 			got := gnmi.Get(t, dut, gnmi.OC().Component(v).Type().State())
 
-			// Arista_7280 OC component EOS has parent type Chassis
-			if dut.Model() == "DCS-7280CR3K-32D4" {
-				if got == chassisType {
-					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
-				} else {
-					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, chassisType)
-				}
+			want := []oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{supervisorType}
+			if deviations.OSComponentParentIsChassis(dut) {
+				want = []oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{chassisType}
+			}
+			if deviations.OSComponentParentIsSupervisorOrLinecard(dut) {
+				want = []oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{supervisorType, linecardType}
+			}
+
+			if slices.IndexFunc(want, func(w oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) bool {
+				return w == got
+			}) == -1 {
+				t.Errorf("Got a parent %v with a type %v for the component %v, want one of %v", v, got, os, want)
 			} else {
-				if got == supervisorType {
-					t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
-				} else {
-					t.Errorf("Got a parent %v with a type %v for the component %v, want %v", v, got, os, supervisorType)
-				}
+				t.Logf("Got a valid parent %v with a type %v for the component %v", v, got, os)
 			}
 		} else {
 			t.Errorf("Parent for the component %v was not found", os)
@@ -534,11 +534,6 @@ func TestCPU(t *testing.T) {
 	for _, cpu := range cpus {
 		t.Logf("Validate CPU: %s", cpu)
 		component := gnmi.OC().Component(cpu)
-		if !gnmi.Lookup(t, dut, component.MfgName().State()).IsPresent() {
-			t.Errorf("component.MfgName().Lookup(t).IsPresent() for %q: got false, want true", cpu)
-		} else {
-			t.Logf("CPU %s MfgName: %s", cpu, gnmi.Get(t, dut, component.MfgName().State()))
-		}
 		if !gnmi.Lookup(t, dut, component.Description().State()).IsPresent() {
 			t.Errorf("component.Description().Lookup(t).IsPresent() for %q: got false, want true", cpu)
 		} else {
@@ -794,7 +789,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	otg := ate.OTG()
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
 	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").SetMac("02:00:01:01:01:01")

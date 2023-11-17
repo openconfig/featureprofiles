@@ -26,7 +26,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
+	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -202,7 +202,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 					if etherType != layers.EthernetTypeIPv4 && etherType != layers.EthernetTypeIPv6 {
 						continue
 					}
-					if !strings.EqualFold(srcMAC, atePort1.MAC) {
+					if !strings.EqualFold(srcMAC, tracerouteSrcMAC) {
 						continue
 					}
 					if wantPacket.TTL != nil {
