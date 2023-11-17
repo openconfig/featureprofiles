@@ -42,11 +42,16 @@ jobs:
         find "${PROTOBUF_IMPORT_DIR}" -type d -empty -delete
         # Download the required dependencies
         go mod download
+        # Copy all of the proto files into the right directory.
+        fp_proto_dir="${PROTOBUF_IMPORT_DIR}/github.com/openconfig/featureprofiles"
+        mkdir -p "${fp_proto_dir}"
+        cp --parents `find -name \*.proto` "${fp_proto_dir}"
         # Get ondatra modules we use and create required directory structure
         go list -f "${PROTOBUF_IMPORT_DIR}/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 dirname | sort | uniq | xargs mkdir -p
         # Create symlink
         go list -f "{{ .Dir }} "${PROTOBUF_IMPORT_DIR}"/{{ .Path }}" -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
-        find . -name \*.proto -exec api-linter -I./"${PROTOBUF_IMPORT_DIR}" --disable-rule all --enable-rule core {} \+
+        cd "${fp_proto_dir}"
+        find . -name \*.proto -exec api-linter -I"${OLDPWD}"/"${PROTOBUF_IMPORT_DIR}" --disable-rule all --enable-rule core {} \+
     - name: Compile topology binding textprotos
       run: |
         fail=0
