@@ -50,12 +50,12 @@ const (
 	nhg103ID           = 103
 	nh104ID            = 104
 	nhg104ID           = 104
-	baseSrcFlowFilter  = "0x02" // hexadecimal value of last 6 bits of src 198.51.100.2
-	baseDstFlowFilter  = "0x31" // hexadecimal value of first 6 bits of dst 198.51.100.1
-	encapSrcFlowFilter = "0x02" // hexadecimal value of last 6 bits of src 203.0.113.2
-	encapDstFlowFilter = "0x32" // hexadecimal value of first 6 bits of dst 203.0.113.1
-	decapSrcFlowFliter = "0x3f" // hexadecimal value of last 6 bits of src 198.18.0.255
-	decapDstFlowFliter = "0x31" // hexadecimal value of first 6 bits of dst 198.18.0.1
+	baseSrcFlowFilter  = "0x02" // hexadecimal value of last 5 bits of src 198.51.100.2
+	baseDstFlowFilter  = "0x18" // hexadecimal value of first 5 bits of dst 198.51.100.1
+	encapSrcFlowFilter = "0x02" // hexadecimal value of last 5 bits of src 203.0.113.2
+	encapDstFlowFilter = "0x19" // hexadecimal value of first 5 bits of dst 203.0.113.1
+	decapSrcFlowFliter = "0x1f" // hexadecimal value of last 5 bits of src 198.18.0.255
+	decapDstFlowFliter = "0x18" // hexadecimal value of first 5 bits of dst 198.18.0.1
 	ethernetCsmacd     = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	policyID           = "match-ipip"
 	ipOverIPProtocol   = 4
@@ -499,9 +499,9 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 	flow.EgressPacket().Add().Ethernet()
 	ipTracking := flow.EgressPacket().Add().Ipv4()
 	ipSrcTracking := ipTracking.Src().MetricTags().Add()
-	ipSrcTracking.SetName(srcTrackingName).SetOffset(26).SetLength(6)
+	ipSrcTracking.SetName(srcTrackingName).SetOffset(27).SetLength(5)
 	ipDstTracking := ipTracking.Dst().MetricTags().Add()
-	ipDstTracking.SetName(dstTrackingName).SetOffset(0).SetLength(6)
+	ipDstTracking.SetName(dstTrackingName).SetOffset(0).SetLength(5)
 
 	return flow
 }
@@ -557,7 +557,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 		if got := ets[0].GetCounters().GetInPkts(); got != uint64(inPkts) {
 			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, uint64(inPkts))
 		} else {
-			t.Logf("Received %d packets with %s as the last 6 bits of the src IP and %s as first 6 bits of dst IP ", got, srcFlowFilter, dstFlowFilter)
+			t.Logf("Received %d packets with %s as the last 5 bits of the src IP and %s as first 5 bits of dst IP ", got, srcFlowFilter, dstFlowFilter)
 		}
 	}
 
