@@ -1,9 +1,9 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "d2e0ad15-fd22-408b-961c-ec016de29925"
-plan_id: "RT-1.4"
-description: "BGP Graceful Restart"
+uuid: "25b389ff-8526-46e3-acf2-016e86aff406"
+plan_id: "SFLOW-1"
+description: "sFlow Configuration and Sampling"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
@@ -18,7 +18,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    use_vendor_native_acl_config: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
@@ -29,8 +28,8 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
+    interface_config_vrf_before_address: true
     interface_enabled: true
     default_network_instance: "default"
   }

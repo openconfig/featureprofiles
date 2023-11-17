@@ -423,6 +423,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-8"
+  description: "Singleton with breakouts"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
+  exec: " "
+}
+test: {
   id: "SFLOW-1"
   description: "sFlow Configuration and Traffic Sampling"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/README.md"
@@ -832,6 +838,12 @@ test: {
   id: "gNMI-1.9"
   description: "Get requests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/gnmi/get/tests/system_gnmi_get_test/README.md"
+  exec: " "
+}
+test: {
+  id: "gNMI-2"
+  description: "Gnmi Subscriptionlist Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test/README.md"
   exec: " "
 }
 test: {

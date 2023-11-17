@@ -670,8 +670,8 @@ func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
 }
 
-// Devices which require to use interface-id format of interface name + .subinterface index with Interface-ref container
-func InterfaceRefInterfaceIdFormat(dut *ondatra.DUTDevice) bool {
+// InterfaceRefInterfaceIDFormat returns if device is required to use interface-id format of interface name + .subinterface index with Interface-ref container
+func InterfaceRefInterfaceIDFormat(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()
 }
 
@@ -683,4 +683,9 @@ func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 // SkipBgpSessionCheckWithoutAfisafi returns if device needs to skip checking AFI-SAFI disable.
 func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
+
+  // MemberLinkLoopbackUnsupported returns true for devices that require configuring
+// loopback on aggregated links instead of member links.
+func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
 }

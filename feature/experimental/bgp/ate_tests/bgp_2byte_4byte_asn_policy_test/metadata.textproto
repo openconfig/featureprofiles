@@ -26,12 +26,6 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
-  }
-  deviations: {}
-}
-platform_exceptions: {
-  platform: {
     vendor: ARISTA
   }
   deviations: {
