@@ -680,12 +680,13 @@ func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
 }
 
-// SkipBgpSessionCheckWithoutAfisafi returns if device needs to skip checking AFI-SAFI disable.
-func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
-}
-  // SkipPlqInterfaceOperStatusCheck returns true for devices that do not support
+// SkipPlqInterfaceOperStatusCheck returns true for devices that do not support
 // PLQ operational status check for interfaces
 func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
+}
+
+// SkipBgpSessionCheckWithoutAfisafi returns if device needs to skip checking AFI-SAFI disable.
+func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
 }
