@@ -59,7 +59,7 @@ func init() {
 
 func generateExample(filepath string, invalid bool) error {
 	componentPrefix := "/components/component"
-	softwareComponent := "OPERATING_SYTEM"
+	softwareComponent := "OPERATING_SYSTEM"
 	if invalid {
 		componentPrefix = "/componentsssssssssss/component"
 		softwareComponent = "JOVIAN_ATMOSPHERE"
@@ -89,7 +89,7 @@ func generateExample(filepath string, invalid bool) error {
 			}},
 		},
 		Ocrpcs: &rpb.OCRPCs{
-			Ocservices: map[string]*rpb.OCRPCService{
+			OcProtocols: map[string]*rpb.OCProtocol{
 				"gnmi.gNMI": {
 					Version: "0.10.0",
 					MethodName: []string{
