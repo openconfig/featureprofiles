@@ -368,7 +368,7 @@ message Metadata {
     // Devices exports routes from all protocols to BGP if the export-policy is ACCEPT
     // Juniper: b/308970803
     bool skip_non_bgp_route_export_check = 127;
-    
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55;
   }
