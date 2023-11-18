@@ -648,11 +648,6 @@ func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
 }
 
-// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
-func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
-}
-
 // EcnSameMinMaxThresholdUnsupported returns true for devices that don't support the same minimum and maximum threshold values
 // CISCO: minimum and maximum threshold values are not the same, the difference between minimum and maximum threshold value should be 6144.
 func EcnSameMinMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
@@ -689,4 +684,9 @@ func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
 // PLQ operational status check for interfaces
 func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
+}
+
+// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
+func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
 }
