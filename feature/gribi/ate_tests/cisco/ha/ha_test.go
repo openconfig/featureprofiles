@@ -186,21 +186,23 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 
 	// reestablishing gribi connection
 	if pName == "emsd" {
-		// client := gribi.Client{
-		//  DUT:                   dut,
-		//  FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		//  Persistence:           true,
-		//  InitialElectionIDLow:  1,
-		//  InitialElectionIDHigh: 0,
-		// }
-		// if err := client.Start(t); err != nil {
-		//  t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-		//  if err = client.Start(t); err != nil {
-		//    t.Fatalf("gRIBI Connection could not be established: %v", err)
-		//  }
-		// }
-		// args.client = &client
-		args.client.Start(t)
+		time.Sleep(time.Second * 20)
+		client := gribi.Client{
+			DUT:                   args.dut,
+			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+			Persistence:           true,
+			InitialElectionIDLow:  1,
+			InitialElectionIDHigh: 0,
+		}
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			if err = client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection could not be established: %v", err)
+			}
+		}
+		args.client = &client
+		gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), 15*time.Minute)
+		gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Minute)), gnmi.OC().Interface("*").State(), 15*time.Minute)
 	}
 }
 
@@ -341,7 +343,6 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 
 	// reestablishing gribi connection
 	if gribi_reconnect {
-		// time.Sleep(time.Minute * 10)
 		client := gribi.Client{
 			DUT:                   args.dut,
 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -356,7 +357,6 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 			}
 		}
 		args.client = &client
-		// args.client.Start(t)
 	}
 	gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), 15*time.Minute)
 	gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Minute)), gnmi.OC().Interface("*").State(), 15*time.Minute)
@@ -1045,7 +1045,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"bgp", "ipv6_rib", "fib_mgr", "ifmgr"}
+	processes := []string{"bgp", "ipv6_rib", "fib_mgr", "ifmgr", "emsd", "db_writer", "isis", "ipv4_rib"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			// RPFO
