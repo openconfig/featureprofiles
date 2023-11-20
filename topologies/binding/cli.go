@@ -32,15 +32,33 @@ func newCLI(sc *ssh.Client) (*cli, error) {
 	return &cli{ssh: sc}, nil
 }
 
-func (c *cli) SendCommand(_ context.Context, cmd string) (string, error) {
+func (c *cli) RunCommand(_ context.Context, cmd string) (binding.CommandResult, error) {
 	sess, err := c.ssh.NewSession()
 	if err != nil {
-		return "", fmt.Errorf("could not create session: %w", err)
+		return nil, fmt.Errorf("could not create session: %w", err)
 	}
 	defer sess.Close()
-	buf, err := sess.CombinedOutput(cmd)
-	if err != nil {
-		return "", fmt.Errorf("could not execute command: %w", err)
+
+	out, err := sess.CombinedOutput(cmd)
+	switch err.(type) {
+	case nil:
+		return &cmdResult{output: string(out)}, nil
+	case *ssh.ExitError, *ssh.ExitMissingError:
+		return &cmdResult{output: string(out), error: err.Error()}, nil
+	default:
+		return nil, err
 	}
-	return string(buf), nil
+}
+
+type cmdResult struct {
+	*binding.AbstractCommandResult
+	output, error string
+}
+
+func (r *cmdResult) Output() string {
+	return r.output
+}
+
+func (r *cmdResult) Error() string {
+	return r.error
 }
