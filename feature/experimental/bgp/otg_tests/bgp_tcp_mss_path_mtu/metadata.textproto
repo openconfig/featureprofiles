@@ -21,6 +21,9 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
+    omit_l2_mtu: true
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
   }
 }
 platform_exceptions: {
