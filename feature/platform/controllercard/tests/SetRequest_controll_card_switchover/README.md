@@ -13,7 +13,7 @@ This test verifys if large config can be bushed via gNMI SetRequest within 2 min
 * Store indexes of ACTIVE and BACUP Controller Card in "previous_Active" and "previous_BACKUP"
 * Initiate Control Card switchover using gNOI SwitchControlProcessorRequest 
 * Immedietly after reciving `SwitchControlProcessorResponce` for  gNOI switchover, but no later then 120 second after calling gNOI `SwitchControlProcessorRequest`, send gNMI `setRequest` with prepared large config.
-* wait 120 second
+* Store timestamp as "SwitchControlProcessorResponse_time" and wait 120 second
 * Retrive configuration form DUT using gNMI `GetRequest`.
 * Verify:
   * The gNMI `setResponce` has been received within 120s after `setRequest` by comparing with "SwitchControlProcessorResponse_time", and 
