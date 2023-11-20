@@ -36,12 +36,6 @@ var (
 		IPv4:    "192.0.2.5",
 		IPv4Len: 30,
 	}
-	dutDstDummy = attrs.Attributes{
-		Desc:    "DUT Bundle",
-		IPv4:    "192.0.2.21",
-		IPv4Len: 30,
-	}
-
 	atePort1 = attrs.Attributes{
 		Name:    "port1",
 		MAC:     "02:00:01:01:01:01",
