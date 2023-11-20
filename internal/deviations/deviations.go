@@ -454,12 +454,6 @@ func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
 }
 
-// SkipPLQPacketsCountCheck returns if PLQ packets count check should be skipped.
-// Default value is false.
-func SkipPLQPacketsCountCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPlqPacketsCountCheck()
-}
-
 // SkipControllerCardPowerAdmin returns if power-admin-state config on controller card should be skipped.
 // Default value is false.
 func SkipControllerCardPowerAdmin(dut *ondatra.DUTDevice) bool {
@@ -684,4 +678,10 @@ func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 // loopback on aggregated links instead of member links.
 func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
+}
+
+// SkipPlqInterfaceOperStatusCheck returns true for devices that do not support
+// PLQ operational status check for interfaces
+func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
 }
