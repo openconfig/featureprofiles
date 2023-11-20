@@ -812,7 +812,7 @@ func TestInterfaceComponentHierarchy(t *testing.T) {
 		compMap[c.GetName()] = c
 	}
 
-	// Map of non populated Transceivers to a random integer.
+	// Map of populated Transceivers to a random integer.
 	transceivers := make(map[string]int)
 	tvs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER)
 	for idx, tv := range tvs {
