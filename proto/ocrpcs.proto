@@ -39,5 +39,7 @@ message OCProtocol {
   repeated string method_name = 1;
 
   // The semantic version of the gRPC protocol release.
+  //
+  // This must refer to a release tag when "v" is prepended to the string.
   string version = 2;
 }
