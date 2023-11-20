@@ -69,9 +69,8 @@ func clonePublicRepo(downloadPath, branch string) (string, error) {
 		return "", fmt.Errorf("failed to clone public repo: %v, command failed to start: %q", err, cmd.String())
 	}
 	stderrOutput, _ := io.ReadAll(stderr)
-	fmt.Printf("%s\n", stderrOutput)
 	if err := cmd.Wait(); err != nil {
-		return "", fmt.Errorf("failed to clone public repo: %v, command failed during execution: %q", err, cmd.String())
+		return "", fmt.Errorf("failed to clone public repo: %v, command failed during execution: %q\n%s", err, cmd.String(), stderrOutput)
 	}
 	return publicPath, nil
 }

@@ -10,7 +10,7 @@ release_date: {
 }
 ocpaths: {
   ocpaths: {
-    name: "/interfaces/interface/config/name"
+    name: "/interfaces/interface/config/does-not-exist"
   }
   ocpaths: {
     name: "/componentsssssssssss/component/state/location"
