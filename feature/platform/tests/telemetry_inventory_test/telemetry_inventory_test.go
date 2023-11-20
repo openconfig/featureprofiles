@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -804,19 +805,40 @@ func TestHeatsinkTempSensor(t *testing.T) {
 
 func TestInterfaceComponentHierarchy(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+
+	// Map of component Name to corresponding Component OC object.
+	compMap := make(map[string]*oc.Component)
+	for _, c := range gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State()) {
+		compMap[c.GetName()] = c
+	}
+
+	// Map of non populated Transceivers to a random integer.
+	transceivers := make(map[string]int)
+	tvs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER)
+	for idx, tv := range tvs {
+		if compMap[tv].GetMfgName() == "" {
+			continue
+		}
+		transceivers[compMap[tv].GetName()] = idx
+	}
 
 	numHardwareIntfs := 0
 	integratedCircuits := make(map[string]*oc.Component)
 
 	t.Run("Interface to Integrated Circuit mapping", func(t *testing.T) {
-		for _, intf := range intfs {
+		for _, intf := range gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State()) {
 			if intf.GetHardwarePort() == "" {
+				continue
+			}
+			if _, ok := transceivers[intf.GetTransceiver()]; !ok {
 				continue
 			}
 			t.Run(intf.GetHardwarePort(), func(t *testing.T) {
 				numHardwareIntfs++
-				c := gnmi.Get(t, dut, gnmi.OC().Component(intf.GetHardwarePort()).State())
+				c, ok := compMap[intf.GetHardwarePort()]
+				if !ok {
+					t.Fatalf("Couldn't find interface hardware port(%s) in component tree for port: %s", intf.GetHardwarePort(), intf.GetName())
+				}
 				for {
 					if c.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
 						break
@@ -824,7 +846,10 @@ func TestInterfaceComponentHierarchy(t *testing.T) {
 					if c.GetParent() == "" {
 						t.Fatalf("Couldn't get parent for component: %s", c.GetName())
 					}
-					c = gnmi.Get(t, dut, gnmi.OC().Component(c.GetParent()).State())
+					c, ok = compMap[c.GetParent()]
+					if !ok {
+						t.Fatalf("Couldn't find parent component(%s) for component: %s", c.GetParent(), c.GetName())
+					}
 				}
 				integratedCircuits[c.GetName()] = c
 			})
@@ -837,7 +862,7 @@ func TestInterfaceComponentHierarchy(t *testing.T) {
 	t.Run("Integrated Circuit to Chassis mapping", func(t *testing.T) {
 		for _, ic := range integratedCircuits {
 			t.Run(ic.GetName(), func(t *testing.T) {
-				c := ic
+				c, ok := ic, true
 				for {
 					if c.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS {
 						break
@@ -845,7 +870,10 @@ func TestInterfaceComponentHierarchy(t *testing.T) {
 					if c.GetParent() == "" {
 						t.Fatalf("Couldn't get parent for component: %s", c.GetName())
 					}
-					c = gnmi.Get(t, dut, gnmi.OC().Component(c.GetParent()).State())
+					c, ok = compMap[c.GetParent()]
+					if !ok {
+						t.Fatalf("Couldn't find parent component(%s) for component: %s", c.GetParent(), c.GetName())
+					}
 				}
 				chassis[c.GetName()] = c
 			})
