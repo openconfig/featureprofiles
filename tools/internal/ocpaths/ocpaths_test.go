@@ -52,6 +52,13 @@ func TestValidatePath(t *testing.T) {
 			FeatureprofileID: "interface_base",
 		},
 	}, {
+		desc: "non-leaf path",
+		inOcPathProto: &ppb.OCPath{
+			Name:             "/interfaces/interface",
+			Featureprofileid: "interface_base",
+		},
+		wantErr: true,
+	}, {
 		desc: "with-component",
 		inOcPathProto: &ppb.OCPath{
 			Name:             "/components/component/state/name",
@@ -214,6 +221,13 @@ func TestValidatePaths(t *testing.T) {
 				FeatureprofileID: "interface_basic",
 			},
 		},
+	}, {
+		desc: "invalid-path",
+		inOcPathsProto: []*ppb.OCPath{{
+			Name:             "/interfaces/interface/config",
+			Featureprofileid: "interface_base",
+		}},
+		wantErr: true,
 	}, {
 		desc: "duplicate",
 		inOcPathsProto: []*ppb.OCPath{{

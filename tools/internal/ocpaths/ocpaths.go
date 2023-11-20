@@ -25,12 +25,30 @@ import (
 	"github.com/openconfig/goyang/pkg/yangentry"
 	"github.com/openconfig/models-ci/yangutil"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"golang.org/x/exp/maps"
 
 	ppb "github.com/openconfig/featureprofiles/proto/ocpaths_go_proto"
 )
 
 const (
-	componentPrefix = "/components/component"
+	componentPrefix       = "/components/component"
+	featureprofileIDRegex = "^([a-z0-9]+_)*[a-z0-9]+$"
+)
+
+var (
+	featureprofileIDMatcher = regexp.MustCompile(featureprofileIDRegex)
+	validComponentNames     = func() map[string]struct{} {
+		names := map[string]struct{}{}
+		for _, enum := range []string{
+			reflect.TypeOf(oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT(0)).Name(),
+			reflect.TypeOf(oc.E_PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT(0)).Name(),
+		} {
+			for _, v := range oc.ΛEnum[enum] {
+				names[v.Name] = struct{}{}
+			}
+		}
+		return names
+	}()
 )
 
 // OCPathKey contains the fields that uniquely identify an OC path.
@@ -111,46 +129,25 @@ func validatePath(ocpathProto *ppb.OCPath, root *yang.Entry) (*OCPath, error) {
 
 	// Validate component
 	component := ocpath.Key.Component
-	isComponent := strings.HasPrefix(path, componentPrefix)
-	matched, err := regexp.MatchString("^[A-Z_]+$", component)
-	if err != nil {
-		return nil, err
-	}
-CONSTRAINT_CHECK:
+	isComponentPath := strings.HasPrefix(path, componentPrefix)
 	switch {
-	case !isComponent && component != "":
+	case !isComponentPath && component != "":
 		return nil, fmt.Errorf("non-component path %q has component value %q", path, component)
-	case !isComponent:
-		// valid
-	case matched:
-		for _, enum := range []string{
-			reflect.TypeOf(oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT(0)).Name(),
-			reflect.TypeOf(oc.E_PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT(0)).Name(),
-		} {
-			for _, v := range oc.ΛEnum[enum] {
-				if v.Name == component {
-					ocpath.Key.Component = component
-					break CONSTRAINT_CHECK
-				}
-			}
-		}
-		fallthrough
+	case !isComponentPath:
 	default:
-		return nil, fmt.Errorf("path %q has invalid component %q", path, component)
+		if _, ok := validComponentNames[component]; !ok {
+			return nil, fmt.Errorf("path %q has invalid component %q (must be one of %v)", path, component, maps.Keys(validComponentNames))
+		}
+		ocpath.Key.Component = component
 	}
 
-	// Basic validation of featureprofileid if it exists
-	featureprofileID := ocpath.FeatureprofileID
-	if featureprofileID != "" {
-		matched, err := regexp.MatchString("^([a-z0-9]+_)*[a-z0-9]+$", featureprofileID)
-		if err != nil {
-			return nil, err
-		}
+	// featureprofileID is optional. Only validate the string format if it exists.
+	if featureprofileID := ocpath.FeatureprofileID; featureprofileID != "" {
 		switch {
-		case matched:
+		case featureprofileIDMatcher.MatchString(featureprofileID):
 			ocpath.FeatureprofileID = featureprofileID
 		default:
-			return nil, fmt.Errorf("unexpected featureprofileID string %q for path %v", featureprofileID, path)
+			return nil, fmt.Errorf("unexpected featureprofileID string %q for path %v (must match regex %q)", featureprofileID, path, featureprofileIDRegex)
 		}
 	}
 

@@ -60,9 +60,11 @@ func init() {
 func generateExample(filepath string, invalid bool) error {
 	componentPrefix := "/components/component"
 	softwareComponent := "OPERATING_SYSTEM"
+	interfaceLeafName := "name"
 	if invalid {
 		componentPrefix = "/componentsssssssssss/component"
 		softwareComponent = "JOVIAN_ATMOSPHERE"
+		interfaceLeafName = "does-not-exist"
 	}
 	bs, err := formatTxtpb(&npb.NOSImageProfile{
 		VendorId:        opb.Device_OPENCONFIG,
@@ -72,7 +74,7 @@ func generateExample(filepath string, invalid bool) error {
 		Ocpaths: &ppb.OCPaths{
 			Version: "2.5.0",
 			Ocpaths: []*ppb.OCPath{{
-				Name: "/interfaces/interface/config/name",
+				Name: "/interfaces/interface/config/" + interfaceLeafName,
 				// Featureprofileid is not required when specifying OCPath support.
 			}, {
 				Name: componentPrefix + "/state/location",
