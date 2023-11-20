@@ -29,6 +29,8 @@ replace: {
 " secret 5 $1$k6Xn$rD8WIoP896Jy9RND3FZKa1\n"
 " password 7 1511021F0725\n"
 "!\n"
+"username cafyauto\n"
+" group root-lr\n"
 "aaa accounting exec default start-stop group google-tacacs group tacacs+\n"
 "aaa accounting system default start-stop group google-tacacs group tacacs+ none\n"
 "aaa accounting commands default start-stop group google-tacacs group tacacs+\n"
