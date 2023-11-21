@@ -35,10 +35,10 @@ message OCRPCs {
 // belong to the same OpenConfig RPC service (e.g. gnoi.healthz.Healthz,
 // gnmi.gNMI).
 message OCRPCService {
-  // Full name of the gRPC method specification.
-  // Format: <package>.<service>.<rpc>
-  // Example: gnoi.healthz.Healthz.Get
-  // Example: gnmi.gNMI.Subscribe
+  // Name of the gRPC method specification.
+  // Format: <rpc>
+  // Example: Get
+  // Example: Subscribe
   repeated string method_name = 1;
 
   // The semantic version of the gRPC service.
