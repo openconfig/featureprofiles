@@ -48,12 +48,12 @@ import (
 
 var (
 	dhcpIntf        = flag.String("dhcp-intf", "eth1", "Interface that will be used by dhcp server to listen for dhcp requests")
-	bootzAddr       = flag.String("bootz_addr", "5.18.23.199:15006", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
-	imageServerAddr = flag.String("img_serv_addr", "5.18.23.199:15007", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
-	imagesDir       = flag.String("img_dir", "/nobackup/images", "Directory where the images will be located.")
-	imageVersion    = flag.String("img_ver", "24.1.1.31I", "Version of the image to be loaded using bootz")
-	dhcpIP          = flag.String("dhcp_ip", "5.78.24.101/16", "IP address in CIDR format that dhcp server will assign to the dut.")
-	dhcpGateway     = flag.String("dhcp_gateway", "5.78.0.1", "Gateway IP that dhcp server will assign to DUT.")
+	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
+	imageServerAddr = flag.String("img_serv_addr", "", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
+	imagesDir       = flag.String("img_dir", "", "Directory where the images will be located.")
+	imageVersion    = flag.String("img_ver", "", "Version of the image to be loaded using bootz")
+	dhcpIP          = flag.String("dhcp_ip", "", "IP address in CIDR format that dhcp server will assign to the dut.")
+	dhcpGateway     = flag.String("dhcp_gateway", "", "Gateway IP that dhcp server will assign to DUT.")
 )
 
 var (
@@ -524,7 +524,7 @@ func TestBootz3(t *testing.T) {
 
 				chassisBootzConfig.GetConfig().BootConfig.VendorConfig = []byte(tt.VendorConfig)
 				chassisBootzConfig.SoftwareImage = &bpb.SoftwareImage{}
-				for k, _ := range secArtifacts.OV {
+				for k := range secArtifacts.OV {
 					secArtifacts.OV[k] = tt.OV
 				}
 				if len(tt.OV) == 0 { // load the valid ovs
