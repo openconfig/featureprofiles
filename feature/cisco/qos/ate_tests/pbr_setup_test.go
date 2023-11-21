@@ -19,6 +19,16 @@ type PBROptions struct {
 	SrcIP string
 }
 
+func getPolicyForwardingInterfaceConfig(t *testing.T, policyName, intf string) *oc.NetworkInstance_PolicyForwarding_Interface {
+
+	d := &oc.Root{}
+	pfCfg := d.GetOrCreateNetworkInstance("DEFAULT").GetOrCreatePolicyForwarding().GetOrCreateInterface(intf + ".0")
+	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(intf)
+	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	return pfCfg
+}
+
 // configbasePBR, creates class map, policy and configures under source interface
 func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8, opts ...*PBROptions) {
 	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
@@ -56,8 +66,20 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 	p := pf.GetOrCreatePolicy(pbrName)
 	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
 	p.AppendRule(&r)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
-
+	// gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
+	InterfaceName := "Bundle-Ether120"
+	intfRef := &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{}
+	intfRef.SetInterface(InterfaceName)
+	intfRef.SetSubinterface(0)
+	InterfaceRef := InterfaceName + ".0"
+	pf.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{
+		InterfaceRef: {
+			InterfaceId:             ygot.String(InterfaceRef),
+			ApplyVrfSelectionPolicy: ygot.String(pbrName),
+			InterfaceRef:            intfRef,
+		},
+	}
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &pf)
 	//configure PBR on ingress port
 	gnmi.Update(t, dut, pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
 	gnmi.Update(t, dut, pfpath.Interface("Bundle-Ether122").ApplyVrfSelectionPolicy().Config(), pbrName)
