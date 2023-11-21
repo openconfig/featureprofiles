@@ -1166,6 +1166,8 @@ github.com/openconfig/lemming v0.3.2-0.20230914210403-c6484d12af0a h1:JNiu6/3IWt
 github.com/openconfig/lemming v0.3.2-0.20230914210403-c6484d12af0a/go.mod h1:fC8o1NYR9yEmDmoIVaCZQY+iP9RSxujYzckUGSkpWD8=
 github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY05KS5X11jxVbw=
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
+github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e h1:6N4jXpZa/SXYcNpJFjjZvenxO/xnTwuUCgCEinhNLfU=
+github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e/go.mod h1:w38G/kObu95PbtwMYVp6SKhkHCegJFwL8B58Ns84g4s=
 github.com/openconfig/ondatra v0.4.3 h1:M6moqZRuA87aXNbHkZgj/U+Jj4WOjzgTC/EM1ARqt+E=
 github.com/openconfig/ondatra v0.4.3/go.mod h1:WEZ0twDTtctPYDJ6D0zeyKwdXfEHRpKV7At0xPHMrBs=
 github.com/openconfig/replayer v0.0.0-20231031192218-5462382820d4 h1:ohE/OcV38lEOt7IHOtFzjYVzzoCgMYp3sqJBKmVwuw0=
