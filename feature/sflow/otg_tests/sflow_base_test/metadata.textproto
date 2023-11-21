@@ -1,0 +1,36 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "25b389ff-8526-46e3-acf2-016e86aff406"
+plan_id: "SFLOW-1"
+description: "sFlow Configuration and Sampling"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_config_vrf_before_address: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
