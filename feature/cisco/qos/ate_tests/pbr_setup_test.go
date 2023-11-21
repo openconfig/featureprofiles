@@ -66,7 +66,6 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 	p := pf.GetOrCreatePolicy(pbrName)
 	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
 	p.AppendRule(&r)
-	// gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
 	InterfaceName := "Bundle-Ether120"
 	intfRef := &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{}
 	intfRef.SetInterface(InterfaceName)
@@ -79,19 +78,24 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 			InterfaceRef:            intfRef,
 		},
 	}
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &pf)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
+
 	//configure PBR on ingress port
-	gnmi.Update(t, dut, pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
-	gnmi.Update(t, dut, pfpath.Interface("Bundle-Ether122").ApplyVrfSelectionPolicy().Config(), pbrName)
-	gnmi.Update(t, dut, pfpath.Interface("Bundle-Ether123").ApplyVrfSelectionPolicy().Config(), pbrName)
+	ports := []string{"Bundle-Ether120", "Bundle-Ether122", "Bundle-Ether123"}
+	for _, portInterface := range ports {
+		pfPath := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(portInterface + ".0")
+		pfCfg := getPolicyForwardingInterfaceConfig(t, pbrName, portInterface)
+		gnmi.Update(t, dut, pfPath.Config(), pfCfg)
+	}
 }
 
 // unconfigbasePBR, creates class map, policy and configures under source interface
 func unconfigbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
-	gnmi.Delete(t, dut, pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config())
-	gnmi.Delete(t, dut, pfpath.Interface("Bundle-Ether122").ApplyVrfSelectionPolicy().Config())
-	gnmi.Delete(t, dut, pfpath.Interface("Bundle-Ether123").ApplyVrfSelectionPolicy().Config())
+	ports := []string{"Bundle-Ether120", "Bundle-Ether122", "Bundle-Ether123"}
+	for _, portInterface := range ports {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Interface(portInterface+".0").Config())
+	}
 	gnmi.Delete(t, dut, pfpath.Policy(pbrName).Config())
 	gnmi.Delete(t, dut, pfpath.Config())
 }
