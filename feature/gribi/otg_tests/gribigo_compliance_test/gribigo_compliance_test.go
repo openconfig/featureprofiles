@@ -201,7 +201,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*nonDefaultNI).Config(), ni)
 	nip := gnmi.OC().NetworkInstance(*nonDefaultNI)
-	fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.GetConfig(t, dut, nip.Config()))
+	fptest.LogQuery(t, "nonDefaultNI", nip.Config(), gnmi.Get(t, dut, nip.Config()))
 }
 
 // configreATE configures port1-3 on the ATE.

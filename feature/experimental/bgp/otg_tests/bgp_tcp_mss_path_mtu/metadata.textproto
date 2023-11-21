@@ -11,6 +11,7 @@ platform_exceptions:  {
   }
   deviations:  {
     skip_tcp_negotiated_mss_check:  true
+    isis_level_enabled: true
   }
 }
 platform_exceptions: {
@@ -20,6 +21,9 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
+    omit_l2_mtu: true
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
   }
 }
 platform_exceptions: {
