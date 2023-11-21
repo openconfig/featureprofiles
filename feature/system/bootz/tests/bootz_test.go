@@ -1,955 +1,664 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package bootz
 
 import (
-	"context"
+	"crypto/x509"
 	"flag"
 	"fmt"
-	"io"
-	"math/rand"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	bootzServer "github.com/openconfig/bootz/server"
-	entityAPI "github.com/openconfig/bootz/server/entitymanager"
+	"github.com/openconfig/bootz/dhcp"
+	"github.com/openconfig/bootz/proto/bootz"
+	"github.com/openconfig/bootz/server/entitymanager/proto/entity"
 	"github.com/openconfig/bootz/server/service"
-	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
-	frpb "github.com/openconfig/gnoi/factory_reset"
+	"github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
-	"google.golang.org/protobuf/encoding/prototext"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
+	ov "github.com/openconfig/bootz/common/ownership_voucher"
+	dhcpLease "github.com/openconfig/bootz/dhcp/plugins/slease"
+	bootzSever "github.com/openconfig/bootz/server"
+	bootzem "github.com/openconfig/bootz/server/entitymanager"
+
+	bpb "github.com/openconfig/bootz/proto/bootz"
 )
 
 var (
-	backupFileName    = "cisco_bkp.cfg"
-	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
-	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
+	dhcpIntf        = flag.String("dhcp-intf", "eth1", "Interface that will be used by dhcp server to listen for dhcp requests")
+	bootzAddr       = flag.String("bootz_addr", "5.18.23.199:15006", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
+	imageServerAddr = flag.String("img_serv_addr", "5.18.23.199:15007", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
+	imagesDir       = flag.String("img_dir", "/nobackup/images", "Directory where the images will be located.")
+	imageVersion    = flag.String("img_ver", "24.1.1.31I", "Version of the image to be loaded using bootz")
+	dhcpIP          = flag.String("dhcp_ip", "5.78.24.101/16", "IP address in CIDR format that dhcp server will assign to the dut.")
+	dhcpGateway     = flag.String("dhcp_gateway", "5.78.0.1", "Gateway IP that dhcp server will assign to DUT.")
 )
+
 var (
-	invalidISO     = flag.String("invalid_iso", "/var/www/html/invalid.iso", "Provide the path for invalid ISO eg: /var/www/html/invalid.iso")
-	validISO       = flag.String("valid_iso", "/var/www/html/valid.iso", "Provide the path for invalid ISO eg: /var/www/html/valid.iso")
-	versionUpgrade = flag.String("version_upgrade", "24.1.1.12I", "Provide the version to be upgraded to")
-	dhcpInterface  = flag.String("dhcp_interface", "ens224", "Provide the interface on which dhcp runs on your server eg: ens224")
-	dhcpIp         = flag.String("dhcp_ip", "2.2.2.2", "Provide the IP on which dhcp runs on your server eg: 2.2.2.2")
-	baseconfig     string
+	controlcardType       = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	chassisType           = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
+	isSetupDone           = false
+	chassisSerial         = ""
+	controllerCards       = []string{}
+	controllerCardSerials = []string{}
+	chassisBootzConfig    = &entity.Chassis{}
+	hwAddrs               = []string{}
+	secArtifacts          = &service.SecurityArtifacts{}
+	em                    *bootzem.InMemoryEntityManager
+	bServer               *bootzSever.Server
+	chassisEntity         = &service.EntityLookup{}
+	baseConfig            string
+	bootzServerFailed     atomic.Bool
 )
 
-var showrunAfter string
-
-type execCommands struct {
-	TerminalLength string
-	ShowZtpLog     string
-	ShowRun        string
-	ZtpClean       string
+type bootzTest struct {
+	Name            string
+	VendorConfig    string
+	OV              []byte
+	Image           *bootz.SoftwareImage
+	ExpectedFailure bool
 }
 
-var ciscoExecuteCommands execCommands
-
-type ztpStatus struct {
-	Success    string
-	Terminated string
-}
-
-var ciscoZtpStatus ztpStatus
-
-type consoleCommands struct {
-	EnterUserName      string
-	EnterPassword      string
-	EnterPasswordAgain string
-}
-
-var ciscoConsoleRegexCommands consoleCommands
-var ztpLog string
+const (
+	dhcpTimeout                = 30 * time.Minute // connection to dhcp after factory default
+	bootzConnectionTimeout     = 5 * time.Minute  // request for bootsrap after dhcp
+	bootzStatusTimeout         = 5 * time.Minute  // only ov + config
+	fullBootzCompletionTimeout = 30 * time.Minute // image + ov + config
+)
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func findActiveRPActiveSerialNumber(t *testing.T, dut *ondatra.DUTDevice) (string, string) {
-	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
-	t.Logf("Found controller card list: %v", controllerCards)
-	var rpStandbyBeforeSwitch, rpActiveBeforeSwitch string
-	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
-		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
+func checkBootzStatus(t *testing.T, expectFailure bool) {
+	if bootzServerFailed.Load() {
+		t.Fatal("bootz server is down, check the test log for detailed error")
 	}
-
-	if got, want := len(controllerCards), 2; got < want {
-		rpStandbyBeforeSwitch, rpActiveBeforeSwitch = "", controllerCards[0]
-
-	} else {
-		rpStandbyBeforeSwitch, rpActiveBeforeSwitch = components.FindStandbyRP(t, dut, controllerCards)
-
+	for _, ccSerial := range controllerCardSerials {
+		err := awaitBootzStatus(ccSerial, bootz.ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED, bootzStatusTimeout)
+		if err != nil {
+			t.Errorf("ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED in not reported in %d minutes for controller card %s", bootzStatusTimeout, ccSerial)
+		} else {
+			t.Log("DUT reported ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED to bootz server as expected")
+		}
 	}
-
-	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
-	return rpStandbyBeforeSwitch, rpActiveBeforeSwitch
-}
-func versionOnBox(t *testing.T, dut *ondatra.DUTDevice) string {
-	_, compName := findActiveRPActiveSerialNumber(t, dut)
-	state := gnmi.OC().Component(compName).SoftwareVersion()
-	versiononbox := gnmi.Get(t, dut, state.State())
-	return versiononbox
-}
-func initiateBootzOnDevice(t *testing.T, dut *ondatra.DUTDevice, console *fptest.ConsoleIO) {
-	console.WaitForPrompt()
-	console.Execute(ciscoExecuteCommands.ZtpClean)
-	time.Sleep(30 * time.Second)
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	facRe, err := gnoiClient.FactoryReset().Start(context.Background(), &frpb.StartRequest{FactoryOs: false, ZeroFill: false})
-	if err != nil {
-		t.Fatalf("Failed to initiate Factory Reset on the device, Error : %v ", err)
+	expectedCCstatus := bootz.ReportStatusRequest_BOOTSTRAP_STATUS_SUCCESS
+	if expectFailure {
+		expectedCCstatus = bootz.ReportStatusRequest_BOOTSTRAP_STATUS_FAILURE
 	}
-
-	t.Logf("facRe.GetResponse: %v\n", facRe.GetResponse())
-	switch v := facRe.GetResponse().(type) {
-	case *frpb.StartResponse_ResetError:
-		actErr := facRe.GetResetError()
-		t.Fatalf("Error during Factory Reset %v: %v", actErr.GetOther(), actErr.GetDetail())
-	case *frpb.StartResponse_ResetSuccess:
-		t.Logf("FACTORY RESET COMMAND SENT SUCCESSFULLY")
-	default:
-		t.Fatalf("Expected ResetSuccess following Start: got %v", v)
-
-	}
-	t.Logf("facRe.Response: %v\n", facRe.Response)
-}
-func verifyBaseConfig(t *testing.T, show_run string) {
-	t.Logf("SHOW RUN FROM BOX : %v", show_run)
-	file, err := os.Open("testdata/cisco.cfg")
-	if err != nil {
-		t.Fatalf("Could not open file: %v", err)
-	}
-	defer file.Close()
-	cisco_cfg, err := io.ReadAll(file)
-	if err != nil {
-		t.Fatalf("Could not read file data: %v", err)
-	}
-	str1 := string(show_run)
-	str2 := string(cisco_cfg)
-	startIndex := strings.Index(str1, "hostname")
-	if startIndex == -1 {
-		t.Logf("Hostname not found in the configuration.")
-		return
-	}
-
-	// Remove everything before "hostname."
-	str1 = str1[startIndex:]
-
-	// Replace "!" and newline characters.
-	str1 = strings.ReplaceAll(str1, "!", "")
-	str1 = strings.ReplaceAll(str1, "\n", "")
-
-	// Print the modified configuration.
-	t.Logf(str1)
-
-	startIndex = strings.Index(str2, "hostname")
-	if startIndex == -1 {
-		t.Logf("Hostname not found in the configuration.")
-		return
-	}
-
-	// Remove everything before "hostname."
-	str2 = str2[startIndex:]
-
-	// Replace "!" and newline characters.
-	str2 = strings.ReplaceAll(str2, "!", "")
-	str2 = strings.ReplaceAll(str2, "\n", "")
-	str2 = strings.ReplaceAll(str2, "no shutdown", "")
-
-	// Print the modified configuration.
-	t.Logf(str2)
-	pattern := regexp.MustCompile(`\s+`)
-	showRun := pattern.ReplaceAllString(str1, "")
-	ciscoBase := pattern.ReplaceAllString(str2, "")
-
-	//check if show run and testdata/cisco.cfg are same
-	if showRun != ciscoBase {
-		t.Errorf("Base config verification for bootz failed")
+	for _, ccSerial := range controllerCardSerials {
+		err := awaitBootzStatus(ccSerial, expectedCCstatus, bootzStatusTimeout)
+		if err != nil {
+			t.Errorf("Status %s is not reported as expected in minutes", expectedCCstatus.String())
+		} else {
+			t.Logf("DUT reported %s to bootz server as expected", expectedCCstatus.String())
+		}
 	}
 }
-func verifyVersionChange(t *testing.T, versionBefore, versionAfter string, versionChange bool) {
-	if (versionChange) && (versionBefore == versionAfter) {
-		t.Error("Image Change expected")
-	}
-	if (!versionChange) && (versionBefore != versionAfter) {
-		t.Error("Image change not expected")
-	}
 
-}
-func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice, maxRebootTime uint64) {
+func dutBootzStatus(t *testing.T, dut *ondatra.DUTDevice, maxRebootTime time.Duration) {
 	startReboot := time.Now()
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 	for {
 		var currentTime string
 		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-
-		time.Sleep(3 * time.Minute)
+		time.Sleep(1 * time.Minute)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
 			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
 		} else {
-			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			t.Logf("Device bootzed successfully with received time: %v", currentTime)
 			break
 		}
 
-		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
-			t.Logf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		if time.Since(startReboot) > maxRebootTime {
+			t.Logf("Check bootz time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
 			break
 		}
 	}
-	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
-}
-func usernamepassword(t *testing.T) (string, string) {
-	bindingFile := flag.Lookup("binding").Value.String()
-	in, err := os.ReadFile(bindingFile)
-	if err != nil {
-		t.Fatalf("unable to read binding file")
-	}
-	b := &bindpb.Binding{}
-	if err := prototext.Unmarshal(in, b); err != nil {
-		t.Fatalf("unable to parse binding file")
-	}
-	username := b.Duts[0].Options.GetUsername()
-	password := b.Duts[0].Options.GetPassword()
-	return username, password
-
-}
-func baseConfig(t *testing.T, console *fptest.ConsoleIO) {
-	t.Logf("executing new line and wait for prompt")
-	console.Writeln("")
-
-	userRe := regexp.MustCompile(ciscoConsoleRegexCommands.EnterUserName)
-	passwordRe := regexp.MustCompile(ciscoConsoleRegexCommands.EnterPassword)
-	confirmRe := regexp.MustCompile(ciscoConsoleRegexCommands.EnterPasswordAgain)
-	username, password := usernamepassword(t)
-	console.ReadUntilPrompt(func(data []byte) bool {
-		if console.FindInputPrompt(userRe, username, data) {
-			return false
-		}
-		if console.FindInputPrompt(passwordRe, password, data) {
-			return false
-		}
-		return console.FindInputPrompt(confirmRe, password, data)
-	})
-
-	console.WaitForPrompt()
-	time.Sleep(30 * time.Second)
-	out, err := console.Execute(baseconfig)
-	if err != nil {
-		t.Fatalf("error: %v", err)
-	}
-	t.Logf(string(out))
-	time.Sleep(30 * time.Second)
-	for i := 0; i < 5; i++ {
-		console.Writeln("")
-	}
-	console.WaitForPrompt()
-
+	t.Logf("Device bootz time: %.2f minutes", time.Since(startReboot).Minutes())
+	//TODO: add oc leaves check
 }
 
-func show_ztp_state(t *testing.T, dut *ondatra.DUTDevice, console *fptest.ConsoleIO) string {
-	// console.WaitForPrompt()
-	var ztpstate string
-	var getRequest *gnmipb.GetRequest
-	if dut.Vendor() == ondatra.CISCO {
-		getRequest = &gnmipb.GetRequest{
-			Path: []*gnmipb.Path{
-				{Origin: "openconfig", Elem: []*gnmipb.PathElem{
-					{Name: "Cisco-IOS-XR-ztp-oper:ztp"},
-					{Name: "status"},
-					{Name: "state"},
-				}},
-			},
-			Type:     gnmipb.GetRequest_ALL,
-			Encoding: gnmipb.Encoding_JSON_IETF,
+func testSetup(t *testing.T, dut *ondatra.DUTDevice) {
+	if !isSetupDone {
+		baseConfig = getBaseConfig(t, dut)
+		comps := components.FindComponentsByType(t, dut, chassisType)
+		if len(comps) != 1 {
+			t.Fatalf("Could not find the chassis in component list")
+		}
+		chassisSerial = gnmi.Get(t, dut, gnmi.OC().Component(comps[0]).SerialNo().State())
+
+		controllerCards = components.FindComponentsByType(t, dut, controlcardType)
+		for _, comp := range controllerCards {
+			ccSerial := gnmi.Get(t, dut, gnmi.OC().Component(comp).SerialNo().State())
+			controllerCardSerials = append(controllerCardSerials, ccSerial)
 		}
 
-		res, err := dut.RawAPIs().GNMI(t).Get(context.Background(), getRequest)
-		if err != nil {
-			t.Fatal("There is error when getting configuration: ", err)
-
-		}
-
-		t.Logf("VAL:  %v ", res)
-		for _, n := range res.Notification {
-			for _, u := range n.Update {
-				if u.GetVal().GetJsonIetfVal() == nil {
-					t.Fatalf("got an update with a non JSON_IETF schema, got: %s", u)
-				} else {
-					t.Logf("Get value %v ", string(u.GetVal().GetJsonIetfVal()))
-					ztpstate = string(u.GetVal().GetJsonIetfVal())
-				}
+		for _, ports := range dut.Ports() {
+			// We assume the ports in bindning are managment interfaces, otherwise the test must fail.
+			mac := gnmi.Get(t, dut, gnmi.OC().Interface(ports.Name()).Ethernet().HwMacAddress().State())
+			if !gnmi.Get(t, dut, gnmi.OC().Interface(ports.Name()).Management().State()) {
+				t.Fatalf("Ports are exepcted to be managment interfaces")
 			}
+			hwAddrs = append(hwAddrs, mac)
+		}
+		isSetupDone = true
+	}
+
+	loadSecArtifacts(t, "testdata/pdc.cert.pem", "testdata/pdc.key.pem")
+	var err error
+	em, err = bootzem.New("", secArtifacts)
+	if err != nil {
+		t.Fatalf("Could not initialize bootz inventory: %v", err)
+	}
+	prepareBootzConfig(t, dut)
+	startBootzSever(t)
+
+	err = startDhcpServer(*dhcpIntf, em, *bootzAddr)
+	if err != nil {
+		t.Fatalf("Could not start dhcp sever on interface %s, err: %v", *dhcpIntf, err)
+	}
+}
+
+// loadOV load ovs from a specfied file
+func loadOV(t *testing.T, serialNumber string, pdc *x509.Certificate, verify bool) []byte {
+	ovPath := fmt.Sprintf("testdata/%s.ov", serialNumber)
+	// ovPath = masaOV(t, serail, verify)
+	ovByte, err := os.ReadFile(ovPath)
+	if err != nil {
+		t.Fatalf("Error opening key file %v", err)
+	}
+	parsedOV, err := ov.Unmarshal(ovByte, nil)
+	if err != nil {
+		t.Fatalf("unable to verify ownership voucher: %v", err)
+	}
+
+	// Verify the serial number for this OV
+	t.Logf("Verifying the serial number for OV")
+	got := parsedOV.OV.SerialNumber
+	want := serialNumber
+	if got != want {
+		if verify {
+			t.Fatalf("Serial number from OV does not match requested Serial Number, want %v, got %v", serialNumber, got)
 		}
 	}
-	return strings.Trim(ztpstate, "")
-}
 
-func show_ztp_log(t *testing.T, console *fptest.ConsoleIO, substring string) bool {
-	console.WaitForPrompt()
-	state, err := console.Execute(ciscoExecuteCommands.ShowZtpLog)
+	// ensure the cert in ov is valid.
+	_, err = x509.ParseCertificate(parsedOV.OV.PinnedDomainCert)
 	if err != nil {
-		t.Error("Error getting the status of ztp")
+		t.Fatalf("Unable to parse PDC DER to x509 certificate: %v", err)
 	}
-	t.Logf("SHOW ZTP LOG: %v", string(state))
-	if strings.Contains(string(state), substring) {
-		return true
-	}
-	return false
-}
-
-func readFile(t *testing.T, filePath string) string {
-	file, err := os.Open(filePath)
-	if err != nil {
-		t.Fatalf("Could not open file: %v", err)
-	}
-	defer file.Close()
-	filecontent, err := io.ReadAll(file)
-	if err != nil {
-		t.Fatalf("Could not read file data: %v", err)
-	}
-	return (string(filecontent))
-
-}
-func modifyFile(t *testing.T, content string, filePath string) {
-	inFile, err := os.Create(filePath)
-	if err != nil {
-		t.Fatalf("Could not open Inventory local %v ", err)
-	}
-	defer inFile.Close()
-
-	_, err = inFile.Write([]byte(content))
-	if err != nil {
-		t.Fatalf("Could not modify the contents of inventory local %v ", err)
-	}
-}
-
-func removeDecorators(baseconfig string) string {
-	lines := strings.Split(baseconfig, "\n")
-
-	// Find the line that starts with "hostname"
-	var startIndex int
-	for i, line := range lines {
-		if strings.HasPrefix(line, "hostname") {
-			startIndex = i
-			break
+	if string(pdc.Raw) != string(parsedOV.OV.PinnedDomainCert) {
+		if verify {
+			t.Fatalf("The PDC from the ov does not match the expected pdc")
 		}
 	}
-	// Extract the configuration starting from the "hostname" line
-	configLines := lines[startIndex:]
-
-	// Join the configuration lines to form the new configuration
-	newConfig := strings.Join(configLines, "\n")
-	newConfig = "configure" + "\n" + newConfig
-	return newConfig
-
+	return ovByte
 }
-func TestBootzFP(t *testing.T) {
 
-	ciscoCfg := readFile(t, filepath.Join("testdata/cisco.cfg"))
-	t.Logf("Cisco Cfg provided  %v", ciscoCfg)
-	baseconfig = removeDecorators(ciscoCfg)
-	inventoryLocal := readFile(t, filepath.Join("testdata/inventory_local.prototxt"))
-	t.Logf("Inventory Local %v", inventoryLocal)
+// load sec artifacts
+func loadSecArtifacts(t *testing.T, pdcCertPEM, pdcKeyPEM string) {
+	serials := []string{chassisSerial}
+	if len(controllerCardSerials) >= 1 { // modular chassis
+		serials = controllerCardSerials
+	}
+	pdcKey, pdcCert := loadKeyPair(t, pdcKeyPEM, pdcCertPEM)
+	os.Remove("testdata/tls.key.pem")
+	os.Remove("testdata/tls.cert.pem")
+	ip := strings.Split(*bootzAddr, ":")[0]
+	anchorCert := generateCert(t, pdcCert, pdcKey, ip, "bootz server")
+	//ownerCert := generateCert(t, pdcCert, pdcKey, ip, "Owner server")
 
-	em, _ := entityAPI.New("testdata/inventory_local.prototxt")
-	chassisInventoryOriginal := em.GetChassisInventory()
-	chassisInventory := em.GetChassisInventory()
+	sa := &service.SecurityArtifacts{
+		PDC:                 pdcCert,
+		OwnerCert:           pdcCert,
+		OwnerCertPrivateKey: pdcKey,
+		TLSKeypair:          anchorCert,
+		OV:                  service.OVList{},
+		TrustAnchor:         pdcCert,
+	}
+	for _, serial := range serials {
+		sa.OV[serial] = loadOV(t, serial, pdcCert, true)
+	}
+	secArtifacts = sa
+}
 
-	bServer := bootzServer.New()
-	status, err := bServer.Start("5.38.4.124:8009", bootzServer.ServerConfig{
-		DhcpIntf:          "ens224",
-		ArtifactDirectory: "testdata/",
-		InventoryConfig:   "testdata/inventory_local.prototxt",
+func prepareBootzConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	caser := cases.Title(language.English)
+	chassisEntity = &service.EntityLookup{SerialNumber: chassisSerial, Manufacturer: caser.String(dut.Vendor().String())}
+	chassisBootzConfig = &entity.Chassis{
+		SerialNumber:  chassisSerial,
+		SoftwareImage: nil,
+		Manufacturer:  caser.String(dut.Vendor().String()),
+		BootMode:      bootz.BootMode_BOOT_MODE_SECURE,
+		Config: &entity.Config{
+			BootConfig: &entity.BootConfig{
+				VendorConfig: []byte(getBaseConfig(t, dut)),
+			},
+			GnsiConfig: &entity.GNSIConfig{
+				AuthzUpload: &authz.UploadRequest{
+					Version:   "0.0",
+					CreatedOn: uint64(time.Now().UnixMilli()),
+					Policy:    "{}", // TODO: add authz policy here
+				},
+			},
+		},
+		DhcpConfig: &entity.DHCPConfig{
+			HardwareAddress: chassisSerial,
+			IpAddress:       *dhcpIP,
+			Gateway:         *dhcpGateway,
+		},
+	}
+	for i, cc := range controllerCardSerials {
+		ccConfig := &entity.ControlCard{
+			SerialNumber: cc,
+			DhcpConfig: &entity.DHCPConfig{
+				HardwareAddress: hwAddrs[i],
+				IpAddress:       *dhcpIP,
+				Gateway:         *dhcpGateway,
+			},
+		}
+		chassisBootzConfig.ControllerCards = append(chassisBootzConfig.ControllerCards, ccConfig)
+	}
+	em.ReplaceDevice(chassisEntity, chassisBootzConfig)
+}
+
+func startBootzSever(t *testing.T) {
+	err := em.ReplaceDevice(chassisEntity, chassisBootzConfig)
+	if err != nil {
+		t.Fatalf("Could not add chassis config to entitymanager config: %v", err)
+	}
+	imgaeServOpts := &bootzSever.ImgSrvOpts{
+		ImagesLocation: *imagesDir,
+		Address:        *imageServerAddr,
+		CertFile:       "testdata/tls.cert.pem",
+		KeyFile:        "testdata/tls.key.pem",
+	}
+	interceptor := &bootzSever.InterceptorOpts{
+		BootzInterceptor: bootzInterceptor,
+	}
+	bServer, err = bootzSever.NewServer(*bootzAddr, em, secArtifacts, imgaeServOpts, interceptor)
+	if err != nil {
+		t.Fatalf("Could not initiate bootz server %v", err)
+	}
+	bootzServerFailed.Store(false)
+	go func() {
+		err := bServer.Start()
+		if err != nil {
+			t.Logf("Unexpected Bootz server error %v, test will be terminated ASAP", err)
+			bootzServerFailed.Store(true)
+		}
+	}()
+}
+
+// ### bootz-1: Validate minimum necessary bootz configuration
+func TestBootz1(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	testSetup(t, dut)
+	defer bServer.Stop()
+	defer dhcp.Stop()
+
+	dutPreTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
+	bootzStarted := false
+
+	bootz1 := []bootzTest{
+		{
+			Name:            "Bootz-1.1: Missing config",
+			VendorConfig:    "",
+			ExpectedFailure: true,
+		},
+		{
+			Name:            "Bootz-1.2: Invalid config",
+			VendorConfig:    "invalid config",
+			ExpectedFailure: true,
+		},
+		{
+			Name:            "Bootz-1.3: Valid config",
+			VendorConfig:    baseConfig,
+			ExpectedFailure: false,
+		},
+	}
+	t.Run("Running Bootz1 Test to Validate minimum necessary bootz configuration", func(t *testing.T) {
+		for _, tt := range bootz1 {
+			t.Run(tt.Name, func(t *testing.T) {
+				if bootzServerFailed.Load() {
+					t.Fatal("bootz server is down, check the test log for detailed error")
+				}
+				// reset bootz logs
+				bootzStatusLogs = BootzStatus{}
+				bootzReqLogs = BootzLogs{}
+				//ensure no old dhcp log causing an issue
+				dhcpLease.CleanLog()
+
+				chassisBootzConfig.GetConfig().BootConfig.VendorConfig = []byte(tt.VendorConfig)
+				em.ReplaceDevice(chassisEntity, chassisBootzConfig)
+				if !bootzStarted {
+					factoryReset(t, dut)
+					bootzStarted = true
+				}
+				dhcpIDs := []string{chassisSerial}
+				dhcpIDs = append(dhcpIDs, hwAddrs...)
+				err := awaitDHCPCompletion(dhcpIDs, dhcpTimeout)
+				if err != nil {
+					t.Errorf("DUT connection to DHCP server was not successfull in %d minutes", dhcpTimeout)
+				} else {
+					t.Logf("DUT connection to DHCP server was  successfull")
+				}
+				err = awaitBootzConnection(*chassisEntity, bootzConnectionTimeout)
+				if err != nil {
+					t.Errorf("DUT connection to bootz server was not successfull in %d minutes", bootzConnectionTimeout)
+				} else {
+					t.Log("DUT is connected to bootz server")
+				}
+				checkBootzStatus(t, tt.ExpectedFailure)
+			})
+		}
+		dutBootzStatus(t, dut, 5*time.Second)
+		dutPostTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
+		if dutPreTestVersion != dutPostTestVersion {
+			t.Fatalf("DUT software versions do not match, pretest: %s , posttest: %s ", dutPreTestVersion, dutPostTestVersion)
+		}
+
 	})
-	t.Logf("%v", status)
-	if err != nil {
-		t.Fatalf("ERR: %v", err)
-	}
-	if status != bootzServer.BootzServerStatus_RUNNING {
-		t.Errorf("Expected: %s, Received: %s", bootzServer.BootzServerStatus_RUNNING, status)
-	}
-	retries := 5
-	interval := 3 * time.Minute
-	for i := 1; i <= retries; i++ {
-		if bServer.IsChassisConnected(service.EntityLookup{Manufacturer: "Cisco", SerialNumber: "FOC2503NLRY"}) {
-			t.Log("CONNECTED")
-			break
-		}
+}
 
-		if i == retries {
-			t.Log("Condition still false after 5 retries. Exiting.")
-			break
-		}
-
-		t.Logf("Attempt %d: Condition is still false. Retrying in %s...\n", i, interval)
-		time.Sleep(interval)
-	}
-
-	// if bServer.IsChassisConnected(service.EntityLookup{Manufacturer: "Cisco", SerialNumber: "FOC2503NLRY"}) {
-	// }
-
-	bootStatus, err := bServer.GetBootStatus("FOC2503NLRY")
-	// validate boot status and ...
-	t.Logf("%v", bootStatus)
-	if err != nil {
-
-		t.Fatalf("could not get get bootz status ")
-	}
-	t.Logf("Bootz status err %v", err)
-	//Assuming that dhcp and bootz server is up
+// ### bootz-2: Validate Software image in bootz configuration
+func TestBootz2(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 
-	cio := dut.RawAPIs().Console(t)
-	defer cio.Close()
-	console := fptest.NewConsoleIO(t, dut, cio)
-	if err := console.Writeln(""); err != nil {
-		t.Fatalf("error: %v", err)
+	testSetup(t, dut)
+	defer bServer.Stop()
+	defer dhcp.Stop()
+
+	dutPreTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
+	bootzStarted := false
+
+	bootz2 := []bootzTest{
+		{
+			Name:         "Bootz-2.2 Invalid software image ",
+			VendorConfig: baseConfig,
+			Image: &bpb.SoftwareImage{
+				Name:          "badimage.iso",
+				Url:           fmt.Sprintf("https://%s/badimage.iso", *imageServerAddr),
+				HashAlgorithm: "sha256",
+				OsImageHash:   getImageHash(t, fmt.Sprintf("%s/badimage.iso", *imagesDir)),
+				Version:       "99999",
+			},
+			ExpectedFailure: true,
+		},
+		{
+			Name:         "Bootz-2.1: Software version is different",
+			VendorConfig: baseConfig,
+			Image: &bpb.SoftwareImage{
+				Name:          "goodimage.iso",
+				Url:           fmt.Sprintf("https://%s/goodimage.iso", *imageServerAddr),
+				HashAlgorithm: "sha256",
+				OsImageHash:   getImageHash(t, fmt.Sprintf("%s/goodimage.iso", *imagesDir)),
+				Version:       *imageVersion,
+			},
+			ExpectedFailure: false,
+		},
 	}
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		ciscoExecuteCommands = execCommands{TerminalLength: "terminal length 0", ShowZtpLog: "show ztp log", ShowRun: "show run", ZtpClean: "ztp clean noprompt"}
-		ciscoZtpStatus = ztpStatus{Success: "success", Terminated: "terminated"}
-		ciscoConsoleRegexCommands = consoleCommands{EnterUserName: "Enter root-system username:",
-			EnterPassword: "Enter secret:", EnterPasswordAgain: "Enter secret again:"}
-	default:
-		t.Fatalf("Exec, ZTP status and console commands not present for %v ", dut.Vendor().String())
+
+	t.Run("Running Bootz2 Test to Validate Software image in bootz configuration", func(t *testing.T) {
+		for _, tt := range bootz2 {
+			t.Run(tt.Name, func(t *testing.T) {
+				if bootzServerFailed.Load() {
+					t.Fatal("bootz server is down, check the test log for detailed error")
+				}
+				// reset bootz logs
+				bootzStatusLogs = BootzStatus{}
+				bootzReqLogs = BootzLogs{}
+				//ensure no old dhcp log causing an issue
+				dhcpLease.CleanLog()
+
+				chassisBootzConfig.GetConfig().BootConfig.VendorConfig = []byte(tt.VendorConfig)
+				chassisBootzConfig.SoftwareImage = tt.Image
+				em.ReplaceDevice(chassisEntity, chassisBootzConfig)
+				if !bootzStarted {
+					factoryReset(t, dut)
+					bootzStarted = true
+				}
+				dhcpIDs := []string{chassisSerial}
+				dhcpIDs = append(dhcpIDs, hwAddrs...)
+				err := awaitDHCPCompletion(dhcpIDs, dhcpTimeout)
+				if err != nil {
+					t.Errorf("DUT connection to DHCP server was not successfull in %d minutes", dhcpTimeout)
+				} else {
+					t.Logf("DUT connection to DHCP server was  successfull")
+				}
+				err = awaitBootzConnection(*chassisEntity, bootzConnectionTimeout)
+				if err != nil {
+					t.Errorf("DUT connection to bootz server was not successfull in %d minutes", bootzConnectionTimeout)
+				} else {
+					t.Log("DUT is connected to bootz server")
+				}
+				checkBootzStatus(t, tt.ExpectedFailure)
+			})
+		}
+		dutBootzStatus(t, dut, fullBootzCompletionTimeout)
+		dutPostTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
+		if dutPostTestVersion != *imageVersion {
+			t.Fatalf("DUT software versions do not match, pretest: %s , posttest: %s ", dutPreTestVersion, dutPostTestVersion)
+		}
+	})
+
+}
+
+// ### bootz-3: Validate Ownership Voucher in bootz configuration
+func TestBootz3(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	testSetup(t, dut)
+	defer bServer.Stop()
+	defer dhcp.Stop()
+
+	bootz3 := []bootzTest{
+		// need to discuss and remove
+		/*bootzTest{
+			// TODO: clarify this since in secure mode we may not support this
+			Name:            "Bootz-3.1: No ownership voucher ",
+			VendorConfig:    baseConfig,
+			ExpectedFailure: false,
+			OV: []byte(""),
+		},*/
+		{
+			Name:            "Bootz-3.2 Invalid OV",
+			VendorConfig:    baseConfig,
+			ExpectedFailure: true,
+			OV:              []byte("invalid ov"),
+		},
+		{
+			Name:            "bootz-3.3  Valid OV format but for differnt device",
+			VendorConfig:    baseConfig,
+			ExpectedFailure: true,
+			OV:              loadOV(t, "wrongserial", secArtifacts.PDC, false), // get serail as flasg
+		},
+		{
+			Name:            "bootz-3.4 Valid OV",
+			VendorConfig:    baseConfig,
+			ExpectedFailure: false,
+		},
 	}
 
-	t.Run("Bootz-1.1: Missing config", func(t *testing.T) {
-		//giving an empty cisco.cfg file
-		if *invalidISO == "" || *validISO == "" || *versionUpgrade == "" || *dhcpInterface == "" || *dhcpIp == "" {
-			t.Fatalf("One or more of the flags is empty")
-		}
-		modifyFile(t, "", "testdata/empty.cfg")
-		versionBefore := versionOnBox(t, dut)
+	dutPreTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
+	bootzStarted := false
 
-		chassisInventory = chassisInventoryOriginal
-		for _, ch := range chassisInventory {
-			ch.Config.BootConfig.VendorConfigFile = "testdata/empty.cfg"
-			ch.SoftwareImage.Version = versionBefore
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
-		}
-
-		t.Logf("CHASSIS INV AFTER %v ", chassisInventory)
-		t.Log("Changed the contents fo the file cisco.cfg ")
-		time.Sleep(30 * time.Second)
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		baseConfig(t, console)
-		deviceBootStatus(t, dut, 6)
-		dutAfter := ondatra.DUT(t, "dut")
-		versionAfter := versionOnBox(t, dutAfter)
-		verifyVersionChange(t, versionBefore, versionAfter, false)
-		ztpStatus := show_ztp_state(t, dutAfter, console)
-		if !strings.Contains(ztpStatus, ciscoZtpStatus.Terminated) {
-			t.Errorf("ZTP state %v : Expecting Failure", ztpStatus)
-		}
-		sshClient := dut.RawAPIs().CLI(t)
-		if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-			t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
-		}
-		if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-			t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-			ztpLog = result
-		} else {
-			t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
-		}
-		if (!strings.Contains(string(ztpLog), "Provisioning failed")) && (!strings.Contains(string(ztpLog), "ZTP failed to complete")) {
-			t.Errorf("Expected ztp to fail with : Provisioning failed and ZTP failed to complete errors ")
-		}
-	})
-	t.Run("Bootz-1.2: Invalid config", func(t *testing.T) {
-		versionBefore := versionOnBox(t, dut)
-		//create cfg file with random string
-		randomString := fmt.Sprintf("%d", rand.Int63())
-		t.Log(randomString)
-		modifyFile(t, randomString, "testdata/invalid.cfg")
-		chassisInventory = chassisInventoryOriginal
-		for _, ch := range chassisInventory {
-			ch.Config.BootConfig.VendorConfigFile = "testdata/invalid.cfg"
-			ch.SoftwareImage.Version = versionBefore
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
-		}
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		baseConfig(t, console)
-		deviceBootStatus(t, dut, 6)
-		dutAfter := ondatra.DUT(t, "dut")
-		versionAfter := versionOnBox(t, dutAfter)
-		verifyVersionChange(t, versionBefore, versionAfter, false)
-		ztpStatus := show_ztp_state(t, dutAfter, console)
-		if !strings.Contains(ztpStatus, ciscoZtpStatus.Terminated) {
-			t.Errorf("ZTP state %v : Expecting Failure", ztpStatus)
-		}
-		sshClient := dut.RawAPIs().CLI(t)
-		if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-			t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
-		}
-		if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-			t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-			ztpLog = result
-		} else {
-			t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
-		}
-		if (!strings.Contains(string(ztpLog), "Provisioning failed")) && (!strings.Contains(string(ztpLog), "ZTP failed to complete")) {
-			t.Errorf("Expected ztp to fail with : Provisioning failed and ZTP failed to complete errors ")
-		}
-
-	})
-
-	t.Run("Bootz-1.3: Valid configuration", func(t *testing.T) {
-		versionBefore := versionOnBox(t, dut)
-		//create cfg file with valid string
-		modifyFile(t, ciscoCfg, "testdata/cisco.cfg")
-		chassisInventory = chassisInventoryOriginal
-		for _, ch := range chassisInventory {
-			ch.Config.BootConfig.VendorConfigFile = "testdata/cisco.cfg"
-			ch.SoftwareImage.Version = versionBefore
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: dut.Vendor().String(), SerialNumber: ch.GetSerialNumber()}, ch)
-		}
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		dutAfter := ondatra.DUT(t, "dut")
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Get(t, dutAfter, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Expected base config to be present on box ztp failed and got testt.CaptureFatal errMsg : %s", *errMsg)
-			baseConfig(t, console)
-			deviceBootStatus(t, dut, 6)
-		} else {
-			versionAfter := versionOnBox(t, dutAfter)
-			ztpStatus := show_ztp_state(t, dutAfter, console)
-			if strings.Contains(strings.Trim(ztpStatus, "success"), ciscoZtpStatus.Success) {
-				sshClient := dut.RawAPIs().CLI(t)
-				verifyVersionChange(t, versionBefore, versionAfter, false)
-				if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-					t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
+	t.Run("Running Bootz3 Validate Ownership Voucher in bootz configuration", func(t *testing.T) {
+		for _, tt := range bootz3 {
+			t.Run(tt.Name, func(t *testing.T) {
+				if bootzServerFailed.Load() {
+					t.Fatal("bootz server is down, check the test log for detailed error")
 				}
-				if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowRun); err == nil {
-					t.Logf("%s > %s", ciscoExecuteCommands.ShowRun, result)
-					ztpLog = result
+				// reset bootz logs
+				bootzStatusLogs = BootzStatus{}
+				bootzReqLogs = BootzLogs{}
+				//ensure no old dhcp log causing an issue
+				dhcpLease.CleanLog()
+
+				chassisBootzConfig.GetConfig().BootConfig.VendorConfig = []byte(tt.VendorConfig)
+				chassisBootzConfig.SoftwareImage = &bpb.SoftwareImage{}
+				for k, _ := range secArtifacts.OV {
+					secArtifacts.OV[k] = tt.OV
+				}
+				if len(tt.OV) == 0 { // load the valid ovs
+					for _, cc := range controllerCardSerials {
+						secArtifacts.OV[cc] = loadOV(t, cc, secArtifacts.PDC, true)
+					}
+				}
+				em.ReplaceDevice(chassisEntity, chassisBootzConfig)
+				if !bootzStarted {
+					factoryReset(t, dut)
+					bootzStarted = true
+				}
+				dhcpIDs := []string{chassisSerial}
+				dhcpIDs = append(dhcpIDs, hwAddrs...)
+				err := awaitDHCPCompletion(dhcpIDs, dhcpTimeout)
+				if err != nil {
+					t.Errorf("DUT connection to DHCP server was not successfull in %d minutes", dhcpTimeout)
 				} else {
-					t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowRun, err)
+					t.Logf("DUT connection to DHCP server was  successfull")
 				}
-
-				verifyBaseConfig(t, ztpLog)
-				if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-					t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-					ztpLog = result
+				err = awaitBootzConnection(*chassisEntity, bootzConnectionTimeout)
+				if err != nil {
+					t.Errorf("DUT connection to bootz server was not successfull in %d minutes", bootzConnectionTimeout)
 				} else {
-					t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
+					t.Log("DUT is connected to bootz server")
 				}
-				if (strings.Contains(string(ztpLog), "Provisioning complete")) && (strings.Contains(string(ztpLog), "ZTP completed successfully")) {
-					t.Errorf("Expected ztp to fail with : Provisioning failed and ZTP failed to complete errors ")
+				if !tt.ExpectedFailure { // when OV validation fails, device has no secure way to connect and report the status
+					checkBootzStatus(t, tt.ExpectedFailure)
 				}
-			} else {
-				t.Errorf("ZTP state want: %v got:%v", "success", ztpStatus)
-			}
+			})
+		}
+		dutBootzStatus(t, dut, 5*time.Second)
+		dutPostTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
+		if dutPreTestVersion != *imageVersion {
+			t.Fatalf("DUT Software Versions do not match, pretest: %s , posttest: %s ", dutPreTestVersion, dutPostTestVersion)
 		}
 	})
+}
 
-	t.Run("Bootz-2.1 Software version is different", func(t *testing.T) {
-		chassisInventory = chassisInventoryOriginal
-		for _, ch := range chassisInventory {
-			theImageUrl := ch.GetSoftwareImage().Url
-			parts := strings.Split(theImageUrl, "/")
-			parts[len(parts)-1] = *validISO
-			fmt.Printf("%vsum %v", ch.SoftwareImage.HashAlgorithm, *validISO)
-			cmd := exec.Command(fmt.Sprintf("%vsum", ch.SoftwareImage.HashAlgorithm), *validISO)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				t.Errorf("Failed to get the hash of valid image : Error: %v", err)
-			}
-			invalidImage := strings.Join(parts, "/")
-			ch.SoftwareImage.Url = invalidImage
-			ch.SoftwareImage.OsImageHash = strings.Fields(string(output))[0]
-			ch.SoftwareImage.Version = *versionUpgrade
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
+// ### bootz-4: Validate device properly resets if provided invalid image
+func TestBootz4(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 
-		}
-		versionBefore := versionOnBox(t, dut)
-		versionProvided := *versionUpgrade
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		dutAfter := ondatra.DUT(t, "dut")
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Get(t, dutAfter, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Expected base config to be present on box ztp failed and got testt.CaptureFatal errMsg : %s", *errMsg)
-			baseConfig(t, console)
-			console.WaitForPrompt()
-			deviceBootStatus(t, dut, 6)
-		} else {
-			verifyVersionChange(t, versionBefore, versionProvided, true)
-			ztpStatus := show_ztp_state(t, dutAfter, console)
-			if strings.Contains(strings.Trim(ztpStatus, "success"), ciscoZtpStatus.Success) {
-				sshClient := dut.RawAPIs().CLI(t)
-				if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-					t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
+	testSetup(t, dut)
+	defer bServer.Stop()
+	defer dhcp.Stop()
+
+	bootz4 := []bootzTest{
+		{
+			Name:         "Bootz-4.2 Invalid OS image provided",
+			VendorConfig: baseConfig,
+			Image: &bpb.SoftwareImage{
+				Name:          "badimage.iso",
+				Url:           fmt.Sprintf("https://%s/%s/badimage.iso", *imageServerAddr, *imagesDir),
+				HashAlgorithm: "SHA256",
+				OsImageHash:   getImageHash(t, fmt.Sprintf("%s/badimage.iso", *imagesDir)),
+				Version:       "999",
+			},
+			ExpectedFailure: true,
+		}, //gets covered as a part of Bootz2.2
+		{
+			Name:         "Bootz-4.3 Failed to fetch image from remote URL",
+			VendorConfig: baseConfig,
+			Image: &bpb.SoftwareImage{
+				Name:          "badimage.iso",
+				Url:           fmt.Sprintf("https://%s/%s/goodimage.isoinvalidUrl", *imageServerAddr, *imagesDir),
+				HashAlgorithm: "SHA256",
+				OsImageHash:   getImageHash(t, fmt.Sprintf("%s/goodimage.iso", *imagesDir)),
+				Version:       "999",
+			},
+			ExpectedFailure: true,
+		},
+		{
+			Name:         "Bootz-4.2 OS Checksum Doesn't Match",
+			VendorConfig: baseConfig,
+			Image: &bpb.SoftwareImage{
+				Name:          "goodimage.iso",
+				Url:           fmt.Sprintf("https://%s/%s/goodimage.iso", *imageServerAddr, *imagesDir),
+				HashAlgorithm: "SHA256",
+				OsImageHash:   "Invalid Hash",
+				Version:       "999",
+			},
+			ExpectedFailure: true,
+		},
+		{
+			Name:            "Bootz-4.1: No OS Provided",
+			VendorConfig:    baseConfig,
+			Image:           &bpb.SoftwareImage{},
+			ExpectedFailure: false,
+		},
+	}
+	dutPreTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
+	bootzStarted := false
+
+	t.Run("Running Bootz4 Test to Validate Software image in bootz configuration", func(t *testing.T) {
+		for _, tt := range bootz4 {
+			t.Run(tt.Name, func(t *testing.T) {
+				if bootzServerFailed.Load() {
+					t.Fatal("bootz server is down, check the test log for detailed error")
 				}
-				if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowRun); err == nil {
-					t.Logf("%s > %s", ciscoExecuteCommands.ShowRun, result)
-					showrunAfter = result
+				// reset bootz logs
+				bootzStatusLogs = BootzStatus{}
+				bootzReqLogs = BootzLogs{}
+				//ensure no old dhcp log causing an issue
+				dhcpLease.CleanLog()
+
+				chassisBootzConfig.GetConfig().BootConfig.VendorConfig = []byte(tt.VendorConfig)
+				chassisBootzConfig.SoftwareImage = tt.Image
+				em.ReplaceDevice(chassisEntity, chassisBootzConfig)
+				if !bootzStarted {
+					factoryReset(t, dut)
+					bootzStarted = true
+				}
+				dhcpIDs := []string{chassisSerial}
+				dhcpIDs = append(dhcpIDs, hwAddrs...)
+				err := awaitDHCPCompletion(dhcpIDs, dhcpTimeout)
+				if err != nil {
+					t.Errorf("DUT connection to DHCP server was not successfull in %d minutes", dhcpTimeout)
 				} else {
-					t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowRun, err)
+					t.Logf("DUT connection to DHCP server was  successfull")
 				}
-
-				verifyBaseConfig(t, showrunAfter)
-				if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-					t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-					ztpLog = result
+				err = awaitBootzConnection(*chassisEntity, bootzConnectionTimeout)
+				if err != nil {
+					t.Errorf("DUT connection to bootz server was not successfull in %d minutes", bootzConnectionTimeout)
 				} else {
-					t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
+					t.Log("DUT is connected to bootz server")
 				}
-				if (!strings.Contains(string(ztpLog), "Upgrade successfull")) && (!strings.Contains(string(ztpLog), "ZTP completed successfully")) {
-					t.Errorf("Expected ztp to fail with : Upgrade successfull")
-				}
-
-			} else {
-				t.Errorf("ZTP state want: %v got:%v", "success", ztpStatus)
-			}
+				checkBootzStatus(t, tt.ExpectedFailure)
+			})
 		}
-
-	})
-	t.Run("Bootz-2.2: Invalid software image", func(t *testing.T) {
-		//TODO: access the url and change the name of the imgae
-		chassisInventory = chassisInventoryOriginal
-		dut = ondatra.DUT(t, "dut")
-		versionBefore := versionOnBox(t, dut)
-		for _, ch := range chassisInventory {
-			theImageUrl := ch.GetSoftwareImage().Url
-			parts := strings.Split(theImageUrl, "/")
-			parts[len(parts)-1] = *invalidISO
-			fmt.Printf("%vsum %v", ch.SoftwareImage.HashAlgorithm, *invalidISO)
-			cmd := exec.Command(fmt.Sprintf("%vsum", ch.SoftwareImage.HashAlgorithm), *invalidISO)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				t.Errorf("Failed to get the hash of invalid image : Error: %v", err)
-				return
-			}
-			invalidImage := strings.Join(parts, "/")
-			ch.SoftwareImage.Url = invalidImage
-			ch.SoftwareImage.OsImageHash = strings.Fields(string(output))[0]
-			ch.SoftwareImage.Version = versionBefore + "I"
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
-		}
-		t.Logf("CHASSIS INV %v", chassisInventory)
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		baseConfig(t, console)
-		deviceBootStatus(t, dut, 6)
-		dutAfter := ondatra.DUT(t, "dut")
-		versionAfter := versionOnBox(t, dutAfter)
-		verifyVersionChange(t, versionBefore, versionAfter, false)
-		ztpStatus := show_ztp_state(t, dutAfter, console)
-		if !strings.Contains(ztpStatus, ciscoZtpStatus.Terminated) {
-			t.Errorf("ZTP state %v : Expecting Failure", ztpStatus)
-		}
-		sshClient := dut.RawAPIs().CLI(t)
-		if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-			t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
-		}
-		if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-			t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-			ztpLog = result
-		} else {
-			t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
-		}
-		// ztpLog := show_ztp_log(t, console, "Provisioning failed")
-		if (!strings.Contains(string(ztpLog), "The ISO is invalid")) && (!strings.Contains(string(ztpLog), "ZTP failed to complete")) {
-			t.Errorf("Expected ztp to fail with : The ISO is invalid")
-		}
-
-	})
-
-	t.Run("Bootz-3.1 No ownership voucher", func(t *testing.T) {
-		dut = ondatra.DUT(t, "dut")
-		versionBefore := versionOnBox(t, dut)
-		chassisInventory = chassisInventoryOriginal
-		for _, ch := range chassisInventory {
-			for _, cc := range ch.ControllerCards {
-				cc.OwnershipVoucher = ""
-			}
-			ch.SoftwareImage.Version = versionBefore
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
-
-		}
-		t.Logf("CHASSIS INV %v", chassisInventory)
-
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		baseConfig(t, console)
-		deviceBootStatus(t, dut, 6)
-		dutAfter := ondatra.DUT(t, "dut")
-		versionAfter := versionOnBox(t, dutAfter)
-		verifyVersionChange(t, versionBefore, versionAfter, false)
-		ztpStatus := show_ztp_state(t, dutAfter, console)
-		if !strings.Contains(ztpStatus, ciscoZtpStatus.Terminated) {
-			t.Errorf("ZTP state %v : Expecting Failure", ztpStatus)
-		}
-		sshClient := dut.RawAPIs().CLI(t)
-		if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-			t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
-		}
-		if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-			t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-			ztpLog = result
-		} else {
-			t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
-		}
-		// ztpLog := show_ztp_log(t, console, "Provisioning failed")
-		if (!strings.Contains(string(ztpLog), "Empty OV or OC present in Bootstrap Request")) && (!strings.Contains(string(ztpLog), "ZTP failed to complete")) {
-			t.Errorf("Expected ztp to fail with :  Empty OV or OC present in Bootstrap Request ")
+		dutBootzStatus(t, dut, 5*time.Second)
+		dutPostTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
+		if dutPreTestVersion != *imageVersion {
+			t.Fatalf("DUT Software Versions do not match, pretest: %s , posttest: %s ", dutPreTestVersion, dutPostTestVersion)
 		}
 	})
-	t.Run("Bootz-3.2 Invalid OV", func(t *testing.T) {
-		dut := ondatra.DUT(t, "dut")
-		versionBefore := versionOnBox(t, dut)
-		chassisInventory = chassisInventoryOriginal
-		for _, ch := range chassisInventory {
-			for _, cc := range ch.ControllerCards {
-				cc.OwnershipVoucher = "XYZ"
-			}
-			ch.SoftwareImage.Version = versionBefore
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
-
-		}
-		t.Logf("CHASSIS INV %v", chassisInventory)
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		baseConfig(t, console)
-		deviceBootStatus(t, dut, 6)
-		dutAfter := ondatra.DUT(t, "dut")
-		versionAfter := versionOnBox(t, dutAfter)
-		verifyVersionChange(t, versionBefore, versionAfter, false)
-		ztpStatus := show_ztp_state(t, dutAfter, console)
-		if !strings.Contains(ztpStatus, ciscoZtpStatus.Terminated) {
-			t.Errorf("ZTP state %v : Expecting Failure", ztpStatus)
-		}
-		sshClient := dut.RawAPIs().CLI(t)
-		if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-			t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
-		}
-		if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-			t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-			ztpLog = result
-		} else {
-			t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
-		}
-		if (!strings.Contains(string(ztpLog), "artifact-validation-failed")) && (!strings.Contains(string(ztpLog), "ZTP failed to complete")) {
-			t.Errorf("Expected ztp to fail with :  artifact-validation-failed ")
-		}
-	})
-	t.Run("Bootz-3.3 OV Fails", func(t *testing.T) {
-		dut := ondatra.DUT(t, "dut")
-		versionBefore := versionOnBox(t, dut)
-		chassisInventory = chassisInventoryOriginal
-		for _, ch := range chassisInventory {
-			for _, cc := range ch.ControllerCards {
-				cc.SerialNumber = "XYZ"
-			}
-			ch.SoftwareImage.Version = versionBefore
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
-
-		}
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		baseConfig(t, console)
-		deviceBootStatus(t, dut, 6)
-		dutAfter := ondatra.DUT(t, "dut")
-		versionAfter := versionOnBox(t, dutAfter)
-		verifyVersionChange(t, versionBefore, versionAfter, false)
-		ztpStatus := show_ztp_state(t, dutAfter, console)
-		if !strings.Contains(ztpStatus, ciscoZtpStatus.Terminated) {
-			t.Errorf("ZTP state %v : Expecting Failure", ztpStatus)
-		}
-		sshClient := dut.RawAPIs().CLI(t)
-		if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-			t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
-		}
-		if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-			t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-			ztpLog = result
-		} else {
-			t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
-		}
-		if (!strings.Contains(string(ztpLog), "could not find controller card with serial")) && (!strings.Contains(string(ztpLog), "ZTP failed to complete")) {
-			t.Errorf("Expected ztp to fail with :  Could not find controller card with serial number ")
-		}
-	})
-	t.Run("Bootz-3.4 OV valid", func(t *testing.T) {
-		//TODO: Get the serial number of device and replace with valid OV
-		chassisInventory = chassisInventoryOriginal
-		dut := ondatra.DUT(t, "dut")
-		versionBefore := versionOnBox(t, dut)
-		for _, ch := range chassisInventory {
-			ch.SoftwareImage.Version = versionBefore
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
-		}
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		baseConfig(t, console)
-		dutAfter := ondatra.DUT(t, "dut")
-		versionAfter := versionOnBox(t, dutAfter)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Get(t, dutAfter, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Expected base config to be present on box ztp failed and got testt.CaptureFatal errMsg : %s", *errMsg)
-			baseConfig(t, console)
-			console.WaitForPrompt()
-			deviceBootStatus(t, dut, 6)
-		} else {
-			verifyVersionChange(t, versionBefore, versionAfter, false)
-			ztpStatus := show_ztp_state(t, dutAfter, console)
-			if strings.Contains(strings.Trim(ztpStatus, "success"), ciscoZtpStatus.Success) {
-				sshClient := dut.RawAPIs().CLI(t)
-				if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-					t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
-				}
-				if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowRun); err == nil {
-					t.Logf("%s > %s", ciscoExecuteCommands.ShowRun, result)
-					showrunAfter = result
-				} else {
-					t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowRun, err)
-				}
-
-				verifyBaseConfig(t, showrunAfter)
-				if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-					t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-					ztpLog = result
-				} else {
-					t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
-				}
-				if (!strings.Contains(string(ztpLog), "OV OC Validation completed with Success")) && (!strings.Contains(string(ztpLog), "ZTP completed successfully")) {
-					t.Errorf("Expected ztp to fail with : OV OC Validation completed with Success")
-				}
-
-			} else {
-				t.Errorf("ZTP state want: %v got:%v", "success", ztpStatus)
-			}
-		}
-	})
-
-	t.Run("Bootz-4.1 no OS provided", func(t *testing.T) {
-		dut := ondatra.DUT(t, "dut")
-		versionBefore := versionOnBox(t, dut)
-		chassisInventory = chassisInventoryOriginal
-		for _, ch := range chassisInventory {
-			ch.SoftwareImage.Version = versionBefore + "I"
-			ch.SoftwareImage.OsImageHash = ""
-			ch.SoftwareImage.HashAlgorithm = ""
-			ch.SoftwareImage.Url = ""
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
-		}
-
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		baseConfig(t, console)
-		deviceBootStatus(t, dut, 6)
-		dutAfter := ondatra.DUT(t, "dut")
-		versionAfter := versionOnBox(t, dutAfter)
-		verifyVersionChange(t, versionBefore, versionAfter, false)
-		ztpStatus := show_ztp_state(t, dutAfter, console)
-		if !strings.Contains(ztpStatus, ciscoZtpStatus.Terminated) {
-			t.Errorf("ZTP state %v : Expecting Failure", ztpStatus)
-		}
-		sshClient := dut.RawAPIs().CLI(t)
-		if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-			t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
-		}
-		if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-			t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-			ztpLog = result
-		} else {
-			t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
-		}
-		if (!strings.Contains(string(ztpLog), "Image URL or destination not mentioned")) && (!strings.Contains(string(ztpLog), "ZTP failed to complete")) {
-			t.Errorf("Expected ztp to fail with :  Image URL or destination not mentioned ")
-		}
-	})
-	t.Run("Bootz-4.2 failed to fetch image from remote URL	", func(t *testing.T) {
-		dut := ondatra.DUT(t, "dut")
-		versionBefore := versionOnBox(t, dut)
-		chassisInventory = chassisInventoryOriginal
-		for _, ch := range chassisInventory {
-			imageUrl := ch.SoftwareImage.Url
-			ch.SoftwareImage.Version = versionBefore + "I"
-			ch.SoftwareImage.Url = imageUrl + "XYZ"
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
-		}
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		baseConfig(t, console)
-		deviceBootStatus(t, dut, 6)
-		dutAfter := ondatra.DUT(t, "dut")
-		versionAfter := versionOnBox(t, dutAfter)
-		verifyVersionChange(t, versionBefore, versionAfter, false)
-		ztpStatus := show_ztp_state(t, dutAfter, console)
-		if !strings.Contains(ztpStatus, ciscoZtpStatus.Terminated) {
-			t.Errorf("ZTP state %v : Expecting Failure", ztpStatus)
-		}
-		sshClient := dut.RawAPIs().CLI(t)
-		if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-			t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
-		}
-		if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-			t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-			ztpLog = result
-		} else {
-			t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
-		}
-		if (!strings.Contains(string(ztpLog), "http-get-request-failed")) && (!strings.Contains(string(ztpLog), "ZTP failed to complete")) {
-			t.Errorf("Expected ztp to fail with :  http-get-request-failed ")
-		}
-	})
-
-	t.Run("Bootz-4.2 OS checksum doesn't match	", func(t *testing.T) {
-		dut := ondatra.DUT(t, "dut")
-		versionBefore := versionOnBox(t, dut)
-		chassisInventory = chassisInventoryOriginal
-		for _, ch := range chassisInventory {
-			ch.SoftwareImage.Version = versionBefore + "I"
-			ch.SoftwareImage.OsImageHash = "XYZ"
-			em.ReplaceDevice(&service.EntityLookup{Manufacturer: ch.GetManufacturer(), SerialNumber: ch.GetSerialNumber()}, ch)
-		}
-		initiateBootzOnDevice(t, dut, console)
-		deviceBootStatus(t, dut, 20)
-		baseConfig(t, console)
-		deviceBootStatus(t, dut, 6)
-		dutAfter := ondatra.DUT(t, "dut")
-		versionAfter := versionOnBox(t, dutAfter)
-		verifyVersionChange(t, versionBefore, versionAfter, false)
-		ztpStatus := show_ztp_state(t, dutAfter, console)
-		if !strings.Contains(ztpStatus, ciscoZtpStatus.Terminated) {
-			t.Errorf("ZTP state %v : Expecting Failure", ztpStatus)
-		}
-		sshClient := dut.RawAPIs().CLI(t)
-		if _, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.TerminalLength); err != nil {
-			t.Errorf(" Error executing> %s", ciscoExecuteCommands.TerminalLength)
-		}
-		if result, err := sshClient.SendCommand(context.Background(), ciscoExecuteCommands.ShowZtpLog); err == nil {
-			t.Logf("%s > %s", ciscoExecuteCommands.ShowZtpLog, result)
-			ztpLog = result
-		} else {
-			t.Errorf("Error executing %s > %s", ciscoExecuteCommands.ShowZtpLog, err)
-		}
-		if (!strings.Contains(string(ztpLog), "Failed to verify Image Hash")) && (!strings.Contains(string(ztpLog), "ZTP failed to complete")) {
-			t.Errorf("Expected ztp to fail with :  Failed to verify Image Hash")
-		}
-	})
-
 }
