@@ -17,9 +17,12 @@ package bgp_2byte_4byte_asn_with_policy_test
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -60,6 +63,7 @@ var (
 	}
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
+		MAC:     "02:11:01:00:01:01",
 		IPv4:    "192.0.2.2",
 		IPv6:    "2001:db8::192:0:2:2",
 		IPv4Len: 30,
@@ -94,53 +98,55 @@ func TestBgpSession(t *testing.T) {
 		name    string
 		nbr     *bgpNbr
 		dutConf *oc.NetworkInstance_Protocol
-		ateConf *ondatra.ATETopology
+		ateConf gosnappi.Config
 	}{
 		{
 			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 100, isV4: true}, connExternal, prefixV4),
+			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 100, isV4: true}, connExternal, prefixV4, 2),
 		}, {
 			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 100, isV4: false}, connExternal, prefixV6),
+			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 100, isV4: false}, connExternal, prefixV6, 2),
 		}, {
 			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 70000, isV4: true}, connExternal, prefixV4),
+			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 70000, isV4: true}, connExternal, prefixV4, 4),
 		}, {
 			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 70000, isV4: false}, connExternal, prefixV6),
+			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 70000, isV4: false}, connExternal, prefixV6, 4),
 		}, {
 			name:    "Establish iBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 200, isV4: true}, connInternal, prefixV4),
+			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 200, isV4: true}, connInternal, prefixV4, 2),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte < 65535) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 200, isV4: false}, connInternal, prefixV6),
+			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 200, isV4: false}, connInternal, prefixV6, 4),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 80000, isV4: true}, connInternal, prefixV4),
+			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 80000, isV4: true}, connInternal, prefixV4, 4),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 80000, isV4: false}, connInternal, prefixV6),
+			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 80000, isV4: false}, connInternal, prefixV6, 4),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			otg := ondatra.ATE(t, "ate").OTG()
+			otg.PushConfig(t, tc.ateConf)
 			t.Log("Clear BGP Configs on DUT")
 			bgpClearConfig(t, dut)
 
@@ -153,10 +159,9 @@ func TestBgpSession(t *testing.T) {
 			t.Log("Configure BGP on DUT")
 			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
 
-			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 			t.Log("Configure BGP on ATE")
-			tc.ateConf.Push(t)
-			tc.ateConf.StartProtocols(t)
+			otg.StartProtocols(t)
 
 			t.Log("Verify BGP session state : ESTABLISHED")
 			nbrPath := statePath.Neighbor(tc.nbr.peerIP)
@@ -185,7 +190,7 @@ func TestBgpSession(t *testing.T) {
 			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 
 			t.Log("Clear BGP Configs on ATE")
-			tc.ateConf.StopProtocols(t)
+			otg.StopProtocols(t)
 		})
 	}
 }
@@ -374,52 +379,104 @@ func verifyPeer(t *testing.T, nbr *bgpNbr, dut *ondatra.DUTDevice) {
 	verifyPrefixesTelemetry(t, dut, 3, nbr.isV4)
 }
 
-func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, prefixes []string) *ondatra.ATETopology {
+func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, prefixes []string, asWidth int) gosnappi.Config {
 	t.Helper()
-	t.Log("Configure ATE interface")
+	t.Log("Create otg configuration")
 	ate := ondatra.ATE(t, "ate")
 	port1 := ate.Port(t, "port1")
-	topo := ate.Topology().New()
+	config := gosnappi.NewConfig()
 
-	iDut1 := topo.AddInterface(ateSrc.Name).WithPort(port1)
-	iDut1.IPv4().WithAddress(ateSrc.IPv4CIDR()).WithDefaultGateway(dutSrc.IPv4)
-	iDut1.IPv6().WithAddress(ateSrc.IPv6CIDR()).WithDefaultGateway(dutSrc.IPv6)
+	config.Ports().Add().SetName(port1.ID())
+	srcDev := config.Devices().Add().SetName(ateSrc.Name)
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
+	srcEth.Connection().SetPortName(port1.ID())
+	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
+	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
+	srcIpv6 := srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
+	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
-	bgpDut1 := iDut1.BGP()
-	peer := bgpDut1.AddPeer().WithPeerAddress(ateParams.peerIP).WithLocalASN(ateParams.localAS)
-
-	if connectionType == connInternal {
-		peer.WithTypeInternal()
-	} else {
-		peer.WithTypeExternal()
-	}
-
-	network1 := iDut1.AddNetwork("bgpNeti1")
-	network2 := iDut1.AddNetwork("bgpNeti2")
-	network3 := iDut1.AddNetwork("bgpNeti3")
-
+	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
 	if ateParams.isV4 {
-		network1.IPv4().WithAddress(prefixes[0]).WithCount(1)
-		network1.BGP().WithNextHopAddress(ateSrc.IPv4).AddASPathSegment(55000, 4400, 3300)
+		srcBgpPeer := srcBgp.Ipv4Interfaces().Add().SetIpv4Name(srcIpv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
+		srcBgpPeer.SetPeerAddress(ateParams.peerIP).SetAsNumber(ateParams.localAS)
+		if connectionType == connInternal {
+			srcBgpPeer.SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
+		} else {
+			srcBgpPeer.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+		}
+		if asWidth == 2 {
+			srcBgpPeer.SetAsNumberWidth(gosnappi.BgpV4PeerAsNumberWidth.TWO)
+		}
+		prefixArr1 := strings.Split(prefixV4[0], "/")
+		mask1, _ := strconv.Atoi(prefixArr1[1])
+		prefixArr2 := strings.Split(prefixV4[1], "/")
+		mask2, _ := strconv.Atoi(prefixArr2[1])
+		prefixArr3 := strings.Split(prefixV4[2], "/")
+		mask3, _ := strconv.Atoi(prefixArr3[1])
 
-		network2.IPv4().WithAddress(prefixes[1]).WithCount(1)
-		network2.BGP().WithNextHopAddress(ateSrc.IPv4).AddASPathSegment(55000, 7700)
-		network2.BGP().Communities().WithPrivateCommunities("200:1")
+		network1 := srcBgpPeer.V4Routes().Add().SetName("bgpNeti1")
+		network1.SetNextHopIpv4Address(ateSrc.IPv4).
+			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+		network1.Addresses().Add().SetAddress(prefixArr1[0]).SetPrefix(uint32(mask1)).SetCount(1)
+		network1.AsPath().Segments().Add().SetAsNumbers([]uint32{55000, 4400, 3300})
 
-		network3.IPv4().WithAddress(prefixes[2]).WithCount(1)
-		network3.BGP().WithNextHopAddress(ateSrc.IPv4)
+		network2 := srcBgpPeer.V4Routes().Add().SetName("bgpNeti2")
+		network2.SetNextHopIpv4Address(ateSrc.IPv4).
+			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+		network2.Addresses().Add().SetAddress(prefixArr2[0]).SetPrefix(uint32(mask2)).SetCount(1)
+		network2.AsPath().Segments().Add().SetAsNumbers([]uint32{55000, 7700})
+		network2.Communities().Add().SetAsNumber(200).SetAsCustom(1)
+
+		network3 := srcBgpPeer.V4Routes().Add().SetName("bgpNeti3")
+		network3.SetNextHopIpv4Address(ateSrc.IPv4).
+			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+		network3.Addresses().Add().SetAddress(prefixArr3[0]).SetPrefix(uint32(mask3)).SetCount(1)
+
 	} else {
-		network1.IPv6().WithAddress(prefixes[0]).WithCount(1)
-		network1.BGP().WithNextHopAddress(ateSrc.IPv6).AddASPathSegment(55000, 4400, 3300)
+		srcBgpPeer := srcBgp.Ipv6Interfaces().Add().SetIpv6Name(srcIpv6.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP6.peer")
+		srcBgpPeer.SetPeerAddress(ateParams.peerIP).SetAsNumber(ateParams.localAS)
+		if connectionType == connInternal {
+			srcBgpPeer.SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
+		} else {
+			srcBgpPeer.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+		}
+		if asWidth == 2 {
+			srcBgpPeer.SetAsNumberWidth(gosnappi.BgpV6PeerAsNumberWidth.TWO)
+		}
+		prefixArr1 := strings.Split(prefixV6[0], "/")
+		mask1, _ := strconv.Atoi(prefixArr1[1])
+		prefixArr2 := strings.Split(prefixV6[1], "/")
+		mask2, _ := strconv.Atoi(prefixArr2[1])
+		prefixArr3 := strings.Split(prefixV6[2], "/")
+		mask3, _ := strconv.Atoi(prefixArr3[1])
 
-		network2.IPv6().WithAddress(prefixes[1]).WithCount(1)
-		network2.BGP().WithNextHopAddress(ateSrc.IPv6).AddASPathSegment(55000, 7700)
-		network2.BGP().Communities().WithPrivateCommunities("200:1")
+		network1 := srcBgpPeer.V6Routes().Add().SetName("bgpNeti1")
+		network1.SetNextHopIpv6Address(ateSrc.IPv6).
+			SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+			SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+		network1.Addresses().Add().SetAddress(prefixArr1[0]).SetPrefix(uint32(mask1)).SetCount(1)
+		network1.AsPath().Segments().Add().SetAsNumbers([]uint32{55000, 4400, 3300})
 
-		network3.IPv6().WithAddress(prefixes[2]).WithCount(1)
-		network3.BGP().WithNextHopAddress(ateSrc.IPv6)
+		network2 := srcBgpPeer.V6Routes().Add().SetName("bgpNeti2")
+		network2.SetNextHopIpv6Address(ateSrc.IPv6).
+			SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+			SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+		network2.Addresses().Add().SetAddress(prefixArr2[0]).SetPrefix(uint32(mask2)).SetCount(1)
+		network2.AsPath().Segments().Add().SetAsNumbers([]uint32{55000, 7700})
+		network2.Communities().Add().SetAsNumber(200).SetAsCustom(1)
+
+		network3 := srcBgpPeer.V6Routes().Add().SetName("bgpNeti3")
+		network3.SetNextHopIpv6Address(ateSrc.IPv6).
+			SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+			SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+		network3.Addresses().Add().SetAddress(prefixArr3[0]).SetPrefix(uint32(mask3)).SetCount(1)
+
 	}
-	return topo
+
+	return config
 }
 
 func applyBgpPolicy(policyName string, dut *ondatra.DUTDevice, isV4 bool) *oc.NetworkInstance_Protocol {
