@@ -817,6 +817,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNMI-1.19"
+  description: "gNMI ConfigPush after Control Card switchover"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/controllercard/tests/SetRequest_controll_card_switchover/README.md"
+  exec: " "
+}
+test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/ate_tests/telemetry_inventory_test/README.md"
