@@ -401,7 +401,7 @@ func TestBootz2(t *testing.T) {
 
 	bootz2 := []bootzTest{
 		{
-			Name:         "Bootz-2.2 Invalid software image ",
+			Name:         "Bootz-2.1 Invalid software image ",
 			VendorConfig: baseConfig,
 			Image: &bpb.SoftwareImage{
 				Name:          "badimage.iso",
@@ -413,7 +413,7 @@ func TestBootz2(t *testing.T) {
 			ExpectedFailure: true,
 		},
 		{
-			Name:         "Bootz-2.1: Software version is different",
+			Name:         "Bootz-2.2: Software version is different",
 			VendorConfig: baseConfig,
 			Image: &bpb.SoftwareImage{
 				Name:          "goodimage.iso",
