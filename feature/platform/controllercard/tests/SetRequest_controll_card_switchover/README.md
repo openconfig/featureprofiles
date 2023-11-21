@@ -18,14 +18,14 @@ This test verifies if a large config can be bushed via gNMI SetRequest within 2 
   * If not received, the test FAILED.
   * If received at time <= "SwitchControlProcessorResponce"+110s and ERROR is returned, send gNMI `setRequest` with prepared large config. Reaped form Wait for `SetResponce`
   * If received at time > "SwitchControlProcessorResponce"+110s and ERROR is returned, test FAILED
-  * If received at time <= "SwitchControlProcessorResponce"+120s and SUCESS is returned, proceed
+  * If received at time <= "SwitchControlProcessorResponce"+120s and SUCCESS is returned, proceed
 * Retrieve configuration from DUT DUT using gNMI `GetRequest`.
 * Verify:
   * The gNMI `setResponce` has been received within 120s after `setRequest` by comparing with "SwitchControlProcessorResponse_time", and 
   * The gNOI `SwitchControlProcessorResponce` has been received and switchover was executed by DUT (compare "previous_ACRIVE" with DUT state), and
   * The configuration retrieved from DUT is the same as one prepared^1
 
-^1 some small deviations are expected. This is OK to verify that retrived configuration is not smaller in size then prepared one, has same number of interfaces, BGP neighbours.
+^1 some small deviations are expected. This is OK to verify that the retrieve configuration configuration is not smaller in size than the prepared one, and has the same number of interfaces, BGP neighbors.
 
 ## Testbed topology
 dut.testbed
