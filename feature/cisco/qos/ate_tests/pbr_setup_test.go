@@ -31,7 +31,7 @@ func getPolicyForwardingInterfaceConfig(t *testing.T, policyName, intf string) *
 
 // configbasePBR, creates class map, policy and configures under source interface
 func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8, opts ...*PBROptions) {
-	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
+	// pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
 
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
