@@ -104,6 +104,8 @@ type OCProtocol struct {
 	// Example: gnmi.gNMI.Subscribe
 	MethodName []string `protobuf:"bytes,1,rep,name=method_name,json=methodName,proto3" json:"method_name,omitempty"`
 	// The semantic version of the gRPC protocol release.
+	//
+	// This must refer to a release tag when "v" is prepended to the string.
 	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
 }
 
