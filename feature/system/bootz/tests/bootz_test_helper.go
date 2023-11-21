@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bootz_test
+package bootz_tests
 
 import (
 	"bytes"
