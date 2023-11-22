@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package bootz implement tests  authz-14. 
+// Package bootz implement tests  authz-14.
 package bootz
 
 import (
@@ -111,7 +111,7 @@ func checkBootzStatus(t *testing.T, expectFailure bool) {
 	for _, ccSerial := range controllerCardSerials {
 		err := awaitBootzStatus(ccSerial, expectedCCstatus, bootzStatusTimeout)
 		if err != nil {
-			t.Errorf("Status %s is not reported as expected in %d minutes", expectedCCstatus.String(), bootzStatusTimeout )
+			t.Errorf("Status %s is not reported as expected in %d minutes", expectedCCstatus.String(), bootzStatusTimeout)
 		} else {
 			t.Logf("DUT reported %s to bootz server as expected", expectedCCstatus.String())
 		}
@@ -576,7 +576,7 @@ func TestBootz4(t *testing.T) {
 			VendorConfig: baseConfig,
 			Image: &bpb.SoftwareImage{
 				Name:          "badimage.iso",
-				Url:           fmt.Sprintf("https://%s/badimage.iso", *imageServerAddr, ),
+				Url:           fmt.Sprintf("https://%s/badimage.iso", *imageServerAddr),
 				HashAlgorithm: "SHA256",
 				OsImageHash:   getImageHash(t, fmt.Sprintf("%s/badimage.iso", *imagesDir)),
 				Version:       "999",
