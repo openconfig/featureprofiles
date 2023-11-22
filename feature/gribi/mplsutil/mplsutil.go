@@ -103,6 +103,7 @@ type Args struct {
 // such the test topology is set up. This uses a constant topology as described
 // in topo.go.
 func (g *GRIBIMPLSTest) ConfigureDevices(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+	t.Helper()
 	DUTSrc.Name = dut.Port(t, "port1").Name()
 	DUTDst.Name = dut.Port(t, "port2").Name()
 
@@ -136,6 +137,7 @@ func (g *GRIBIMPLSTest) ConfigureDevices(t *testing.T, dut *ondatra.DUTDevice, a
 }
 
 func (g *GRIBIMPLSTest) ProgramGRIBI(t *testing.T) {
+	t.Helper()
 	switch g.mode {
 	case PushToMPLS:
 		if len(g.args.LabelsToPush) == 0 {
@@ -246,6 +248,7 @@ func (g *GRIBIMPLSTest) ProgramGRIBI(t *testing.T) {
 // ValidateProgramming validates whether the programming for the specific
 // scenario was accepted at the DUT.
 func (g *GRIBIMPLSTest) ValidateProgramming(t *testing.T) {
+	t.Helper()
 	switch g.mode {
 	case PushToMPLS:
 		chk.HasResult(t, g.result,
@@ -362,6 +365,7 @@ const (
 // ConfigureFlows sets up the flows that are required for the specified test
 // type on the ATE device provided.
 func (g *GRIBIMPLSTest) ConfigureFlows(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Helper()
 	switch g.mode {
 	case PushToMPLS:
 		t.Logf("looking on interface %s_ETH for %s", ATESrc.Name, DUTSrc.IPv4)
@@ -407,6 +411,7 @@ func (g *GRIBIMPLSTest) ConfigureFlows(t *testing.T, ate *ondatra.ATEDevice) {
 // RunFlows validates that traffic is forwarded by the DUT by running the
 // flows required by the specified test.
 func (g *GRIBIMPLSTest) RunFlows(t *testing.T, ate *ondatra.ATEDevice, runtime time.Duration, tolerableLostPackets uint64) {
+	t.Helper()
 	switch g.mode {
 	case PushToMPLS:
 		t.Logf("Starting MPLS traffic...")
@@ -429,6 +434,7 @@ func (g *GRIBIMPLSTest) RunFlows(t *testing.T, ate *ondatra.ATEDevice, runtime t
 
 // Cleanup cleans up the underlying gRIBI server to remove any entries.
 func (g *GRIBIMPLSTest) Cleanup(t *testing.T) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	g.flushServer(t, ctx)
