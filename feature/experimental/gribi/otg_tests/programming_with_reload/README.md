@@ -20,7 +20,9 @@ Ensure that gribi programming is honored following chassis reload while returnin
 *   `ATEPort3IP`: testbed assigned interface IP to ATE port 3
 *   All the NHG and NH objects injected by gRIBI are in the DEFAULT VRF.
 
-## Setup 
+## Setups
+
+Different test scenarios requires different setups.
 
 *   Setup#1
 
@@ -31,6 +33,7 @@ Ensure that gribi programming is honored following chassis reload while returnin
         `{persistence=PRESERVE Redundancy=SINGLE_PRIMARY}`
     *   gRIBI Flush the DUT.
     *   Inject the following gRIBI structure to the DUT:
+
         ```text
             NHG#101 --> NH#101 {decap, network-instance:DEFAULT}
             NHG#100 --> [NH#100 {decap-encap, src:`OuterSrcIP_2`, dst:`OuterDstIP_2`, network-instance: VRF-B}, backupNHG: NHG#101]
@@ -48,6 +51,7 @@ Ensure that gribi programming is honored following chassis reload while returnin
         `{persistence=PRESERVE Redundancy=SINGLE_PRIMARY}`
     *   gRIBI Flush the DUT.
     *   Inject the following gRIBI structure to the DUT:
+
         ```text
             NHG#101 --> [NH#101 {decap-encap, src:`OuterSrcIP_2`, dst:`OuterDstIP_2`, network-instance: VRF-B}]
             VIP_1/32 {DEFAULT VRF} --> NHG#1 --> NH#1 {next-hop: ATEPort2IP}
@@ -61,28 +65,35 @@ Ensure that gribi programming is honored following chassis reload while returnin
 
 ## Procedure
 
-*   Deploy Setup#1 as above.
+*   TEST#1 
 
-*   Validate traffic is passing over the primary path.
+    1.  Deploy Setup#1 as above.
 
-*   Perform entire device reload.
+    2.  Validate traffic is passing over the primary path sending IPinIP traffic to `OuterDstIP_1` with inner IP as `InnerDstIP_1` and validate that ATE port-2 receives the traffic after DECAP-ENCAP over the primary path with outer destination IP as `OuterDstIP_2` and outer source IP as `OuterSrcIP_2`.
+    
+    3.  Perform entire device reload.
 
-*   Deploy Setup#1 as above. If the system is not ready, gRIBI returns UNAVAILABLE till it is ready, and indeed reattempts will be made every 30 seconds with max timeout of 3 minutes
+    4.  Redeploy Setup#1 as above. If the system is not ready, gRIBI returns UNAVAILABLE till it is ready, and indeed reattempts will be made every 30 seconds with max timeout of 3 minutes.
 
-*   Send IPinIP traffic to `OuterDstIP_1` with inner IP as `InnerDstIP_1`,
-    and validate that ATE port-2 receives the traffic after DECAP-ENCAP over the primary path with outer destination IP as `OuterDstIP_2` and outer source IP as `OuterSrcIP_2`.
-
-*   Shutdown DUT port-2 interface, and validate that ATE port-3 receives the
+    5.  Shutdown DUT port-2 interface.
+    
+    6.  Validate that ATE port-3 receives the
     decapsulated traffic with `InnerDstIP_1`.
 
-*   Perform the entire device reload again.
+*   Test#2
 
-*   Deploy Setup#2 as above. If system is not ready, gRIBI returns UNAVAILABLE till it is ready, and indeed reattempts needs to be made.
+    1.  Deploy Setup#2 as above.
 
-*   Send IPinIP traffic to `OuterDstIP_1` with inner IP as `InnerDstIP_1`,
-    and validate that ATE port-2 receives the traffic over the primary path.
+    2.  Validate traffic is passing over the primary path sending IPinIP traffic to `OuterDstIP_1` with inner IP as `InnerDstIP_1`,
+    and validate that ATE port-2 receives the traffic.
+    
+    3.  Perform entire device reload.
 
-*   Shutdown DUT port-2 interface, and validate that ATE port-3 receives the traffic after 
+    4.  Redeploy Setup#1 as above. If the system is not ready, gRIBI returns UNAVAILABLE till it is ready, and indeed reattempts will be made every 30 seconds with max timeout of 3 minutes.
+
+    5.  Shutdown DUT port-2 interface.
+    
+    6.  Validate that ATE port-3 receives the traffic after 
     DECAP-ENCAP over a backup path with outer destination IP as `OuterDstIP_2` and outer source IP as `OuterSrcIP_2`.
 
 ## Config Parameter coverage
