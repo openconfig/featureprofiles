@@ -81,6 +81,11 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 func TestBgpSession(t *testing.T) {
+	t.Log("Clear ATE configuration")
+	ate := ondatra.ATE(t, "ate")
+	top := gosnappi.NewConfig()
+	ate.OTG().PushConfig(t, top)
+
 	t.Log("Configure DUT interface")
 	dut := ondatra.DUT(t, "dut")
 	dc := gnmi.OC()
@@ -146,7 +151,6 @@ func TestBgpSession(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			otg := ondatra.ATE(t, "ate").OTG()
-			otg.PushConfig(t, tc.ateConf)
 			t.Log("Clear BGP Configs on DUT")
 			bgpClearConfig(t, dut)
 
@@ -161,6 +165,7 @@ func TestBgpSession(t *testing.T) {
 
 			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 			t.Log("Configure BGP on ATE")
+			otg.PushConfig(t, tc.ateConf)
 			otg.StartProtocols(t)
 
 			t.Log("Verify BGP session state : ESTABLISHED")
