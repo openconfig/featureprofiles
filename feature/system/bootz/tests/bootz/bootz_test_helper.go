@@ -136,7 +136,7 @@ func awaitBootzStatus(ccSerial string, expected bpb.ReportStatusRequest_Bootstra
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("Status %s is not recieved for controller card %s", expected.String(), ccSerial)
+			return fmt.Errorf("status %s is not received for controller card %s", expected.String(), ccSerial)
 		default:
 			status, ok := bootzStatusLogs[ccSerial]
 			if ok {
@@ -155,7 +155,7 @@ func awaitBootzConnection(chassis service.EntityLookup, timeout time.Duration) e
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("Chassis %v is not connected to bootz server", chassis)
+			return fmt.Errorf("chassis %v is not connected to bootz server", chassis)
 		default:
 			_, ok := bootzReqLogs[chassis]
 			if ok {
@@ -215,6 +215,9 @@ func awaitDHCPCompletion(hwAddr []string, timeout time.Duration) error {
 // generateCert generate an RSA key/certificate based on given ca key/certificate and cert template
 func generateCert(t *testing.T, signingCert *x509.Certificate, signingKey any, ip, cn string) *tls.Certificate {
 	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		t.Fatalf("Could not generate certificate : %v", err)
+	}
 	certSpec := &x509.Certificate{
 		SerialNumber: big.NewInt(int64(time.Now().Year())),
 		Subject: pkix.Name{
