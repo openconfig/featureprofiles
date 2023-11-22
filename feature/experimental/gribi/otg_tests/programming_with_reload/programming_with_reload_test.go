@@ -61,8 +61,6 @@ const (
 	nh102ID        = 102
 	nhg102ID       = 102
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	// Maximum wait time for all components to be in responsive state
-	maxCompWaitTime = 600
 	// Maximum gribi connection time is 180 seconds following reload
 	maxGribiConnectTime = 180
 )
@@ -428,9 +426,6 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ip string) {
 // Reload chassis
 func (args *testArgs) reloadChassis(t *testing.T) {
 
-	preRebootCompStatus := gnmi.GetAll(t, args.dut, gnmi.OC().ComponentAny().OperStatus().State())
-	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
-
 	gnoiClient, err := args.dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
 	if err != nil {
 		t.Fatalf("Error dialing gNOI: %v", err)
@@ -439,7 +434,7 @@ func (args *testArgs) reloadChassis(t *testing.T) {
 	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 
 	rebootRequest := &spb.RebootRequest{
-		Method:  spb.RebootMethod_WARM,
+		Method:  spb.RebootMethod_COLD,
 		Delay:   0,
 		Message: "Reboot chassis with delay",
 		Force:   true,
@@ -486,23 +481,6 @@ func (args *testArgs) reloadChassis(t *testing.T) {
 	if gribi_err_msg != nil {
 		t.Fatalf("gribi connection fails post reboot with in max timeout value of %d", maxGribiConnectTime)
 	}
-
-	startComp := time.Now()
-	t.Logf("Wait for all the components on DUT to come up")
-
-	for {
-		postRebootCompStatus := gnmi.GetAll(t, args.dut, gnmi.OC().ComponentAny().OperStatus().State())
-		if len(preRebootCompStatus) == len(postRebootCompStatus) {
-			t.Logf("All components on the DUT are in responsive state")
-			time.Sleep(10 * time.Second)
-			break
-		}
-		if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
-			t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
-			t.Fatalf("All the components are not in responsive state post reboot")
-		}
-		time.Sleep(10 * time.Second)
-	}
 }
 
 // gribi reconnect following reload
@@ -516,7 +494,7 @@ func (args *testArgs) gribi_reconnect(t *testing.T, err_msg chan<- error) {
 		}
 
 		for {
-			if uint64(time.Since(start).Seconds()) > maxGribiConnectTime {
+			if time.Since(start).Seconds() > maxGribiConnectTime {
 				err_msg <- fmt.Errorf("gribi connection fails post reboot with in max timeout value of %d", maxGribiConnectTime)
 			} else {
 				if err := client.Start(t); err != nil {
