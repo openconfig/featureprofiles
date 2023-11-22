@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bootz_tests
+// Package bootz implement tests  authz-14. 
+package bootz
 
 import (
 	"crypto/x509"
@@ -25,7 +26,6 @@ import (
 	"time"
 
 	"github.com/openconfig/bootz/dhcp"
-	"github.com/openconfig/bootz/proto/bootz"
 	"github.com/openconfig/bootz/server/entitymanager/proto/entity"
 	"github.com/openconfig/bootz/server/service"
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -77,7 +77,7 @@ type bootzTest struct {
 	Name            string
 	VendorConfig    string
 	OV              []byte
-	Image           *bootz.SoftwareImage
+	Image           *bpb.SoftwareImage
 	ExpectedFailure bool
 }
 
@@ -97,21 +97,21 @@ func checkBootzStatus(t *testing.T, expectFailure bool) {
 		t.Fatal("bootz server is down, check the test log for detailed error")
 	}
 	for _, ccSerial := range controllerCardSerials {
-		err := awaitBootzStatus(ccSerial, bootz.ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED, bootzStatusTimeout)
+		err := awaitBootzStatus(ccSerial, bpb.ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED, bootzStatusTimeout)
 		if err != nil {
 			t.Errorf("ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED in not reported in %d minutes for controller card %s", bootzStatusTimeout, ccSerial)
 		} else {
 			t.Log("DUT reported ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED to bootz server as expected")
 		}
 	}
-	expectedCCstatus := bootz.ReportStatusRequest_BOOTSTRAP_STATUS_SUCCESS
+	expectedCCstatus := bpb.ReportStatusRequest_BOOTSTRAP_STATUS_SUCCESS
 	if expectFailure {
-		expectedCCstatus = bootz.ReportStatusRequest_BOOTSTRAP_STATUS_FAILURE
+		expectedCCstatus = bpb.ReportStatusRequest_BOOTSTRAP_STATUS_FAILURE
 	}
 	for _, ccSerial := range controllerCardSerials {
 		err := awaitBootzStatus(ccSerial, expectedCCstatus, bootzStatusTimeout)
 		if err != nil {
-			t.Errorf("Status %s is not reported as expected in minutes", expectedCCstatus.String())
+			t.Errorf("Status %s is not reported as expected in %d minutes", expectedCCstatus.String(), bootzStatusTimeout )
 		} else {
 			t.Logf("DUT reported %s to bootz server as expected", expectedCCstatus.String())
 		}
@@ -187,7 +187,6 @@ func testSetup(t *testing.T, dut *ondatra.DUTDevice) {
 // loadOV load ovs from a specfied file
 func loadOV(t *testing.T, serialNumber string, pdc *x509.Certificate, verify bool) []byte {
 	ovPath := fmt.Sprintf("testdata/%s.ov", serialNumber)
-	// ovPath = masaOV(t, serail, verify)
 	ovByte, err := os.ReadFile(ovPath)
 	if err != nil {
 		t.Fatalf("Error opening key file %v", err)
@@ -254,7 +253,7 @@ func prepareBootzConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		SerialNumber:  chassisSerial,
 		SoftwareImage: nil,
 		Manufacturer:  caser.String(dut.Vendor().String()),
-		BootMode:      bootz.BootMode_BOOT_MODE_SECURE,
+		BootMode:      bpb.BootMode_BOOT_MODE_SECURE,
 		Config: &entity.Config{
 			BootConfig: &entity.BootConfig{
 				VendorConfig: []byte(getBaseConfig(t, dut)),

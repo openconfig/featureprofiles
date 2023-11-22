@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bootz_tests
+package bootz
 
 import (
 	"bytes"
@@ -38,7 +38,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/openconfig/bootz/dhcp"
-	"github.com/openconfig/bootz/proto/bootz"
 	"github.com/openconfig/bootz/server/service"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc"
@@ -52,7 +51,7 @@ import (
 )
 
 // BootzReqLog stores the bootstarp request/response logs for connected chassis.
-type BootzReqLog struct {
+type bootzReqLog struct {
 	StartTimeStamp int
 	EndTimeStamp   int
 	BootResponse   *bpb.BootstrapDataResponse
@@ -61,25 +60,25 @@ type BootzReqLog struct {
 }
 
 // BootzStatusLog stores the bootstarp status request/response logs for connected chassis.
-type BootzStatusLog struct {
+type bootzStatusLog struct {
 	CardStatus      []bpb.ControlCardState_ControlCardStatus
 	BootStrapStatus []bpb.ReportStatusRequest_BootstrapStatus
 }
-type BootzLogs map[service.EntityLookup]*BootzReqLog
-type BootzStatus map[string]*BootzStatusLog
+type bootzLogs map[service.EntityLookup]*bootzReqLog
+type bootzStatus map[string]*bootzStatusLog
 
 var (
-	bootzReqLogs    = BootzLogs{}
-	bootzStatusLogs = BootzStatus{}
+	bootzReqLogs    = bootzLogs{}
+	bootzStatusLogs = bootzStatus{}
 	muRw            sync.RWMutex
 )
 
-func bootzInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func bootzInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	start := time.Now()
 	glog.Infof("Bootz Server request: \n%s", prettyPrint(req))
 	switch breq := req.(type) {
 	case *bpb.GetBootstrapDataRequest:
-		bootzLog := &BootzReqLog{
+		bootzLog := &bootzReqLog{
 			StartTimeStamp: start.Nanosecond(),
 			BootRequest:    breq,
 		}
@@ -111,7 +110,7 @@ func bootzInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
 			serial := cc.GetSerialNumber()
 			_, ok := bootzStatusLogs[cc.GetSerialNumber()]
 			if !ok {
-				bootzStatusLogs[serial] = &BootzStatusLog{
+				bootzStatusLogs[serial] = &bootzStatusLog{
 					CardStatus:      []bpb.ControlCardState_ControlCardStatus{},
 					BootStrapStatus: []bpb.ReportStatusRequest_BootstrapStatus{},
 				}
@@ -131,7 +130,7 @@ func bootzInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
 	}
 }
 
-func awaitBootzStatus(ccSerial string, expected bootz.ReportStatusRequest_BootstrapStatus, timeout time.Duration) error {
+func awaitBootzStatus(ccSerial string, expected bpb.ReportStatusRequest_BootstrapStatus, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	for {
