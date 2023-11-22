@@ -93,7 +93,7 @@ type GRIBIMPLSTest struct {
 // determine the behaviour of specific tests that require additional configuration.
 func New(c *fluent.GRIBIClient, m Mode, defName string, args *Args) *GRIBIMPLSTest {
 	return &GRIBIMPLSTest{
-		client: c,
+		client:        c,
 		mode:          m,
 		defaultNIName: defName,
 		args:          args,
@@ -478,7 +478,7 @@ var (
 
 // flushServer removes all entries from the server and can be called between
 // test cases in order to remove the server's RIB contents.
-func (g *GRIBIMPLSTest) flushServer(ctx context.Context,  t *testing.T) {
+func (g *GRIBIMPLSTest) flushServer(ctx context.Context, t *testing.T) {
 	g.client.Start(ctx, t)
 	defer g.client.Stop(t)
 
