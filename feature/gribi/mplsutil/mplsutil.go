@@ -1,3 +1,5 @@
+// Package mplsutil implements a set of helper utility to run common gRIBI
+// MPLS test scenarios against an ATE and DUT.
 package mplsutil
 
 import (
@@ -20,7 +22,7 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
-// Mode is an enumerated value listing the type of tests supported by the
+// Mode is an enumerated value fting the type of tests supported by the
 // gRIBI MPLS util.
 type Mode int64
 
@@ -59,6 +61,10 @@ const (
 	PopOnePushN
 )
 
+// GRIBIMPLSTest is a wrapper around a specific gRIBI MPLS test scenario,
+// the test has a specific mode that is used to control its underlying
+// functionality. The modes are enumerated by the mplsutil.Mode type
+// described in detail above.
 type GRIBIMPLSTest struct {
 	// mode stores the mode that the test was initialised in.
 	mode Mode
@@ -82,14 +88,20 @@ type GRIBIMPLSTest struct {
 	result []*client.OpResult
 }
 
+// New returns a new GRIBIMPLSTest initialised with the specified client, mode
+// and default network instance name (defName). The supplied args are used to
+// determine the behaviour of specific tests that require additional configuration.
 func New(c *fluent.GRIBIClient, m Mode, defName string, args *Args) *GRIBIMPLSTest {
 	return &GRIBIMPLSTest{
+		client: c,
 		mode:          m,
 		defaultNIName: defName,
 		args:          args,
 	}
 }
 
+// Args specifies a set of arguments that can be handed to specific gRIBI
+// tests to control the specific payload that they create.
 type Args struct {
 	// LabelsToPop specifies the set of labels that should be popped from
 	// an incoming MPLS packet.
@@ -103,7 +115,6 @@ type Args struct {
 // such the test topology is set up. This uses a constant topology as described
 // in topo.go.
 func (g *GRIBIMPLSTest) ConfigureDevices(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
-	t.Helper()
 	DUTSrc.Name = dut.Port(t, "port1").Name()
 	DUTDst.Name = dut.Port(t, "port2").Name()
 
@@ -136,8 +147,8 @@ func (g *GRIBIMPLSTest) ConfigureDevices(t *testing.T, dut *ondatra.DUTDevice, a
 	g.otgConfig = otgCfg
 }
 
+// ProgramGRIBI performs the programming operations specified by the mode of the test.
 func (g *GRIBIMPLSTest) ProgramGRIBI(t *testing.T) {
-	t.Helper()
 	switch g.mode {
 	case PushToMPLS:
 		if len(g.args.LabelsToPush) == 0 {
@@ -437,7 +448,7 @@ func (g *GRIBIMPLSTest) Cleanup(t *testing.T) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	g.flushServer(t, ctx)
+	g.flushServer(ctx, t)
 }
 
 // modify performs a set of operations (in ops) on the supplied gRIBI client,
@@ -467,7 +478,7 @@ var (
 
 // flushServer removes all entries from the server and can be called between
 // test cases in order to remove the server's RIB contents.
-func (g *GRIBIMPLSTest) flushServer(t *testing.T, ctx context.Context) {
+func (g *GRIBIMPLSTest) flushServer(ctx context.Context,  t *testing.T) {
 	g.client.Start(ctx, t)
 	defer g.client.Stop(t)
 
