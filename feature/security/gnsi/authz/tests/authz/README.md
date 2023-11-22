@@ -1,4 +1,4 @@
-# gNSI Authz Tests
+# Authz: General Authz (1-4) tests
 
 ## Summary
 
