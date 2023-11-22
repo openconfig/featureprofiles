@@ -132,10 +132,12 @@ bootz mode.
 
 | ID        |Case  | Result |
 | --------- | ------------- | --- |
-| bootz-4.1 | no OS provided  | Device boots with existing image  |
-| bootz-4.2 | Invalid OS image provided  | Device fails with status invalid parameter  |
-| bootz-4.3 | failed to fetch image from remote URL | Device fails with status invalid parameter |
-| bootz-4.4 | OS checksum doesn't match | Device fails with invalid parameter |
+| bootz-4.1 | Invalid OS image provided  | Device fails with status invalid parameter  |
+| bootz-4.2 | failed to fetch image from remote URL | Device fails with status invalid parameter |
+| bootz-4.3 | OS checksum doesn't match | Device fails with invalid parameter |
+| bootz-4.4 | no OS provided  | Device boots with existing image  |
+
+
 
 1. Provide bootstrap response configured as prescribed.
 2. Initiate bootz boot on device via gnoi.FactoryReset()

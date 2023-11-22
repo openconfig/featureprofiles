@@ -48,8 +48,8 @@ import (
 
 var (
 	dhcpIntf        = flag.String("dhcp-intf", "eth1", "Interface that will be used by dhcp server to listen for dhcp requests")
-	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
-	imageServerAddr = flag.String("img_serv_addr", "", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
+	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specified and be reachable from the router.")
+	imageServerAddr = flag.String("img_srv_addr", "", "The ip:port to start the Image server. Ip must be specified and be reachable from the router.")
 	imagesDir       = flag.String("img_dir", "", "Directory where the images will be located.")
 	imageVersion    = flag.String("img_ver", "", "Version of the image to be loaded using bootz")
 	dhcpIP          = flag.String("dhcp_ip", "", "IP address in CIDR format that dhcp server will assign to the dut.")
@@ -83,7 +83,7 @@ type bootzTest struct {
 
 const (
 	dhcpTimeout                = 30 * time.Minute // connection to dhcp after factory default
-	bootzConnectionTimeout     = 5 * time.Minute  // request for bootsrap after dhcp
+	bootzConnectionTimeout     = 5 * time.Minute  // request for bootstrap after dhcp
 	bootzStatusTimeout         = 5 * time.Minute  // only ov + config
 	fullBootzCompletionTimeout = 30 * time.Minute // image + ov + config
 )
@@ -159,7 +159,7 @@ func testSetup(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 
 		for _, ports := range dut.Ports() {
-			// We assume the ports in bindning are managment interfaces, otherwise the test must fail.
+			// We assume the ports in binding are management interfaces, otherwise the test must fail.
 			mac := gnmi.Get(t, dut, gnmi.OC().Interface(ports.Name()).Ethernet().HwMacAddress().State())
 			if !gnmi.Get(t, dut, gnmi.OC().Interface(ports.Name()).Management().State()) {
 				t.Fatalf("Ports are exepcted to be managment interfaces")
@@ -184,7 +184,7 @@ func testSetup(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// loadOV load ovs from a specfied file
+// loadOV load ovs from a specified file
 func loadOV(t *testing.T, serialNumber string, pdc *x509.Certificate, verify bool) []byte {
 	ovPath := fmt.Sprintf("testdata/%s.ov", serialNumber)
 	ovByte, err := os.ReadFile(ovPath)
@@ -230,7 +230,6 @@ func loadSecArtifacts(t *testing.T, pdcCertPEM, pdcKeyPEM string) {
 	os.Remove("testdata/tls.cert.pem")
 	ip := strings.Split(*bootzAddr, ":")[0]
 	anchorCert := generateCert(t, pdcCert, pdcKey, ip, "bootz server")
-	//ownerCert := generateCert(t, pdcCert, pdcKey, ip, "Owner server")
 
 	sa := &service.SecurityArtifacts{
 		PDC:                 pdcCert,
@@ -349,8 +348,8 @@ func TestBootz1(t *testing.T) {
 					t.Fatal("bootz server is down, check the test log for detailed error")
 				}
 				// reset bootz logs
-				bootzStatusLogs = BootzStatus{}
-				bootzReqLogs = BootzLogs{}
+				bootzStatusLogs = bootzStatus{}
+				bootzReqLogs = bootzLogs{}
 				//ensure no old dhcp log causing an issue
 				dhcpLease.CleanLog()
 
@@ -364,13 +363,13 @@ func TestBootz1(t *testing.T) {
 				dhcpIDs = append(dhcpIDs, hwAddrs...)
 				err := awaitDHCPCompletion(dhcpIDs, dhcpTimeout)
 				if err != nil {
-					t.Errorf("DUT connection to DHCP server was not successfull in %d minutes", dhcpTimeout)
+					t.Errorf("DUT connection to DHCP server was not successful in %d minutes", dhcpTimeout)
 				} else {
-					t.Logf("DUT connection to DHCP server was  successfull")
+					t.Logf("DUT connection to DHCP server was  successful")
 				}
 				err = awaitBootzConnection(*chassisEntity, bootzConnectionTimeout)
 				if err != nil {
-					t.Errorf("DUT connection to bootz server was not successfull in %d minutes", bootzConnectionTimeout)
+					t.Errorf("DUT connection to bootz server was not successful in %d minutes", bootzConnectionTimeout)
 				} else {
 					t.Log("DUT is connected to bootz server")
 				}
@@ -432,8 +431,8 @@ func TestBootz2(t *testing.T) {
 					t.Fatal("bootz server is down, check the test log for detailed error")
 				}
 				// reset bootz logs
-				bootzStatusLogs = BootzStatus{}
-				bootzReqLogs = BootzLogs{}
+				bootzStatusLogs = bootzStatus{}
+				bootzReqLogs = bootzLogs{}
 				//ensure no old dhcp log causing an issue
 				dhcpLease.CleanLog()
 
@@ -448,13 +447,13 @@ func TestBootz2(t *testing.T) {
 				dhcpIDs = append(dhcpIDs, hwAddrs...)
 				err := awaitDHCPCompletion(dhcpIDs, dhcpTimeout)
 				if err != nil {
-					t.Errorf("DUT connection to DHCP server was not successfull in %d minutes", dhcpTimeout)
+					t.Errorf("DUT connection to DHCP server was not successful in %d minutes", dhcpTimeout)
 				} else {
-					t.Logf("DUT connection to DHCP server was  successfull")
+					t.Logf("DUT connection to DHCP server was  successful")
 				}
 				err = awaitBootzConnection(*chassisEntity, bootzConnectionTimeout)
 				if err != nil {
-					t.Errorf("DUT connection to bootz server was not successfull in %d minutes", bootzConnectionTimeout)
+					t.Errorf("DUT connection to bootz server was not successful in %d minutes", bootzConnectionTimeout)
 				} else {
 					t.Log("DUT is connected to bootz server")
 				}
@@ -516,8 +515,8 @@ func TestBootz3(t *testing.T) {
 					t.Fatal("bootz server is down, check the test log for detailed error")
 				}
 				// reset bootz logs
-				bootzStatusLogs = BootzStatus{}
-				bootzReqLogs = BootzLogs{}
+				bootzStatusLogs = bootzStatus{}
+				bootzReqLogs = bootzLogs{}
 				//ensure no old dhcp log causing an issue
 				dhcpLease.CleanLog()
 
@@ -540,13 +539,13 @@ func TestBootz3(t *testing.T) {
 				dhcpIDs = append(dhcpIDs, hwAddrs...)
 				err := awaitDHCPCompletion(dhcpIDs, dhcpTimeout)
 				if err != nil {
-					t.Errorf("DUT connection to DHCP server was not successfull in %d minutes", dhcpTimeout)
+					t.Errorf("DUT connection to DHCP server was not successful in %d minutes", dhcpTimeout)
 				} else {
-					t.Logf("DUT connection to DHCP server was  successfull")
+					t.Logf("DUT connection to DHCP server was  successful")
 				}
 				err = awaitBootzConnection(*chassisEntity, bootzConnectionTimeout)
 				if err != nil {
-					t.Errorf("DUT connection to bootz server was not successfull in %d minutes", bootzConnectionTimeout)
+					t.Errorf("DUT connection to bootz server was not successful in %d minutes", bootzConnectionTimeout)
 				} else {
 					t.Log("DUT is connected to bootz server")
 				}
@@ -573,11 +572,11 @@ func TestBootz4(t *testing.T) {
 
 	bootz4 := []bootzTest{
 		{
-			Name:         "Bootz-4.2 Invalid OS image provided",
+			Name:         "Bootz-4.1 Invalid OS image provided",
 			VendorConfig: baseConfig,
 			Image: &bpb.SoftwareImage{
 				Name:          "badimage.iso",
-				Url:           fmt.Sprintf("https://%s/%s/badimage.iso", *imageServerAddr, *imagesDir),
+				Url:           fmt.Sprintf("https://%s/badimage.iso", *imageServerAddr, ),
 				HashAlgorithm: "SHA256",
 				OsImageHash:   getImageHash(t, fmt.Sprintf("%s/badimage.iso", *imagesDir)),
 				Version:       "999",
@@ -585,11 +584,11 @@ func TestBootz4(t *testing.T) {
 			ExpectedFailure: true,
 		}, //gets covered as a part of Bootz2.2
 		{
-			Name:         "Bootz-4.3 Failed to fetch image from remote URL",
+			Name:         "Bootz-4.2 Failed to fetch image from remote URL",
 			VendorConfig: baseConfig,
 			Image: &bpb.SoftwareImage{
 				Name:          "badimage.iso",
-				Url:           fmt.Sprintf("https://%s/%s/goodimage.isoinvalidUrl", *imageServerAddr, *imagesDir),
+				Url:           fmt.Sprintf("https://%s/goodimage.isoinvalidUrl", *imageServerAddr),
 				HashAlgorithm: "SHA256",
 				OsImageHash:   getImageHash(t, fmt.Sprintf("%s/goodimage.iso", *imagesDir)),
 				Version:       "999",
@@ -597,11 +596,11 @@ func TestBootz4(t *testing.T) {
 			ExpectedFailure: true,
 		},
 		{
-			Name:         "Bootz-4.2 OS Checksum Doesn't Match",
+			Name:         "Bootz-4.3 OS Checksum Doesn't Match",
 			VendorConfig: baseConfig,
 			Image: &bpb.SoftwareImage{
 				Name:          "goodimage.iso",
-				Url:           fmt.Sprintf("https://%s/%s/goodimage.iso", *imageServerAddr, *imagesDir),
+				Url:           fmt.Sprintf("https://%s/goodimage.iso", *imageServerAddr),
 				HashAlgorithm: "SHA256",
 				OsImageHash:   "Invalid Hash",
 				Version:       "999",
@@ -609,7 +608,7 @@ func TestBootz4(t *testing.T) {
 			ExpectedFailure: true,
 		},
 		{
-			Name:            "Bootz-4.1: No OS Provided",
+			Name:            "Bootz-4.4: No OS Provided",
 			VendorConfig:    baseConfig,
 			Image:           &bpb.SoftwareImage{},
 			ExpectedFailure: false,
@@ -625,8 +624,8 @@ func TestBootz4(t *testing.T) {
 					t.Fatal("bootz server is down, check the test log for detailed error")
 				}
 				// reset bootz logs
-				bootzStatusLogs = BootzStatus{}
-				bootzReqLogs = BootzLogs{}
+				bootzStatusLogs = bootzStatus{}
+				bootzReqLogs = bootzLogs{}
 				//ensure no old dhcp log causing an issue
 				dhcpLease.CleanLog()
 
@@ -641,13 +640,13 @@ func TestBootz4(t *testing.T) {
 				dhcpIDs = append(dhcpIDs, hwAddrs...)
 				err := awaitDHCPCompletion(dhcpIDs, dhcpTimeout)
 				if err != nil {
-					t.Errorf("DUT connection to DHCP server was not successfull in %d minutes", dhcpTimeout)
+					t.Errorf("DUT connection to DHCP server was not successful in %d minutes", dhcpTimeout)
 				} else {
-					t.Logf("DUT connection to DHCP server was  successfull")
+					t.Logf("DUT connection to DHCP server was  successful")
 				}
 				err = awaitBootzConnection(*chassisEntity, bootzConnectionTimeout)
 				if err != nil {
-					t.Errorf("DUT connection to bootz server was not successfull in %d minutes", bootzConnectionTimeout)
+					t.Errorf("DUT connection to bootz server was not successful in %d minutes", bootzConnectionTimeout)
 				} else {
 					t.Log("DUT is connected to bootz server")
 				}
