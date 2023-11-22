@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "4f04fb5b-5bc0-4214-a74d-2a30c0433078"
+plan_id:  "TE-11.4"
+description:  "Gribi programming with reload"
+testbed:  TESTBED_DUT
