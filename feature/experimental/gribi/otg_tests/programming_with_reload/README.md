@@ -69,7 +69,7 @@ Different test scenarios requires different setups.
 
     1.  Deploy Setup#1 as above.
 
-    2.  Validate traffic is passing over the primary path sending IPinIP traffic to `OuterDstIP_1` with inner IP as `InnerDstIP_1` and validate that ATE port-2 receives the traffic after DECAP-ENCAP over the primary path with outer destination IP as `OuterDstIP_2` and outer source IP as `OuterSrcIP_2`.
+    2.  Send IPinIP traffic to `OuterDstIP_1` with inner IP as `InnerDstIP_1` and validate that ATE port-2 receives the traffic after DECAP-ENCAP over the primary path with outer destination IP as `OuterDstIP_2` and outer source IP as `OuterSrcIP_2`.
     
     3.  Perform entire device reload.
 
@@ -77,15 +77,13 @@ Different test scenarios requires different setups.
 
     5.  Shutdown DUT port-2 interface.
     
-    6.  Validate that ATE port-3 receives the
-    decapsulated traffic with `InnerDstIP_1`.
+    6.  Validate that ATE port-3 receives the decapsulated traffic with `InnerDstIP_1` over backup path.
 
 *   Test#2
 
     1.  Deploy Setup#2 as above.
 
-    2.  Validate traffic is passing over the primary path sending IPinIP traffic to `OuterDstIP_1` with inner IP as `InnerDstIP_1`,
-    and validate that ATE port-2 receives the traffic.
+    2.  Send IPinIP traffic to `OuterDstIP_1` with inner IP as `InnerDstIP_1` and validate that ATE port-2 receives the traffic over the primary path.
     
     3.  Perform entire device reload.
 
@@ -93,8 +91,7 @@ Different test scenarios requires different setups.
 
     5.  Shutdown DUT port-2 interface.
     
-    6.  Validate that ATE port-3 receives the traffic after 
-    DECAP-ENCAP over a backup path with outer destination IP as `OuterDstIP_2` and outer source IP as `OuterSrcIP_2`.
+    6.  Validate that ATE port-3 receives the traffic over the backup DECAP-ENCAP path with outer destination IP as `OuterDstIP_2` and outer source IP as `OuterSrcIP_2`.
 
 ## Config Parameter coverage
 
