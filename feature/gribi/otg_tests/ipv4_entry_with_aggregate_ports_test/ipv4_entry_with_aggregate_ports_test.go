@@ -196,7 +196,7 @@ func configureGRIBIPrefixes(t *testing.T, dut *ondatra.DUTDevice, aggID string) 
 
 	e1 := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithIndex(nh1ID).WithInterfaceRef(aggID).WithMacAddress(staticDstMAC)
-	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) or deviations.GRIBIMACOverrideWithStaticARP(dut) {
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) || deviations.GRIBIMACOverrideWithStaticARP(dut) {
 		// Static route to nh1IPAddr which is the ATE Lag port.
 		s := &oc.NetworkInstance_Protocol_Static{
 			Prefix: ygot.String(nh1IpAddr + "/32"),
