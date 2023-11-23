@@ -40,6 +40,10 @@ Validate link operational status of Static LAG and LACP.
 *   TODO: /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts
 *   TODO:
     /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors
+*   /lacp/interfaces/interface/name
+*   /lacp/interfaces/interface/state/name
+*   /lacp/interfaces/interface/members/member/interface
+*   /lacp/interfaces/interface/members/member/state/interface
 *   /lacp/interfaces/interface/members/member/state/oper-key
 *   /lacp/interfaces/interface/members/member/state/partner-key
 *   /lacp/interfaces/interface/members/member/state/partner-id
