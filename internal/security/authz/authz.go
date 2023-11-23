@@ -36,58 +36,65 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// AuthorizationPolicy is an struct to save an authz policy
+// Spiffe is an struct to save an Spiffe id and its svid.
+type Spiffe struct {
+	// ID store Spiffe id.
+	ID string
+	// TlsConf stores the svid of Spiffe id.
+	TlsConf *tls.Config
+}
+
+// AuthorizationPolicy is an struct to save an authz policy.
 type AuthorizationPolicy struct {
-	// name of policy
+	// name of policy.
 	Name string `json:"name"`
-	// rules that specify what are allowed by users
+	// rules that specify what are allowed by users.
 	AllowRules []Rule `json:"allow_rules,omitempty"`
-	// rules that specify what are denied for users
+	// rules that specify what are denied for users.
 	DenyRules []Rule `json:"deny_rules,omitempty"`
 }
 
-// Rule represent the structure for an authz rule
+// Rule represent the structure for an authz rule.
 type Rule struct {
-	// name of the rule
+	// name of the rule.
 	Name string `json:"name"`
-	// the users that rule defined for
+	// the users that rule defined for.
 	Source struct {
 		Principals []string `json:"principals"`
 	} `json:"source"`
-	// rpc for which the rule is specified
+	// rpc for which the rule is specified.
 	Request struct {
 		Paths []string `json:"paths"`
 	} `json:"request"`
 }
 
 func createRule(name string, users []string, rpcs []*gnxi.RPC) Rule {
-	rule := Rule{}
+	rule := Rule{Name: name}
 	for _, rpc := range rpcs {
-		rule.Name = name
 		rule.Request.Paths = append(rule.Request.Paths, rpc.Path)
 	}
-	rule.Source.Principals = append(rule.Source.Principals, users...)
+	rule.Source.Principals = users
 	return rule
 }
 
-// AddAllowRules adds an allow rule for policy p
+// AddAllowRules adds an allow rule for policy p.
 func (p *AuthorizationPolicy) AddAllowRules(name string, users []string, rpcs []*gnxi.RPC) {
 	rule := createRule(name, users, rpcs)
 	p.AllowRules = append(p.AllowRules, rule)
 }
 
-// AddDenyRules adds an allow rule for policy p
+// AddDenyRules adds an allow rule for policy p.
 func (p *AuthorizationPolicy) AddDenyRules(name string, users []string, rpcs []*gnxi.RPC) {
 	rule := createRule(name, users, rpcs)
 	p.DenyRules = append(p.DenyRules, rule)
 }
 
-// Unmarshal unmarshal policy p to json string
+// Unmarshal unmarshal policy p to json string.
 func (p *AuthorizationPolicy) Unmarshal(jsonString string) error {
 	return json.Unmarshal([]byte(jsonString), p)
 }
 
-// Marshal marshal a policy from json string
+// Marshal marshal a policy from json string.
 func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 	return json.Marshal(p)
 }
@@ -99,7 +106,10 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 	if err != nil {
 		t.Fatalf("Could not connect gnsi %v", err)
 	}
-	rotateStream, _ := gnsiC.Authz().Rotate(context.Background())
+	rotateStream, err := gnsiC.Authz().Rotate(context.Background())
+	if err != nil {
+		t.Fatalf("Could not start a rotate stream %v", err)
+	}
 	defer rotateStream.CloseSend()
 	policy, err := p.Marshal()
 	if err != nil {
@@ -140,7 +150,7 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 
 }
 
-// NewAuthorizationPolicy creates an empty policy
+// NewAuthorizationPolicy creates an empty policy.
 func NewAuthorizationPolicy(name string) *AuthorizationPolicy {
 	return &AuthorizationPolicy{
 		Name: name,
@@ -183,49 +193,72 @@ func prettyPrint(i interface{}) string {
 func (p *AuthorizationPolicy) PrettyPrint(t *testing.T) string {
 	prettyTex, err := json.MarshalIndent(p, "", "    ")
 	if err != nil {
-		//glog.Warningf("PrettyPrint of an authz policy is failed due to err: %v", err)
 		t.Logf("PrettyPrint of an authz policy is failed due to err: %v", err)
 		return ""
 	}
 	return string(prettyTex)
 }
 
+type verifyOpt interface {
+	isVerifyOpt()
+}
+
+// ExceptDenyOpt is passed to verify function when failure is expected.
+type ExceptDeny struct {
+}
+
+// HardVerify is passed to verify function when verification
+// is carried out via execution on the RPC using the user svid.
+type HardVerify struct {
+}
+
+func (o *ExceptDeny) isVerifyOpt() {}
+func (o *HardVerify) isVerifyOpt() {}
+
 // Verify uses prob to validate if the user access for a certain rpc is expected.
-// It also execute the rpc when hardVerif is set to true and verifies if it matches the expectation.
-func Verify(t testing.TB, dut *ondatra.DUTDevice, user string, rpc *gnxi.RPC, tlsCfg *tls.Config, expectDeny, hardVerify bool) {
+// It also execute the rpc when HardVerif is passed and verifies if it matches the expectation.
+func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts ...verifyOpt) {
+	expectedRes := authz.ProbeResponse_ACTION_PERMIT
+	expectedExecErr := codes.OK
+	hardVerify := false
+	for _, opt := range opts {
+		switch opt.(type) {
+		case *ExceptDeny:
+			expectedRes = authz.ProbeResponse_ACTION_DENY
+			expectedExecErr = codes.PermissionDenied
+		case *HardVerify:
+			hardVerify = true
+		default:
+			t.Errorf("Invalid option is passed to Verify function: %T", opt)
+		}
+	}
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
 		t.Fatalf("Could not connect gnsi %v", err)
 	}
-	resp, err := gnsiC.Authz().Probe(context.Background(), &authz.ProbeRequest{User: user, Rpc: rpc.Path})
+	resp, err := gnsiC.Authz().Probe(context.Background(), &authz.ProbeRequest{User: spiffe.ID, Rpc: rpc.Path})
 	if err != nil {
-		t.Fatalf("Prob Request %s failed on dut %s", prettyPrint(&authz.ProbeRequest{User: user, Rpc: rpc.Path}), dut.Name())
+		t.Fatalf("Prob Request %s failed on dut %s", prettyPrint(&authz.ProbeRequest{User: spiffe.ID, Rpc: rpc.Path}), dut.Name())
 	}
-	expectedRes := authz.ProbeResponse_ACTION_PERMIT
-	expectedExecErr := codes.OK
-	if expectDeny {
-		expectedRes = authz.ProbeResponse_ACTION_DENY
-		expectedExecErr = codes.PermissionDenied
-	}
+
 	if resp.GetAction() != expectedRes {
-		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", user, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
+		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", spiffe.ID, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
 	}
 	if hardVerify {
-		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg))}
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(spiffe.TlsConf))}
 		err := rpc.Exec(context.Background(), dut, opts)
 		if status.Code(err) != expectedExecErr {
 			if status.Code(err) == codes.Unimplemented {
 				t.Fatalf("The execution of rpc %s is failed due to error %v, please add implementation for the rpc", rpc.Path, err)
 			}
-			t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, user, dut.Name(), expectedExecErr, err)
+			t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
 		}
-		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, user, dut.Name(), expectedExecErr, err)
+		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
 	}
 }
 
-// Load Policy from the JSON File
-func LoadPolicyFromJsonFile(t *testing.T, dut *ondatra.DUTDevice, file_path string) []AuthorizationPolicy {
-	// Open the JSON file.
+// LoadPolicyFromJsonFile Loads Policy from a JSON File.
+func LoadPolicyFromJsonFile(t *testing.T, dut *ondatra.DUTDevice, file_path string) map[string]AuthorizationPolicy {
 	file, err := os.Open(file_path)
 	if err != nil {
 		t.Fatalf("Not expecting error while opening policy file %v", err)
@@ -238,16 +271,9 @@ func LoadPolicyFromJsonFile(t *testing.T, dut *ondatra.DUTDevice, file_path stri
 	if err1 != nil {
 		t.Fatalf("Not expecting error while decoding policy %v", err)
 	}
-	return policies
-}
-
-// GetPolicyByName Gets the authorization policy with the specified name.
-func GetPolicyByName(t *testing.T, policyName string, policies []AuthorizationPolicy) AuthorizationPolicy {
+	policyMap := map[string]AuthorizationPolicy{}
 	for _, policy := range policies {
-		if policy.Name == policyName {
-			return policy
-		}
+		policyMap[policy.Name] = policy
 	}
-	t.Fatalf("Requested policy %s is not found", policyName)
-	return AuthorizationPolicy{}
+	return policyMap
 }
