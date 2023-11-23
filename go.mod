@@ -1,7 +1,5 @@
 module github.com/openconfig/featureprofiles
 
-replace github.com/openconfig/bootz v0.1.0 => github.com/mojiiba/bootz v0.0.0-20231121030543-658c11d58f19
-
 go 1.21
 
 require (
