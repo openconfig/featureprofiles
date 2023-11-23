@@ -71,7 +71,6 @@
           ]
         }
       }
-      
     ]
   },
   {
@@ -215,10 +214,10 @@
     ],
     "deny_rules": [
       {
-        "name": "fake-user-can-do-nothing",
+        "name": "deny-all-user-can-do-nothing",
         "source": {
           "principals": [
-            "spiffe://test-abc.foo.bar/xyz/fake"
+            "spiffe://test-abc.foo.bar/xyz/deny-all"
           ]
         },
         "request": {
