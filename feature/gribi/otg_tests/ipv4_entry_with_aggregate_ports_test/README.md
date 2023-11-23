@@ -18,7 +18,7 @@ Validate IPv4 support in gRIBI using an Aggregate Port as a static route Next Ho
     *   Single IPv4Entry -> NHG -> NH with MAC Override.
 
         *   Install 198.51.100.0/24 to NextHopGroup containing one NextHop which
-            is a static route to the ATE LAG port containing ports 2-3, and
+            is the ATE LAG port containing ports 2-3, and
             override the destination MAC to a specified value.
 
         *   Forward packets between ATE port-1 and ATE LAG (destined to
