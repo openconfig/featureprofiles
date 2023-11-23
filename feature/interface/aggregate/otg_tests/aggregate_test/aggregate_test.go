@@ -350,13 +350,9 @@ func (tc *testCase) verifyLACPTelemetry(t *testing.T) {
 		return
 	}
 
-	ateLACPs := gnmi.GetAll(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMemberAny().State())
-	for _, p := range ateLACPs {
-		js, err := ygot.Marshal7951(p, ygot.JSONIndent("  "))
-		if err == nil {
-			t.Logf("received LACP telem, %s", js)
-		}
-
+	gotLAG := gnmi.Get(t, tc.dut, gnmi.OC().Lacp().Interface(tc.aggID).State())
+	if got := gotLAG.GetName(); got != tc.aggID {
+		t.Errorf("DUT LAG had incorrect name, got: %s, want: %s", got, tc.aggID)
 	}
 
 	for i := 1; i < len(tc.dutPorts); i++ {
@@ -369,6 +365,10 @@ func (tc *testCase) verifyLACPTelemetry(t *testing.T) {
 		// The ATE ports are configured with the ID rather than the name.
 		ateLACP := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(atePort.ID()).State())
 		dutLACP := gnmi.Get(t, tc.dut, gnmi.OC().Lacp().Interface(tc.aggID).Member(dutPort.Name()).State())
+
+		if got := dutLACP.GetInterface(); got != dutPort.Name() {
+			t.Errorf("DUT LAG had incorrect name, got: %s, want: %s", got, tc.aggID)
+		}
 
 		// We want to check:
 		//	port-num of the ATE matches partner-port-num of the DUT.
