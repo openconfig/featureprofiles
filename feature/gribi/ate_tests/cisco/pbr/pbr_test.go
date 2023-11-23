@@ -276,7 +276,7 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *o
 }
 
 func configPBRunderInterface(t *testing.T, args *testArgs, interfaceName, policyName string) {
-	// gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config(), policyName)
+	// gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+".0").ApplyVrfSelectionPolicy().Config(), policyName)
 	t.Log("configPBRunderInterface")
 	dut := ondatra.DUT(t, "dut")
 	pfPath := gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName + ".0")
@@ -327,6 +327,8 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 
 	physicalInterface := sortPorts(args.dut.Ports())[0].Name()
 	physicalInterfaceConfig := gnmi.OC().Interface(physicalInterface)
+	configToChange := "interface " + physicalInterface + "\nno shutdown\nno bundle id 120 mode on\n"
+	util.GNMIWithText(ctx, t, args.dut, configToChange)
 
 	// Configure the physcial interface
 	config := generatePhysicalInterfaceConfig(t, physicalInterface, "192.192.192.1", 24)
@@ -337,10 +339,14 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 	if !samePolicy {
 		policyName = "new-PBR"
 		configNewPolicy(t, args.dut, policyName, 0)
-		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Config())
+		// defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Config())
 	}
 	configPBRunderInterface(t, args, physicalInterface, policyName)
-	configPBRunderInterface(t, args, args.interfaces.in[0], pbrName)
+	configPBRunderInterface(t, args, args.interfaces.in[0], policyName)
+
+	configToChange1 := "interface " + physicalInterface + "\nno ipv4 address\nno service-policy type pbr input " + policyName + "\n"
+	t.Logf("configToChange1 - %v", configToChange1)
+	util.GNMIWithText(ctx, t, args.dut, configToChange1)
 
 	// Remove the interface from physical to bundle interface
 	memberConfig := generateBundleMemberInterfaceConfig(t, physicalInterface, args.interfaces.in[0])
@@ -990,7 +996,6 @@ func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 	// Expecting Traffic fail
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
@@ -1011,23 +1016,15 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 		gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Ipv4().DscpSet().Config(), []uint8{10, 12})
 		defer configBasePBR(t, args.dut)
 
-		// // TODO: enabled once gNMI Get works on XR
-		// t.Run("Verify added", func(t *testing.T) {
-		// 	verifyConfigPbrMatchIpv4DscpSet(ctx, t, args, 1, []uint8{10, 12})
-		// })
-
 		// Create Traffic and check traffic
 		t.Run("Verify traffic on DSCP 12", func(t *testing.T) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
-			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
-
-			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 12, weights...)
+			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
 		})
 
 		// TODO: Make sure this is correct when current config failure is fixed.
 		t.Run("Expect traffic fail without DSCP", func(t *testing.T) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
-			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 			// Expecting Traffic fail
 			testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
@@ -1041,8 +1038,6 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 		// Create Traffic and check traffic
 		t.Run("Verify traffic", func(t *testing.T) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
-			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
-
 			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 		})
 	})
