@@ -350,12 +350,24 @@ func (tc *testCase) verifyLACPTelemetry(t *testing.T) {
 		return
 	}
 
-	for i, dutPort := range tc.dutPorts {
+	ateLACPs := gnmi.GetAll(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMemberAny().State())
+	for _, p := range ateLACPs {
+		js, err := ygot.Marshal7951(p, ygot.JSONIndent("  "))
+		if err == nil {
+			t.Logf("received LACP telem, %s", js)
+		}
+
+	}
+
+	for i := 1; i < len(tc.dutPorts); i++ {
 		// The ports in dutPort correspond 1:1 with the ports in atePort.
+		// port1 is reserved for traffic injection.
+		dutPort := tc.dutPorts[i]
 		atePort := tc.atePorts[i]
 
 		// We are validating LACP statistics, so we need to validate each member port.
-		ateLACP := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(atePort.Name()).State())
+		// The ATE ports are configured with the ID rather than the name.
+		ateLACP := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(atePort.ID()).State())
 		dutLACP := gnmi.Get(t, tc.dut, gnmi.OC().Lacp().Interface(tc.aggID).Member(dutPort.Name()).State())
 
 		// We want to check:
