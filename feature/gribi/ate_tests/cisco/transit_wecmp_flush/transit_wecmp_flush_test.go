@@ -73,6 +73,10 @@ func testCD2RecursiveNonConnectedNHOP(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 	// 192.0.2.42/32  Next-Site
 	weights := map[uint64]uint64{41: 40}
+
+	// adding static route since nh is not connected
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.129.1.2/32 null 0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.129.1.2/32 null 0")
 	args.c1.AddNH(t, 41, "100.129.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks) // Not connected
 	args.c1.AddNHG(t, 100, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -361,7 +365,7 @@ func testReplaceDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
@@ -541,7 +545,7 @@ func testNHInterfaceInDifferentVRF(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Correct the related NH and verify traffic
-	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 
 	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
@@ -558,6 +562,10 @@ func testNHIPOutOfInterfaceSubnet(t *testing.T, args *testArgs) {
 		32: 30,
 		33: 30,
 	}
+	// adding static route since nh is not connected
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.121.2.2/32 Bundle-Ether121")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.121.2.2/32 Bundle-Ether121")
+
 	args.c1.AddNH(t, 31, "100.121.2.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
@@ -645,6 +653,10 @@ func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Set InCorrect related NH
+	// adding static route since nh is not connected
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 1.2.3.4/32 null 0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 1.2.3.4/32 null 0")
+
 	args.c1.AddNH(t, 31, "1.2.3.4", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
 	// Correct the related NH and verify traffic
@@ -1776,6 +1788,10 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	weights1 := map[uint64]uint64{
 		41: 40,
 	}
+	// adding static route since nh is not connected
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.121.1.3/32 Bundle-Ether121")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.121.1.3/32 Bundle-Ether121")
+
 	args.c1.AddNH(t, 41, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNHG(t, 100, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -1969,6 +1985,10 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 	weights1 := map[uint64]uint64{
 		41: 40,
 	}
+	// adding static route since nh is not connected
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.121.1.3/32 Bundle-Ether121")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.121.1.3/32 Bundle-Ether121")
+
 	args.c1.AddNH(t, 41, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNHG(t, 100, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
