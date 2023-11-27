@@ -74,6 +74,12 @@ const (
 	rplName                  = "ALLOW"
 	peerGrpNamev4            = "BGP-PEER-GROUP-V4"
 	peerGrpNamev6            = "BGP-PEER-GROUP-V6"
+	r4UnderLimit             = "r4UnderLimit"
+	r6UnderLimit             = "r6UnderLimit"
+	r4AtLimit                = "r4AtLimit"
+	r6AtLimit                = "r6AtLimit"
+	r4OverLimit              = "r4OverLimit"
+	r6OverLimit              = "r6OverLimit"
 )
 
 var (
@@ -185,19 +191,19 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().SetIpv6Name(dstIpv6.Name()).Peers().Add().SetName(ateDst.Name + ".BGP6.peer")
 	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), "r4UnderLimit", Routesv4NetUnderLimit, prefixLimit-1)
-	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), "r6UnderLimit", Routesv6NetUnderLimit, prefixLimit-1)
-	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), "r4AtLimit", Routesv4NetAtLimit, prefixLimit)
-	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), "r6AtLimit", Routesv6NetAtLimit, prefixLimit)
-	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), "r4OverLimit", Routesv4NetOverLimit, prefixLimit+1)
-	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), "r6OverLimit", Routesv6NetOverLimit, prefixLimit+1)
+	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4UnderLimit, Routesv4NetUnderLimit, prefixLimit-1)
+	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6UnderLimit, Routesv6NetUnderLimit, prefixLimit-1)
+	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4AtLimit, Routesv4NetAtLimit, prefixLimit)
+	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6AtLimit, Routesv6NetAtLimit, prefixLimit)
+	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4OverLimit, Routesv4NetOverLimit, prefixLimit+1)
+	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6OverLimit, Routesv6NetOverLimit, prefixLimit+1)
 
-	configureFlow(topo, "IPv4.UnderLimit", srcIpv4.Name(), "r4UnderLimit", ateSrc.MAC, ateSrc.IPv4, Routesv4NetUnderLimit, "ipv4", prefixLimit-1)
-	configureFlow(topo, "IPv6.UnderLimit", srcIpv6.Name(), "r6UnderLimit", ateSrc.MAC, ateSrc.IPv6, Routesv6NetUnderLimit, "ipv6", prefixLimit-1)
-	configureFlow(topo, "IPv4.AtLimit", srcIpv4.Name(), "r4AtLimit", ateSrc.MAC, ateSrc.IPv4, Routesv4NetAtLimit, "ipv4", prefixLimit)
-	configureFlow(topo, "IPv6.AtLimit", srcIpv6.Name(), "r6AtLimit", ateSrc.MAC, ateSrc.IPv6, Routesv6NetAtLimit, "ipv6", prefixLimit)
-	configureFlow(topo, "IPv4.OverLimit", srcIpv4.Name(), "r4OverLimit", ateSrc.MAC, ateSrc.IPv4, Routesv4NetOverLimit, "ipv4", prefixLimit+1)
-	configureFlow(topo, "IPv6.OverLimit", srcIpv6.Name(), "r6OverLimit", ateSrc.MAC, ateSrc.IPv6, Routesv6NetOverLimit, "ipv6", prefixLimit+1)
+	configureFlow(topo, "IPv4.UnderLimit", srcIpv4.Name(), r4UnderLimit, ateSrc.MAC, ateSrc.IPv4, Routesv4NetUnderLimit, "ipv4", prefixLimit-1)
+	configureFlow(topo, "IPv6.UnderLimit", srcIpv6.Name(), r6UnderLimit, ateSrc.MAC, ateSrc.IPv6, Routesv6NetUnderLimit, "ipv6", prefixLimit-1)
+	configureFlow(topo, "IPv4.AtLimit", srcIpv4.Name(), r4AtLimit, ateSrc.MAC, ateSrc.IPv4, Routesv4NetAtLimit, "ipv4", prefixLimit)
+	configureFlow(topo, "IPv6.AtLimit", srcIpv6.Name(), r6AtLimit, ateSrc.MAC, ateSrc.IPv6, Routesv6NetAtLimit, "ipv6", prefixLimit)
+	configureFlow(topo, "IPv4.OverLimit", srcIpv4.Name(), r4OverLimit, ateSrc.MAC, ateSrc.IPv4, Routesv4NetOverLimit, "ipv4", prefixLimit+1)
+	configureFlow(topo, "IPv6.OverLimit", srcIpv6.Name(), r6OverLimit, ateSrc.MAC, ateSrc.IPv6, Routesv6NetOverLimit, "ipv6", prefixLimit+1)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
@@ -496,38 +502,22 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, duration time.Duration) {
 	time.Sleep(20 * time.Second)
 }
 
-func advertiseBGPRoutes(t *testing.T, conf gosnappi.Config, name string, routes uint32) {
+func advertiseBGPRoutes(t *testing.T, conf gosnappi.Config, routesnames []string) {
 
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
-	if routes == prefixLimit {
-		name = "AtLimit"
-	}
 	cs := gosnappi.NewControlState()
-	cs.Protocol().Route().SetNames([]string{"r4" + name, "r6" + name}).SetState(gosnappi.StateProtocolRouteState.ADVERTISE)
+	cs.Protocol().Route().SetNames(routesnames).SetState(gosnappi.StateProtocolRouteState.ADVERTISE)
 	otg.SetControlState(t, cs)
 
 }
 
-func withdrawBGPRoutes(t *testing.T, conf gosnappi.Config, name string, routes uint32) {
+func withdrawBGPRoutes(t *testing.T, conf gosnappi.Config, routesnames []string) {
 
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
-	if routes == prefixLimit {
-		name = "AtLimit"
-	}
 	cs := gosnappi.NewControlState()
-	if name == "all" {
-		cs.Protocol().Route().SetNames([]string{"r4UnderLimit",
-			"r6UnderLimit",
-			"r4AtLimit",
-			"r6AtLimit",
-			"r4OverLimit",
-			"r6OverLimit"}).
-			SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
-	} else {
-		cs.Protocol().Route().SetNames([]string{"r4" + name, "r6" + name}).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
-	}
+	cs.Protocol().Route().SetNames(routesnames).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
 	otg.SetControlState(t, cs)
 
 }
@@ -538,6 +528,7 @@ type testCase struct {
 	numRoutes        uint32
 	wantEstablished  bool
 	wantNoPacketLoss bool
+	routeNames       []string
 }
 
 func (tc *testCase) run(t *testing.T, conf gosnappi.Config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -552,7 +543,7 @@ func (tc *testCase) run(t *testing.T, conf gosnappi.Config, dut *ondatra.DUTDevi
 		}
 	}
 
-	advertiseBGPRoutes(t, conf, tc.name, tc.numRoutes)
+	advertiseBGPRoutes(t, conf, tc.routeNames)
 	now := time.Now()
 
 	// Verify Port Status
@@ -588,7 +579,7 @@ func (tc *testCase) run(t *testing.T, conf gosnappi.Config, dut *ondatra.DUTDevi
 		})
 	}
 
-	withdrawBGPRoutes(t, conf, tc.name, tc.numRoutes)
+	withdrawBGPRoutes(t, conf, tc.routeNames)
 }
 
 func TestTrafficBGPPrefixLimit(t *testing.T) {
@@ -598,24 +589,28 @@ func TestTrafficBGPPrefixLimit(t *testing.T) {
 		numRoutes:        prefixLimit - 1,
 		wantEstablished:  true,
 		wantNoPacketLoss: true,
+		routeNames:       []string{r4UnderLimit, r6UnderLimit},
 	}, {
 		name:             "AtLimit",
 		desc:             "BGP Prefixes at threshold of expected limit",
 		numRoutes:        prefixLimit,
 		wantEstablished:  true,
 		wantNoPacketLoss: true,
+		routeNames:       []string{r4AtLimit, r6AtLimit},
 	}, {
 		name:             "OverLimit",
 		desc:             "BGP Prefixes outside expected limit",
 		numRoutes:        prefixLimit + 1,
 		wantEstablished:  false,
 		wantNoPacketLoss: false,
+		routeNames:       []string{r4OverLimit, r6OverLimit},
 	}, {
 		name:             "ReestablishedAtLimit",
 		desc:             "BGP Session ReEstablished after prefixes are within limits",
 		numRoutes:        prefixLimit,
 		wantEstablished:  true,
 		wantNoPacketLoss: true,
+		routeNames:       []string{r4AtLimit, r6AtLimit},
 	}}
 
 	dut := ondatra.DUT(t, "dut")
@@ -630,7 +625,12 @@ func TestTrafficBGPPrefixLimit(t *testing.T) {
 
 	ate.OTG().StartProtocols(t)
 
-	withdrawBGPRoutes(t, conf, "all", prefixLimit+1)
+	withdrawBGPRoutes(t, conf, []string{r4UnderLimit,
+		r6UnderLimit,
+		r4AtLimit,
+		r6AtLimit,
+		r4OverLimit,
+		r6OverLimit})
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
