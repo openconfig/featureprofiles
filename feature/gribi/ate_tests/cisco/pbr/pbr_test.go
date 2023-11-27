@@ -5,13 +5,16 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -299,13 +302,41 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	t.Log("Configure PBR policy and Apply it under interface")
 	configBasePBR(t, dut)
 
-	// gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
-
 	getPolicyForwardingInterfaceConfig(t, pbrName, "Bundle-Ether120")
 
 	t.Log("Reload the router to activate hw module config")
-	util.ReloadDUT(t, dut)
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	})
+	if err != nil {
+		t.Fatalf("Reboot failed %v", err)
+	}
+	startReboot := time.Now()
+	const maxRebootTime = 30
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
 
+		time.Sleep(3 * time.Minute)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
 
 func getPolicyForwardingInterfaceConfig(t *testing.T, policyName, intf string) *oc.NetworkInstance_PolicyForwarding_Interface {
@@ -316,7 +347,6 @@ func getPolicyForwardingInterfaceConfig(t *testing.T, policyName, intf string) *
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(intf)
 	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	t.Logf("Applying forwarding policy on config %v ... ", pfCfg)
 	return pfCfg
 
 }
@@ -339,7 +369,6 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 	if !samePolicy {
 		policyName = "new-PBR"
 		configNewPolicy(t, args.dut, policyName, 0)
-		// defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Config())
 	}
 	configPBRunderInterface(t, args, physicalInterface, policyName)
 	configPBRunderInterface(t, args, args.interfaces.in[0], policyName)
