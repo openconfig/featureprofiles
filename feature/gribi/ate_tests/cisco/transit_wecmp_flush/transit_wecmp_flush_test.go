@@ -2001,7 +2001,18 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 func TestTransitWECMPFlush(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	var vrfs = []string{vrf1, vrf2}
+	configVRF(t, dut, vrfs)
+	configureDUT(t, dut)
+	configbasePBR(t, dut, "TE", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	configbasePBR(t, dut, "TE", 2, oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{16})
+	configbasePBR(t, dut, "VRF1", 3, oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{18})
+	configbasePBR(t, dut, "TE", 4, oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{48})
+	configRP(t, dut)
+	addISISOC(t, dut, []string{"Bundle-Ether120", "Bundle-Ether121"})
+	addBGPOC(t, dut, []string{"100.120.1.2", "100.121.1.2"})
 	// convertFlowspecToPBR(ctx, t, dut)
+
 	ate := ondatra.ATE(t, "ate")
 	test := []struct {
 		name string
@@ -2179,7 +2190,6 @@ func TestTransitWECMPFlush(t *testing.T) {
 			desc: "Transit TC 074 - ADD/REPLACE/DELETE during related configuration change",
 			fn:   testAddReplaceDeleteWithRelatedConfigChange,
 		},
-
 		{
 			name: "CD2StaticMacChangeNHOP",
 			desc: "Static Arp Resolution",
