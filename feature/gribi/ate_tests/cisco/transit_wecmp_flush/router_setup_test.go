@@ -65,23 +65,10 @@ var (
 		MAC:     "00:01:00:02:00:00",
 	}
 
-	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
-		IPv4:    "100.120.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
-
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "100.121.1.1",
 		IPv6:    "192:0:2::5",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
-		IPv4:    "100.121.1.2",
-		IPv6:    "192:0:2::6",
 		IPv4Len: ipv4PrefixLen,
 	}
 
@@ -92,13 +79,6 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
-		IPv4:    "100.122.1.2",
-		IPv6:    "192:0:2::A",
-		IPv4Len: ipv4PrefixLen,
-	}
-
 	dutPort4 = attrs.Attributes{
 		Desc:    "dutPort4",
 		IPv4:    "100.123.1.1",
@@ -106,23 +86,10 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort4 = attrs.Attributes{
-		Name:    "atePort4",
-		IPv4:    "100.123.1.2",
-		IPv6:    "192:0:2::E",
-		IPv4Len: ipv4PrefixLen,
-	}
 	dutPort5 = attrs.Attributes{
 		Desc:    "dutPort5",
 		IPv4:    "100.124.1.1",
 		IPv6:    "192:0:2::11",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort5 = attrs.Attributes{
-		Name:    "atePort5",
-		IPv4:    "100.124.1.2",
-		IPv6:    "192:0:2::12",
 		IPv4Len: ipv4PrefixLen,
 	}
 
@@ -133,13 +100,6 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort6 = attrs.Attributes{
-		Name:    "atePort6",
-		IPv4:    "100.125.1.2",
-		IPv6:    "192:0:2::16",
-		IPv4Len: ipv4PrefixLen,
-	}
-
 	dutPort7 = attrs.Attributes{
 		Desc:    "dutPort7",
 		IPv4:    "100.126.1.1",
@@ -147,24 +107,10 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort7 = attrs.Attributes{
-		Name:    "atePort7",
-		IPv4:    "100.126.1.2",
-		IPv6:    "192:0:2::1A",
-		IPv4Len: ipv4PrefixLen,
-	}
-
 	dutPort8 = attrs.Attributes{
 		Desc:    "dutPort8",
 		IPv4:    "100.127.1.1",
 		IPv6:    "192:0:2::1D",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort8 = attrs.Attributes{
-		Name:    "atePort8",
-		IPv4:    "100.127.1.2",
-		IPv6:    "192:0:2::1E",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
