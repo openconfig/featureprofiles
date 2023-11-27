@@ -190,8 +190,6 @@ message Metadata {
     bool omit_l2_mtu = 50;
     // Skip power admin for controller card
     bool skip_controller_card_power_admin = 51;
-    // Skip PLQ packets count check.
-    bool skip_plq_packets_count_check = 55;
     // Device requires the banner to have a delimiter character.
     string banner_delimiter = 60;
     // Allowed tolerance for BGP traffic flow while comparing for pass or fail
@@ -273,8 +271,6 @@ message Metadata {
     bool os_component_parent_is_supervisor_or_linecard = 87;
     // Parent of OS component is of type CHASSIS.
     bool os_component_parent_is_chassis = 88;
-    // Device does not support fabric power-admin-state leaf.
-    bool skip_fabric_card_power_admin = 89;
     // Devices require configuring the same ISIS Metrics for Level 1 when
     // configuring Level 2 Metrics.
     bool isis_require_same_l1_metric_with_l2_metric = 91;
@@ -364,23 +360,26 @@ message Metadata {
     // Devices does not support member link loopback
     // Juniper: b/307763669
     bool member_link_loopback_unsupported = 125;
+    // Device does not support PLQ operational status check on interface
+    // Juniper: b/308990185
+    bool skip_plq_interface_oper_status_check = 126;
     // Skip gNMI container OP tc.
-    bool skip_container_op = 126;
+    bool skip_container_op = 127;
     // Set ethernet from state.
-    bool dont_set_ethernet_from_state = 127;
+    bool dont_set_ethernet_from_state = 128;
     // Set subinterface to nil.
-    bool set_subinterface_nil = 128;
+    bool set_subinterface_nil = 129;
     // Reorder calls for vendor compatibility.
-    bool reorder_calls_for_vendor_compatibilty = 129;
+    bool reorder_calls_for_vendor_compatibilty = 130;
     // Add missing base config using cli.
-    bool add_missing_base_config_via_cli = 130;
+    bool add_missing_base_config_via_cli = 131;
     // skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
-    bool skip_macaddress_check = 131;
+    bool skip_macaddress_check = 132;
 	  // skip_breakout returns true if breakout via gNMI needs to be skipped.
-    bool skip_breakout = 132;
-    
+    bool skip_breakout = 133;
+
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89;
   }
 
   message PlatformExceptions {

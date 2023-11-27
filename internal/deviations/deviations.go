@@ -454,12 +454,6 @@ func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
 }
 
-// SkipPLQPacketsCountCheck returns if PLQ packets count check should be skipped.
-// Default value is false.
-func SkipPLQPacketsCountCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPlqPacketsCountCheck()
-}
-
 // SkipControllerCardPowerAdmin returns if power-admin-state config on controller card should be skipped.
 // Default value is false.
 func SkipControllerCardPowerAdmin(dut *ondatra.DUTDevice) bool {
@@ -492,12 +486,6 @@ func OSComponentParentIsSupervisorOrLinecard(dut *ondatra.DUTDevice) bool {
 // OSComponentParentIsChassis returns true if parent of OS component is of type CHASSIS.
 func OSComponentParentIsChassis(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOsComponentParentIsChassis()
-}
-
-// SkipFabricCardPowerAdmin returns whether the device should skip the Platform Power Down Up for Fabric Card.
-// Default value is false.
-func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipFabricCardPowerAdmin()
 }
 
 // ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
@@ -684,6 +672,12 @@ func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 // loopback on aggregated links instead of member links.
 func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
+}
+
+// SkipPlqInterfaceOperStatusCheck returns true for devices that do not support
+// PLQ operational status check for interfaces
+func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
 }
 
 // SkipContainerOp returns true if gNMI container OP needs to be skipped.

@@ -3,18 +3,25 @@ package mplsutil
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/entity-naming/entname"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
+// Tests initialised by the GRIBIMPLSTest helper rely on a specific topology
+// of the form:
+//
+//	 -----         2001:db8::0/127      -----
+//	|     |-port1--192.0.2.0/31--port1-|     |
+//	| ate |                            | dut |
+//	|     |-port2--192.0.2.2/31--port2-|     |
+//	 -----         2001:db8::2/127      -----
+//
+// The following variables set up the device configurations for this topology.
 var (
 	// ATESrc describes the configuration parameters for the ATE port sourcing
 	// a flow.
@@ -58,11 +65,24 @@ var (
 	}
 )
 
+const (
+	// ipv4Prefix is the IPv4 prefix that the test sends packets towards
+	// that results in MPLS labels being pushed to the packets.
+	dutRoutedIPv4Prefix = "198.18.1.0/24"
+	// staticMPLSToATE is an MPLS label that the test sends packets towards
+	// that results in packets being routed to the ATE - it is configured
+	// through gRIBI.
+	staticMPLSToATE = 100
+)
+
 var (
 	// entmap provides a mapping between an ONDATRA vendor and a vendor
 	// within the entity naming library.
 	entmap = map[ondatra.Vendor]entname.Vendor{
-		ondatra.ARISTA: entname.VendorArista,
+		ondatra.ARISTA:  entname.VendorArista,
+		ondatra.NOKIA:   entname.VendorNokia,
+		ondatra.JUNIPER: entname.VendorJuniper,
+		ondatra.CISCO:   entname.VendorCisco,
 	}
 )
 
@@ -131,39 +151,4 @@ func configureATEInterfaces(t *testing.T, ate *ondatra.ATEDevice, srcATE, srcDUT
 	t.Logf("configuration for OTG is %s", c)
 
 	return topology, nil
-}
-
-// PushBaseConfigs pushes the base configuration to the ATE and DUT devices in
-// the test topology.
-func PushBaseConfigs(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) gosnappi.Config {
-	DUTSrc.Name = dut.Port(t, "port1").Name()
-	DUTDst.Name = dut.Port(t, "port2").Name()
-
-	otgCfg, err := configureATEInterfaces(t, ate, ATESrc, DUTSrc, ATEDst, DUTDst)
-	if err != nil {
-		t.Fatalf("cannot configure ATE interfaces via OTG, %v", err)
-	}
-
-	ate.OTG().PushConfig(t, otgCfg)
-
-	d := &oc.Root{}
-	// configure ports on the DUT. note that each port maps to two interfaces
-	// because we create a LAG.
-	for index, i := range []*attrs.Attributes{DUTSrc, DUTDst} {
-		cfgs, err := dutIntf(dut, i, index)
-		if err != nil {
-			t.Fatalf("cannot generate configuration for interface %s, err: %v", i.Name, err)
-		}
-		for _, intf := range cfgs {
-			d.AppendInterface(intf)
-		}
-	}
-	fptest.LogQuery(t, "", gnmi.OC().Config(), d)
-	gnmi.Update(t, dut, gnmi.OC().Config(), d)
-
-	// Sleep for 1 second to ensure that OTG has absorbed configuration.
-	time.Sleep(1 * time.Second)
-	ate.OTG().StartProtocols(t)
-
-	return otgCfg
 }
