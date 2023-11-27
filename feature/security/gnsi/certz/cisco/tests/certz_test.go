@@ -1714,9 +1714,9 @@ func TestHARedundancySwithOver(t *testing.T) {
 	getRequest = &gnmipb.GetRequest{
 		Path: []*gnmipb.Path{
 			{Origin: "openconfig", Elem: []*gnmipb.PathElem{
-				{Name: "Cisco-IOS-XR-ztp-oper:ztp"},
-				{Name: "status"},
-				{Name: "state"},
+				{Name: "system"},
+				{Name: "config"},
+				{Name: "hostname"},
 			}},
 		},
 		Type:     gnmipb.GetRequest_ALL,
@@ -1743,21 +1743,33 @@ func TestHARedundancySwithOver(t *testing.T) {
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	getResponse, err := gnmi.Get(context.Background(), getRequest)
+	getResponse, err := gnmi.Get(context.Background(), getRequest); if err!=nil {
+		t.Fatal("Get hostname is failed after switchover")
+	}
 	t.Logf("VAL:  %v ", getResponse)
 
 	//UnCONFIG NEW gNSI CLI
 	t.Log("UnConfig new gNSI CLI")
-	configToremove := "no grpc gnsi service certz ssl-profile-id rotatecertzrsa \n"
-	ctx = context.Background()
-	dut = ondatra.DUT(t, "dut")
-	util.GNMIWithText(ctx, t, dut, configToremove)
-
-	//Delete rotated profile-id
+	r := &gnmipb.SetRequest{
+		Update: []*gnmipb.Update{
+			{
+				Path: &gnmipb.Path{Origin: "cli"},
+				Val:  &gnmipb.TypedValue{Value: &gnmipb.TypedValue_AsciiVal{AsciiVal: "no grpc gnsi service certz ssl-profile-id rotatecertzrsa \n"}},
+			},
+		},
+	}
+	_, err = gnmi.Set(context.Background(), r)
+	if err != nil {
+		t.Fatalf("There is error when applying the config, %v", err)
+	}
+	
+	//Delete rotated profile-id using the old cert, not passing cert does that 
+	gnsiC, err =dut.RawAPIs().BindingDUT().DialGNSI(ctx); if err!=nil {
+		t.Fatalf("There is error reconnecting  GNSI, %v", err)
+	}
 	delprofile, err := gnsiC.Certz().DeleteProfile(context.Background(), &certzpb.DeleteProfileRequest{SslProfileId: profile_id})
 	if err != nil {
 		t.Fatalf("Unexpected Error in deleting profile list: %v", err)
 	}
 	t.Logf("Delete Profile was successful, %v", delprofile)
-
 }
