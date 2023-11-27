@@ -53,7 +53,7 @@ const (
 	grRestartTime            = 75
 	grStaleRouteTime         = 300.0
 	ipv4SrcTraffic           = "192.0.2.2"
-	ipv6SrcTraffic           = "2000:DB8:1::1"
+	ipv6SrcTraffic           = "2001:DB8:1::1"
 	ipv4DstTraffic           = "203.0.113.0"
 	ipv6DstTraffic           = "2001:DB8:2::1"
 	advertisedRoutesv4Prefix = 32
