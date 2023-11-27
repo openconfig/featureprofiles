@@ -54,14 +54,10 @@ const (
 	grStaleRouteTime         = 300.0
 	ipv4SrcTraffic           = "192.0.2.2"
 	ipv6SrcTraffic           = "2000:DB8::1"
-	Routesv4NetUnderLimit    = "203.0.113.0"
-	Routesv6NetUnderLimit    = "2001:DB8:2:0::"
-	Routesv4NetAtLimit       = "203.0.113.16"
-	Routesv6NetAtLimit       = "2001:DB8:2:1::"
-	Routesv4NetOverLimit     = "203.0.113.32"
-	Routesv6NetOverLimit     = "2001:DB8:2:2::"
-	advertisedRoutesv4Prefix = 28
-	advertisedRoutesv6Prefix = 64
+	ipv4DstTraffic           = "203.0.113.0"
+	ipv6DstTraffic           = "2001:DB8:2::1"
+	advertisedRoutesv4Prefix = 32
+	advertisedRoutesv6Prefix = 128
 	prefixLimit              = 200
 	pwarnthesholdPct         = 10
 	prefixTimer              = 30.0
@@ -191,19 +187,19 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().SetIpv6Name(dstIpv6.Name()).Peers().Add().SetName(ateDst.Name + ".BGP6.peer")
 	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4UnderLimit, Routesv4NetUnderLimit, prefixLimit-1)
-	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6UnderLimit, Routesv6NetUnderLimit, prefixLimit-1)
-	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4AtLimit, Routesv4NetAtLimit, prefixLimit)
-	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6AtLimit, Routesv6NetAtLimit, prefixLimit)
-	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4OverLimit, Routesv4NetOverLimit, prefixLimit+1)
-	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6OverLimit, Routesv6NetOverLimit, prefixLimit+1)
+	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4UnderLimit, ipv4DstTraffic, prefixLimit-1)
+	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6UnderLimit, ipv6DstTraffic, prefixLimit-1)
+	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4AtLimit, ipv4DstTraffic, prefixLimit)
+	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6AtLimit, ipv6DstTraffic, prefixLimit)
+	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4OverLimit, ipv4DstTraffic, prefixLimit+1)
+	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6OverLimit, ipv6DstTraffic, prefixLimit+1)
 
-	configureFlow(topo, "IPv4.UnderLimit", srcIpv4.Name(), r4UnderLimit, ateSrc.MAC, ateSrc.IPv4, Routesv4NetUnderLimit, "ipv4", prefixLimit-1)
-	configureFlow(topo, "IPv6.UnderLimit", srcIpv6.Name(), r6UnderLimit, ateSrc.MAC, ateSrc.IPv6, Routesv6NetUnderLimit, "ipv6", prefixLimit-1)
-	configureFlow(topo, "IPv4.AtLimit", srcIpv4.Name(), r4AtLimit, ateSrc.MAC, ateSrc.IPv4, Routesv4NetAtLimit, "ipv4", prefixLimit)
-	configureFlow(topo, "IPv6.AtLimit", srcIpv6.Name(), r6AtLimit, ateSrc.MAC, ateSrc.IPv6, Routesv6NetAtLimit, "ipv6", prefixLimit)
-	configureFlow(topo, "IPv4.OverLimit", srcIpv4.Name(), r4OverLimit, ateSrc.MAC, ateSrc.IPv4, Routesv4NetOverLimit, "ipv4", prefixLimit+1)
-	configureFlow(topo, "IPv6.OverLimit", srcIpv6.Name(), r6OverLimit, ateSrc.MAC, ateSrc.IPv6, Routesv6NetOverLimit, "ipv6", prefixLimit+1)
+	configureFlow(topo, "IPv4.UnderLimit", srcIpv4.Name(), r4UnderLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit-1)
+	configureFlow(topo, "IPv6.UnderLimit", srcIpv6.Name(), r6UnderLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit-1)
+	configureFlow(topo, "IPv4.AtLimit", srcIpv4.Name(), r4AtLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit)
+	configureFlow(topo, "IPv6.AtLimit", srcIpv6.Name(), r6AtLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit)
+	configureFlow(topo, "IPv4.OverLimit", srcIpv4.Name(), r4OverLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit+1)
+	configureFlow(topo, "IPv6.OverLimit", srcIpv6.Name(), r6OverLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit+1)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
