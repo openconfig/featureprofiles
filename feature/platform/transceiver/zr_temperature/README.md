@@ -2,14 +2,15 @@
 
 ## Summary
 
-Validate 400ZR optics reports module level internally measured temperature
+Validate 400ZR optics report module level internally measured temperature
 in 1/256 degree Celsius increments as defined in the CMIS.
+
 Link to CMIS:
 https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
 
 ## Procedure
 
-*   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
+*   Connect two ZR optics using a duplex LC fiber jumper such that TX
     output power of one is the RX input power of the other module.
 *   To establish a point to point ZR link ensure the following:
       * Both transceivers state is enabled
@@ -32,9 +33,10 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
 *   Reported temperature value must always be of type decimal64.
 
 
-**Note:** For min, max, and avg values, 10 second sampling is preferred. If 
-          10 seconds is not supported, the sampling interval used must be
-          specified by adding a deviation to the test.
+**Note:** For min, max, and avg values, 10 second sampling is preferred. If the
+          min, max average values or the 10 seconds sampling is not supported,
+          the sampling interval used must be specified and this must be
+          captured by adding a deviation to the test.
 
 
 *   Verify the module temperature is reported correctly with optics interface
