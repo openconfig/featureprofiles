@@ -65,7 +65,7 @@ func resetCLI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
 		return err
 	}
 
-	if _, err := cli.SendCommand(ctx, conf); err != nil {
+	if _, err := cli.RunCommand(ctx, conf); err != nil {
 		return err
 	}
 	return nil
