@@ -1,4 +1,4 @@
-// // Package gnxi populates a list of all RPCs related for featuresprofile tests.
+// Package gnxi populates a list of all RPCs related for featuresprofile tests.
 // The below code is generated using ../gen/generate.go. Please do not modify.
 package gnxi
 
@@ -258,16 +258,14 @@ var (
 		Path:    "/gnoi.diag.Diag/StartBERT",
 		Exec:    GnoiDiagStartBERT,
 	}
-	//revive:disable the name of the rpc includes _
-	gnoifactory_resetFactoryResetALL = &RPC{
+	gnoifactory_resetFactoryResetALL = &RPC{ //revive:disable-line the name of the rpc includes _
 		Name:    "*",
 		Service: "gnoi.factory_reset.FactoryReset",
 		FQN:     "gnoi.factory_reset.FactoryReset.*",
 		Path:    "/gnoi.factory_reset.FactoryReset/*",
 		Exec:    GnoiFactoryresetAllRPC,
 	}
-	//revive:disable the name of the rpc includes _
-	gnoifactory_resetFactoryResetStart = &RPC{
+	gnoifactory_resetFactoryResetStart = &RPC{ //revive:disable-line the name of the rpc includes _
 		Name:    "Start",
 		Service: "gnoi.factory_reset.FactoryReset",
 		FQN:     "gnoi.factory_reset.FactoryReset.Start",
@@ -400,8 +398,7 @@ var (
 		Path:    "/gnoi.layer2.Layer2/ClearNeighborDiscovery",
 		Exec:    GnoiLayer2ClearNeighborDiscovery,
 	}
-	//revive:disable the name of the rpc includes _
-	gnoipacket_link_qualificationLinkQualificationCreate = &RPC{
+	gnoipacket_link_qualificationLinkQualificationCreate = &RPC{ //revive:disable-line the name of the rpc includes _
 		Name:    "Create",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
 		FQN:     "gnoi.packet_link_qualification.LinkQualification.Create",
@@ -506,40 +503,36 @@ var (
 		Path:    "/gnoi.optical.OTDR/Initiate",
 		Exec:    GnoiOtdrInitiate,
 	}
-	//revive:disable the name of the rpc includes _
-	gnoipacket_link_qualificationLinkQualificationALL = &RPC{
-		Name:    "*",
+	gnoipacket_link_qualificationLinkQualificationALL = &RPC{ //revive:disable-line the name of the rpc includes _
 		Service: "gnoi.packet_link_qualification.LinkQualification",
 		FQN:     "gnoi.packet_link_qualification.LinkQualification.*",
 		Path:    "/gnoi.packet_link_qualification.LinkQualification/*",
 		Exec:    GnoiLinkqualificationAllRPC,
 	}
-	//revive:disable the name of the rpc includes _
-	gnoipacket_link_qualificationLinkQualificationCapabilities = &RPC{
+	gnoipacket_link_qualificationLinkQualificationCapabilities = &RPC{ //revive:disable-line the name of the rpc includes _
+
 		Name:    "Capabilities",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
 		FQN:     "gnoi.packet_link_qualification.LinkQualification.Capabilities",
 		Path:    "/gnoi.packet_link_qualification.LinkQualification/Capabilities",
 		Exec:    GnoiLinkqualificationCapabilities,
 	}
-	//revive:disable the name of the rpc includes _
-	gnoipacket_link_qualificationLinkQualificationDelete = &RPC{
+	gnoipacket_link_qualificationLinkQualificationDelete = &RPC{ //revive:disable-line the name of the rpc includes _
+
 		Name:    "Delete",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
 		FQN:     "gnoi.packet_link_qualification.LinkQualification.Delete",
 		Path:    "/gnoi.packet_link_qualification.LinkQualification/Delete",
 		Exec:    GnoiLinkqualificationDelete,
 	}
-	//revive:disable the name of the rpc includes _
-	gnoipacket_link_qualificationLinkQualificationGet = &RPC{
+	gnoipacket_link_qualificationLinkQualificationGet = &RPC{ //revive:disable-line the name of the rpc includes _
 		Name:    "Get",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
 		FQN:     "gnoi.packet_link_qualification.LinkQualification.Get",
 		Path:    "/gnoi.packet_link_qualification.LinkQualification/Get",
 		Exec:    GnoiLinkqualificationGet,
 	}
-	//revive:disable the name of the rpc includes _
-	gnoipacket_link_qualificationLinkQualificationList = &RPC{
+	gnoipacket_link_qualificationLinkQualificationList = &RPC{ //revive:disable-line the name of the rpc includes _
 		Name:    "List",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
 		FQN:     "gnoi.packet_link_qualification.LinkQualification.List",

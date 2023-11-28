@@ -41,7 +41,7 @@ type Spiffe struct {
 	// ID store Spiffe id.
 	ID string
 	// TlsConf stores the svid of Spiffe id.
-	TlsConf *tls.Config
+	TLSConf *tls.Config
 }
 
 // AuthorizationPolicy is an struct to save an authz policy.
@@ -203,7 +203,7 @@ type verifyOpt interface {
 	isVerifyOpt()
 }
 
-// ExceptDenyOpt is passed to verify function when failure is expected.
+// ExceptDeny is passed to verify function when failure is expected.
 type ExceptDeny struct {
 }
 
@@ -245,7 +245,7 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", spiffe.ID, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
 	}
 	if hardVerify {
-		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(spiffe.TlsConf))}
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(spiffe.TLSConf))}
 		err := rpc.Exec(context.Background(), dut, opts)
 		if status.Code(err) != expectedExecErr {
 			if status.Code(err) == codes.Unimplemented {
@@ -257,9 +257,9 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 	}
 }
 
-// LoadPolicyFromJsonFile Loads Policy from a JSON File.
-func LoadPolicyFromJsonFile(t *testing.T, dut *ondatra.DUTDevice, file_path string) map[string]AuthorizationPolicy {
-	file, err := os.Open(file_path)
+// LoadPolicyFromJSONFile Loads Policy from a JSON File.
+func LoadPolicyFromJSONFile(t *testing.T, filePath string) map[string]AuthorizationPolicy {
+	file, err := os.Open(filePath)
 	if err != nil {
 		t.Fatalf("Not expecting error while opening policy file %v", err)
 	}

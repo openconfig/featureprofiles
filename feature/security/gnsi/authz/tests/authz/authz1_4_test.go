@@ -145,7 +145,7 @@ func TestMain(m *testing.M) {
 
 func setUpBaseline(t *testing.T, dut *ondatra.DUTDevice) {
 
-	policyMap = authz.LoadPolicyFromJsonFile(t, dut, "testdata/policy.json")
+	policyMap = authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
 
 	caKey, trustBundle, err := svid.LoadKeyPair(*caKeyPem, *caCertPem)
 	if err != nil {
@@ -170,7 +170,7 @@ func setUpBaseline(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		usersMap[user] = authz.Spiffe{
 			ID:      v.ID,
-			TlsConf: &tlsConf,
+			TLSConf: &tlsConf,
 		}
 	}
 }
