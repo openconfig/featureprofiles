@@ -31,11 +31,9 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// disable hwmodule and reload and expect the traffic to be failed even after adding gribi routes
 	t.Log("Trying  no hw-module profile pbr vrf-redirect")
-	// beforeReloadConfig := "no hw-module profile pbr vrf-redirect"
-	// afterReloadConfig := ""
-	// config.Reload(context.Background(), t, args.dut, beforeReloadConfig, afterReloadConfig, 6*time.Minute)
 	configToChange := "no hw-module profile pbr vrf-redirect\n"
 	util.GNMIWithText(ctx, t, args.dut, configToChange)
+	reloadDevice(t, args.dut)
 
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
@@ -46,11 +44,9 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// enable hwmodule and reload and expect the traffic to be passed after adding gribi routes
 	t.Log("Trying hw-module profile pbr vrf-redirect")
-	// beforeReloadConfig = "hw-module profile pbr vrf-redirect"
-	// afterReloadConfig = ""
-	// config.Reload(context.Background(), t, args.dut, beforeReloadConfig, afterReloadConfig, 6*time.Minute)
 	configToChange1 := "hw-module profile pbr vrf-redirect\n"
 	util.GNMIWithText(ctx, t, args.dut, configToChange1)
+	reloadDevice(t, args.dut)
 
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)

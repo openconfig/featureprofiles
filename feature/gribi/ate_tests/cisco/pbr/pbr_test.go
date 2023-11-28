@@ -293,18 +293,7 @@ func unconfigPBRunderInterface(t *testing.T, args *testArgs, interfaceName strin
 	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+".0").Config())
 }
 
-// Remove flowspec and add as pbr
-func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-	t.Log("Remove Flowspec Config and add HW Module Config")
-	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
-	util.GNMIWithText(ctx, t, dut, configToChange)
-
-	t.Log("Configure PBR policy and Apply it under interface")
-	configBasePBR(t, dut)
-
-	getPolicyForwardingInterfaceConfig(t, pbrName, "Bundle-Ether120")
-
-	t.Log("Reload the router to activate hw module config")
+func reloadDevice(t *testing.T, dut *ondatra.DUTDevice) {
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
@@ -337,6 +326,22 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 		}
 	}
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+}
+
+// Remove flowspec and add as pbr
+func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	t.Log("Remove Flowspec Config and add HW Module Config")
+	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
+	util.GNMIWithText(ctx, t, dut, configToChange)
+
+	t.Log("Reload the router to activate hw module config")
+	reloadDevice(t, dut)
+
+	t.Log("Configure PBR policy and Apply it under interface")
+	configBasePBR(t, dut)
+
+	getPolicyForwardingInterfaceConfig(t, pbrName, "Bundle-Ether120")
+
 }
 
 func getPolicyForwardingInterfaceConfig(t *testing.T, policyName, intf string) *oc.NetworkInstance_PolicyForwarding_Interface {
