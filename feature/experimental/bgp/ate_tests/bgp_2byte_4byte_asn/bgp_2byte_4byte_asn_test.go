@@ -69,9 +69,6 @@ func TestBgpSession(t *testing.T) {
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if deviations.InterfaceEnabled(dut) {
-		i1.Enabled = ygot.Bool(true)
-	}
 
 	t.Log("Configure Network Instance")
 	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
