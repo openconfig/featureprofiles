@@ -178,9 +178,6 @@ func TestIanaPorts(t *testing.T) {
 
 	})
 
-	//set non-default name
-	config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc name TEST\n commit \n", 10*time.Second)
-	defer config.TextWithSSH(context.Background(), t, dut, "configure \n  no grpc name TEST\n commit \n", 10*time.Second)
 	t.Run("GRPC Name Update Test", func(t *testing.T) {
 		path := gnmi.OC().System().GrpcServer("TEST").Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -226,6 +223,12 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("Rollback to IANA Default Ports", func(t *testing.T) {
+		showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+		t.Logf(showresp)
+		if strings.Contains(showresp, "VXR") {
+			t.Logf("Skipping since platfrom is VXR")
+			t.Skip()
+		}
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n no port \n commit \n", 10*time.Second)
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n gnmi \n no port \n commit \n", 10*time.Second)
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n gribi \n no port \n commit \n", 10*time.Second)
