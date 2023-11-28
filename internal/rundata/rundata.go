@@ -58,7 +58,6 @@ import (
 
 	"flag"
 
-	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/ondatra/binding"
 )
