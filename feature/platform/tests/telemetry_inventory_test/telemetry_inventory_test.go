@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -800,4 +801,85 @@ func TestLinecardConfig(t *testing.T) {
 func TestHeatsinkTempSensor(t *testing.T) {
 	// TODO: Add heatsink-temperature-sensor test case here once supported.
 	t.Skipf("/components/component[name=<heatsink-temperature-sensor>]/state/temperature/instant is not supported.")
+}
+
+func TestInterfaceComponentHierarchy(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	// Map of component Name to corresponding Component OC object.
+	compMap := make(map[string]*oc.Component)
+	for _, c := range gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State()) {
+		compMap[c.GetName()] = c
+	}
+
+	// Map of populated Transceivers to a random integer.
+	transceivers := make(map[string]int)
+	tvs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER)
+	for idx, tv := range tvs {
+		if compMap[tv].GetMfgName() == "" {
+			continue
+		}
+		transceivers[compMap[tv].GetName()] = idx
+	}
+
+	numHardwareIntfs := 0
+	integratedCircuits := make(map[string]*oc.Component)
+
+	t.Run("Interface to Integrated Circuit mapping", func(t *testing.T) {
+		for _, intf := range gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State()) {
+			if intf.GetHardwarePort() == "" {
+				continue
+			}
+			if _, ok := transceivers[intf.GetTransceiver()]; !ok {
+				continue
+			}
+			t.Run(intf.GetHardwarePort(), func(t *testing.T) {
+				numHardwareIntfs++
+				c, ok := compMap[intf.GetHardwarePort()]
+				if !ok {
+					t.Fatalf("Couldn't find interface hardware port(%s) in component tree for port: %s", intf.GetHardwarePort(), intf.GetName())
+				}
+				for {
+					if c.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+						break
+					}
+					if c.GetParent() == "" {
+						t.Fatalf("Couldn't get parent for component: %s", c.GetName())
+					}
+					c, ok = compMap[c.GetParent()]
+					if !ok {
+						t.Fatalf("Couldn't find parent component(%s) for component: %s", c.GetParent(), c.GetName())
+					}
+				}
+				integratedCircuits[c.GetName()] = c
+			})
+		}
+	})
+	if len(integratedCircuits) == 0 {
+		t.Fatalf("Couldn't find integrated circuits for %q", dut.Model())
+	}
+	chassis := make(map[string]*oc.Component)
+	t.Run("Integrated Circuit to Chassis mapping", func(t *testing.T) {
+		for _, ic := range integratedCircuits {
+			t.Run(ic.GetName(), func(t *testing.T) {
+				c, ok := ic, true
+				for {
+					if c.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS {
+						break
+					}
+					if c.GetParent() == "" {
+						t.Fatalf("Couldn't get parent for component: %s", c.GetName())
+					}
+					c, ok = compMap[c.GetParent()]
+					if !ok {
+						t.Fatalf("Couldn't find parent component(%s) for component: %s", c.GetParent(), c.GetName())
+					}
+				}
+				chassis[c.GetName()] = c
+			})
+		}
+	})
+	if len(chassis) == 0 {
+		t.Fatalf("Couldn't find chassis for %q", dut.Model())
+	}
 }
