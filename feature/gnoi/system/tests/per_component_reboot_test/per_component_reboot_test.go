@@ -205,7 +205,10 @@ func TestLinecardReboot(t *testing.T) {
 			retry = false
 			break
 		}
-		resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+		resp, err := gnoiClient.System().RebootStatus(context.Background(),
+			&spb.RebootStatusRequest{
+				Subcomponents: rebootSubComponentRequest.GetSubcomponents(),
+			})
 		switch {
 		case status.Code(err) == codes.Unimplemented:
 			t.Fatalf("Unimplemented RebootStatus() is not fully compliant with the Reboot spec.")
@@ -285,7 +288,9 @@ func TestFabricReboot(t *testing.T) {
 		if time.Now().After(rebootDeadline) {
 			break
 		}
-		resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+		resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{
+			Subcomponents: rebootSubComponentRequest.GetSubcomponents(),
+		})
 		if status.Code(err) == codes.Unimplemented {
 			t.Fatalf("Unimplemented RebootStatus() is not fully compliant with the Reboot spec.")
 		}
