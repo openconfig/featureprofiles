@@ -488,12 +488,6 @@ func OSComponentParentIsChassis(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOsComponentParentIsChassis()
 }
 
-// SkipFabricCardPowerAdmin returns whether the device should skip the Platform Power Down Up for Fabric Card.
-// Default value is false.
-func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipFabricCardPowerAdmin()
-}
-
 // ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
 // the same ISIS Metrics for Level 1 when configuring Level 2 Metrics.
 func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
