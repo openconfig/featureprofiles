@@ -264,7 +264,7 @@ package {{pkgName}}
 
 
 	var (
-		// definition of all FP related RPCs
+		// ALL defines all FP related RPCs
 
 		{{- range .}}
 		{{ varName .Service .Name}} = &RPC{

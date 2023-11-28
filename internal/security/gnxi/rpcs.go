@@ -1,4 +1,4 @@
-// This following provide a list of all RPCs related to FP testing.
+// // Package gnxi populates a list of all RPCs related for featuresprofile tests.
 // The below code is generated using ../gen/generate.go. Please do not modify.
 package gnxi
 
@@ -110,7 +110,7 @@ type rpcs struct {
 }
 
 var (
-	// definition of all FP related RPCs
+	// ALL defines all FP related RPCs
 	ALL = &RPC{
 		Name:    "*",
 		Service: "*",
@@ -258,6 +258,7 @@ var (
 		Path:    "/gnoi.diag.Diag/StartBERT",
 		Exec:    GnoiDiagStartBERT,
 	}
+	//revive:disable the name of the rpc includes _
 	gnoifactory_resetFactoryResetALL = &RPC{
 		Name:    "*",
 		Service: "gnoi.factory_reset.FactoryReset",
@@ -265,6 +266,7 @@ var (
 		Path:    "/gnoi.factory_reset.FactoryReset/*",
 		Exec:    GnoiFactoryresetAllRPC,
 	}
+	//revive:disable the name of the rpc includes _
 	gnoifactory_resetFactoryResetStart = &RPC{
 		Name:    "Start",
 		Service: "gnoi.factory_reset.FactoryReset",
@@ -398,6 +400,7 @@ var (
 		Path:    "/gnoi.layer2.Layer2/ClearNeighborDiscovery",
 		Exec:    GnoiLayer2ClearNeighborDiscovery,
 	}
+	//revive:disable the name of the rpc includes _
 	gnoipacket_link_qualificationLinkQualificationCreate = &RPC{
 		Name:    "Create",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
@@ -503,6 +506,7 @@ var (
 		Path:    "/gnoi.optical.OTDR/Initiate",
 		Exec:    GnoiOtdrInitiate,
 	}
+	//revive:disable the name of the rpc includes _
 	gnoipacket_link_qualificationLinkQualificationALL = &RPC{
 		Name:    "*",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
@@ -510,6 +514,7 @@ var (
 		Path:    "/gnoi.packet_link_qualification.LinkQualification/*",
 		Exec:    GnoiLinkqualificationAllRPC,
 	}
+	//revive:disable the name of the rpc includes _
 	gnoipacket_link_qualificationLinkQualificationCapabilities = &RPC{
 		Name:    "Capabilities",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
@@ -517,6 +522,7 @@ var (
 		Path:    "/gnoi.packet_link_qualification.LinkQualification/Capabilities",
 		Exec:    GnoiLinkqualificationCapabilities,
 	}
+	//revive:disable the name of the rpc includes _
 	gnoipacket_link_qualificationLinkQualificationDelete = &RPC{
 		Name:    "Delete",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
@@ -524,6 +530,7 @@ var (
 		Path:    "/gnoi.packet_link_qualification.LinkQualification/Delete",
 		Exec:    GnoiLinkqualificationDelete,
 	}
+	//revive:disable the name of the rpc includes _
 	gnoipacket_link_qualificationLinkQualificationGet = &RPC{
 		Name:    "Get",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
@@ -531,6 +538,7 @@ var (
 		Path:    "/gnoi.packet_link_qualification.LinkQualification/Get",
 		Exec:    GnoiLinkqualificationGet,
 	}
+	//revive:disable the name of the rpc includes _
 	gnoipacket_link_qualificationLinkQualificationList = &RPC{
 		Name:    "List",
 		Service: "gnoi.packet_link_qualification.LinkQualification",
