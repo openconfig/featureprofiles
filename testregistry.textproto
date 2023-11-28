@@ -423,6 +423,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-8"
+  description: "Singleton with breakouts"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
+  exec: " "
+}
+test: {
   id: "SFLOW-1"
   description: "sFlow Configuration and Traffic Sampling"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/README.md"
@@ -808,6 +814,12 @@ test: {
   id: "gNMI-1.18"
   description: "gNMI subscribe with sample mode for backplane capacity counters"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/README.md"
+  exec: " "
+}
+test: {
+  id: "gNMI-1.19"
+  description: "gNMI ConfigPush after Control Card switchover"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/controllercard/tests/SetRequest_controll_card_switchover/README.md"
   exec: " "
 }
 test: {

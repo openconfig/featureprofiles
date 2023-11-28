@@ -267,6 +267,9 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 					}
 
 					metaData := packet.Pkt.GetMetadata()
+					if len(metaData) != 2 {
+						t.Fatalf("Incorrect number of Metadata headers, want: %v, got: %v", 2, len(metaData))
+					}
 					for _, data := range metaData {
 						switch data.GetMetadataId() {
 						case metadataIngressPort:
@@ -283,6 +286,8 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 							if !found {
 								t.Fatalf("Egress Port Id is not matching expectation.")
 							}
+						default:
+							t.Errorf("Received an unrecognized metadata with id %v", data.GetMetadataId())
 						}
 					}
 				}
