@@ -679,3 +679,18 @@ func P4P4runtimeStreamChannel(ctx context.Context, dut *ondatra.DUTDevice, opts 
 func P4P4runtimeWrite(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any) error {
 	return status.Errorf(codes.Unimplemented, "exec function for RPC /p4.v1.P4Runtime/Write is not implemented")
 }
+
+// GnsiAcctzAllRPC implements a sample request for service /gnsi.acctz.v1.Acctz/* to validate if authz works as expected.
+func GnsiAcctzAllRPC(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any)  error  {
+	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnsi.acctz.v1.Acctz/* is not implemented")
+}
+
+// GnsiAcctzRecordSubscribe implements a sample request for service /gnsi.acctz.v1.Acctz/RecordSubscribe to validate if authz works as expected.
+func GnsiAcctzRecordSubscribe(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any)  error  {
+	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnsi.acctz.v1.Acctz/RecordSubscribe is not implemented")
+}
+
+// GnsiCredentialzRotateHostParameters implements a sample request for service /gnsi.acctz.v1.Acctz/RecordSubscribe to validate if authz works as expected.
+func GnsiCredentialzRotateHostParameters(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOption, params ...any)  error  {
+	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnsi.acctz.v1.Acctz/RecordSubscribe is not implemented")
+}

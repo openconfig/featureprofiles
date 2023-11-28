@@ -99,7 +99,7 @@ func main() {
 	}
 	for serviceName, service := range services {
 		if service.Len() == 0 {
-			log.Warningf("service %s has no rpc methds\n", serviceName)
+			log.Warningf("service %s has no rpc methods\n", serviceName)
 		}
 		for i := 0; i < service.Len(); i++ {
 			log.Infof("Service %s RPCs are: \n", serviceName)
@@ -229,7 +229,7 @@ var (
 			} else {
 				varName += "ALL"
 			}
-			return strings.ToUpper(varName)
+			return strings.ToTitle(varName)
 		},
 	}
 
@@ -258,7 +258,7 @@ func {{ funcName .Service .Name}}(ctx context.Context, dut *ondatra.DUTDevice, o
 package {{pkgName}}
 	type rpcs struct{
 	{{- range .}}
-		{{ enumName .Service .Name}}   *RPC
+		{{ funcName .Service .Name}}   *RPC
 	{{- end }}
 	}
 
@@ -279,7 +279,7 @@ package {{pkgName}}
 		// RPCs is a list of all FP related RPCs
 		RPCs=rpcs{
 		{{- range .}}
-			{{ enumName .Service .Name}} : {{ varName .Service .Name}},
+			{{ funcName .Service .Name}} : {{ varName .Service .Name}},
 		{{- end }}
 		}
 

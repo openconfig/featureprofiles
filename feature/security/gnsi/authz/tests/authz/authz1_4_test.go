@@ -92,50 +92,50 @@ var authTable = authorizationTable{
 		allowed []*gnxi.RPC
 		denied  []*gnxi.RPC
 	}{
-		allowed: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_GET,
-			gnxi.RPCs.GNOI_SYSTEM_TIME, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE, gnxi.RPCs.GNMI_SET},
+		allowed: []*gnxi.RPC{gnxi.RPCs.GribiGet, gnxi.RPCs.GribiModify, gnxi.RPCs.GnmiGet,
+			gnxi.RPCs.GnoiSystemTime, gnxi.RPCs.GnoiSystemPing, gnxi.RPCs.GnsiAuthzRotate,
+			gnxi.RPCs.GnsiAuthzGet, gnxi.RPCs.GnsiAuthzProbe, gnxi.RPCs.GnmiSet},
 	},
 	"cert_deny_all": {
-		denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET, gnxi.RPCs.GNMI_GET,
-			gnxi.RPCs.GNOI_SYSTEM_TIME, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
+		denied: []*gnxi.RPC{gnxi.RPCs.GribiGet, gnxi.RPCs.GribiModify, gnxi.RPCs.GnmiSet, gnxi.RPCs.GnmiGet,
+			gnxi.RPCs.GnoiSystemTime, gnxi.RPCs.GnoiSystemPing, gnxi.RPCs.GnsiAuthzRotate,
+			gnxi.RPCs.GnsiAuthzGet, gnxi.RPCs.GnsiAuthzProbe},
 	},
 	"cert_gribi_modify": {
-		denied: []*gnxi.RPC{gnxi.RPCs.GNMI_SET, gnxi.RPCs.GNMI_GET,
-			gnxi.RPCs.GNOI_SYSTEM_TIME, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
-		allowed: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY},
+		denied: []*gnxi.RPC{gnxi.RPCs.GnmiSet, gnxi.RPCs.GnmiGet,
+			gnxi.RPCs.GnoiSystemTime, gnxi.RPCs.GnoiSystemPing, gnxi.RPCs.GnsiAuthzRotate,
+			gnxi.RPCs.GnsiAuthzGet, gnxi.RPCs.GnsiAuthzProbe},
+		allowed: []*gnxi.RPC{gnxi.RPCs.GribiGet, gnxi.RPCs.GribiModify},
 	},
 	"cert_gnmi_set": {
-		denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY,
-			gnxi.RPCs.GNOI_SYSTEM_TIME, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
-		allowed: []*gnxi.RPC{gnxi.RPCs.GNMI_GET, gnxi.RPCs.GNMI_SET},
+		denied: []*gnxi.RPC{gnxi.RPCs.GribiGet, gnxi.RPCs.GribiModify,
+			gnxi.RPCs.GnoiSystemTime, gnxi.RPCs.GnoiSystemPing, gnxi.RPCs.GnsiAuthzRotate,
+			gnxi.RPCs.GnsiAuthzGet, gnxi.RPCs.GnsiAuthzProbe},
+		allowed: []*gnxi.RPC{gnxi.RPCs.GnmiGet, gnxi.RPCs.GnmiSet},
 	},
 	"cert_gnoi_time": {
-		denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET,
-			gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE, gnxi.RPCs.GNMI_GET,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
-		allowed: []*gnxi.RPC{gnxi.RPCs.GNOI_SYSTEM_TIME},
+		denied: []*gnxi.RPC{gnxi.RPCs.GribiGet, gnxi.RPCs.GribiModify, gnxi.RPCs.GnmiSet,
+			gnxi.RPCs.GnoiSystemPing, gnxi.RPCs.GnsiAuthzRotate, gnxi.RPCs.GnmiGet,
+			gnxi.RPCs.GnsiAuthzGet, gnxi.RPCs.GnsiAuthzProbe},
+		allowed: []*gnxi.RPC{gnxi.RPCs.GnoiSystemTime},
 	},
 	"cert_gnoi_ping": {
-		denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE, gnxi.RPCs.GNMI_GET,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE, gnxi.RPCs.GNOI_SYSTEM_TIME},
-		allowed: []*gnxi.RPC{gnxi.RPCs.GNOI_SYSTEM_PING},
+		denied: []*gnxi.RPC{gnxi.RPCs.GribiGet, gnxi.RPCs.GribiModify, gnxi.RPCs.GnmiSet,
+			gnxi.RPCs.GnsiAuthzRotate, gnxi.RPCs.GnmiGet,
+			gnxi.RPCs.GnsiAuthzGet, gnxi.RPCs.GnsiAuthzProbe, gnxi.RPCs.GnoiSystemTime},
+		allowed: []*gnxi.RPC{gnxi.RPCs.GnoiSystemPing},
 	},
 	"cert_gnsi_probe": {
-		denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNMI_GET,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GNOI_SYSTEM_TIME},
-		allowed: []*gnxi.RPC{gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
+		denied: []*gnxi.RPC{gnxi.RPCs.GribiGet, gnxi.RPCs.GribiModify, gnxi.RPCs.GnmiSet,
+			gnxi.RPCs.GnsiAuthzRotate, gnxi.RPCs.GnoiSystemPing, gnxi.RPCs.GnmiGet,
+			gnxi.RPCs.GnsiAuthzGet, gnxi.RPCs.GnoiSystemTime},
+		allowed: []*gnxi.RPC{gnxi.RPCs.GnsiAuthzProbe},
 	},
 	"cert_read_only": {
-		denied: []*gnxi.RPC{gnxi.RPCs.GRIBI_MODIFY, gnxi.RPCs.GNMI_SET,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_ROTATE, gnxi.RPCs.GNOI_SYSTEM_PING, gnxi.RPCs.GNOI_SYSTEM_TIME,
-			gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_PROBE},
-		allowed: []*gnxi.RPC{gnxi.RPCs.GNSI_AUTHZ_V1_AUTHZ_GET, gnxi.RPCs.GRIBI_GET, gnxi.RPCs.GNMI_GET},
+		denied: []*gnxi.RPC{gnxi.RPCs.GribiModify, gnxi.RPCs.GnmiSet,
+			gnxi.RPCs.GnsiAuthzRotate, gnxi.RPCs.GnoiSystemPing, gnxi.RPCs.GnoiSystemTime,
+			gnxi.RPCs.GnsiAuthzProbe},
+		allowed: []*gnxi.RPC{gnxi.RPCs.GnsiAuthzGet, gnxi.RPCs.GribiGet, gnxi.RPCs.GnmiGet},
 	},
 }
 
@@ -213,14 +213,14 @@ func TestAuthz1(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-everyone-can-gnmi-not-gribi is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(100), "policy-everyone-can-gnmi-not-gribi_v1", false)
 
 		// Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get
 		t.Run("Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get", func(t *testing.T) {
-			authz.Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GRIBI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
-			authz.Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GNMI_GET, &authz.HardVerify{})
+			authz.Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
+			authz.Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GnmiGet, &authz.HardVerify{})
 		})
 
 	})
@@ -236,13 +236,13 @@ func TestAuthz1(t *testing.T) {
 		if !ok {
 			t.Fatal("policy-everyone-can-gribi-not-gnmi")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(100), "policy-everyone-can-gribi-not-gnmi_v1", false)
 
 		t.Run("Verification of cert_deny_all is denied to issue gRIBI.Get and cert_user_admin is allowed to issue `gRIBI.Get`", func(t *testing.T) {
-			authz.Verify(t, dut, getSpiffe(t, dut, "cert_deny_all"), gnxi.RPCs.GNMI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
-			authz.Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GRIBI_GET, &authz.HardVerify{})
+			authz.Verify(t, dut, getSpiffe(t, dut, "cert_deny_all"), gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
+			authz.Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GribiGet, &authz.HardVerify{})
 		})
 	})
 
@@ -259,27 +259,27 @@ func TestAuthz1(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gribi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(100), "policy-gribi-get_v1", false)
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
-		authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GRIBI_GET, &authz.HardVerify{})
-		authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GNMI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
+		authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet, &authz.HardVerify{})
+		authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate - 2
 		newpolicy, ok = policyMap["policy-gnmi-get"]
 		if !ok {
 			t.Fatal("Policy policy-gnmi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get
 		t.Run("Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get", func(t *testing.T) {
-			authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GRIBI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
-			authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GNMI_GET, &authz.HardVerify{})
+			authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
+			authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GnmiGet, &authz.HardVerify{})
 		})
 	})
 
@@ -294,7 +294,7 @@ func TestAuthz1(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-normal-1 is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(100), "policy-normal-1_v1", false)
 
@@ -320,7 +320,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-everyone-can-gnmi-not-gribi is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		jsonPolicy, err := newpolicy.Marshal()
 		if err != nil {
 			t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
@@ -352,7 +352,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-everyone-can-gnmi-not-gribi is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		jsonPolicy, err = newpolicy.Marshal()
 		if err != nil {
 			t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
@@ -380,8 +380,8 @@ func TestAuthz2(t *testing.T) {
 		}
 		t.Run("Verification of Policy for user_admin to deny gRIBI Get and allow gNMI Get", func(t *testing.T) {
 			// Verification of Policy for user_admin to deny gRIBI Get and allow gNMI Get
-			authz.Verify(t, dut, spiffeUserAdmin, gnxi.RPCs.GNMI_GET, &authz.HardVerify{})
-			authz.Verify(t, dut, spiffeUserAdmin, gnxi.RPCs.GRIBI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeUserAdmin, gnxi.RPCs.GnmiGet, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeUserAdmin, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 		})
 
 	})
@@ -397,14 +397,14 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gribi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 		t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get", func(t *testing.T) {
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, &authz.HardVerify{})
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 		})
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
@@ -412,7 +412,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gnmi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		jsonPolicy, err := newpolicy.Marshal()
 		if err != nil {
 			t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
@@ -440,8 +440,8 @@ func TestAuthz2(t *testing.T) {
 		}
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 		t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get after rotate that is not finalized", func(t *testing.T) {
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GnmiGet, &authz.HardVerify{})
 		})
 
 		// Close the Stream
@@ -449,8 +449,8 @@ func TestAuthz2(t *testing.T) {
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 		t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get after closing stream", func(t *testing.T) {
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, &authz.HardVerify{})
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 		})
 
 	})
@@ -466,14 +466,14 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gribi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 		t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get", func(t *testing.T) {
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, &authz.HardVerify{})
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 		})
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
@@ -482,7 +482,7 @@ func TestAuthz2(t *testing.T) {
 			if !ok {
 				t.Fatal("Policy policy-invalid-no-allow-rules is not loaded from policy json file")
 			}
-			newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+			newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 			jsonPolicy, err := newpolicy.Marshal()
 			if err != nil {
 				t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
@@ -510,15 +510,15 @@ func TestAuthz2(t *testing.T) {
 			}
 
 			t.Run("Verification of Policy for read_only user to deny gRIBI Get before closing stream", func(t *testing.T) {
-				authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
+				authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 			})
 
 			// Close the Stream
 			rotateStream.CloseSend()
 			// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 			t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get after closing stream", func(t *testing.T) {
-				authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, &authz.HardVerify{})
-				authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
+				authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.HardVerify{})
+				authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 			})
 		})
 
@@ -534,7 +534,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gribi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
 		prevVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
 		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), prevVersion, false)
@@ -543,7 +543,7 @@ func TestAuthz2(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-gnmi-get is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		jsonPolicy, err := newpolicy.Marshal()
 		if err != nil {
 			t.Fatalf("Could not marshal the policy %s", string(jsonPolicy))
@@ -571,16 +571,16 @@ func TestAuthz2(t *testing.T) {
 		}
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 		t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get after rotate without force overwrite", func(t *testing.T) {
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, &authz.HardVerify{})
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 		})
 
 		t.Logf("Preforming Rotate with the same version with force overwrite\n")
 		newpolicy.Rotate(t, dut, uint64(time.Now().UnixMilli()), prevVersion, true)
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 		t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get after rotate wth force overwrite", func(t *testing.T) {
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GRIBI_GET, &authz.ExceptDeny{}, &authz.HardVerify{})
-			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GNMI_GET, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
+			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GnmiGet, &authz.HardVerify{})
 		})
 
 	})
@@ -602,7 +602,7 @@ func TestAuthz3(t *testing.T) {
 	}
 	// Attach base Admin Policy
 	// Rotate the policy.
-	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 	expCreatedOn := uint64(time.Now().UnixMilli())
 	expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
 	newpolicy.Rotate(t, dut, expCreatedOn, expVersion, false)
@@ -644,7 +644,7 @@ func TestAuthz4(t *testing.T) {
 	if !ok {
 		t.Fatal("Policy policy-normal-1 is not loaded from policy json file")
 	}
-	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.ALL})
+	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 	expCreatedOn := uint64(time.Now().UnixMilli())
 	expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
 	t.Logf("New Authz Policy is %s", newpolicy.PrettyPrint(t))
