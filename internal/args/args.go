@@ -39,5 +39,4 @@ var (
 	FabricChipNamePattern    = flag.String("arg_fabricChip_name_pattern", "", "This name pattern is used to filter out FabricChip components.")
 	CheckInterfacesInBinding = flag.Bool("arg_check_interfaces_in_binding", true, "GNOI tests perform interface status validation based on all interfaces. This can cause flakiness in testing environments where only connectivity of interfaces in binding is guaranteed.")
 	ConvergencePathChange    = flag.Uint64("arg_convergence_path_change", 250, "Traffic loss expected during path change set as 250 ms")
-	CollectDUTInfo           = flag.Bool("arg_collect_dut_info", true, "This flag specifies if the dut information to be collected before running tests.")
 )
