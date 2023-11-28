@@ -1789,10 +1789,10 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 		41: 40,
 	}
 	// adding static route since nh is not connected
-	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.121.1.3/32 Bundle-Ether121")
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.121.1.3/32 Bundle-Ether121")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.121.1.9/32 Bundle-Ether121")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.121.1.9/32 Bundle-Ether121")
 
-	args.c1.AddNH(t, 41, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 41, "100.121.1.9", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNHG(t, 100, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -1809,7 +1809,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	t.Log("going to program Static ARP different from Ixia ")
-	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.9  0000.0012.0011 arpa")
 
 	time.Sleep(10 * time.Second)
 
@@ -1833,11 +1833,11 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 		t.Log("There is no traffic loss.")
 	}
 	t.Log("going to change Static ARP ")
-	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.9  0000.0012.0011 arpa")
 
 	time.Sleep(10 * time.Second)
 
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.3  0000.0012.0011 arpa")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.9  0000.0012.0011 arpa")
 
 	statsb := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
@@ -1986,10 +1986,10 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 		41: 40,
 	}
 	// adding static route since nh is not connected
-	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.121.1.3/32 Bundle-Ether121")
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.121.1.3/32 Bundle-Ether121")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.121.1.9/32 Bundle-Ether121")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.121.1.9/32 Bundle-Ether121")
 
-	args.c1.AddNH(t, 41, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 41, "100.121.1.9", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNHG(t, 100, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -2006,8 +2006,8 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	t.Log("going to program Static ARP different from Ixia ")
-	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.3  0000.0012.0011 arpa")
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.9  0000.0012.0011 arpa")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.9  0000.0012.0011 arpa")
 	time.Sleep(10 * time.Second)
 
 	if *ciscoFlags.GRIBITrafficCheck {
