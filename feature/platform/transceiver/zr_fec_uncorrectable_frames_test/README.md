@@ -6,7 +6,7 @@ Validate 400ZR optics module reports uncorrectable FEC frames count.
 
 This observable represents the number of uncorrectable FEC frames,
 measured as RS(544,514) equivalent frames, in a short interval.
-This is a post-FEC decoder errormetric.
+This is a post-FEC decoder error metric.
 
 ## Procedure
 
@@ -26,7 +26,8 @@ This is a post-FEC decoder errormetric.
 *   When the modules or the devices are still in a boot stage, they must not
     stream any invalid string values like "nil" or "-inf".
 *   Toggle the interface state using /interfaces/interface/config/enabled and
-    verify relevant fec uncorrectable frame count is streamed properly.
+    verify relevant FEC uncorrectable frame count is streamed. If there are no
+    errors a value of 0 should be streamed for no FEC uncorrectable frames. 
 
 ## Config Parameter coverage
 
