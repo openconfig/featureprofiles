@@ -28,8 +28,7 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
 *   For reported data check for validity min <= avg/instant <= max
 
 *   If the modules or the devices are in a boot stage, they must not stream
-    any invalid string values like "nil" or "-inf" until valid values
-    are available for streaming.
+    any invalid string values like "nil" or "-inf".
 *   Reported temperature value must always be of type decimal64.
 
 
@@ -52,8 +51,7 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
     *   For reported data check for validity min <= avg/instant <= max
     
     *   If the modules or the devices are in a boot stage, they must not stream
-        any invalid string values like "nil" or "-inf" until valid values
-        are available for streaming.
+        any invalid string values like "nil" or "-inf".
     *   Reported temperature value must always be of type decimal64. 
 
 ## Config Parameter coverage
