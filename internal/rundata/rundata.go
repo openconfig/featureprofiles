@@ -58,6 +58,7 @@ import (
 
 	"flag"
 
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/ondatra/binding"
 )
@@ -115,7 +116,9 @@ func Properties(ctx context.Context, resv *binding.Reservation) map[string]strin
 
 	if resv != nil {
 		m["topology"] = topology(resv)
-		dutsInfo(ctx, m, resv)
+		if *args.CollectDUTInfo {
+			dutsInfo(ctx, m, resv)
+		}
 	}
 
 	return m
