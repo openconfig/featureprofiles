@@ -292,7 +292,7 @@ func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.
 		time.Minute,
 		func(val *ygnmi.Value[string]) bool {
 			iname, present := val.Val()
-			return present && iname == p1.Name() 
+			return present && iname == p1.Name()
 		})
 
 	return watchName
