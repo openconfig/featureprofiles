@@ -363,7 +363,6 @@ func TestEstablishAndDisconnect(t *testing.T) {
 // TestPassword is to verify md5 authentication password on DUT.
 // Verification is done through BGP adjacency implicitly.
 func TestPassword(t *testing.T) {
-	t.Skip(t)
 	// DUT configurations.
 	t.Log("Start DUT config load:")
 	dut := ondatra.DUT(t, "dut")
@@ -410,7 +409,7 @@ func TestPassword(t *testing.T) {
 		// change the key from the ATE side to time out the session.
 		if deviations.BGPMD5RequiresReset(dut) {
 			port1 := ate.Port(t, "port1")
-			topo := ate.OTG().NewConfig(t)
+			topo := gosnappi.NewConfig()
 
 			topo.Ports().Add().SetName(port1.ID())
 			dev := topo.Devices().Add().SetName(ateAttrs.Name)
