@@ -381,7 +381,7 @@ func (g *GRIBIMPLSTest) ConfigureFlows(t *testing.T, ate *ondatra.ATEDevice) {
 	case PushToMPLS:
 		t.Logf("looking on interface %s_ETH for %s", ATESrc.Name, DUTSrc.IPv4)
 		var dstMAC string
-		gnmi.WatchAll(t, ate, gnmi.OTG().Interface(ATESrc.Name+"_ETH").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(ATESrc.Name+"_ETH").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 			dstMAC, _ = val.Val()
 			return val.IsPresent()
 		}).Await(t)
