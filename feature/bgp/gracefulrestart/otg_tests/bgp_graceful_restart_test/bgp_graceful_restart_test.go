@@ -286,7 +286,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	config := ate.OTG().NewConfig(t)
+	config := gosnappi.NewConfig()
 	p1 := ate.Port(t, "port1")
 	ateSrc.AddToOTG(config, p1, &dutSrc)
 	p2 := ate.Port(t, "port2")
