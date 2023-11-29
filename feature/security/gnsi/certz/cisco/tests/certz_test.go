@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"flag"
 	"io"
 	"io/ioutil"
 	"net"
@@ -477,9 +478,15 @@ func readCertificatesFromFile(filename string) ([]*x509.Certificate, error) {
 
 	return certificates, nil
 }
+
+var (
+	serverIP = flag.String("serverip", "", "Server IP address")
+	clientIP = flag.String("clientip", "1.1.1.1", "Client IP address")
+)
+
 func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
-	// os.Mkdir("testdata/", 0755)
-	// defer os.RemoveAll("testdata/")
+	os.Mkdir("testdata/", 0755)
+	defer os.RemoveAll("testdata/")
 
 	// Adding New SSL Profile
 
@@ -505,7 +512,7 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from CA
-	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.IPv4(64, 103, 223, 56)}, "test", 100)
+	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -518,7 +525,7 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 		t.Fatalf("Could not generate certificates: %v", err)
 	}
 	//Generating Client Cert & Signed from CA
-	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.IPv4(1, 1, 1, 1)}, "test", 100)
+	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(*clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -712,7 +719,7 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from CA
-	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.IPv4(64, 103, 223, 56)}, "test", 100)
+	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -726,7 +733,7 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 	}
 
 	//Generating Client Cert & Signed from CA
-	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.IPv4(1, 1, 1, 1)}, "test", 100)
+	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(*clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -918,7 +925,7 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from CA
-	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.IPv4(64, 103, 223, 56)}, "test", 100)
+	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1127,7 +1134,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from RSA CA
-	certTemprsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.IPv4(64, 103, 223, 56)}, "test", 100)
+	certTemprsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1141,7 +1148,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 
 	//Generating RSA Client Cert & Signed from CA
-	certTemp1rsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.IPv4(1, 1, 1, 1)}, "test", 100)
+	certTemp1rsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(*clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1176,7 +1183,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from CA
-	certTempecdsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.IPv4(64, 103, 223, 56)}, "test", 100)
+	certTempecdsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1195,7 +1202,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	var response *certzpb.RotateCertificateResponse
 
 	//Generating ECDSA Client Cert & Signed from CA
-	certTemp1ecdsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.IPv4(1, 1, 1, 1)}, "test", 100)
+	certTemp1ecdsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(*clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1492,7 +1499,7 @@ func TestHARedundancySwithOver(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from CA
-	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.IPv4(64, 103, 223, 56)}, "test", 100)
+	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1505,7 +1512,7 @@ func TestHARedundancySwithOver(t *testing.T) {
 		t.Fatalf("Could not generate certificates: %v", err)
 	}
 	//Generating Client Cert & Signed from CA
-	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.IPv4(1, 1, 1, 1)}, "test", 100)
+	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(*clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1715,7 +1722,7 @@ func TestHARedundancySwithOver(t *testing.T) {
 		Path: []*gnmipb.Path{
 			{Origin: "openconfig", Elem: []*gnmipb.PathElem{
 				{Name: "system"},
-				{Name: "config"},
+				{Name: "state"},
 				{Name: "hostname"},
 			}},
 		},
@@ -1743,7 +1750,8 @@ func TestHARedundancySwithOver(t *testing.T) {
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	getResponse, err := gnmi.Get(context.Background(), getRequest); if err!=nil {
+	getResponse, err := gnmi.Get(context.Background(), getRequest)
+	if err != nil {
 		t.Fatal("Get hostname is failed after switchover")
 	}
 	t.Logf("VAL:  %v ", getResponse)
@@ -1762,9 +1770,10 @@ func TestHARedundancySwithOver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("There is error when applying the config, %v", err)
 	}
-	
-	//Delete rotated profile-id using the old cert, not passing cert does that 
-	gnsiC, err =dut.RawAPIs().BindingDUT().DialGNSI(ctx); if err!=nil {
+
+	//Delete rotated profile-id using the old cert, not passing cert does that
+	gnsiC, err = dut.RawAPIs().BindingDUT().DialGNSI(ctx)
+	if err != nil {
 		t.Fatalf("There is error reconnecting  GNSI, %v", err)
 	}
 	delprofile, err := gnsiC.Certz().DeleteProfile(context.Background(), &certzpb.DeleteProfileRequest{SslProfileId: profile_id})
