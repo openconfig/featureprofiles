@@ -73,7 +73,13 @@ Different test scenarios requires different setups.
     
     3.  Perform entire device reload.
 
-    4.  Redeploy Setup#1 as above. If the system is not ready, gRIBI returns UNAVAILABLE till it is ready, and indeed reattempts will be made every 30 seconds with max timeout of 3 minutes.
+    4.  Redeploy Setup#1 as above. If the system is not ready, gRIBI returns UNAVAILABLE till it is ready, and indeed reattempts will be made every 30 seconds with max timeout of 3 minutes as per the client behavior.
+        
+        T0 -> System Up.
+        T1 -> EMSD process bring up (gRPC port up).
+        T2 -> gRIBI registers Service.
+        T3 -> Waiting for gRIBI XR verticals to be up.
+        T4 -> gRIBI accepts Programming (Afer gRIBI XR verticals are in sync), UNAVAILABLE is returned between T2-T4 if not ready.
 
     5.  Shutdown DUT port-2 interface.
     
@@ -87,7 +93,13 @@ Different test scenarios requires different setups.
     
     3.  Perform entire device reload.
 
-    4.  Redeploy Setup#1 as above. If the system is not ready, gRIBI returns UNAVAILABLE till it is ready, and indeed reattempts will be made every 30 seconds with max timeout of 3 minutes.
+    4.  Redeploy Setup#1 as above. If the system is not ready, gRIBI returns UNAVAILABLE till it is ready, and indeed reattempts will be made every 30 seconds with max timeout of 3 minutes as per the client behavior.
+        
+        T0 -> System Up.
+        T1 -> EMSD process bring up (gRPC port up).
+        T2 -> gRIBI registers Service.
+        T3 -> Waiting for gRIBI XR verticals to be up.
+        T4 -> gRIBI accepts Programming (Afer gRIBI XR verticals are in sync), UNAVAILABLE is returned between T2-T4 if not ready.
 
     5.  Shutdown DUT port-2 interface.
     
