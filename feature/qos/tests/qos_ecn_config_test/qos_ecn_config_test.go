@@ -372,7 +372,6 @@ func testCiscoECNConfig(t *testing.T) {
 	wred := queueMgmtProfile.GetOrCreateWred()
 	uniform := wred.GetOrCreateUniform()
 	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
-
 	uniform.SetMinThreshold(ecnConfig.minThreshold)
 	uniform.SetMaxThreshold(ecnConfig.maxThreshold)
 	uniform.SetDrop(ecnConfig.dropEnabled)
@@ -479,7 +478,6 @@ func testCiscoECNConfig(t *testing.T) {
 	if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxThreshold().Config()), ecnConfig.maxThreshold; got != want {
 		t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
 	}
-
 	if got, want := gnmi.GetConfig(t, dut, wredUniform.MaxDropProbabilityPercent().Config()), ecnConfig.maxDropProbabilityPercent; got != want {
 		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
 	}
