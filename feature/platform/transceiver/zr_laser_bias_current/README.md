@@ -13,7 +13,7 @@ the current defined as the 12 full 16-bit value (0 to 65535) with LSB equal to
 this yields a total measurement range of 0 to 131 mA.
 
 Accuracy must be better than +/-10% of the manufacturer's nominal value over
-specified 15 operating temperature and voltage.
+specified operating temperature and voltage.
 
 
 ## TRANSCEIVER-9.1
