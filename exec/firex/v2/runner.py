@@ -562,14 +562,13 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
     go_args = f'{go_args} ' \
                 f'{go_args_prefix}v ' \
-                f'{go_args_prefix}parallel 1 ' \
                 f'{go_args_prefix}timeout {test_timeout}s'
 
     if test_debug:
         dlv_bin = os.path.join(_get_go_bin_path(), 'dlv')
         cmd = f'{dlv_bin} test ./{test_path} -- {go_args} {test_args}'
     else:
-        cmd = f'{GO_BIN} test ./{test_path} {go_args} -args {test_args}'
+        cmd = f'{GO_BIN} test -p 1 ./{test_path} {go_args} -args {test_args}'
 
     start_time = self.get_current_time()
     start_timestamp = int(time.time())
