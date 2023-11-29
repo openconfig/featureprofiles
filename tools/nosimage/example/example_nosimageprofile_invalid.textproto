@@ -1,0 +1,65 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/nosimage.proto
+# proto-message: NOSImageProfile
+# txtpbfmt: expand_all_children
+# txtpbfmt: sort_repeated_fields_by_content
+vendor_id: OPENCONFIG
+nos: "lemming"
+software_version: "7a1cb734c83f0d9ba5b273f920bc002ad0056178"
+release_date: {
+  seconds: 1700180400
+}
+ocpaths: {
+  ocpaths: {
+    name: "/interfaces/interface/config/does-not-exist"
+  }
+  ocpaths: {
+    name: "/componentsssssssssss/component/state/location"
+    ocpath_constraint: {
+      platform_type: "PORT"
+    }
+  }
+  ocpaths: {
+    name: "/componentsssssssssss/component/state/serial-no"
+    ocpath_constraint: {
+      platform_type: "STORAGE"
+    }
+  }
+  ocpaths: {
+    name: "/components/component/state/software-version"
+    ocpath_constraint: {
+      platform_type: "JOVIAN_ATMOSPHERE"
+    }
+  }
+  ocpaths: {
+    name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as"
+  }
+  version: "2.5.0"
+}
+ocrpcs: {
+  ocservices: {
+    key: "gnmi.gNMI"
+    value: {
+      method_name: "Set"
+      method_name: "Subscribe"
+      version: "0.10.0"
+    }
+  }
+  ocservices: {
+    key: "gnoi.bgp.BGP"
+    value: {
+      method_name: "ClearBGPNeighbor"
+      version: "0.1.0"
+    }
+  }
+  ocservices: {
+    key: "gnoi.healthz.Healthz"
+    value: {
+      method_name: "Acknowledge"
+      method_name: "Artifact"
+      method_name: "Check"
+      method_name: "Get"
+      method_name: "List"
+      version: "1.3.0"
+    }
+  }
+}
