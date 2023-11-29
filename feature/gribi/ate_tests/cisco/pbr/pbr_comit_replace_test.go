@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
-	"github.com/openconfig/featureprofiles/internal/cisco/util"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
-
-	//"github.com/google/go-cmp/cmp"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
@@ -29,11 +28,12 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
-	// disable hwmodule and reload and expect the traffic to be failed even after adding gribi routes
+	// disable hwmodule and expect the traffic to be failed even after adding gribi routes
 	t.Log("Trying  no hw-module profile pbr vrf-redirect")
 	configToChange := "no hw-module profile pbr vrf-redirect\n"
 	util.GNMIWithText(ctx, t, args.dut, configToChange)
-	reloadDevice(t, args.dut)
+	time.Sleep(1 * time.Minute)
+	// reloadDevice(t, args.dut)
 
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
@@ -42,11 +42,12 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
 
-	// enable hwmodule and reload and expect the traffic to be passed after adding gribi routes
+	// enable hwmodule and expect the traffic to be passed after adding gribi routes
 	t.Log("Trying hw-module profile pbr vrf-redirect")
 	configToChange1 := "hw-module profile pbr vrf-redirect\n"
 	util.GNMIWithText(ctx, t, args.dut, configToChange1)
-	reloadDevice(t, args.dut)
+	time.Sleep(1 * time.Minute)
+	// reloadDevice(t, args.dut)
 
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
