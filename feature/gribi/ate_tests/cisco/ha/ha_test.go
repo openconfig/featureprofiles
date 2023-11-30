@@ -2544,8 +2544,8 @@ func TestHA(t *testing.T) {
 	t.Log("Description: Connect gRIBI client to DUT using SINGLE_PRIMARY client redundancy with persistance, RibACK and FibACK")
 
 	dut := ondatra.DUT(t, "dut")
-	// ctx := context.Background()
-	ctx, cancelMonitors := context.WithCancel(context.Background())
+	ctx := context.Background()
+	// ctx, cancelMonitors := context.WithCancel(context.Background())
 	// Configure the DUT
 	// var vrfs = []string{vrf1, vrf2, vrf3, vrf4}
 	// configVRF(t, dut, vrfs)
