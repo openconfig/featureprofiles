@@ -114,11 +114,11 @@ func verifyChanges(t *testing.T, dut *ondatra.DUTDevice, tCase testCase) {
 	qosPath.Queue(tCase.queueName).Config().PathStruct()
 
 	// Validate new OC config has been accepted.
-	gotQueue := gnmi.Get[oc.Qos_Queue](t, dut, qosPath.Queue(tCase.queueName).Config())
+	gotQueue := gnmi.Get[*oc.Qos_Queue](t, dut, qosPath.Queue(tCase.queueName).Config())
 	if got := gotQueue.GetName(); got != tCase.queueName {
 		t.Errorf("Get(DUT queue name): got %v, want %v", got, tCase.queueName)
 	}
-	gotFG := gnmi.Get[oc.Qos_ForwardingGroup](t, dut, qosPath.ForwardingGroup(tCase.forwardGroupName).Config())
+	gotFG := gnmi.Get[*oc.Qos_ForwardingGroup](t, dut, qosPath.ForwardingGroup(tCase.forwardGroupName).Config())
 	if got := gotFG.GetName(); got != tCase.forwardGroupName {
 		t.Errorf("Get(DUT forwarding group name): got %v, want %v", got, tCase.forwardGroupName)
 	}
