@@ -53,7 +53,7 @@ func prepareDut(t *testing.T, dut *ondatra.DUTDevice, queueName string) {
 func replaceAsNoOp(t *testing.T, dut *ondatra.DUTDevice, subTreeReplace bool) *oc.Root {
 	t.Logf("Step 2: Retrieve current root OC config")
 
-	ocConfig := gnmi.GetConfig(t, dut, gnmi.OC().Config())
+	ocConfig := gnmi.Get[*oc.Root](t, dut, gnmi.OC().Config())
 
 	qosPath := gnmi.OC().Qos()
 	qosConfig := ocConfig.GetOrCreateQos()
