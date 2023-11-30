@@ -637,7 +637,7 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
-  - name: AuthZ (Authz Functional Tests with spiffe id)
+  - name: AUTHZFP (Authz Functional Tests with spiffe id)
     path: feature/security/gnsi/authz/tests
     args:
       - '-test_infra_id="cafyauto"'
