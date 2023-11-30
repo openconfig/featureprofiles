@@ -2547,18 +2547,18 @@ func TestHA(t *testing.T) {
 	ctx := context.Background()
 	// ctx, cancelMonitors := context.WithCancel(context.Background())
 	// Configure the DUT
-	// var vrfs = []string{vrf1, vrf2, vrf3, vrf4}
-	// configVRF(t, dut, vrfs)
-	// configureDUT(t, dut)
-	// // PBR config
-	// configbasePBR(t, dut, "REPAIRED", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{}, &PBROptions{SrcIP: "222.222.222.222/32"})
-	// configbasePBR(t, dut, "TE", "ipv4", 2, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	// // RoutePolicy config
-	// configRP(t, dut)
-	// // configure ISIS on DUT
-	// addISISOC(t, dut, "Bundle-Ether127")
-	// // configure BGP on DUT
-	// addBGPOC(t, dut, "100.100.100.100")
+	var vrfs = []string{vrf1, vrf2, vrf3, vrf4}
+	configVRF(t, dut, vrfs)
+	configureDUT(t, dut)
+	// PBR config
+	configbasePBR(t, dut, "REPAIRED", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{}, &PBROptions{SrcIP: "222.222.222.222/32"})
+	configbasePBR(t, dut, "TE", "ipv4", 2, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	// RoutePolicy config
+	configRP(t, dut)
+	// configure ISIS on DUT
+	addISISOC(t, dut, "Bundle-Ether127")
+	// configure BGP on DUT
+	addBGPOC(t, dut, "100.100.100.100")
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
@@ -2578,31 +2578,31 @@ func TestHA(t *testing.T) {
 			desc: "With traffic running do delete/update/create programming and look for drops",
 			fn:   test_microdrops,
 		},
-		// {
-		// 	name: "Restart RFPO with programming",
-		// 	desc: "After programming, perform RPFO try new programming and validate traffic",
-		// 	fn:   test_RFPO_with_programming,
-		// },
-		// {
-		// 	name: "Restart single process",
-		// 	desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-		// 	fn:   testRestart_single_process,
-		// },
-		// {
-		// 	name: "Restart multiple process",
-		// 	desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
-		// 	fn:   testRestart_multiple_process,
-		// },
-		// {
-		// 	name: "Triggers",
-		// 	desc: "With traffic running, validate multiple triggers",
-		// 	fn:   test_triggers,
-		// },
-		// {
-		// 	name: "check multiple clients",
-		// 	desc: "With traffic running, validate use of multiple clients",
-		// 	fn:   test_multiple_clients,
-		// },
+		{
+			name: "Restart RFPO with programming",
+			desc: "After programming, perform RPFO try new programming and validate traffic",
+			fn:   test_RFPO_with_programming,
+		},
+		{
+			name: "Restart single process",
+			desc: "After programming, restart fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+			fn:   testRestart_single_process,
+		},
+		{
+			name: "Restart multiple process",
+			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
+			fn:   testRestart_multiple_process,
+		},
+		{
+			name: "Triggers",
+			desc: "With traffic running, validate multiple triggers",
+			fn:   test_triggers,
+		},
+		{
+			name: "check multiple clients",
+			desc: "With traffic running, validate use of multiple clients",
+			fn:   test_multiple_clients,
+		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
