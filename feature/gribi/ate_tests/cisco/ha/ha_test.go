@@ -2626,21 +2626,21 @@ func TestHA(t *testing.T) {
 			}
 			//Monitor and eventConsumer
 			t.Log("creating event monitor")
-			// if !with_RPFO {
-			//gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
-			// 	gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
-			// }
+			if !with_RPFO {
+				gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
+				gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
+			}
 			eventConsumer := monitor.NewCachedConsumer(2*time.Hour, /*expiration time for events in the cache*/
 				1 /*number of events for keep for each leaf*/)
-			monitor := monitor.GNMIMonior{
-				Paths: []ygnmi.PathStruct{
-					gnmi.OC().NetworkInstance("DEFAULT"),
-				},
-				Consumer: eventConsumer,
-				DUT:      dut,
-			}
-			monitor.Start(ctx, t, true, proto_gnmi.SubscriptionList_Mode(proto_gnmi.SubscriptionList_ONCE))
-			defer cancelMonitors()
+			// monitor := monitor.GNMIMonior{
+			// 	Paths: []ygnmi.PathStruct{
+			// 		gnmi.OC().NetworkInstance("DEFAULT"),
+			// 	},
+			// 	Consumer: eventConsumer,
+			// 	DUT:      dut,
+			// }
+			// monitor.Start(ctx, t, true, proto_gnmi.SubscriptionList_Mode(proto_gnmi.SubscriptionList_ONCE))
+			// defer cancelMonitors()
 
 			args := &testArgs{
 				ctx:    ctx,
