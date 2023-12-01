@@ -13,7 +13,7 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
 *   Connect two ZR optics using a duplex LC fiber jumper such that TX
     output power of one is the RX input power of the other module.
 *   To establish a point to point ZR link ensure the following:
-      * Both transceivers state is enabled
+      * Both transceivers state is enabled.
       * Both transceivers are set to a valid target TX output power
         example -10 dBm.
       * Both transceivers are tuned to a valid centre frequency
