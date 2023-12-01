@@ -141,3 +141,4 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 func gotAllPackets(counter1, counter0 uint64, expected int) bool {
 	return counter1-counter0 >= uint64(float64(expected)*0.95)
 }
+

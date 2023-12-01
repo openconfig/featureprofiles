@@ -431,3 +431,4 @@ func (traceroute *TraceroutePacketIO) GetPacketOut(srcMAC, dstMAC net.HardwareAd
 
 	return packets, nil
 }
+
