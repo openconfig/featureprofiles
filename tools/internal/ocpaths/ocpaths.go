@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package ocpaths contains utilities and types for validating a set of OCPaths
+// specified by ocpaths.proto.
 package ocpaths
 
 import (
