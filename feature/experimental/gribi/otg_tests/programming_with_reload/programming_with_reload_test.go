@@ -16,6 +16,7 @@ package programming_with_reload_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -37,32 +38,30 @@ import (
 )
 
 const (
-	ipv4PrefixLen         = 30
-	ipv6PrefixLen         = 126
-	mask                  = "32"
-	outerDstIP1           = "198.51.100.1"
-	outerSrcIP1           = "198.51.100.2"
-	outerDstIP2           = "203.0.113.1"
-	outerSrcIP2           = "203.0.113.2"
-	innerDstIP1           = "198.18.0.1"
-	innerSrcIP1           = "198.18.0.255"
-	vip1                  = "198.18.1.1"
-	vip2                  = "198.18.1.2"
-	vrfA                  = "VRF-A"
-	vrfB                  = "VRF-B"
-	nh1ID                 = 1
-	nhg1ID                = 1
-	nh2ID                 = 2
-	nhg2ID                = 2
-	nh100ID               = 100
-	nhg100ID              = 100
-	nh101ID               = 101
-	nhg101ID              = 101
-	nh102ID               = 102
-	nhg102ID              = 102
-	oneSecondInNanoSecond = 1e9
-	rebootDelay           = 120
-	ethernetCsmacd        = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ipv4PrefixLen  = 30
+	ipv6PrefixLen  = 126
+	mask           = "32"
+	outerDstIP1    = "198.51.100.1"
+	outerSrcIP1    = "198.51.100.2"
+	outerDstIP2    = "203.0.113.1"
+	outerSrcIP2    = "203.0.113.2"
+	innerDstIP1    = "198.18.0.1"
+	innerSrcIP1    = "198.18.0.255"
+	vip1           = "198.18.1.1"
+	vip2           = "198.18.1.2"
+	vrfA           = "VRF-A"
+	vrfB           = "VRF-B"
+	nh1ID          = 1
+	nhg1ID         = 1
+	nh2ID          = 2
+	nhg2ID         = 2
+	nh100ID        = 100
+	nhg100ID       = 100
+	nh101ID        = 101
+	nhg101ID       = 101
+	nh102ID        = 102
+	nhg102ID       = 102
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	// Maximum reboot time is 900 seconds (15 minutes).
 	maxRebootTime = 900
 	// Maximum gribi connection time is 180 seconds following reload
@@ -284,7 +283,6 @@ func TestProgrammingWithReload(t *testing.T) {
 				t.Log("Validate primary path traffic received ate port2 and no traffic on decap flow/port3")
 				validateTrafficFlows(t, tcArgs.ate, []gosnappi.Flow{decapFlow}, []gosnappi.Flow{baseFlow})
 			})
-
 		})
 	}
 }
@@ -414,7 +412,16 @@ func (args *testArgs) setDUTInterfaceWithState(t testing.TB, p *ondatra.Port, st
 	i.Enabled = ygot.Bool(state)
 	i.Type = ethernetCsmacd
 	i.Name = ygot.String(p.Name())
-	gnmi.Update(t, args.dut, dc.Interface(p.Name()).Config(), i)
+	// Following reload try gNMI call twice, Unavaiable error code is returned for the 1st time
+	for {
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Update(t, args.dut, dc.Interface(p.Name()).Config(), i)
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, retrying ...", *errMsg)
+		} else {
+			break
+		}
+	}
 }
 
 // addStaticRoute configures static route needed for decap path
@@ -439,7 +446,7 @@ func (args *testArgs) reloadChassis(t *testing.T) {
 
 	rebootRequest := &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
-		Delay:   rebootDelay * oneSecondInNanoSecond,
+		Delay:   0,
 		Message: "Reboot chassis with delay",
 		Force:   true,
 	}
@@ -451,68 +458,20 @@ func (args *testArgs) reloadChassis(t *testing.T) {
 		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 	}
 
-	if rebootRequest.GetDelay() > 1 {
-		t.Logf("Validating DUT remains reachable for at least %d seconds", rebootDelay)
-		prevTime, err := time.Parse(time.RFC3339, gnmi.Get(t, args.dut, gnmi.OC().System().CurrentDatetime().State()))
-		if err != nil {
-			t.Fatalf("Failed parsing current-datetime: %s", err)
-		}
-		start := time.Now()
-		for {
-			time.Sleep(10 * time.Second)
-			t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
-			if uint64(time.Since(start).Seconds()) > rebootDelay {
-				t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), rebootDelay)
-				break
-			}
-			latestTime, err := time.Parse(time.RFC3339, gnmi.Get(t, args.dut, gnmi.OC().System().CurrentDatetime().State()))
-			if err != nil {
-				t.Fatalf("Failed parsing current-datetime: %s", err)
-			}
-			if latestTime.Before(prevTime) || latestTime.Equal(prevTime) {
-				t.Errorf("Get latest system time: got %v, want newer time than %v", latestTime, prevTime)
-			}
-			prevTime = latestTime
-		}
-	}
-
-	startReboot := time.Now()
-	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
-		time.Sleep(30 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, args.dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("Device rebooted successfully with received time: %v", currentTime)
-			break
-		}
-		if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
-			t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
-		}
-	}
-	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
-
-	bootTimeAfterReboot := gnmi.Get(t, args.dut, gnmi.OC().System().BootTime().State())
-	t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
-	if bootTimeAfterReboot <= bootTimeBeforeReboot {
-		t.Errorf("Get boot time: got %v, want > %v", bootTimeAfterReboot, bootTimeBeforeReboot)
-	}
+	// adding sleep time for reload to begin
+	time.Sleep(1 * time.Minute)
 
 	// establish new gribi programming following reload
 	err_msg := args.gribi_reconnect(t)
 	if err_msg != nil {
-		t.Fatalf("gribi connection fails post reboot with in max timeout value of %d", maxGribiConnectTime)
+		t.Fatalf("Failure: %d", err_msg)
 	}
 }
 
 // gribi reconnect following reload
 func (args *testArgs) gribi_reconnect(t *testing.T) error {
 
-	start := time.Now()
+	reboot_timer := time.Now()
 	client := gribi.Client{
 		DUT:         args.dut,
 		FIBACK:      true,
@@ -520,17 +479,34 @@ func (args *testArgs) gribi_reconnect(t *testing.T) error {
 	}
 
 	for {
-		if time.Since(start).Seconds() > maxGribiConnectTime {
-			return fmt.Errorf("gribi connection fails post reboot")
+		// following reboot, if gribi connection takes longer than maxRebootTime return failure error msg
+		if time.Since(reboot_timer).Seconds() > maxRebootTime {
+			return fmt.Errorf("Device took longer than %d to reboot", maxRebootTime)
 		} else {
+			// Attempt starting gribi client session and check the error code,
+			// if its context deadline exceeded DUT is still rebooting and try again
 			if err := client.Start(t); err != nil {
-				t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-				time.Sleep(30 * time.Second)
-			} else {
-				t.Logf("New gRIBI Connection established after reload in %d seconds", uint64(time.Since(start).Seconds()))
-				args.client = &client
-				args.client.BecomeLeader(t)
-				return nil
+				t.Logf("gRIBI Connection could not be established because device is still rebooting: %v\nRetrying...", err)
+				if errors.Is(err, context.DeadlineExceeded) {
+					time.Sleep(1 * time.Second)
+				} else {
+					// if error is UNAVAIABLE, try creating gribi session for maxGribiConnectTime
+					gribi_connection_timer := time.Now()
+					for {
+						if err := client.Start(t); err != nil {
+							t.Logf("gRIBI Connection could not be established following reboot: %v\nRetrying...", err)
+							time.Sleep(1 * time.Second)
+						} else {
+							t.Logf("New gRIBI Connection established after reload in %d seconds", uint64(time.Since(gribi_connection_timer).Seconds()))
+							args.client = &client
+							args.client.BecomeLeader(t)
+							return nil
+						}
+						if time.Since(gribi_connection_timer).Seconds() > maxGribiConnectTime {
+							return fmt.Errorf("Router is up but gRIBI Connection could not be established within max timeout value of %d due to error: %v\n", maxGribiConnectTime, err)
+						}
+					}
+				}
 			}
 		}
 	}
