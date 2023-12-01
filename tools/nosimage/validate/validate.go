@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package main validates textprotos of the format specified by nosimage.proto.
 package main
 
 import (
@@ -28,11 +29,13 @@ import (
 	npb "github.com/openconfig/featureprofiles/proto/nosimage_go_proto"
 )
 
+// Config is the set of flags for this binary.
 type Config struct {
 	FilePath     string
 	DownloadPath string
 }
 
+// New registers a flagset with the configuration needed by this binary.
 func New(fs *flag.FlagSet) *Config {
 	c := &Config{}
 

@@ -286,14 +286,14 @@ func TestBasic(t *testing.T) {
 		// There are about 3 RPCs executed in quick succession in this block.
 		// Increasing the wait-time value to accommodate this.
 
-		deadline = time.Now().Add(time.Second * 15)
+		deadline = time.Now().Add(time.Second * 30)
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 			check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
 		} {
 			t.Run(vd.RelPath(pCounts), func(t *testing.T) {
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
-					t.Fatalf("No messages in active adjacency after 5s: %v", err)
+					t.Fatalf("No messages in active adjacency after 30s: %v", err)
 				}
 			})
 		}
