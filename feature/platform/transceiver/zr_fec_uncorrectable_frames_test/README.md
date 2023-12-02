@@ -1,4 +1,4 @@
-# TRANSCEIVER-9: Telemetry: 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.
+# TRANSCEIVER-10: Telemetry: 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.
 
 ## Summary
 
