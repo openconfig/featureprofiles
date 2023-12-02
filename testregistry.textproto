@@ -943,6 +943,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TRANSCEIVER-9"
+  description: "400ZR TX laser bias current telemetry values streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_laser_bias_current_test/README.md"
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/breakout_configuration/README.md"
