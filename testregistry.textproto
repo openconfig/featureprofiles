@@ -937,6 +937,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TRANSCEIVER-8"
+  description: "400ZR Optics module temperature streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_temperature_test/README.md"
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/breakout_configuration/README.md"
