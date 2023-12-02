@@ -5,7 +5,7 @@
 Validate 400ZR optics modules report accurate laser bias current telemetry
 values.
 
-As per CMIS:
+As per [CMIS](https://www.oiforum.com/wp-content/uploads/CMIS3p0_Third_Party_Spec.pdf):
 
 Measured Tx laser bias current is represented as a 16-bit unsigned integer with
 the current defined as the 12 full 16-bit value (0 to 65535) with LSB equal to
