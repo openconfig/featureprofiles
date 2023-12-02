@@ -949,6 +949,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TRANSCEIVER-10"
+  description: "400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_fec_uncorrectable_frames_test/README.md"
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/breakout_configuration/README.md"
