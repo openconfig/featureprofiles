@@ -410,12 +410,12 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
 def max_testbed_requests():
     if 'B4_FIREX_TESTBEDS_COUNT' in os.environ:
         return int(os.environ.get('B4_FIREX_TESTBEDS_COUNT'))
-    return 10
+    return 1
 
 def decommission_testbed_after_tests():
     if 'B4_FIREX_DECOMMISSION_TESTBED' in os.environ:
         return bool(int(os.environ.get('B4_FIREX_DECOMMISSION_TESTBED')))
-    return True
+    return False
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
