@@ -637,6 +637,14 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
+  - name: AUTHZFP (Authz Functional Tests with spiffe id)
+    path: feature/security/gnsi/authz/tests
+    args:
+      - '-test_infra_id="cafyauto"'
+    mustpass: true
+    timeout: 21000
+    owners:
+      - harikri4
     
   #?
   - name: Health-1.1 (Generic Health Check)
