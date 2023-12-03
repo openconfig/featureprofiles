@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "1"
+plan_id:  "backup_nh_test"
+description: "backup nhg"
+testbed: TESTBED_DUT_ATE_2LINKS

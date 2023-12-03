@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backup_nh_test
+package transitwecmpflush_test
 
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
@@ -28,12 +27,20 @@ import (
 )
 
 const (
+	ipv4PrefixLen = 30
+	ipv6PrefixLen = 126
+)
+
+const (
 	PTISIS         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
 	DUTAreaAddress = "47.0001"
 	DUTSysID       = "0000.0000.0001"
 	ISISName       = "osiris"
 	pLen4          = 30
 	pLen6          = 126
+	vrf1           = "TE"
+	vrf2           = "VRF1"
+	pbrName        = "PBR"
 )
 
 const (
@@ -41,115 +48,69 @@ const (
 	BGPAS = 65000
 )
 
+//   * ate:port1 -> dut:port1 subnet 192.0.2.0/30
+//   * ate:port2 -> dut:port2 subnet 192.0.2.4/30
+//   * ate:port3 -> dut:port3 subnet 192.0.2.8/30
+//   * ate:port4 -> dut:port4 subnet 192.0.2.12/30
+//   * ate:port5 -> dut:port5 subnet 192.0.2.16/30
+//   * ate:port6 -> dut:port6 subnet 192.0.2.20/30
+//   * ate:port7 -> dut:port7 subnet 192.0.2.24/30
+//   * ate:port8 -> dut:port8 subnet 192.0.2.28/30
+
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
-		IPv4:    "192.0.2.1",
-		IPv6:    "192:0:2::1",
+		IPv4:    "100.120.1.1",
 		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
-		IPv4:    "192.0.2.2",
-		IPv6:    "192:0:2::2",
-		IPv4Len: ipv4PrefixLen,
+		MAC:     "00:01:00:02:00:00",
 	}
 
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
-		IPv4:    "192.0.2.5",
+		IPv4:    "100.121.1.1",
 		IPv6:    "192:0:2::5",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
-		IPv4:    "192.0.2.6",
-		IPv6:    "192:0:2::6",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort3 = attrs.Attributes{
 		Desc:    "dutPort3",
-		IPv4:    "192.0.2.9",
+		IPv4:    "100.122.1.1",
 		IPv6:    "192:0:2::9",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
-		IPv4:    "192.0.2.10",
-		IPv6:    "192:0:2::A",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort4 = attrs.Attributes{
 		Desc:    "dutPort4",
-		IPv4:    "192.0.2.13",
+		IPv4:    "100.123.1.1",
 		IPv6:    "192:0:2::D",
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort4 = attrs.Attributes{
-		Name:    "atePort4",
-		IPv4:    "192.0.2.14",
-		IPv6:    "192:0:2::E",
-		IPv4Len: ipv4PrefixLen,
-	}
 	dutPort5 = attrs.Attributes{
 		Desc:    "dutPort5",
-		IPv4:    "192.0.2.17",
+		IPv4:    "100.124.1.1",
 		IPv6:    "192:0:2::11",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort5 = attrs.Attributes{
-		Name:    "atePort5",
-		IPv4:    "192.0.2.18",
-		IPv6:    "192:0:2::12",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort6 = attrs.Attributes{
 		Desc:    "dutPort6",
-		IPv4:    "192.0.2.21",
+		IPv4:    "100.125.1.1",
 		IPv6:    "192:0:2::15",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort6 = attrs.Attributes{
-		Name:    "atePort6",
-		IPv4:    "192.0.2.22",
-		IPv6:    "192:0:2::16",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort7 = attrs.Attributes{
 		Desc:    "dutPort7",
-		IPv4:    "192.0.2.25",
+		IPv4:    "100.126.1.1",
 		IPv6:    "192:0:2::19",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort7 = attrs.Attributes{
-		Name:    "atePort7",
-		IPv4:    "192.0.2.26",
-		IPv6:    "192:0:2::1A",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort8 = attrs.Attributes{
 		Desc:    "dutPort8",
-		IPv4:    "192.0.2.29",
+		IPv4:    "100.127.1.1",
 		IPv6:    "192:0:2::1D",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort8 = attrs.Attributes{
-		Name:    "atePort8",
-		IPv4:    "192.0.2.30",
-		IPv6:    "192:0:2::1E",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
@@ -158,32 +119,19 @@ var (
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
-	s6 := s.GetOrCreateIpv6()
-	s6a := s6.GetOrCreateAddress(a.IPv6)
-	s6a.PrefixLength = ygot.Uint8(ipv6PrefixLen)
+	// s6 := s.GetOrCreateIpv6()
+	// if *deviations.InterfaceEnabled {
+	// 	s6.Enabled = ygot.Bool(true)
+	// }
+	// s6a := s6.GetOrCreateAddress(a.IPv6)
+	// s6a.PrefixLength = ygot.Uint8(ipv6PrefixLen)
 
 	return i
-}
-
-// interfaceaction shuts/unshuts provided interface
-func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
-	// ateP := a.ate.Port(t, port)
-	dutP := a.dut.Port(t, port)
-	if action {
-		// a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(true).Operate(t)
-		gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
-		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-	} else {
-		// a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(false).Operate(t)
-		gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
-		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
-	}
 }
 
 // configureDUT configures port1, port2 and port3 on the DUT.
@@ -192,6 +140,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
+	i1.GetOrCreateEthernet().SetMacAddress("00:01:00:02:00:00")
 	gnmi.Replace(t, dut, d.Interface(*i1.Name).Config(), configInterfaceDUT(i1, &dutPort1))
 	BE120 := generateBundleMemberInterfaceConfig(t, p1.Name(), *i1.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), BE120)
@@ -262,7 +211,7 @@ func configRP(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // addISISOC, configures ISIS on DUT
-func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
+func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName []string) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
@@ -273,13 +222,15 @@ func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf := isis.GetOrCreateInterface(ifaceName)
-	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-	intf.Enabled = ygot.Bool(true)
-	intf.HelloPadding = 1
-	intf.Passive = ygot.Bool(false)
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	for _, intface := range ifaceName {
+		intf := isis.GetOrCreateInterface(intface)
+		intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		intf.Enabled = ygot.Bool(true)
+		intf.HelloPadding = 1
+		intf.Passive = ygot.Bool(false)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	}
 	level := isis.GetOrCreateLevel(2)
 	level.MetricStyle = 2
 
@@ -289,7 +240,7 @@ func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 }
 
 // addBGPOC, configures ISIS on DUT
-func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
+func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor []string) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
@@ -305,14 +256,15 @@ func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	pg.LocalAs = ygot.Uint32(63001)
 	pg.PeerGroupName = ygot.String("BGP-PEER-GROUP")
 
-	peer := bgp.GetOrCreateNeighbor(neighbor)
-	peer.PeerGroup = ygot.String("BGP-PEER-GROUP")
-	peer.GetOrCreateEbgpMultihop().Enabled = ygot.Bool(true)
-	peer.GetOrCreateEbgpMultihop().MultihopTtl = ygot.Uint8(255)
-	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
-	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
-
+	for _, neigh := range neighbor {
+		peer := bgp.GetOrCreateNeighbor(neigh)
+		peer.PeerGroup = ygot.String("BGP-PEER-GROUP")
+		peer.GetOrCreateEbgpMultihop().Enabled = ygot.Bool(true)
+		peer.GetOrCreateEbgpMultihop().MultihopTtl = ygot.Uint8(255)
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
+	}
 	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
@@ -327,4 +279,26 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 		}
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf_name).Config(), vrf)
 	}
+}
+
+// configbasePBR, creates class map, policy and configures under source interface
+func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
+	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r.SequenceId = ygot.Uint32(index)
+	r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
+	r.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+		Protocol: protocol,
+	}
+	if len(dscpset) > 0 {
+		r.Ipv4.DscpSet = dscpset
+	}
+	pf := oc.NetworkInstance_PolicyForwarding{}
+	p := pf.GetOrCreatePolicy(pbrName)
+	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+	p.AppendRule(&r)
+	intf := pf.GetOrCreateInterface("Bundle-Ether120.0")
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether120")
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	intf.ApplyVrfSelectionPolicy = ygot.String(pbrName)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
 }
