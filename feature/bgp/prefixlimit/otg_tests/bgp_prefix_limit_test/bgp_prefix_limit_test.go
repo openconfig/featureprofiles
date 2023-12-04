@@ -256,8 +256,27 @@ type BGPNeighbor struct {
 	isV4         bool
 }
 
-func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+func setPrefixLimitv4(dut *ondatra.DUTDevice, afisafi *oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi, limit uint32) {
+	if deviations.BGPExplicitPrefixLimitReceived(dut) {
+		prefixLimitReceived := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived()
+		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+	} else {
+		prefixLimitReceived := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
+		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+	}
+}
 
+func setPrefixLimitv6(dut *ondatra.DUTDevice, afisafi *oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi, limit uint32) {
+	if deviations.BGPExplicitPrefixLimitReceived(dut) {
+		prefixLimitReceived := afisafi.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimitReceived()
+		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+	} else {
+		prefixLimitReceived := afisafi.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
+		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+	}
+}
+
+func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	nbrs := []*BGPNeighbor{
 		{as: peerAs, pfxLimit: pLimit, neighborip: ateSrc.IPv4, isV4: true},
 		{as: peerAs, pfxLimit: pLimit, neighborip: ateSrc.IPv6, isV4: false},
@@ -296,8 +315,7 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16, dut *
 			afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			afisafi.Enabled = ygot.Bool(true)
 			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
-			prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
-			prefixLimit.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
+			setPrefixLimitv4(dut, afisafi, nbr.pfxLimit)
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pgv4.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{rplName}
@@ -318,8 +336,7 @@ func createBGPNeighbor(localAs, peerAs, pLimit uint32, restartTime uint16, dut *
 			afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			afisafi6.Enabled = ygot.Bool(true)
 			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
-			prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
-			prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
+			setPrefixLimitv6(dut, afisafi6, nbr.pfxLimit)
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pgv6.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{rplName}
@@ -384,24 +401,38 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 	}
 }
 
-func verifyPrefixLimitTelemetry(t *testing.T, n *oc.NetworkInstance_Protocol_Bgp_Neighbor, wantEstablished bool) {
-	t.Run("verifyPrefixLimitTelemetry", func(t *testing.T) {
-		if n.NeighborAddress == &ateDst.IPv4 {
-			plv4 := n.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
+func getPrefixLimitv4(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool) {
+	if deviations.BGPExplicitPrefixLimitReceived(dut) {
+		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimitReceived()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+	} else {
+		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+	}
+}
 
-			maxPrefix := plv4.GetMaxPrefixes()
-			limitExceeded := plv4.GetPrefixLimitExceeded()
+func getPrefixLimitv6(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool) {
+	if deviations.BGPExplicitPrefixLimitReceived(dut) {
+		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimitReceived()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+	} else {
+		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+	}
+}
+
+func verifyPrefixLimitTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor, wantEstablished bool) {
+	t.Run("verifyPrefixLimitTelemetry", func(t *testing.T) {
+		if *neighbor.NeighborAddress == ateDst.IPv4 {
+			maxPrefix, limitExceeded := getPrefixLimitv4(dut, neighbor)
 			if maxPrefix != prefixLimit {
 				t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
 			}
 			if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
 				t.Errorf("PrefixLimitExceeded v4 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
 			}
-		} else if n.NeighborAddress == &ateDst.IPv6 {
-			plv6 := n.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
-
-			maxPrefix := plv6.GetMaxPrefixes()
-			limitExceeded := plv6.GetPrefixLimitExceeded()
+		} else if *neighbor.NeighborAddress == ateDst.IPv6 {
+			maxPrefix, limitExceeded := getPrefixLimitv6(dut, neighbor)
 			if maxPrefix != prefixLimit {
 				t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
 			}
@@ -435,7 +466,7 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got, installedRoutes)
 	}
 	nv4 := gnmi.Get(t, dut, statePath.Neighbor(ateDst.IPv4).State())
-	verifyPrefixLimitTelemetry(t, nv4, tc.wantEstablished)
+	verifyPrefixLimitTelemetry(t, dut, nv4, tc.wantEstablished)
 
 	prefixesv6 := statePath.Neighbor(ateDst.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 	if got, ok := gnmi.Watch(t, dut, prefixesv6.Installed().State(), time.Minute, compare).Await(t); !ok {
@@ -445,7 +476,7 @@ func (tc *testCase) verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("Received prefixes v6 mismatch: got %v, want %v", got, installedRoutes)
 	}
 	nv6 := gnmi.Get(t, dut, statePath.Neighbor(ateDst.IPv6).State())
-	verifyPrefixLimitTelemetry(t, nv6, tc.wantEstablished)
+	verifyPrefixLimitTelemetry(t, dut, nv6, tc.wantEstablished)
 }
 
 func (tc *testCase) verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config, tolerance float32, flowNames []string) {

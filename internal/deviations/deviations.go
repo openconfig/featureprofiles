@@ -679,3 +679,9 @@ func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
 }
+
+// BGPExplicitPrefixLimitReceived returns if device must specify the received prefix limits explicitly
+// under the "prefix-limit-received" field rather than simply "prefix-limit".
+func BGPExplicitPrefixLimitReceived(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExplicitPrefixLimitReceived()
+}
