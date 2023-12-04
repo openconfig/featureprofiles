@@ -54,6 +54,8 @@ func TestMain(m *testing.M) {
 const (
 	trafficDuration          = 1 * time.Minute
 	grTimer                  = 2 * time.Minute
+	triggerGrTimer           = 60
+	stopDuration             = 45 * time.Second
 	grRestartTime            = 120
 	grStaleRouteTime         = 120
 	ipv4SrcTraffic           = "192.0.2.2"
@@ -122,6 +124,18 @@ var (
 	}
 )
 
+func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(name)
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.GetOrCreateActions().PolicyResult = pr
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+}
+
 // configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
@@ -132,8 +146,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
 	t.Log("Configure/update Network Instance")
-	dutConfNIPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
@@ -300,20 +313,20 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	dstIpv4 := dstEth.Ipv4Addresses().Items()[0]
 	dstIpv6 := dstEth.Ipv6Addresses().Items()[0]
 
-	srcBgp := srcDev.Bgp().SetRouterId(ateSrc.IPv4)
+	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
 	srcBgp4Peer := srcBgp.Ipv4Interfaces().Add().SetIpv4Name(srcIpv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
-	srcBgp4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime).SetEnableLlgr(true)
+	srcBgp4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime)
 	srcBgp4Peer.SetPeerAddress(srcIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	srcBgp6Peer := srcBgp.Ipv6Interfaces().Add().SetIpv6Name(srcIpv6.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP6.peer")
-	srcBgp6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime).SetEnableLlgr(true)
+	srcBgp6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime)
 	srcBgp6Peer.SetPeerAddress(srcIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
 	dstBgp := dstDev.Bgp().SetRouterId(dstIpv4.Address())
 	dstBgp4Peer := dstBgp.Ipv4Interfaces().Add().SetIpv4Name(dstIpv4.Name()).Peers().Add().SetName(ateDst.Name + ".BGP4.peer")
-	dstBgp4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime).SetEnableLlgr(true)
+	dstBgp4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime)
 	dstBgp4Peer.SetPeerAddress(dstIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().SetIpv6Name(dstIpv6.Name()).Peers().Add().SetName(ateDst.Name + ".BGP6.peer")
-	dstBgp6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime).SetEnableLlgr(true)
+	dstBgp6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime).SetStaleTime(grStaleRouteTime)
 	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
 	srcBgp4PeerRoutes := srcBgp4Peer.V4Routes().Add().SetName("bgpNeti1")
@@ -347,7 +360,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		SetRxNames([]string{dstIpv4.Name()})
 	flowipv4.Size().SetFixed(512)
 	flowipv4.Rate().SetPps(100)
-	flowipv4.Duration().SetChoice("continuous")
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(srcEth.Mac())
 	v4 := flowipv4.Packet().Add().Ipv4()
@@ -451,6 +463,7 @@ func TestTrafficWithGracefulRestartReceiver(t *testing.T) {
 	// Configure interface on the DUT
 	t.Log("Start DUT interface Config")
 	configureDUT(t, dut)
+	configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	// Configure BGP+Neighbors on the DUT
 	t.Log("Configure BGP with Graceful Restart option under Global Bgp")
@@ -458,7 +471,7 @@ func TestTrafficWithGracefulRestartReceiver(t *testing.T) {
 	nbrList := buildNbrList(ateAS)
 	dutConf := bgpWithNbr(dutAS, nbrList, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
 	// ATE Configuration.
 	t.Log("Start ATE Config")
@@ -483,7 +496,7 @@ func TestTrafficWithGracefulRestartReceiver(t *testing.T) {
 		startTime = time.Now()
 		t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
 		t.Log("Send Graceful Restart Trigger from OTG to DUT -- trigger GR Restart timer(60s) < configured GR restart Timer(120s)")
-		ate.OTG().SetControlAction(t, createGracefulRestartAction(t, []string{"atedst.BGP4.peer"}, 60))
+		ate.OTG().SetControlAction(t, createGracefulRestartAction(t, []string{"atedst.BGP4.peer"}, triggerGrTimer))
 	})
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateDst.IPv4)
@@ -501,7 +514,6 @@ func TestTrafficWithGracefulRestartReceiver(t *testing.T) {
 		}
 	})
 
-	const stopDuration = 45 * time.Second
 	replaceDuration := time.Since(startTime)
 	time.Sleep(grTimer - stopDuration - replaceDuration)
 	ate.OTG().StopTraffic(t)
@@ -556,6 +568,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	// Configure interface on the DUT
 	t.Log("Start DUT interface Config")
 	configureDUT(t, dut)
+	configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	// Configure BGP+Neighbors on the DUT
 	t.Log("Configure BGP with Graceful Restart option under Global Bgp")
