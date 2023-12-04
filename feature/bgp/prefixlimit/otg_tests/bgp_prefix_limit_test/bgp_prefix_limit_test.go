@@ -498,22 +498,22 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, duration time.Duration) {
 	time.Sleep(20 * time.Second)
 }
 
-func advertiseBGPRoutes(t *testing.T, conf gosnappi.Config, routesnames []string) {
+func advertiseBGPRoutes(t *testing.T, conf gosnappi.Config, routeNames []string) {
 
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 	cs := gosnappi.NewControlState()
-	cs.Protocol().Route().SetNames(routesnames).SetState(gosnappi.StateProtocolRouteState.ADVERTISE)
+	cs.Protocol().Route().SetNames(routeNames).SetState(gosnappi.StateProtocolRouteState.ADVERTISE)
 	otg.SetControlState(t, cs)
 
 }
 
-func withdrawBGPRoutes(t *testing.T, conf gosnappi.Config, routesnames []string) {
+func withdrawBGPRoutes(t *testing.T, conf gosnappi.Config, routeNames []string) {
 
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 	cs := gosnappi.NewControlState()
-	cs.Protocol().Route().SetNames(routesnames).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
+	cs.Protocol().Route().SetNames(routeNames).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
 	otg.SetControlState(t, cs)
 
 }
