@@ -705,3 +705,11 @@ tests:
     owners:
       - mananpat
     mustpass: false
+- name: AUTHZFP (Authz Functional Tests with spiffe id)
+  path: feature/security/gnsi/authz/tests/authz/authz1_4_test.go
+  args:
+    - '-test_infra_id="cafyauto"'
+  mustpass: true
+  timeout: 21000
+  owners:
+    - harikri4
