@@ -11,11 +11,20 @@ platform_exceptions:  {
   }
   deviations:  {
     explicit_port_speed:  true
+    transceiver_thresholds_unsupported:  true
   }
 }
 platform_exceptions:  {
   platform:  {
     vendor:  JUNIPER
+  }
+  deviations:  {
+    transceiver_thresholds_unsupported:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
   }
   deviations:  {
     transceiver_thresholds_unsupported:  true

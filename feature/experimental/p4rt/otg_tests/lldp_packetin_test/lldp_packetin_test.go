@@ -29,10 +29,10 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -202,6 +202,9 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 
 			metaData := packet.Pkt.GetMetadata()
+			if len(metaData) != 2 {
+				t.Fatalf("Incorrect number of Metadata headers, want: %v, got: %v", 2, len(metaData))
+			}
 			for _, data := range metaData {
 				switch data.GetMetadataId() {
 				case metadataIngressPort:
@@ -218,6 +221,8 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs) {
 					if !found {
 						t.Fatalf("Egress Port Id is not matching expectation.")
 					}
+				default:
+					t.Errorf("Received an unrecognized metadata with id %v", data.GetMetadataId())
 				}
 			}
 			gotPkts++
