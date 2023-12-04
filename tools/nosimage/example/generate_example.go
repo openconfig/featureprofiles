@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package main generates example textprotos of the format specified by
+// nosimage.proto.
 package main
 
 import (
@@ -32,11 +34,13 @@ import (
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Config is the set of flags for this binary.
 type Config struct {
 	FilePath string
 	Invalid  bool
 }
 
+// New registers a flagset with the configuration needed by this binary.
 func New(fs *flag.FlagSet) *Config {
 	c := &Config{}
 
@@ -91,7 +95,7 @@ func generateExample(filepath string, invalid bool) error {
 			}},
 		},
 		Ocrpcs: &rpb.OCRPCs{
-			Ocservices: map[string]*rpb.OCRPCService{
+			OcProtocols: map[string]*rpb.OCProtocol{
 				"gnmi.gNMI": {
 					Version: "0.10.0",
 					MethodName: []string{
