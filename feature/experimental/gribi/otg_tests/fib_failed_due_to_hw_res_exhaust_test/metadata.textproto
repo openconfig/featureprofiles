@@ -41,7 +41,7 @@ platform_exceptions:  {
     interface_enabled:  true
     default_network_instance:  "default"
     route_policy_under_afi_unsupported: true
-    bgp_missing_max_prefixes_configuration: true
+    bgp_missing_oc_max_prefixes_configuration: true
   }
 }
 tags: TAGS_TRANSIT
