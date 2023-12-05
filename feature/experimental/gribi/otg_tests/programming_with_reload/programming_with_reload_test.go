@@ -480,7 +480,6 @@ func (args *testArgs) gribi_reconnect(t *testing.T) error {
 	}
 
 	for {
-		``
 		// Attempt starting gribi client session and inspect the error code while checking session is established within maxRebootTime
 		err := client.Start(t)
 
