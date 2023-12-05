@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"path"
 	"strings"
 
 	"math/big"
@@ -57,6 +58,14 @@ func getClientsKeysPath() (string, error) {
 		return rootSrc + "featureprofiles/internal/cisco/security/cert/keys/clients/", nil
 	}
 	return "", fmt.Errorf("ca_cert_path need to be passed as arg")
+}
+
+func GetCACertFile() (string, error) {
+	d, err := getCACertPath()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(d, caCertFileName), nil
 }
 
 func init() {
