@@ -497,7 +497,7 @@ routeAddLoop:
 			t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 		}
 		res := args.client.Results(t)
-		for _, v := range res[len(res)-6 : len(res)] {
+		for _, v := range res[len(res)-6:] {
 			if v.ProgrammingResult == aftspb.AFTResult_FIB_FAILED {
 				t.Logf("FIB FAILED received %v", v.Details)
 				fibFailedDstRoute = dstIPList[j]
