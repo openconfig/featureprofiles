@@ -9,6 +9,10 @@ import os
 GO_BIN = 'go'
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
+MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.pem'
+MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.cert.pem'
+MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.pem'
+
 def check_output(cmd, **kwargs):
     kwargs['shell'] = True
     kwargs['text'] = True
@@ -102,6 +106,15 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     with open(docker_file, 'w') as fp:
         fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
 
+def _replace_binding_placeholders(fp_repo_dir, baseconf_file, ate_binding_file):
+    tb_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
+    key_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
+    cert_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
+    check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {ate_binding_file}")
+    check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ate_binding_file}")
+    check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ate_binding_file}")
+    check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ate_binding_file}")
+    
 def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file):
     otg_info = reserved_testbed['otg']
 
@@ -159,12 +172,12 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding
             f'-out {otg_binding_file}'
             
         check_output(cmd, cwd=fp_repo_dir)        
-        check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {otg_binding_file}")
+        _replace_binding_placeholders(fp_repo_dir, baseconf_file, otg_binding_file)
 
 def _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["binding"]), ate_binding_file)
-    check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {ate_binding_file}")
-    
+    _replace_binding_placeholders(fp_repo_dir, baseconf_file, ate_binding_file)
+        
 def _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["testbed"]), testbed_file)
     
