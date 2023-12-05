@@ -91,9 +91,6 @@ options {
 duts {
   id: "dut1"
   name: "DUT1"  # Change this to the device hostname.
-   config:{
-    gnmi_set_file: "$BASE_CONF_PATH"
-  }
 
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
@@ -195,9 +192,7 @@ duts {
 duts {
   id: "dut2"
   name: "DUT2"  # Change this to the device hostname.
-  config:{
-    gnmi_set_file: "$BASE_CONF_PATH"
-  }
+
   # telnet RP0: 10.85.84.54 2005
   # telnet RP1: 10.85.84.54 2006
   # Mgmt RP0: 5.78.26.27
