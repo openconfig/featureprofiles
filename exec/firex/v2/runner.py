@@ -715,11 +715,6 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
-    
-    if not type(reserved_testbed['baseconf']) is dict:
-        reserved_testbed['baseconf'] = {
-            'dut': reserved_testbed['baseconf']
-        }
             
     if reserved_testbed.get('sim', False):
         vxr_testbed = kwargs['testbed_path']
@@ -735,6 +730,11 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
             extra_conf = []
 
+            if not type(reserved_testbed['baseconf']) is dict:
+                reserved_testbed['baseconf'] = {
+                    'dut': reserved_testbed['baseconf']
+                }
+        
             mgmt_ip = mgmt_ips[dut]
             logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
             
@@ -759,12 +759,17 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         shutil.copyfile(hw_testbed_file_path, ondatra_testbed_path)
         shutil.copyfile(hw_binding_file_path, ondatra_binding_path)
         
-        for dut, conf in reserved_testbed['baseconf'].items():
-            baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
-            ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
-            shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)            
-            check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
-            
+        if type(reserved_testbed['baseconf']) is dict:
+            for dut, conf in reserved_testbed['baseconf'].items():
+                baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
+                ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+                shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)            
+                check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
+        else:
+            baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
+            shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)    
+            check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
+
         check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ondatra_binding_path}")
