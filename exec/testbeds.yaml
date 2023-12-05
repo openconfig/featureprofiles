@@ -150,10 +150,10 @@ testbeds:
     baseconf: 
       dut1: topologies/cisco/hw/2DUT-TB1/DUT1_FOX2508P0JU_baseconfig.proto
       dut2: topologies/cisco/hw/2DUT-TB1/DUT2_FOX2625PLW8_baseconfig.proto    
-    # otg:TBD
-    #   host: kne2-lnx
-    #   controller_port: 
-    #   gnmi_port: 
+    otg:
+      host: kne2-lnx
+      controller_port: 40058
+      gnmi_port: 50058
 
 #SIM
   8201-1DUT-1ATE:
