@@ -254,6 +254,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.25"
+  description: "Management network-instance default static route"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "RT-1.3"
   description: "BGP Route Propagation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/addpath/ate_tests/route_propagation_test/README.md"
@@ -414,6 +420,18 @@ test: {
   id: "RT-7"
   description: "BGP default policies"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/default_policies_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-8"
+  description: "Singleton with breakouts"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
+  exec: " "
+}
+test: {
+  id: "SFLOW-1"
+  description: "sFlow Configuration and Traffic Sampling"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/README.md"
   exec: " "
 }
 test: {
@@ -616,8 +634,13 @@ test: {
 }
 test: {
   id: "TE-9"
-  description: "Base gRIBI MPLS Compliance"
+  description: "MPLS based forwarding Static LSP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
+}
+test: {
+  id: "TE-9.1"
+  description: "Base gRIBI MPLS Compliance"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/static_lsp/README.md"
 }
 test: {
   id: "TE-10"
@@ -788,6 +811,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNMI-1.18"
+  description: "gNMI subscribe with sample mode for backplane capacity counters"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/README.md"
+  exec: " "
+}
+test: {
+  id: "gNMI-1.19"
+  description: "gNMI ConfigPush after Control Card switchover"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/controllercard/tests/SetRequest_controll_card_switchover/README.md"
+  exec: " "
+}
+test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/ate_tests/telemetry_inventory_test/README.md"
@@ -809,6 +844,12 @@ test: {
   id: "gNMI-1.9"
   description: "Get requests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/gnmi/get/tests/system_gnmi_get_test/README.md"
+  exec: " "
+}
+test: {
+  id: "gNMI-2"
+  description: "Gnmi Subscriptionlist Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test/README.md"
   exec: " "
 }
 test: {
@@ -887,5 +928,35 @@ test: {
   id: "TRANSCEIVER-4"
   description: "400ZR Optics RX Input and TX Output Power streaming"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_input_output_power_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-5"
+  description: "400ZR channel frequency and output TX launch power setting"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_tunable_parameters_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-8"
+  description: "400ZR Optics module temperature streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_temperature_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-9"
+  description: "400ZR TX laser bias current telemetry values streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_laser_bias_current_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-10"
+  description: "400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_fec_uncorrectable_frames_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PLT-1.1"
+  description: "Interface breakout Test"
+  readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/breakout_configuration/README.md"
   exec: " "
 }
