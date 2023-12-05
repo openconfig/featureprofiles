@@ -724,16 +724,16 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             file=ondatra_testbed_path)
 
         mgmt_ips = _sim_get_mgmt_ips(testbed_logs_dir)
+        if not type(reserved_testbed['baseconf']) is dict:
+            reserved_testbed['baseconf'] = {
+                'dut': reserved_testbed['baseconf']
+            }
+                
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
             ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
             extra_conf = []
-
-            if not type(reserved_testbed['baseconf']) is dict:
-                reserved_testbed['baseconf'] = {
-                    'dut': reserved_testbed['baseconf']
-                }
         
             mgmt_ip = mgmt_ips[dut]
             logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
