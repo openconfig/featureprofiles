@@ -167,28 +167,6 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     with open(docker_file, 'w') as fp:
         fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
 
-# def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
-#     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
-#     key_file = MTLS_DEFAULT_KEY_FILE
-#     cert_file = MTLS_DEFAULT_CERT_FILE
-
-#     if 'trust_bundle_file' in testbed:
-#         tb_file = _resolve_path_if_needed(internal_fp_repo_dir, testbed['trust_bundle_file'])
-#     if 'cert_file' in testbed:
-#         cert_file = _resolve_path_if_needed(internal_fp_repo_dir, testbed['cert_file'])
-#     if 'key_file' in testbed:
-#         key_file = _resolve_path_if_needed(internal_fp_repo_dir, testbed['key_file'])
-        
-#     return f"""
-#     options {{
-#         insecure: false
-#         skip_verify: false
-#         trust_bundle_file: "{tb_file}"
-#         cert_file: "{cert_file}"
-#         key_file:  "{key_file}"
-#     }}
-# """
-
 def _sim_get_vrf(base_conf_file):
     intf_re = r'interface.*?MgmtEth0\/RP0\/CPU0/0(.|\n)*?(\bvrf(\b.*\b))(.|\n)*?!'
     with open(base_conf_file, 'r') as fp:
@@ -641,6 +619,51 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
+def _enable_mtls(ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
+    # convert binding to json
+    with tempfile.NamedTemporaryFile() as of:
+        out_file = of.name
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/tojson ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-out {out_file}'
+
+        env = dict(os.environ)
+        env.update(_get_go_env(ws))
+        
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+        with open(out_file, 'r') as fp:
+            j = json.load(fp)
+
+    #TODO: support multiple ates
+    glob_username = j.get('options', {}).get('username', "")    
+    for dut in j.get('duts', []):
+        dut_username = dut.get('options', {}).get('username', glob_username)
+        for s in ['gnmi', 'gnoi', 'gnsi', 'gribi', 'p4rt']:
+            if s in dut:
+                opts = dut[s].get('options', {})
+                username = opts.get('username', dut_username)
+                opts['insecure'] = False
+                opts['skip_verify'] = False
+                opts['mutual_tls'] = True
+                opts['trust_bundle_file'] = os.path.join(certs_dir, 'ca.cert')
+                opts['cert_file'] = os.path.join(certs_dir, f'{username}.cert.pem')
+                opts['key_file'] = os.path.join(certs_dir, f'{username}.key.pem')
+                dut[s]['options'] = opts
+
+    # convert binding to prototext
+    with tempfile.NamedTemporaryFile() as f:
+        tmp_binding_file = f.name
+        with open(tmp_binding_file, "w") as outfile:
+            outfile.write(json.dumps(j))
+            
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/fromjson ' \
+            f'-binding {tmp_binding_file} ' \
+            f'-out {reserved_testbed["binding_file"]}'
+
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+
 def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
     if 'otg' not in reserved_testbed:
         shutil.copyfile(reserved_testbed["ate_binding_file"], reserved_testbed["otg_binding_file"])
@@ -858,6 +881,25 @@ def InstallSMUs(self, ws, internal_fp_repo_dir, reserved_testbed, smus):
     env = dict(os.environ)
     env.update(_get_go_env(ws))
     check_output(smu_install_cmd, env=env, cwd=internal_fp_repo_dir)
+
+# noinspection PyPep8Naming
+@app.task(bind=True, returns=('cert_dir'))
+def GenerateCertificates(self, ws, internal_fp_repo_dir, reserved_testbed):
+    logger.print("Generating Certificates...")
+    
+    cert_dir = os.path.join(ws, "certificates")
+    gen_command = f'{GO_BIN} test -v ' \
+            f'./exec/utils/certgen ' \
+            f'-args ' \
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-outDir "{cert_dir}" '
+
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    check_output(gen_command, env=env, cwd=internal_fp_repo_dir)
+    return cert_dir
+
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
