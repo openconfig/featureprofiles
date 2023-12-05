@@ -89,6 +89,7 @@ duts {
   }
   ssh{
     target: "10.85.84.159:47722"
+    skip_verify: true
   }
 
 # Before this binding can be used with a topology, add ports mapping
