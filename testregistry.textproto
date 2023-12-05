@@ -823,6 +823,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNMI-1.20"
+  description: "Telemetry: Optics Thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/optics_thresholds_test/README.md"
+  exec: " "
+}
+test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/ate_tests/telemetry_inventory_test/README.md"
