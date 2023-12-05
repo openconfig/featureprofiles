@@ -148,6 +148,19 @@ testbeds:
       controller_port: 40059
       gnmi_port: 50059
 
+  2DUT-TB1:
+    hw: 2DUT-TB1
+    owner: arvbaska
+    testbed: topologies/cisco/hw/2DUT-TB1/testbed
+    binding: topologies/cisco/hw/2DUT-TB1/binding
+    baseconf: 
+      dut1: topologies/cisco/hw/2DUT-TB1/DUT1_FOX2508P0JU_baseconfig.proto
+      dut2: topologies/cisco/hw/2DUT-TB1/DUT2_FOX2625PLW8_baseconfig.proto    
+    # otg:TBD
+    #   host: kne2-lnx
+    #   controller_port: 
+    #   gnmi_port: 
+
 #SIM
   8201-1DUT-1ATE:
     sim: true
