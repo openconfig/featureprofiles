@@ -74,12 +74,17 @@ a new testbed configuration with the desired port types.
 ### RT-5.1.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2338]
 #### Removal of Interface config should return an error if breakout-mode is still configured
 
-*   Configure breakout on DUT port-1
-*   Validate breakout is reported correctly
-*   Try removing the interface without removing the breakout
-    *   Expect the operation to error out
-*   Remove the breakout and then remove the interface
-    *   Validate that the interface is removed
+*   On DUT Port-1 with a QSFP-DD 400GBASE-DR4 transceiver inserted
+*   Ensure no breakout is configured
+*   Set Port-1 port-speed to 100GB
+*   The DUT should reject the configuration
+    *   Because the transceiver requires a breakout to achieve 100GB speed
+*   Configure a breakout on Port-1 to 4x100 Gig
+    * /components/component/port/breakout-mode/groups/group/config/breakout-speed
+*   Try removing the interface Port-1 config without removing the breakout
+    *   Expect the DUT operation to error out
+*   Remove the breakout config on Port-1 and then remove the Port-1 interface config
+    *   Validate that the Port-1 interface config is removed
 
 ## Config Parameter Coverage
 
