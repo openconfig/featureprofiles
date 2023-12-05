@@ -716,6 +716,11 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
     
+    if not type(reserved_testbed['baseconf']) is dict:
+        reserved_testbed['baseconf'] = {
+            'dut': reserved_testbed['baseconf']
+        }
+            
     if reserved_testbed.get('sim', False):
         vxr_testbed = kwargs['testbed_path']
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {vxr_testbed}', 
@@ -724,11 +729,6 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             file=ondatra_testbed_path)
 
         mgmt_ips = _sim_get_mgmt_ips(testbed_logs_dir)
-        if not type(reserved_testbed['baseconf']) is dict:
-            reserved_testbed['baseconf'] = {
-                'dut': reserved_testbed['baseconf']
-            }
-
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
             ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
