@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 const (
 	with_scale            = true                        // run entire script with or without scale (Support not yet coded)
 	with_RPFO             = false                       // run entire script with or without RFPO
-	subscription_timout   = 65                          // set background subscription timeout value in minutes
+	subscription_timout   = 35                          // set background subscription timeout value in minutes
 	base_config           = "case4_decap_encap_recycle" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
@@ -186,21 +186,23 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 
 	// reestablishing gribi connection
 	if pName == "emsd" {
-		// client := gribi.Client{
-		//  DUT:                   dut,
-		//  FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		//  Persistence:           true,
-		//  InitialElectionIDLow:  1,
-		//  InitialElectionIDHigh: 0,
-		// }
-		// if err := client.Start(t); err != nil {
-		//  t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-		//  if err = client.Start(t); err != nil {
-		//    t.Fatalf("gRIBI Connection could not be established: %v", err)
-		//  }
-		// }
-		// args.client = &client
-		args.client.Start(t)
+		time.Sleep(time.Second * 20)
+		client := gribi.Client{
+			DUT:                   args.dut,
+			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+			Persistence:           true,
+			InitialElectionIDLow:  1,
+			InitialElectionIDHigh: 0,
+		}
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			if err = client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection could not be established: %v", err)
+			}
+		}
+		args.client = &client
+		gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), 15*time.Minute)
+		gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Minute)), gnmi.OC().Interface("*").State(), 15*time.Minute)
 	}
 }
 
@@ -341,7 +343,6 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 
 	// reestablishing gribi connection
 	if gribi_reconnect {
-		// time.Sleep(time.Minute * 10)
 		client := gribi.Client{
 			DUT:                   args.dut,
 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -356,7 +357,6 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 			}
 		}
 		args.client = &client
-		// args.client.Start(t)
 	}
 	gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), 15*time.Minute)
 	gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Minute)), gnmi.OC().Interface("*").State(), 15*time.Minute)
@@ -1045,7 +1045,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"bgp", "ipv6_rib", "fib_mgr", "ifmgr"}
+	processes := []string{"bgp", "ipv6_rib", "fib_mgr", "ifmgr", "emsd", "db_writer", "isis", "ipv4_rib"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			// RPFO
@@ -2632,6 +2632,15 @@ func TestHA(t *testing.T) {
 			}
 			eventConsumer := monitor.NewCachedConsumer(2*time.Hour, /*expiration time for events in the cache*/
 				1 /*number of events for keep for each leaf*/)
+			// monitor := monitor.GNMIMonior{
+			// 	Paths: []ygnmi.PathStruct{
+			// 		gnmi.OC().NetworkInstance("DEFAULT"),
+			// 	},
+			// 	Consumer: eventConsumer,
+			// 	DUT:      dut,
+			// }
+			// monitor.Start(ctx, t, true, proto_gnmi.SubscriptionList_Mode(proto_gnmi.SubscriptionList_ONCE))
+			// defer cancelMonitors()
 
 			args := &testArgs{
 				ctx:    ctx,

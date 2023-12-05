@@ -10,7 +10,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    deviation_gnoi_subcomponent_path: false
+    gribi_mac_override_with_static_arp: true
   }
 }
 

@@ -410,12 +410,12 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
 def max_testbed_requests():
     if 'B4_FIREX_TESTBEDS_COUNT' in os.environ:
         return int(os.environ.get('B4_FIREX_TESTBEDS_COUNT'))
-    return 10
+    return 1
 
 def decommission_testbed_after_tests():
     if 'B4_FIREX_DECOMMISSION_TESTBED' in os.environ:
         return bool(int(os.environ.get('B4_FIREX_DECOMMISSION_TESTBED')))
-    return True
+    return False
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
@@ -545,8 +545,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         test_args = _update_test_args_from_env(test_args, extra_args_env_vars)
 
     test_args = f'{test_args} ' \
-        f'-log_dir {test_logs_dir_in_ws} ' \
-        f'-outputs_dir {test_logs_dir_in_ws}'
+        f'-log_dir {test_logs_dir_in_ws}'
 
     test_args += f' -binding {reserved_testbed["binding_file"]} -testbed {reserved_testbed["testbed_file"]} -xml "{xml_results_file}" '
     if test_verbose:
@@ -563,14 +562,13 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
     go_args = f'{go_args} ' \
                 f'{go_args_prefix}v ' \
-                f'{go_args_prefix}parallel 1 ' \
                 f'{go_args_prefix}timeout {test_timeout}s'
 
     if test_debug:
         dlv_bin = os.path.join(_get_go_bin_path(), 'dlv')
         cmd = f'{dlv_bin} test ./{test_path} -- {go_args} {test_args}'
     else:
-        cmd = f'{GO_BIN} test ./{test_path} {go_args} -args {test_args}'
+        cmd = f'{GO_BIN} test -p 1 ./{test_path} {go_args} -args {test_args}'
 
     start_time = self.get_current_time()
     start_timestamp = int(time.time())
