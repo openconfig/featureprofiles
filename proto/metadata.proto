@@ -363,6 +363,9 @@ message Metadata {
     // Device set received prefix limits explicitly under prefix-limit-received rather than
     // "prefix-limit"
     bool bgp_explicit_prefix_limit_received = 127;
+    // Device does not configure BGP maximum routes correctly when max-prefixes
+    // leaf is configured
+    bool bgp_missing_oc_max_prefixes_configuration = 128;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
