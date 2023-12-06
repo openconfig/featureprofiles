@@ -681,6 +681,12 @@ func BGPExplicitPrefixLimitReceived(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpExplicitPrefixLimitReceived()
 }
 
+// BGPMissingOCMaxPrefixesConfiguration returns true for devices that does not configure BGP
+// maximum routes correctly when max-prefixes OC leaf is configured.
+func BGPMissingOCMaxPrefixesConfiguration(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMissingOcMaxPrefixesConfiguration()
+}
+
 // SkipBgpSessionCheckWithoutAfisafi returns if device needs to skip checking AFI-SAFI disable.
 func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
