@@ -217,6 +217,9 @@ func juniperCLI() string {
 				from as-path match-as-path;
 				then reject;
 			}
+			term term2 {
+				then accept;
+			}
 		}
 		as-path match-as-path ".* 4400 3300";
 	}`, rejectAspath)

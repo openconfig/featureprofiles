@@ -397,11 +397,6 @@ func ExplicitGRIBIUnderNetworkInstance(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitGribiUnderNetworkInstance()
 }
 
-// SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
-func SkipBGPTestPasswordMismatch(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipBgpTestPasswordMismatch()
-}
-
 // BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
 func BGPMD5RequiresReset(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMd5RequiresReset()
@@ -678,4 +673,16 @@ func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
 // PLQ operational status check for interfaces
 func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
+}
+
+// BGPExplicitPrefixLimitReceived returns if device must specify the received prefix limits explicitly
+// under the "prefix-limit-received" field rather than simply "prefix-limit".
+func BGPExplicitPrefixLimitReceived(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExplicitPrefixLimitReceived()
+}
+
+// BGPMissingOCMaxPrefixesConfiguration returns true for devices that does not configure BGP
+// maximum routes correctly when max-prefixes OC leaf is configured.
+func BGPMissingOCMaxPrefixesConfiguration(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMissingOcMaxPrefixesConfiguration()
 }
