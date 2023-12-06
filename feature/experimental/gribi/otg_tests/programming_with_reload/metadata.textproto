@@ -4,4 +4,4 @@
 uuid:  "4f04fb5b-5bc0-4214-a74d-2a30c0433079"
 plan_id:  "TE-11.4"
 description:  "Gribi Programming with reload"
-testbed:  TESTBED_DUT_ATE_3LINKS
+testbed:  TESTBED_DUT_ATE_4LINKS
