@@ -386,35 +386,33 @@ func TestPassword(t *testing.T) {
 	// Verify BGP status
 	t.Log("Check BGP parameters")
 	verifyBgpTelemetry(t, dut)
-	if !deviations.SkipBGPTestPasswordMismatch(dut) {
-		t.Log("Configure mismatching md5 auth password on DUT")
-		gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), "PASSWORDNEGSCENARIO")
+	t.Log("Configure mismatching md5 auth password on DUT")
+	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), "PASSWORDNEGSCENARIO")
 
-		// If the DUT will not fail a BGP session when the BGP MD5 key configuration changes,
-		// change the key from the ATE side to time out the session.
-		if deviations.BGPMD5RequiresReset(dut) {
-			bgpPeer.WithMD5Key("PASSWORDNEGSCENARIO-ATE")
-			topo.UpdateBGPPeerStates(t)
-		}
-		t.Log("Wait till hold time expires: BGP should not be in ESTABLISHED state when passwords do not match.")
-		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), (dutHoldTime+10)*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
-			state, ok := val.Val()
-			return ok && state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
-		}).Await(t)
-		if !ok {
-			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-			t.Error("BGP Adjacency is ESTABLISHED when passwords are not matching")
-		}
-
-		t.Log("Revert md5 auth password on DUT to match with ATE.")
-		gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
-		if deviations.BGPMD5RequiresReset(dut) {
-			bgpPeer.WithMD5Key(authPassword)
-			topo.UpdateBGPPeerStates(t)
-		}
-		t.Log("Verify BGP session state : Should be ESTABLISHED")
-		gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	// If the DUT will not fail a BGP session when the BGP MD5 key configuration changes,
+	// change the key from the ATE side to time out the session.
+	if deviations.BGPMD5RequiresReset(dut) {
+		bgpPeer.WithMD5Key("PASSWORDNEGSCENARIO-ATE")
+		topo.UpdateBGPPeerStates(t)
 	}
+	t.Log("Wait till hold time expires: BGP should not be in ESTABLISHED state when passwords do not match.")
+	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), (dutHoldTime+10)*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+		state, ok := val.Val()
+		return ok && state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+	}).Await(t)
+	if !ok {
+		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+		t.Error("BGP Adjacency is ESTABLISHED when passwords are not matching")
+	}
+
+	t.Log("Revert md5 auth password on DUT to match with ATE.")
+	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
+	if deviations.BGPMD5RequiresReset(dut) {
+		bgpPeer.WithMD5Key(authPassword)
+		topo.UpdateBGPPeerStates(t)
+	}
+	t.Log("Verify BGP session state : Should be ESTABLISHED")
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	// Clear config on DUT and ATE
 	topo.StopProtocols(t)
 	bgpClearConfig(t, dut)
