@@ -397,11 +397,6 @@ func ExplicitGRIBIUnderNetworkInstance(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitGribiUnderNetworkInstance()
 }
 
-// SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
-func SkipBGPTestPasswordMismatch(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipBgpTestPasswordMismatch()
-}
-
 // BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
 func BGPMD5RequiresReset(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMd5RequiresReset()
