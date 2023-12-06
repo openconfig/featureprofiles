@@ -1460,6 +1460,7 @@ func (x *Metadata_Deviations) GetSkipBgpSessionCheckWithoutAfisafi() bool {
 	}
 	return false
 }
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
