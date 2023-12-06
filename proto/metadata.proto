@@ -366,6 +366,8 @@ message Metadata {
     // Device does not configure BGP maximum routes correctly when max-prefixes
     // leaf is configured
     bool bgp_missing_oc_max_prefixes_configuration = 128;
+    // Device does not support reboot status check on subcomponents.
+    bool gnoi_subcomponent_reboot_status_unsupported = 129;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 

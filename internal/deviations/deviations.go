@@ -686,3 +686,8 @@ func BGPExplicitPrefixLimitReceived(dut *ondatra.DUTDevice) bool {
 func BGPMissingOCMaxPrefixesConfiguration(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMissingOcMaxPrefixesConfiguration()
 }
+
+// GNOISubcomponentRebootStatusUnsupported returns true for devices that do not support subcomponent reboot status check.
+func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
+}
