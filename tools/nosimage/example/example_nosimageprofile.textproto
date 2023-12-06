@@ -36,7 +36,7 @@ ocpaths: {
   version: "2.5.0"
 }
 ocrpcs: {
-  ocservices: {
+  oc_protocols: {
     key: "gnmi.gNMI"
     value: {
       method_name: "Set"
@@ -44,14 +44,14 @@ ocrpcs: {
       version: "0.10.0"
     }
   }
-  ocservices: {
+  oc_protocols: {
     key: "gnoi.bgp.BGP"
     value: {
       method_name: "ClearBGPNeighbor"
       version: "0.1.0"
     }
   }
-  ocservices: {
+  oc_protocols: {
     key: "gnoi.healthz.Healthz"
     value: {
       method_name: "Acknowledge"
