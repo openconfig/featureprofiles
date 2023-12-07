@@ -19,20 +19,22 @@ import (
 )
 
 const (
-	pbrName        = "PBR"
-	PbrNameSrc     = "Pbr-SrcIp"
-	PbrNameSrc2    = "Pbr-SrcIp-two"
-	PbrNameDscp    = "Pbr-SrcIp-Dscp"
-	SeqID          = 1
-	SeqID2         = 2
-	SeqID3         = 3
-	IxiaSrcip      = "198.51.100.0"
-	IxiaSrcip2     = "198.61.100.0"
-	Dscpval        = 10
-	SourceAddress  = "198.51.100.0/32"
-	SourceAddress2 = "198.61.100.0/32"
-	protocolNum    = 4
-	protocolNumv6  = 41
+	pbrName               = "PBR"
+	PbrNameSrc            = "Pbr-SrcIp"
+	PbrNameSrc2           = "Pbr-SrcIp-two"
+	PbrNameDscp           = "Pbr-SrcIp-Dscp"
+	SeqID                 = 1
+	SeqID2                = 2
+	SeqID3                = 3
+	IxiaSrcip             = "198.51.100.0"
+	IxiaSrcip2            = "198.61.100.0"
+	Dscpval               = 10
+	SourceAddress         = "198.51.100.0/32"
+	SourceAddress2        = "198.61.100.0/32"
+	protocolNum           = 4
+	protocolNumv6         = 41
+	rebootDelay           = 120
+	oneSecondInNanoSecond = 1e9
 )
 
 var weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
@@ -297,8 +299,8 @@ func reloadDevice(t *testing.T, dut *ondatra.DUTDevice) {
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
-		Delay:   0,
-		Message: "Reboot chassis without delay",
+		Delay:   rebootDelay * oneSecondInNanoSecond,
+		Message: "Reboot chassis with delay",
 		Force:   true,
 	})
 	if err != nil {

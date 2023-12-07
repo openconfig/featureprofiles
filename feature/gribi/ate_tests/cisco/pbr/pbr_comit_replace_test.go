@@ -29,32 +29,48 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// disable hwmodule and expect the traffic to be failed even after adding gribi routes
-	t.Log("Trying  no hw-module profile pbr vrf-redirect")
-	configToChange := "no hw-module profile pbr vrf-redirect\n"
-	util.GNMIWithText(ctx, t, args.dut, configToChange)
-	time.Sleep(1 * time.Minute)
-	// reloadDevice(t, args.dut)
+	t.Run("Trying no hw-module profile pbr vrf-redirect", func(t *testing.T) {
 
-	args.clientA.StartWithNoCache(t)
-	args.clientA.BecomeLeader(t)
-	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
-	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
-	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+		configToChange := "no hw-module profile pbr vrf-redirect\n"
+		util.GNMIWithText(ctx, t, args.dut, configToChange)
+		args.clientA.StartWithNoCache(t)
+		args.clientA.BecomeLeader(t)
+		configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+		configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+		configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+	})
 
 	// enable hwmodule and expect the traffic to be passed after adding gribi routes
-	t.Log("Trying hw-module profile pbr vrf-redirect")
-	configToChange1 := "hw-module profile pbr vrf-redirect\n"
-	util.GNMIWithText(ctx, t, args.dut, configToChange1)
-	time.Sleep(1 * time.Minute)
-	// reloadDevice(t, args.dut)
+	t.Run("Trying hw-module profile pbr vrf-redirect", func(t *testing.T) {
 
-	args.clientA.StartWithNoCache(t)
-	args.clientA.BecomeLeader(t)
-	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
-	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
-	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+		t.Log("Trying hw-module profile pbr vrf-redirect")
+		beforeReloadConfig := "hw-module profile pbr vrf-redirect\n"
+		util.GNMIWithText(ctx, t, args.dut, beforeReloadConfig)
+		args.clientA.StartWithNoCache(t)
+		args.clientA.BecomeLeader(t)
+		configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+		configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+		configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+	})
+
+	// router reload and expect the traffic to be passed after adding gribi routes
+	t.Run("Trying Reload the router", func(t *testing.T) {
+
+		reloadDevice(t, args.dut)
+		args.clientA.Close(t)
+		time.Sleep(2 * time.Minute)
+		if err := args.clientA.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection can not be established")
+		}
+		args.clientA.StartWithNoCache(t)
+		args.clientA.BecomeLeader(t)
+		configureBaseDoubleRecusionVip1Entry(ctx, t, args)
+		configureBaseDoubleRecusionVip2Entry(ctx, t, args)
+		configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+	})
 }
 
 func removePBRFromBaseConfing(t *testing.T, baseConfig string) string {
