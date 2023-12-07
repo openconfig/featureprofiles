@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package session is deprecated and scoped only to be used with
+// Package isissession is deprecated and scoped only to be used with
 // feature/experimental/isis/ate_tests/*.  Do not use elsewhere.
-package session
+package isissession
 
 import (
 	"context"
@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -60,7 +61,7 @@ var (
 	// DUTNET is the Network Entity Title for the DUT
 	DUTNET = fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)
 	// DUTISISAttrs has attributes for the DUT ISIS connection on port1
-	DUTISISAttrs = &Attributes{
+	DUTISISAttrs = &attrs.Attributes{
 		Desc:    "DUT to ATE with IS-IS",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
@@ -68,7 +69,7 @@ var (
 		IPv6Len: pLen6,
 	}
 	// ATEISISAttrs has attributes for the ATE ISIS connection on port1
-	ATEISISAttrs = &Attributes{
+	ATEISISAttrs = &attrs.Attributes{
 		Name:    "port1",
 		Desc:    "ATE to DUT with IS-IS",
 		MAC:     "02:11:01:00:00:01",
@@ -78,7 +79,7 @@ var (
 		IPv6Len: pLen6,
 	}
 	// DUTTrafficAttrs has attributes for the DUT end of the traffic connection (port2)
-	DUTTrafficAttrs = &Attributes{
+	DUTTrafficAttrs = &attrs.Attributes{
 		Desc:    "DUT to ATE secondary link",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
@@ -86,7 +87,7 @@ var (
 		IPv6Len: pLen6,
 	}
 	// ATETrafficAttrs has attributes for the ATE end of the traffic connection (port2)
-	ATETrafficAttrs = &Attributes{
+	ATETrafficAttrs = &attrs.Attributes{
 		Name:    "port2",
 		Desc:    "ATE to DUT secondary link",
 		MAC:     "02:12:01:00:00:01",
@@ -201,8 +202,8 @@ func New(t testing.TB) (*TestSession, error) {
 	s.DUTPort2 = s.DUT.Port(t, "port2")
 	s.DUTConf = &oc.Root{}
 	// configure dut ports
-	DUTISISAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort1.Name()), s.DUT)
-	DUTTrafficAttrs.ConfigInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort2.Name()), s.DUT)
+	DUTISISAttrs.ConfigOCInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort1.Name()), s.DUT)
+	DUTTrafficAttrs.ConfigOCInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort2.Name()), s.DUT)
 
 	// If there is no ate, any operation that requires the ATE will call
 	// t.Fatal() instead. This is helpful for debugging the parts of the test
