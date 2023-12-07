@@ -366,6 +366,9 @@ message Metadata {
     // Device does not configure BGP maximum routes correctly when max-prefixes
     // leaf is configured
     bool bgp_missing_oc_max_prefixes_configuration = 128;
+    // Devices which needs to skip checking AFI-SAFI disable.
+    // Juniper: b/310698466
+    bool skip_bgp_session_check_without_afisafi = 129;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
