@@ -17,7 +17,7 @@ the available backplane capacity counters correctly while forwarding traffic
 
 ## Procedure
 
-### gNMI-1.18.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2322]
+### gNMI-1.18.1
 
 *   Connect DUT port-1 and 2 to ATE port-1 and 2 respectively
 
@@ -35,7 +35,7 @@ the available backplane capacity counters correctly while forwarding traffic
     *   Initiate traffic:
 
         *   Initiate traffic as per below threshold:
-    
+
              Port number   | Interface1(line rate %)
             -------------- | -----------------------
             Port1          | 20%
@@ -52,7 +52,7 @@ the available backplane capacity counters correctly while forwarding traffic
 
     *   Validate we are now receiving increased consumed capacity metrics at the selected SAMPLE interval
 
-### gNMI-1.18.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2323]
+### gNMI-1.18.2
 
 *   Connect DUT port-1 and 2 to ATE port-1 and 2 respectively
 
@@ -74,7 +74,7 @@ the available backplane capacity counters correctly while forwarding traffic
 
 *   Enable the FABRIC component that was disabled in the previous step
 
-    *   Set /components/component/{fabric|linecard|controller-card}/config/power-admin-state to POWER_ENABLED
+    *   Set /components/component/{fabric}/config/power-admin-state to POWER_ENABLED
 
 *   Validate that we recieve changed metrics of a higher value for each of the telemetry paths
 
