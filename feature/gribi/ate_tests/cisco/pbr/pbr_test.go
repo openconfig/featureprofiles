@@ -299,8 +299,8 @@ func reloadDevice(t *testing.T, dut *ondatra.DUTDevice) {
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
-		Delay:   rebootDelay * oneSecondInNanoSecond,
-		Message: "Reboot chassis with delay",
+		Delay:   0,
+		Message: "Reboot chassis without delay",
 		Force:   true,
 	})
 	if err != nil {
