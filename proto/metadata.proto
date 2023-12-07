@@ -363,20 +363,26 @@ message Metadata {
     // Device set received prefix limits explicitly under prefix-limit-received rather than
     // "prefix-limit"
     bool bgp_explicit_prefix_limit_received = 127;
+    // Device does not configure BGP maximum routes correctly when max-prefixes
+    // leaf is configured
+    bool bgp_missing_oc_max_prefixes_configuration = 128;
+    // Devices which needs to skip checking AFI-SAFI disable.
+    // Juniper: b/310698466
+    bool skip_bgp_session_check_without_afisafi = 129;
     // Skip gNMI container OP tc.
-    bool skip_container_op = 128;
+    bool skip_container_op = 130;
     // Set ethernet from state.
-    bool dont_set_ethernet_from_state = 129;
+    bool dont_set_ethernet_from_state = 131;
     // Set subinterface to nil.
-    bool set_subinterface_nil = 130;
+    bool set_subinterface_nil = 132;
     // Reorder calls for vendor compatibility.
-    bool reorder_calls_for_vendor_compatibilty = 131;
+    bool reorder_calls_for_vendor_compatibilty = 133;
     // Add missing base config using cli.
-    bool add_missing_base_config_via_cli = 132;
+    bool add_missing_base_config_via_cli = 134;
     // skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
-    bool skip_macaddress_check = 133;
+    bool skip_macaddress_check = 135;
 	  // skip_breakout returns true if breakout via gNMI needs to be skipped.
-    bool skip_breakout = 134;
+    bool skip_breakout = 136;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 

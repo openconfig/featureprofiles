@@ -93,11 +93,11 @@ type breakout struct {
 // showRunningConfig gets the running config from the router
 func showRunningConfig(t testing.TB, dut *ondatra.DUTDevice) string {
 	if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
-		runningConfig, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show running-config")
+		runningConfig, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), "show running-config")
 		if err != nil {
 			t.Fatalf("'show running-config' failed: %v", err)
 		}
-		return runningConfig
+		return runningConfig.Output()
 	}
 	return ""
 }
