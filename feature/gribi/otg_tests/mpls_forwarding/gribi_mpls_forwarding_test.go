@@ -16,7 +16,7 @@ import (
 
 const (
 	// baseLabel indicates the minimum label to use on a packet.
-	baseLabel = 42
+	baseLabel = 32768
 	// maximumStackDepth is the maximum number of labels to be pushed onto the packet.
 	maximumStackDepth = 20
 	// lossTolerance is the number of packets that can be lost within a flow before the
@@ -37,7 +37,7 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 	c.Connection().WithStub(gribic)
 
 	for numLabels := 1; numLabels <= maximumStackDepth; numLabels++ {
-		t.Run(fmt.Sprintf("TE-10.1: Push MPLS labels to MPLS: sh %d labels", numLabels), func(t *testing.T) {
+		t.Run(fmt.Sprintf("TE-10.1: Push MPLS labels to MPLS: Push %d labels", numLabels), func(t *testing.T) {
 			labels := []uint32{}
 			for i := 0; i < numLabels; i++ {
 				labels = append(labels, uint32(baseLabel+i))
