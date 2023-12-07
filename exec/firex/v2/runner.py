@@ -102,63 +102,63 @@ def _gnmi_set_file_template(conf):
 
 def _otg_docker_compose_template(control_port, gnmi_port):
     return f"""
-version: "2"
-services:
-  controller:
-    image: ghcr.io/open-traffic-generator/keng-controller:firex
-    restart: always
-    ports:
-      - "{control_port}:40051"
-    depends_on:
-      layer23-hw-server:
-        condition: service_started
-    command:
-      - "--accept-eula"
-      - "--debug"
-      - "--keng-layer23-hw-server"
-      - "layer23-hw-server:5001"
-    environment:
-      - LICENSE_SERVERS=10.85.70.247
-    logging:
-      driver: "local"
-      options:
-        max-size: "100m"
-        max-file: "10"
-        mode: "non-blocking"
-  layer23-hw-server:
-    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:firex
-    restart: always
-    command:
-      - "dotnet"
-      - "otg-ixhw.dll"
-      - "--trace"
-      - "--log-level"
-      - "trace"
-    logging:
-      driver: "local"
-      options:
-        max-size: "100m"
-        max-file: "10"
-        mode: "non-blocking"
-  gnmi-server:
-    image: ghcr.io/open-traffic-generator/otg-gnmi-server:firex
-    restart: always
-    ports:
-      - "{gnmi_port}:50051"
-    depends_on:
-      controller:
-        condition: service_started
-    command:
-      - "-http-server"
-      - "https://controller:8443"
-      - "--debug"
-    logging:
-      driver: "local"
-      options:
-        max-size: "100m"
-        max-file: "10"
-        mode: "non-blocking"
-"""
+    version: "2"
+    services:
+    controller:
+        image: ghcr.io/open-traffic-generator/keng-controller:firex
+        restart: always
+        ports:
+        - "{control_port}:40051"
+        depends_on:
+        layer23-hw-server:
+            condition: service_started
+        command:
+        - "--accept-eula"
+        - "--debug"
+        - "--keng-layer23-hw-server"
+        - "layer23-hw-server:5001"
+        environment:
+        - LICENSE_SERVERS=10.85.70.247
+        logging:
+        driver: "local"
+        options:
+            max-size: "100m"
+            max-file: "10"
+            mode: "non-blocking"
+    layer23-hw-server:
+        image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:firex
+        restart: always
+        command:
+        - "dotnet"
+        - "otg-ixhw.dll"
+        - "--trace"
+        - "--log-level"
+        - "trace"
+        logging:
+        driver: "local"
+        options:
+            max-size: "100m"
+            max-file: "10"
+            mode: "non-blocking"
+    gnmi-server:
+        image: ghcr.io/open-traffic-generator/otg-gnmi-server:firex
+        restart: always
+        ports:
+        - "{gnmi_port}:50051"
+        depends_on:
+        controller:
+            condition: service_started
+        command:
+        - "-http-server"
+        - "https://controller:8443"
+        - "--debug"
+        logging:
+        driver: "local"
+        options:
+            max-size: "100m"
+            max-file: "10"
+            mode: "non-blocking"
+    """
 
 def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     if not 'otg' in reserved_testbed:
@@ -584,7 +584,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     finally:
         # if self.console_output_file and Path(self.console_output_file).is_file():
         #     shutil.copyfile(self.console_output_file, json_results_file)
-        
+        # TODO: run anyway if there is no errors
         suite = _get_testsuite_from_xml(xml_results_file)
         if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
@@ -594,7 +594,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     reserved_testbed=reserved_testbed, 
                     test_log_directory_path=test_log_directory_path,
-                    timestamp=start_timestamp
+                    timestamp=start_timestamp,
+                    core=False
                 ))
         elif test_ignore_aborted or test_skip:
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
@@ -881,13 +882,26 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp):
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core):
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
         tmp_binding_file = f.name
         shutil.copyfile(reserved_testbed['binding_file'], tmp_binding_file)
         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
+
+    # TODO: collect core files if any
+    if core == True:
+        collect_core_files = f'{GO_BIN} test -v ' \
+                f'./exec/utils/debug ' \
+                f'-timeout 60m ' \
+                f'-args ' \
+                f'-testbed {reserved_testbed["testbed_file"]} ' \
+                f'-binding {tmp_binding_file} ' \
+                f'-outDir {test_log_directory_path}/debug_files ' \
+                f'-timestamp {str(timestamp)}' \
+                f'-core true'
+
 
     collect_debug_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/debug ' \
@@ -896,11 +910,16 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
             f'-testbed {reserved_testbed["testbed_file"]} ' \
             f'-binding {tmp_binding_file} ' \
             f'-outDir {test_log_directory_path}/debug_files ' \
-            f'-timestamp {str(timestamp)}'
+            f'-timestamp {str(timestamp)}' 
+
+
     try:
         env = dict(os.environ)
         env.update(_get_go_env(ws))
-        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+        if core is True :
+            check_output(collect_core_files, env=env, cwd=internal_fp_repo_dir)
+        else:
+            check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:

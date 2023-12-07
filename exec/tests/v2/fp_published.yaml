@@ -133,7 +133,7 @@ tests:
     priority: 3
     internal: false
   - name: TE-11.3 (Backup NHG Actions)
-    path: feature/experimental/gribi/otg_tests/backup_nhg_action/
+    path: feature/experimental/gribi/ate_tests/backup_nhg_action/
     owners:
       - wdolaast
     mustpass: true
@@ -239,7 +239,7 @@ tests:
     mustpass: true
     timeout: 7200
   - name: P4RT-5.1 (Traceroute Packetin)
-    path: feature/experimental/p4rt/otg_tests/traceroute_packetin_test
+    path: feature/experimental/p4rt/ate_tests/traceroute_packetin_test
     owners:
       - sprem
     priority: 5
