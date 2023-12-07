@@ -379,9 +379,7 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 	configPBRunderInterface(t, args, physicalInterface, policyName)
 	configPBRunderInterface(t, args, args.interfaces.in[0], policyName)
 
-	configToChange1 := "interface " + physicalInterface + "\nno ipv4 address\nno service-policy type pbr input " + policyName + "\n"
-	t.Logf("configToChange1 - %v", configToChange1)
-	util.GNMIWithText(ctx, t, args.dut, configToChange1)
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).Interface(physicalInterface+".0").Config())
 
 	// Remove the interface from physical to bundle interface
 	memberConfig := generateBundleMemberInterfaceConfig(t, physicalInterface, args.interfaces.in[0])
