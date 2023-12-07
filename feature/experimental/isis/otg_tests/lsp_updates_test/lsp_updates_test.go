@@ -20,10 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -37,12 +37,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestOverloadBit(t *testing.T) {
-	ts := session.MustNew(t).WithISIS()
+	ts := isissession.MustNew(t).WithISIS()
 	// Only push DUT config - no adjacency established yet
 	if err := ts.PushDUT(context.Background(), t); err != nil {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
-	isisPath := session.ISISPath(ts.DUT)
+	isisPath := isissession.ISISPath(ts.DUT)
 	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
 	//Lookup the initial value for 'database-overloads' leaf counter after config is pushed to DUT & before adjacency is formed
 	getDbOlInitCount := gnmi.Lookup(t, ts.DUT, overloads.State())
@@ -71,7 +71,7 @@ func TestOverloadBit(t *testing.T) {
 	}
 	ts.DUTConf.
 		GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
-		GetProtocol(session.PTISIS, session.ISISName).
+		GetProtocol(isissession.PTISIS, isissession.ISISName).
 		GetIsis().
 		GetGlobal().
 		GetOrCreateLspBit().
@@ -103,7 +103,7 @@ func TestOverloadBit(t *testing.T) {
 
 func TestMetric(t *testing.T) {
 	t.Logf("Starting...")
-	ts := session.MustNew(t).WithISIS()
+	ts := isissession.MustNew(t).WithISIS()
 	ts.ATE = ondatra.ATE(t, "ate")
 	configuredMetric := uint32(100)
 	otg := ts.ATE.OTG()
@@ -111,18 +111,18 @@ func TestMetric(t *testing.T) {
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		isisIntfName = ts.DUT.Port(t, "port1").Name() + ".0"
 	}
-	ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(session.PTISIS, session.ISISName).GetIsis().
+	ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(isissession.PTISIS, isissession.ISISName).GetIsis().
 		GetInterface(isisIntfName).
 		GetOrCreateLevel(2).
 		GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).
 		Metric = ygot.Uint32(configuredMetric)
-	ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(session.PTISIS, session.ISISName).GetIsis().GetOrCreateLevel(2).
+	ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(isissession.PTISIS, isissession.ISISName).GetIsis().GetOrCreateLevel(2).
 		MetricStyle = oc.E_Isis_MetricStyle(2)
 
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
 
-	metric := session.ISISPath(ts.DUT).Interface(isisIntfName).Level(2).
+	metric := isissession.ISISPath(ts.DUT).Interface(isisIntfName).Level(2).
 		Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric()
 	if err := check.Equal(metric.State(), uint32(100)).AwaitFor(time.Second*3, ts.DUTClient); err != nil {
 		t.Error(err)
