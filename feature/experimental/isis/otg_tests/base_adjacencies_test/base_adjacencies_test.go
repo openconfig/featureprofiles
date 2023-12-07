@@ -23,11 +23,11 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -65,12 +65,12 @@ func CheckPresence(query ygnmi.SingletonQuery[uint32], missingValueForDefaults b
 // then configures the ATE as well, waits for the adjacency to form, and checks that numerous
 // counters and other values now have sensible values.
 func TestBasic(t *testing.T) {
-	ts := session.MustNew(t).WithISIS()
+	ts := isissession.MustNew(t).WithISIS()
 	// Only push DUT config - no adjacency established yet
 	if err := ts.PushDUT(context.Background(), t); err != nil {
 		t.Fatalf("Unable to push initial DUT config: %v", err)
 	}
-	isisRoot := session.ISISPath(ts.DUT)
+	isisRoot := isissession.ISISPath(ts.DUT)
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		port1ISIS = isisRoot.Interface(ts.DUTPort1.Name() + ".0")
@@ -234,13 +234,13 @@ func TestBasic(t *testing.T) {
 		for _, vd := range []check.Validator{
 			check.Equal(adj.AdjacencyState().State(), oc.Isis_IsisInterfaceAdjState_UP),
 			check.Equal(adj.SystemId().State(), systemID),
-			check.UnorderedEqual(adj.AreaAddress().State(), []string{session.ATEAreaAddress, session.DUTAreaAddress}, func(a, b string) bool { return a < b }),
+			check.UnorderedEqual(adj.AreaAddress().State(), []string{isissession.ATEAreaAddress, isissession.DUTAreaAddress}, func(a, b string) bool { return a < b }),
 			check.EqualOrNil(adj.DisSystemId().State(), "0000.0000.0000"),
 			check.NotEqual(adj.LocalExtendedCircuitId().State(), uint32(0)),
 			check.Equal(adj.MultiTopology().State(), false),
 			check.Equal(adj.NeighborCircuitType().State(), oc.Isis_LevelType_LEVEL_2),
 			check.NotEqual(adj.NeighborExtendedCircuitId().State(), uint32(0)),
-			check.Equal(adj.NeighborIpv4Address().State(), session.ATEISISAttrs.IPv4),
+			check.Equal(adj.NeighborIpv4Address().State(), isissession.ATEISISAttrs.IPv4),
 			check.Predicate(adj.NeighborSnpa().State(), "Need a valid MAC address", func(got string) bool {
 				mac, err := net.ParseMAC(got)
 				return mac != nil && err == nil
@@ -404,7 +404,7 @@ func TestHelloPadding(t *testing.T) {
 			if tc.skip != "" {
 				t.Skip(tc.skip)
 			}
-			ts := session.MustNew(t).WithISIS()
+			ts := isissession.MustNew(t).WithISIS()
 			ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 				global := isis.GetOrCreateGlobal()
 				global.HelloPadding = tc.mode
@@ -415,7 +415,7 @@ func TestHelloPadding(t *testing.T) {
 			if err != nil {
 				t.Fatalf("No IS-IS adjacency formed: %v", err)
 			}
-			telemPth := session.ISISPath(ts.DUT).Global()
+			telemPth := isissession.ISISPath(ts.DUT).Global()
 			var vd check.Validator
 			missingValueForDefaults := deviations.MissingValueForDefaults(ts.DUT)
 			if tc.mode == oc.Isis_HelloPaddingType_STRICT {
@@ -444,7 +444,7 @@ func TestAuthentication(t *testing.T) {
 		{name: "disabled", mode: oc.IsisTypes_AUTH_MODE_TEXT, enabled: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ts := session.MustNew(t).WithISIS()
+			ts := isissession.MustNew(t).WithISIS()
 			ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 				level := isis.GetOrCreateLevel(2)
 				level.Enabled = ygot.Bool(true)
@@ -483,7 +483,7 @@ func TestAuthentication(t *testing.T) {
 // TestTraffic has the ATE advertise some routes and verifies that traffic sent to the DUT is routed
 // appropriately.
 func TestTraffic(t *testing.T) {
-	ts := session.MustNew(t).WithISIS()
+	ts := isissession.MustNew(t).WithISIS()
 	otg := ts.ATE.OTG()
 	targetNetwork := &attrs.Attributes{
 		Desc:    "External network (simulated by ATE)",
@@ -533,10 +533,10 @@ func TestTraffic(t *testing.T) {
 	v4Flow.TxRx().Device().SetTxNames([]string{srcIpv4.Name()}).SetRxNames([]string{netv4.Name()})
 
 	v4FlowEth := v4Flow.Packet().Add().Ethernet()
-	v4FlowEth.Src().SetValue(session.ATETrafficAttrs.MAC)
+	v4FlowEth.Src().SetValue(isissession.ATETrafficAttrs.MAC)
 
 	v4FlowIp := v4Flow.Packet().Add().Ipv4()
-	v4FlowIp.Src().SetValue(session.ATETrafficAttrs.IPv4)
+	v4FlowIp.Src().SetValue(isissession.ATETrafficAttrs.IPv4)
 	v4FlowIp.Dst().SetValue(targetNetwork.IPv4)
 
 	v4Flow.Metrics().SetEnable(true)
@@ -547,10 +547,10 @@ func TestTraffic(t *testing.T) {
 	v6Flow.TxRx().Device().SetTxNames([]string{srcIpv6.Name()}).SetRxNames([]string{netv6.Name()})
 
 	v6FlowEth := v6Flow.Packet().Add().Ethernet()
-	v6FlowEth.Src().SetValue(session.ATETrafficAttrs.MAC)
+	v6FlowEth.Src().SetValue(isissession.ATETrafficAttrs.MAC)
 
 	v6FlowIp := v6Flow.Packet().Add().Ipv6()
-	v6FlowIp.Src().SetValue(session.ATETrafficAttrs.IPv6)
+	v6FlowIp.Src().SetValue(isissession.ATETrafficAttrs.IPv6)
 	v6FlowIp.Dst().SetValue(targetNetwork.IPv6)
 
 	// v6Flow.Duration().FixedPackets().SetPackets(100)
@@ -563,10 +563,10 @@ func TestTraffic(t *testing.T) {
 	deadFlow.TxRx().Device().SetTxNames([]string{srcIpv4.Name()}).SetRxNames([]string{netv4.Name()})
 
 	deadFlowEth := deadFlow.Packet().Add().Ethernet()
-	deadFlowEth.Src().SetValue(session.ATETrafficAttrs.MAC)
+	deadFlowEth.Src().SetValue(isissession.ATETrafficAttrs.MAC)
 
 	deadFlowIp := deadFlow.Packet().Add().Ipv4()
-	deadFlowIp.Src().SetValue(session.ATETrafficAttrs.IPv4)
+	deadFlowIp.Src().SetValue(isissession.ATETrafficAttrs.IPv4)
 	deadFlowIp.Dst().SetValue(deadNetwork.IPv4)
 
 	// deadFlow.Duration().FixedPackets().SetPackets(100)
