@@ -68,10 +68,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestCollectDebugFiles(t *testing.T) {
+	fmt.Println("Starting TestCollectionDebugFiles")
 	if *outDirFlag == "" {
 		t.Fatal("Missing outDir arg")
 	} else {
 		outDir = *outDirFlag
+		fmt.Println(fmt.Sprintf("outDir: %s", outDir))
 		timestamp = *timestampFlag
 	}
 
@@ -113,9 +115,11 @@ func TestCollectDebugFiles(t *testing.T) {
 
 		copyDebugFiles(t, targetInfo)
 	}
+	fmt.Println("Exiting TestCollectionDebugFiles")
 }
 
 func copyDebugFiles(t *testing.T, d targetInfo) {
+	fmt.Println("Starting copyDebugFiles")
 	t.Helper()
 
 	target := fmt.Sprintf("%s:%s", d.sshIP, d.sshPort)
@@ -140,9 +144,11 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 	}); err != nil {
 		t.Errorf("Error copying debug files: %v", err)
 	}
+	fmt.Println("Exiting copyDebugFiles")
 }
 
 func getSSHInfo(t *testing.T) map[string]targetInfo {
+	fmt.Println("Starting getSSHInfo")
 	t.Helper()
 
 	bindingFile := flag.Lookup("binding").Value.String()
@@ -190,9 +196,11 @@ func getSSHInfo(t *testing.T) map[string]targetInfo {
 			sshPass: sshPass,
 		}
 	}
+	fmt.Println("Exiting getSSHInfo")
 	return targets
 }
 
 func getTechFileName(tech string) string {
+	fmt.Println("Starting getTechFileName")
 	return techDirectory + "/" + strings.ReplaceAll(tech, " ", "_")
 }
