@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -48,17 +48,17 @@ const (
 )
 
 // configureISIS configures isis on DUT.
-func configureISIS(t *testing.T, ts *session.TestSession) {
+func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
 	d := ts.DUTConf
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
-	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, session.ISISName)
+	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
 	prot.Enabled = ygot.Bool(true)
 
 	isis := prot.GetOrCreateIsis()
 	globalIsis := isis.GetOrCreateGlobal()
 	if deviations.ISISInstanceEnabledRequired(ts.DUT) {
-		globalIsis.Instance = ygot.String(session.ISISName)
+		globalIsis.Instance = ygot.String(isissession.ISISName)
 	}
 
 	// Global configs
@@ -72,18 +72,18 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 }
 
 // configureOTG configures isis and traffic on OTG.
-func configureOTG(t *testing.T, ts *session.TestSession) {
+func configureOTG(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
 
 	ts.ATEIntf1.Isis().Advanced().SetLspRefreshRate(60)
 
 	// netv4 is a simulated network containing the ipv4 addresses specified by targetNetwork
 	netv4 := ts.ATEIntf1.Isis().V4Routes().Add().SetName(v4NetName).SetLinkMetric(10)
-	netv4.Addresses().Add().SetAddress(v4Route1).SetPrefix(uint32(session.ATEISISAttrs.IPv4Len))
+	netv4.Addresses().Add().SetAddress(v4Route1).SetPrefix(uint32(isissession.ATEISISAttrs.IPv4Len))
 
 	// netv6 is a simulated network containing the ipv6 addresses specified by targetNetwork
 	netv6 := ts.ATEIntf1.Isis().V6Routes().Add().SetName(v6NetName).SetLinkMetric(10)
-	netv6.Addresses().Add().SetAddress(v6Route1).SetPrefix(uint32(session.ATEISISAttrs.IPv6Len))
+	netv6.Addresses().Add().SetAddress(v6Route1).SetPrefix(uint32(isissession.ATEISISAttrs.IPv6Len))
 
 	// We generate traffic entering along port2 and destined for port1
 	srcIpv4 := ts.ATEIntf2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
@@ -100,9 +100,9 @@ func configureOTG(t *testing.T, ts *session.TestSession) {
 	v4Flow.Rate().SetPps(100)
 	v4Flow.Duration().SetChoice("continuous")
 	e1 := v4Flow.Packet().Add().Ethernet()
-	e1.Src().SetValue(session.ATEISISAttrs.MAC)
+	e1.Src().SetValue(isissession.ATEISISAttrs.MAC)
 	v4 := v4Flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(session.ATEISISAttrs.IPv4)
+	v4.Src().SetValue(isissession.ATEISISAttrs.IPv4)
 	v4.Dst().Increment().SetStart(v4IP).SetCount(1)
 
 	t.Log("Configuring v6 traffic flow ")
@@ -116,26 +116,26 @@ func configureOTG(t *testing.T, ts *session.TestSession) {
 	v6Flow.Rate().SetPps(100)
 	v6Flow.Duration().SetChoice("continuous")
 	e2 := v6Flow.Packet().Add().Ethernet()
-	e2.Src().SetValue(session.ATEISISAttrs.MAC)
+	e2.Src().SetValue(isissession.ATEISISAttrs.MAC)
 	v6 := v6Flow.Packet().Add().Ipv6()
-	v6.Src().SetValue(session.ATEISISAttrs.IPv6)
+	v6.Src().SetValue(isissession.ATEISISAttrs.IPv6)
 	v6.Dst().Increment().SetStart(v6IP).SetCount(1)
 }
 
 // TestISISChangeLSPLifetime verifies isis lsp telemetry paramters with configured lsp lifetime.
 func TestISISChangeLSPLifetime(t *testing.T) {
-	ts := session.MustNew(t).WithISIS()
+	ts := isissession.MustNew(t).WithISIS()
 	configureISIS(t, ts)
 
 	configureOTG(t, ts)
 	otg := ts.ATE.OTG()
 
-	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, session.ISISName)
-	fptest.LogQuery(t, "Protocol ISIS", session.ProtocolPath(ts.DUT).Config(), pcl)
+	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
+	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
 	ts.PushAndStart(t)
 
-	isisPath := session.ISISPath(ts.DUT)
+	isisPath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		intfName += ".0"
@@ -148,7 +148,7 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 			t.Fatalf("Adjacency state invalid: %v", err)
 		}
 		ateLspID := ateSysID + ".00-00"
-		dutLspID := session.DUTSysID + ".00-00"
+		dutLspID := isissession.DUTSysID + ".00-00"
 
 		// wait for ATE Lsp TLV to be present in DUT
 		_, ok := gnmi.Await(t, ts.DUT, isisPath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(v4Route).Prefix().State(), 2*time.Minute, v4Route).Val()
