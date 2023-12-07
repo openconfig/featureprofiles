@@ -369,6 +369,12 @@ message Metadata {
     // Devices which needs to skip checking AFI-SAFI disable.
     // Juniper: b/310698466
     bool skip_bgp_session_check_without_afisafi = 129;
+    // Device does not support variable sequence id for policy forwarding rule for default class
+    // Cisco: partnerissuetracker.corp.google.com/TBD
+    bool pf_default_rule_variable_sequence_unsupported = 130;
+    // Device does not support copying of inner header ttl/hoplimit to tunnel (encap) header
+    // Cisco: partnerissuetracker.corp.google.com/TBD
+    bool ttl_copy_to_tunnel_header_unsupported = 131;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 

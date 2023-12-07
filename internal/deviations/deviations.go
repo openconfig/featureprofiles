@@ -691,3 +691,15 @@ func BGPMissingOCMaxPrefixesConfiguration(dut *ondatra.DUTDevice) bool {
 func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
 }
+
+// PfDefaultRuleVariableSequenceUnsupported returns true for devices that do not
+// support variable sequence id (example 17) for default policy forwarding rule.
+func PfDefaultRuleVariableSequenceUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPfDefaultRuleVariableSequenceUnsupported()
+}
+
+// TtlCopyToTunnelHeaderUnsupported returns true  for devices that do not
+// support copying of ttl/hoplimit from inner header to tunnel (encap) header
+func TtlCopyToTunnelHeaderUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTtlCopyToTunnelHeaderUnsupported()
+}
