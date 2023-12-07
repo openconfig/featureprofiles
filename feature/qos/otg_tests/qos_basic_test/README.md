@@ -94,7 +94,7 @@ Verify that DUT supports QoS config and forward QoS traffic correctly.
 
 *   Verify that there is no traffic loss
 
-####   DP-1.14.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2321]
+####   DP-1.14.1
 
 *   Initiate traffic
 

@@ -38,12 +38,22 @@ func TestMain(m *testing.M) {
 
 func TestOverloadBit(t *testing.T) {
 	ts := session.MustNew(t).WithISIS()
+	// Only push DUT config - no adjacency established yet
+	if err := ts.PushDUT(context.Background(), t); err != nil {
+		t.Fatalf("Unable to push initial DUT config: %v", err)
+	}
+	isisPath := session.ISISPath(ts.DUT)
+	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
+	//Lookup the initial value for 'database-overloads' leaf counter after config is pushed to DUT & before adjacency is formed
+	getDbOlInitCount := gnmi.Lookup(t, ts.DUT, overloads.State())
+	olVal, present := getDbOlInitCount.Val()
+	if !present {
+		olVal = uint32(0)
+	}
 	ts.ATE = ondatra.ATE(t, "ate")
 	otg := ts.ATE.OTG()
 	ts.PushAndStart(t)
 	ts.MustAdjacency(t)
-	isisPath := session.ISISPath(ts.DUT)
-	overloads := isisPath.Level(2).SystemLevelCounters().DatabaseOverloads()
 	setBit := isisPath.Global().LspBit().OverloadBit().SetBit()
 	deadline := time.Now().Add(time.Second * 3)
 	checkSetBit := check.Equal(setBit.State(), false)
@@ -53,7 +63,7 @@ func TestOverloadBit(t *testing.T) {
 
 	for _, vd := range []check.Validator{
 		checkSetBit,
-		check.EqualOrNil(overloads.State(), uint32(0)),
+		check.EqualOrNil(overloads.State(), olVal),
 	} {
 		if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 			t.Error(err)
@@ -67,7 +77,7 @@ func TestOverloadBit(t *testing.T) {
 		GetOrCreateLspBit().
 		GetOrCreateOverloadBit().SetBit = ygot.Bool(true)
 	ts.PushDUT(context.Background(), t)
-	if err := check.Equal[uint32](overloads.State(), 1).AwaitFor(time.Second*15, ts.DUTClient); err != nil {
+	if err := check.Equal(overloads.State(), uint32(olVal+1)).AwaitFor(time.Second*10, ts.DUTClient); err != nil {
 		t.Error(err)
 	}
 	if err := check.Equal(setBit.State(), true).AwaitFor(time.Second*3, ts.DUTClient); err != nil {
