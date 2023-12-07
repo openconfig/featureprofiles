@@ -221,6 +221,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv4")
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv6")
 }
 
 const (

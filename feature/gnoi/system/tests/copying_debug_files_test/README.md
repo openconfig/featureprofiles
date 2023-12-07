@@ -27,7 +27,7 @@
 
 ## Process names by vendor
 * BGP Process
-   * ARISTA:  "Bgp-main"
+   * ARISTA:  "IpRib"
    * CISCO: " "
    * JUNIPER: "rpd"
    * NOKIA:   "sr_bgp_mgr"
