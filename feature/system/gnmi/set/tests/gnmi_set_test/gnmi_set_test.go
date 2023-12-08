@@ -466,14 +466,8 @@ func TestStaticProtocol(t *testing.T) {
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticName)
 
 	var q1, q2 ygnmi.SingletonQuery[string]
-	if deviations.SkipStaticNexthopCheck(dut) {
-		q1 = sp.Static(prefix1).NextHop("1").InterfaceRef().Interface().State()
-		q2 = sp.Static(prefix2).NextHop("1").InterfaceRef().Interface().State()
-	} else {
-		q1 = sp.Static(prefix1).NextHop("0").InterfaceRef().Interface().State()
-		q2 = sp.Static(prefix2).NextHop("0").InterfaceRef().Interface().State()
-
-	}
+	q1 = sp.Static(prefix1).NextHop("0").InterfaceRef().Interface().State()
+	q2 = sp.Static(prefix2).NextHop("0").InterfaceRef().Interface().State()
 
 	scope := &pushScope{
 		interfaces:       []string{p1.Name(), p2.Name()},
@@ -524,12 +518,32 @@ func TestStaticProtocol(t *testing.T) {
 			verifyInterface(t, dut, p2.Name(), &ip2)
 
 			v1 := gnmi.Lookup(t, dut, q1)
+			if deviations.SkipStaticNexthopCheck(dut) {
+
+				q2 := sp.Static(prefix1).NextHopAny().InterfaceRef().Interface().State()
+				val := gnmi.LookupAll(t, dut, q2)
+				if len(val) > 0 {
+					v1 = val[0]
+				} else {
+					t.Fatalf("Did not receive output for static nexthop lookup")
+				}
+			}
 			if got, ok := v1.Val(); !ok || got != p1.Name() {
 				t.Errorf("State got %v, want %v", v1, p1.Name())
 			} else {
 				t.Logf("Verified %v", v1)
 			}
 			v2 := gnmi.Lookup(t, dut, q2)
+			if deviations.SkipStaticNexthopCheck(dut) {
+
+				q3 := sp.Static(prefix2).NextHopAny().InterfaceRef().Interface().State()
+				val := gnmi.LookupAll(t, dut, q3)
+				if len(val) > 0 {
+					v2 = val[0]
+				} else {
+					t.Fatalf("Did not receive output for static nexthop lookup")
+				}
+			}
 			if got, ok := v2.Val(); !ok || got != p2.Name() {
 				t.Errorf("State got %v, want %v", v2, p2.Name())
 			} else {
@@ -551,12 +565,32 @@ func TestStaticProtocol(t *testing.T) {
 			verifyInterface(t, dut, p2.Name(), &ip2)
 
 			v1 := gnmi.Lookup(t, dut, q1)
+			if deviations.SkipStaticNexthopCheck(dut) {
+
+				q2 := sp.Static(prefix1).NextHopAny().InterfaceRef().Interface().State()
+				val := gnmi.LookupAll(t, dut, q2)
+				if len(val) > 0 {
+					v1 = val[0]
+				} else {
+					t.Fatalf("Did not receive output for static nexthop lookup")
+				}
+			}
 			if got, ok := v1.Val(); !ok || got != p2.Name() {
 				t.Errorf("State got %v, want %v", v1, p2.Name())
 			} else {
 				t.Logf("Verified %v", v1)
 			}
 			v2 := gnmi.Lookup(t, dut, q2)
+			if deviations.SkipStaticNexthopCheck(dut) {
+
+				q3 := sp.Static(prefix2).NextHopAny().InterfaceRef().Interface().State()
+				val := gnmi.LookupAll(t, dut, q3)
+				if len(val) > 0 {
+					v2 = val[0]
+				} else {
+					t.Fatalf("Did not receive output for static nexthop lookup")
+				}
+			}
 			if got, ok := v2.Val(); !ok || got != p1.Name() {
 				t.Errorf("State got %v, want %v", v2, p1.Name())
 			} else {
