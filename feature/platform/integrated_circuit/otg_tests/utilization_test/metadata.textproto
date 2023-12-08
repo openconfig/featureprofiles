@@ -1,0 +1,20 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "9ff3be0d-84aa-4513-8a6c-bfe497a8ae9e"
+plan_id: "gNMI-1.21"
+description: "Integrated Circuit Hardware Resource Utilization Test"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    route_policy_under_afi_unsupported: true
+    mismatched_hardware_resource_name_in_component: true
+    missing_hardware_resource_telemetry_before_config: true
+  }
+}
+tags: TAGS_TRANSIT
