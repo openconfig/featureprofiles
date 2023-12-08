@@ -23,6 +23,7 @@ import (
 func SaveTLSCertInPems(cert *tls.Certificate, keyPath, certPath string, keyAlgo x509.PublicKeyAlgorithm) error {
 	keyType := "RSA PRIVATE KEY"
 	var err error
+	keyBytes := []byte{}
 	switch keyAlgo {
 	case x509.RSA:
 		keyType = "RSA PRIVATE KEY"
@@ -123,7 +124,6 @@ func PopulateCertTemplate(cname string, domainNames []string, ips []net.IP, spif
 	return certSpec, nil
 }
 
-
 // LoadKeyPair loads a pair of RSA/ECDSA private key and certificate from pem files
 func LoadKeyPair(keyPath, certPath string) (any, *x509.Certificate, error) {
 	keyPEM, err := os.ReadFile(keyPath)
@@ -191,6 +191,7 @@ func GenRootCA(cn string, keyAlgo x509.PublicKeyAlgorithm, expireInDays int, dir
 	keyType := ""
 	keyFileName := ""
 	certFileName := ""
+	keyBytes := []byte{}
 	switch keyAlgo {
 	case x509.RSA:
 		caPrivKey, err = rsa.GenerateKey(rand.Reader, 4096)
@@ -259,6 +260,7 @@ func GenCRS(certReq *x509.CertificateRequest, keyAlgo x509.PublicKeyAlgorithm, e
 	keyFileName := ""
 	var err error
 	certReqFileName := ""
+	keyBytes := []byte{}
 	switch keyAlgo {
 	case x509.RSA:
 		privKey, err = rsa.GenerateKey(rand.Reader, 4096)
