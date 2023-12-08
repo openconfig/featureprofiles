@@ -104,6 +104,9 @@ for firex_id in firex_ids.split(','):
     uname = firex_id.split('-')[1]
     base_logs_dir = constants.base_logs_dir.replace('gob4', uname)
     logs_dir = os.path.join(base_logs_dir, firex_id, 'tests_logs')
+    if not os.path.exists(logs_dir):
+	    logs_dir = logs_dir.replace("firex-logs-ott", "firex-logs-sjc")
+    
     test_id_map = _get_test_id_name_map(logs_dir)
     # properties = {}
     # if set_properties != None:
@@ -118,8 +121,13 @@ for firex_id in firex_ids.split(','):
                 log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/ondatra_logs.xml")]
                 if len(log_files) == 0: 
                     continue
+                
+                try:
+                    tree = ET.parse(log_files[0])
+                except:
+                    print("Skipped " + t['name'] + " due to erroneous xml")
+                    continue
 
-                tree = ET.parse(log_files[0])
                 test_out_dir = os.path.join(out_dir, _get_test_pkg(tree))
                 test_log_file = os.path.join(test_out_dir, "test.xml")
 

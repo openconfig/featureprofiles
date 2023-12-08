@@ -110,14 +110,10 @@ duts {
     id: "port7"
     name: "TenGigE0/0/0/6/1"  # Change this to the actual port name.
   }
-  #ports {
-  #  id: "port8"
-  #  name: "TenGigE0/0/0/8/3"  # Change this to the actual port name.
-  #}
-  #ports {
-  #  id: "port9"
-  #  name: "TenGigE0/0/0/7/0"  # Change this to the actual port name.
-  #}
+  ports {
+   id: "port8"
+   name: "TenGigE0/0/0/7/0"  # Change this to the actual port name.
+  }
 }
 
 ates {
@@ -170,12 +166,8 @@ ates {
     id: "port7"
     name: "10/22"  # Change this to the actual port name.
   }
-  #ports {
-  #  id: "port8"
-  #  name: "10/16"  # Change this to the actual port name.
-  #}
-  #ports {
-  #  id: "port9"
-  #  name: "10/17"  # Change this to the actual port name.
-  #}  
+  ports {
+   id: "port8"
+   name: "10/17"  # Change this to the actual port name.
+  }
 }

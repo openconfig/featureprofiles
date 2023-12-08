@@ -22,10 +22,10 @@ func RunTestInBackground(ctx context.Context, t *testing.T, period interface{}, 
 	t.Helper()
 	timer, ok := period.(*time.Timer)
 	if ok {
+		workGroup.Add(1)
 		go func() {
-			<-timer.C
-			workGroup.Add(1)
 			defer workGroup.Done()
+			<-timer.C
 			function(t, events, args...)
 		}()
 	}

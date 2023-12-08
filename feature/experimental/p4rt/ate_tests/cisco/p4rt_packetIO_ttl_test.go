@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	wbb "github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
+	wbb "github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -391,6 +391,8 @@ func (ttl *TTLPacketIO) GetPacketOutObj(t *testing.T) *PacketIOPacket {
 
 func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bool) []byte {
 	t.Helper()
+	var ipv4Layer *layers.IPv4
+	var ipv6Layer *layers.IPv6
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
@@ -423,8 +425,6 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 		packetLayers = append(packetLayers, pktEth)
 	}
 
-	// strings.Split(atePort1.IPv4, ".")
-
 	if ipv4 {
 		// for PacketOut submit_to_ingress/submit_to_egress the flow is DUT to ATE
 		pktIP := &layers.IPv4{
@@ -432,8 +432,9 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 			SrcIP:    net.IP(convertIPv4Address(t, *ttl.PacketOutObj.DstIPv4)),
 			DstIP:    net.IP(convertIPv4Address(t, *ttl.PacketOutObj.SrcIPv4)),
 			TTL:      uint8(*ttl.PacketOutObj.TTL),
-			Protocol: layers.IPProtocol(61),
+			Protocol: layers.IPProtocolICMPv4,
 		}
+		ipv4Layer = pktIP
 		packetLayers = append(packetLayers, pktIP)
 
 	} else {
@@ -443,18 +444,24 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 			SrcIP:      net.ParseIP(*ttl.PacketOutObj.DstIPv6).To16(),
 			DstIP:      net.ParseIP(*ttl.PacketOutObj.SrcIPv6).To16(),
 			HopLimit:   uint8(*ttl.PacketOutObj.TTL),
-			NextHeader: layers.IPProtocol(58),
+			NextHeader: layers.IPProtocolICMPv6,
 		}
+		ipv6Layer = pktIP
 		packetLayers = append(packetLayers, pktIP)
 
 	}
 	// add UDP layer if udp is true
 	if ttl.PacketOutObj.udp {
-		udp := &layers.UDP{
-			SrcPort: 11111,
-			DstPort: 22222,
+		udpHdr := &layers.UDP{
+			SrcPort: layers.UDPPort(11111),
+			DstPort: layers.UDPPort(22222),
 		}
-		packetLayers = append(packetLayers, udp)
+		if ipv4 {
+			udpHdr.SetNetworkLayerForChecksum(ipv4Layer)
+		} else {
+			udpHdr.SetNetworkLayerForChecksum(ipv6Layer)
+		}
+		packetLayers = append(packetLayers, udpHdr)
 	}
 	payload := []byte{}
 	payLoadLen := 64
@@ -464,6 +471,8 @@ func (ttl *TTLPacketIO) packetTTLRequestGet(t *testing.T, submitIngress, ipv4 bo
 	packetLayers = append(packetLayers, gopacket.Payload(payload))
 
 	gopacket.SerializeLayers(buf, opts, packetLayers...)
+	// keep following code for debugging, good to know how to print the packet
+	// t.Logf("returning following bytes in packet \n%v", gopacket.NewPacket(buf.Bytes(), layers.LayerTypeEthernet, gopacket.Default))
 	return buf.Bytes()
 }
 

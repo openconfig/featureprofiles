@@ -1,4 +1,4 @@
-package bgp_neighbor_test
+package bgp_test
 
 import (
 	"context"
@@ -22,8 +22,9 @@ func TestMain(m *testing.M) {
 
 const (
 	telemetryTimeout time.Duration = 60 * time.Second
-	configApplyTime  time.Duration = 5 * time.Second // FIXME: Workaround
-	configDeleteTime time.Duration = 5 * time.Second // FIXME: Workaround
+	//work around to avoid script timeouts
+	configApplyTime  time.Duration = 3 * time.Second // FIXME: Workaround
+	configDeleteTime time.Duration = 3 * time.Second // FIXME: Workaround
 	dutName          string        = "dut"
 	bgpInstance_0    string        = "TEST_N"
 	bgpAs_0          uint32        = 50000
@@ -216,6 +217,49 @@ func TestLocalAs(t *testing.T) {
 				time.Sleep(configDeleteTime)
 				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint32]) bool { return true }).Await(t); qs.IsPresent() {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as fail: got %v", qs)
+				}
+			})
+		})
+	}
+}
+
+// Config: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/route-flap-damping
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/route-flap-damping
+func TestRouteFlapDamping(t *testing.T) {
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []bool{
+		true,
+		false,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpNeighborConfig(bgp_as))
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/route-flap-damping using value %v", input), func(t *testing.T) {
+			config := bgpConfig.Neighbor(neighbor_address).RouteFlapDamping()
+			state := bgpState.Neighbor(neighbor_address).RouteFlapDamping()
+
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			time.Sleep(configApplyTime)
+
+			t.Run("Subscribe", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.State())
+				if stateGot != input {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/route-flap-damping: got %v, want %v", stateGot, input)
+				}
+			})
+
+			t.Run("Delete", func(t *testing.T) {
+				gnmi.Delete(t, dut, config.Config())
+				time.Sleep(configDeleteTime)
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/route-flap-damping fail: got %v", qs)
 				}
 			})
 		})
@@ -934,8 +978,6 @@ func TestAfiSafiMaxPrefixes(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint32{
-		// 10,
-		// 1000,
 		234567,
 	}
 
@@ -986,6 +1028,321 @@ func TestAfiSafiMaxPrefixes(t *testing.T) {
 	}
 }
 
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/local-restarting
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restarting
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/mode
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restart-time
+func TestGracefulRestartState(t *testing.T) {
+	dut := ondatra.DUT(t, dutName)
+
+	mode := []bool{
+		true,
+		false,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgp_as)
+	time.Sleep(configApplyTime)
+	gnmi.Update(t, dut, bgpConfig.Global().GracefulRestart().Enabled().Config(), true)
+	time.Sleep(configApplyTime)
+	config := bgpConfig.Neighbor(neighbor_address).PeerAs()
+	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), 34) })
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range mode {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state leafs using helper-only value %v", input), func(t *testing.T) {
+			if input {
+				gnmi.Update(t, dut, bgpConfig.Global().GracefulRestart().HelperOnly().Config(), true)
+				time.Sleep(configApplyTime)
+			}
+			state := bgpState.Neighbor(neighbor_address).GracefulRestart()
+			t.Run("Get state: local-restarting", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.LocalRestarting().State())
+				if stateGot != false {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/local-restarting: got %v, want false", stateGot)
+				}
+			})
+			t.Run("Get state: peer-restarting", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.PeerRestarting().State())
+				if stateGot != false {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restarting: got %v, want false", stateGot)
+				}
+			})
+			t.Run("Get state: peer-restart-time", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.PeerRestartTime().State())
+				if stateGot != 0 {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restart-time: got %v, want ", stateGot)
+				}
+			})
+			t.Run("Get state: mode", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.Mode().State())
+				if input && stateGot != oc.GracefulRestart_Mode_HELPER_ONLY {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/mode: got %v, want %v", stateGot, input)
+				}
+			})
+
+		})
+	}
+}
+
+// Config: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/config/treat-as-withdraw
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/treat-as-withdraw
+// State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/erroneous-update-messages
+func TestErrHndlTreatasWDR(t *testing.T) {
+
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []bool{
+		true,
+		false,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	baseConfig := baseBgpNeighborConfig(bgp_as)
+	gnmi.Update(t, dut, bgpConfig.Config(), baseConfig)
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/config/treat-as-withdraw using value %v", input), func(t *testing.T) {
+			config := bgpConfig.Neighbor(neighbor_address).ErrorHandling().TreatAsWithdraw()
+			state := bgpState.Neighbor(neighbor_address).ErrorHandling().TreatAsWithdraw()
+			erroneous_state := bgpState.Neighbor(neighbor_address).ErrorHandling().ErroneousUpdateMessages()
+
+			t.Run("TreatasWDR_Config", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			time.Sleep(configApplyTime)
+
+			t.Run("TreatasWDR_State", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.State())
+				fmt.Println("Check value stateGot", stateGot)
+				fmt.Println("Check value input", input)
+				if stateGot != input {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/treat-as-withdraw: got %v, want %v", stateGot, input)
+				}
+			})
+
+			t.Run("Erroneous_upd_msg_State", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, erroneous_state.State())
+				fmt.Println("Check value stateGot", stateGot)
+				if stateGot != 0 {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/erroneous-update-messages: got %v, want %v", stateGot, 0)
+				}
+			})
+
+			t.Run("TreatasWDR_Delete", func(t *testing.T) {
+				gnmi.Delete(t, dut, config.Config())
+				time.Sleep(configDeleteTime)
+				stateGot1 := gnmi.Get(t, dut, state.State())
+				stateGot2 := gnmi.Get(t, dut, erroneous_state.State())
+				if stateGot1 != false {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/treat-as-withdraw: got %v, want %v", stateGot1, false)
+				}
+				if stateGot2 != 0 {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/error-handling/state/erroneous-update-messages: got %v, want %v", stateGot2, 0)
+				}
+			})
+		})
+	}
+}
+
+// Config: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/disable-peer-as-filter
+// State:  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/disable-peer-as-filter
+func TestASPathOptDisablePeerAS(t *testing.T) {
+
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []bool{
+		true,
+		false,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	baseConfig := baseBgpNeighborConfig(bgp_as)
+	gnmi.Update(t, dut, bgpConfig.Config(), baseConfig)
+	//gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgp_as)
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/disable-peer-as-filter using value %v", input), func(t *testing.T) {
+			config := bgpConfig.Neighbor(neighbor_address).AsPathOptions().DisablePeerAsFilter()
+			state := bgpState.Neighbor(neighbor_address).AsPathOptions().DisablePeerAsFilter()
+
+			t.Run("update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			time.Sleep(configApplyTime)
+
+			t.Run("subscribe", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.State())
+				fmt.Println("Check value stateGot", stateGot)
+				fmt.Println("Check value input", input)
+				if stateGot != input {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/disable-peer-as-filter: got %v, want %v", stateGot, input)
+				}
+			})
+
+			t.Run("Delete", func(t *testing.T) {
+				gnmi.Delete(t, dut, config.Config())
+				time.Sleep(configDeleteTime)
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/disable-peer-as-filter: got %v, want %v", qs, "")
+				}
+			})
+		})
+	}
+}
+
+// Config: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/allow-own-as
+// State:  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/allow-own-as
+func TestASPathOptAllowOwnAS(t *testing.T) {
+
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []uint8{
+		4,
+		7,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	baseConfig := baseBgpNeighborConfig(bgp_as)
+	gnmi.Update(t, dut, bgpConfig.Config(), baseConfig)
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/allow-own-as using value %v", input), func(t *testing.T) {
+			config := bgpConfig.Neighbor(neighbor_address).AsPathOptions().AllowOwnAs()
+			state := bgpState.Neighbor(neighbor_address).AsPathOptions().AllowOwnAs()
+
+			t.Run("AllowOwnAS_Config", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			time.Sleep(configApplyTime)
+
+			t.Run("AllowOwnAS_State", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.State())
+				fmt.Println("Check value stateGot", stateGot)
+				fmt.Println("Check value input", input)
+				if stateGot != input {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/allow-own-as: got %v, want %v", stateGot, input)
+				}
+			})
+
+			t.Run("AllowOwnAS_Delete", func(t *testing.T) {
+				gnmi.Delete(t, dut, config.Config())
+				time.Sleep(configDeleteTime)
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[uint8]) bool { return true }).Await(t); qs.IsPresent() {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/allow-own-as: got %v, want %v", qs, "")
+				}
+			})
+
+		})
+	}
+}
+
+// Config: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community
+// State:  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community
+func TestSendCommunity(t *testing.T) {
+
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []oc.E_Bgp_CommunityType{
+		oc.Bgp_CommunityType_STANDARD,
+		oc.Bgp_CommunityType_EXTENDED,
+		oc.Bgp_CommunityType_BOTH,
+		oc.Bgp_CommunityType_NONE,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	baseConfig := baseBgpNeighborConfig(bgp_as)
+	gnmi.Update(t, dut, bgpConfig.Config(), baseConfig)
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community using value %v", input), func(t *testing.T) {
+			config := bgpConfig.Neighbor(neighbor_address).SendCommunity()
+			state := bgpState.Neighbor(neighbor_address).SendCommunity()
+
+			t.Run("SendCommunity_Config", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			time.Sleep(configApplyTime)
+
+			t.Run("SendCommunity_State", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.State())
+				fmt.Println("Check value stateGot", stateGot)
+				fmt.Println("Check value input", input)
+				if stateGot != input {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community: got %v, want %v", stateGot, input)
+				}
+			})
+
+			t.Run("SendCommunity_Delete", func(t *testing.T) {
+				gnmi.Delete(t, dut, config.Config())
+				time.Sleep(configDeleteTime)
+				stateGot1 := gnmi.Get(t, dut, state.State())
+				if stateGot1 != oc.Bgp_CommunityType_NONE {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/send-community: got %v, want %v", stateGot1, oc.Bgp_CommunityType_NONE)
+				}
+			})
+		})
+	}
+}
+
+// Config: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/replace-peer-as
+// State:  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/replace-peer-as
+func TestASPathOptReplacePeerAS(t *testing.T) {
+
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []bool{
+		true,
+		false,
+	}
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	baseConfig := baseBgpNeighborConfig(bgp_as)
+	gnmi.Update(t, dut, bgpConfig.Config(), baseConfig)
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	for _, input := range inputs {
+		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/replace-peer-as using value %v", input), func(t *testing.T) {
+			config := bgpConfig.Neighbor(neighbor_address).AsPathOptions().ReplacePeerAs()
+			state := bgpState.Neighbor(neighbor_address).AsPathOptions().ReplacePeerAs()
+
+			t.Run("update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			time.Sleep(configApplyTime)
+
+			t.Run("subscribe", func(t *testing.T) {
+				stateGot := gnmi.Get(t, dut, state.State())
+				fmt.Println("Check value stateGot", stateGot)
+				fmt.Println("Check value input", input)
+				if stateGot != input {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/replace-peer-as: got %v, want %v", stateGot, input)
+				}
+			})
+
+			t.Run("Delete", func(t *testing.T) {
+				gnmi.Delete(t, dut, config.Config())
+				time.Sleep(configDeleteTime)
+				if qs, _ := gnmi.Watch(t, dut, state.State(), telemetryTimeout, func(val *ygnmi.Value[bool]) bool { return true }).Await(t); qs.IsPresent() {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/replace-peer-as: got %v, want %v", qs, "")
+				}
+			})
+		})
+	}
+}
+
 // Config: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-client
 // State: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/state/route-reflector-client
 func TestRouteReflectorClient(t *testing.T) {
@@ -1026,6 +1383,56 @@ func TestRouteReflectorClient(t *testing.T) {
 					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-client fail: got %v", qs)
 				}
 			})
+		})
+	}
+}
+
+// Config: /network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/use-multiple-paths/config/enabled
+// State: /network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/use-multiple-paths/state/enabled
+func TestNbrAfiSafiUseMultiplePathsEnabled(t *testing.T) {
+	dut := ondatra.DUT(t, dutName)
+
+	inputs := []bool{
+		true,
+		false,
+	}
+
+	// Remove any existing BGP config
+	config.TextWithGNMI(context.Background(), t, dut, "no router bgp")
+
+	bgp_instance, bgp_as := getNextBgpInstance()
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	baseConfig := baseBgpNeighborConfig(bgp_as)
+	baseConfig.Neighbor[neighbor_address].GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	gnmi.Update(t, dut, bgpConfig.Config(), baseConfig)
+	time.Sleep(configApplyTime)
+	defer cleanup(t, dut, bgp_instance)
+
+	global_addr_family_config := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, global_addr_family_config.Config(), true) })
+	time.Sleep(configApplyTime)
+	config := bgpConfig.Neighbor(neighbor_address).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), true) })
+	time.Sleep(configApplyTime)
+
+	for _, input := range inputs {
+		ump_config := bgpConfig.Neighbor(neighbor_address).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled()
+		t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, ump_config.Config(), input) })
+		time.Sleep(configApplyTime)
+		t.Run("UseMultiplePathsEnabled_State", func(t *testing.T) {
+			stateGot := gnmi.Get(t, dut, bgpState.Neighbor(neighbor_address).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled().State())
+
+			if stateGot != input {
+				t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/use-multiple-paths/state/enabled: got %v, want %v", stateGot, input)
+			}
+		})
+
+		t.Run("Subscribe", func(t *testing.T) {
+			stateGot := gnmi.Get(t, dut, bgpState.Neighbor(neighbor_address).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled().State())
+			if stateGot != input {
+				t.Errorf("State-Telemetry /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/use-multiple-paths/state/enabled: got %v, want %v", stateGot, input)
+			}
 		})
 	}
 }

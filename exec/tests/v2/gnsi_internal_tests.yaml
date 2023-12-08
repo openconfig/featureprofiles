@@ -1,9 +1,12 @@
 name:
-owners:
-  - harikri4,mbagherz
 priority: 4
 testbeds:
   - moji_sfd_gnsi
+owners:
+  - mbagherz
+pretests:
+  - name: set_clock
+    path: exec/utils/settime
 tests:
 - name: authz1.1 (Authz Functional Tests)
   path: feature/security/gnsi/authz/cisco/tests
@@ -14,7 +17,7 @@ tests:
   mustpass: true
   timeout: 21000
   owners:
-    - harikri4,mbagherz
+    - harikri4
 - name: authz1.2 (Authz HA Tests)
   path: feature/security/gnsi/authz/cisco/tests
   args:
@@ -25,7 +28,6 @@ tests:
   timeout: 21000
   owners:
     - harikri4
-    - mbagherz
 - name: authz1.3 (Authz Scale Tests)
   path: feature/security/gnsi/authz/cisco/tests
   args:
@@ -35,20 +37,21 @@ tests:
   mustpass: true
   timeout: 21000
   owners:
-    - harikri4,mbagherz
+    - harikri4
 - name: AUTHZFP (Authz Functional Tests with spiffe id)
-  path: feature/security/gnsi/authz/tests
+  path: feature/security/gnsi/authz/tests/authz/authz1_4_test.go
   args:
     - '-test_infra_id="cafyauto"'
   pr: 2136
   mustpass: true
   timeout: 21000
-
+  owners:
+    - harikri4
+  
 - name: CERTZBasic (Certz Internal Basic Tests) 
   path: feature/security/gnsi/certz/cisco/tests
   owners:
     - venthota
-    - mbagherz
   mustpass: true
   timeout: 21000
   internal: true

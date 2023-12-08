@@ -104,21 +104,29 @@ def _otg_docker_compose_template(control_port, gnmi_port):
     return f"""
 version: "2"
 services:
-  ixia-c-controller:
-    image: ghcr.io/open-traffic-generator/licensed/ixia-c-controller:0.0.1-4399
+  controller:
+    image: ghcr.io/open-traffic-generator/keng-controller:firex
     restart: always
     ports:
       - "{control_port}:40051"
     depends_on:
-      ixia-c-ixhw-server:
+      layer23-hw-server:
         condition: service_started
     command:
       - "--accept-eula"
       - "--debug"
-      - "--ixia-c-ixhw-server"
-      - "ixia-c-ixhw-server:5001"
-  ixia-c-ixhw-server:
-    image: ghcr.io/open-traffic-generator/ixia-c-ixhw-server:0.12.1-2
+      - "--keng-layer23-hw-server"
+      - "layer23-hw-server:5001"
+    environment:
+      - LICENSE_SERVERS=10.85.70.247
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+  layer23-hw-server:
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:firex
     restart: always
     command:
       - "dotnet"
@@ -126,19 +134,31 @@ services:
       - "--trace"
       - "--log-level"
       - "trace"
-  ixia-c-gnmi-server:
-    image: ghcr.io/open-traffic-generator/ixia-c-gnmi-server:1.12.2
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+  gnmi-server:
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:firex
     restart: always
     ports:
       - "{gnmi_port}:50051"
     depends_on:
-      ixia-c-controller:
+      controller:
         condition: service_started
     command:
       - "-http-server"
-      - "https://ixia-c-controller:8443"
+      - "https://controller:8443"
       - "--debug"
-    """
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+"""
 
 def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     if not 'otg' in reserved_testbed:
@@ -390,12 +410,12 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
 def max_testbed_requests():
     if 'B4_FIREX_TESTBEDS_COUNT' in os.environ:
         return int(os.environ.get('B4_FIREX_TESTBEDS_COUNT'))
-    return 10
+    return 1
 
 def decommission_testbed_after_tests():
     if 'B4_FIREX_DECOMMISSION_TESTBED' in os.environ:
         return bool(int(os.environ.get('B4_FIREX_DECOMMISSION_TESTBED')))
-    return True
+    return False
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
@@ -448,7 +468,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                     repo_pr=test_pr,
                     target_dir=test_repo_dir)
 
-    chain |= GoTidy.s(repo=test_repo_dir)
+    #chain |= GoTidy.s(repo=test_repo_dir)
 
     if test_debug:
         chain |= InstallGoDelve.s()
@@ -542,14 +562,13 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
     go_args = f'{go_args} ' \
                 f'{go_args_prefix}v ' \
-                f'{go_args_prefix}parallel 1 ' \
                 f'{go_args_prefix}timeout {test_timeout}s'
 
     if test_debug:
         dlv_bin = os.path.join(_get_go_bin_path(), 'dlv')
         cmd = f'{dlv_bin} test ./{test_path} -- {go_args} {test_args}'
     else:
-        cmd = f'{GO_BIN} test ./{test_path} {go_args} -args {test_args}'
+        cmd = f'{GO_BIN} test -p 1 ./{test_path} {go_args} -args {test_args}'
 
     start_time = self.get_current_time()
     start_timestamp = int(time.time())
@@ -659,7 +678,7 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
         ate['otg'] = {
             'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port']),
             'insecure': True,
-            'timeout': 30
+            'timeout': 100
         }
 
         ate['gnmi'] = {
@@ -696,7 +715,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
-    
+            
     if reserved_testbed.get('sim', False):
         vxr_testbed = kwargs['testbed_path']
         check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {vxr_testbed}', 
@@ -709,13 +728,13 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             reserved_testbed['baseconf'] = {
                 'dut': reserved_testbed['baseconf']
             }
-
+                
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
             ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
             extra_conf = []
-
+        
             mgmt_ip = mgmt_ips[dut]
             logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
             
@@ -728,23 +747,30 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path, extra_conf)
             check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
-        ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
 
         hw_testbed_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['testbed'])
-        hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])
-        hw_baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
-        
+        hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])        
         tb_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
         key_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
         cert_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
 
         shutil.copyfile(hw_testbed_file_path, ondatra_testbed_path)
         shutil.copyfile(hw_binding_file_path, ondatra_binding_path)
-        shutil.copyfile(hw_baseconf_file_path, ondatra_baseconf_path)
+        
+        if type(reserved_testbed['baseconf']) is dict:
+            for dut, conf in reserved_testbed['baseconf'].items():
+                baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
+                ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+                shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)            
+                check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
+        else:
+            baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
+            ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
+            shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)    
+            check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
 
-        check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ondatra_binding_path}")

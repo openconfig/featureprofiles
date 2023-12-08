@@ -1,0 +1,56 @@
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id {
+    name: "system_logging_remote_syslog"
+    version: 1
+}
+
+# remote syslog
+config_path {
+    path: "/system/logging/remote-servers/remote-server/config/host"
+}
+config_path {
+    path: "/system/logging/remote-servers/remote-server/config/network-instance"
+}
+config_path {
+    path: "/system/logging/remote-servers/remote-server/config/remote-port"
+}
+config_path {
+    path: "/system/logging/remote-servers/remote-server/config/source-address"
+}
+config_path {
+    path: "/system/logging/remote-servers/remote-server/selectors/selector/config/facility"
+}
+config_path {
+    path: "/system/logging/remote-servers/remote-server/selectors/selector/config/severity"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/state/host"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/state/network-instance"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/state/remote-port"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/state/source-address"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/selectors/selector/state/facility"
+}
+telemetry_path {
+    path: "/system/logging/remote-servers/remote-server/selectors/selector/state/severity"
+}

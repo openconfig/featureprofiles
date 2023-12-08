@@ -49,7 +49,7 @@ func (c *Client) getAft(instance string) *oc.NetworkInstance_Afts {
 	return c.getCurrentAftConfig()[instance]
 }
 
-func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInstance, interfaceRef string) {
+func (c *Client) checkNH(t testing.TB, nhIndex uint64, address, instance, nhInstance, interfaceRef string, opts ...*NHOptions) {
 	t.Helper()
 	time.Sleep(time.Duration(*ciscoFlags.GRIBINHTimer) * time.Second)
 	aftNHs := gnmi.GetAll(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHopAny().State())

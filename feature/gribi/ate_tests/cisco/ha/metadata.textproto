@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "86aabaa0-1c61-4604-898b-eb4d5809b650"
+plan_id: "HA"
+description: "HA"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    deviation_gnoi_subcomponent_path: true
+  }
+}

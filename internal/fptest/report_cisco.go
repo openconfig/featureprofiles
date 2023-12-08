@@ -38,10 +38,10 @@ func (o *Observer) RecordYgot(t *testing.T, operation string, pathstruct interfa
 		for _, listner := range o.listeners {
 			err := listner.record(event)
 			if err != nil {
-				t.Logf("Unable to record , logging instead Test Path: %s -- %s -- %s -- %s -- %s ", o.name, event.testname, event.path, event.operation, event.status)
+				t.Logf("Unable to record , logging instead Test Path: %s -- %s -- %s -- %s ", o.name, event.testname, event.operation, event.status)
 
 			} else {
-				t.Logf("Test Path: %s -- %s -- %s -- %s -- %s ", o.name, event.testname, event.path, event.operation, event.status)
+				t.Logf("Test Path: %s -- %s -- %s -- %s ", o.name, event.testname, event.operation, event.status)
 
 			}
 
