@@ -22,7 +22,6 @@ import (
 
 func SaveTLSCertInPems(cert *tls.Certificate, keyPath, certPath string, keyAlgo x509.PublicKeyAlgorithm) error {
 	keyType := "RSA PRIVATE KEY"
-	keyBytes := []byte{}
 	var err error
 	switch keyAlgo {
 	case x509.RSA:
@@ -124,26 +123,6 @@ func PopulateCertTemplate(cname string, domainNames []string, ips []net.IP, spif
 	return certSpec, nil
 }
 
-func initCertRequest(cname string, domainNames []string, ips []net.IP, spiffeID string, expireInDays int) (*x509.CertificateRequest, error) {
-	uri, err := url.Parse(spiffeID)
-	if err != nil {
-		return nil, err
-	}
-	if err != nil {
-		return nil, err
-	}
-	// following https://github.com/spiffe/spiffe/blob/main/standards/X509-SVID.md#appendix-a-x509-field-reference
-	certSpec := &x509.CertificateRequest{
-		Subject: pkix.Name{
-			CommonName:   cname,
-			Organization: []string{"OpenconfigFeatureProfiles"},
-			Country:      []string{"US"},
-		},
-		URIs:     []*url.URL{uri},
-		DNSNames: domainNames,
-	}
-	return certSpec, nil
-}
 
 // LoadKeyPair loads a pair of RSA/ECDSA private key and certificate from pem files
 func LoadKeyPair(keyPath, certPath string) (any, *x509.Certificate, error) {
@@ -210,7 +189,6 @@ func GenRootCA(cn string, keyAlgo x509.PublicKeyAlgorithm, expireInDays int, dir
 	// create a private and public key
 	var caPrivKey crypto.PrivateKey
 	keyType := ""
-	keyBytes := []byte{}
 	keyFileName := ""
 	certFileName := ""
 	switch keyAlgo {
@@ -278,7 +256,6 @@ func GenRootCA(cn string, keyAlgo x509.PublicKeyAlgorithm, expireInDays int, dir
 func GenCRS(certReq *x509.CertificateRequest, keyAlgo x509.PublicKeyAlgorithm, expireInDays int, dir string) (crypto.PrivateKey, *x509.CertificateRequest, error) {
 	var privKey crypto.PrivateKey
 	keyType := ""
-	keyBytes := []byte{}
 	keyFileName := ""
 	var err error
 	certReqFileName := ""
