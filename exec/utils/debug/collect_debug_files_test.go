@@ -13,6 +13,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/testt"
 	"github.com/povsister/scp"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -26,6 +27,7 @@ const (
 var (
 	outDirFlag    = flag.String("outDir", "", "Directory where debug files should be copied")
 	timestampFlag = flag.String("timestamp", "1", "Test start timestamp")
+	coreFilesFlag = flag.Bool("core", false, "Check for core files that get generated")
 	outDir        string
 	timestamp     string
 )
@@ -36,6 +38,10 @@ type targetInfo struct {
 	sshPort string
 	sshUser string
 	sshPass string
+}
+
+type Targets struct {
+	targetInfo map[string]targetInfo
 }
 
 var (
@@ -63,24 +69,41 @@ var (
 	}
 )
 
+func NewTargets(t *testing.T) *Targets {
+	t.Helper()
+	// set up all ssh for the targets
+	nt := Targets{}
+	err := nt.getSSHInfo(t)
+	if err != nil {
+		panic(err)
+	}
+	return &nt
+
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 func TestCollectDebugFiles(t *testing.T) {
 	fmt.Println("Starting TestCollectionDebugFiles")
+
+	// set up Targets
+	targets := NewTargets(t)
+
 	if *outDirFlag == "" {
 		t.Fatal("Missing outDir arg")
 	} else {
 		outDir = *outDirFlag
 		fmt.Println(fmt.Sprintf("outDir: %s", outDir))
-		timestamp = *timestampFlag
+		timestamp = time.Now().Format(time.RFC3339Nano)
 	}
 
 	commands := []string{
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
 		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
+		//"run find /harddisk: -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
 	}
 
 	for _, t := range showTechSupport {
@@ -91,18 +114,15 @@ func TestCollectDebugFiles(t *testing.T) {
 		commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
 	}
 
-	targets := getSSHInfo(t)
-
-	for dutID, targetInfo := range targets {
+	for dutID, targetInfo := range targets.targetInfo {
 		t.Logf("Collecting debug files on %s", dutID)
 
 		ctx := context.Background()
-		dut := ondatra.DUT(t, dutID)
-		sshClient := dut.RawAPIs().CLI(t)
+		cli := targets.GetOndatraCLI(t, dutID)
 
 		for _, cmd := range commands {
 			testt.CaptureFatal(t, func(t testing.TB) {
-				if result, err := sshClient.SendCommand(ctx, cmd); err == nil {
+				if result, err := cli.SendCommand(ctx, cmd); err == nil {
 					t.Logf("> %s", cmd)
 					t.Log(result)
 				} else {
@@ -147,22 +167,22 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 	fmt.Println("Exiting copyDebugFiles")
 }
 
-func getSSHInfo(t *testing.T) map[string]targetInfo {
+func (ti *Targets) getSSHInfo(t *testing.T) error {
 	fmt.Println("Starting getSSHInfo")
 	t.Helper()
 
 	bindingFile := flag.Lookup("binding").Value.String()
 	in, err := os.ReadFile(bindingFile)
 	if err != nil {
-		t.Fatalf("Unable to read binding file")
+		return err
 	}
 
 	b := &bindpb.Binding{}
 	if err := prototext.Unmarshal(in, b); err != nil {
-		t.Fatalf("Unable to parse binding file")
+		return err
 	}
 
-	targets := map[string]targetInfo{}
+	//targets := map[string]targetInfo{}
 	for _, dut := range b.Duts {
 
 		sshUser := dut.Ssh.Username
@@ -188,7 +208,7 @@ func getSSHInfo(t *testing.T) map[string]targetInfo {
 			sshPort = sshTarget[1]
 		}
 
-		targets[dut.Id] = targetInfo{
+		ti.targetInfo[dut.Id] = targetInfo{
 			dut:     dut.Id,
 			sshIP:   sshIP,
 			sshPort: sshPort,
@@ -197,10 +217,48 @@ func getSSHInfo(t *testing.T) map[string]targetInfo {
 		}
 	}
 	fmt.Println("Exiting getSSHInfo")
-	return targets
+	return nil
 }
 
 func getTechFileName(tech string) string {
 	fmt.Println("Starting getTechFileName")
 	return techDirectory + "/" + strings.ReplaceAll(tech, " ", "_")
+}
+
+// setCoreFile creates a core file. function to be deleted !!!!!!!!!!
+func (ti *Targets) SetCoreFile(t *testing.T) {
+	fmt.Println("Starting setCoreFile")
+	t.Helper()
+
+	cmd := "dumpcore suspended 52"
+
+	for dutID, _ := range ti.targetInfo {
+		t.Logf("Collecting debug files on %s", dutID)
+
+		ctx := context.Background()
+		cli := ti.GetOndatraCLI(t, dutID)
+
+		testt.CaptureFatal(t, func(t testing.TB) {
+			if result, err := cli.SendCommand(ctx, cmd); err == nil {
+				t.Logf("> %s", cmd)
+				t.Log(result)
+			} else {
+				t.Logf("> %s", cmd)
+				t.Log(err.Error())
+			}
+			t.Logf("\n")
+		})
+
+	}
+	fmt.Println("Exiting setCoreFile")
+}
+
+// GetOndatraCLI
+//
+// returns a new streaming CLI client for the DUT.
+func (ti *Targets) GetOndatraCLI(t *testing.T, dutID string) binding.CLIClient {
+	t.Helper()
+	dut := ondatra.DUT(t, dutID)
+
+	return dut.RawAPIs().CLI(t)
 }
