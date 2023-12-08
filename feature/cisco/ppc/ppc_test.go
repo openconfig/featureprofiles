@@ -16,35 +16,41 @@ package ppc_test
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygnmi/ygnmi/schemaless"
 	"golang.org/x/exp/slices"
 )
 
-// constant variables
-const (
-	vrf1    = "TE"
-	traffic = true
+var (
+	npus = []string{"NPU0", "NPU1", "NPU2"}
 )
 
-// testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx    context.Context
-	client *gribi.Client
-	dut    *ondatra.DUTDevice
-	ate    *ondatra.ATEDevice
-	top    *ondatra.ATETopology
-	// events  *monitor.CachedConsumer
-	ATELock sync.Mutex
+	ate *ondatra.ATEDevice
+	ctx context.Context
+	dut *ondatra.DUTDevice
+	top *ondatra.ATETopology
+}
+
+const (
+	mask             = "32"
+	policyID         = "match-ipip"
+	ipOverIPProtocol = 4
+	vrf1             = "TE"
+)
+
+type flowAttr struct {
+	srcPort  string   // source OTG port
+	dstPorts []string // destination OTG ports
+	srcMac   string   // source MAC address
+	dstMac   string   // destination MAC address
 }
 
 func TestMain(m *testing.M) {
@@ -60,309 +66,468 @@ func sortedInterfaces(ports []*ondatra.Port) []string {
 	return interfaces
 }
 
+func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
+	// tmp := make(map[string]bool)
+	// var result []string
+	// for _, p := range args.dut.Ports() {
+	// 	hwport := gnmi.Get(t, args.dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+	// 	if !tmp[hwport] {
+	// 		tmp[hwport] = true
+	// 		result = append(result, hwport)
+	// 	}
+	// }
+	// result = nil
+	// for _, comp := range result {
+	// 	int_npu := gnmi.Get(t, args.dut, gnmi.OC().Component(comp).Parent().State())
+	// 	result = append(result, int_npu)
+	// }
+	// return result
+	
+	hwport := gnmi.Get(t, args.dut, gnmi.OC().Interface(dst.Name()).HardwarePort().State())
+	intf_npu := gnmi.Get(t, args.dut, gnmi.OC().Component(hwport).Parent().State())
+	return intf_npu
+	
+}
+
+// func (args *testArgs) runBackgroundMonitor(t *testing.T) {
+// 	go func() {
+// 		ticker := time.NewTicker(5 * time.Second) // Adjust the interval as needed
+
+// 		for {
+// 			gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
+// 			gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
+// 			select {
+// 			case <-ticker.C:
+// 				// Make gRPC call to get system information
+// 				response, err := client.GetSystemInfo(context.Background(), &pb.SystemInfoRequest{})
+// 				if err != nil {
+// 					log.Printf("Error getting system info: %v", err)
+// 					return
+// 				}
+
+// 				log.Printf("Memory Usage: %v, CPU Usage: %v", response.MemoryUsage, response.CPUUsage)
+// 				// Add more logging or processing based on the system information
+
+// 			case <-time.After(30 * time.Second): // Adjust the duration for the overall background run
+// 				log.Println("Background monitor finished.")
+// 				return
+// 			}
+// 		}
+// 	}()
+// }
+
+// to do triggers
+// var (
+// 	triggers = []Testcase{
+// 		{
+// 			name: "Interface flap",
+// 			desc: "",
+// 			// fn:   test,
+// 		},
+// 		{
+// 			name: "Process restart",
+// 			desc: "restart the process (emsd, ifmgr, dbwriter, fib_mgr, ipv4/ipv6 rib) and validate pipeline counters",
+// 			// fn:   test,
+// 		},
+// 		{
+// 			name: "HA triggers",
+// 			desc: "perform HA triggers like RPFO, LC reload and validate pipeline counters",
+// 			// fn:   test,
+// 		},
+// 	}
+// )
+
+// to do subscriptions
+// var (
+//
+//	subscriptions = []Testcase{
+//		//subcription mode covers for all leaf, container and root level
+//		{
+//			name: "once",
+//			desc: "validates subscription mode once at the root, container and leaf level",
+//			// fn:   test,
+//		},
+//		{
+//			name: "on-change",
+//			desc: "validates subscription on-change at the root, container and leaf level",
+//			// fn:   test,
+//		},
+//		{
+//			name: "sample",
+//			desc: "validates subscription mode sampling at the root, container and leaf level",
+//			// fn:   test,
+//		},
+//		{
+//			name: "multiple_subcriptions",
+//			desc: "mix various subscription modes and levels",
+//			// fn:   test,
+//		},
+//	}
+//
+// )
+
+type containerQuery[T any] struct {
+	query *ygnmi.WildcardQuery[T]
+}
+
+type leafQuery[T any] struct {
+	query *ygnmi.SingletonQuery[T]
+}
+
 func (a *testArgs) testOC_PPC_interface_subsystem(t *testing.T) {
-	interfaces := sortedInterfaces(a.dut.Ports())
-	t.Logf("Interfaces: %s", interfaces)
-	for _, intf := range interfaces {
-		t.Run(intf, func(t *testing.T) {
-			query := gnmi.OC().Interface(intf).State()
-			root := gnmi.Get(t, a.dut, query)
-			t.Logf("INFO: Interface %s: \n", intf)
-			if root.OperStatus == oc.Interface_OperStatus_NOT_PRESENT {
-				t.Errorf("ERROR: Oper status is not present")
-			} else {
-				t.Logf("INFO: Oper status: %s", root.GetOperStatus())
-			}
-			if root.AdminStatus == oc.Interface_AdminStatus_UNSET {
-				t.Errorf("ERROR: Admin status is not set")
-			} else {
-				t.Logf("INFO: Admin status: %s", root.GetAdminStatus())
-			}
-			if root.Type == oc.IETFInterfaces_InterfaceType_UNSET {
-				t.Errorf("ERROR: Type is not present")
-			} else {
-				t.Logf("INFO: Type: %s", root.GetType())
-			}
-			if root.Description == nil {
-				t.Errorf("ERROR: Description is not present")
-			} else {
-				t.Logf("INFO: Description: %s", root.GetType())
-			}
-			if root.GetCounters().OutOctets == nil {
-				t.Errorf("ERROR: Counter OutOctets is not present")
-			} else {
-				t.Logf("INFO: Counter OutOctets: %d", root.GetCounters().GetOutOctets())
-			}
-			if root.GetCounters().InMulticastPkts == nil {
-				t.Errorf("ERROR: Counter InMulticastPkts is not present")
-			} else {
-				t.Logf("INFO: Counter InMulticastPkts: %d", root.GetCounters().GetInMulticastPkts())
-			}
-			if root.GetCounters().InDiscards == nil {
-				t.Errorf("ERROR: Counter InDiscards is not present")
-			} else {
-				t.Logf("INFO: Counter InDiscards: %d", root.GetCounters().GetInDiscards())
-			}
-			if root.GetCounters().InErrors == nil {
-				t.Errorf("ERROR: Counter InErrors is not present")
-			} else {
-				t.Logf("INFO: Counter InErrors: %d", root.GetCounters().GetInErrors())
-			}
-			if root.GetCounters().InUnknownProtos == nil {
-				t.Errorf("ERROR: Counter InUnknownProtos is not present")
-			} else {
-				t.Logf("INFO: Counter InUnknownProtos: %d", root.GetCounters().GetInUnknownProtos())
-			}
-			if root.GetCounters().OutDiscards == nil {
-				t.Errorf("ERROR: Counter OutDiscards is not present")
-			} else {
-				t.Logf("INFO: Counter OutDiscards: %d", root.GetCounters().GetOutDiscards())
-			}
-			if root.GetCounters().OutErrors == nil {
-				t.Errorf("ERROR: Counter OutErrors is not present")
-			} else {
-				t.Logf("INFO: Counter OutErrors: %d", root.GetCounters().GetOutErrors())
-			}
-			if root.GetCounters().InFcsErrors == nil {
-				t.Errorf("ERROR: Counter InFcsErrors is not present")
-			} else {
-				t.Logf("INFO: Counter InFcsErrors: %d", root.GetCounters().GetInFcsErrors())
+
+	// Testcase defines testcase structure
+	type Testcase struct {
+		name      string
+		container containerQuery[uint64]
+		leaf      leafQuery[uint64]
+		flow      *ondatra.Flow
+	}
+
+	// {
+	// 	name: "packet/interface-block/state/out-packets",
+	// 	desc: "With traffic validate ppc interface out-packets",
+	// 	// flow: "",
+	// },
+	// {
+	// 	name: "packet/interface-block/state/in-bytes",
+	// 	desc: "With traffic validate ppc interface in-bytes",
+	// 	//flow: "",
+	// },
+	// {
+	// 	name: "packet/interface-block/state/out-bytes",
+	// 	desc: "With traffic validate ppc interface out-bytes",
+	// 	//flow: "",
+	// },
+	// {
+	// 	name: "drop/interface-block/state/oversubscription",
+	// 	desc: "With traffic validate ppc interface oversubscription",
+	// 	//flow: "",
+	// },
+	// {
+	// 	name: "drop/interface-block/state/in-drops",
+	// 	desc: "With traffic validate ppc interface in-drops",
+	// 	//flow: "",
+	// },
+	// {
+	// 	name: "drop/interface-block/state/out-drops",
+	// 	desc: "With traffic validate ppc interface out-drops",
+	// 	//flow: "",
+	// },
+	// {
+	// 	name: "errors/interface-block/state/error-action",
+	// 	desc: "With traffic validate ppc interface error-action",
+	// 	//flow: "",
+	// },
+	// {
+	// 	name: "errors/interface-block/state/error-count",
+	// 	desc: "With traffic validate ppc interface error-count",
+	// 	//flow: "",
+	// },
+	// {
+	// 	name: "errors/interface-block/state/error-level",
+	// 	desc: "With traffic validate ppc interface error-level",
+	// 	//flow: "",
+	// },
+	// {
+	// 	name: "errors/interface-block/state/error-name",
+	// 	desc: "With traffic validate ppc interface error-name",
+	// 	//flow: "",
+	// },
+	// {
+	// 	name: "errors/interface-block/state/error-threshold",
+	// 	desc: "With traffic validate ppc interface error-threshold",
+	// 	//flow: "",
+	// },
+	test := []Testcase{
+		{
+			name: "/components/component/integrated-circuit/pipeline-counters/packet/interface-block/state/in-packets/state",
+			container: containerQuery[uint64]{
+				query: schemaless.NewWildcardQuery[uint64](gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Packet().InterfaceBlock().InPackets().State()),
+			},
+			leaf: leafQuery[uint64]{
+				query: schemaless.SingletonQuery[uint64]{gnmi.OC().Component(a.interfaceToNPU(t, a.dut.Port(t, "port2")).IntegratedCircuit().PipelineCounters().Packet().InterfaceBlock().InPackets().State()},
+			},
+			flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
+		},
+	}
+
+	for _, tt := range test {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Name: %s", tt.name)
+			tgn_data := a.validateTrafficFlows(t, tt.flow, false)
+			stateGot := gnmi.Await(t, a.dut, tt.leaf.query, 1*time.Minute, tgn_data)
+			if got, _ := stateGot.Val(); got != testCase.hostname {
+				t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
 			}
 		})
 	}
 }
 
-func (a *testArgs) testOC_PPC_queuing_subsystem(t *testing.T) {
-	type testCase struct {
-		desc     string
-		path     string
-		counters []*ygnmi.Value[uint64]
-	}
-	interfaces := sortedInterfaces(a.dut.Ports())
-	t.Logf("Interfaces: %s", interfaces)
-	for _, intf := range interfaces {
-		t.Run(intf, func(t *testing.T) {
-			qosInterface := gnmi.OC().Qos().Interface(intf)
-			cases := []testCase{
-				{
-					desc:     "Queue Input Dropped packets",
-					path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, a.dut, qosInterface.Input().QueueAny().DroppedPkts().State()),
-				},
-				{
-					desc:     "Queue Output Dropped packets",
-					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, a.dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
-				},
-				{
-					desc:     "Queue input voq-output-interface dropped packets",
-					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, a.dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
-				},
-			}
-			for _, c := range cases {
-				t.Run(c.desc, func(t *testing.T) {
-					if len(c.counters) == 0 {
-						t.Errorf("%s Interface %s Telemetry Value is not present", c.desc, intf)
-					}
-					for queueID, dropPkt := range c.counters {
-						dropCount, present := dropPkt.Val()
-						if !present {
-							t.Errorf("%s Interface %s %s Telemetry Value is not present", c.desc, intf, dropPkt.Path)
-						} else {
-							t.Logf("%s Interface %s, Queue %d has %d drop(s)", dropPkt.Path.GetOrigin(), intf, queueID, dropCount)
-						}
-					}
-				})
-			}
-		})
-	}
-}
+// func (a *testArgs) testOC_PPC_queuing_subsystem(t *testing.T) {
+// 	type testCase struct {
+// 		desc     string
+// 		path     string
+// 		counters []*ygnmi.Value[uint64]
+// 	}
+// 	interfaces := sortedInterfaces(a.dut.Ports())
+// 	t.Logf("Interfaces: %s", interfaces)
+// 	for _, intf := range interfaces {
+// 		t.Run(intf, func(t *testing.T) {
+// 			qosInterface := gnmi.OC().Qos().Interface(intf)
+// 			cases := []testCase{
+// 				{
+// 					desc:     "Queue Input Dropped packets",
+// 					path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
+// 					counters: gnmi.LookupAll(t, a.dut, qosInterface.Input().QueueAny().DroppedPkts().State()),
+// 				},
+// 				{
+// 					desc:     "Queue Output Dropped packets",
+// 					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
+// 					counters: gnmi.LookupAll(t, a.dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
+// 				},
+// 				{
+// 					desc:     "Queue input voq-output-interface dropped packets",
+// 					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
+// 					counters: gnmi.LookupAll(t, a.dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
+// 				},
+// 			}
+// 			for _, c := range cases {
+// 				t.Run(c.desc, func(t *testing.T) {
+// 					if len(c.counters) == 0 {
+// 						t.Errorf("%s Interface %s Telemetry Value is not present", c.desc, intf)
+// 					}
+// 					for queueID, dropPkt := range c.counters {
+// 						dropCount, present := dropPkt.Val()
+// 						if !present {
+// 							t.Errorf("%s Interface %s %s Telemetry Value is not present", c.desc, intf, dropPkt.Path)
+// 						} else {
+// 							t.Logf("%s Interface %s, Queue %d has %d drop(s)", dropPkt.Path.GetOrigin(), intf, queueID, dropCount)
+// 						}
+// 					}
+// 				})
+// 			}
+// 		})
+// 	}
+// }
 
-func (a *testArgs) testOC_PPC_lookup_subsystem(t *testing.T) {
-	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().State()
-	asicDrops := gnmi.LookupAll(t, a.dut, query)
-	if len(asicDrops) == 0 {
-		t.Fatalf("ERROR: Could not perform lookup as no asic drop paths exist")
-	}
+// func (a *testArgs) testOC_PPC_lookup_subsystem(t *testing.T) {
+// 	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().State()
+// 	asicDrops := gnmi.LookupAll(t, a.dut, query)
+// 	if len(asicDrops) == 0 {
+// 		t.Fatalf("ERROR: Could not perform lookup as no asic drop paths exist")
+// 	}
 
-	for _, asicDrop := range asicDrops {
-		component := asicDrop.Path.GetElem()[1].GetKey()["name"]
-		t.Run("Component "+component, func(t *testing.T) {
-			drop, _ := asicDrop.Val()
-			if drop.InterfaceBlock != nil {
-				if drop.InterfaceBlock.InDrops == nil {
-					t.Errorf("ERROR: InDrops counter is not present")
-				} else {
-					t.Logf("INFO: InDrops counter: %d", drop.InterfaceBlock.GetInDrops())
-				}
-				if drop.InterfaceBlock.OutDrops == nil {
-					t.Errorf("ERROR: OutDrops counter is not present")
-				} else {
-					t.Logf("INFO: OutDrops counter: %d", drop.InterfaceBlock.GetInDrops())
-				}
-				if drop.InterfaceBlock.Oversubscription == nil {
-					t.Errorf("ERROR: Oversubscription counter is not present")
-				} else {
-					t.Logf("INFO: Oversubscription counter: %d", drop.InterfaceBlock.GetInDrops())
-				}
-			}
-			if drop.LookupBlock != nil {
-				if drop.LookupBlock.AclDrops == nil {
-					t.Errorf("ERROR: AclDrops counter is not present")
-				} else {
-					t.Logf("INFO: AclDrops counter: %d", drop.LookupBlock.GetAclDrops())
-				}
-				if drop.LookupBlock.ForwardingPolicy == nil {
-					t.Errorf("ERROR: ForwardingPolicy is not present")
-				} else {
-					t.Logf("INFO: GetForwardingPolicy counter: %d", drop.LookupBlock.GetForwardingPolicy())
-				}
-				if drop.LookupBlock.FragmentTotalDrops == nil {
-					t.Errorf("ERROR: FragmentTotalDrops is not present")
-				} else {
-					t.Logf("INFO: FragmentTotalDrops: %d", drop.LookupBlock.GetFragmentTotalDrops())
-				}
-				if drop.LookupBlock.IncorrectSoftwareState == nil {
-					t.Errorf("ERROR: IncorrectSoftwareState counter is not present")
-				} else {
-					t.Logf("INFO: IncorrectSoftwareState counter: %d", drop.LookupBlock.GetIncorrectSoftwareState())
-				}
-				if drop.LookupBlock.InvalidPacket == nil {
-					t.Errorf("ERROR: InvalidPacket counter is not present")
-				} else {
-					t.Logf("INFO: InvalidPacket counter: %d", drop.LookupBlock.GetInvalidPacket())
-				}
-				if drop.LookupBlock.LookupAggregate == nil {
-					t.Errorf("ERROR: LookupAggregate counter is not present")
-				} else {
-					t.Logf("INFO: LookupAggregate counter: %d", drop.LookupBlock.GetLookupAggregate())
-				}
-				if drop.LookupBlock.NoLabel == nil {
-					t.Errorf("ERROR: NoLabel counter is not present")
-				} else {
-					t.Logf("INFO: NoLabel counter: %d", drop.LookupBlock.GetNoLabel())
-				}
-				if drop.LookupBlock.NoNexthop == nil {
-					t.Errorf("ERROR: NoNexthop counter is not present")
-				} else {
-					t.Logf("INFO: NoNexthop counter: %d", drop.LookupBlock.GetNoNexthop())
-				}
-				if drop.LookupBlock.NoRoute == nil {
-					t.Errorf("ERROR: NoRoute counter is not present")
-				} else {
-					t.Logf("INFO: NoRoute counter: %d", drop.LookupBlock.GetNoNexthop())
-				}
-				if drop.LookupBlock.RateLimit == nil {
-					t.Errorf("ERROR: RateLimit counter is not present")
-				} else {
-					t.Logf("INFO: RateLimit counter: %d", drop.LookupBlock.GetRateLimit())
-				}
-			}
-		})
-	}
-}
+// 	for _, asicDrop := range asicDrops {
+// 		component := asicDrop.Path.GetElem()[1].GetKey()["name"]
+// 		t.Run("Component "+component, func(t *testing.T) {
+// 			drop, _ := asicDrop.Val()
+// 			if drop.InterfaceBlock != nil {
+// 				if drop.InterfaceBlock.InDrops == nil {
+// 					t.Errorf("ERROR: InDrops counter is not present")
+// 				} else {
+// 					t.Logf("INFO: InDrops counter: %d", drop.InterfaceBlock.GetInDrops())
+// 				}
+// 				if drop.InterfaceBlock.OutDrops == nil {
+// 					t.Errorf("ERROR: OutDrops counter is not present")
+// 				} else {
+// 					t.Logf("INFO: OutDrops counter: %d", drop.InterfaceBlock.GetInDrops())
+// 				}
+// 				if drop.InterfaceBlock.Oversubscription == nil {
+// 					t.Errorf("ERROR: Oversubscription counter is not present")
+// 				} else {
+// 					t.Logf("INFO: Oversubscription counter: %d", drop.InterfaceBlock.GetInDrops())
+// 				}
+// 			}
+// 			if drop.LookupBlock != nil {
+// 				if drop.LookupBlock.AclDrops == nil {
+// 					t.Errorf("ERROR: AclDrops counter is not present")
+// 				} else {
+// 					t.Logf("INFO: AclDrops counter: %d", drop.LookupBlock.GetAclDrops())
+// 				}
+// 				if drop.LookupBlock.ForwardingPolicy == nil {
+// 					t.Errorf("ERROR: ForwardingPolicy is not present")
+// 				} else {
+// 					t.Logf("INFO: GetForwardingPolicy counter: %d", drop.LookupBlock.GetForwardingPolicy())
+// 				}
+// 				if drop.LookupBlock.FragmentTotalDrops == nil {
+// 					t.Errorf("ERROR: FragmentTotalDrops is not present")
+// 				} else {
+// 					t.Logf("INFO: FragmentTotalDrops: %d", drop.LookupBlock.GetFragmentTotalDrops())
+// 				}
+// 				if drop.LookupBlock.IncorrectSoftwareState == nil {
+// 					t.Errorf("ERROR: IncorrectSoftwareState counter is not present")
+// 				} else {
+// 					t.Logf("INFO: IncorrectSoftwareState counter: %d", drop.LookupBlock.GetIncorrectSoftwareState())
+// 				}
+// 				if drop.LookupBlock.InvalidPacket == nil {
+// 					t.Errorf("ERROR: InvalidPacket counter is not present")
+// 				} else {
+// 					t.Logf("INFO: InvalidPacket counter: %d", drop.LookupBlock.GetInvalidPacket())
+// 				}
+// 				if drop.LookupBlock.LookupAggregate == nil {
+// 					t.Errorf("ERROR: LookupAggregate counter is not present")
+// 				} else {
+// 					t.Logf("INFO: LookupAggregate counter: %d", drop.LookupBlock.GetLookupAggregate())
+// 				}
+// 				if drop.LookupBlock.NoLabel == nil {
+// 					t.Errorf("ERROR: NoLabel counter is not present")
+// 				} else {
+// 					t.Logf("INFO: NoLabel counter: %d", drop.LookupBlock.GetNoLabel())
+// 				}
+// 				if drop.LookupBlock.NoNexthop == nil {
+// 					t.Errorf("ERROR: NoNexthop counter is not present")
+// 				} else {
+// 					t.Logf("INFO: NoNexthop counter: %d", drop.LookupBlock.GetNoNexthop())
+// 				}
+// 				if drop.LookupBlock.NoRoute == nil {
+// 					t.Errorf("ERROR: NoRoute counter is not present")
+// 				} else {
+// 					t.Logf("INFO: NoRoute counter: %d", drop.LookupBlock.GetNoNexthop())
+// 				}
+// 				if drop.LookupBlock.RateLimit == nil {
+// 					t.Errorf("ERROR: RateLimit counter is not present")
+// 				} else {
+// 					t.Logf("INFO: RateLimit counter: %d", drop.LookupBlock.GetRateLimit())
+// 				}
+// 			}
+// 		})
+// 	}
+// }
 
-func (a *testArgs) testOC_PPC_host_subsystem(t *testing.T) {
-	t.Skip("skipping host subsystem")
-}
+// func (a *testArgs) testOC_PPC_host_subsystem(t *testing.T) {
+// 	query := gnmi.OC().System().AlarmAny().State()
+// 	alarms := gnmi.LookupAll(t, a.dut, query)
+// 	if len(alarms) > 0 {
+// 		for _, alarm := range alarms {
+// 			val, _ := alarm.Val()
+// 			alarmSeverity := val.GetSeverity()
+// 			// Checking for major system alarms.
+// 			if alarmSeverity == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MAJOR {
+// 				t.Logf("INFO: System Alarm with severity %s seen: %s", alarmSeverity, val.GetText())
+// 			}
+// 		}
+// 	}
+// }
 
-func (a *testArgs) testOC_PPC_fabric_subsystem(t *testing.T) {
-	t.Logf("INFO: Check no fabric drop")
-	if deviations.FabricDropCounterUnsupported(a.dut) {
-		t.Skipf("INFO: Skipping test due to deviation fabric_drop_counter_unsupported")
-	}
-	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().FabricBlock().State()
-	t.Logf("query %s", query)
-	fabricBlocks := gnmi.GetAll(t, a.dut, query)
-	if len(fabricBlocks) == 0 {
-		t.Fatalf("ERROR: %s is not present", query)
-	}
-	for _, fabricBlock := range fabricBlocks {
-		drop := fabricBlock.GetLostPackets()
-		if fabricBlock.LostPackets == nil {
-			t.Errorf("ERROR: Fabric drops is not present")
-		} else {
-			t.Logf("INFO: Fabric drops: %d", drop)
-		}
-	}
-}
+// func (a *testArgs) testOC_PPC_fabric_subsystem(t *testing.T) {
+// 	t.Logf("INFO: Check no fabric drop")
+// 	if deviations.FabricDropCounterUnsupported(a.dut) {
+// 		t.Skipf("INFO: Skipping test due to deviation fabric_drop_counter_unsupported")
+// 	}
+// 	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().FabricBlock().State()
+// 	t.Logf("query %s", query)
+// 	fabricBlocks := gnmi.GetAll(t, a.dut, query)
+// 	if len(fabricBlocks) == 0 {
+// 		t.Fatalf("ERROR: %s is not present", query)
+// 	}
+// 	for _, fabricBlock := range fabricBlocks {
+// 		drop := fabricBlock.GetLostPackets()
+// 		if fabricBlock.LostPackets == nil {
+// 			t.Errorf("ERROR: Fabric drops is not present")
+// 		} else {
+// 			t.Logf("INFO: Fabric drops: %d", drop)
+// 		}
+// 	}
+// }
+
+// func (a *testArgs) testOC_PPC_ethernet_drop(t *testing.T) {
+// 	interfaces := sortedInterfaces(a.dut.Ports())
+// 	t.Logf("Interfaces: %s", interfaces)
+// 	for _, intf := range interfaces {
+// 		t.Run(intf, func(t *testing.T) {
+// 			counters := gnmi.OC().Interface(intf).Ethernet().Counters()
+// 			cases := []struct {
+// 				desc    string
+// 				counter ygnmi.SingletonQuery[uint64]
+// 			}{
+// 				{
+// 					desc:    "InCrcErrors",
+// 					counter: counters.InCrcErrors().State(),
+// 				},
+// 				{
+// 					desc:    "InMacPauseFrames",
+// 					counter: counters.InMacPauseFrames().State(),
+// 				},
+// 				{
+// 					desc:    "OutMacPauseFrames",
+// 					counter: counters.OutMacPauseFrames().State(),
+// 				},
+// 				{
+// 					desc:    "InBlockErrors",
+// 					counter: counters.InBlockErrors().State(),
+// 				},
+// 			}
+
+// 			for _, c := range cases {
+// 				t.Run(c.desc, func(t *testing.T) {
+// 					if val, present := gnmi.Lookup(t, a.dut, c.counter).Val(); present {
+// 						t.Logf("INFO: %s: %d", c.counter, val)
+// 					} else {
+// 						t.Errorf("ERROR: %s is not present", c.counter)
+// 					}
+// 				})
+// 			}
+// 		})
+// 	}
+// }
 
 func TestOC_PPC(t *testing.T) {
 	t.Log("Name: OC PPC")
 
 	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-
+	// ctx := context.Background()
 	// Configure the DUT
 	var vrfs = []string{vrf1}
 	configVRF(t, dut, vrfs)
 	configureDUT(t, dut)
 	// PBR config
 	// configbasePBR(t, dut, "REPAIRED", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{}, &PBROptions{SrcIP: "222.222.222.222/32"})
-	// configbasePBR(t, dut, "TE", "ipv4", 2, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	// configbasePBRInt(t, dut, "Bundle-Ether120", "pbr")
+	configbasePBR(t, dut, "TE", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 	// RoutePolicy config
 	configRP(t, dut)
 	// configure ISIS on DUT
-	addISISOC(t, dut, "Bundle-Ether127")
+	addISISOC(t, dut, "Bundle-Ether121")
 	// configure BGP on DUT
 	addBGPOC(t, dut, "100.100.100.100")
 
 	// Configure the ATE
+	// port 1 is source port
+	// port 2 is destination port running isis
+	// port 3 and port 4 are additional destionation ports
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	if traffic {
-		addPrototoAte(t, top)
-		time.Sleep(120 * time.Second)
-	}
-
-	//Creating gribi client for run across 1 subsystem
-	clientA := gribi.Client{
-		DUT:                   dut,
-		FibACK:                true,
-		Persistence:           true,
-		InitialElectionIDLow:  1,
-		InitialElectionIDHigh: 0,
-	}
-	defer clientA.Close(t)
-	if err := clientA.Start(t); err != nil {
-		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-		if err = clientA.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection could not be established: %v", err)
-		}
-	}
-	clientA.BecomeLeader(t)
+	addPrototoAte(t, top)
+	time.Sleep(120 * time.Second)
 
 	args := &testArgs{
-		ctx:    ctx,
-		client: &clientA,
-		dut:    dut,
-		ate:    ate,
-		top:    top,
+		ctx: ctx,
+		dut: dut,
+		ate: ate,
+		top: top,
 	}
+
+	// goroutine to check cpu/memory in the background, need to work on it
+	// t.Logf("check CPU/memory in the background")
+	// args.runBackgroundMonitor(t)
 
 	t.Run("Test interface subsystem", func(t *testing.T) {
 		args.testOC_PPC_interface_subsystem(t)
 	})
-	t.Run("Test queuing subsystem", func(t *testing.T) {
-		args.testOC_PPC_queuing_subsystem(t)
-	})
-	t.Run("Test lookup subsystem", func(t *testing.T) {
-		args.testOC_PPC_lookup_subsystem(t)
-	})
-	t.Run("Test host subsystem", func(t *testing.T) {
-		args.testOC_PPC_host_subsystem(t)
-	})
-	t.Run("Test fabrc subsystem", func(t *testing.T) {
-		args.testOC_PPC_fabric_subsystem(t)
-	})
 
-	//how to do traffic check
+	// t.Run("Test queuing subsystem", func(t *testing.T) {
+	// 	args.testOC_PPC_queuing_subsystem(t)
+	// })
 
-	te_flow := args.allFlows(t)
-	outgoing_interface := make(map[string][]string)
-	outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-	args.validateTrafficFlows(t, te_flow, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+	// t.Run("Test lookup subsystem", func(t *testing.T) {
+	// 	args.testOC_PPC_lookup_subsystem(t)
+	// })
 
+	// t.Run("Test host subsystem", func(t *testing.T) {
+	// 	args.testOC_PPC_host_subsystem(t)
+	// })
+
+	// t.Run("Test fabric subsystem", func(t *testing.T) {
+	// 	args.testOC_PPC_fabric_subsystem(t)
+	// })
 }

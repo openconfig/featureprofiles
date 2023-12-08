@@ -46,6 +46,11 @@ const (
 	BGPAS = 65000
 )
 
+type PBROptions struct {
+	// BackupNHG specifies the backup next-hop-group to be used when all next-hops are unavailable.
+	SrcIP string
+}
+
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -110,65 +115,65 @@ var (
 		IPv6:    "2000::100:124:1:2",
 		IPv6Len: ipv6PrefixLen,
 	}
-	dutPort5 = attrs.Attributes{
-		Desc:    "dutPort5",
-		IPv4:    "100.125.1.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:125:1:1",
-		IPv6Len: ipv6PrefixLen,
-	}
+	// dutPort5 = attrs.Attributes{
+	// 	Desc:    "dutPort5",
+	// 	IPv4:    "100.125.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:125:1:1",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
 
-	atePort5 = attrs.Attributes{
-		Name:    "atePort5",
-		IPv4:    "100.125.1.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:125:1:2",
-		IPv6Len: ipv6PrefixLen,
-	}
-	dutPort6 = attrs.Attributes{
-		Desc:    "dutPort6",
-		IPv4:    "100.126.1.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:126:1:1",
-		IPv6Len: ipv6PrefixLen,
-	}
+	// atePort5 = attrs.Attributes{
+	// 	Name:    "atePort5",
+	// 	IPv4:    "100.125.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:125:1:2",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
+	// dutPort6 = attrs.Attributes{
+	// 	Desc:    "dutPort6",
+	// 	IPv4:    "100.126.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:126:1:1",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
 
-	atePort6 = attrs.Attributes{
-		Name:    "atePort6",
-		IPv4:    "100.126.1.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:126:1:2",
-		IPv6Len: ipv6PrefixLen,
-	}
-	dutPort7 = attrs.Attributes{
-		Desc:    "dutPort7",
-		IPv4:    "100.127.1.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:127:1:1",
-		IPv6Len: ipv6PrefixLen,
-	}
+	// atePort6 = attrs.Attributes{
+	// 	Name:    "atePort6",
+	// 	IPv4:    "100.126.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:126:1:2",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
+	// dutPort7 = attrs.Attributes{
+	// 	Desc:    "dutPort7",
+	// 	IPv4:    "100.127.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:127:1:1",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
 
-	atePort7 = attrs.Attributes{
-		Name:    "atePort7",
-		IPv4:    "100.127.1.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:127:1:2",
-		IPv6Len: ipv6PrefixLen,
-	}
-	dutPort8 = attrs.Attributes{
-		Desc:    "dutPort8",
-		IPv4:    "100.128.1.1",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:128:1:1",
-		IPv6Len: ipv6PrefixLen,
-	}
-	atePort8 = attrs.Attributes{
-		Name:    "atePort8",
-		IPv4:    "100.128.1.2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2000::100:128:1:2",
-		IPv6Len: ipv6PrefixLen,
-	}
+	// atePort7 = attrs.Attributes{
+	// 	Name:    "atePort7",
+	// 	IPv4:    "100.127.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:127:1:2",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
+	// dutPort8 = attrs.Attributes{
+	// 	Desc:    "dutPort8",
+	// 	IPv4:    "100.128.1.1",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:128:1:1",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
+	// atePort8 = attrs.Attributes{
+	// 	Name:    "atePort8",
+	// 	IPv4:    "100.128.1.2",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2000::100:128:1:2",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
 	// dutPort2Vlan10 = attrs.Attributes{
 	// 	Desc:    "dutPort2Vlan10",
 	// 	IPv4:    "100.128.10.1",
@@ -232,29 +237,29 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	BE123 := generateBundleMemberInterfaceConfig(t, p4.Name(), *i4.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p4.Name()).Config(), BE123)
 
-	p5 := dut.Port(t, "port5")
-	i5 := &oc.Interface{Name: ygot.String("Bundle-Ether124")}
-	gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configInterfaceDUT(i5, &dutPort5))
-	BE124 := generateBundleMemberInterfaceConfig(t, p5.Name(), *i5.Name)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p5.Name()).Config(), BE124)
+	// p5 := dut.Port(t, "port5")
+	// i5 := &oc.Interface{Name: ygot.String("Bundle-Ether124")}
+	// gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configInterfaceDUT(i5, &dutPort5))
+	// BE124 := generateBundleMemberInterfaceConfig(t, p5.Name(), *i5.Name)
+	// gnmi.Replace(t, dut, gnmi.OC().Interface(p5.Name()).Config(), BE124)
 
-	p6 := dut.Port(t, "port6")
-	i6 := &oc.Interface{Name: ygot.String("Bundle-Ether125")}
-	gnmi.Replace(t, dut, d.Interface(*i6.Name).Config(), configInterfaceDUT(i6, &dutPort6))
-	BE125 := generateBundleMemberInterfaceConfig(t, p6.Name(), *i6.Name)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p6.Name()).Config(), BE125)
+	// p6 := dut.Port(t, "port6")
+	// i6 := &oc.Interface{Name: ygot.String("Bundle-Ether125")}
+	// gnmi.Replace(t, dut, d.Interface(*i6.Name).Config(), configInterfaceDUT(i6, &dutPort6))
+	// BE125 := generateBundleMemberInterfaceConfig(t, p6.Name(), *i6.Name)
+	// gnmi.Replace(t, dut, gnmi.OC().Interface(p6.Name()).Config(), BE125)
 
-	p7 := dut.Port(t, "port7")
-	i7 := &oc.Interface{Name: ygot.String("Bundle-Ether126")}
-	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configInterfaceDUT(i7, &dutPort7))
-	BE126 := generateBundleMemberInterfaceConfig(t, p7.Name(), *i7.Name)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p7.Name()).Config(), BE126)
+	// p7 := dut.Port(t, "port7")
+	// i7 := &oc.Interface{Name: ygot.String("Bundle-Ether126")}
+	// gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configInterfaceDUT(i7, &dutPort7))
+	// BE126 := generateBundleMemberInterfaceConfig(t, p7.Name(), *i7.Name)
+	// gnmi.Replace(t, dut, gnmi.OC().Interface(p7.Name()).Config(), BE126)
 
-	p8 := dut.Port(t, "port8")
-	i8 := &oc.Interface{Name: ygot.String("Bundle-Ether127")}
-	gnmi.Replace(t, dut, d.Interface(*i8.Name).Config(), configInterfaceDUT(i8, &dutPort8))
-	BE127 := generateBundleMemberInterfaceConfig(t, p8.Name(), *i8.Name)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p8.Name()).Config(), BE127)
+	// p8 := dut.Port(t, "port8")
+	// i8 := &oc.Interface{Name: ygot.String("Bundle-Ether127")}
+	// gnmi.Replace(t, dut, d.Interface(*i8.Name).Config(), configInterfaceDUT(i8, &dutPort8))
+	// BE127 := generateBundleMemberInterfaceConfig(t, p8.Name(), *i8.Name)
+	// gnmi.Replace(t, dut, gnmi.OC().Interface(p8.Name()).Config(), BE127)
 
 	//Configure VLANs on Bundle-Ether127
 	for i := 1; i <= vlans; i++ {
@@ -386,4 +391,46 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 		}
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf_name).Config(), vrf)
 	}
+}
+
+// configbasePBR, creates class map, policy and configures under source interface
+func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, pbrName string, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8, opts ...*PBROptions) {
+	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+	r.SequenceId = ygot.Uint32(index)
+	r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
+	if iptype == "ipv4" {
+		if len(opts) != 0 {
+			for _, opt := range opts {
+				if opt.SrcIP != "" {
+					r.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+						SourceAddress: &opt.SrcIP,
+						Protocol:      protocol,
+					}
+				}
+			}
+		} else {
+			r.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+				Protocol: protocol,
+			}
+		}
+		if len(dscpset) > 0 {
+			r.Ipv4.DscpSet = dscpset
+		}
+	} else if iptype == "ipv6" {
+		r.Ipv6 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv6{
+			Protocol: protocol,
+		}
+		if len(dscpset) > 0 {
+			r.Ipv6.DscpSet = dscpset
+		}
+	}
+	pf := oc.NetworkInstance_PolicyForwarding{}
+	p := pf.GetOrCreatePolicy(pbrName)
+	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+	p.AppendRule(&r)
+	intf := pf.GetOrCreateInterface("Bundle-Ether120.0")
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether120")
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	intf.ApplyVrfSelectionPolicy = ygot.String(pbrName)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
 }
