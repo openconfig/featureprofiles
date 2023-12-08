@@ -10,6 +10,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/gribi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -339,6 +340,8 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 
 	t.Log("Reload the router to activate hw module config")
 	reloadDevice(t, dut)
+	time.Sleep(2 * time.Minute)
+	startGribiClient(t)
 
 	t.Log("Configure PBR policy and Apply it under interface")
 	configBasePBR(t, dut)
@@ -1821,4 +1824,20 @@ func testProtocolV6replaceV4(ctx context.Context, t *testing.T, args *testArgs) 
 	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
 
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+}
+
+func startGribiClient(t *testing.T) {
+	clientA := gribi.Client{
+		DUT:         ondatra.DUT(t, "dut"),
+		FIBACK:      false,
+		Persistence: true,
+	}
+
+	clientA.Close(t)
+	time.Sleep(2 * time.Minute)
+	if err := clientA.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection can not be established")
+	}
+	clientA.StartWithNoCache(t)
+	clientA.BecomeLeader(t)
 }
