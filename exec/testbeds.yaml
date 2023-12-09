@@ -9,12 +9,6 @@ testbeds:
       host: kne2-lnx
       controller_port: 40055
       gnmi_port: 50055
-  8808_FOX2506P2QT_fury:
-    <<: *8808_FOX2506P2QT_DEFAULTS
-    binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_fury
-  8808_FOX2506P2QT_fury_gb:
-    <<: *8808_FOX2506P2QT_DEFAULTS
-    binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_fury_gb
 
   8808-36FH_FOX2613PHWL:
     hw: 8808-36FH_FOX2613PHWL
@@ -147,6 +141,19 @@ testbeds:
       host: kne2-lnx
       controller_port: 40059
       gnmi_port: 50059
+
+  2DUT-TB1:
+    hw: 2DUT-TB1
+    owner: arvbaska
+    testbed: topologies/cisco/hw/2DUT-TB1/testbed
+    binding: topologies/cisco/hw/2DUT-TB1/binding
+    baseconf: 
+      dut1: topologies/cisco/hw/2DUT-TB1/DUT1_FOX2508P0JU_baseconfig.proto
+      dut2: topologies/cisco/hw/2DUT-TB1/DUT2_FOX2625PLW8_baseconfig.proto    
+    otg:
+      host: kne2-lnx
+      controller_port: 40058
+      gnmi_port: 50058
 
 #SIM
   8201-1DUT-1ATE:
