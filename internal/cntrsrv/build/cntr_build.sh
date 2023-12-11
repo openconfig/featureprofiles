@@ -17,7 +17,7 @@
 # exit when a command fails
 set -e
 
-CGO_ENABLED=0 go build ..
+go build ..
 
 docker build -t cntr:latest -f Dockerfile.cntr .
 
