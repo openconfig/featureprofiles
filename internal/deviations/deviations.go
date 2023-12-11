@@ -675,12 +675,6 @@ func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
 }
 
-// SkipNonBgpRouteExportCheck returns true for devices that exports routes from all
-// protocols to BGP if the export-policy is ACCEPT.
-func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
-}
-
 // BGPExplicitPrefixLimitReceived returns if device must specify the received prefix limits explicitly
 // under the "prefix-limit-received" field rather than simply "prefix-limit".
 func BGPExplicitPrefixLimitReceived(dut *ondatra.DUTDevice) bool {
@@ -708,4 +702,10 @@ func MismatchedHardwareResourceNameInComponent(dut *ondatra.DUTDevice) bool {
 // support telemetry for hardware resources before used-threshold-upper configuration.
 func MissingHardwareResourceTelemetryBeforeConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingHardwareResourceTelemetryBeforeConfig()
+}
+
+// SkipNonBgpRouteExportCheck returns true for devices that exports routes from all
+// protocols to BGP if the export-policy is ACCEPT.
+func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
 }

@@ -360,9 +360,6 @@ message Metadata {
     // Device does not support PLQ operational status check on interface
     // Juniper: b/308990185
     bool skip_plq_interface_oper_status_check = 126;
-    // Devices exports routes from all protocols to BGP if the export-policy is ACCEPT
-    // Juniper: b/308970803
-    bool skip_non_bgp_route_export_check = 127;
     // Device set received prefix limits explicitly under prefix-limit-received rather than
     // "prefix-limit"
     bool bgp_explicit_prefix_limit_received = 127;
@@ -378,6 +375,9 @@ message Metadata {
     // Devices that don't support telemetry for hardware resources before
     // used-threshold-upper configuration.
     bool missing_hardware_resource_telemetry_before_config = 131;
+    // Devices exports routes from all protocols to BGP if the export-policy is ACCEPT
+    // Juniper: b/308970803
+    bool skip_non_bgp_route_export_check = 132;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
