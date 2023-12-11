@@ -6,8 +6,6 @@ Test gNSI Credentialz API behaviors.
 ## Request Examples
 These gNSI credentialz requests are examples that can be used with cases below.
 =======
-These example gNSI credentialz requests are examples that can be used with cases
-below.
 
 ### Configure a testuser and password
 
