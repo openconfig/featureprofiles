@@ -26,7 +26,6 @@ require (
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20231011232723-88c9b8d98d8a
 	github.com/openconfig/kne v0.1.14
-	github.com/openconfig/lemming v0.3.2-0.20230914210403-c6484d12af0a
 	github.com/openconfig/ondatra v0.4.0
 	github.com/openconfig/replayer v0.0.0-20231017143923-d23179322187
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
@@ -63,6 +62,7 @@ require (
 	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/creack/pty v1.1.18 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/elazarl/goproxy v0.0.0-20230731152917-f99041a5c027 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect

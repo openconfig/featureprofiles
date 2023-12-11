@@ -17,7 +17,16 @@
 # exit when a command fails
 set -e
 
-go build ..
+case $1 in
+  "static")
+      echo "Building static binary"
+      CGO_ENABLED=0 go build ...
+      ;;
+  *)
+      echo "Building dynamic binary"
+      go build ...
+      ;;
+esac
 
 docker build -t cntr:latest -f Dockerfile.cntr .
 
