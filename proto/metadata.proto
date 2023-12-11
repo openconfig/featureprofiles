@@ -369,20 +369,26 @@ message Metadata {
     // Devices which needs to skip checking AFI-SAFI disable.
     // Juniper: b/310698466
     bool skip_bgp_session_check_without_afisafi = 129;
+    // Devices that have separate naming conventions for hardware resource name
+    // in /system/ tree and /components/ tree.
+    bool mismatched_hardware_resource_name_in_component = 130;
+    // Devices that don't support telemetry for hardware resources before
+    // used-threshold-upper configuration.
+    bool missing_hardware_resource_telemetry_before_config = 131;
     // Skip gNMI container OP tc.
-    bool skip_container_op = 130;
+    bool skip_container_op = 132;
     // Set ethernet from state.
-    bool dont_set_ethernet_from_state = 131;
+    bool dont_set_ethernet_from_state = 133;
     // Set subinterface to nil.
-    bool set_subinterface_nil = 132;
+    bool set_subinterface_nil = 134;
     // Reorder calls for vendor compatibility.
-    bool reorder_calls_for_vendor_compatibilty = 133;
+    bool reorder_calls_for_vendor_compatibilty = 135;
     // Add missing base config using cli.
-    bool add_missing_base_config_via_cli = 134;
+    bool add_missing_base_config_via_cli = 136;
     // skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
-    bool skip_macaddress_check = 135;
+    bool skip_macaddress_check = 137;
 	  // skip_breakout returns true if breakout via gNMI needs to be skipped.
-    bool skip_breakout = 136;
+    bool skip_breakout = 138;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
