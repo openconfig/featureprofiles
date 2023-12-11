@@ -425,9 +425,9 @@ func watchStatus(t *testing.T, ic ospb.OS_InstallClient, standby bool) error {
 func TestPushAndVerifyInterfaceConfig(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	ocPortName := dut.Port(t, "port1").Name()
+	portNameOC := dut.Port(t, "port1").Name()
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, ocPortName, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, portNameOC, deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	t.Logf("Create and push interface config to the DUT")
