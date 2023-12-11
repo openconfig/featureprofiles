@@ -901,14 +901,14 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
 
     # TODO: collect core files if any
     if core == True:
-        collect_core_files = f'{GO_BIN} test -v ' \
+        collect_core_files = f'LOGLEVEL=DEBUG {GO_BIN} test -v ' \
                 f'./exec/utils/debug ' \
                 f'-timeout 60m ' \
                 f'-args ' \
                 f'-testbed {reserved_testbed["testbed_file"]} ' \
                 f'-binding {tmp_binding_file} ' \
                 f'-outDir {test_log_directory_path}/debug_files ' \
-                f'-timestamp {str(timestamp)}' \
+                f'-timestamp {str(timestamp)} ' \
                 f'-core true'
 
 
