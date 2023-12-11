@@ -292,7 +292,7 @@ func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.
 		time.Minute,
 		func(val *ygnmi.Value[string]) bool {
 			iname, present := val.Val()
-			return present && iname == dutPort1.Name
+			return present && iname == p1.Name()
 		})
 
 	return watchName
@@ -312,7 +312,7 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	// Verify subscribe ON_CHANGE is supported using a commonly supported OC path.
 	watchName, ok := subscribeOnChangeInterfaceName(t, dut).Await(t)
 	if !ok {
-		t.Fatalf("FAIL:  /interfaces/interface[name=%q]/state/name got:%v want:%q", dutPort1.Name, watchName, dutPort1.Name)
+		t.Fatalf("FAIL:  /interfaces/interface[name=%q]/state/name got:%v want:%q", dut.Port(t, "port1").Name(), watchName, dut.Port(t, "port1").Name())
 	}
 
 	// Subscribe ON_CHANGE to '/interfaces/interface/state/id'.
