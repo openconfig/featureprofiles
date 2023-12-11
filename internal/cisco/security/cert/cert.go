@@ -23,7 +23,7 @@ import (
 func SaveTLSCertInPems(cert *tls.Certificate, keyPath, certPath string, keyAlgo x509.PublicKeyAlgorithm) error {
 	keyType := "RSA PRIVATE KEY"
 	var err error
-	keyBytes := []byte{}
+	var keyBytes []byte
 	switch keyAlgo {
 	case x509.RSA:
 		keyType = "RSA PRIVATE KEY"
@@ -50,11 +50,9 @@ func SaveTLSCertInPems(cert *tls.Certificate, keyPath, certPath string, keyAlgo 
 	}
 
 	caPrivKeyPEM := new(bytes.Buffer)
-	// doing this full assignment due to buggy report with static check
-	keyBytesToAssign := keyBytes
 	pem.Encode(caPrivKeyPEM, &pem.Block{
 		Type:  keyType,
-		Bytes: keyBytesToAssign,
+		Bytes: keyBytes,
 	})
 	if err := os.WriteFile(keyPath, caPrivKeyPEM.Bytes(), 0400); err != nil {
 		return err
@@ -193,7 +191,7 @@ func GenRootCA(cn string, keyAlgo x509.PublicKeyAlgorithm, expireInDays int, dir
 	keyType := ""
 	keyFileName := ""
 	certFileName := ""
-	keyBytes := []byte{}
+	var keyBytes []byte
 	switch keyAlgo {
 	case x509.RSA:
 		caPrivKey, err = rsa.GenerateKey(rand.Reader, 4096)
@@ -240,11 +238,9 @@ func GenRootCA(cn string, keyAlgo x509.PublicKeyAlgorithm, expireInDays int, dir
 	}
 
 	caPrivKeyPEM := new(bytes.Buffer)
-	// doing this full assignment due to buggy report with static check
-	keyBytesToAssign := keyBytes
 	pem.Encode(caPrivKeyPEM, &pem.Block{
 		Type:  keyType,
-		Bytes: keyBytesToAssign,
+		Bytes: keyBytes,
 	})
 	if err := os.WriteFile(dir+"/"+keyFileName, caPrivKeyPEM.Bytes(), 0400); err != nil {
 		return nil, nil, err
@@ -264,7 +260,7 @@ func GenCRS(certReq *x509.CertificateRequest, keyAlgo x509.PublicKeyAlgorithm, e
 	keyFileName := ""
 	var err error
 	certReqFileName := ""
-	keyBytes := []byte{}
+	var keyBytes []byte
 	switch keyAlgo {
 	case x509.RSA:
 		privKey, err = rsa.GenerateKey(rand.Reader, 4096)
@@ -311,11 +307,9 @@ func GenCRS(certReq *x509.CertificateRequest, keyAlgo x509.PublicKeyAlgorithm, e
 	}
 
 	privKeyPEM := new(bytes.Buffer)
-	// doing this full assignment due to buggy report with static check
-	keyBytesToAssign := keyBytes
 	pem.Encode(privKeyPEM, &pem.Block{
 		Type:  keyType,
-		Bytes: keyBytesToAssign,
+		Bytes: keyBytes,
 	})
 	if err := os.WriteFile(dir+"/"+keyFileName, privKeyPEM.Bytes(), 0400); err != nil {
 		return nil, nil, err
