@@ -382,7 +382,8 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 	configPBRunderInterface(t, args, physicalInterface, policyName)
 	configPBRunderInterface(t, args, args.interfaces.in[0], policyName)
 
-	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).Interface(physicalInterface+".0").Config())
+	gnmi.Delete(t, args.dut, gnmi.OC().Interface(physicalInterface).Subinterface(0).Ipv4().Config())
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(physicalInterface+".0").Config())
 
 	// Remove the interface from physical to bundle interface
 	memberConfig := generateBundleMemberInterfaceConfig(t, physicalInterface, args.interfaces.in[0])
