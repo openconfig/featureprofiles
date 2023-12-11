@@ -31,8 +31,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygnmi/schemaless"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -839,8 +837,8 @@ func (op containerOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root,
 	fptest.WriteQuery(t, "ContainerOp", gnmi.OC().Config(), config)
 
 	batch := &gnmi.SetBatch{}
-	gnmi.BatchReplace(batch, interfacesQuery, &Interfaces{Interface: config.Interface})
-	gnmi.BatchReplace(batch, networkInstancesQuery, &NetworkInstances{NetworkInstance: config.NetworkInstance})
+	gnmi.BatchReplace(batch, gnmi.OC().InterfaceMap().Config(), config.Interface)
+	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstanceMap().Config(), config.NetworkInstance)
 	batch.Set(t, dev)
 }
 
@@ -886,34 +884,3 @@ func (op itemOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root, scop
 	t.Log(out.String())
 	batch.Set(t, dev)
 }
-
-// Reusable container queries.  These are the ygnmi queries representing the uncompressed
-// paths.  Normally, the ygnmi queries only provides the compressed paths.
-var (
-	interfacesQuery       ygnmi.ConfigQuery[*Interfaces]       // Path: /interfaces
-	networkInstancesQuery ygnmi.ConfigQuery[*NetworkInstances] // Path: /network-instances
-)
-
-func init() {
-	var err error
-	interfacesQuery, err = schemaless.NewConfig[*Interfaces]("/interfaces", "openconfig")
-	if err != nil {
-		panic(err)
-	}
-	networkInstancesQuery, err = schemaless.NewConfig[*NetworkInstances]("/network-instances", "openconfig")
-	if err != nil {
-		panic(err)
-	}
-}
-
-type Interfaces struct {
-	Interface map[string]*oc.Interface `path:"interface" module:"openconfig-interfaces"`
-}
-
-func (*Interfaces) IsYANGGoStruct() {}
-
-type NetworkInstances struct {
-	NetworkInstance map[string]*oc.NetworkInstance `path:"network-instance" module:"openconfig-network-instance"`
-}
-
-func (*NetworkInstances) IsYANGGoStruct() {}
