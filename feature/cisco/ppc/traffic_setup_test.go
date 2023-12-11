@@ -179,7 +179,7 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 
 	addAteISISL2(t, top, "atePort2", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+v4mask, totalisisPfx)
 
-	addAteEBGPPeer(t, top, "atePort3", dutPort3.IPv4, 64001, "bgp_recursive", atePort3.IPv4, innerdstPfxMin_bgp+"/"+v4mask, totalbgpPfx, true)
+	addAteEBGPPeer(t, top, "atePort2", dutPort2.IPv4, 64001, "bgp_recursive", atePort2.IPv4, innerdstPfxMin_bgp+"/"+v4mask, totalbgpPfx, true)
 
 	top.Push(t).StartProtocols(t)
 }
@@ -212,39 +212,11 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, drop b
 	a.ate.Traffic().Start(t, flow)
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
 	a.ate.Traffic().Stop(t)
-	return gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
-
-	// for _, opt := range opts {
-	// 	if opt.continue_stream {
-	// 		for _, f := range flows {
-	// 			ateTxInit = map[string]uint64{"ipv4": gnmi.Get(t, a.ate, gnmi.OC().Flow(f.Name()).Counters().OutPkts().State())}
-	// 			ateRxInit = map[string]uint64{"ipv4": gnmi.Get(t, a.ate, gnmi.OC().Flow(f.Name()).Counters().InPkts().State())}
-	// 		}
-	// 	} else if opt.burst {
-	// 		a.ate.Traffic().Start(t, flows...)
-	// 	}
-	// 	time.Sleep(time.Duration(opt.traffic_timer) * time.Second)
-	// 	a.ate.Traffic().Stop(t)
-	// }
-
-	// flowPath := gnmi.OC().Flow(flow.Name())
-	// got := gnmi.Get(t, a.ate, flowPath.LossPct().State())
-	// if drop {
-	// 	if got != 100 {
-	// 		t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", f.Name(), got)
-	// 	}
-	// } else {
-	// 	if len(opts) != 0 {
-	// 		for _, opt := range opts {
-	// 			if got > opt.tolerance {
-	// 				t.Errorf("LossPct for flow %s got %g, want 0", f.Name(), got)
-	// 			}
-	// 		}
-	// 	} else if got > 0 {
-	// 		t.Errorf("LossPct for flow %s got %g, want 0", f.Name(), got)
-	// 	}
-	// } else{
-	// 	gnmi.Get(t, a.ate, gnmi.OC().Flow(f.Name()).Counters().OutPkts().State())
-	// }
-	// return ateTxFin
+	if drop {
+		flowPath := gnmi.OC().Flow(flow.Name())
+		got := gnmi.Get(t, a.ate, flowPath.LossPct().State())
+		return uint64(got)
+	} else {
+		return gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
+	}
 }

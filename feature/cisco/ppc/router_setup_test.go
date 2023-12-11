@@ -262,13 +262,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// gnmi.Replace(t, dut, gnmi.OC().Interface(p8.Name()).Config(), BE127)
 
 	//Configure VLANs on Bundle-Ether127
-	for i := 1; i <= vlans; i++ {
-		//Create VRFs and VRF enabled subinterfaces
-		createNameSpace(t, dut, fmt.Sprintf("VRF%d", i+9), "Bundle-Ether127", uint32(i))
-		//Add IPv4/IPv6 address on VLANs
-		subint := getSubInterface(fmt.Sprintf("100.128.%d.1", i+9), 24, fmt.Sprintf("2000::100:128:%d:1", i+10), 126, uint16(i+10), uint32(i))
-		gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether121").Subinterface(uint32(i)).Config(), subint)
-	}
+	// for i := 1; i <= vlans; i++ {
+	// 	//Create VRFs and VRF enabled subinterfaces
+	// 	createNameSpace(t, dut, fmt.Sprintf("VRF%d", i+9), "Bundle-Ether127", uint32(i))
+	// 	//Add IPv4/IPv6 address on VLANs
+	// 	subint := getSubInterface(fmt.Sprintf("100.128.%d.1", i+9), 24, fmt.Sprintf("2000::100:128:%d:1", i+10), 126, uint16(i+10), uint32(i))
+	// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether121").Subinterface(uint32(i)).Config(), subint)
+	// }
 }
 
 func createNameSpace(t *testing.T, dut *ondatra.DUTDevice, name, intfname string, subint uint32) {

@@ -16,20 +16,18 @@ package ppc_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygnmi/ygnmi/schemaless"
 	"golang.org/x/exp/slices"
-)
-
-var (
-	npus = []string{"NPU0", "NPU1", "NPU2"}
 )
 
 type testArgs struct {
@@ -45,13 +43,6 @@ const (
 	ipOverIPProtocol = 4
 	vrf1             = "TE"
 )
-
-type flowAttr struct {
-	srcPort  string   // source OTG port
-	dstPorts []string // destination OTG ports
-	srcMac   string   // source MAC address
-	dstMac   string   // destination MAC address
-}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -82,11 +73,11 @@ func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
 	// 	result = append(result, int_npu)
 	// }
 	// return result
-	
+
 	hwport := gnmi.Get(t, args.dut, gnmi.OC().Interface(dst.Name()).HardwarePort().State())
 	intf_npu := gnmi.Get(t, args.dut, gnmi.OC().Component(hwport).Parent().State())
 	return intf_npu
-	
+
 }
 
 // func (args *testArgs) runBackgroundMonitor(t *testing.T) {
@@ -166,100 +157,87 @@ func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
 //
 // )
 
-type containerQuery[T any] struct {
-	query *ygnmi.WildcardQuery[T]
-}
-
-type leafQuery[T any] struct {
-	query *ygnmi.SingletonQuery[T]
-}
-
 func (a *testArgs) testOC_PPC_interface_subsystem(t *testing.T) {
 
 	// Testcase defines testcase structure
 	type Testcase struct {
-		name      string
-		container containerQuery[uint64]
-		leaf      leafQuery[uint64]
-		flow      *ondatra.Flow
+		name     string
+		flow     *ondatra.Flow
+		dstPorts *ondatra.Port
 	}
 
-	// {
-	// 	name: "packet/interface-block/state/out-packets",
-	// 	desc: "With traffic validate ppc interface out-packets",
-	// 	// flow: "",
-	// },
-	// {
-	// 	name: "packet/interface-block/state/in-bytes",
-	// 	desc: "With traffic validate ppc interface in-bytes",
-	// 	//flow: "",
-	// },
-	// {
-	// 	name: "packet/interface-block/state/out-bytes",
-	// 	desc: "With traffic validate ppc interface out-bytes",
-	// 	//flow: "",
-	// },
-	// {
-	// 	name: "drop/interface-block/state/oversubscription",
-	// 	desc: "With traffic validate ppc interface oversubscription",
-	// 	//flow: "",
-	// },
-	// {
-	// 	name: "drop/interface-block/state/in-drops",
-	// 	desc: "With traffic validate ppc interface in-drops",
-	// 	//flow: "",
-	// },
-	// {
-	// 	name: "drop/interface-block/state/out-drops",
-	// 	desc: "With traffic validate ppc interface out-drops",
-	// 	//flow: "",
-	// },
-	// {
-	// 	name: "errors/interface-block/state/error-action",
-	// 	desc: "With traffic validate ppc interface error-action",
-	// 	//flow: "",
-	// },
-	// {
-	// 	name: "errors/interface-block/state/error-count",
-	// 	desc: "With traffic validate ppc interface error-count",
-	// 	//flow: "",
-	// },
-	// {
-	// 	name: "errors/interface-block/state/error-level",
-	// 	desc: "With traffic validate ppc interface error-level",
-	// 	//flow: "",
-	// },
-	// {
-	// 	name: "errors/interface-block/state/error-name",
-	// 	desc: "With traffic validate ppc interface error-name",
-	// 	//flow: "",
-	// },
-	// {
-	// 	name: "errors/interface-block/state/error-threshold",
-	// 	desc: "With traffic validate ppc interface error-threshold",
-	// 	//flow: "",
-	// },
 	test := []Testcase{
 		{
-			name: "/components/component/integrated-circuit/pipeline-counters/packet/interface-block/state/in-packets/state",
-			container: containerQuery[uint64]{
-				query: schemaless.NewWildcardQuery[uint64](gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Packet().InterfaceBlock().InPackets().State()),
-			},
-			leaf: leafQuery[uint64]{
-				query: schemaless.SingletonQuery[uint64]{gnmi.OC().Component(a.interfaceToNPU(t, a.dut.Port(t, "port2")).IntegratedCircuit().PipelineCounters().Packet().InterfaceBlock().InPackets().State()},
-			},
-			flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
+			name:     "packet/interface-block/in-packets/state",
+			flow:     a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
+			dstPorts: a.dut.Port(t, "port2"),
+		},
+		{
+			name: "packet/interface-block/state/out-packets/state",
+			// flow: "",
+		},
+		{
+			name: "packet/interface-block/state/in-bytes/state",
+			//flow: "",
+		},
+		{
+			name: "packet/interface-block/state/out-bytes/state",
+			//flow: "",
+		},
+		{
+			name: "drop/interface-block/state/oversubscription/state",
+			//flow: "",
+		},
+		{
+			name: "drop/interface-block/state/in-drops/state",
+			//flow: "",
+		},
+		{
+			name: "drop/interface-block/state/out-drops/state",
+			//flow: "",
+		},
+		{
+			name: "errors/interface-block/state/error-action/state",
+			//flow: "",
+		},
+		{
+			name: "errors/interface-block/state/error-count/state",
+			//flow: "",
+		},
+		{
+			name: "errors/interface-block/state/error-level/state",
+			//flow: "",
+		},
+		{
+			name: "errors/interface-block/state/error-name/state",
+			//flow: "",
+		},
+		{
+			name: "errors/interface-block/state/error-threshold/state",
+			//flow: "",
 		},
 	}
 
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
-			tgn_data := a.validateTrafficFlows(t, tt.flow, false)
-			stateGot := gnmi.Await(t, a.dut, tt.leaf.query, 1*time.Minute, tgn_data)
-			if got, _ := stateGot.Val(); got != testCase.hostname {
-				t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
-			}
+			tgn_data := a.validateTrafficFlows(t, tt.flow, false, &TGNoptions{traffic_timer: 120})
+			npu := a.interfaceToNPU(t, tt.dstPorts)
+			query, _ := schemaless.NewWildcard[uint64](fmt.Sprintf("/components/component[name=%s]/integrated-circuit/%s", npu, tt.name), "openconfig")
+			ygnmi_client, _ := ygnmi.NewClient(a.dut.RawAPIs().GNMI(t), ygnmi.WithTarget(a.dut.ID()))
+
+			ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(2*time.Minute))
+			watcher := ygnmi.WatchAll(ctx, ygnmi_client, query, func(v *ygnmi.Value[uint64]) error {
+				if v.IsPresent() {
+					return nil
+				}
+				vl, _ := v.Val()
+				if vl == tgn_data {
+					return nil
+				}
+				return ygnmi.Continue
+			})
+			watcher.Await()
 		})
 	}
 }
@@ -501,7 +479,6 @@ func TestOC_PPC(t *testing.T) {
 	time.Sleep(120 * time.Second)
 
 	args := &testArgs{
-		ctx: ctx,
 		dut: dut,
 		ate: ate,
 		top: top,
