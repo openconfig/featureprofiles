@@ -2,7 +2,6 @@
 package main
 
 import (
-	"crypto/rsa"
 	"crypto/x509"
 	"flag"
 	"fmt"
