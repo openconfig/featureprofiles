@@ -14,6 +14,7 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
     aggregate_atomic_update: true
     interface_enabled: true
+    missing_value_for_defaults: true
   }
 }
 platform_exceptions: {
@@ -24,14 +25,6 @@ platform_exceptions: {
     aggregate_atomic_update: true
     interface_enabled: true
     default_network_instance: "default"
-    missing_value_for_defaults: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: NOKIA
-  }
-  deviations: {
     missing_value_for_defaults: true
   }
 }
