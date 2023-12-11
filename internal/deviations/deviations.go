@@ -658,7 +658,7 @@ func InterfaceRefInterfaceIDFormat(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()
 }
 
-// ISISLevelEnabled returns true if device requires to enable under isis level leaf.
+// ISISLevelEnabled returns if device should enable isis under level.
 func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
 }
