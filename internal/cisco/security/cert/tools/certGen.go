@@ -14,7 +14,6 @@ import (
 )
 
 var (
-	caPrivateKey   *rsa.PrivateKey
 	CACert         *x509.Certificate
 	caPath         = flag.String("ca_cert_path", "", "path to a directory for ca cert and key located")
 	clientKeysPath = flag.String("client_keys_path", "", "path to a directory where clinets keys will be saved")

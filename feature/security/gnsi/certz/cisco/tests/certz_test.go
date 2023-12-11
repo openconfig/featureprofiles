@@ -4,17 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"flag"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"testing"
 	"time"
 
 	log "github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/openconfig/featureprofiles/internal/args"
@@ -37,6 +36,11 @@ import (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func prettyPrint(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
 }
 
 func TestSimpleCertzGetProfile(t *testing.T) {
@@ -455,7 +459,7 @@ func TestCanGenerateCSR(t *testing.T) {
 }
 
 func readCertificatesFromFile(filename string) ([]*x509.Certificate, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -540,11 +544,11 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 
 	//Rotate with Server cert & key
 
-	certPEMtoload, err := ioutil.ReadFile("testdata/server_cert.pem")
+	certPEMtoload, err := os.ReadFile("testdata/server_cert.pem")
 	if err != nil {
 		log.Exit("Failed to read cert file", err)
 	}
-	privKeyPEMtoload, err := ioutil.ReadFile("testdata/server_key.pem")
+	privKeyPEMtoload, err := os.ReadFile("testdata/server_key.pem")
 	if err != nil {
 		log.Exit("Failed to read key file", err)
 	}
@@ -616,14 +620,15 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 			},
 		},
 	}
-	log.V(1).Info("RotateCertificateRequest:\n", proto.MarshalTextString(request))
+	//log.V(1).Info("RotateCertificateRequest:\n", prettyPrint(request))
+	log.V(1).Info("RotateCertificateRequest:\n", prettyPrint(request))
 	if err = stream.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
 	}
 	if response, err = stream.Recv(); err != nil {
 		log.Exit("failed to receive RotateCertificateResponse:", err)
 	}
-	log.V(1).Info("RotateCertificateResponse:\n", proto.MarshalTextString(response))
+	log.V(1).Info("RotateCertificateResponse:\n", prettyPrint(response))
 	t.Logf("Rotate successful %v", request)
 
 	//FINALIZE ROTATE REQUEST
@@ -632,7 +637,7 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 		SslProfileId:   profile_id,
 		RotateRequest:  &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}},
 	}
-	log.V(1).Info("RotateFinalizeReq:\n", proto.MarshalTextString(request))
+	log.V(1).Info("RotateFinalizeReq:\n", prettyPrint(request))
 	if err := stream.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
 	}
@@ -748,11 +753,11 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 
 	//Rotate with Server cert & Server key
 
-	certPEMtoload, err := ioutil.ReadFile("testdata/server_cert.pem")
+	certPEMtoload, err := os.ReadFile("testdata/server_cert.pem")
 	if err != nil {
 		log.Exit("Failed to read cert file", err)
 	}
-	privKeyPEMtoload, err := ioutil.ReadFile("testdata/server_key.pem")
+	privKeyPEMtoload, err := os.ReadFile("testdata/server_key.pem")
 	if err != nil {
 		log.Exit("Failed to read key file", err)
 	}
@@ -824,14 +829,14 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 			},
 		},
 	}
-	log.V(1).Info("RotateTBRequest:\n", proto.MarshalTextString(request))
+	log.V(1).Info("RotateTBRequest:\n", prettyPrint(request))
 	if err = stream.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
 	}
 	if response, err = stream.Recv(); err != nil {
 		log.Exit("failed to receive RotateCertificateTBResponse:", err)
 	}
-	log.V(1).Info("RotateTBCertificateResponse:\n", proto.MarshalTextString(response))
+	log.V(1).Info("RotateTBCertificateResponse:\n", prettyPrint(response))
 	t.Logf("Rotate successful %v", request)
 
 	//FINALIZE ROTATE REQUEST
@@ -840,7 +845,7 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 		SslProfileId:   profile_id,
 		RotateRequest:  &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}},
 	}
-	log.V(1).Info("RotateFinalizeReq:\n", proto.MarshalTextString(request))
+	log.V(1).Info("RotateFinalizeReq:\n", prettyPrint(request))
 	if err := stream.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
 	}
@@ -939,11 +944,11 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 	}
 	//Rotate with Server cert & key
 
-	certPEMtoload, err := ioutil.ReadFile("testdata/server_cert_rsa.pem")
+	certPEMtoload, err := os.ReadFile("testdata/server_cert_rsa.pem")
 	if err != nil {
 		log.Exit("Failed to read cert file", err)
 	}
-	privKeyPEMtoload, err := ioutil.ReadFile("testdata/server_key_rsa.pem")
+	privKeyPEMtoload, err := os.ReadFile("testdata/server_key_rsa.pem")
 	if err != nil {
 		log.Exit("Failed to read key file", err)
 	}
@@ -1163,11 +1168,11 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 
 	//Rotate with RSA Server cert & key
 
-	certPEMtoloadRSA, err := ioutil.ReadFile("testdatarsa/server_cert_rsa.pem")
+	certPEMtoloadRSA, err := os.ReadFile("testdatarsa/server_cert_rsa.pem")
 	if err != nil {
 		log.Exit("Failed to read cert file", err)
 	}
-	privKeyPEMtoloadRSA, err := ioutil.ReadFile("testdatarsa/server_key_rsa.pem")
+	privKeyPEMtoloadRSA, err := os.ReadFile("testdatarsa/server_key_rsa.pem")
 	if err != nil {
 		log.Exit("Failed to read key file", err)
 	}
@@ -1307,14 +1312,14 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 		},
 	}
 
-	log.V(1).Info("RotateTBRequest:\n", proto.MarshalTextString(request))
+	log.V(1).Info("RotateTBRequest:\n", prettyPrint(request))
 	if err = stream.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
 	}
 	if response, err = stream.Recv(); err != nil {
 		log.Exit("failed to receive RotateCertificateTBResponse:", err)
 	}
-	log.V(1).Info("RotateTBCertificateResponse:\n", proto.MarshalTextString(response))
+	log.V(1).Info("RotateTBCertificateResponse:\n", prettyPrint(response))
 
 	//FINALIZE ROTATE REQUEST
 	request = &certzpb.RotateCertificateRequest{
@@ -1322,7 +1327,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 		SslProfileId:   profile_id,
 		RotateRequest:  &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}},
 	}
-	log.V(1).Info("RotateFinalizeReq:\n", proto.MarshalTextString(request))
+	log.V(1).Info("RotateFinalizeReq:\n", prettyPrint(request))
 	if err := stream.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
 	}
@@ -1406,14 +1411,14 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 		},
 	}
 
-	log.V(1).Info("RotateTBRequest:\n", proto.MarshalTextString(request))
+	log.V(1).Info("RotateTBRequest:\n", prettyPrint(request))
 	if err = stream1.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
 	}
 	if response1, err = stream1.Recv(); err != nil {
 		log.Exit("failed to receive RotateCertificateTBResponse:", err)
 	}
-	log.V(1).Info("RotateTBCertificateResponse:\n", proto.MarshalTextString(response1))
+	log.V(1).Info("RotateTBCertificateResponse:\n", prettyPrint(response1))
 
 	//Creating New gNSI Connection with RSA Server Cert &  ECDSA  Trustbundle with out Finalise
 	var rootcaecdsa *x509.Certificate
@@ -1527,11 +1532,11 @@ func TestHARedundancySwithOver(t *testing.T) {
 
 	//Rotate with Server cert & key
 
-	certPEMtoload, err := ioutil.ReadFile("testdata/server_cert.pem")
+	certPEMtoload, err := os.ReadFile("testdata/server_cert.pem")
 	if err != nil {
 		log.Exit("Failed to read cert file", err)
 	}
-	privKeyPEMtoload, err := ioutil.ReadFile("testdata/server_key.pem")
+	privKeyPEMtoload, err := os.ReadFile("testdata/server_key.pem")
 	if err != nil {
 		log.Exit("Failed to read key file", err)
 	}
@@ -1603,14 +1608,14 @@ func TestHARedundancySwithOver(t *testing.T) {
 			},
 		},
 	}
-	log.V(1).Info("RotateCertificateRequest:\n", proto.MarshalTextString(request))
+	log.V(1).Info("RotateCertificateRequest:\n", prettyPrint(request))
 	if err = stream.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
 	}
 	if response, err = stream.Recv(); err != nil {
 		log.Exit("failed to receive RotateCertificateResponse:", err)
 	}
-	log.V(1).Info("RotateCertificateResponse:\n", proto.MarshalTextString(response))
+	log.V(1).Info("RotateCertificateResponse:\n", prettyPrint(response))
 	t.Logf("Rotate successful %v", request)
 
 	//FINALIZE ROTATE REQUEST
@@ -1619,7 +1624,7 @@ func TestHARedundancySwithOver(t *testing.T) {
 		SslProfileId:   profile_id,
 		RotateRequest:  &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}},
 	}
-	log.V(1).Info("RotateFinalizeReq:\n", proto.MarshalTextString(request))
+	log.V(1).Info("RotateFinalizeReq:\n", prettyPrint(request))
 	if err := stream.Send(request); err != nil {
 		log.Exit("failed to send RotateRequest:", err)
 	}
@@ -1687,6 +1692,9 @@ func TestHARedundancySwithOver(t *testing.T) {
 	}
 
 	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(ctx, opts[len(opts)-1])
+	if err != nil {
+		t.Fatalf("GNOI dial is failed %v", err)
+	}
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
@@ -1717,8 +1725,7 @@ func TestHARedundancySwithOver(t *testing.T) {
 
 	startSwitchover := time.Now()
 	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
-	var getRequest *gnmipb.GetRequest
-	getRequest = &gnmipb.GetRequest{
+	getRequest := &gnmipb.GetRequest{
 		Path: []*gnmipb.Path{
 			{Origin: "openconfig", Elem: []*gnmipb.PathElem{
 				{Name: "system"},
@@ -1731,7 +1738,9 @@ func TestHARedundancySwithOver(t *testing.T) {
 	}
 
 	gnmi, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx, opts[len(opts)-1])
-
+	if err != nil {
+		t.Fatalf("GNOI dial is failed %v", err)
+	}
 	for {
 		var currentTime *gnmipb.GetResponse
 		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
