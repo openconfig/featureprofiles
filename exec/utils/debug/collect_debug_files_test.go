@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/logger"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
@@ -72,30 +73,35 @@ var (
 func NewTargets(t *testing.T) *Targets {
 	t.Helper()
 	// set up all ssh for the targets
-	nt := Targets{}
+	nt := Targets{
+		targetInfo: make(map[string]targetInfo),
+	}
+
 	err := nt.getSSHInfo(t)
 	if err != nil {
-		panic(err)
+		logger.Logger.Error().Msg(fmt.Sprintf("Could not set up NewTargets, [%v]", err))
+		t.FailNow()
 	}
 	return &nt
-
 }
 
+// TestMain sets up Ondatra Init
 func TestMain(m *testing.M) {
+	logger.Logger.Debug().Msg("Function TestCollectionDebugFiles has started")
 	fptest.RunTests(m)
 }
 
 func TestCollectDebugFiles(t *testing.T) {
-	fmt.Println("Starting TestCollectionDebugFiles")
+	logger.Logger.Debug().Msg("Function TestCollectionDebugFiles has started")
 
 	// set up Targets
 	targets := NewTargets(t)
-
 	if *outDirFlag == "" {
-		t.Fatal("Missing outDir arg")
+		logger.Logger.Error().Msg(fmt.Sprintf("out directory flag not set correctly: [%s]", *outDirFlag))
+		t.FailNow()
 	} else {
 		outDir = *outDirFlag
-		fmt.Println(fmt.Sprintf("outDir: %s", outDir))
+		logger.Logger.Info().Msg(fmt.Sprintf("out directory flag is: [%s]", *outDirFlag))
 		timestamp = time.Now().Format(time.RFC3339Nano)
 	}
 
@@ -168,55 +174,77 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 }
 
 func (ti *Targets) getSSHInfo(t *testing.T) error {
-	fmt.Println("Starting getSSHInfo")
 	t.Helper()
 
-	bindingFile := flag.Lookup("binding").Value.String()
-	in, err := os.ReadFile(bindingFile)
-	if err != nil {
-		return err
+	bf := flag.Lookup("binding")
+	logger.Logger.Info().Msg(fmt.Sprintf("binding flag: [%s]", bf.Value.String()))
+	var bindingFile string
+
+	if bf == nil {
+		logger.Logger.Error().Msg(fmt.Sprintf("binding file not set correctly : [%s]", bf.Value.String()))
+		return fmt.Errorf(fmt.Sprintf("binding file not set correctly : [%s]", bf.Value.String()))
 	}
 
+	bindingFile = bf.Value.String()
+
+	in, err := os.ReadFile(bindingFile)
+	if err != nil {
+		logger.Logger.Error().Msg(fmt.Sprintf("Error reading binding file: [%v]", err))
+		return fmt.Errorf(fmt.Sprintf("Error reading binding file: [%v]", err))
+	}
+	logger.Logger.Info().Msg(string(in))
 	b := &bindpb.Binding{}
 	if err := prototext.Unmarshal(in, b); err != nil {
-		return err
+		logger.Logger.Error().Msg(fmt.Sprintf("Error unmarshalling binding file: [%v]", err))
+		return fmt.Errorf(fmt.Sprintf("Error unmarshalling binding file: [%v]", err))
 	}
 
 	//targets := map[string]targetInfo{}
 	for _, dut := range b.Duts {
+		logger.Logger.Info().Msg(fmt.Sprintf("current dut :[%v]", dut))
+		var sshUser, sshPass, sshIP, sshPort string
+		var sshTarget []string
+		if dut.Ssh != nil {
+			logger.Logger.Debug().Msg(fmt.Sprintf("SSH: [%v]", dut.Ssh))
+			sshUser = dut.Ssh.Username
+			sshPass = dut.Ssh.Password
 
-		sshUser := dut.Ssh.Username
-		if sshUser == "" {
+			if dut.Ssh.Target != "" {
+				logger.Logger.Debug().Msg(fmt.Sprintf("SSH Target: [%s]", strings.Split(dut.Ssh.Target, ":")))
+				sshTarget = strings.Split(dut.Ssh.Target, ":")
+				sshIP = sshTarget[0]
+				sshPort = "42823"
+				if len(sshTarget) > 1 {
+					sshPort = sshTarget[1]
+				}
+			}
+		} else if dut.Options != nil {
+			logger.Logger.Debug().Msg(fmt.Sprintf("SSH User: [%s]", dut.Options.Username))
 			sshUser = dut.Options.Username
-		}
-		if sshUser == "" {
-			sshUser = b.Options.Username
-		}
-
-		sshPass := dut.Ssh.Password
-		if sshPass == "" {
 			sshPass = dut.Options.Password
-		}
-		if sshPass == "" {
+		} else if b.Options != nil {
+			logger.Logger.Debug().Msg(fmt.Sprintf("SSH User: [%s]", b.Options.Username))
+			sshUser = b.Options.Username
 			sshPass = b.Options.Password
+		} else {
+			logger.Logger.Error().Msg("SSH User/Password not found ")
 		}
 
-		sshTarget := strings.Split(dut.Ssh.Target, ":")
-		sshIP := sshTarget[0]
-		sshPort := "22"
-		if len(sshTarget) > 1 {
-			sshPort = sshTarget[1]
+		if dut.Id != "" && sshIP != "" && sshPort != "" && sshUser != "" && sshPass != "" {
+			ti.targetInfo[dut.Id] = targetInfo{
+				dut:     dut.Id,
+				sshIP:   sshIP,
+				sshPort: sshPort,
+				sshUser: sshUser,
+				sshPass: sshPass,
+			}
+			fmt.Println(ti.targetInfo[dut.Id])
+
+		} else {
+			logger.Logger.Error().Msg("One or more values are empty  dut.Id, sshIP, sshPort, sshUser, sshPass ")
 		}
 
-		ti.targetInfo[dut.Id] = targetInfo{
-			dut:     dut.Id,
-			sshIP:   sshIP,
-			sshPort: sshPort,
-			sshUser: sshUser,
-			sshPass: sshPass,
-		}
 	}
-	fmt.Println("Exiting getSSHInfo")
 	return nil
 }
 
@@ -232,7 +260,7 @@ func (ti *Targets) SetCoreFile(t *testing.T) {
 
 	cmd := "dumpcore suspended 52"
 
-	for dutID, _ := range ti.targetInfo {
+	for dutID := range ti.targetInfo {
 		t.Logf("Collecting debug files on %s", dutID)
 
 		ctx := context.Background()
