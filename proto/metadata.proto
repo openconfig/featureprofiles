@@ -378,7 +378,7 @@ message Metadata {
     // Devices which does not support nexthop index state
     // Juniper: b/304729237
     bool skip_static_nexthop_check = 132;
-    
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
   }

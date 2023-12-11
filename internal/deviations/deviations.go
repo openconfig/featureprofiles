@@ -692,11 +692,6 @@ func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
 }
 
-// SkipStaticNexthopCheck returns if device needs index starting from non zero
-func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
-}
-
 // MismatchedHardwareResourceNameInComponent returns true for devices that have separate
 // naming conventions for hardware resource name in /system/ tree and /components/ tree.
 func MismatchedHardwareResourceNameInComponent(dut *ondatra.DUTDevice) bool {
@@ -707,4 +702,9 @@ func MismatchedHardwareResourceNameInComponent(dut *ondatra.DUTDevice) bool {
 // support telemetry for hardware resources before used-threshold-upper configuration.
 func MissingHardwareResourceTelemetryBeforeConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingHardwareResourceTelemetryBeforeConfig()
+}
+
+// SkipStaticNexthopCheck returns if device needs index starting from non zero
+func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
