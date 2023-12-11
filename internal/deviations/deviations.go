@@ -653,14 +653,14 @@ func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
 }
 
-// ISISLevelEnabled returns true if device requires to enable under isis level leaf.
-func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
-}
-
 // InterfaceRefInterfaceIDFormat returns if device is required to use interface-id format of interface name + .subinterface index with Interface-ref container
 func InterfaceRefInterfaceIDFormat(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()
+}
+
+// ISISLevelEnabled returns true if device requires to enable under isis level leaf.
+func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
 }
 
 // MemberLinkLoopbackUnsupported returns true for devices that require configuring
