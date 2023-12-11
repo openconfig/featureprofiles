@@ -675,11 +675,6 @@ func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
 }
 
-// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
-func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
-}
-
 // BGPExplicitPrefixLimitReceived returns if device must specify the received prefix limits explicitly
 // under the "prefix-limit-received" field rather than simply "prefix-limit".
 func BGPExplicitPrefixLimitReceived(dut *ondatra.DUTDevice) bool {
@@ -707,4 +702,9 @@ func MismatchedHardwareResourceNameInComponent(dut *ondatra.DUTDevice) bool {
 // support telemetry for hardware resources before used-threshold-upper configuration.
 func MissingHardwareResourceTelemetryBeforeConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingHardwareResourceTelemetryBeforeConfig()
+}
+
+// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
+func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
 }
