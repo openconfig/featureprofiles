@@ -327,23 +327,19 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Create flows with dst %s for each path", outerDstIP1)
 	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow", &atePort2)
 	decapFlow := createFlow(t, args.ate, args.top, "DecapFlow", &atePort4)
+	updateFlows(t, args.ate, []gosnappi.Flow{baseFlow, decapFlow})
 	t.Run("ValidatePrimaryPath", func(t *testing.T) {
 		t.Log("Validate primary path traffic recieved ate port2 and no traffic on decap flow/port4")
 		validateTrafficFlows(t, args.ate, []gosnappi.Flow{baseFlow}, []gosnappi.Flow{decapFlow}, baseSrcFlowFilter, baseDstFlowFilter)
 	})
 	t.Log("Shutdown Port2")
 	p2 := args.dut.Port(t, "port2")
-	if deviations.ATEPortLinkStateOperationsUnsupported(args.ate) {
-		setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, false)
-		defer setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, true)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		linkState := portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.DOWN)
-		args.ate.OTG().SetControlState(t, portStateAction)
-		// Restore port state at end of test case.
-		linkState.SetState(gosnappi.StatePortLinkState.UP)
-		defer args.ate.OTG().SetControlState(t, portStateAction)
-	}
+	portStateAction := gosnappi.NewControlState()
+	linkState := portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.DOWN)
+	args.ate.OTG().SetControlState(t, portStateAction)
+	// Restore port state at end of test case.
+	linkState.SetState(gosnappi.StatePortLinkState.UP)
+	defer args.ate.OTG().SetControlState(t, portStateAction)
 
 	t.Log("Capture port2 status if down")
 	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
@@ -425,6 +421,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow", &atePort2)
 	encapFLow := createFlow(t, args.ate, args.top, "DecapEncapFlow", &atePort3)
 	decapFLow := createFlow(t, args.ate, args.top, "DecapFlow", &atePort4)
+	updateFlows(t, args.ate, []gosnappi.Flow{baseFlow, encapFLow, decapFLow})
 
 	t.Run("ValidatePrimaryPath", func(t *testing.T) {
 		t.Logf("Validate Primary path traffic recieved on port 2 and no traffic on other flows/ate ports")
@@ -432,18 +429,12 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 
 	t.Log("Shutdown Port2")
-	dutP2 := args.dut.Port(t, "port2")
-	if deviations.ATEPortLinkStateOperationsUnsupported(args.ate) {
-		setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, false)
-		defer setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, true)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		linkState := portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.DOWN)
-		args.ate.OTG().SetControlState(t, portStateAction)
-		// Restore port state at end of test case.
-		linkState.SetState(gosnappi.StatePortLinkState.UP)
-		defer args.ate.OTG().SetControlState(t, portStateAction)
-	}
+	portStateAction := gosnappi.NewControlState()
+	linkState := portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.DOWN)
+	args.ate.OTG().SetControlState(t, portStateAction)
+	// Restore port state at end of test case.
+	linkState.SetState(gosnappi.StatePortLinkState.UP)
+	defer args.ate.OTG().SetControlState(t, portStateAction)
 
 	t.Log("Capture port2 status if down")
 	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
@@ -457,18 +448,12 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 
 	t.Log("Shutdown Port3")
-	dutP3 := args.dut.Port(t, "port3")
-	if deviations.ATEPortLinkStateOperationsUnsupported(args.ate) {
-		setDUTInterfaceWithState(t, args.dut, &dutPort3, dutP3, false)
-		defer setDUTInterfaceWithState(t, args.dut, &dutPort3, dutP3, true)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		linkState := portStateAction.Port().Link().SetPortNames([]string{"port3"}).SetState(gosnappi.StatePortLinkState.DOWN)
-		args.ate.OTG().SetControlState(t, portStateAction)
-		// Restore port state at end of test case.
-		linkState.SetState(gosnappi.StatePortLinkState.UP)
-		defer args.ate.OTG().SetControlState(t, portStateAction)
-	}
+	portStateAction = gosnappi.NewControlState()
+	linkState = portStateAction.Port().Link().SetPortNames([]string{"port3"}).SetState(gosnappi.StatePortLinkState.DOWN)
+	args.ate.OTG().SetControlState(t, portStateAction)
+	// Restore port state at end of test case.
+	linkState.SetState(gosnappi.StatePortLinkState.UP)
+	defer args.ate.OTG().SetControlState(t, portStateAction)
 
 	t.Log("Capture port3 status if down")
 	p3 := args.dut.Port(t, "port3")
@@ -506,17 +491,21 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 	return flow
 }
 
-// TODO: Egress Tracking to verify the correctness of packet after decap or encap needs to be added
-// validateTrafficFlows verifies that the flow on ATE, traffic should pass for good flow and fail for bad flow.
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.Flow, bad []gosnappi.Flow, srcFlowFilter string, dstFlowFilter string) {
+func updateFlows(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow) {
 	top := ate.OTG().FetchConfig(t)
 	top.Flows().Clear()
-	for _, flow := range append(good, bad...) {
+	for _, flow := range flows {
 		top.Flows().Append(flow)
 	}
 	ate.OTG().PushConfig(t, top)
 
 	ate.OTG().StartProtocols(t)
+}
+
+// TODO: Egress Tracking to verify the correctness of packet after decap or encap needs to be added
+// validateTrafficFlows verifies that the flow on ATE, traffic should pass for good flow and fail for bad flow.
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.Flow, bad []gosnappi.Flow, srcFlowFilter string, dstFlowFilter string) {
+	top := ate.OTG().FetchConfig(t)
 	ate.OTG().StartTraffic(t)
 
 	time.Sleep(15 * time.Second)
