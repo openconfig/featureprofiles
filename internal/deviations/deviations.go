@@ -718,4 +718,4 @@ func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
 // BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
 func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
-}  
+}
