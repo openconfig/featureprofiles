@@ -17,6 +17,8 @@ func TestCollectCoreFiles(t *testing.T) {
 		t.SkipNow()
 	}
 	targets := NewTargets(t)
+	// this generate dummy core files --- remove this
+	targets.SetCoreFile(t)
 	if *outDirFlag == "" {
 		logger.Logger.Error().Msg(fmt.Sprintf("out directory flag not set correctly: [%s]", *outDirFlag))
 		t.FailNow()

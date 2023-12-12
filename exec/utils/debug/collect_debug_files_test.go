@@ -264,7 +264,7 @@ func (ti *Targets) SetCoreFile(t *testing.T) {
 	fmt.Println("Starting setCoreFile")
 	t.Helper()
 
-	cmd := "dumpcore suspended 52"
+	cmd := "dumpcore running 1215"
 
 	for dutID := range ti.targetInfo {
 		t.Logf("Collecting debug files on %s", dutID)
