@@ -377,6 +377,9 @@ message Metadata {
     bool missing_hardware_resource_telemetry_before_config = 131;
     // Device does not support reboot status check on subcomponents.
     bool gnoi_subcomponent_reboot_status_unsupported = 132;
+    // Devices exports routes from all protocols to BGP if the export-policy is ACCEPT
+    // Juniper: b/308970803
+    bool skip_non_bgp_route_export_check = 133;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
