@@ -709,11 +709,13 @@ func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
 }
 
-// SkipStaticNexthopCheck returns if device needs index starting from non zero
-func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 // SkipNonBgpRouteExportCheck returns true for devices that exports routes from all
 // protocols to BGP if the export-policy is ACCEPT.
 func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
+}
+
+// SkipStaticNexthopCheck returns if device needs index starting from non zero
+func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
