@@ -13,6 +13,9 @@ import (
 //
 // once it locates the core files it saves it to debug_files/dut<>/CollectCoreFiles
 func TestCollectCoreFiles(t *testing.T) {
+	if *coreFilesFlag == false {
+		t.SkipNow()
+	}
 	targets := NewTargets(t)
 	if *outDirFlag == "" {
 		logger.Logger.Error().Msg(fmt.Sprintf("out directory flag not set correctly: [%s]", *outDirFlag))
