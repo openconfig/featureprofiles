@@ -1,4 +1,4 @@
-# gNMI-1.14: Telemetry: Optics Thresholds
+# gNMI-1.20: Telemetry: Optics Thresholds
 
 ## Summary
 

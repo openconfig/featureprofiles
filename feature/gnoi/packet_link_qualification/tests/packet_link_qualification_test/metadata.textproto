@@ -21,6 +21,7 @@ platform_exceptions: {
     omit_l2_mtu: true
     interface_enabled: true
     link_qual_wait_after_delete_required: true
+    skip_plq_interface_oper_status_check: true
   }
 }
 platform_exceptions: {
