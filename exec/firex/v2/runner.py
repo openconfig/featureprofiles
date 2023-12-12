@@ -901,9 +901,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
     # TODO: collect core files if any
-    os.environ["LOGLEVEL"] = "DEBUG"
     # create a directory here to send all logs as firex has a line limit
-    os.makedirs("/debug/logs", exist_ok=True)
     if core == True:
         collect_core_files = f'{GO_BIN} test -v ' \
                 f'./exec/utils/debug ' \
@@ -914,7 +912,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
                 f'-outDir {test_log_directory_path}/debug_files ' \
                 f'-timestamp {str(timestamp)} ' \
                 f'-core true ' \
-                f' > /debug/logs/logs.txt'
+                f' > core-logs.txt'
 
 
     collect_debug_cmd = f'{GO_BIN} test -v ' \
