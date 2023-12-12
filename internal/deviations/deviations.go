@@ -709,6 +709,12 @@ func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
 }
 
+// SkipNonBgpRouteExportCheck returns true for devices that exports routes from all
+// protocols to BGP if the export-policy is ACCEPT.
+func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
+}
+
 // SkipContainerOp returns true if gNMI container OP needs to be skipped.
 func SkipContainerOp(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipContainerOp()
