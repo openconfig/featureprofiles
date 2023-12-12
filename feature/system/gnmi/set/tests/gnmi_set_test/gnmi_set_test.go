@@ -31,9 +31,9 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
 )
 
 var (
@@ -895,15 +895,66 @@ var (
 )
 
 func init() {
-	var err error
-	interfacesQuery, err = schemaless.NewConfig[*Interfaces]("/interfaces", "openconfig")
+	// TODO(wenovus): Remove this workaround using ygnmi's Map() API once
+	// SetBatch is fixed for Map() API.
+	interfacesQuery = ygnmi.NewConfigQuery[*Interfaces](
+		"",
+		false,
+		true,
+		true,
+		false,
+		false,
+		false,
+		createPS("/interfaces"),
+		func(vgs ygot.ValidatedGoStruct) (*Interfaces, bool) {
+			return new(Interfaces), true
+		},
+		func() ygot.ValidatedGoStruct {
+			return nil
+		},
+		func() *ytypes.Schema { return nil },
+		nil,
+		nil,
+	)
+	networkInstancesQuery = ygnmi.NewConfigQuery[*NetworkInstances](
+		"",
+		false,
+		true,
+		true,
+		false,
+		false,
+		false,
+		createPS("/network-instances"),
+		func(vgs ygot.ValidatedGoStruct) (*NetworkInstances, bool) {
+			return new(NetworkInstances), true
+		},
+		func() ygot.ValidatedGoStruct {
+			return nil
+		},
+		func() *ytypes.Schema { return nil },
+		nil,
+		nil,
+	)
+}
+
+func createPS(path string) ygnmi.PathStruct {
+	root := ygnmi.NewDeviceRootBase()
+	root.PutCustomData(ygnmi.OriginOverride, "openconfig")
+
+	var ps ygnmi.PathStruct = root
+	protoPath, err := ygot.StringToStructuredPath(path)
 	if err != nil {
 		panic(err)
 	}
-	networkInstancesQuery, err = schemaless.NewConfig[*NetworkInstances]("/network-instances", "openconfig")
-	if err != nil {
-		panic(err)
+	for _, elem := range protoPath.Elem {
+		keys := map[string]interface{}{}
+		for key, val := range elem.Key {
+			keys[key] = val
+		}
+		ps = ygnmi.NewNodePath([]string{elem.Name}, keys, ps)
 	}
+
+	return ps
 }
 
 type Interfaces struct {

@@ -691,3 +691,26 @@ func BGPMissingOCMaxPrefixesConfiguration(dut *ondatra.DUTDevice) bool {
 func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
 }
+
+// MismatchedHardwareResourceNameInComponent returns true for devices that have separate
+// naming conventions for hardware resource name in /system/ tree and /components/ tree.
+func MismatchedHardwareResourceNameInComponent(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMismatchedHardwareResourceNameInComponent()
+}
+
+// MissingHardwareResourceTelemetryBeforeConfig returns true for devices that don't
+// support telemetry for hardware resources before used-threshold-upper configuration.
+func MissingHardwareResourceTelemetryBeforeConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingHardwareResourceTelemetryBeforeConfig()
+}
+
+// GNOISubcomponentRebootStatusUnsupported returns true for devices that do not support subcomponent reboot status check.
+func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
+}
+
+// SkipNonBgpRouteExportCheck returns true for devices that exports routes from all
+// protocols to BGP if the export-policy is ACCEPT.
+func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
+}

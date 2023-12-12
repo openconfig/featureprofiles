@@ -4,8 +4,8 @@
 Test gNSI Credentialz API behaviors.
 
 ## Request Examples
-These example gNSI credentialz requests are examples that can be used with cases
-below.
+These gNSI credentialz requests are examples that can be used with cases below.
+=======
 
 ### Configure a testuser and password
 
@@ -133,8 +133,8 @@ resp := stream.Receive()
 
 #### Setup
 
-* Set a username of "testuser" using gnsi.Credentialz
-* Set a password of "i$V5^6IhD*tZ#eg1G@v3xdVZrQwj" (see RotateAccountCredentials, PasswordRequest, plaintext)
+* Set a username of `testuser` using gnsi.Credentialz
+* Set a password of `i$V5^6IhD*tZ#eg1G@v3xdVZrQwj` (see RotateAccountCredentials, PasswordRequest, plaintext)
 * Connect to the console
 
 
@@ -142,7 +142,11 @@ resp := stream.Receive()
 * Provide correct username/password on console.
   * Authentication must result in success with a prompt.
   * There must be accounting for the login which includes the `testuser`
-    username.
+  * Ensure telemetry values for password-version and password-created-on match the
+  values from our `RotateAccountCredentialsRequest` for
+  `/oc-sys:system/oc-sys:aaa/oc-sys:authentication/oc-sys:users/oc-sys:user/oc-sys:state:password-version`
+and
+`/oc-sys:system/oc-sys:aaa/oc-sys:authentication/oc-sys:users/oc-sys:user/oc-sys:state:password-created-on`
 
 #### Fail case 1
 * Provide incorrect username and correct password.
@@ -173,12 +177,23 @@ resp := stream.Receive()
 #### Pass case
 * Attempt an ssh authentication using the username (ssh testuser@DUT) and password.
   * Authentication must fail.
+  * Ensure that access failure telemetry counters are incremented
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-rejects`
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:last-access-reject`
+* Attempt password authentication on the console.
+  * Authentication must result in success with a prompt.
+  * Ensure that access accept telemetry counters are incremented
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-accepts`
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:last-access-accept`
 * Attempt password authentication on the console.
   * Authentication must result in success with a prompt.
 * Attempt certificate authentication over ssh, `ssh testuser@DUT`.
   * Use the ssh user certificate with a signature verifiable by a
     TrustedUserCAKey public key created above.
   * Authentication must succeed.
+  * Ensure that access accept telemetry counters are incremented
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-accepts`
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:last-access-accept`
   * Accounting, using gnsi Accounting must set the identity string (see
     acct.proto AuthDetail message) to equal the principal (principal_name)
     from the certificate rather than the system role (testuser).
@@ -197,6 +212,11 @@ resp := stream.Receive()
 #### Pass case
 * ssh to the server.
   * You must receive the host certificate signed by your CA.
+  * Ensure telemetry values for version and created-on match the values set by
+    RotateHostParameters for
+`/oc-sys:system/oc-sys:ssh-server/oc-sys:state:active-host-certificate-version`
+and
+`/oc-sys:system/oc-sys:ssh-server/oc-sys:state:active-host-certificate-created-on`
 
 ### Credentialz-4, SSH Public Key Authentication
 
@@ -209,6 +229,14 @@ resp := stream.Receive()
 #### Pass case
 * Attempt to ssh into the server with the username, presenting the ssh key.
   * Authentication must succeed.
+  * Ensure telemetry values for version and created-on match the values set by
+    RotateHostParameters for
+`/oc-sys:system/oc-sys:aaa/oc-sys:authentication/oc-sys:users/oc-sys:user/oc-sys:state:authorized-keys-list-version`
+and
+`/oc-sys:system/oc-sys:aaa/oc-sys:authentication/oc-sys:users/oc-sys:user/oc-sys:state:authorized-keys-list-created-on`
+  * Ensure that access accept telemetry counters are incremented
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-accepts`
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:last-access-accept`
 
 #### Fail case
 * Remove the user ssh key (by sending an AuthorizedKeysRequest with no
@@ -236,10 +264,20 @@ resp := stream.Receive()
   * Accounting, using gnsi Accounting must set the identity string (see
     acct.proto AuthDetail message) to equal the principal (principal_name)
     from the certificate rather than the system role (testuser).
+  * Ensure telemetry values for version and created-on match the values set by
+    RotateHostParameters for
+`/oc-sys:system/oc-sys:ssh-server/oc-sys:state:active-host-certificate-version`
+and
+`/oc-sys:system/oc-sys:ssh-server/oc-sys:state:active-host-certificate-created-on`
+  * Ensure that access accept telemetry counters are incremented
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-accepts`
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:last-access-accept`
 
 #### Fail case
 * Remove the certificate with the HIBA grant (or wait for expiration)
 * Create an ssh certificate with no grants.
 * Log into the server as "testuser" with this certificate
   * Authentication must fail
+  * Ensure that access rejects telemetry counter is incremented
+    `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-rejects`
 
