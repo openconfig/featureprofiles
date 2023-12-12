@@ -470,6 +470,7 @@ func (args *testArgs) reloadChassis(t *testing.T) {
 // gribi reconnect following reload
 func (args *testArgs) gribi_reconnect(t *testing.T) error {
 
+	var gribi_connection_timer time.Time
 	reboot_timer := time.Now()
 	client := gribi.Client{
 		DUT:         args.dut,
@@ -481,29 +482,24 @@ func (args *testArgs) gribi_reconnect(t *testing.T) error {
 		// Attempt starting gribi client session and inspect the error code while checking session is established within maxRebootTime
 		err := client.Start(t)
 
-		// set gribi connection timer variable to current value everytime client session is tried to established, so when return code is UNAVAILABLE
-		// we can track 3 mins following the start time
-		gribi_connection_timer := time.Now()
-
 		// if error code is context deadline exceeded DUT is still rebooting and try again
 		if errors.Is(err, context.DeadlineExceeded) && time.Since(reboot_timer).Seconds() < maxRebootTime {
 			t.Logf("gRIBI Connection could not be established because device is still rebooting: %v\nRetrying...", err)
 			time.Sleep(1 * time.Second)
+		} else if err == nil {
+			t.Logf("New gRIBI Connection established after reload in %v seconds", time.Since(gribi_connection_timer).Seconds())
+			args.client = &client
+			args.client.BecomeLeader(t)
+			return nil
 		} else if strings.Contains(strings.ToLower(err.Error()), "unavailable") && time.Since(reboot_timer).Seconds() < maxRebootTime {
-			// if error is UNAVAIABLE, try creating gribi session within maxGribiConnectTime
-			for {
-				if err := client.Start(t); err != nil {
-					t.Logf("gRIBI Connection could not be established following reboot: %v\nRetrying...", err)
-					time.Sleep(1 * time.Second)
-				} else {
-					t.Logf("New gRIBI Connection established after reload in %v seconds", time.Since(gribi_connection_timer).Seconds())
-					args.client = &client
-					args.client.BecomeLeader(t)
-					return nil
-				}
-				if time.Since(gribi_connection_timer).Seconds() > maxGribiConnectTime {
-					return fmt.Errorf("Router is up but gRIBI Connection could not be established within max timeout value")
-				}
+			// Following first unavailable error code encountered, set gribi_connection_timer to current time
+			if gribi_connection_timer.IsZero() {
+				gribi_connection_timer = time.Now()
+			}
+			t.Logf("gRIBI Connection could not be established following reboot: %v\nRetrying...", err)
+			time.Sleep(1 * time.Second)
+			if time.Since(gribi_connection_timer).Seconds() > maxGribiConnectTime {
+				return fmt.Errorf("Router is up but gRIBI Connection could not be established within max timeout value")
 			}
 		} else {
 			return fmt.Errorf("gRIBI connection failed with error: %v after trying for %v minutes", err, time.Since(reboot_timer).Minutes())
