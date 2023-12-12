@@ -87,13 +87,12 @@ func NewTargets(t *testing.T) *Targets {
 
 // TestMain sets up Ondatra Init
 func TestMain(m *testing.M) {
-	logger.Logger.Debug().Msg("Function TestCollectionDebugFiles has started")
+	os.Setenv("LOGLEVEL", "DEBUG")
 	fptest.RunTests(m)
 }
 
 func TestCollectDebugFiles(t *testing.T) {
 	logger.Logger.Debug().Msg("Function TestCollectionDebugFiles has started")
-
 	// set up Targets
 	targets := NewTargets(t)
 	if *outDirFlag == "" {
@@ -127,11 +126,15 @@ func TestCollectDebugFiles(t *testing.T) {
 		cli := targets.GetOndatraCLI(t, dutID)
 
 		for _, cmd := range commands {
+			fmt.Println(fmt.Sprintf("Running current command: [%s]", cmd))
+			logger.Logger.Info().Msg(fmt.Sprintf("Running current command: [%s]", cmd))
 			testt.CaptureFatal(t, func(t testing.TB) {
 				if result, err := cli.SendCommand(ctx, cmd); err == nil {
+					logger.Logger.Error().Msg(fmt.Sprintf("Error while running [%s] : [%v]", cmd, err))
 					t.Logf("> %s", cmd)
 					t.Log(result)
 				} else {
+					logger.Logger.Info().Msg(fmt.Sprintf("Command [%s] ran successfully", cmd))
 					t.Logf("> %s", cmd)
 					t.Log(err.Error())
 				}
