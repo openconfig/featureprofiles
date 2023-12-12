@@ -1,3 +1,6 @@
+// package debug
+//
+// firex records the text in the error log
 package debug
 
 import (
@@ -91,6 +94,58 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func TestCollectCoreFiles(t *testing.T) {
+	targets := NewTargets(t)
+	if *outDirFlag == "" {
+		logger.Logger.Error().Msg(fmt.Sprintf("out directory flag not set correctly: [%s]", *outDirFlag))
+		t.FailNow()
+	} else {
+		outDir = *outDirFlag
+		logger.Logger.Info().Msg(fmt.Sprintf("out directory flag is: [%s]", *outDirFlag))
+		timestamp = time.Now().Format(time.RFC3339Nano)
+	}
+	commands := []string{
+		"run rm -rf /" + techDirectory,
+		"mkdir " + techDirectory,
+		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
+		//"run find /harddisk: -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
+	}
+
+	for _, t := range showTechSupport {
+		commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, getTechFileName(t)))
+	}
+	pipeCore := []string{"cd harddisk:", "dir | i *core*"}
+	for _, t := range pipeCore {
+		commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
+	}
+
+	for dutID, targetInfo := range targets.targetInfo {
+		t.Logf("Collecting debug files on %s", dutID)
+
+		ctx := context.Background()
+		cli := targets.GetOndatraCLI(t, dutID)
+
+		for _, cmd := range commands {
+			//fmt.Println(fmt.Sprintf("Running current command: [%s]", cmd))
+			logger.Logger.Info().Msg(fmt.Sprintf("Running current command logger: [%s]", cmd))
+			testt.CaptureFatal(t, func(t testing.TB) {
+				if result, err := cli.SendCommand(ctx, cmd); err == nil {
+					logger.Logger.Error().Msg(fmt.Sprintf("Error while running [%s] : [%v]", cmd, err))
+					t.Logf("> %s", cmd)
+					t.Log(result)
+				} else {
+					logger.Logger.Info().Msg(fmt.Sprintf("Command [%s] ran successfully", cmd))
+					t.Logf("> %s", cmd)
+					t.Log(err.Error())
+				}
+				t.Logf("\n")
+			})
+		}
+
+		copyDebugFiles(t, targetInfo, "CollectCoreFiles")
+	}
+	fmt.Println("Exiting TestCollectionDebugFiles")
+}
 func TestCollectDebugFiles(t *testing.T) {
 	logger.Logger.Debug().Msg("Function TestCollectionDebugFiles has started")
 	// set up Targets
@@ -120,7 +175,7 @@ func TestCollectDebugFiles(t *testing.T) {
 	}
 
 	for dutID, targetInfo := range targets.targetInfo {
-		t.Logf("Collecting debug files on %s", dutID)
+		//t.Logf("Collecting debug files on %s", dutID)
 
 		ctx := context.Background()
 		cli := targets.GetOndatraCLI(t, dutID)
@@ -142,12 +197,12 @@ func TestCollectDebugFiles(t *testing.T) {
 			})
 		}
 
-		copyDebugFiles(t, targetInfo)
+		copyDebugFiles(t, targetInfo, "CollectDebugFiles")
 	}
 	fmt.Println("Exiting TestCollectionDebugFiles")
 }
 
-func copyDebugFiles(t *testing.T, d targetInfo) {
+func copyDebugFiles(t *testing.T, d targetInfo, filename string) {
 	fmt.Println("Starting copyDebugFiles")
 	t.Helper()
 
@@ -162,7 +217,7 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 	}
 	defer scpClient.Close()
 
-	dutOutDir := filepath.Join(outDir, d.dut)
+	dutOutDir := filepath.Join(outDir, d.dut, filename)
 	if err := os.MkdirAll(dutOutDir, os.ModePerm); err != nil {
 		t.Errorf("Error creating output directory: %v", err)
 		return
@@ -251,6 +306,7 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 	return nil
 }
 
+// getTechFileName return the techDirecory + / + replacing " " with _
 func getTechFileName(tech string) string {
 	fmt.Println("Starting getTechFileName")
 	return techDirectory + "/" + strings.ReplaceAll(tech, " ", "_")
