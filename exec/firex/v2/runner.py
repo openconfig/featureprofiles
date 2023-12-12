@@ -587,6 +587,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         
         suite = _get_testsuite_from_xml(xml_results_file)
         # TODO: run anyway if there is no errors
+       
         self.enqueue_child(CollectDebugFiles.s(
             ws=ws,
             internal_fp_repo_dir=internal_fp_repo_dir, 
@@ -900,8 +901,9 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
     # TODO: collect core files if any
+    os.environ["LOGLEVEL"] = "DEBUG"
     if core == True:
-        collect_core_files = f'LOGLEVEL=DEBUG {GO_BIN} test -v ' \
+        collect_core_files = f'{GO_BIN} test -v ' \
                 f'./exec/utils/debug ' \
                 f'-timeout 60m ' \
                 f'-args ' \
