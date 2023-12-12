@@ -707,4 +707,7 @@ func MissingHardwareResourceTelemetryBeforeConfig(dut *ondatra.DUTDevice) bool {
 // SkipStaticNexthopCheck returns if device needs index starting from non zero
 func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
+// GNOISubcomponentRebootStatusUnsupported returns true for devices that do not support subcomponent reboot status check.
+func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
 }
