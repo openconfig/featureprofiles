@@ -9,6 +9,9 @@ import (
 	"github.com/openconfig/testt"
 )
 
+// TestCollectCoreFiles collects all the core files that are located in /misc/disk1
+//
+// once it locates the core files it saves it to debug_files/dut<>/CollectCoreFiles
 func TestCollectCoreFiles(t *testing.T) {
 	targets := NewTargets(t)
 	if *outDirFlag == "" {
@@ -24,13 +27,7 @@ func TestCollectCoreFiles(t *testing.T) {
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
 		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
-		"run find /harddisk: -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
 	}
-
-	// pipeCore := []string{"cd harddisk:", "dir | i *core*"}
-	// for _, t := range pipeCore {
-	// 	commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
-	// }
 
 	for dutID, targetInfo := range targets.targetInfo {
 		t.Logf("Collecting debug files on %s", dutID)
