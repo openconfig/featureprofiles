@@ -98,9 +98,6 @@ message Metadata {
     bool osinstall_for_standby_rp = 17;
     // Set this flag for LLDP interface config to override the global config.
     bool lldp_interface_config_override_global = 18;
-    // Skip BGP TestPassword mismatch subtest if value is true.
-    // Cisco: partnerissuetracker.corp.google.com/273285907
-    bool skip_bgp_test_password_mismatch = 19;
     // Skip check for
     // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
     // leaf missing case.
@@ -271,8 +268,6 @@ message Metadata {
     bool os_component_parent_is_supervisor_or_linecard = 87;
     // Parent of OS component is of type CHASSIS.
     bool os_component_parent_is_chassis = 88;
-    // Device does not support fabric power-admin-state leaf.
-    bool skip_fabric_card_power_admin = 89;
     // Devices require configuring the same ISIS Metrics for Level 1 when
     // configuring Level 2 Metrics.
     bool isis_require_same_l1_metric_with_l2_metric = 91;
@@ -365,11 +360,28 @@ message Metadata {
     // Device does not support PLQ operational status check on interface
     // Juniper: b/308990185
     bool skip_plq_interface_oper_status_check = 126;
+    // Device set received prefix limits explicitly under prefix-limit-received rather than
+    // "prefix-limit"
+    bool bgp_explicit_prefix_limit_received = 127;
+    // Device does not configure BGP maximum routes correctly when max-prefixes
+    // leaf is configured
+    bool bgp_missing_oc_max_prefixes_configuration = 128;
+    // Devices which needs to skip checking AFI-SAFI disable.
+    // Juniper: b/310698466
+    bool skip_bgp_session_check_without_afisafi = 129;
+    // Devices that have separate naming conventions for hardware resource name
+    // in /system/ tree and /components/ tree.
+    bool mismatched_hardware_resource_name_in_component = 130;
+    // Devices that don't support telemetry for hardware resources before
+    // used-threshold-upper configuration.
+    bool missing_hardware_resource_telemetry_before_config = 131;
+    // Device does not support reboot status check on subcomponents.
+    bool gnoi_subcomponent_reboot_status_unsupported = 132;
     // Devices do not support configuring Interface-ref under Static-Route Next-Hop
-    bool static_route_next_hop_interface_ref_unsupported = 127;
+    bool static_route_next_hop_interface_ref_unsupported = 133;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
   }
 
   message PlatformExceptions {

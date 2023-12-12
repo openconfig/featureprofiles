@@ -397,11 +397,6 @@ func ExplicitGRIBIUnderNetworkInstance(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitGribiUnderNetworkInstance()
 }
 
-// SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
-func SkipBGPTestPasswordMismatch(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipBgpTestPasswordMismatch()
-}
-
 // BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
 func BGPMD5RequiresReset(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMd5RequiresReset()
@@ -486,12 +481,6 @@ func OSComponentParentIsSupervisorOrLinecard(dut *ondatra.DUTDevice) bool {
 // OSComponentParentIsChassis returns true if parent of OS component is of type CHASSIS.
 func OSComponentParentIsChassis(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOsComponentParentIsChassis()
-}
-
-// SkipFabricCardPowerAdmin returns whether the device should skip the Platform Power Down Up for Fabric Card.
-// Default value is false.
-func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipFabricCardPowerAdmin()
 }
 
 // ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
@@ -684,6 +673,40 @@ func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
 // PLQ operational status check for interfaces
 func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
+}
+
+// BGPExplicitPrefixLimitReceived returns if device must specify the received prefix limits explicitly
+// under the "prefix-limit-received" field rather than simply "prefix-limit".
+func BGPExplicitPrefixLimitReceived(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExplicitPrefixLimitReceived()
+}
+
+// BGPMissingOCMaxPrefixesConfiguration returns true for devices that does not configure BGP
+// maximum routes correctly when max-prefixes OC leaf is configured.
+func BGPMissingOCMaxPrefixesConfiguration(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMissingOcMaxPrefixesConfiguration()
+}
+
+// SkipBgpSessionCheckWithoutAfisafi returns if device needs to skip checking AFI-SAFI disable.
+func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
+}
+
+// MismatchedHardwareResourceNameInComponent returns true for devices that have separate
+// naming conventions for hardware resource name in /system/ tree and /components/ tree.
+func MismatchedHardwareResourceNameInComponent(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMismatchedHardwareResourceNameInComponent()
+}
+
+// MissingHardwareResourceTelemetryBeforeConfig returns true for devices that don't
+// support telemetry for hardware resources before used-threshold-upper configuration.
+func MissingHardwareResourceTelemetryBeforeConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingHardwareResourceTelemetryBeforeConfig()
+}
+
+// GNOISubcomponentRebootStatusUnsupported returns true for devices that do not support subcomponent reboot status check.
+func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
 }
 
 // StaticRouteNextHopInterfaceRefUnsupported returns if device does not support Interface-ref under static-route next-hop

@@ -24,23 +24,22 @@ package openconfig.ocrpcs;
 message OCRPCs {
   // Required OpenConfig RPC service support for this entity.
   //
-  // The key of this map is the full name of the gRPC service.
-  // Format: <package>.<service>
-  // Example: gnoi.healthz.Healthz
-  // Example: gnmi.gNMI
-  map<string, OCRPCService> ocservices = 1;
+  // The key of this map is the full name of the gRPC protocol in lower caps.
+  // Examples: gnoi, gnmi, gnsi, gribi.
+  map<string, OCProtocol> oc_protocols = 1;
 }
 
-// OCRPCService is the list of OpenConfig RPC methods supported or required that
-// belong to the same OpenConfig RPC service (e.g. gnoi.healthz.Healthz,
-// gnmi.gNMI).
-message OCRPCService {
-  // Name of the gRPC method specification.
-  // Format: <rpc>
-  // Example: Get
-  // Example: Subscribe
+// OCProtocol is the list of OpenConfig RPC methods supported or required that
+// belong to the same OpenConfig RPC protocol (e.g. gNOI, gNMI, gRIBI, gNSI).
+message OCProtocol {
+  // Full name of the gRPC method specification.
+  // Format: <package>.<service>.<rpc>
+  // Example: gnoi.healthz.Healthz.Get
+  // Example: gnmi.gNMI.Subscribe
   repeated string method_name = 1;
 
-  // The semantic version of the gRPC service.
+  // The semantic version of the gRPC protocol release.
+  //
+  // This must refer to a release tag when "v" is prepended to the string.
   string version = 2;
 }
