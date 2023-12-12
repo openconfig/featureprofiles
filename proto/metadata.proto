@@ -98,9 +98,6 @@ message Metadata {
     bool osinstall_for_standby_rp = 17;
     // Set this flag for LLDP interface config to override the global config.
     bool lldp_interface_config_override_global = 18;
-    // Skip BGP TestPassword mismatch subtest if value is true.
-    // Cisco: partnerissuetracker.corp.google.com/273285907
-    bool skip_bgp_test_password_mismatch = 19;
     // Skip check for
     // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
     // leaf missing case.
@@ -366,9 +363,21 @@ message Metadata {
     // Device set received prefix limits explicitly under prefix-limit-received rather than
     // "prefix-limit"
     bool bgp_explicit_prefix_limit_received = 127;
+    // Device does not configure BGP maximum routes correctly when max-prefixes
+    // leaf is configured
+    bool bgp_missing_oc_max_prefixes_configuration = 128;
+    // Devices which needs to skip checking AFI-SAFI disable.
+    // Juniper: b/310698466
+    bool skip_bgp_session_check_without_afisafi = 129;
+    // Devices that have separate naming conventions for hardware resource name
+    // in /system/ tree and /components/ tree.
+    bool mismatched_hardware_resource_name_in_component = 130;
+    // Devices that don't support telemetry for hardware resources before
+    // used-threshold-upper configuration.
+    bool missing_hardware_resource_telemetry_before_config = 131;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
   }
 
   message PlatformExceptions {
