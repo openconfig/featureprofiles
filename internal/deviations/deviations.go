@@ -709,7 +709,13 @@ func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
 }
 
+// SkipNonBgpRouteExportCheck returns true for devices that exports routes from all
+// protocols to BGP if the export-policy is ACCEPT.
+func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
+}
+
 // BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
 func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
-}
+}  
