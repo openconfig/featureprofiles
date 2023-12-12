@@ -704,6 +704,11 @@ func MissingHardwareResourceTelemetryBeforeConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingHardwareResourceTelemetryBeforeConfig()
 }
 
+// GNOISubcomponentRebootStatusUnsupported returns true for devices that do not support subcomponent reboot status check.
+func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
+}
+
 // SkipContainerOp returns true if gNMI container OP needs to be skipped.
 func SkipContainerOp(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipContainerOp()
