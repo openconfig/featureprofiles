@@ -95,6 +95,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestCollectDebugFiles(t *testing.T) {
+	if *coreFilesFlag == true {
+		t.SkipNow()
+	}
 	logger.Logger.Debug().Msg("Function TestCollectionDebugFiles has started")
 	// set up Targets
 	targets := NewTargets(t)
@@ -111,7 +114,6 @@ func TestCollectDebugFiles(t *testing.T) {
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
 		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
-		//"run find /harddisk: -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
 	}
 
 	for _, t := range showTechSupport {
@@ -205,7 +207,6 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 		return fmt.Errorf(fmt.Sprintf("Error unmarshalling binding file: [%v]", err))
 	}
 
-	//targets := map[string]targetInfo{}
 	for _, dut := range b.Duts {
 		logger.Logger.Info().Msg(fmt.Sprintf("current dut :[%v]", dut))
 		var sshUser, sshPass, sshIP, sshPort string
@@ -256,7 +257,6 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 
 // getTechFileName return the techDirecory + / + replacing " " with _
 func getTechFileName(tech string) string {
-	//fmt.Println("Starting getTechFileName")
 	return techDirectory + "/" + strings.ReplaceAll(tech, " ", "_")
 }
 
