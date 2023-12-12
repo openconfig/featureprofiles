@@ -94,58 +94,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestCollectCoreFiles(t *testing.T) {
-	targets := NewTargets(t)
-	if *outDirFlag == "" {
-		logger.Logger.Error().Msg(fmt.Sprintf("out directory flag not set correctly: [%s]", *outDirFlag))
-		t.FailNow()
-	} else {
-		outDir = *outDirFlag
-		logger.Logger.Info().Msg(fmt.Sprintf("out directory flag is: [%s]", *outDirFlag))
-		timestamp = time.Now().Format(time.RFC3339Nano)
-	}
-	commands := []string{
-		"run rm -rf /" + techDirectory,
-		"mkdir " + techDirectory,
-		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
-		//"run find /harddisk: -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
-	}
-
-	for _, t := range showTechSupport {
-		commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, getTechFileName(t)))
-	}
-	pipeCore := []string{"cd harddisk:", "dir | i *core*"}
-	for _, t := range pipeCore {
-		commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
-	}
-
-	for dutID, targetInfo := range targets.targetInfo {
-		t.Logf("Collecting debug files on %s", dutID)
-
-		ctx := context.Background()
-		cli := targets.GetOndatraCLI(t, dutID)
-
-		for _, cmd := range commands {
-			//fmt.Println(fmt.Sprintf("Running current command: [%s]", cmd))
-			logger.Logger.Info().Msg(fmt.Sprintf("Running current command logger: [%s]", cmd))
-			testt.CaptureFatal(t, func(t testing.TB) {
-				if result, err := cli.SendCommand(ctx, cmd); err == nil {
-					logger.Logger.Error().Msg(fmt.Sprintf("Error while running [%s] : [%v]", cmd, err))
-					t.Logf("> %s", cmd)
-					t.Log(result)
-				} else {
-					logger.Logger.Info().Msg(fmt.Sprintf("Command [%s] ran successfully", cmd))
-					t.Logf("> %s", cmd)
-					t.Log(err.Error())
-				}
-				t.Logf("\n")
-			})
-		}
-
-		copyDebugFiles(t, targetInfo, "CollectCoreFiles")
-	}
-	fmt.Println("Exiting TestCollectionDebugFiles")
-}
 func TestCollectDebugFiles(t *testing.T) {
 	logger.Logger.Debug().Msg("Function TestCollectionDebugFiles has started")
 	// set up Targets
@@ -156,7 +104,7 @@ func TestCollectDebugFiles(t *testing.T) {
 	} else {
 		outDir = *outDirFlag
 		logger.Logger.Info().Msg(fmt.Sprintf("out directory flag is: [%s]", *outDirFlag))
-		timestamp = time.Now().Format(time.RFC3339Nano)
+		timestamp = *timestampFlag
 	}
 
 	commands := []string{
@@ -250,7 +198,7 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 		logger.Logger.Error().Msg(fmt.Sprintf("Error reading binding file: [%v]", err))
 		return fmt.Errorf(fmt.Sprintf("Error reading binding file: [%v]", err))
 	}
-	logger.Logger.Info().Msg(string(in))
+
 	b := &bindpb.Binding{}
 	if err := prototext.Unmarshal(in, b); err != nil {
 		logger.Logger.Error().Msg(fmt.Sprintf("Error unmarshalling binding file: [%v]", err))
@@ -308,7 +256,7 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 
 // getTechFileName return the techDirecory + / + replacing " " with _
 func getTechFileName(tech string) string {
-	fmt.Println("Starting getTechFileName")
+	//fmt.Println("Starting getTechFileName")
 	return techDirectory + "/" + strings.ReplaceAll(tech, " ", "_")
 }
 
