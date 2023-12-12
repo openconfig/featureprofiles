@@ -704,7 +704,12 @@ func MissingHardwareResourceTelemetryBeforeConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingHardwareResourceTelemetryBeforeConfig()
 }
 
+
 // BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
 func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
+
+// GNOISubcomponentRebootStatusUnsupported returns true for devices that do not support subcomponent reboot status check.
+func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
 }
