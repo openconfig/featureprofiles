@@ -17,9 +17,6 @@ import (
 	"testing"
 	"time"
 
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
-
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -29,7 +26,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	ondatraotg "github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -42,7 +39,7 @@ const (
 	ipv4PrefixLen             = 30
 	ipv6                      = "IPv6"
 	ipv6PrefixLen             = 126
-	mtu                       = 9_216
+	mtu                       = 9216
 	trafficRunDuration        = 15 * time.Second
 	trafficStopWaitDuration   = 10 * time.Second
 	acceptablePacketSizeDelta = 0.5
@@ -138,7 +135,7 @@ type testDefinition struct {
 
 type testData struct {
 	flowProto   string
-	otg         *ondatraotg.OTG
+	otg         *otg.OTG
 	dut         *ondatra.DUTDevice
 	otgConfig   gosnappi.Config
 	dutLAGNames []string
@@ -146,32 +143,6 @@ type testData struct {
 
 func (d *testData) waitInterface(t *testing.T) {
 	otgutils.WaitForARP(t, d.otg, d.otgConfig, d.flowProto)
-}
-
-func (d *testData) waitBundle(t *testing.T) {
-	time.Sleep(5 * time.Second)
-
-	for _, bundleName := range []string{ateSrc.Name, ateDst.Name} {
-		t.Logf("Waiting for LAG group(%s) on OTG to be up", bundleName)
-		_, ok := gnmi.Watch(t, d.otg, gnmi.OTG().Lag(bundleName).OperStatus().State(), time.Minute, func(val *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
-			status, present := val.Val()
-			return present && status.String() == "UP"
-		}).Await(t)
-		if !ok {
-			t.Fatalf("OTG LAG is not ready. Expected UP got %s", gnmi.Get(t, d.otg, gnmi.OTG().Lag(bundleName).OperStatus().State()).String())
-		}
-	}
-
-	for _, aggID := range d.dutLAGNames {
-		t.Logf("Waiting for LAG group(%s) on DUT to be up", aggID)
-		_, ok := gnmi.Watch(t, d.dut, gnmi.OC().Interface(aggID).OperStatus().State(), time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
-			status, present := val.Val()
-			return present && status == oc.Interface_OperStatus_UP
-		}).Await(t)
-		if !ok {
-			t.Fatalf("DUT LAG is not ready. Expected %s got %s", oc.Interface_OperStatus_UP.String(), gnmi.Get(t, d.dut, gnmi.OC().Interface(aggID).OperStatus().State()).String())
-		}
-	}
 }
 
 func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
@@ -190,6 +161,7 @@ func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
 		v4.Dst().SetValue(ateDst.IPv4)
+		v4.DontFragment().SetValue(1)
 	case ipv6:
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(ateSrc.IPv6)
@@ -408,7 +380,7 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, lag *attrs.Attribu
 
 	if deviations.AggregateAtomicUpdate(dut) {
 		gnmi.Delete(t, dut, gnmi.OC().Interface(bundleID).Aggregation().MinLinks().Config())
-		for _, port := range bundleMembers[1:] {
+		for _, port := range bundleMembers {
 			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 		}
 
@@ -416,7 +388,7 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, lag *attrs.Attribu
 		bundle.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 		bundle.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 
-		for _, port := range bundleMembers[1:] {
+		for _, port := range bundleMembers {
 			intf := ocRoot.GetOrCreateInterface(port.Name())
 			intf.GetOrCreateEthernet().AggregateId = ygot.String(bundleID)
 			intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -480,25 +452,22 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, lag *attrs.Attribu
 		fptest.AssignToNetworkInstance(t, dut, bundleID, deviations.DefaultNetworkInstance(dut), subInterfaceIndex)
 	}
 
-	// if we didnt setup the ports in the lag before
-	if !deviations.AggregateAtomicUpdate(dut) {
-		for _, port := range bundleMembers {
-			intf := &oc.Interface{Name: ygot.String(port.Name())}
-			intf.GetOrCreateEthernet().AggregateId = ygot.String(bundleID)
-			intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	for _, port := range bundleMembers {
+		intf := &oc.Interface{Name: ygot.String(port.Name())}
+		intf.GetOrCreateEthernet().AggregateId = ygot.String(bundleID)
+		intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 
-			if deviations.InterfaceEnabled(dut) {
-				intf.Enabled = ygot.Bool(true)
-			}
-
-			if deviations.ExplicitPortSpeed(dut) {
-				fptest.SetPortSpeed(t, port)
-			}
-
-			intfPath := gnmi.OC().Interface(port.Name())
-
-			gnmi.Replace(t, dut, intfPath.Config(), intf)
+		if deviations.InterfaceEnabled(dut) {
+			intf.Enabled = ygot.Bool(true)
 		}
+
+		if deviations.ExplicitPortSpeed(dut) {
+			fptest.SetPortSpeed(t, port)
+		}
+
+		intfPath := gnmi.OC().Interface(port.Name())
+
+		gnmi.Replace(t, dut, intfPath.Config(), intf)
 	}
 
 	verifyDUTPort(t, dut, *agg.Name)
@@ -656,7 +625,7 @@ func TestLargeIPPacketTransmissionBundle(t *testing.T) {
 			}
 
 			t.Run(fmt.Sprintf("%s-%s", tt.name, flowProto), func(t *testing.T) {
-				runTest(t, tt, td, td.waitBundle)
+				runTest(t, tt, td, td.waitInterface)
 			})
 		}
 	}
