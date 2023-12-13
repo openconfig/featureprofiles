@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/gnmi/errdiff"
 	"github.com/openconfig/goyang/pkg/yang"
 
 	ppb "github.com/openconfig/featureprofiles/proto/ocpaths_go_proto"
@@ -37,7 +38,7 @@ func TestValidatePath(t *testing.T) {
 		desc          string
 		inOcPathProto *ppb.OCPath
 		wantOCPath    *OCPath
-		wantErr       bool
+		wantErrSubstr string
 	}{{
 		desc: "no-component",
 		inOcPathProto: &ppb.OCPath{
@@ -57,7 +58,7 @@ func TestValidatePath(t *testing.T) {
 			Name:             "/interfaces/interface",
 			Featureprofileid: "interface_base",
 		},
-		wantErr: true,
+		wantErrSubstr: `"/interfaces/interface" is not a leaf: got kind Directory`,
 	}, {
 		desc: "with-component",
 		inOcPathProto: &ppb.OCPath{
@@ -78,7 +79,7 @@ func TestValidatePath(t *testing.T) {
 			Name:             "/components/component/state/name",
 			Featureprofileid: "interface_base",
 		},
-		wantErr: true,
+		wantErrSubstr: `path "/components/component/state/name" has invalid component "" (must be one of [BACKPLANE BIOS BOOT_LOADER CHASSIS CONTROLLER_CARD CPU FABRIC FAN FRU INTEGRATED_CIRCUIT LINECARD OPERATING_SYSTEM OPERATING_SYSTEM_UPDATE OPTICAL_CHANNEL PORT POWER_SUPPLY SENSOR SOFTWARE_MODULE STORAGE TRANSCEIVER WIFI_ACCESS_POINT])`,
 	}, {
 		desc: "non-component-path-has-component",
 		inOcPathProto: &ppb.OCPath{
@@ -86,7 +87,7 @@ func TestValidatePath(t *testing.T) {
 			OcpathConstraint: &ppb.OCPathConstraint{Constraint: &ppb.OCPathConstraint_PlatformType{PlatformType: "CPU"}},
 			Featureprofileid: "interface_base",
 		},
-		wantErr: true,
+		wantErrSubstr: `non-component path "/interfaces/interface/config/name" has component value "CPU"`,
 	}, {
 		desc: "invalid-component",
 		inOcPathProto: &ppb.OCPath{
@@ -94,7 +95,7 @@ func TestValidatePath(t *testing.T) {
 			OcpathConstraint: &ppb.OCPathConstraint{Constraint: &ppb.OCPathConstraint_PlatformType{PlatformType: "cpu"}},
 			Featureprofileid: "interface_base",
 		},
-		wantErr: true,
+		wantErrSubstr: `path "/components/component/state/name" has invalid component "cpu" (must be one of [BACKPLANE BIOS BOOT_LOADER CHASSIS CONTROLLER_CARD CPU FABRIC FAN FRU INTEGRATED_CIRCUIT LINECARD OPERATING_SYSTEM OPERATING_SYSTEM_UPDATE OPTICAL_CHANNEL PORT POWER_SUPPLY SENSOR SOFTWARE_MODULE STORAGE TRANSCEIVER WIFI_ACCESS_POINT])`,
 	}, {
 		desc: "with-bad-component",
 		inOcPathProto: &ppb.OCPath{
@@ -102,56 +103,56 @@ func TestValidatePath(t *testing.T) {
 			OcpathConstraint: &ppb.OCPathConstraint{Constraint: &ppb.OCPathConstraint_PlatformType{PlatformType: "NOT-A-COMPONENT"}},
 			Featureprofileid: "interface_base",
 		},
-		wantErr: true,
+		wantErrSubstr: `path "/components/component/state/name" has invalid component "NOT-A-COMPONENT" (must be one of [BACKPLANE BIOS BOOT_LOADER CHASSIS CONTROLLER_CARD CPU FABRIC FAN FRU INTEGRATED_CIRCUIT LINECARD OPERATING_SYSTEM OPERATING_SYSTEM_UPDATE OPTICAL_CHANNEL PORT POWER_SUPPLY SENSOR SOFTWARE_MODULE STORAGE TRANSCEIVER WIFI_ACCESS_POINT])`,
 	}, {
 		desc: "spaces-after-path",
 		inOcPathProto: &ppb.OCPath{
 			Name:             "/interfaces/interface/config/name   ",
 			Featureprofileid: "interface_base",
 		},
-		wantErr: true,
+		wantErrSubstr: `path not found: "/interfaces/interface/config/name   "`,
 	}, {
 		desc: "extra-slash",
 		inOcPathProto: &ppb.OCPath{
 			Name:             "/interfaces/interface/config//name",
 			Featureprofileid: "interface_base",
 		},
-		wantErr: true,
+		wantErrSubstr: `path not found: "/interfaces/interface/config//name"`,
 	}, {
 		desc: "no-starting-slash",
 		inOcPathProto: &ppb.OCPath{
 			Name:             "interfaces/interface/config/name",
 			Featureprofileid: "interface_base",
 		},
-		wantErr: true,
+		wantErrSubstr: `path does not begin with slash: "interfaces/interface/config/name"`,
 	}, {
 		desc: "ending-slash",
 		inOcPathProto: &ppb.OCPath{
 			Name:             "/interfaces/interface/config/name/",
 			Featureprofileid: "interface_base",
 		},
-		wantErr: true,
+		wantErrSubstr: `path must not end with slash: "/interfaces/interface/config/name/"`,
 	}, {
 		desc: "path-not-found",
 		inOcPathProto: &ppb.OCPath{
 			Name:             "/interfaces/interface/intraface/config/name",
 			Featureprofileid: "interface_base",
 		},
-		wantErr: true,
+		wantErrSubstr: `path not found: "/interfaces/interface/intraface/config/name"`,
 	}, {
 		desc: "invalid-featureprofileid",
 		inOcPathProto: &ppb.OCPath{
 			Name:             "/interfaces/interface/config/name",
 			Featureprofileid: "Interface_Base",
 		},
-		wantErr: true,
+		wantErrSubstr: `unexpected featureprofileID string "Interface_Base" for path /interfaces/interface/config/name (must match regex "^([a-z0-9]+_)*[a-z0-9]+$")`,
 	}, {
 		desc: "invalid-featureprofileid-2",
 		inOcPathProto: &ppb.OCPath{
 			Name:             "/interfaces/interface/config/name",
 			Featureprofileid: "interface-base",
 		},
-		wantErr: true,
+		wantErrSubstr: `unexpected featureprofileID string "interface-base" for path /interfaces/interface/config/name (must match regex "^([a-z0-9]+_)*[a-z0-9]+$")`,
 	}}
 
 	root := getFakeroot(t)
@@ -159,8 +160,8 @@ func TestValidatePath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			got, err := validatePath(tt.inOcPathProto, root)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("gotErr: %v, wantErr: %v", err, tt.wantErr)
+			if diff := errdiff.Substring(err, tt.wantErrSubstr); diff != "" {
+				t.Errorf(diff)
 			}
 
 			if diff := cmp.Diff(tt.wantOCPath, got); diff != "" {
