@@ -117,32 +117,31 @@ func generateExample(filepath string, valid bool) error {
 							},
 						},
 					}
-				} else {
-					return map[string]*rpb.OCProtocol{
-						"gnmi.gNMI": {
-							Version: "0.10.0",
-							MethodName: []string{
-								"Set",
-								"Subscribe",
-							},
+				}
+				return map[string]*rpb.OCProtocol{
+					"gnmi.gNMI": {
+						Version: "0.10.0",
+						MethodName: []string{
+							"Set",
+							"Subscribe",
 						},
-						"gnoi.healthz.Healthz": {
-							Version: "1.3.0",
-							MethodName: []string{
-								"Get",
-								"List",
-								"Acknowledge",
-								"Artifact",
-								"Check",
-							},
+					},
+					"gnoi.healthz.Healthz": {
+						Version: "1.3.0",
+						MethodName: []string{
+							"Get",
+							"List",
+							"Acknowledge",
+							"Artifact",
+							"Check",
 						},
-						"gnoi.bgp.BGP": {
-							Version: "0.1.0",
-							MethodName: []string{
-								"ClearBGPNeighbor",
-							},
+					},
+					"gnoi.bgp.BGP": {
+						Version: "0.1.0",
+						MethodName: []string{
+							"ClearBGPNeighbor",
 						},
-					}
+					},
 				}
 			}(),
 		},
