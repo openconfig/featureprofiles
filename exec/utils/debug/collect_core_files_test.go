@@ -13,6 +13,7 @@ import (
 //
 // once it locates the core files it saves it to debug_files/dut<>/CollectCoreFiles
 func TestCollectCoreFiles(t *testing.T) {
+	logger.Logger.Debug().Msg("Starting TestCollectCoreFiles")
 	if *coreFilesFlag == false {
 		t.SkipNow()
 	}
@@ -25,7 +26,6 @@ func TestCollectCoreFiles(t *testing.T) {
 	} else {
 		outDir = *outDirFlag
 		logger.Logger.Info().Msg(fmt.Sprintf("out directory flag is: [%s]", *outDirFlag))
-		// TODO: router does not undestand time.RFC3339Nano - also what timestamp time do we want... 5 mins ago, rn???
 		timestamp = *timestampFlag
 	}
 	commands := []string{
