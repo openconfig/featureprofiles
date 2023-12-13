@@ -15,6 +15,7 @@
 package ocpaths
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -79,7 +80,7 @@ func TestValidatePath(t *testing.T) {
 			Name:             "/components/component/state/name",
 			Featureprofileid: "interface_base",
 		},
-		wantErrSubstr: `path "/components/component/state/name" has invalid component "" (must be one of [BACKPLANE BIOS BOOT_LOADER CHASSIS CONTROLLER_CARD CPU FABRIC FAN FRU INTEGRATED_CIRCUIT LINECARD OPERATING_SYSTEM OPERATING_SYSTEM_UPDATE OPTICAL_CHANNEL PORT POWER_SUPPLY SENSOR SOFTWARE_MODULE STORAGE TRANSCEIVER WIFI_ACCESS_POINT])`,
+		wantErrSubstr: `path "/components/component/state/name" has invalid component "" (must be one of ` + fmt.Sprint(validComponentNamesSorted),
 	}, {
 		desc: "non-component-path-has-component",
 		inOcPathProto: &ppb.OCPath{
@@ -95,7 +96,7 @@ func TestValidatePath(t *testing.T) {
 			OcpathConstraint: &ppb.OCPathConstraint{Constraint: &ppb.OCPathConstraint_PlatformType{PlatformType: "cpu"}},
 			Featureprofileid: "interface_base",
 		},
-		wantErrSubstr: `path "/components/component/state/name" has invalid component "cpu" (must be one of [BACKPLANE BIOS BOOT_LOADER CHASSIS CONTROLLER_CARD CPU FABRIC FAN FRU INTEGRATED_CIRCUIT LINECARD OPERATING_SYSTEM OPERATING_SYSTEM_UPDATE OPTICAL_CHANNEL PORT POWER_SUPPLY SENSOR SOFTWARE_MODULE STORAGE TRANSCEIVER WIFI_ACCESS_POINT])`,
+		wantErrSubstr: `path "/components/component/state/name" has invalid component "cpu" (must be one of ` + fmt.Sprint(validComponentNamesSorted),
 	}, {
 		desc: "with-bad-component",
 		inOcPathProto: &ppb.OCPath{
@@ -103,7 +104,7 @@ func TestValidatePath(t *testing.T) {
 			OcpathConstraint: &ppb.OCPathConstraint{Constraint: &ppb.OCPathConstraint_PlatformType{PlatformType: "NOT-A-COMPONENT"}},
 			Featureprofileid: "interface_base",
 		},
-		wantErrSubstr: `path "/components/component/state/name" has invalid component "NOT-A-COMPONENT" (must be one of [BACKPLANE BIOS BOOT_LOADER CHASSIS CONTROLLER_CARD CPU FABRIC FAN FRU INTEGRATED_CIRCUIT LINECARD OPERATING_SYSTEM OPERATING_SYSTEM_UPDATE OPTICAL_CHANNEL PORT POWER_SUPPLY SENSOR SOFTWARE_MODULE STORAGE TRANSCEIVER WIFI_ACCESS_POINT])`,
+		wantErrSubstr: `path "/components/component/state/name" has invalid component "NOT-A-COMPONENT" (must be one of ` + fmt.Sprint(validComponentNamesSorted),
 	}, {
 		desc: "spaces-after-path",
 		inOcPathProto: &ppb.OCPath{
