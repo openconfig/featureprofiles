@@ -57,7 +57,7 @@ message OCPath {
 
   // A set of opaque tags that are used for this path. These tags can be used
   // to group paths according to use-case specific criteria.
-  repeated string paths = 4;
+  repeated string tags = 4;
 }
 
 // OCPathConstraint enumerates platform_types that are required to be supported
