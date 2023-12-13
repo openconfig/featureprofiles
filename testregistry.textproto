@@ -655,7 +655,7 @@ test: {
 }
 test: {
   id: "TR-6.2"
-  description: "system logging console vty file"
+  description: "Local logging destinations"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/logging/console_vty_file/tests/README.md"
   exec: " "
 }
@@ -820,6 +820,12 @@ test: {
   id: "gNMI-1.19"
   description: "gNMI ConfigPush after Control Card switchover"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/controllercard/tests/SetRequest_controll_card_switchover/README.md"
+  exec: " "
+}
+test: {
+  id: "gNMI-1.20"
+  description: "Telemetry: Optics Thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/optics_thresholds_test/README.md"
   exec: " "
 }
 test: {
