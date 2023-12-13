@@ -822,7 +822,7 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
     
     if image_url: img = image_url
     else: img = images[0]
-    su_command = f'{GO_BIN} test -v ' \
+    su_command = f'{GO_BIN} test utils_test.go collect_debug_files_test.go collect_core_files_test.go ' \
             f'./exec/utils/software_upgrade ' \
             f'-timeout 60m ' \
             f'-args ' \
