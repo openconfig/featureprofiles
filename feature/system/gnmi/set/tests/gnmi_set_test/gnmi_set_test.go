@@ -634,7 +634,13 @@ func nextAggregates(t *testing.T, dut *ondatra.DUTDevice, n int) []string {
 		agg := numRE.ReplaceAllStringFunc(firstAgg, func(_ string) string {
 			return strconv.Itoa(i)
 		})
-		aggs = append(aggs, agg)
+		//some aggregate interface after firstAgg may already be present in the system.
+		_, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(agg).Name().State()).Val()
+		if !present {
+			aggs = append(aggs, agg)
+		} else {
+			n++
+		}
 	}
 	return aggs
 }
