@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"flag"
 
@@ -171,12 +172,12 @@ func TestDeleteInterface(t *testing.T) {
 		op.push(t, dut, config, scope)
 
 		t.Run("VerifyBeforeDelete", func(t *testing.T) {
-			v1 := gnmi.Lookup(t, dut, q1)
-			if got1, ok := v1.Val(); !ok || got1 != want1 {
+			v1, ok := gnmi.Await(t, dut, q1, 60*time.Second, want1).Val()
+			if !ok {
 				t.Errorf("State got %v, want %v", v1, want1)
 			}
-			v2 := gnmi.Lookup(t, dut, q2)
-			if got2, ok := v2.Val(); !ok || got2 != want2 {
+			v2, ok := gnmi.Await(t, dut, q2, 60*time.Second, want2).Val()
+			if !ok {
 				t.Errorf("State got %v, want %v", v2, want2)
 			}
 		})
@@ -576,14 +577,15 @@ func TestStaticProtocol(t *testing.T) {
 			verifyInterface(t, dut, p1.Name(), &ip1)
 			verifyInterface(t, dut, p2.Name(), &ip2)
 
-			v1 := gnmi.Lookup(t, dut, q1)
-			if got, ok := v1.Val(); !ok || got != p1.Name() {
+			v1, ok := gnmi.Await(t, dut, q1, 60*time.Second, p1.Name()).Val()
+			if !ok {
 				t.Errorf("State got %v, want %v", v1, p1.Name())
 			} else {
 				t.Logf("Verified %v", v1)
 			}
-			v2 := gnmi.Lookup(t, dut, q2)
-			if got, ok := v2.Val(); !ok || got != p2.Name() {
+
+			v2, ok := gnmi.Await(t, dut, q2, 60*time.Second, p2.Name()).Val()
+			if !ok {
 				t.Errorf("State got %v, want %v", v2, p2.Name())
 			} else {
 				t.Logf("Verified %v", v2)
@@ -603,14 +605,15 @@ func TestStaticProtocol(t *testing.T) {
 			verifyInterface(t, dut, p1.Name(), &ip1)
 			verifyInterface(t, dut, p2.Name(), &ip2)
 
-			v1 := gnmi.Lookup(t, dut, q1)
-			if got, ok := v1.Val(); !ok || got != p2.Name() {
+			v1, ok := gnmi.Await(t, dut, q1, 60*time.Second, p2.Name()).Val()
+			if !ok {
 				t.Errorf("State got %v, want %v", v1, p2.Name())
 			} else {
 				t.Logf("Verified %v", v1)
 			}
-			v2 := gnmi.Lookup(t, dut, q2)
-			if got, ok := v2.Val(); !ok || got != p1.Name() {
+
+			v2, ok := gnmi.Await(t, dut, q2, 60*time.Second, p1.Name()).Val()
+			if !ok {
 				t.Errorf("State got %v, want %v", v2, p1.Name())
 			} else {
 				t.Logf("Verified %v", v2)
@@ -689,8 +692,8 @@ func configAggregate(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevic
 func verifyMember(t testing.TB, p *ondatra.Port, aggID string) {
 	t.Helper()
 	q := gnmi.OC().Interface(p.Name()).Ethernet().AggregateId().State()
-	v := gnmi.Lookup(t, p.Device(), q)
-	if got, ok := v.Val(); !ok || got != aggID {
+	v, ok := gnmi.Await(t, p.Device(), q, 60*time.Second, aggID).Val()
+	if !ok {
 		t.Errorf("State got %v, want %v", v, aggID)
 	}
 }
@@ -699,9 +702,9 @@ func verifyMember(t testing.TB, p *ondatra.Port, aggID string) {
 func verifyAggregate(t testing.TB, dev gnmi.DeviceOrOpts, aggID string, a *attrs.Attributes) {
 	t.Helper()
 	q := gnmi.OC().Interface(aggID).Aggregation().LagType().State()
-	v := gnmi.Lookup(t, dev, q)
 	const want = oc.IfAggregate_AggregationType_STATIC
-	if got, ok := v.Val(); !ok || got != want {
+	v, ok := gnmi.Await(t, dev, q, 60*time.Second, want).Val()
+	if !ok {
 		t.Errorf("State got %v, want %v", v, want)
 	}
 	verifyInterface(t, dev, aggID, a)
@@ -711,8 +714,8 @@ func verifyAggregate(t testing.TB, dev gnmi.DeviceOrOpts, aggID string, a *attrs
 func verifyInterface(t testing.TB, dev gnmi.DeviceOrOpts, name string, a *attrs.Attributes) {
 	t.Helper()
 	q := gnmi.OC().Interface(name).Subinterface(0).Ipv4().Address(a.IPv4).PrefixLength().State()
-	v := gnmi.Lookup(t, dev, q)
-	if got, ok := v.Val(); !ok || got != a.IPv4Len {
+	v, ok := gnmi.Await(t, dev, q, 60*time.Second, a.IPv4Len).Val()
+	if !ok {
 		t.Errorf("State got %v, want %v", v, a.IPv4Len)
 	} else {
 		t.Logf("Verified %v", v)
@@ -732,8 +735,8 @@ func attachInterface(ni *oc.NetworkInstance, name string, sub int) string {
 func verifyAttachment(t testing.TB, dev gnmi.DeviceOrOpts, vrf string, id string, name string) {
 	t.Helper()
 	q := gnmi.OC().NetworkInstance(vrf).Interface(id).Interface().State()
-	v := gnmi.Lookup(t, dev, q)
-	if got, ok := v.Val(); !ok || got != name {
+	v, ok := gnmi.Await(t, dev, q, 60*time.Second, name).Val()
+	if !ok {
 		t.Errorf("State got %v, want %v", v, name)
 	} else {
 		t.Logf("Verified %v", v)
