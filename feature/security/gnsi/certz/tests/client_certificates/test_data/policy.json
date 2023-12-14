@@ -1,0 +1,228 @@
+[{
+    "name": "allow-test-infra",
+    "source": {
+      "principals": [
+        "<test_infra_id>"
+      ]
+    },
+    "request": {}
+  },
+  {
+    "name": "policy-everyone-can-gnmi-not-gribi",
+    "allow_rules": [
+      {
+        "name": "everyone-can-gnmi-get",
+        "source": {
+          "principals": [
+            "*"
+          ]
+        },
+        "request": {
+          "paths": [
+            "/gnmi.gNMI/Get"
+          ]
+        }
+      }
+    ],
+    "deny_rules": [
+      {
+        "name": "no-one-can-gribi-get",
+        "source": {
+          "principals": [
+            "*"
+          ]
+        },
+        "request": {
+          "paths": [
+            "/gribi.gRIBI/Get"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "policy-everyone-can-gribi-not-gnmi",
+    "allow_rules": [
+      {
+        "name": "everyone-can-gribi",
+        "source": {
+          "principals": [
+            "*"
+          ]
+        },
+        "request": {
+          "paths": [
+            "/gribi.gRIBI/*"
+          ]
+        }
+      }
+    ],
+    "deny_rules": [
+      {
+        "name": "no-one-can-gnmi",
+        "source": {
+          "principals": [
+            "*"
+          ]
+        },
+        "request": {
+          "paths": [
+            "/gribi.gNMI/*"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "policy-invalid-no-allow-rules",
+    "deny_rules": [
+      {
+        "name": "no-one-can-gribi",
+        "source": {
+          "principals": [
+            "*"
+          ]
+        },
+        "request": {
+          "paths": [
+            "/gribi.gRIBI/*"
+          ]
+        }
+      }
+    ]
+  }, 
+  {
+    "name": "policy-gribi-get",
+    "allow_rules": [
+      {
+        "name": "gribi-get",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/read-only"
+          ]
+        },
+        "request": {
+          "paths": ["/gribi.gRIBI/Get"]
+        }
+      }
+    ]
+  }, 
+  {
+    "name": "policy-gnmi-get",
+    "allow_rules": [
+      {
+        "name": "gnmi-get",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/read-only"
+          ]
+        },
+        "request": {
+          "paths": ["/gnmi.gNMI/Get"]
+        }
+      }
+    ]
+  },
+  {
+    "name": "policy-normal-1",
+    "allow_rules": [
+      {
+        "name": "gribi-modify",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/admin",
+            "spiffe://test-abc.foo.bar/xyz/gribi-modify"
+          ]
+        },
+        "request": {
+          "paths": ["/gribi.gRIBI/*"]
+        }
+      },
+      {
+        "name": "gnmi-set",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/admin",
+            "spiffe://test-abc.foo.bar/xyz/gnmi-set"
+          ]
+        },
+        "request": {
+          "paths": ["/gnmi.gNMI/*"]
+        }
+      },
+      {
+        "name": "gnoi-time",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/admin",
+            "spiffe://test-abc.foo.bar/xyz/gnoi-time"
+          ]
+        },
+        "request": {
+          "paths": ["/gnoi.system.System/Time"]
+        }
+      },
+      {
+        "name": "gnoi-ping",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/admin",
+            "spiffe://test-abc.foo.bar/xyz/gnoi-ping"
+          ]
+        },
+        "request": {
+          "paths": ["/gnoi.system.System/Ping"]
+        }
+      },
+      {
+        "name": "gnsi-set",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/admin"
+          ]
+        },
+        "request": {
+          "paths": ["/gnsi.authz.v1.Authz/*"]
+        }
+      },
+      {
+        "name": "gnsi-probe",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/gnsi-probe"
+          ]
+        },
+        "request": {
+          "paths": ["/gnsi.authz.v1.Authz/Probe"]
+        }
+      },
+      {
+        "name": "read-only",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/read-only"
+          ]
+        },
+        "request": {
+          "paths": [
+            "/gnmi.gNMI/Get",
+            "/gribi.gRIBI/Get",
+            "/gnsi.authz.v1.Authz/Get"
+          ]
+        }
+      }
+    ],
+    "deny_rules": [
+      {
+        "name": "deny-all-user-can-do-nothing",
+        "source": {
+          "principals": [
+            "spiffe://test-abc.foo.bar/xyz/deny-all"
+          ]
+        },
+        "request": {
+          "paths": ["/*"]
+        }
+      }
+    ]
+  }]

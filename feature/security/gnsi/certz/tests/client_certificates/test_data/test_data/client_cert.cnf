@@ -1,0 +1,19 @@
+[req]
+default_bits = 2048
+distinguished_name = dn
+prompt             = no
+req_extensions = req_ext
+
+[dn]
+C="AQ"
+ST="NZ"
+L="NZ"
+O="OpenconfigFeatureProfiles"
+CN="client.service.example.com"
+
+[req_ext]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.0 = thing.place.client.example.com
+URI.1 = spiffe://teamname.groupname.location.place.example.com/role/servicename
