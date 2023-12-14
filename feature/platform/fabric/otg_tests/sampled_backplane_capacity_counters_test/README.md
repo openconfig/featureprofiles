@@ -2,14 +2,7 @@
 
 ## Summary
 WBB is required to support gNMI Subscribe with SAMPLE or ON_CHANGE mode for various counters.
-This test if to verify that DUT supports gNMI Subscribe with sample mode, updating
-the available backplane capacity counters correctly while forwarding traffic
-
-*   Get backplace capacity before any traffic is sent
-
-*   Send some traffic and wait for the sample to be collected
-
-*   Send more traffic and wait for the sample to be collected
+This test if to verify that DUT supports gNMI Subscribe with ON_CHANGE for backplane-facing-capacity
 
 ## Testbed type
 
@@ -25,40 +18,23 @@ the available backplane capacity counters correctly while forwarding traffic
 
 *   Configure IPv4/IPv6 addresses on the interfaces
 
-*   Using gNMI subscribe with "SAMPLE" mode
-
-    *   Run the test twice, once with a SAMPLE interval of 10 Seconds and once again
-        with a SAMPLE interval of 15 seconds for the below telemetry path
+*   Using gNMI subscribe with "ON_CHANGE" mode
 
     *   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
 
-    *   Initiate traffic:
+        *   consumed-capacity is the sum of the admin-up front panel interface speeds connected to the integrated-circuit
 
-        *   Initiate traffic as per below threshold:
+*   Ensure that we receieve the initial consumed-capacity metric
 
-             Port number   | Interface1(line rate %)
-            -------------- | -----------------------
-            Port1          | 20%
-            Port2          | 20%
+*   Set port-2 enabled=false
 
-    *   Validate that we are receiving consumed capacity metrics at the selected SAMPLE interval
+    *   Validate that we recieve a changed consumed-capacity metric of a higher value
 
-        *   Increase the traffic as per below threshold
+*   Set port-2 enable=true
 
-             Port number   | Interface1(line rate %)
-            -------------- | -----------------------
-            Port1          | 70%
-            Port2          | 70%
+    *   Validate that we recieve a changed consumed-capacity metric matching the initial value
 
-    *   Validate we are now receiving increased consumed capacity metrics at the selected SAMPLE interval
-
-### gNMI-1.18.2
-
-*   Connect DUT port-1 and 2 to ATE port-1 and 2 respectively
-
-    *   For MFF DUT ports 1 and 2 SHOULD be on different linecards
-
-*   Configure IPv4/IPv6 addresses on the interfaces
+### gNMI-1.18.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2323]
 
 *   Use gNMI subscribe with "ON_CHANGE" mode for the below telemetry paths
 
@@ -66,17 +42,33 @@ the available backplane capacity counters correctly while forwarding traffic
     *   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
     *   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
 
-*   Disable one of the available FABRIC component
+*   Make sure we recieve the initial metric for each of the telemetry paths
+
+*   Disable two FABRIC components
 
     *   set /components/component/{fabric}/config/power-admin-state to POWER_DISABLED
 
-*   Validate that we recieve changed metrics of a lower value for each of the telemetry paths
+*   Validate that we recieve changed metric of a lower value for the below telemetry paths
 
-*   Enable the FABRIC component that was disabled in the previous step
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
+
+*   Ensure that the metric for the below telemetry path should not have changed hence no updated metric should be received
+
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/total
+
+*   Enable the FABRIC components that were disabled previously
 
     *   Set /components/component/{fabric}/config/power-admin-state to POWER_ENABLED
 
-*   Validate that we recieve changed metrics of a higher value for each of the telemetry paths
+*   Validate that we recieve changed metric matching the initial metric for the below of the telemetry paths
+
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
+
+*   Ensure that the metric for the below telemetry path should not have changed hence no updated metric should be received
+
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/total
 
 ## Config parameter coverage
 
@@ -85,7 +77,7 @@ the available backplane capacity counters correctly while forwarding traffic
 *   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled
 *   /components/component/{fabric}/config/power-admin-state
 
-## Telemetry parameter coverage (gNMI subscribe with sample every 10 seconds)
+## Telemetry parameter coverage
 
 *   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
 *   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
