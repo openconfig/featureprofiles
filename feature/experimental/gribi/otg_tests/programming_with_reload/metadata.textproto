@@ -11,5 +11,6 @@ platform_exceptions: {
   }
   deviations: {
     static_protocol_name: "STATIC"
+    default_network_instance: "default"
   }
 }
