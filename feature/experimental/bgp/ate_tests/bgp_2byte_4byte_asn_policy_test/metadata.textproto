@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "a993eb24-40f8-4b86-bc6b-02c19f6a0d53"
-plan_id: "RT-1.20"
+plan_id: "RT-1.24"
 description: "BGP 2-Byte and 4-Byte ASN support with policy"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
@@ -21,15 +21,7 @@ platform_exceptions: {
     use_vendor_native_acl_config: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
-    route_policy_under_afi_unsupported: true
     interface_enabled: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
   }
 }
 platform_exceptions: {
@@ -43,4 +35,4 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
-tags: TAGS_EDGE
+tags: TAGS_AGGREGATION

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"google.golang.org/grpc"
@@ -137,7 +138,7 @@ func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 	return gpb.NewGNMIClient(conn), nil
 }
 
-func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (binding.GNOIClients, error) {
+func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoigo.Clients, error) {
 	dialer, err := d.r.gnoi(d.Name())
 	if err != nil {
 		return nil, err
@@ -146,7 +147,7 @@ func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (bind
 	if err != nil {
 		return nil, err
 	}
-	return gnoiConn{conn: conn}, nil
+	return gnoigo.NewClients(conn), nil
 }
 
 func (d *staticDUT) DialGNSI(ctx context.Context, opts ...grpc.DialOption) (binding.GNSIClients, error) {
@@ -185,7 +186,7 @@ func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb
 	return p4pb.NewP4RuntimeClient(conn), nil
 }
 
-func (d *staticDUT) DialCLI(_ context.Context) (binding.StreamClient, error) {
+func (d *staticDUT) DialCLI(_ context.Context) (binding.CLIClient, error) {
 	dialer, err := d.r.ssh(d.Name())
 	if err != nil {
 		return nil, err
@@ -383,6 +384,13 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 					return nil, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, p.Speed)
 				}
 				p.Speed = bport.Speed
+			}
+			// Populate the PMD type if configured.
+			if bport.Pmd != opb.Port_PMD_UNSPECIFIED {
+				if p.PMD != opb.Port_PMD_UNSPECIFIED && p.PMD != bport.Pmd {
+					return nil, fmt.Errorf("binding port PMD type %v and testbed port PMD type %v do not match", bport.Pmd, p.PMD)
+				}
+				p.PMD = bport.Pmd
 			}
 		}
 	}

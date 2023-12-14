@@ -152,8 +152,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureATE configures the interfaces and BGP on the ATE/OTG.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
-	otg := ate.OTG()
-	topo := otg.NewConfig(t)
+	topo := gosnappi.NewConfig()
 	p1 := ate.Port(t, "port1")
 	ateSrc.AddToOTG(topo, p1, &dutSrc)
 	p2 := ate.Port(t, "port2")
@@ -195,8 +194,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 		SetCount(1)
 	v4DstIncrement, v6DstIncrement := ateFlowConfig(t, topo, srcEth, srcIpv4, srcIpv6, dstBgp4PeerRoutes, dstBgp6PeerRoutes)
 	t.Logf("Pushing config to ATE and starting protocols...")
-	otg.PushConfig(t, topo)
-	otg.StartProtocols(t)
+	ate.OTG().PushConfig(t, topo)
+	ate.OTG().StartProtocols(t)
 	return &config{topo, dstBgp4PeerRoutes, dstBgp6PeerRoutes, v4DstIncrement, v6DstIncrement}
 }
 func ateFlowConfig(t *testing.T, topo gosnappi.Config, srcEth gosnappi.DeviceEthernet, srcIpv4 gosnappi.DeviceIpv4, srcIpv6 gosnappi.DeviceIpv6, dstBgp4PeerRoutes gosnappi.BgpV4RouteRange, dstBgp6PeerRoutes gosnappi.BgpV6RouteRange) (gosnappi.PatternFlowIpv4DstCounter, gosnappi.PatternFlowIpv6DstCounter) {
@@ -430,7 +429,7 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 	t.Logf("Start DUT BGP Config")
 	dutBgpTimerConf := tc.bgpTimersConfig(t, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutBgpTimerConf)
-	fptest.LogQuery(t, "Updated DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "Updated DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	// Verify Port Status
 	t.Log(" Verifying port status")
 	t.Run("verifyPortsUp", func(t *testing.T) {
@@ -491,7 +490,7 @@ func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := bgpCreateNbr(dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	// ATE Configuration.
 	t.Log("Start ATE Config")
 	otgConfig := configureATE(t, ate)

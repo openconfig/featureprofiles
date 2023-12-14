@@ -106,7 +106,7 @@ func configureNode(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDev
 		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
 	}
 
-	return node, gnmi.GetConfig(t, node, lldp.Config())
+	return node, gnmi.Get(t, node, lldp.Config())
 }
 
 // verifyNodeConfig verifies the config by comparing against the telemetry state object.
@@ -213,7 +213,7 @@ func disableP4RTLLDP(t *testing.T, dut *ondatra.DUTDevice) {
 	case ondatra.ARISTA:
 		cli := `p4-runtime
 					shutdown`
-		if _, err := dut.RawAPIs().GNMI().Default(t).
+		if _, err := dut.RawAPIs().GNMI(t).
 			Set(context.Background(), cliSetRequest(cli)); err != nil {
 			t.Fatalf("Failed to disable P4RTLLDP: %v", err)
 		}

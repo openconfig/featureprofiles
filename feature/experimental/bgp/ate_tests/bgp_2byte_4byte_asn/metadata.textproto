@@ -14,6 +14,7 @@ platform_exceptions: {
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
+    network_instance_table_deletion_required: true
   }
 }
-tags: TAGS_EDGE
+tags: TAGS_AGGREGATION

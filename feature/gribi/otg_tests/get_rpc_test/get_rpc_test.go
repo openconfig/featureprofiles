@@ -139,8 +139,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureATE configures port1, port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
@@ -335,8 +334,9 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	dc := gnmi.OC()
 	niProto := dc.NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut))
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut))
-	gnmi.Replace(t, args.dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	fptest.ConfigureDefaultNetworkInstance(t, args.dut)
+
 	ni := &oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(args.dut))}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut))
 	staticRoute := static.GetOrCreateStatic(staticCIDR)
@@ -381,7 +381,7 @@ func TestElectionID(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the DUT
 	configureDUT(t, dut)

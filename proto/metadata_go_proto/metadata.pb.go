@@ -647,8 +647,10 @@ type Metadata_Deviations struct {
 	// Devices exports routes from all protocols to BGP if the export-policy is ACCEPT
 	// Juniper: b/308970803
 	SkipNonBgpRouteExportCheck bool `protobuf:"varint,133,opt,name=skip_non_bgp_route_export_check,json=skipNonBgpRouteExportCheck,proto3" json:"skip_non_bgp_route_export_check,omitempty"`
-        // Juniper:Devices doesnt support acl tunnel encapsulation configuration.
+
+   // Juniper:Devices doesnt support acl tunnel encapsulation configuration.
 	TunnelAclEncapsulationConfigUnsupported bool `protobuf:"varint,134,opt,name=tunnel_acl_encapsulation_config_unsupported,json=tunnelAclEncapsulationConfigUnsupported,proto3" json:"tunnel_acl_encapsulation_config_unsupported,omitempty"`
+
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -1272,6 +1274,7 @@ func (x *Metadata_Deviations) GetControllerCardCpuUtilizationUnsupported() bool 
 }
 
 func (x *Metadata_Deviations) GetFabricDropCounterUnsupported() bool {
+
 	if x != nil {
 		return x.FabricDropCounterUnsupported
 	}
@@ -1497,6 +1500,233 @@ func (x *Metadata_Deviations) GetGnoiSubcomponentRebootStatusUnsupported() bool 
 
 func (x *Metadata_Deviations) GetSkipNonBgpRouteExportCheck() bool {
 	if x != nil {
+=======
+	if x != nil {
+		return x.FabricDropCounterUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetLinecardMemoryUtilizationUnsupported() bool {
+	if x != nil {
+		return x.LinecardMemoryUtilizationUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosVoqDropCounterUnsupported() bool {
+	if x != nil {
+		return x.QosVoqDropCounterUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAteIpv6FlowLabelUnsupported() bool {
+	if x != nil {
+		return x.AteIpv6FlowLabelUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisTimersCsnpIntervalUnsupported() bool {
+	if x != nil {
+		return x.IsisTimersCsnpIntervalUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisCounterManualAddressDropFromAreasUnsupported() bool {
+	if x != nil {
+		return x.IsisCounterManualAddressDropFromAreasUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisCounterPartChangesUnsupported() bool {
+	if x != nil {
+		return x.IsisCounterPartChangesUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetTransceiverThresholdsUnsupported() bool {
+	if x != nil {
+		return x.TransceiverThresholdsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetInterfaceLoopbackModeRawGnmi() bool {
+	if x != nil {
+		return x.InterfaceLoopbackModeRawGnmi
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipTcpNegotiatedMssCheck() bool {
+	if x != nil {
+		return x.SkipTcpNegotiatedMssCheck
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisLspMetadataLeafsUnsupported() bool {
+	if x != nil {
+		return x.IsisLspMetadataLeafsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosQueueRequiresId() bool {
+	if x != nil {
+		return x.QosQueueRequiresId
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipFibFailedTrafficForwardingCheck() bool {
+	if x != nil {
+		return x.SkipFibFailedTrafficForwardingCheck
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosBufferAllocationConfigRequired() bool {
+	if x != nil {
+		return x.QosBufferAllocationConfigRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpGlobalExtendedNextHopEncodingUnsupported() bool {
+	if x != nil {
+		return x.BgpGlobalExtendedNextHopEncodingUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpLlgrOcUndefined() bool {
+	if x != nil {
+		return x.BgpLlgrOcUndefined
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetTunnelStatePathUnsupported() bool {
+	if x != nil {
+		return x.TunnelStatePathUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetTunnelConfigPathUnsupported() bool {
+	if x != nil {
+		return x.TunnelConfigPathUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetEcnSameMinMaxThresholdUnsupported() bool {
+	if x != nil {
+		return x.EcnSameMinMaxThresholdUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosSchedulerConfigRequired() bool {
+	if x != nil {
+		return x.QosSchedulerConfigRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosSetWeightConfigUnsupported() bool {
+	if x != nil {
+		return x.QosSetWeightConfigUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosGetStatePathUnsupported() bool {
+	if x != nil {
+		return x.QosGetStatePathUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisLevelEnabled() bool {
+	if x != nil {
+		return x.IsisLevelEnabled
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetInterfaceRefInterfaceIdFormat() bool {
+	if x != nil {
+		return x.InterfaceRefInterfaceIdFormat
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMemberLinkLoopbackUnsupported() bool {
+	if x != nil {
+		return x.MemberLinkLoopbackUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipPlqInterfaceOperStatusCheck() bool {
+	if x != nil {
+		return x.SkipPlqInterfaceOperStatusCheck
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpExplicitPrefixLimitReceived() bool {
+	if x != nil {
+		return x.BgpExplicitPrefixLimitReceived
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpMissingOcMaxPrefixesConfiguration() bool {
+	if x != nil {
+		return x.BgpMissingOcMaxPrefixesConfiguration
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipBgpSessionCheckWithoutAfisafi() bool {
+	if x != nil {
+		return x.SkipBgpSessionCheckWithoutAfisafi
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMismatchedHardwareResourceNameInComponent() bool {
+	if x != nil {
+		return x.MismatchedHardwareResourceNameInComponent
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMissingHardwareResourceTelemetryBeforeConfig() bool {
+	if x != nil {
+		return x.MissingHardwareResourceTelemetryBeforeConfig
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetGnoiSubcomponentRebootStatusUnsupported() bool {
+	if x != nil {
+		return x.GnoiSubcomponentRebootStatusUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipNonBgpRouteExportCheck() bool {
+	if x != nil {
+
 		return x.SkipNonBgpRouteExportCheck
 	}
 	return false

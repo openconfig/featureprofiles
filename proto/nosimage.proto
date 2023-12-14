@@ -1,0 +1,53 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// nosimage.proto defines a specification of OpenConfig support provided by a
+// particular network operating system image.
+
+syntax = "proto3";
+
+package openconfig.profiles.nosimage;
+
+import "github.com/openconfig/featureprofiles/proto/ocpaths.proto";
+import "github.com/openconfig/featureprofiles/proto/ocrpcs.proto";
+import "github.com/openconfig/ondatra/proto/testbed.proto";
+import "google/protobuf/timestamp.proto";
+
+// NOSImageProfile - A network operating system and version which provides
+// support for a list of OpenConfig paths and RPCs.
+message NOSImageProfile {
+  // The vendor for the image.
+  ondatra.Device.Vendor vendor_id = 1;
+
+  // The name of the vendor's network operating system.
+  // This should be the same string as output by
+  // /components/component/state/mfg-name from the component
+  // TYPE=OPERATING_SYSTEM.
+  string nos = 2;
+
+  // Vendor network operating system version.
+  // This should match the output of the OpenConfig Path
+  // /system/state/software-version.
+  string software_version = 3;
+
+  // The date the network operating system is released.
+  // The date could be a value in the future indicating a future release.
+  google.protobuf.Timestamp release_date = 4;
+
+  // OpenConfig Paths supported by the network operating system.
+  openconfig.ocpaths.OCPaths ocpaths = 5;
+
+  // OpenConfig RPCs supported by the network operating system.
+  openconfig.ocrpcs.OCRPCs ocrpcs = 6;
+}
