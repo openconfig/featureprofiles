@@ -43,7 +43,7 @@ func resolveService(t *testing.T, dut *ondatra.DUTDevice, serviceName string, wa
 		Service(string) (*tpb.Service, error)
 	}
 	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &servDUT); err != nil {
-		t.Fatalf("DUT does not support Service function: %v", err)
+		t.Skipf("DUT does not support Service function: %v", err)
 	}
 	if serviceName == "gnoi" || serviceName == "gnsi" {
 		// Renaming service name due to gnoi and gnsi always residing on same port as gnmi.
