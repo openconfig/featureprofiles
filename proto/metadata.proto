@@ -380,7 +380,6 @@ message Metadata {
     // Devices exports routes from all protocols to BGP if the export-policy is ACCEPT
     // Juniper: b/308970803
     bool skip_non_bgp_route_export_check = 133;
-
     // Devices doesnt support acl tunnel encapsulation configuration.
     bool tunnel_acl_encapsulation_config_unsupported = 134;
 
