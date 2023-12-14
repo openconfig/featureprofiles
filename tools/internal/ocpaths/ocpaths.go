@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/openconfig/gnmi/errlist"
@@ -50,6 +51,11 @@ var (
 			}
 		}
 		return names
+	}()
+	validComponentNamesSorted = func() []string {
+		compNames := maps.Keys(validComponentNames)
+		sort.Strings(compNames)
+		return compNames
 	}()
 )
 
@@ -138,7 +144,7 @@ func validatePath(ocpathProto *ppb.OCPath, root *yang.Entry) (*OCPath, error) {
 	case !isComponentPath:
 	default:
 		if _, ok := validComponentNames[component]; !ok {
-			return nil, fmt.Errorf("path %q has invalid component %q (must be one of %v)", path, component, maps.Keys(validComponentNames))
+			return nil, fmt.Errorf("path %q has invalid component %q (must be one of %v)", path, component, validComponentNamesSorted)
 		}
 		ocpath.Key.Component = component
 	}
