@@ -56,7 +56,6 @@ type bgpNbr struct {
 	globalAS, localAS, peerAS uint32
 	peerIP                    string
 	isV4                      bool
-	asWidth                   int
 }
 
 func TestMain(m *testing.M) {
@@ -140,7 +139,7 @@ func TestBgpSession(t *testing.T) {
 			t.Log("Configure BGP on DUT")
 			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
 
-			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 			t.Log("Configure BGP on ATE")
 			ate.OTG().PushConfig(t, tc.ateConf)
 			ate.OTG().StartProtocols(t)
