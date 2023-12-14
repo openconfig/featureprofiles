@@ -403,22 +403,6 @@ func TestIPv4Entry(t *testing.T) {
 						}()
 					}
 
-					if tc.downPort != nil {
-						if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-							// Setting admin state down on the DUT interface.
-							// Setting the OTG interface down has no effect in KNE environments.
-							setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, false)
-							defer setDUTInterfaceWithState(t, dut, &dutPort2, tc.downPort, true)
-						} else {
-							portStateAction := gosnappi.NewControlState()
-							linkState := portStateAction.Port().Link().SetPortNames([]string{tc.downPort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-							ate.OTG().SetControlState(t, portStateAction)
-							// Restore port state at end of test case.
-							linkState.SetState(gosnappi.StatePortLinkState.UP)
-							defer ate.OTG().SetControlState(t, portStateAction)
-						}
-					}
-
 					c.Modify().AddEntry(t, tc.entries...)
 					if err := awaitTimeout(ctx, c, t, time.Minute); err != nil {
 						t.Fatalf("Await got error for entries: %v", err)
@@ -445,7 +429,7 @@ func TestIPv4Entry(t *testing.T) {
 						chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
 					}
 
-					validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+					validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows, tc.downPort)
 				})
 			}
 		})
@@ -519,7 +503,8 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	return name
 }
 
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
+// func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string, downPort *ondatra.Port) {
 	ateTop := ate.OTG().FetchConfig(t)
 	if len(good) == 0 && len(bad) == 0 {
 		return
@@ -555,6 +540,18 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 			}
 
 		}
+	}
+	if downPort != nil {
+		portStateAction := gosnappi.NewControlState()
+		linkState := portStateAction.Port().
+			Link().SetPortNames([]string{downPort.ID()}).
+			SetState(gosnappi.StatePortLinkState.DOWN)
+
+		ate.OTG().SetControlState(t, portStateAction)
+
+		// Restore port state at end of test case.
+		linkState.SetState(gosnappi.StatePortLinkState.UP)
+		defer ate.OTG().SetControlState(t, portStateAction)
 	}
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)

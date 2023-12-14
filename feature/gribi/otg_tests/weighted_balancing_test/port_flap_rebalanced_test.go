@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/deviations"
+	//"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
@@ -156,33 +156,19 @@ func TestPortFlap(t *testing.T) {
 		numDowns := len(atePorts) - i
 		testName := fmt.Sprintf("%d Up, %d Down", numUps, numDowns)
 		if i < len(atePorts) {
-			dp := dut.Port(t, atePorts[i].ID())
-			if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-				defer setDUTInterfaceState(t, dut, dp, true)
-			} else {
-				t.Logf("Bringing down ate port: %v", atePorts[i])
-				portStateAction := gosnappi.NewControlState()
-				portStateAction.Port().Link().SetPortNames([]string{atePorts[i].ID()}).SetState(gosnappi.StatePortLinkState.UP)
-				defer ate.OTG().SetControlState(t, portStateAction)
-			}
+			t.Logf("Bringing down ate port: %v", atePorts[i])
+			portStateAction := gosnappi.NewControlState()
+			portStateAction.Port().Link().SetPortNames([]string{atePorts[i].ID()}).SetState(gosnappi.StatePortLinkState.UP)
+			ate.OTG().SetControlState(t, portStateAction)
 		}
 
 		t.Run(testName, func(t *testing.T) {
 			if i < len(atePorts) {
 				dp := dut.Port(t, atePorts[i].ID())
-				if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-					// Setting admin state down on the DUT interface.
-					// Setting the otg interface down has no effect on kne
-					t.Logf("Bringing down dut port: %v", dp.Name())
-					setDUTInterfaceState(t, dut, dp, false)
-				} else {
-					t.Logf("Bringing down ate port: %v", atePorts[i])
-					portStateAction := gosnappi.NewControlState()
-					portStateAction.Port().Link().SetPortNames([]string{atePorts[i].ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-					ate.OTG().SetControlState(t, portStateAction)
-				}
-				// ATE and DUT ports in the linked pair have the same ID(), but
-				// they are mapped to different Name().
+				t.Logf("Bringing down ate port: %v", atePorts[i])
+				portStateAction := gosnappi.NewControlState()
+				portStateAction.Port().Link().SetPortNames([]string{atePorts[i].ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+				ate.OTG().SetControlState(t, portStateAction)
 				t.Logf("Awaiting DUT port down: %v", dp)
 				dip := dt.Interface(dp.Name())
 				gnmi.Await(t, dut, dip.OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)

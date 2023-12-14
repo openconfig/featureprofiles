@@ -197,28 +197,22 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 			desc: "Disable ATE port-2",
 			applyImpairmentFn: func() {
 				ateP2 := ate.Port(t, "port2")
-				dutP2 := dut.Port(t, "port2")
-				if deviations.ATEPortLinkStateOperationsUnsupported(tcArgs.ate) {
-					gnmi.Replace(t, dut, gnmi.OC().Interface(dutP2.Name()).Enabled().Config(), false)
-					gnmi.Await(t, dut, gnmi.OC().Interface(dutP2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
-				} else {
-					portStateAction := gosnappi.NewControlState()
-					portStateAction.Port().Link().SetPortNames([]string{ateP2.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-					tcArgs.ate.OTG().SetControlState(t, portStateAction)
-				}
+				portStateAction := gosnappi.NewControlState()
+				portStateAction.Port().
+					Link().
+					SetPortNames([]string{ateP2.ID()}).
+					SetState(gosnappi.StatePortLinkState.DOWN)
+				tcArgs.ate.OTG().SetControlState(t, portStateAction)
 			},
 			removeImpairmentFn: func() {
 				ateP2 := ate.Port(t, "port2")
-				dutP2 := dut.Port(t, "port2")
-				if deviations.ATEPortLinkStateOperationsUnsupported(tcArgs.ate) {
-					gnmi.Replace(t, dut, gnmi.OC().Interface(dutP2.Name()).Enabled().Config(), true)
-					gnmi.Await(t, dut, gnmi.OC().Interface(dutP2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-				} else {
-					portStateAction := gosnappi.NewControlState()
-					portStateAction.Port().Link().SetPortNames([]string{ateP2.ID()}).SetState(gosnappi.StatePortLinkState.UP)
-					tcArgs.ate.OTG().SetControlState(t, portStateAction)
-					otgutils.WaitForARP(t, ate.OTG(), tcArgs.ateTop, "IPv4")
-				}
+				portStateAction := gosnappi.NewControlState()
+				portStateAction.Port().
+					Link().
+					SetPortNames([]string{ateP2.ID()}).
+					SetState(gosnappi.StatePortLinkState.UP)
+				tcArgs.ate.OTG().SetControlState(t, portStateAction)
+				otgutils.WaitForARP(t, ate.OTG(), tcArgs.ateTop, "IPv4")
 			},
 		},
 		{
@@ -245,6 +239,7 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Run("Validate Baseline AFT Telemetry", func(t *testing.T) {
@@ -258,7 +253,6 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 			})
 
 			tc.applyImpairmentFn()
-			defer tc.removeImpairmentFn()
 
 			t.Run("Validate Backup Path Traffic Delivery", func(t *testing.T) {
 				if deviations.BackupNHGRequiresVrfWithDecap(dut) {
@@ -267,6 +261,9 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 					tcArgs.validateTrafficFlows(t, ate, ateTop, backupFlow, baselineFlow)
 				}
 			})
+
+			tc.removeImpairmentFn()
+			time.Sleep(5 * time.Second)
 		})
 	}
 }
@@ -416,7 +413,6 @@ func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix, ipAddress
 // validateTrafficFlows verifies that the good flow delivers traffic and the
 // bad flow does not deliver traffic.
 func (a *testArgs) validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, good, bad string) {
-
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
