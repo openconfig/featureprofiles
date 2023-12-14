@@ -35,6 +35,7 @@ import (
 const (
 	ethernetCsmacd         = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	transceiverType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
+	sensorType             = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR
 	sleepDuration          = time.Minute
 	minOpticsPower         = -40.0
 	maxOpticsPower         = 10.0
@@ -102,9 +103,24 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 				t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
 			}
 
-			v := gnmi.Lookup(t, dut, component.Temperature().Instant().State())
-			if _, ok := v.Val(); !ok {
-				t.Errorf("Transceiver %s: Temperature instant is not defined", transceiver)
+			subcomponents := gnmi.GetAll[*oc.Component_Subcomponent](t, dut, gnmi.OC().Component(transceiver).SubcomponentAny().State())
+			sensorComponentChecked := false
+			for _, s := range subcomponents {
+				sensorComponent := gnmi.Get[*oc.Component](t, dut, gnmi.OC().Component(s.GetName()).State())
+				if sensorComponent.GetType() == sensorType {
+					scomponent := gnmi.OC().Component(sensorComponent.GetName())
+					sensorComponentChecked = true
+					v := gnmi.Lookup(t, dut, scomponent.Temperature().Instant().State())
+					if _, ok := v.Val(); !ok {
+						t.Errorf("Sensor %s: Temperature instant is not defined", sensorComponent.GetName())
+					}
+				}
+			}
+			if len(subcomponents) == 0 || sensorComponentChecked == false {
+				v := gnmi.Lookup(t, dut, component.Temperature().Instant().State())
+				if _, ok := v.Val(); !ok {
+					t.Errorf("Transceiver %s: Temperature instant is not defined", transceiver)
+				}
 			}
 
 			if deviations.TransceiverThresholdsUnsupported(dut) {
