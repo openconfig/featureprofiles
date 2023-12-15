@@ -152,7 +152,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
 	} else {
 		dutlo0Attrs.IPv4 = ipv4Addrs[0].GetIp()
-		dutlo0Attrs.IPv6 = ipv4Addrs[0].GetIp()
+		dutlo0Attrs.IPv6 = ipv6Addrs[0].GetIp()
 		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 	}
