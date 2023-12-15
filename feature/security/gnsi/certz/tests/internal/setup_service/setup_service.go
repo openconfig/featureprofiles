@@ -40,10 +40,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	entityVersion = "one"
-)
-
 type rpcCredentials struct {
 	*creds.UserPass
 }
@@ -59,24 +55,28 @@ func (r *rpcCredentials) RequireTransportSecurity() bool {
 	return true
 }
 
-type EntityType int8
+type entityType int8
 
 const (
-	EntityTypeCertificateChain EntityType = 0
-	EntityTypeTrustBundle      EntityType = 1
-	EntityTypeCRL              EntityType = 2
-	EntityTypeAuthPolicy       EntityType = 3
+	// EntityTypeCertificateChain is type of entity of the certificate chain.
+	EntityTypeCertificateChain entityType = 0
+	// EntityTypeCertificateChain is type of entity of the trust bundle.
+	EntityTypeTrustBundle entityType = 1
+	// EntityTypeCertificateChain is type of entity of the CRL.
+	EntityTypeCRL entityType = 2
+	// EntityTypeCertificateChain is type of entity of the auth policy.
+	EntityTypeAuthPolicy entityType = 3
 )
 
 type CertificateChainRequest struct {
-	RequestType     EntityType
+	RequestType     entityType
 	ServerCertFile  string
 	ServerKeyFile   string
 	TrustBundleFile string
 }
 
-// function to create certificate entity of type certificate chain/trust bundle/CRL/Authpolicy.
-func CreateCertzEntity(t *testing.T, typeOfEntity EntityType, entityContent any) certzpb.Entity {
+// CreateCertzEntity function to create certificate entity of type certificate chain/trust bundle/CRL/Authpolicy.
+func CreateCertzEntity(t *testing.T, typeOfEntity entityType, entityContent any, entityVersion string) certzpb.Entity {
 
 	createdOnTime := time.Now()
 	varClock := uint64(createdOnTime.Unix())
@@ -116,7 +116,7 @@ func CreateCertzEntity(t *testing.T, typeOfEntity EntityType, entityContent any)
 	return certzpb.Entity{}
 }
 
-// function to get the certificate chain of type certificate chain/trust bundle.
+// CreateCertzChain function to get the certificate chain of type certificate chain/trust bundle.
 func CreateCertzChain(t *testing.T, certData CertificateChainRequest) certzpb.CertificateChain {
 
 	switch certData.RequestType {
@@ -166,7 +166,7 @@ func CreateCertzChain(t *testing.T, certData CertificateChainRequest) certzpb.Ce
 	return certzpb.CertificateChain{}
 }
 
-// function to create the certificate chain from trust bundle.
+// CreateCertChainFromTrustBundle function to create the certificate chain from trust bundle.
 func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 	pemData, err := os.ReadFile(fileName)
 	if err != nil {
@@ -215,7 +215,7 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 
 }
 
-// function to request the certz rotation and validate the certificates.
+// CertzRotate function to request the certz rotation and validate the certificates.
 func CertzRotate(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, cert tls.Certificate, certzClient certzpb.CertzClient, profileId string, serverName string, entities ...*certzpb.Entity) bool {
 
 	if len(entities) == 0 {
@@ -269,7 +269,7 @@ func CertzRotate(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, ce
 	return true
 }
 
-// function to validate the gNSI service RPC after successful rotation.
+// TestGnsi function to validate the gNSI service RPC after successful rotation.
 func TestGnsi(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
@@ -305,7 +305,7 @@ func TestGnsi(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, san, 
 	return true
 }
 
-// function to validate the gNOI service RPC after successful rotation.
+// TestGnoi function to validate the gNOI service RPC after successful rotation.
 func TestGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
@@ -336,7 +336,7 @@ func TestGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	return true
 }
 
-// function to validate the gNMI service RPC after successful rotation.
+// TestGnmi function to validate the gNMI service RPC after successful rotation.
 func TestGnmi(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
@@ -398,7 +398,7 @@ func TestGnmi(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, san, 
 	return true
 }
 
-// function to validate the gRIBI service RPC after successful rotation.
+// TestGribi function to validate the gRIBI service RPC after successful rotation.
 func TestGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
@@ -428,7 +428,7 @@ func TestGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, p
 	return true
 }
 
-// function to validate the P4rt service RPC after successful rotation.
+// TestP4rt function to validate the P4rt service RPC after successful rotation.
 func TestP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
@@ -458,8 +458,8 @@ func TestP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	return true
 }
 
-// function to do a validation of gNMI/gNOI/gRIBI/p4RT services before certz rotation.
-func PreInitCheck(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context) bool {
+// PreInitCheck function to do a validation of gNMI/gNOI/gRIBI/p4RT services before certz rotation.
+func PreInitCheck(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) bool {
 
 	gnmiC, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
@@ -484,7 +484,7 @@ func PreInitCheck(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context) boo
 	return true
 }
 
-// function to do a validation of all services after certz rotation.
+// PostValidationCheck function to do a validation of all services after certz rotation.
 func PostValidationCheck(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	if !TestGnsi(t, dut, caCert, san, serverAddr, username, password, cert) {

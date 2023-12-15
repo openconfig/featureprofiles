@@ -37,24 +37,7 @@ var (
 	password    = "certzpswd"
 )
 
-type EntityType int8
-
-/*type rpcCredentials struct {
-	*creds.UserPass
-}
-
-func (r *rpcCredentials) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{
-		"username": username,
-		"password": password,
-	}, nil
-}
-
-func (r *rpcCredentials) RequireTransportSecurity() bool {
-	return true
-}*/
-
-// function to add an user in admin role.
+// createUser function to add an user in admin role.
 func createUser(t *testing.T, dut *ondatra.DUTDevice, user, pswd string) bool {
 	ocUser := &oc.System_Aaa_Authentication_User{
 		Username: ygot.String(user),
@@ -69,8 +52,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Certz1.1
-// Test that client certificates from a set of one CA are able to be validated and
+// TestClientCertTcOne Test that client certificates from a set of one CA are able to be validated and
 // used for authentication to a device when used by a client connecting to each
 // gRPC service.
 
@@ -85,7 +67,7 @@ func TestClientCertTcOne(t *testing.T) {
 	}
 
 	t.Logf("Validation of all services that are using gRPC before certz rotation.")
-	initCheck := setup_service.PreInitCheck(t, dut, context.Background())
+	initCheck := setup_service.PreInitCheck(context.Background(), t, dut)
 	if !initCheck {
 		t.Fatalf("Failed in the preInit checks.")
 	}
@@ -95,7 +77,7 @@ func TestClientCertTcOne(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create gNSI Connection %v", err)
 	}
-	t.Logf("Precheck:gNSI connection is successful%v", gnsiC)
+	t.Logf("Precheck:gNSI connection is successful %v", gnsiC)
 
 	cases := []struct {
 		desc             string
@@ -194,10 +176,10 @@ func TestClientCertTcOne(t *testing.T) {
 				ServerCertFile: tc.serverCertzFile,
 				ServerKeyFile:  tc.serverKeyzFile})
 
-			serverCertEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeCertificateChain, &serverCert)
+			serverCertEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeCertificateChain, &serverCert, "one")
 
 			trustCertChain := setup_service.CreateCertChainFromTrustBundle(tc.trustBundlezFile)
-			trustBundleEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeTrustBundle, trustCertChain)
+			trustBundleEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeTrustBundle, trustCertChain, "two")
 
 			cert, err := tls.LoadX509KeyPair(tc.clientCertzFile, tc.clientKeyzFile)
 			if err != nil {
@@ -218,8 +200,8 @@ func TestClientCertTcOne(t *testing.T) {
 			if !success {
 				t.Fatalf("%s:Certz/Rotate failed.", tc.desc)
 			}
-
 			t.Logf("%s:successfully completed second certz/Rotate!", tc.desc)
+
 			// Verification check of the new connection with the new rotated certificates.
 			t.Run("Verification of fresh new connection after successful rotate ", func(t *testing.T) {
 				result := setup_service.PostValidationCheck(t, dut, cacert, san, serverAddr, username, password, cert)
