@@ -178,27 +178,27 @@ func convertOCPath(ocpathProto *ppb.OCPath) *OCPath {
 // ValidatePaths parses and validates ocpaths, and puts them into a more
 // user-friendly Go structure.
 //
-// The first set of paths are all paths, and the second only contain invalid paths.
-func ValidatePaths(ocpathsProto []*ppb.OCPath, publicPath string) (map[OCPathKey]*OCPath, map[OCPathKey]struct{}, error) {
+// The first set of paths contain only valid path, while the second contain only invalid paths.
+func ValidatePaths(ocpathsProto []*ppb.OCPath, publicPath string) (map[OCPathKey]*OCPath, map[OCPathKey]*OCPath, error) {
 	root, err := getSchemaFakeroot(publicPath)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	ocpaths := map[OCPathKey]*OCPath{}
-	invalidOCPaths := map[OCPathKey]struct{}{}
+	invalidOCPaths := map[OCPathKey]*OCPath{}
 	errs := errlist.List{
 		Separator: "\n",
 	}
 	for _, ocpathProto := range ocpathsProto {
 		ocpath := convertOCPath(ocpathProto)
-		if err := validatePath(ocpath, root); err != nil {
-			errs.Add(err)
-			if ocpath != nil && ocpath.Key.Path != "" {
-				invalidOCPaths[ocpath.Key] = struct{}{}
-			}
-		} else if ocpath == nil {
+		if ocpath == nil {
 			errs.Add(fmt.Errorf("failed to parse proto: %v", ocpathProto))
+		} else if err := validatePath(ocpath, root); err != nil {
+			errs.Add(err)
+			if ocpath != nil {
+				invalidOCPaths[ocpath.Key] = ocpath
+			}
 		} else if err := insert(ocpaths, ocpath); err != nil {
 			errs.Add(err)
 		}

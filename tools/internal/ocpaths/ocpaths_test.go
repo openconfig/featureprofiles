@@ -183,7 +183,7 @@ func TestValidatePaths(t *testing.T) {
 		desc           string
 		inOcPathsProto []*ppb.OCPath
 		wantOCPaths    map[OCPathKey]*OCPath
-		wantInvalids   map[OCPathKey]struct{}
+		wantInvalids   map[OCPathKey]*OCPath
 		wantErr        bool
 	}{{
 		desc: "valid",
@@ -236,11 +236,16 @@ func TestValidatePaths(t *testing.T) {
 			Name:             "/interfaces/interface/config",
 			Featureprofileid: "interface_base",
 		}},
-		wantInvalids: map[OCPathKey]struct{}{
+		wantInvalids: map[OCPathKey]*OCPath{
 			{
 				Path:      "/interfaces/interface/config",
 				Component: "",
-			}: {},
+			}: {
+				Key: OCPathKey{
+					Path: "/interfaces/interface/config",
+				},
+				FeatureprofileID: "interface_base",
+			},
 		},
 		wantErr: true,
 	}, {
@@ -281,11 +286,16 @@ func TestValidatePaths(t *testing.T) {
 				FeatureprofileID: "interface_base",
 			},
 		},
-		wantInvalids: map[OCPathKey]struct{}{
+		wantInvalids: map[OCPathKey]*OCPath{
 			{
 				Path:      "/interfaces/interface/config",
 				Component: "",
-			}: {},
+			}: {
+				Key: OCPathKey{
+					Path: "/interfaces/interface/config",
+				},
+				FeatureprofileID: "interface_base",
+			},
 		},
 		wantErr: true,
 	}}
