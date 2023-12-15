@@ -63,10 +63,10 @@ func TestMPLSPushToIP(t *testing.T) {
 
 	baseLabel := 42
 	numLabels := 20
-	for i := 1; i <= numLabels; i++ {
-		t.Run(fmt.Sprintf("TE-9.2: Push MPLS labels to IP packet: %d labels", i), func(t *testing.T) {
+	for labelc := 1; labelc <= numLabels; labelc++ {
+		t.Run(fmt.Sprintf("TE-9.2: Push MPLS labels to IP packet: %d labels", labelc), func(t *testing.T) {
 			labels := []uint32{}
-			for i := 0; i < numLabels; i++ {
+			for i := 0; i < labelc; i++ {
 				labels = append(labels, uint32(baseLabel+i))
 			}
 			mplsT := mplsutil.New(c, mplsutil.PushToIP, deviations.DefaultNetworkInstance(dut), &mplsutil.Args{
@@ -93,6 +93,7 @@ func TestPopTopLabel(t *testing.T) {
 		mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
 		mplsT.ProgramGRIBI(t)
 		mplsT.ValidateProgramming(t)
+		mplsT.Cleanup(t)
 	})
 }
 

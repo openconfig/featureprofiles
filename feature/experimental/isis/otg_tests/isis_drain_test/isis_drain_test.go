@@ -164,37 +164,53 @@ func configDstMemberDUT(dut *ondatra.DUTDevice, i *oc.Interface, p *ondatra.Port
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// configure port 1
 	p1 := dut.Port(t, "port1")
-	p1Name := p1.Name()
 
-	i1 := &oc.Interface{Name: ygot.String(p1Name)}
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	configSrcDUT(dut, i1, &dutPort1)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p1Name).Config(), i1)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), i1)
 
 	// configure port 2 / trunk 2
 	p2 := dut.Port(t, "port2")
-	p2Name := p2.Name()
-
 	agg2ID = netutil.NextAggregateInterface(t, dut)
 	agg2 := &oc.Interface{Name: ygot.String(agg2ID)}
 	configDstAggregateDUT(dut, agg2, &dutPort2)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(agg2ID).Config(), agg2)
-
-	i2 := &oc.Interface{Name: ygot.String(p2Name)}
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	configDstMemberDUT(dut, i2, p2, agg2ID)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p2Name).Config(), i2)
+	t.Logf("Adding port: %s to Aggregate: %s", p2.Name(), agg2ID)
+	switch {
+	case deviations.AggregateAtomicUpdate(dut):
+		b := &gnmi.SetBatch{}
+		gnmi.BatchDelete(b, gnmi.OC().Interface(agg2ID).Aggregation().MinLinks().Config())
+		gnmi.BatchDelete(b, gnmi.OC().Interface(p2.Name()).Ethernet().AggregateId().Config())
+		gnmi.BatchReplace(b, gnmi.OC().Interface(agg2ID).Config(), agg2)
+		gnmi.BatchReplace(b, gnmi.OC().Interface(p2.Name()).Config(), i2)
+		b.Set(t, dut)
+	default:
+		gnmi.Replace(t, dut, gnmi.OC().Interface(agg2ID).Config(), agg2)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), i2)
+	}
 
 	// configure port 3 / trunk 3
 	p3 := dut.Port(t, "port3")
-	p3Name := p3.Name()
-
 	agg3ID = netutil.NextAggregateInterface(t, dut)
 	agg3 := &oc.Interface{Name: ygot.String(agg3ID)}
 	configDstAggregateDUT(dut, agg3, &dutPort3)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(agg3ID).Config(), agg3)
-
-	i3 := &oc.Interface{Name: ygot.String(p3Name)}
+	i3 := &oc.Interface{Name: ygot.String(p3.Name())}
 	configDstMemberDUT(dut, i3, p3, agg3ID)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p3Name).Config(), i3)
+	t.Logf("Adding port: %s to Aggregate: %s", p3.Name(), agg3ID)
+
+	switch {
+	case deviations.AggregateAtomicUpdate(dut):
+		b := &gnmi.SetBatch{}
+		gnmi.BatchDelete(b, gnmi.OC().Interface(agg3ID).Aggregation().MinLinks().Config())
+		gnmi.BatchDelete(b, gnmi.OC().Interface(p3.Name()).Ethernet().AggregateId().Config())
+		gnmi.BatchReplace(b, gnmi.OC().Interface(agg3ID).Config(), agg3)
+		gnmi.BatchReplace(b, gnmi.OC().Interface(p3.Name()).Config(), i3)
+		b.Set(t, dut)
+	default:
+		gnmi.Replace(t, dut, gnmi.OC().Interface(agg3ID).Config(), agg3)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Config(), i3)
+	}
 
 	// handle deviations for ports and lags
 	if deviations.ExplicitPortSpeed(dut) {
@@ -202,6 +218,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			fptest.SetPortSpeed(t, port)
 		}
 	}
+
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
@@ -228,7 +246,7 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalISIS.SetMaxEcmpPaths(2)
+
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)
 
@@ -287,7 +305,7 @@ func configureATE(t *testing.T, ate *otg.OTG) gosnappi.Config {
 	lag2.Protocol().SetChoice("static").Static().SetLagId(2)
 	lag2.Ports().Add().SetPortName(p2.Name()).Ethernet().SetMac(lag2MAC).SetName("LAGRx-2")
 
-	lag2Dev := cfg.Devices().Add().SetName(lag2.Name())
+	lag2Dev := cfg.Devices().Add().SetName(lag2.Name() + ".Dev")
 	lag2Eth := lag2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
 	lag2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetLagName(lag2.Name())
 	lag2IPv4 := lag2Eth.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4")
@@ -300,7 +318,7 @@ func configureATE(t *testing.T, ate *otg.OTG) gosnappi.Config {
 	lag3.Protocol().SetChoice("static").Static().SetLagId(3)
 	lag3.Ports().Add().SetPortName(p3.Name()).Ethernet().SetMac(lag3MAC).SetName("LAGRx-3")
 
-	lag3Dev := cfg.Devices().Add().SetName(lag3.Name())
+	lag3Dev := cfg.Devices().Add().SetName(lag3.Name() + ".Dev")
 	lag3Eth := lag3Dev.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetMac(atePort3.MAC)
 	lag3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetLagName(lag3.Name())
 	lag3IPv4 := lag3Eth.Ipv4Addresses().Add().SetName(atePort3.Name + ".IPv4")
@@ -353,6 +371,13 @@ func changeMetric(t *testing.T, dut *ondatra.DUTDevice, intf string, metric uint
 	isisIntfLevelAfiv4.Metric = ygot.Uint32(metric)
 	isisIntfLevelAfiv6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisIntfLevelAfiv6.Metric = ygot.Uint32(metric)
+	if deviations.ISISRequireSameL1MetricWithL2Metric(dut) {
+		l1 := isis.GetOrCreateInterface(intf).GetOrCreateLevel(1)
+		l1V4 := l1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		l1V4.Metric = ygot.Uint32(metric)
+		l1V6 := l1.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		l1V6.Metric = ygot.Uint32(metric)
+	}
 	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 }
 

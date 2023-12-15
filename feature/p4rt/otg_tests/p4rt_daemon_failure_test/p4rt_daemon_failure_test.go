@@ -311,7 +311,7 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	watchName, ok := subscribeOnChangeInterfaceName(t, dut, p1).Await(t)
 	if !ok {
-		t.Fatalf("FAIL:  /interfaces/interface[name=%q]/state/name got:%v want:%q", p1.Name(), watchName, p1.Name())
+		t.Fatalf("/interfaces/interface[name=%q]/state/name got:%v want:%q", p1.Name(), watchName, p1.Name())
 	}
 
 	// Subscribe ON_CHANGE to '/interfaces/interface/state/id'.
