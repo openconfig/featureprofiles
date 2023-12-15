@@ -144,15 +144,21 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
-	ipv4Addrs := gnmi.GetAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.GetAll(t, dut, lo0.Ipv6().AddressAny().State())
+	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
 	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
 		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
 		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
 	} else {
-		dutlo0Attrs.IPv4 = ipv4Addrs[0].GetIp()
-		dutlo0Attrs.IPv6 = ipv6Addrs[0].GetIp()
+		v4, ok := ipv4Addrs[0].Val()
+		if ok {
+			dutlo0Attrs.IPv4 = v4.GetIp()
+		}
+		v6, ok := ipv6Addrs[0].Val()
+		if ok {
+			dutlo0Attrs.IPv6 = v6.GetIp()
+		}
 		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 	}
