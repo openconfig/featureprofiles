@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/feature/security/gnsi/certz/internal/setup_service"
+	"github.com/openconfig/featureprofiles/feature/security/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
