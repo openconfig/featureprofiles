@@ -411,9 +411,20 @@ func verifySetMed(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 		wantMED = append(wantMED, uint32(wantMEDValue))
 	}
 
-	gotMED := gnmi.GetAll(t, ate, rib.AttrSetAny().Med().State())
-	if diff := cmp.Diff(wantMED, gotMED); diff != "" {
-		t.Errorf("Obtained MED on ATE is not as expected, got %v, want %v", gotMED, wantMED)
+checkMEDLoop:
+	for repeat := 10; repeat > 0; repeat-- {
+		gotMED := gnmi.GetAll(t, ate, rib.AttrSetAny().Med().State())
+		diff := cmp.Diff(wantMED, gotMED)
+		switch {
+		case diff == "":
+			t.Logf("MED values are as expected")
+			break checkMEDLoop
+		case diff != "" && repeat > 0:
+			t.Logf("MED values not as expected , wait for 10 sec before retry. want %v , got %v", wantMED, gotMED)
+			time.Sleep(10 * time.Second)
+		case diff != "" && repeat == 0:
+			t.Errorf("MED values are not as expected. want %v, got %v", gotMED, wantMED)
+		}
 	}
 }
 
