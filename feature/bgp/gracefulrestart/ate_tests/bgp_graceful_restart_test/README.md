@@ -2,7 +2,12 @@
 
 ## Summary
 
-BGP Graceful Restart
+This is to test the BGP graceful restart capability for BGP. A router that supports BGP graceful restart can work either as a Restarting speaker mode or in helper mode. By advertising BGP graceful restart capability, a router announces to the peer its ability to,
+1.  [Restarting Speaker] Maintain forwarding state on all the routes in its FIB even when its BGP process is restarting. Therefore the peer functioning as a helper should continue to direct flows at the subject router undergoing BGP process restart.
+2.  [Helper Router] Support a peer whose BGP process is restarting by continuing to direct flows at the peer.
+
+While testing for the above, this test also confirms that the implementation respects stale-routes-time timer setting.
+
 
 ## Topology
 Create the following connections:
