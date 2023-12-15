@@ -1,3 +1,17 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package ipv4_entry_with_aggregate_ports_test
 
 import (
@@ -194,23 +208,27 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 func configureGRIBIPrefixes(t *testing.T, dut *ondatra.DUTDevice, aggID string) {
 	t.Helper()
 
-	// Static route to nh1IPAddr which is the ATE Lag port.
-	s := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(nh1IpAddr + "/32"),
-		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
-			"0": {
-				Index: ygot.String("0"),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(aggID),
+	e1 := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithIndex(nh1ID).WithInterfaceRef(aggID).WithMacAddress(staticDstMAC)
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) || deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		// Static route to nh1IPAddr which is the ATE Lag port.
+		s := &oc.NetworkInstance_Protocol_Static{
+			Prefix: ygot.String(nh1IpAddr + "/32"),
+			NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+				"0": {
+					Index: ygot.String("0"),
+					InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+						Interface: ygot.String(aggID),
+					},
 				},
 			},
-		},
+		}
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		gnmi.Replace(t, dut, sp.Static(nh1IpAddr+"/32").Config(), s)
+		e1 = fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(nh1ID).WithInterfaceRef(aggID).WithIPAddress(nh1IpAddr).WithMacAddress(staticDstMAC)
 	}
-	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	gnmi.Replace(t, dut, sp.Static(nh1IpAddr+"/32").Config(), s)
 
-	e1 := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		WithIndex(nh1ID).WithInterfaceRef(aggID).WithIPAddress(nh1IpAddr).WithMacAddress(staticDstMAC)
 	e2 := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithID(nhgID).AddNextHop(nh1ID, 1)
 	e3 := fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
