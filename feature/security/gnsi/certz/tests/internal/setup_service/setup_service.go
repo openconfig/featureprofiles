@@ -216,7 +216,7 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 }
 
 // CertzRotate function to request the certz rotation and validate the certificates.
-func CertzRotate(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, cert tls.Certificate, certzClient certzpb.CertzClient, profileId string, serverName string, entities ...*certzpb.Entity) bool {
+func CertzRotate(t *testing.T, certzClient certzpb.CertzClient, profileId string, entities ...*certzpb.Entity) bool {
 
 	if len(entities) == 0 {
 		t.Logf("At least one entity required for Rotate request.")
@@ -270,7 +270,7 @@ func CertzRotate(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, ce
 }
 
 // TestGnsi function to validate the gNSI service RPC after successful rotation.
-func TestGnsi(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+func TestGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
@@ -337,7 +337,7 @@ func TestGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 }
 
 // TestGnmi function to validate the gNMI service RPC after successful rotation.
-func TestGnmi(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+func TestGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
@@ -487,11 +487,11 @@ func PreInitCheck(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) boo
 // PostValidationCheck function to do a validation of all services after certz rotation.
 func PostValidationCheck(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
-	if !TestGnsi(t, dut, caCert, san, serverAddr, username, password, cert) {
+	if !TestGnsi(t, caCert, san, serverAddr, username, password, cert) {
 		t.Fatalf("Could not create new gNSI Connection.")
 	}
 	t.Logf("New gNSI connection successfully completed")
-	if !TestGnmi(t, dut, caCert, san, serverAddr, username, password, cert) {
+	if !TestGnmi(t, caCert, san, serverAddr, username, password, cert) {
 		t.Fatalf("Could not create new gNMI Connection.")
 	}
 	t.Logf("New gNMI connection successfully completed")
