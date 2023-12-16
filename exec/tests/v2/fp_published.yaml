@@ -99,7 +99,6 @@ tests:
     skip: false
     mustpass: true
     priority: 3
-    pr: 2314
   - name: TE-6.1 (Route Removal via Flush)
     path: feature/gribi/otg_tests/route_removal_via_flush_test
     owners:
@@ -126,7 +125,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2314
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -163,7 +161,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2314
   - name: gNOI-4.1 (Software Upgrade)
     path: feature/gnoi/os/tests/osinstall
     owners:
@@ -296,14 +293,12 @@ tests:
       - sprem
     mustpass: true
     priority: 30
-    pr: 2314
   - name: RT-3.1 (Policy based VRF selection)
     path: feature/experimental/policy/policy_vrf_selection/otg_tests/base_vrf_selection
     owners:
       - sprem
     mustpass: true
     priority: 30
-    pr: 2314
   - name: RT-5.1 (Singleton Interface)
     path: feature/interface/singleton/otg_tests/singleton_test
     timeout: 7200
@@ -347,6 +342,7 @@ tests:
     mustpass: false
     priority: 37
     skip: false
+    timeout: 4200
   - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace)
     path: feature/system/gnmi/metadata/tests/annotation_test
     owners:
@@ -642,7 +638,14 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
-    pr: 2345
+  - name: AUTHZFP (Authz Functional Tests with spiffe id)
+    path: feature/security/gnsi/authz/tests
+    args:
+      - '-test_infra_id="cafyauto"'
+    mustpass: true
+    timeout: 21000
+    owners:
+      - harikri4
     
   #?
   - name: Health-1.1 (Generic Health Check)
