@@ -38,6 +38,7 @@ B -- IBGP --> C[Port2:ATE];
           *   Forwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
           *   Dropped after the stale routes timer has expired.
           *   Forwarded again between ATE port-1 and DUT port-1 after the session is re-established.
+     *   Conduct the above steps once for the EBGP peering and once for the IBGP peering
 
 
 **RT-1.4.3: Restarting DUT speaker whose BGP process was killed abruptly**
