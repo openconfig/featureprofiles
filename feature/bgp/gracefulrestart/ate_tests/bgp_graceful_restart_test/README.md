@@ -35,7 +35,7 @@ B -- IBGP --> C[Port2:ATE];
 *   Trigger DUT session restart by killing the BGP process in the DUT. Please use the `gNOI.killProcessRequest_Signal_Term` as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/system/system.proto#L326).
      *   Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista and Cisco this is the `BGP` process. For Nokia this is `sr_bgp_mgr`.
      *   Once the process is killied, verify that the packets are:
-          *   Forrwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
+          *   Forwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
           *   Dropped after the stale routes timer has expired.
           *   Forwarded again between ATE port-1 and DUT port-1 after the session is re-established.
 
@@ -70,7 +70,7 @@ The origial RFC4724 had no coverage for Graceful restart for BGP notification me
 *   Advertise prefixes between the ATE ports, through the DUT. 
 *   Trigger BGP soft Notification from DUT. Please use the `gNOI.ClearBGPNeighborRequest_Soft` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L41).
      *   Once the Notification is sent by the DUT, ensure that the BGP peering is up as well as verify that the packets are:
-          *   Forrwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
+          *   Forwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
           *   Dropped after the stale routes timer has expired.
           *   Forwarded again between ATE port-1 and DUT port-1 after the session is re-established.
      *   Test the above procedure on the IBGP peering between DUT port-2 and ATE port-2
@@ -79,7 +79,7 @@ The origial RFC4724 had no coverage for Graceful restart for BGP notification me
 *   Advertise prefixes between the ATE ports, through the DUT. 
 *   Trigger BGP soft Notification from ATE port1. Please use the `gNOI.ClearBGPNeighborRequest_Soft` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L41).
      *   Once the Notification is sent to the DUT, verify that the packets are:
-          *   Forrwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
+          *   Forwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
           *   Dropped after the stale routes timer has expired.
           *   Forwarded again between ATE port-1 and DUT port-1 after the session is re-established.
      *   Test the above procedure on the IBGP peering between DUT port-2 and ATE port-2
