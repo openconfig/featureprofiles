@@ -24,7 +24,7 @@ B -- IBGP --> C[Port2:ATE];
 *   Configure IBGP peering between ATE:Port2 and DUT:Port2
 *   Ensure that the EBGP and IBGP peering are setup for IPv4-Unicast and IPv6-unicast AFI-SAFIs. Total 2xpeer-groups (1 per protocol) with 1 BGP session each.  
 *   Enable `Graceful-Restart` capability at the `Peer-Group` level.
-*   Ensure that the `restart-time` and the `stale-routes-time` are configured at the `Global` level
+*   Ensure that the `restart-time` and the `stale-routes-time` are configured at the `Global` level. The `stale-routes-time` should be set at a value less than the BGP Holddown timer.
 *   Configure allow route-policy under BGP peer-group address-family
 *   Validate received capabilities at DUT and ATE reflect support for graceful
      restart.
@@ -34,10 +34,10 @@ B -- IBGP --> C[Port2:ATE];
 *   Advertise prefixes between the ATE ports, through the DUT. 
 *   Trigger DUT session restart by killing the BGP process in the DUT. Please use the `gNOI.killProcessRequest_Signal_Term` as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/system/system.proto#L326).
      *   Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista and Cisco this is the `BGP` process. For Nokia this is `sr_bgp_mgr`.
-     *   Once the process is killied, verify that the packets are:
-          *   Forwarded between ATE port-1 and DUT port-1 for the duration of the specified stale routes time.
-          *   Dropped after the stale routes timer has expired.
-          *   Forwarded again between ATE port-1 and DUT port-1 after the session is re-established.
+     *   Once the BGP process on DUT is killied, stop BGP packets from ATE end to delay the BGP reestablishment and start regular traffic from ATE and verify that the packets are,
+          *   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified stale routes time. Before the stale routes timer expires, take a count of the transmitted and received packets to ensure zero packet loss.
+          *   After the stale routes timer expires, there should be 100% packet loss.
+     *   Stop traffic and wait for the BGP session w/ ATE to be reestablished. Once established, restart traffic to ensure that packets are forwarded again between ATE port-1 and ATE port2 and there is zero packet loss.
      *   Conduct the above steps once for the EBGP peering and once for the IBGP peering
 
 
