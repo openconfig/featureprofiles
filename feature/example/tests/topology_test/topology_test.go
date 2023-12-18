@@ -65,7 +65,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 		if li == lj {
 			return idi < idj
 		}
-		return li < lj // "port2" < "port10"
+		return li < lj // "port2" < "port10" test
 	})
 	return ports
 }
