@@ -684,7 +684,7 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
         ate['gnmi'] = {
             'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=otg_info['gnmi_port']),
             'skip_verify': True,
-            'timeout': 30
+            'timeout': 60
         }
 
         if 'ixnetwork' in ate:
