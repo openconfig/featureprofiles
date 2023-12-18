@@ -45,7 +45,6 @@ func merge(bopts ...*bindpb.Options) *bindpb.Options {
 	return result
 }
 
-// resolver returns the dialer for specific devices and protocols.
 type resolver struct {
 	*bindpb.Binding
 }
