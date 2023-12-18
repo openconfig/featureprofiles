@@ -26,3 +26,4 @@ platform_exceptions: {
     bgp_set_med_requires_equal_ospf_set_metric: true
   }
 }
+tags: TAGS_AGGREGATION
