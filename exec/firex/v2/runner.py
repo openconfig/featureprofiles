@@ -586,16 +586,6 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         #     shutil.copyfile(self.console_output_file, json_results_file)
         
         suite = _get_testsuite_from_xml(xml_results_file)
-        # TODO: run anyway if there is no errors
-       
-        self.enqueue_child(CollectDebugFiles.s(
-            ws=ws,
-            internal_fp_repo_dir=internal_fp_repo_dir, 
-            reserved_testbed=reserved_testbed, 
-            test_log_directory_path=test_log_directory_path,
-            timestamp=start_timestamp,
-            core=True
-        ))
         if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
             if collect_debug_files and suite.attrib['failures'] != '0':
@@ -606,6 +596,15 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     test_log_directory_path=test_log_directory_path,
                     timestamp=start_timestamp,
                     core=False
+                ))
+            else:
+                self.enqueue_child(CollectDebugFiles.s(
+                    ws=ws,
+                    internal_fp_repo_dir=internal_fp_repo_dir, 
+                    reserved_testbed=reserved_testbed, 
+                    test_log_directory_path=test_log_directory_path,
+                    timestamp=start_timestamp,
+                    core=True
                 ))
         elif test_ignore_aborted or test_skip:
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
