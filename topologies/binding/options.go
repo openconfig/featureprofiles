@@ -18,7 +18,9 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/openconfig/featureprofiles/topologies/proto/binding"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/ondatra/binding/introspect"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -32,7 +34,35 @@ var (
 	p4rtPort    = flag.Int("p4rt_port", 9559, "default P4RT part")
 	ateGNMIPort = flag.Int("ate_gnmi_port", 50051, "default ATE gNMI port")
 	ateOTGPort  = flag.Int("ate_grpc_port", 40051, "default ATE gRPC port for running OTG test")
+
+	serviceToParams = map[introspect.Service]*svcParams{
+		introspect.GNMI: {
+			port:   *gnmiPort,
+			optsFn: (*binding.Device).GetGnmi,
+		},
+		introspect.GNOI: {
+			port:   *gnoiPort,
+			optsFn: (*binding.Device).GetGnoi,
+		},
+		introspect.GNSI: {
+			port:   *gnsiPort,
+			optsFn: (*binding.Device).GetGnsi,
+		},
+		introspect.GRIBI: {
+			port:   *gribiPort,
+			optsFn: (*binding.Device).GetGribi,
+		},
+		introspect.P4RT: {
+			port:   *p4rtPort,
+			optsFn: (*binding.Device).GetP4Rt,
+		},
+	}
 )
+
+type svcParams struct {
+	port   int
+	optsFn func(*binding.Device) *bindpb.Options
+}
 
 // merge creates combines one or more options into one set of options.
 func merge(bopts ...*bindpb.Options) *bindpb.Options {
@@ -69,29 +99,10 @@ func (r *resolver) ateByID(ateID string) *bindpb.Device {
 	return nil
 }
 
-func (r *resolver) gnmi(dev *bindpb.Device) *bindpb.Options {
-	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, *gnmiPort)}
-	return merge(targetOpts, r.Options, dev.Options, dev.Gnmi)
-}
-
-func (r *resolver) gnoi(dev *bindpb.Device) *bindpb.Options {
-	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, *gnoiPort)}
-	return merge(targetOpts, r.Options, dev.Options, dev.Gnoi)
-}
-
-func (r *resolver) gnsi(dev *bindpb.Device) *bindpb.Options {
-	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, *gnsiPort)}
-	return merge(targetOpts, r.Options, dev.Options, dev.Gnsi)
-}
-
-func (r *resolver) gribi(dev *bindpb.Device) *bindpb.Options {
-	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, *gribiPort)}
-	return merge(targetOpts, r.Options, dev.Options, dev.Gribi)
-}
-
-func (r *resolver) p4rt(dev *bindpb.Device) *bindpb.Options {
-	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, *p4rtPort)}
-	return merge(targetOpts, r.Options, dev.Options, dev.P4Rt)
+func (r *resolver) grpc(dev *bindpb.Device, svc introspect.Service) *bindpb.Options {
+	params := serviceToParams[svc]
+	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, params.port)}
+	return merge(targetOpts, r.Options, dev.Options, params.optsFn(dev))
 }
 
 func (r *resolver) ssh(dev *bindpb.Device) *bindpb.Options {
