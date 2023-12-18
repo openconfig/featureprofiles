@@ -196,7 +196,7 @@ func TestClientCertTcOne(t *testing.T) {
 			}
 
 			certzClient := gnsiC.Certz()
-			success := setup_service.CertzRotate(t,certzClient, testProfile, &serverCertEntity, &trustBundleEntity)
+			success := setup_service.CertzRotate(t, certzClient, testProfile, &serverCertEntity, &trustBundleEntity)
 			if !success {
 				t.Fatalf("%s:Certz/Rotate failed.", tc.desc)
 			}
