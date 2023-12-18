@@ -145,7 +145,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
 	loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
 	loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-	gnmi.Replace(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
+	gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
