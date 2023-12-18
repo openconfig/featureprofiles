@@ -304,7 +304,7 @@ func TestValidatePaths(t *testing.T) {
 		t.Run(tt.desc, func(t *testing.T) {
 			got, gotInvalids, err := ValidatePaths(tt.inOcPathsProto, "testdata/models")
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("gotErr: %v, wantErr: %v", err, tt.wantErr)
+				t.Errorf("gotErr: %v, wantErr: %v", err, tt.wantErr)
 			}
 
 			if diff := cmp.Diff(tt.wantOCPaths, got); diff != "" {
