@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package setup_service is scoped only to be used for scripts in path
+// Package setupservice is scoped only to be used for scripts in path
 // feature/security/gnsi/certz/tests/client_certificates
 // Do not use elsewhere.
 package setupservice
@@ -220,7 +220,7 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 }
 
 // CertzRotate function to request the certz rotation and validate the certificates.
-func CertzRotate(t *testing.T, certzClient certzpb.CertzClient, profileId string, entities ...*certzpb.Entity) bool {
+func CertzRotate(t *testing.T, certzClient certzpb.CertzClient, profileID string, entities ...*certzpb.Entity) bool {
 
 	if len(entities) == 0 {
 		t.Logf("At least one entity required for Rotate request.")
@@ -230,7 +230,7 @@ func CertzRotate(t *testing.T, certzClient certzpb.CertzClient, profileId string
 	rotateRequest := &certzpb.RotateCertificateRequest_Certificates{Certificates: uploadRequest}
 	rotateCertRequest := &certzpb.RotateCertificateRequest{
 		ForceOverwrite: false,
-		SslProfileId:   profileId,
+		SslProfileId:   profileID,
 		RotateRequest:  rotateRequest}
 	rotateRequestClient, err := certzClient.Rotate(context.Background())
 	defer rotateRequestClient.CloseSend()
@@ -259,7 +259,7 @@ func CertzRotate(t *testing.T, certzClient certzpb.CertzClient, profileId string
 	finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
 	rotateCertRequest = &certzpb.RotateCertificateRequest{
 		ForceOverwrite: false,
-		SslProfileId:   profileId,
+		SslProfileId:   profileID,
 		RotateRequest:  finalizeRequest}
 
 	err = rotateRequestClient.Send(rotateCertRequest)
