@@ -55,7 +55,7 @@ B -- IBGP --> C[Port2:ATE];
  
 **RT-1.4.5: DUT Helper for a restarting EBGP speaker whose BGP process was killed abruptly**
 *   Advertise prefixes between the ATE ports through the DUT. Use `gNOI.killProcessRequest_Signal_KILL` as per `gNOI proto` to ATE:Port1.
-*   Once the BGP process on DUT is killied, configure ATE to delay the BGP reestablishment for a period longer than the `stale-routes-time` and start regular traffic from ATE and verify that the packets are,
+*   Once the BGP process on DUT is killed, configure ATE to delay the BGP reestablishment for a period longer than the `stale-routes-time` and start regular traffic from ATE and verify that the packets are,
      *   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified `stale-routes-time`. Before the stale routes timer expires, stop traffic and ensure that there is zero packet loss.
      *   After the stale routes timer expires, restart traffic and confirm that there is 100% packet loss.
 *   Stop traffic, revert ATE configuration to start accepting/sending packets for BGP reestablishement from/to DUT and wait for the BGP session w/ ATE to be reestablished. Once established, restart traffic to ensure that packets are forwarded again between ATE port-1 and ATE port2 and there is zero packet loss.
