@@ -213,10 +213,8 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 			}
 		}
 		return bundleToReturn
-	} else {
-		return &certzpb.CertificateChain{}
 	}
-
+	return &certzpb.CertificateChain{}
 }
 
 // CertzRotate function to request the certz rotation and validate the certificates.
