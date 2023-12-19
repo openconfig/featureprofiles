@@ -1,5 +1,6 @@
 from firexapp.engine.celery import app
 from celery.utils.log import get_task_logger
+from celery.utils.log import get_task_logger
 from microservices.workspace_tasks import Warn
 from firexapp.common import silent_mkdir
 from firexapp.firex_subprocess import check_output
@@ -584,11 +585,14 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     finally:
         # if self.console_output_file and Path(self.console_output_file).is_file():
         #     shutil.copyfile(self.console_output_file, json_results_file)
-        
+        logger.debug("After running script")
         suite = _get_testsuite_from_xml(xml_results_file)
+        logger.info(f"suite: {suite}")
         if suite: 
+            logger.info(f"xml_results_file {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             shutil.copyfile(xml_results_file, xunit_results_filepath)
             if collect_debug_files and suite.attrib['failures'] != '0':
+                logger.debug("About to run runCOreFileCheck")
                 runCoreFileCheck(ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp)
                 # self.enqueue_child(CollectDebugFiles.s(
                 #     ws=ws,
@@ -608,9 +612,11 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     core=True
                 ))
         elif test_ignore_aborted or test_skip:
+            logger.debug("elif in ")
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
+        logger.info(f"xunit_results_filepath {xunit_results_filepath}")
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
@@ -621,8 +627,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 # run core files as new microservice and return the core files
 @app.task(bind=True)
 @returns('ret1', FireX.DYNAMIC_RETURN)
-def runCoreFileCheck(self, ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp):
-                
+def runCoreFileCheck(self, ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp,*args):
+    logger.print("Starting runCoreFileCheck")            
     ret1, orig_ret = self.enqueue_child_and_get_results(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
@@ -632,6 +638,7 @@ def runCoreFileCheck(self, ws,internal_fp_repo_dir,reserved_testbed,test_log_dir
                     core=False
                 ))
     print(f"After running core files I get this {ret1}")
+    logger.debug(f"After running core files I get this {ret1}")
     return ret1, orig_ret
 
 @app.task(bind=True, max_retries=5, autoretry_for=[git.GitCommandError])
