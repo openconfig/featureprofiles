@@ -714,3 +714,9 @@ func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
 }
+
+// ISISMetricStyleTelemetryUnsupported returns true for devices that do not support state path
+// /network-instances/network-instance/protocols/protocol/isis/levels/level/state/metric-style
+func ISISMetricStyleTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisMetricStyleTelemetryUnsupported()
+}

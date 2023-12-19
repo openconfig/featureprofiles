@@ -311,7 +311,7 @@ message Metadata {
     // Arista: partnerissuetracker.corp.google.com/299285115
     bool isis_counter_manual_address_drop_from_areas_unsupported = 106;
     // Devices do not support telemetry for isis counter: part-changes.
-    // Arista: partnerissuetracker.corp.google.com/299285991
+    // Arista: partnerissuetracker.corp.google.com/317086576
     bool isis_counter_part_changes_unsupported = 107;
     // Devices do not support threshold container under /components/component/transceiver.
     bool transceiver_thresholds_unsupported = 108;
@@ -380,6 +380,10 @@ message Metadata {
     // Devices exports routes from all protocols to BGP if the export-policy is ACCEPT
     // Juniper: b/308970803
     bool skip_non_bgp_route_export_check = 133;
+    // Devices do not support path
+    // /network-instances/network-instance/protocols/protocol/isis/levels/level/state/metric-style
+    // Arista: https://partnerissuetracker.corp.google.com/issues/317064733
+    bool isis_metric_style_telemetry_unsupported = 134;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
