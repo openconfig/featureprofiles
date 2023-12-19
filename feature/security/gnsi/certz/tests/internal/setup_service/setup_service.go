@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setup_service
+// Package setup_service is scoped only to be used for scripts in path
+// feature/security/gnsi/certz/tests/client_certificates
+// Do not use elsewhere.
+package setupService
 
 import (
 	context "context"
@@ -60,14 +63,15 @@ type entityType int8
 const (
 	// EntityTypeCertificateChain is type of entity of the certificate chain.
 	EntityTypeCertificateChain entityType = 0
-	// EntityTypeCertificateChain is type of entity of the trust bundle.
+	// EntityTypeTrustBundle is type of entity of the trust bundle.
 	EntityTypeTrustBundle entityType = 1
-	// EntityTypeCertificateChain is type of entity of the CRL.
+	// EntityTypeCRL is type of entity of the CRL.
 	EntityTypeCRL entityType = 2
-	// EntityTypeCertificateChain is type of entity of the auth policy.
+	// EntityTypeAuthPolicy is type of entity of the auth policy.
 	EntityTypeAuthPolicy entityType = 3
 )
 
+// CertificateChainRequest is an input argument for the  type definition for the  CreateCertzChain.
 type CertificateChainRequest struct {
 	RequestType     entityType
 	ServerCertFile  string
@@ -485,7 +489,7 @@ func PreInitCheck(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) boo
 }
 
 // PostValidationCheck function to do a validation of all services after certz rotation.
-func PostValidationCheck(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+func PostValidationCheck(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	if !TestGnsi(t, caCert, san, serverAddr, username, password, cert) {
 		t.Fatalf("Could not create new gNSI Connection.")
@@ -507,5 +511,30 @@ func PostValidationCheck(t *testing.T, dut *ondatra.DUTDevice, caCert *x509.Cert
 		t.Fatalf("Could not create new P4rt Connection")
 	}
 	t.Logf("New P4rt connection successfully completed")
+	return true
+}
+
+// TestNewConnection function to validate the connection for any  gRPC serviceafter successful rotation.
+func TestNewConnection(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+
+	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
+		&tls.Config{
+			Certificates: []tls.Certificate{cert},
+			RootCAs:      caCert,
+			ServerName:   san,
+		}))}
+	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
+	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
+	conn, err := grpc.DialContext(ctx, target, credOpts...)
+	t.Logf("gRpcDial error response:%s", err)
+	if err != nil {
+		t.Logf("gRpcDial failed as expected to %q ", target)
+		return false
+	}
+	conn.Close()
 	return true
 }

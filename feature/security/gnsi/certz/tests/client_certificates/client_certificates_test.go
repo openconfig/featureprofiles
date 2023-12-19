@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/feature/security/gnsi/certz/tests/internal/setup_service"
+	setupService "github.com/openconfig/featureprofiles/feature/security/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -67,7 +67,7 @@ func TestClientCertTcOne(t *testing.T) {
 	}
 
 	t.Logf("Validation of all services that are using gRPC before certz rotation.")
-	initCheck := setup_service.PreInitCheck(context.Background(), t, dut)
+	initCheck := setupService.PreInitCheck(context.Background(), t, dut)
 	if !initCheck {
 		t.Fatalf("Failed in the preInit checks.")
 	}
@@ -171,15 +171,15 @@ func TestClientCertTcOne(t *testing.T) {
 
 			san := sCert.DNSNames[0]
 
-			serverCert := setup_service.CreateCertzChain(t, setup_service.CertificateChainRequest{
-				RequestType:    setup_service.EntityTypeCertificateChain,
+			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
+				RequestType:    setupService.EntityTypeCertificateChain,
 				ServerCertFile: tc.serverCertzFile,
 				ServerKeyFile:  tc.serverKeyzFile})
 
-			serverCertEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeCertificateChain, &serverCert, "one")
+			serverCertEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeCertificateChain, &serverCert, "one")
 
-			trustCertChain := setup_service.CreateCertChainFromTrustBundle(tc.trustBundlezFile)
-			trustBundleEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeTrustBundle, trustCertChain, "two")
+			trustCertChain := setupService.CreateCertChainFromTrustBundle(tc.trustBundlezFile)
+			trustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, trustCertChain, "two")
 
 			cert, err := tls.LoadX509KeyPair(tc.clientCertzFile, tc.clientKeyzFile)
 			if err != nil {
@@ -196,7 +196,7 @@ func TestClientCertTcOne(t *testing.T) {
 			}
 
 			certzClient := gnsiC.Certz()
-			success := setup_service.CertzRotate(t, certzClient, testProfile, &serverCertEntity, &trustBundleEntity)
+			success := setupService.CertzRotate(t, certzClient, testProfile, &serverCertEntity, &trustBundleEntity)
 			if !success {
 				t.Fatalf("%s:Certz/Rotate failed.", tc.desc)
 			}
@@ -204,7 +204,7 @@ func TestClientCertTcOne(t *testing.T) {
 
 			// Verification check of the new connection with the new rotated certificates.
 			t.Run("Verification of fresh new connection after successful rotate ", func(t *testing.T) {
-				result := setup_service.PostValidationCheck(t, dut, cacert, san, serverAddr, username, password, cert)
+				result := setupService.PostValidationCheck(t, cacert, san, serverAddr, username, password, cert)
 				if !result {
 					t.Fatalf("%s postTestcase validation failed.", tc.desc)
 				}
