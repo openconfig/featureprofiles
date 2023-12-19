@@ -205,169 +205,101 @@ func TestResolver_ByID(t *testing.T) {
 	}
 }
 
-func TestResolver_ByName_Protocols(t *testing.T) {
+func TestResolver_Options(t *testing.T) {
 	r := resolverBinding
 	cases := []struct {
 		test string
-		fn   func(name string) (dialer, error)
-		name string
-		want dialer
+		fn   func(*bindpb.Device) *bindpb.Options
+		dev  *bindpb.Device
+		want *bindpb.Options
 	}{{
 		test: "ssh",
 		fn:   r.ssh,
-		name: "dut.name",
-		want: dialer{&bindpb.Options{
+		dev:  r.Duts[0],
+		want: &bindpb.Options{
 			Target:   "dut.name",
 			Username: "global.username",
 			Password: "ssh.password",
-		}},
+		},
 	}, {
 		test: "gnmi",
 		fn:   r.gnmi,
-		name: "dut.name",
-		want: dialer{&bindpb.Options{
+		dev:  r.Duts[0],
+		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnmiPort),
 			Username: "global.username",
 			Password: "gnmi.password",
-		}},
+		},
 	}, {
 		test: "gnoi",
 		fn:   r.gnoi,
-		name: "dut.name",
-		want: dialer{&bindpb.Options{
+		dev:  r.Duts[0],
+		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnoiPort),
 			Username: "global.username",
 			Password: "gnoi.password",
-		}},
+		},
 	}, {
 		test: "gnsi",
 		fn:   r.gnsi,
-		name: "dut.name",
-		want: dialer{&bindpb.Options{
+		dev:  r.Duts[0],
+		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnsiPort),
 			Username: "global.username",
 			Password: "gnsi.password",
-		}},
+		},
 	}, {
 		test: "gribi",
 		fn:   r.gribi,
-		name: "dut.name",
-		want: dialer{&bindpb.Options{
+		dev:  r.Duts[0],
+		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gribiPort),
 			Username: "global.username",
 			Password: "gribi.password",
-		}},
+		},
 	}, {
 		test: "p4rt",
 		fn:   r.p4rt,
-		name: "dut.name",
-		want: dialer{&bindpb.Options{
+		dev:  r.Duts[0],
+		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*p4rtPort),
 			Username: "global.username",
 			Password: "p4rt.password",
-		}},
+		},
 	}, {
 		test: "ixnetwork",
 		fn:   r.ixnetwork,
-		name: "ate.name",
-		want: dialer{&bindpb.Options{
+		dev:  r.Ates[0],
+		want: &bindpb.Options{
 			Target:   "ate.name",
 			Username: "ate.username",
 			Password: "ixnetwork.password",
-		}},
+		},
 	}, {
 		test: "anotherdut",
 		fn:   r.ssh,
-		name: "anotherdut.name",
-		want: dialer{&bindpb.Options{
+		dev:  r.Duts[1],
+		want: &bindpb.Options{
 			Target:   "anotherdut.name",
 			Username: "global.username",
 			Password: "anotherdut.password",
-		}},
+		},
 	}, {
 		test: "anotherate",
 		fn:   r.ixnetwork,
-		name: "anotherate.name",
-		want: dialer{&bindpb.Options{
+		dev:  r.Ates[1],
+		want: &bindpb.Options{
 			Target:   "anotherate.name",
 			Username: "global.username",
 			Password: "anotherate.password",
-		}},
+		},
 	}}
 
 	for _, c := range cases {
 		t.Run(c.test, func(t *testing.T) {
-			got, err := c.fn(c.name)
-			if err != nil {
-				t.Fatalf("Could not get options: %v", err)
-			}
+			got := c.fn(c.dev)
 			if diff := cmp.Diff(c.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("Resolve diff (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestResolver_ByName_Protocols_Error(t *testing.T) {
-	r := resolverBinding
-	cases := []struct {
-		test   string
-		fn     func(name string) (dialer, error)
-		name   string
-		reason string
-	}{{
-		test:   "no.such.dut",
-		fn:     r.ssh,
-		name:   "no.such.dut.name",
-		reason: "name not found",
-	}, {
-		test:   "no.such.ate",
-		fn:     r.ixnetwork,
-		name:   "no.such.ate.name",
-		reason: "name not found",
-	}, {
-		test:   "ate.ssh",
-		fn:     r.ssh,
-		name:   "ate.name",
-		reason: "ssh never looks up ate",
-	}, {
-		test:   "ate.gnmi",
-		fn:     r.gnmi,
-		name:   "ate.name",
-		reason: "gnmi never looks up ate",
-	}, {
-		test:   "ate.gnoi",
-		fn:     r.gnoi,
-		name:   "ate.name",
-		reason: "gnoi never looks up ate",
-	}, {
-		test:   "ate.gnsi",
-		fn:     r.gnsi,
-		name:   "ate.name",
-		reason: "gnsi never looks up ate",
-	}, {
-		test:   "ate.gribi",
-		fn:     r.gribi,
-		name:   "ate.name",
-		reason: "gribi never looks up ate",
-	}, {
-		test:   "ate.p4rt",
-		fn:     r.p4rt,
-		name:   "ate.name",
-		reason: "p4rt never looks up ate",
-	}, {
-		test:   "dut.ixnetwork",
-		fn:     r.ixnetwork,
-		name:   "dut.name",
-		reason: "ixnetwork never looks up dut",
-	}}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			_, err := c.fn(c.name)
-			t.Logf("Resolve got error: %v", err)
-			if err == nil {
-				t.Errorf("Resolve error got nil, want error because %s", c.reason)
 			}
 		})
 	}

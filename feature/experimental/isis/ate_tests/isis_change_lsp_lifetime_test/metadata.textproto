@@ -32,11 +32,11 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    isis_instance_enabled_required: true
     omit_l2_mtu: true
     missing_value_for_defaults: true
     interface_enabled: true
     default_network_instance: "default"
-    isis_instance_enabled_required: true
     isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
   }
 }

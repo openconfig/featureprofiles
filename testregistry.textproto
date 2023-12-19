@@ -407,7 +407,7 @@ test: {
 test: {
   id: "RT-5.8"
   description: "IPv6 link local"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test/README.md"
   exec: " "
 }
 test: {
