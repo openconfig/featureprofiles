@@ -355,12 +355,14 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         with open(topo_file, "w") as fp:
             fp.write(yaml.dump(topo_yaml))
         c |= self.orig.s(plat='8000', topo_file=topo_file)
-        c |= GenerateCertificates.s()
-        c |= SimEnableMTLS.s()
     elif not reserved_testbed:
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
+    if using_sim:
+        c |= GenerateCertificates.s()
+        c |= SimEnableMTLS.s()
+        
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s(force_install=force_install)
         force_reboot = False
