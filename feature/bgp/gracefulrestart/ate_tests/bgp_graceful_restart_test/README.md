@@ -35,7 +35,7 @@ B -- IBGP --> C[Port2:ATE];
 *   Advertise prefixes between the ATE ports, through the DUT. 
 *   Trigger DUT session restart by killing the BGP process in the DUT. Please use the `gNOI.killProcessRequest_Signal_Term` as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/system/system.proto#L326).
      *   Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista and Cisco this is the `BGP` process. For Nokia this is `sr_bgp_mgr`.
-*   Once the BGP process on DUT is killied, configure ATE to delay the BGP reestablishment for a period longer than the `stale-routes-time` and start regular traffic from ATE and verify that the packets are,
+*   Once the BGP process on DUT is killed, configure ATE to delay the BGP reestablishment for a period longer than the `stale-routes-time` and start regular traffic from ATE and verify that the packets are,
      *   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified `stale-routes-time`. Before the stale routes timer expires, stop traffic and ensure that there is zero packet loss.
      *   After the stale routes timer expires, restart traffic and confirm that there is 100% packet loss.
 *   Stop traffic, revert ATE configuration to start accepting packets for BGP reestablishement from DUT and wait for the BGP session w/ ATE to be reestablished. Once established, restart traffic to ensure that packets are forwarded again between ATE port-1 and ATE port2 and there is zero packet loss.
@@ -49,7 +49,7 @@ B -- IBGP --> C[Port2:ATE];
 
 **RT-1.4.4: DUT Helper for a restarting EBGP speaker whose BGP process was gracefully killed**
 *   Advertise prefixes between the ATE ports through the DUT. Send Graceful restart trigger from ATE port-1.
-*   Start traffic between ATE port-1 and ATE port-2 and prior to the expiry of `stale-routes-time`, ensure that there is zero packet loss.
+*   Start traffic between ATE port-1 and ATE port-2 and prior to the expiry of `stale-routes-time`, stop traffic and ensure that there is zero packet loss.
 *   Restart traffic post the stale routes timer expiry. Ensure that the subject prefixes are withdrawn, and there is 100% traffic loss between ATE:Port1 and ATE:Port2.
 *   Repeat the above for the IBGP peering on ATE port2
  
@@ -58,13 +58,13 @@ B -- IBGP --> C[Port2:ATE];
 *   Once the BGP process on DUT is killied, configure ATE to delay the BGP reestablishment for a period longer than the `stale-routes-time` and start regular traffic from ATE and verify that the packets are,
      *   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified `stale-routes-time`. Before the stale routes timer expires, stop traffic and ensure that there is zero packet loss.
      *   After the stale routes timer expires, restart traffic and confirm that there is 100% packet loss.
-*   Stop traffic, revert ATE configuration to start accepting packets for BGP reestablishement from DUT and wait for the BGP session w/ ATE to be reestablished. Once established, restart traffic to ensure that packets are forwarded again between ATE port-1 and ATE port2 and there is zero packet loss.
-*   Conduct the above steps once for the EBGP peering and once for the IBGP peering.
+*   Stop traffic, revert ATE configuration to start accepting/sending packets for BGP reestablishement from/to DUT and wait for the BGP session w/ ATE to be reestablished. Once established, restart traffic to ensure that packets are forwarded again between ATE port-1 and ATE port2 and there is zero packet loss.
+*   Conduct the above steps once for the IBGP peering between DUT:Port2 and ATE:Port2.
 
 **RT-1.4.6: Test support for RFC8538 compliance by letting Hold-time expire**
 
 RFC-8538 builds on RFC4724 by adding Graceful restart support for scenarios when the BGP holdtime expires. In order to simulate holdtime expiry, please install an ACL on DUT that drops BGP packets from the Peer (i.e. ATE). Also this time, configure the stale-routes-timer to be longer than the hold-timer. Start traffic and ensure that the packets are,
-*   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified stale routes time. Stop traffic after the holdtime expires but before the Stale-routes-timer expires and confirm that there was zero packet loss.
+*   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified stale routes time. Stop traffic somtime after the holdtime expires but before the stale-routes-timer expires and confirm that there was zero packet loss.
 *   Once the stale-routes-timer expires, start traffic again and confirm that there is 100% packet loss. Stop traffic.
 *   Remove the ACL on DUT:Port1 and allow BGP to be reestablished. Start traffic again between ATE port1 and ATE port2. This time ensure that there is zero packet loss. Stop traffic again.
 *   Repeat the same process above for the IBGP peering between DUT:Port2 and the ATE:Port2
