@@ -5,6 +5,12 @@ replace: {
   val: {
     ascii_val:
 "hostname SF-D\n"
+"group BGP\n" 
+" router bgp '.*' instance '.*'\n"
+" nsr disable\n"
+" end-group\n"
+"!\n"
+"apply-group BGP\n"
 "username cafyauto\n"
 " group root-lr\n"
 " group cisco-support\n"
