@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 // used for authentication to a device when used by a client connecting to each
 // gRPC service.
 
-func TestClientCertTcOne(t *testing.T) {
+func TestClientCert(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	serverAddr = dut.Name()
@@ -86,70 +86,97 @@ func TestClientCertTcOne(t *testing.T) {
 		trustBundlezFile string
 		clientCertzFile  string
 		clientKeyzFile   string
+		mismatch         bool
 	}{
 		{
-			desc:             "Load the correct key-type rsa trustbundle with 1 CA configuration",
+			desc:             "Certz1.1:Load the correct key-type rsa trustbundle with 1 CA configuration",
 			serverCertzFile:  "test_data/ca-01/server-rsa-a-cert.pem",
 			serverKeyzFile:   "test_data/ca-01/server-rsa-a-key.pem",
 			trustBundlezFile: "test_data/ca-01/trust_bundle_01_rsa_a.pem",
 			clientCertzFile:  "test_data/ca-01/client-rsa-a-cert.pem",
 			clientKeyzFile:   "test_data/ca-01/client-rsa-a-key.pem",
+			mismatch:         false,
 		},
 		{
-			desc:             "Load the correct key-type ecdsa trustbundle with 1 CA configuration",
+			desc:             "Certz1.1:Load the correct key-type ecdsa trustbundle with 1 CA configuration",
 			serverCertzFile:  "test_data/ca-01/server-ecdsa-a-cert.pem",
 			serverKeyzFile:   "test_data/ca-01/server-ecdsa-a-key.pem",
 			trustBundlezFile: "test_data/ca-01/trust_bundle_01_ecdsa_a.pem",
 			clientCertzFile:  "test_data/ca-01/client-ecdsa-a-cert.pem",
 			clientKeyzFile:   "test_data/ca-01/client-ecdsa-a-key.pem",
+			mismatch:         false,
 		},
 		{
-			desc:             "Load the correct key-type rsa trustbundle with 2 CA configuration",
+			desc:             "Certz1.1:Load the correct key-type rsa trustbundle with 2 CA configuration",
 			serverCertzFile:  "test_data/ca-02/server-rsa-a-cert.pem",
 			serverKeyzFile:   "test_data/ca-02/server-rsa-a-key.pem",
 			trustBundlezFile: "test_data/ca-02/trust_bundle_02_rsa_a.pem",
 			clientCertzFile:  "test_data/ca-02/client-rsa-a-cert.pem",
 			clientKeyzFile:   "test_data/ca-02/client-rsa-a-key.pem",
+			mismatch:         false,
 		},
 		{
-			desc:             "Load the correct key-type ecdsa trustbundle with 2 CA configuration",
+			desc:             "Certz1.1:Load the correct key-type ecdsa trustbundle with 2 CA configuration",
 			serverCertzFile:  "test_data/ca-02/server-ecdsa-a-cert.pem",
 			serverKeyzFile:   "test_data/ca-02/server-ecdsa-a-key.pem",
 			trustBundlezFile: "test_data/ca-02/trust_bundle_02_ecdsa_a.pem",
 			clientCertzFile:  "test_data/ca-02/client-ecdsa-a-cert.pem",
 			clientKeyzFile:   "test_data/ca-02/client-ecdsa-a-key.pem",
+			mismatch:         false,
 		},
 		{
-			desc:             "Load the correct key-type rsa trustbundle with 10CA configuration",
+			desc:             "Certz1.1:Load the correct key-type rsa trustbundle with 10CA configuration",
 			serverCertzFile:  "test_data/ca-10/server-rsa-a-cert.pem",
 			serverKeyzFile:   "test_data/ca-10/server-rsa-a-key.pem",
 			trustBundlezFile: "test_data/ca-10/trust_bundle_10_rsa_a.pem",
 			clientCertzFile:  "test_data/ca-10/client-rsa-a-cert.pem",
 			clientKeyzFile:   "test_data/ca-10/client-rsa-a-key.pem",
+			mismatch:         false,
 		},
 		{
-			desc:             "Load the correct key-type ecdsa trustbundle with 10CA configuration",
+			desc:             "Certz1.1:Load the correct key-type ecdsa trustbundle with 10CA configuration",
 			serverCertzFile:  "test_data/ca-10/server-ecdsa-a-cert.pem",
 			serverKeyzFile:   "test_data/ca-10/server-ecdsa-a-key.pem",
 			trustBundlezFile: "test_data/ca-10/trust_bundle_10_ecdsa_a.pem",
 			clientCertzFile:  "test_data/ca-10/client-ecdsa-a-cert.pem",
 			clientKeyzFile:   "test_data/ca-10/client-ecdsa-a-key.pem",
+			mismatch:         false,
 		},
 		{
-			desc:             "Load the correct key-type rsa trustbundle with 1000CA configuration",
+			desc:             "Certz1.1:Load the correct key-type rsa trustbundle with 1000CA configuration",
 			serverCertzFile:  "test_data/ca-1000/server-rsa-a-cert.pem",
 			serverKeyzFile:   "test_data/ca-1000/server-rsa-a-key.pem",
 			trustBundlezFile: "test_data/ca-1000/trust_bundle_1000_rsa_a.pem",
 			clientCertzFile:  "test_data/ca-1000/client-rsa-a-cert.pem",
 			clientKeyzFile:   "test_data/ca-1000/client-rsa-a-key.pem",
+			mismatch:         false,
 		},
 		{
-			desc:             "Load the correct key-type ecdsa trustbundle with 1000CA configuration",
+			desc:             "Certz1.1:Load the correct key-type ecdsa trustbundle with 1000CA configuration",
 			serverCertzFile:  "test_data/ca-1000/server-ecdsa-a-cert.pem",
 			serverKeyzFile:   "test_data/ca-1000/server-ecdsa-a-key.pem",
 			trustBundlezFile: "test_data/ca-1000/trust_bundle_1000_ecdsa_a.pem",
 			clientCertzFile:  "test_data/ca-1000/client-ecdsa-a-cert.pem",
 			clientKeyzFile:   "test_data/ca-1000/client-ecdsa-a-key.pem",
+			mismatch:         false,
+		},
+		{
+			desc:             "Certz1.2:Load the rsa trust_bundle from ca-02 with mismatching key type rsa client certificate from ca-01",
+			serverCertzFile:  "test_data/ca-01/server-rsa-a-cert.pem",
+			serverKeyzFile:   "test_data/ca-01/server-rsa-a-key.pem",
+			trustBundlezFile: "test_data/ca-02/trust_bundle_02_rsa_a.pem",
+			clientCertzFile:  "test_data/ca-01/client-rsa-a-cert.pem",
+			clientKeyzFile:   "test_data/ca-01/client-rsa-a-key.pem",
+			mismatch:         true,
+		},
+		{
+			desc:             "Certz1.2:Load the ecdsa trust_bundle from ca-02 with mismatching key type ecdsa client certificate from ca-01",
+			serverCertzFile:  "test_data/ca-01/server-ecdsa-a-cert.pem",
+			serverKeyzFile:   "test_data/ca-01/server-ecdsa-a-key.pem",
+			trustBundlezFile: "test_data/ca-02/trust_bundle_02_ecdsa_a.pem",
+			clientCertzFile:  "test_data/ca-01/client-ecdsa-a-cert.pem",
+			clientKeyzFile:   "test_data/ca-01/client-ecdsa-a-key.pem",
+			mismatch:         true,
 		},
 	}
 
@@ -198,19 +225,30 @@ func TestClientCertTcOne(t *testing.T) {
 			certzClient := gnsiC.Certz()
 			success := setupService.CertzRotate(t, certzClient, testProfile, &serverCertEntity, &trustBundleEntity)
 			if !success {
-				t.Fatalf("%s:Certz/Rotate failed.", tc.desc)
+				t.Fatalf("%s:Certz rotation failed.", tc.desc)
 			}
-			t.Logf("%s:successfully completed second certz/Rotate!", tc.desc)
+			t.Logf("%s:successfully completed certz rotation!", tc.desc)
 
-			// Verification check of the new connection with the new rotated certificates.
-			t.Run("Verification of fresh new connection after successful rotate ", func(t *testing.T) {
-				result := setupService.PostValidationCheck(t, cacert, san, serverAddr, username, password, cert)
-				if !result {
-					t.Fatalf("%s postTestcase validation failed.", tc.desc)
-				}
-
-				t.Logf("PASS: %s successfully completed!", tc.desc)
-			})
+			if tc.mismatch != true {
+				// Verification check of the new connection with the new rotated certificates.
+				t.Run("Verification of new connection after successful rotate ", func(t *testing.T) {
+					result := setupService.PostValidationCheck(t, cacert, san, serverAddr, username, password, cert)
+					if !result {
+						t.Fatalf("%s postTestcase service validation failed.", tc.desc)
+					}
+					t.Logf("%s postTestcase service validation done!", tc.desc)
+				})
+			} else {
+				//Verification of new connection after certz rotation with mismatch of certificate/bundle.
+				t.Run("Verification of new connection after certz rotation with mismatching ca bundle", func(t *testing.T) {
+					result := setupService.TestNewConnection(t, cacert, san, serverAddr, username, password, cert)
+					if result {
+						t.Fatalf("%s New connection got established after certz rotation with mismatching ca bundle.", tc.desc)
+					}
+					t.Logf("%s New connection failed to establish after certz rotation with mismatching ca bundle as expected!", tc.desc)
+				})
+			}
 		})
+		t.Logf("PASS: %s successfully completed!", tc.desc)
 	}
 }

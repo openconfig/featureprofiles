@@ -15,7 +15,7 @@
 // Package setup_service is scoped only to be used for scripts in path
 // feature/security/gnsi/certz/tests/client_certificates
 // Do not use elsewhere.
-package setupService
+package setupservice
 
 import (
 	context "context"
@@ -530,9 +530,8 @@ func TestNewConnection(t *testing.T, caCert *x509.CertPool, san, serverAddr, use
 
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
-	t.Logf("gRpcDial error response:%s", err)
 	if err != nil {
-		t.Logf("gRpcDial failed as expected to %q ", target)
+		t.Logf("gRPCdial failed with mismatch certificate as expected to %q with error %s.", target, err)
 		return false
 	}
 	conn.Close()
