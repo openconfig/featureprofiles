@@ -589,14 +589,15 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
             if collect_debug_files and suite.attrib['failures'] != '0':
-                self.enqueue_child(CollectDebugFiles.s(
-                    ws=ws,
-                    internal_fp_repo_dir=internal_fp_repo_dir, 
-                    reserved_testbed=reserved_testbed, 
-                    test_log_directory_path=test_log_directory_path,
-                    timestamp=start_timestamp,
-                    core=False
-                ))
+                runCoreFileCheck(ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp)
+                # self.enqueue_child(CollectDebugFiles.s(
+                #     ws=ws,
+                #     internal_fp_repo_dir=internal_fp_repo_dir, 
+                #     reserved_testbed=reserved_testbed, 
+                #     test_log_directory_path=test_log_directory_path,
+                #     timestamp=start_timestamp,
+                #     core=False
+                # ))
             else:
                 self.enqueue_child(CollectDebugFiles.s(
                     ws=ws,
@@ -615,6 +616,23 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         elif not test_show_skipped: 
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
+
+
+# run core files as new microservice and return the core files
+@app.task(bind=True)
+@returns('ret1', FireX.DYNAMIC_RETURN)
+def runCoreFileCheck(self, ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp):
+                
+    ret1, orig_ret = self.enqueue_child_and_get_results(CollectDebugFiles.s(
+                    ws=ws,
+                    internal_fp_repo_dir=internal_fp_repo_dir, 
+                    reserved_testbed=reserved_testbed, 
+                    test_log_directory_path=test_log_directory_path,
+                    timestamp=start_timestamp,
+                    core=False
+                ))
+    print(f"After running core files I get this {ret1}")
+    return ret1, orig_ret
 
 @app.task(bind=True, max_retries=5, autoretry_for=[git.GitCommandError])
 def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=None):
@@ -935,6 +953,42 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:
         os.remove(tmp_binding_file)
+
+# # noinspection PyPep8Naming
+# @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
+# def CollectCreFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core):
+#     logger.print("Collecting core files...")
+
+#     with tempfile.NamedTemporaryFile(delete=False) as f:
+#         tmp_binding_file = f.name
+#         shutil.copyfile(reserved_testbed['binding_file'], tmp_binding_file)
+#         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
+
+#     # TODO: collect core files if any
+#     # create a directory here to send all logs as firex has a line limit
+
+#     collect_core_files = f'{GO_BIN} test -v ' \
+#             f'./exec/utils/debug ' \
+#             f'-timeout 60m ' \
+#             f'-args ' \
+#             f'-testbed {reserved_testbed["testbed_file"]} ' \
+#             f'-binding {tmp_binding_file} ' \
+#             f'-outDir {test_log_directory_path}/debug_files ' \
+#             f'-timestamp {str(timestamp)} ' \
+#             f'-core true ' \
+#             f' > core-logs.txt' 
+#     try:
+#         env = dict(os.environ)
+#         env.update(_get_go_env(ws))
+#         if core is True :
+#             check_output(collect_core_files, env=env, cwd=internal_fp_repo_dir)
+#         else:
+#             check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+#     except:
+#         logger.warning(f'Failed to collect testbed information. Ignoring...') 
+#     finally:
+#         os.remove(tmp_binding_file)
+
 
 # noinspection PyPep8Naming
 @app.task(bind=True)

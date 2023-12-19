@@ -93,7 +93,7 @@ func TestMain(m *testing.M) {
 }
 
 // TestCollectDebugFiles collects debug commands if coreFile flag is set to false, else it Skips the test
-func TestCollectDebugFiles(t *testing.T) {
+func TestCollectDebugFiles(t *testing.T) string {
 	// set up Targets
 	targets := NewTargets(t)
 	if *outDirFlag == "" {
@@ -140,6 +140,7 @@ func TestCollectDebugFiles(t *testing.T) {
 
 		copyDebugFiles(t, targetInfo, "CollectDebugFiles")
 	}
+	return "this is a test"
 }
 
 // copyDebugFiles copies files from the runs to an specified directory with a filename
