@@ -18,7 +18,6 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/openconfig/featureprofiles/topologies/proto/binding"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"google.golang.org/protobuf/proto"
@@ -38,30 +37,30 @@ var (
 	serviceToParams = map[introspect.Service]*svcParams{
 		introspect.GNMI: {
 			port:   *gnmiPort,
-			optsFn: (*binding.Device).GetGnmi,
+			optsFn: (*bindpb.Device).GetGnmi,
 		},
 		introspect.GNOI: {
 			port:   *gnoiPort,
-			optsFn: (*binding.Device).GetGnoi,
+			optsFn: (*bindpb.Device).GetGnoi,
 		},
 		introspect.GNSI: {
 			port:   *gnsiPort,
-			optsFn: (*binding.Device).GetGnsi,
+			optsFn: (*bindpb.Device).GetGnsi,
 		},
 		introspect.GRIBI: {
 			port:   *gribiPort,
-			optsFn: (*binding.Device).GetGribi,
+			optsFn: (*bindpb.Device).GetGribi,
 		},
 		introspect.P4RT: {
 			port:   *p4rtPort,
-			optsFn: (*binding.Device).GetP4Rt,
+			optsFn: (*bindpb.Device).GetP4Rt,
 		},
 	}
 )
 
 type svcParams struct {
 	port   int
-	optsFn func(*binding.Device) *bindpb.Options
+	optsFn func(*bindpb.Device) *bindpb.Options
 }
 
 // merge creates combines one or more options into one set of options.
