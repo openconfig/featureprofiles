@@ -16,16 +16,26 @@ package binding
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/ixweb"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -117,21 +127,18 @@ func (b *staticBind) reset(ctx context.Context) error {
 func (d *staticDUT) reset(ctx context.Context) error {
 	// Each of the individual reset functions should be no-op if the reset action is not
 	// requested.
-	if err := resetCLI(ctx, d.dev, d.r); err != nil {
+	if err := resetCLI(ctx, d); err != nil {
 		return err
 	}
-	if err := resetGNMI(ctx, d.dev, d.r); err != nil {
+	if err := resetGNMI(ctx, d); err != nil {
 		return err
 	}
-	return resetGRIBI(ctx, d.dev, d.r)
+	return resetGRIBI(ctx, d)
 }
 
 func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
-	dialer, err := d.r.gnmi(d.Name())
-	if err != nil {
-		return nil, err
-	}
-	conn, err := dialer.dialGRPC(ctx, opts...)
+	bopts := d.r.gnmi(d.dev)
+	conn, err := dialGRPC(ctx, bopts, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -139,11 +146,8 @@ func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 }
 
 func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoigo.Clients, error) {
-	dialer, err := d.r.gnoi(d.Name())
-	if err != nil {
-		return nil, err
-	}
-	conn, err := dialer.dialGRPC(ctx, opts...)
+	bopts := d.r.gnoi(d.dev)
+	conn, err := dialGRPC(ctx, bopts, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -151,11 +155,8 @@ func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoi
 }
 
 func (d *staticDUT) DialGNSI(ctx context.Context, opts ...grpc.DialOption) (binding.GNSIClients, error) {
-	dialer, err := d.r.gnsi(d.Name())
-	if err != nil {
-		return nil, err
-	}
-	conn, err := dialer.dialGRPC(ctx, opts...)
+	bopts := d.r.gnsi(d.dev)
+	conn, err := dialGRPC(ctx, bopts, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -163,11 +164,8 @@ func (d *staticDUT) DialGNSI(ctx context.Context, opts ...grpc.DialOption) (bind
 }
 
 func (d *staticDUT) DialGRIBI(ctx context.Context, opts ...grpc.DialOption) (grpb.GRIBIClient, error) {
-	dialer, err := d.r.gribi(d.Name())
-	if err != nil {
-		return nil, err
-	}
-	conn, err := dialer.dialGRPC(ctx, opts...)
+	bopts := d.r.gribi(d.dev)
+	conn, err := dialGRPC(ctx, bopts, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -175,35 +173,53 @@ func (d *staticDUT) DialGRIBI(ctx context.Context, opts ...grpc.DialOption) (grp
 }
 
 func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb.P4RuntimeClient, error) {
-	dialer, err := d.r.p4rt(d.Name())
-	if err != nil {
-		return nil, err
-	}
-	conn, err := dialer.dialGRPC(ctx, opts...)
+	bopts := d.r.p4rt(d.dev)
+	conn, err := dialGRPC(ctx, bopts, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return p4pb.NewP4RuntimeClient(conn), nil
 }
 
-func (d *staticDUT) DialCLI(_ context.Context) (binding.CLIClient, error) {
-	dialer, err := d.r.ssh(d.Name())
-	if err != nil {
-		return nil, err
+func (d *staticDUT) DialCLI(context.Context) (binding.CLIClient, error) {
+	sshOpts := d.r.ssh(d.dev)
+	c := &ssh.ClientConfig{
+		User: sshOpts.Username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(sshOpts.Password),
+			ssh.KeyboardInteractive(sshInteractive(sshOpts.Password)),
+		},
 	}
-	sc, err := dialer.dialSSH()
+	if sshOpts.SkipVerify {
+		c.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+	} else {
+		cb, err := knownHostsCallback()
+		if err != nil {
+			return nil, err
+		}
+		c.HostKeyCallback = cb
+	}
+	sc, err := ssh.Dial("tcp", sshOpts.Target, c)
 	if err != nil {
 		return nil, err
 	}
 	return newCLI(sc)
 }
 
-func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
-	dialer, err := a.r.ateGNMI(a.Name())
-	if err != nil {
-		return nil, err
+// For every question asked in an interactive login ssh session, set the answer to user password.
+func sshInteractive(password string) ssh.KeyboardInteractiveChallenge {
+	return func(_, _ string, questions []string, _ []bool) ([]string, error) {
+		answers := make([]string, len(questions))
+		for n := range questions {
+			answers[n] = password
+		}
+		return answers, nil
 	}
-	conn, err := dialer.dialGRPC(ctx, opts...)
+}
+
+func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
+	bopts := a.r.ateGNMI(a.dev)
+	conn, err := dialGRPC(ctx, bopts, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -214,29 +230,23 @@ func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosna
 	if a.dev.Otg == nil {
 		return nil, fmt.Errorf("otg must be configured in ATE binding to run OTG test")
 	}
-	dialer, err := a.r.ateOtg(a.Name())
-	if err != nil {
-		return nil, err
-	}
-	conn, err := dialer.dialGRPC(ctx, opts...)
+	bopts := a.r.ateOTG(a.dev)
+	conn, err := dialGRPC(ctx, bopts, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	api := gosnappi.NewApi()
 	grpcTransport := api.NewGrpcTransport().SetClientConnection(conn)
-	if dialer.Timeout != 0 {
-		grpcTransport.SetRequestTimeout(time.Duration(dialer.Timeout) * time.Second)
+	if bopts.Timeout != 0 {
+		grpcTransport.SetRequestTimeout(time.Duration(bopts.Timeout) * time.Second)
 	}
 	return api, nil
 }
 
 func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, error) {
-	dialer, err := a.r.ixnetwork(a.Name())
-	if err != nil {
-		return nil, err
-	}
-	ixs, err := a.ixSession(ctx, dialer)
+	bopts := a.r.ixnetwork(a.dev)
+	ixs, err := a.ixSession(ctx, bopts)
 	if err != nil {
 		return nil, err
 	}
@@ -409,20 +419,11 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 func (b *staticBind) reserveIxSessions(ctx context.Context) error {
 	ates := b.resv.ATEs
 	for _, ate := range ates {
-
-		bate := b.r.ateByName(ate.Name())
-		if bate == nil {
-			return fmt.Errorf("missing binding for ATE %q", bate.Id)
-		}
-		if bate.Ixnetwork == nil {
+		a := ate.(*staticATE)
+		if a.dev.Ixnetwork == nil {
 			continue
 		}
-
-		dialer, err := b.r.ixnetwork(ate.Name())
-		if err != nil {
-			return err
-		}
-		if _, err := ate.(*staticATE).ixSession(ctx, dialer); err != nil {
+		if _, err := a.DialIxNetwork(ctx); err != nil {
 			return err
 		}
 	}
@@ -431,11 +432,8 @@ func (b *staticBind) reserveIxSessions(ctx context.Context) error {
 
 func (b *staticBind) releaseIxSessions(ctx context.Context) error {
 	for _, ate := range b.resv.ATEs {
-		dialer, err := b.r.ixnetwork(ate.Name())
-		if err != nil {
-			return err
-		}
 		sate := ate.(*staticATE)
+		dialer := b.r.ixnetwork(sate.dev)
 		if sate.ixsess != nil && dialer.SessionId == 0 {
 			if err := sate.ixweb.IxNetwork().DeleteSession(ctx, sate.ixsess.ID()); err != nil {
 				return err
@@ -445,9 +443,9 @@ func (b *staticBind) releaseIxSessions(ctx context.Context) error {
 	return nil
 }
 
-func (a *staticATE) ixWeb(ctx context.Context, d dialer) (*ixweb.IxWeb, error) {
+func (a *staticATE) ixWeb(ctx context.Context, opts *bindpb.Options) (*ixweb.IxWeb, error) {
 	if a.ixweb == nil {
-		ixw, err := d.newIxWebClient(ctx)
+		ixw, err := newIxWebClient(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -456,14 +454,34 @@ func (a *staticATE) ixWeb(ctx context.Context, d dialer) (*ixweb.IxWeb, error) {
 	return a.ixweb, nil
 }
 
-func (a *staticATE) ixSession(ctx context.Context, d dialer) (*ixweb.Session, error) {
+func newIxWebClient(ctx context.Context, opts *bindpb.Options) (*ixweb.IxWeb, error) {
+	tr := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+	}
+	if opts.SkipVerify {
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	hc := &http.Client{Transport: tr}
+	username := opts.GetUsername()
+	password := opts.GetPassword()
+	if username == "" && password == "" {
+		username = "admin"
+		password = "admin"
+	}
+	return ixweb.Connect(ctx, opts.Target, ixweb.WithHTTPClient(hc), ixweb.WithLogin(username, password))
+}
+
+func (a *staticATE) ixSession(ctx context.Context, opts *bindpb.Options) (*ixweb.Session, error) {
 	if a.ixsess == nil {
-		ixw, err := a.ixWeb(ctx, d)
+		ixw, err := a.ixWeb(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
-		if d.SessionId > 0 {
-			a.ixsess, err = ixw.IxNetwork().FetchSession(ctx, int(d.SessionId))
+		if opts.SessionId > 0 {
+			a.ixsess, err = ixw.IxNetwork().FetchSession(ctx, int(opts.SessionId))
 		} else {
 			a.ixsess, err = ixw.IxNetwork().NewSession(ctx, a.Name())
 		}
@@ -472,4 +490,103 @@ func (a *staticATE) ixSession(ctx context.Context, d dialer) (*ixweb.Session, er
 		}
 	}
 	return a.ixsess, nil
+}
+
+func dialGRPC(ctx context.Context, bopts *bindpb.Options, overrideOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	opts := []grpc.DialOption{grpc.WithBlock()}
+	switch {
+	case bopts.Insecure:
+		tc := insecure.NewCredentials()
+		opts = append(opts, grpc.WithTransportCredentials(tc))
+	case bopts.SkipVerify:
+		tc := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
+		opts = append(opts, grpc.WithTransportCredentials(tc))
+	case bopts.MutualTls:
+		trusBundle, keyPair, err := loadCertificates(bopts)
+		if err != nil {
+			return nil, err
+		}
+		tls := &tls.Config{
+			Certificates: []tls.Certificate{keyPair},
+			RootCAs:      trusBundle,
+		}
+		tlsConfig := credentials.NewTLS(tls)
+		opts = append(opts, grpc.WithTransportCredentials(tlsConfig))
+	}
+	if bopts.Username != "" {
+		c := &creds{bopts.Username, bopts.Password, !bopts.Insecure}
+		opts = append(opts, grpc.WithPerRPCCredentials(c))
+	}
+	if bopts.MaxRecvMsgSize != 0 {
+		opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(bopts.MaxRecvMsgSize))))
+	}
+	if bopts.Timeout != 0 {
+		retryOpt := grpc_retry.WithPerRetryTimeout(time.Duration(bopts.Timeout) * time.Second)
+		opts = append(opts,
+			grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
+			grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
+		)
+		var cancelFunc context.CancelFunc
+		ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
+		defer cancelFunc()
+	}
+	opts = append(opts, overrideOpts...)
+	return grpc.DialContext(ctx, bopts.Target, opts...)
+}
+
+// load trust bundle and client key and certificate
+func loadCertificates(bopts *bindpb.Options) (*x509.CertPool, tls.Certificate, error) {
+	if bopts.CertFile == "" || bopts.KeyFile == "" || bopts.TrustBundleFile == "" {
+		return nil, tls.Certificate{}, fmt.Errorf("cert_file, key_file, and trust_bundle_file need to be set when mutual tls is set")
+	}
+	caCertBytes, err := os.ReadFile(bopts.TrustBundleFile)
+	if err != nil {
+		return nil, tls.Certificate{}, err
+	}
+	trusBundle := x509.NewCertPool()
+	if !trusBundle.AppendCertsFromPEM(caCertBytes) {
+		return nil, tls.Certificate{}, fmt.Errorf("error in loading ca trust bundle")
+	}
+	keyPair, err := tls.LoadX509KeyPair(bopts.CertFile, bopts.KeyFile)
+	if err != nil {
+		return nil, tls.Certificate{}, err
+	}
+	return trusBundle, keyPair, nil
+}
+
+// creds implements the grpc.PerRPCCredentials interface, to be used
+// as a grpc.DialOption in dialGRPC.
+type creds struct {
+	username, password string
+	secure             bool
+}
+
+func (c *creds) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
+	return map[string]string{
+		"username": c.username,
+		"password": c.password,
+	}, nil
+}
+
+func (c *creds) RequireTransportSecurity() bool {
+	return c.secure
+}
+
+var _ = grpc.PerRPCCredentials(&creds{})
+
+var knownHostsFiles = []string{
+	"$HOME/.ssh/known_hosts",
+	"/etc/ssh/ssh_known_hosts",
+}
+
+// knownHostsCallback checks the user and system SSH known_hosts.
+func knownHostsCallback() (ssh.HostKeyCallback, error) {
+	var files []string
+	for _, file := range knownHostsFiles {
+		file = os.ExpandEnv(file)
+		if _, err := os.Stat(file); err == nil {
+			files = append(files, file)
+		}
+	}
+	return knownhosts.New(files...)
 }
