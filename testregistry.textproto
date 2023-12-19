@@ -345,6 +345,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-4.10"
+  description: "AFTs Route Summary"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/route_summary_counters_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-5.1"
   description: "Singleton Interface"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/singleton_test/README.md"
