@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "5d594ad6-9957-40e8-bf59-f75d2b700631"
-plan_id:  "RT-2.11"
-description:  "IS-IS Passive is enabled at the area level"
-testbed:  TESTBED_DUT_ATE_2LINKS
+uuid: "5d594ad6-9957-40e8-bf59-f75d2b700631"
+plan_id: "RT-2.11"
+description: "IS-IS Passive is enabled at the area level"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: NOKIA
@@ -32,16 +32,16 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    isis_instance_enabled_required: true
     omit_l2_mtu: true
     missing_value_for_defaults: true
     interface_enabled: true
     default_network_instance: "default"
-    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
     isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
     isis_timers_csnp_interval_unsupported: true
     isis_counter_manual_address_drop_from_areas_unsupported: true
     isis_counter_part_changes_unsupported: true
-    isis_interface_afi_unsupported: true    
   }
 }
 platform_exceptions: {

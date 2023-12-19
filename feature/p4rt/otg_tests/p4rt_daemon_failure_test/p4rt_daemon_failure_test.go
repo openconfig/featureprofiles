@@ -278,12 +278,10 @@ func subscribeOnChangeInterfaceID(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Wa
 	return watchID
 }
 
-func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Watcher[string] {
+func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) *gnmi.Watcher[string] {
 	t.Helper()
 
-	p1 := dut.Port(t, "port1")
-
-	interfaceNamePath := gnmi.OC().Interface(p1.Name()).Name().State()
+	interfaceNamePath := gnmi.OC().Interface(p.Name()).Name().State()
 	t.Logf("TRY: subscribe ON_CHANGE to %s", interfaceNamePath)
 
 	watchName := gnmi.Watch(t,
@@ -292,7 +290,7 @@ func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.
 		time.Minute,
 		func(val *ygnmi.Value[string]) bool {
 			iname, present := val.Val()
-			return present && iname == p1.Name()
+			return present && iname == p.Name()
 		})
 
 	return watchName
@@ -310,9 +308,10 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	configureDUT(t, dut)
 
 	// Verify subscribe ON_CHANGE is supported using a commonly supported OC path.
-	watchName, ok := subscribeOnChangeInterfaceName(t, dut).Await(t)
+	p1 := dut.Port(t, "port1")
+	watchName, ok := subscribeOnChangeInterfaceName(t, dut, p1).Await(t)
 	if !ok {
-		t.Fatalf("FAIL:  /interfaces/interface[name=%q]/state/name got:%v want:%q", dut.Port(t, "port1").Name(), watchName, dut.Port(t, "port1").Name())
+		t.Fatalf("/interfaces/interface[name=%q]/state/name got:%v want:%q", p1.Name(), watchName, p1.Name())
 	}
 
 	// Subscribe ON_CHANGE to '/interfaces/interface/state/id'.
@@ -359,12 +358,15 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	t.Logf("Stop traffic")
 	ate.OTG().StopTraffic(t)
 
-	// Verify interfaceID did not change since the last time we read it.
-	changedID, notOk := watchID.Await(t)
-	if notOk {
-		t.Errorf("FAIL: DUT changed /interfaces/interface/state/id  during p4rt process restart.  want:%q got:%q", dutPort1.ID, changedID.String())
+	// Skip check for CISCO devices that use the same process for P4RT & gNMI.
+	if dut.Vendor() != ondatra.CISCO {
+		// Verify interfaceID did not change since the last time we read it.
+		changedID, notOk := watchID.Await(t)
+		if notOk {
+			t.Errorf("DUT changed /interfaces/interface/state/id during p4rt process restart.  want: %q got: %q", dutPort1.ID, changedID.String())
+		}
+		t.Logf("OK: no change detected in /interfaces/interface/state/id want:%q got:%q", dutPort1.ID, changedID.String())
 	}
-	t.Logf("OK: no change detected in /interfaces/interface/state/id want:%q got:%q", dutPort1.ID, changedID.String())
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	txPackets := float32(recvMetric.GetCounters().GetOutPkts())

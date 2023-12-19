@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "2b4372c2-8827-4624-837c-f44b1a54edf7"
-plan_id: "RT-1.11"
-description: "BGP remove private AS"
+uuid: "000a845d-5416-4f47-8fc2-1c85f12a6821"
+plan_id: "RT-5.8"
+description: "IPv6 Link Local"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
@@ -14,12 +14,3 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
-platform_exceptions: {
-  platform: {
-    vendor: NOKIA
-  }
-  deviations: {
-    interface_enabled: true
-  }
-}
-tags: TAGS_AGGREGATION
