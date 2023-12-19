@@ -19,7 +19,6 @@ import (
 	"os"
 	"strings"
 
-	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gribi/v1/proto/service"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -33,12 +32,12 @@ func readCLI(path string) (string, error) {
 	return string(data), nil
 }
 
-func resetCLI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
+func resetCLI(ctx context.Context, dut *staticDUT) error {
 	vendorConfig := []string{}
-	for _, conf := range bdut.GetConfig().GetCli() {
+	for _, conf := range dut.dev.GetConfig().GetCli() {
 		vendorConfig = append(vendorConfig, string(conf))
 	}
-	for _, file := range bdut.GetConfig().GetCliFile() {
+	for _, file := range dut.dev.GetConfig().GetCliFile() {
 		conf, err := readCLI(file)
 		if err != nil {
 			return err
@@ -51,16 +50,7 @@ func resetCLI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
 		return nil
 	}
 
-	dialer, err := r.ssh(bdut.GetName())
-	if err != nil {
-		return err
-	}
-	sc, err := dialer.dialSSH()
-	if err != nil {
-		return err
-	}
-	defer sc.Close()
-	cli, err := newCLI(sc)
+	cli, err := dut.DialCLI(ctx)
 	if err != nil {
 		return err
 	}
@@ -84,9 +74,9 @@ func readGNMI(path string) (*gpb.SetRequest, error) {
 	return req, nil
 }
 
-func resetGNMI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
+func resetGNMI(ctx context.Context, dut *staticDUT) error {
 	setReq := []*gpb.SetRequest{}
-	for _, file := range bdut.GetConfig().GetGnmiSetFile() {
+	for _, file := range dut.dev.GetConfig().GetGnmiSetFile() {
 		conf, err := readGNMI(file)
 		if err != nil {
 			return err
@@ -97,17 +87,10 @@ func resetGNMI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
 		return nil
 	}
 
-	dialer, err := r.gnmi(bdut.GetName())
+	gnmi, err := dut.DialGNMI(ctx)
 	if err != nil {
 		return err
 	}
-	conn, err := dialer.dialGRPC(ctx)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	gnmi := gpb.NewGNMIClient(conn)
 
 	for _, req := range setReq {
 		if _, err := gnmi.Set(ctx, req); err != nil {
@@ -117,22 +100,15 @@ func resetGNMI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
 	return nil
 }
 
-func resetGRIBI(ctx context.Context, bdut *bindpb.Device, r resolver) error {
-	if !bdut.GetConfig().GetGribiFlush() {
+func resetGRIBI(ctx context.Context, dut *staticDUT) error {
+	if !dut.dev.GetConfig().GetGribiFlush() {
 		return nil
 	}
 
-	dialer, err := r.gribi(bdut.GetName())
+	gribi, err := dut.DialGRIBI(ctx)
 	if err != nil {
 		return err
 	}
-	conn, err := dialer.dialGRPC(ctx)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	gribi := spb.NewGRIBIClient(conn)
 	req := &spb.FlushRequest{
 		NetworkInstance: &spb.FlushRequest_All{
 			All: &spb.Empty{},
