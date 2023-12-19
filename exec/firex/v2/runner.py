@@ -13,7 +13,6 @@ from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
 from helper import CommandFailed, remote_exec
-from ciscoconfparse import CiscoConfParse
 from getpass import getuser
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -861,11 +860,12 @@ def GenerateCertificates(self, ws, internal_fp_repo_dir, reserved_testbed):
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
-    for dut, conf in reserved_testbed['baseconf'].items():
-        parser = CiscoConfParse(conf, syntax='ios')
-        parser.insert_after(r'grpc', 'tls_mutual\n', new_val_indent=1)
-        parser.insert_after(r'grpc', 'certificate-authentication\n', new_val_indent=1)
-        parser.save_as(conf)
+    parser_cmd = f'./exec/utils/confparser/sim_add_mtls_conf.py ' \
+        f'{" ".join(reserved_testbed["baseconf"].values())}'
+    logger.print(f'Executing confparser cmd {parser_cmd}')
+    logger.print(
+        check_output(parser_cmd)
+    )
 
     # convert binding to json
     with tempfile.NamedTemporaryFile() as of:
