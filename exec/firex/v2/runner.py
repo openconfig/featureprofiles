@@ -189,15 +189,8 @@ def _sim_get_mgmt_ips(testbed_logs_dir):
             mgmt_ips[dut] = entry["xr_mgmt_ip"]
     return mgmt_ips
 
-def _cli_to_gnmi_set_file(cli_file, gnmi_file, extra_conf=[]):
-    with open(cli_file, 'r') as cli:
-        lines = []
-        for l in cli.read().splitlines():
-            if l.strip() == 'end':
-                lines.extend(extra_conf)
-            lines.append(l)
-        gnmi_set = _gnmi_set_file_template(lines)
-
+def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
+    gnmi_set = _gnmi_set_file_template(cli_lines)
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
 
@@ -727,7 +720,15 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             else:
                 extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
 
-            _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path, extra_conf)
+            with open(ondatra_baseconf_path, 'r') as cli:
+                lines = []
+                for l in cli.read().splitlines():
+                    if l.strip() == 'end':
+                        lines.extend(extra_conf)
+                    lines.append(l)
+                reserved_testbed['cli_conf'] = lines
+            
+            _cli_to_gnmi_set_file(reserved_testbed['cli_conf'], ondatra_baseconf_path, extra_conf)
             check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
         ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
@@ -754,6 +755,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         reserved_testbed['mtls_key_file'] = key_file
         reserved_testbed['mtls_cert_file'] = cert_file
 
+    reserved_testbed['conf_file'] = ondatra_baseconf_path
     reserved_testbed['testbed_file'] = ondatra_testbed_path
     reserved_testbed['testbed_info_file'] = testbed_info_path
     reserved_testbed['pyats_testbed_file'] = pyats_testbed
@@ -869,6 +871,8 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     logger.print(
         check_output(parser_cmd, cwd=internal_fp_repo_dir)
     )
+    
+    _cli_to_gnmi_set_file(reserved_testbed['cli_conf'], reserved_testbed['conf_file'])
 
     # convert binding to json
     with tempfile.NamedTemporaryFile() as of:
