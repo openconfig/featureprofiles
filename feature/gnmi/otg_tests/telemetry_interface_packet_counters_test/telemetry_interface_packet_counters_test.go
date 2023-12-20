@@ -205,14 +205,17 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		return pktCounterOK
 	}
 
+	var tolerance = uint64(70)
 	for i := 1; i < len(inPkts); i++ {
 		inValOld, _ := inPkts[i-1].Val()
 		outValOld, _ := outPkts[i-1].Val()
 		inValLatest, _ := inPkts[i].Val()
 		outValLatest, _ := outPkts[i].Val()
+		inValDelta := inValLatest - inValOld
+		outValDelta := outValLatest - outValOld
 		t.Logf("Incoming Packets: %d, Outgoing Packets: %d", inValLatest, outValLatest)
-		if inValLatest == inValOld || outValLatest == outValOld || (inValLatest-inValOld != outValLatest-outValOld) {
-			t.Logf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d", inValLatest-inValOld, outValLatest-outValOld)
+		if inValLatest == inValOld || outValLatest == outValOld || outValDelta <= inValDelta-tolerance || outValDelta >= inValDelta+tolerance {
+			t.Logf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d, Tolerance: %d", inValDelta, outValDelta, tolerance)
 			pktCounterOK = false
 			break
 		}
