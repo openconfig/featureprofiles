@@ -887,18 +887,15 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     #TODO: support multiple ates
     glob_username = j.get('options', {}).get('username', "")    
     for dut in j.get('duts', []):
-        dut_username = dut.get('options', {}).get('username', glob_username)
-        for s in ['gnmi', 'gnoi', 'gnsi', 'gribi', 'p4rt']:
-            if s in dut:
-                opts = dut[s].get('options', {})
-                username = opts.get('username', dut_username)
-                opts['insecure'] = False
-                opts['skip_verify'] = False
-                opts['mutual_tls'] = True
-                opts['trust_bundle_file'] = os.path.join(certs_dir, 'ca.cert')
-                opts['cert_file'] = os.path.join(certs_dir, f'{username}.cert.pem')
-                opts['key_file'] = os.path.join(certs_dir, f'{username}.key.pem')
-                dut[s]['options'] = opts
+        opts = dut.get('options', {})
+        username = opts.get('username', glob_username)
+        opts['insecure'] = False
+        opts['skip_verify'] = False
+        opts['mutual_tls'] = True
+        opts['trust_bundle_file'] = os.path.join(certs_dir, 'ca.cert')
+        opts['cert_file'] = os.path.join(certs_dir, f'{username}.cert.pem')
+        opts['key_file'] = os.path.join(certs_dir, f'{username}.key.pem')
+        dut['options'] = opts
 
     # convert binding to prototext
     with tempfile.NamedTemporaryFile() as f:
