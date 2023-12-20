@@ -277,16 +277,12 @@ func setupP4RTClient(ctx context.Context, args *testArgs) error {
 
 // Function to compare and check if the expected table is present in RPC ReadResponse
 func verifyReadReceiveMatch(t *testing.T, expected_table *p4_v1.Update, received_entry *p4_v1.ReadResponse) error {
-	matches := 0
 	for _, table := range received_entry.Entities {
 		if cmp.Equal(table, expected_table.Entity, protocmp.Transform(), protocmp.IgnoreFields(&p4_v1.TableEntry{}, "meter_config", "counter_data")) {
-			matches++
+			return nil
 		}
 	}
-	if matches == 0 {
-		return errors.New("no matches found")
-	}
-	return nil
+	return fmt.Errorf("no matches found: \ngot %+v, \nwant: %+v", received_entry, expected_table)
 }
 
 // TestP4rtConnect connects to the P4Runtime server over grpc
@@ -357,7 +353,42 @@ func TestP4rtConnect(t *testing.T) {
 				{
 					Type:     p4_v1.Update_INSERT,
 					IsIpv4:   0x1,
+					TTL:      0x0,
+					TTLMask:  0xFF,
+					Priority: 1,
+				},
+				{
+					Type:     p4_v1.Update_INSERT,
+					IsIpv4:   0x1,
 					TTL:      0x1,
+					TTLMask:  0xFF,
+					Priority: 1,
+				},
+				{
+					Type:     p4_v1.Update_INSERT,
+					IsIpv4:   0x1,
+					TTL:      0x2,
+					TTLMask:  0xFF,
+					Priority: 1,
+				},
+				{
+					Type:     p4_v1.Update_INSERT,
+					IsIpv6:   0x1,
+					TTL:      0x0,
+					TTLMask:  0xFF,
+					Priority: 1,
+				},
+				{
+					Type:     p4_v1.Update_INSERT,
+					IsIpv6:   0x1,
+					TTL:      0x1,
+					TTLMask:  0xFF,
+					Priority: 1,
+				},
+				{
+					Type:     p4_v1.Update_INSERT,
+					IsIpv6:   0x1,
+					TTL:      0x2,
 					TTLMask:  0xFF,
 					Priority: 1,
 				},
@@ -372,7 +403,6 @@ func TestP4rtConnect(t *testing.T) {
 		}
 	}
 
-	nomatch := 0 // To count no matches for Table entries
 	// Receive read response
 	for index, client := range clients {
 		rStream, rErr := client.Read(&p4_v1.ReadRequest{
@@ -407,7 +437,6 @@ func TestP4rtConnect(t *testing.T) {
 		expected_entity := expected_update[0]
 		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for GDP %s", err)
-			nomatch += 1
 		}
 
 		// Construct expected table for LLDP to match with received table entry
@@ -422,10 +451,9 @@ func TestP4rtConnect(t *testing.T) {
 		expected_entity = expected_update[0]
 		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
 			t.Errorf("Table entry for LLDP %s", err)
-			nomatch += 1
 		}
 
-		// Construct expected table for traceroute to match with received table entry
+		// Construct expected table for traceroute v4 & TTL = 1 to match with received table entry
 		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
 			{
 				Type:     p4_v1.Update_INSERT,
@@ -437,11 +465,81 @@ func TestP4rtConnect(t *testing.T) {
 		})
 		expected_entity = expected_update[0]
 		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
-			t.Errorf("Table entry for traceroute %s", err)
-			nomatch += 1
+			t.Errorf("TableEntry for traceroute v4 & ttl=1: %s", err)
 		}
-	}
-	if nomatch > 0 {
-		t.Fatalf("Table entry matches failed")
+
+		// Construct expected table for traceroute v4 & TTL = 0 to match with received table entry
+		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
+			{
+				Type:     p4_v1.Update_INSERT,
+				IsIpv4:   0x1,
+				TTL:      0x0,
+				TTLMask:  0xFF,
+				Priority: 1,
+			},
+		})
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
+			t.Errorf("TableEntry for traceroute v4 & ttl=0: %s", err)
+		}
+		// Construct expected table for traceroute v4 & TTL = 2 to match with received table entry
+		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
+			{
+				Type:     p4_v1.Update_INSERT,
+				IsIpv4:   0x1,
+				TTL:      0x2,
+				TTLMask:  0xFF,
+				Priority: 1,
+			},
+		})
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
+			t.Errorf("TableEntry for traceroute v4 & ttl=2: %s", err)
+		}
+
+		// Construct expected table for traceroute v6 & TTL = 0 to match with received table entry
+		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
+			{
+				Type:     p4_v1.Update_INSERT,
+				IsIpv6:   0x1,
+				TTL:      0x0,
+				TTLMask:  0xFF,
+				Priority: 1,
+			},
+		})
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
+			t.Errorf("TableEntry for traceroute v6 & ttl=0: %s", err)
+		}
+
+		// Construct expected table for traceroute v6 & TTL = 1 to match with received table entry
+		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
+			{
+				Type:     p4_v1.Update_INSERT,
+				IsIpv6:   0x1,
+				TTL:      0x1,
+				TTLMask:  0xFF,
+				Priority: 1,
+			},
+		})
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
+			t.Errorf("TableEntry for traceroute v6 & ttl=1: %s", err)
+		}
+		// Construct expected table for traceroute v6 & TTL = 2 to match with received table entry
+		expected_update = p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
+			{
+				Type:     p4_v1.Update_INSERT,
+				IsIpv6:   0x1,
+				TTL:      0x2,
+				TTLMask:  0xFF,
+				Priority: 1,
+			},
+		})
+		expected_entity = expected_update[0]
+		if err := verifyReadReceiveMatch(t, expected_entity, readResp); err != nil {
+			t.Errorf("TableEntry for traceroute v6 & ttl=2: %s", err)
+		}
+
 	}
 }

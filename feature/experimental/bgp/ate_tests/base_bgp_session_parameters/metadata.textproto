@@ -11,7 +11,6 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    skip_bgp_test_password_mismatch: true
     connect_retry: true
   }
 }
