@@ -905,6 +905,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     with tempfile.NamedTemporaryFile() as f:
         tmp_binding_file = f.name
         with open(tmp_binding_file, "w") as outfile:
+            logger.print(json.dumps(j))
             outfile.write(json.dumps(j))
             
         cmd = f'{GO_BIN} run ' \
