@@ -31,8 +31,6 @@ replace: {
 " !\n"
 " p4rt\n"
 " !\n"
-" tls-mutual\n"
-" certificate-authentication\n"
 "!\n"
 "telemetry model-driven\n"
 " sensor-group test\n"
