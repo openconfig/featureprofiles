@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/ate_tests/internal/setup"
+	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/internal/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -136,6 +136,8 @@ func setPolicyPeerGroup(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root, policy
 // isConverged function is used to check if ATE has received all the prefixes.
 func isConverged(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, ap *ondatra.Port) {
 
+	// Add 10 second timer for BGP update to propagate
+	time.Sleep(10 * time.Second)
 	// Check if all prefixes are learned at ATE.
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
