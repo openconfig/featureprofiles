@@ -207,8 +207,7 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 // configureATE configures the topology of the ATE.
 func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	otg := ate.OTG()
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	for i, ap := range ate.Ports() {
 		// DUT and ATE ports are connected by the same names.
 		dutid := fmt.Sprintf("dut:%s", ap.ID())
@@ -223,7 +222,7 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
 			SetPrefix(plen)
 	}
-	otg.PushConfig(t, config)
+	ate.OTG().PushConfig(t, config)
 	return config
 }
 
@@ -297,7 +296,6 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 // ateDstNetCIDR, then returns the atePorts as well as the number of
 // packets received (inPkts) and sent (outPkts) across the atePorts.
 func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
-
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
@@ -312,12 +310,12 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
-		ipv4.Src().SetValues(generateRandomIpList(ateSrcNetFirstIP+"/32", ateSrcNetCount))
+		ipv4.Src().SetValues(generateRandomIPList(t, ateSrcNetFirstIP+"/32", ateSrcNetCount))
 	} else {
 		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
 	}
 	if *randomDstIP {
-		ipv4.Dst().SetValues(generateRandomIpList(ateDstNetFirstIP+"/32", ateDstNetCount))
+		ipv4.Dst().SetValues(generateRandomIPList(t, ateDstNetFirstIP+"/32", ateDstNetCount))
 	} else {
 		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
 	}
@@ -436,14 +434,12 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-func generateRandomIpList(cidr string, count uint32) []string {
-	netsCh, _ := netutil.CIDRs(cidr, count)
+func generateRandomIPList(t testing.TB, cidr string, count int) []string {
+	t.Helper()
 	gotNets := make([]string, 0)
-	for net := range netsCh {
+	for net := range netutil.GenCIDRs(t, cidr, count) {
 		gotNets = append(gotNets, strings.ReplaceAll(net, "/32", ""))
 	}
-	// Seed the random number generator with the current time
-	rand.Seed(time.Now().UnixNano())
 
 	// Make a copy of the input slice to avoid modifying the original
 	randomized := make([]string, len(gotNets))
