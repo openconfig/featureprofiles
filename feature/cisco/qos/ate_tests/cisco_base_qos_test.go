@@ -169,7 +169,7 @@ var (
 // func TestTrafficQos(t *testing.T) {
 // 	dut := ondatra.DUT(t, "dut")
 // 	cliHandle := dut.RawAPIs().CLI(t)
-// // 	resp, err := cliHandle.SendCommand(context.Background(), "show version")
+// // 	resp, err := cliHandle.RunCommand(context.Background(), "show version")
 // 	t.Logf(resp)
 // 	if err != nil {
 // 		t.Error(err)
@@ -277,12 +277,12 @@ func TestScheduler(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	time.Sleep(time.Minute)
 	cliHandle := dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.SendCommand(context.Background(), "show version")
-	t.Logf(resp)
+	resp, err := cliHandle.RunCommand(context.Background(), "show version")
+	t.Logf(resp.Output())
 	if err != nil {
 		t.Error(err)
 	}
-	if strings.Contains(resp, "VXR") {
+	if strings.Contains(resp.Output(), "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
 	}
@@ -375,12 +375,12 @@ func TestWrrTrafficQos(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	time.Sleep(time.Minute)
 	cliHandle := dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.SendCommand(context.Background(), "show version")
-	t.Logf(resp)
+	resp, err := cliHandle.RunCommand(context.Background(), "show version")
+	t.Logf(resp.Output())
 	if err != nil {
 		t.Error(err)
 	}
-	if strings.Contains(resp, "VXR") {
+	if strings.Contains(resp.Output(), "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
 	}
@@ -473,7 +473,7 @@ func TestGooglePopgate(t *testing.T) {
 	time.Sleep(time.Minute)
 	// cliHandle := dut.RawAPIs().CLI(t)
 	// defer cliHandle.Close()
-	// resp, err := cliHandle.SendCommand(context.Background(), "show version")
+	// resp, err := cliHandle.RunCommand(context.Background(), "show version")
 	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
 
 	if strings.Contains(resp, "VXR") {

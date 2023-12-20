@@ -55,7 +55,7 @@ func TestId(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Id != input {
 						t.Errorf("Config /acl/interfaces/interface/config/id: got %v, want %v", configGot, input)
 					}

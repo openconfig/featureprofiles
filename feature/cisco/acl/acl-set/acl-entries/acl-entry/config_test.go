@@ -54,7 +54,7 @@ func TestSequenceId(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.SequenceId != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/config/sequence-id: got %v, want %v", configGot, input)
 					}
@@ -104,7 +104,7 @@ func TestDescription(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Description != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/config/description: got %v, want %v", configGot, input)
 					}

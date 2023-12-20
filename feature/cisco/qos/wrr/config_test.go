@@ -50,11 +50,11 @@ func TestSchedReplaceSched(t *testing.T) {
 	}
 	Config := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 	gnmi.Replace(t, dut, Config.Config(), schedule)
-	ConfigGot := gnmi.GetConfig(t, dut, Config.Config())
+	ConfigGot := gnmi.Get(t, dut, Config.Config())
 	if diff := cmp.Diff(*ConfigGot, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
-	ConfigGotQos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+	ConfigGotQos := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 	if diff := cmp.Diff(*ConfigGotQos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
@@ -71,11 +71,11 @@ func TestSchedReplaceSched(t *testing.T) {
 	}
 	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 	gnmi.Update(t, dut, configIntf.Config(), schedinterface)
-	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
+	configGet := gnmi.Get(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	ConfigGotQosRep := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+	ConfigGotQosRep := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 	if diff := cmp.Diff(*ConfigGotQosRep, *qos); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
@@ -95,7 +95,7 @@ func TestSchedReplaceSched(t *testing.T) {
 	}
 	ConfigRep := gnmi.OC().Qos().SchedulerPolicy(*schedulerpolrep.Name).Scheduler(1)
 	gnmi.Replace(t, dut, ConfigRep.Config(), schedulerep)
-	ConfigRepGet := gnmi.GetConfig(t, dut, ConfigRep.Config())
+	ConfigRepGet := gnmi.Get(t, dut, ConfigRep.Config())
 	if diff := cmp.Diff(*ConfigRepGet, *schedulerep); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
@@ -133,7 +133,7 @@ func TestSchedSchedReplaceSchedPolDelQueue(t *testing.T) {
 	}
 	configsched := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
 	gnmi.Replace(t, dut, configsched.Config(), schedulerpol)
-	configGotsched := gnmi.GetConfig(t, dut, configsched.Config())
+	configGotsched := gnmi.Get(t, dut, configsched.Config())
 	if diff := cmp.Diff(*configGotsched, *schedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -152,7 +152,7 @@ func TestSchedSchedReplaceSchedPolDelQueue(t *testing.T) {
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
 	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 	gnmi.Update(t, dut, configIntf.Config(), schedinterface)
-	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
+	configGet := gnmi.Get(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -201,7 +201,7 @@ func TestSchedUpdate(t *testing.T) {
 	}
 	configsched := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
 	gnmi.Update(t, dut, configsched.Config(), schedulerpol)
-	configGotsched := gnmi.GetConfig(t, dut, configsched.Config())
+	configGotsched := gnmi.Get(t, dut, configsched.Config())
 	if diff := cmp.Diff(*configGotsched, *schedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -221,7 +221,7 @@ func TestSchedUpdate(t *testing.T) {
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
 	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 	gnmi.Update(t, dut, configIntf.Config(), schedinterface)
-	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
+	configGet := gnmi.Get(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Interface fail: \n%v", diff)
 	}
@@ -259,7 +259,7 @@ func TestMultipeSchedUpdateInput(t *testing.T) {
 	}
 	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
 	gnmi.Update(t, dut, configprior.Config(), schedulerpol)
-	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
+	configGotprior := gnmi.Get(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -297,7 +297,7 @@ func TestMultipeSchedUpdateInput(t *testing.T) {
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
 	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 	gnmi.Replace(t, dut, configIntf.Config(), schedinterface)
-	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
+	configGet := gnmi.Get(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Interface fail: \n%v", diff)
 	}
@@ -340,7 +340,7 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 		ConfigSchedule := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 		t.Logf("Configuring schduler with sequence one")
 		gnmi.Replace(t, dut, ConfigSchedule.Config(), schedule)
-		ConfigGetSchedule := gnmi.GetConfig(t, dut, ConfigSchedule.Config())
+		ConfigGetSchedule := gnmi.Get(t, dut, ConfigSchedule.Config())
 		if diff := cmp.Diff(*ConfigGetSchedule, *schedule); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
@@ -361,7 +361,7 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 		configScheNonPrior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 		t.Logf("Configuring schduler with sequence two")
 		gnmi.Replace(t, dut, configScheNonPrior.Config(), schedulenonprior)
-		configGotNonprior := gnmi.GetConfig(t, dut, configScheNonPrior.Config())
+		configGotNonprior := gnmi.Get(t, dut, configScheNonPrior.Config())
 		if diff := cmp.Diff(*configGotNonprior, *schedulenonprior); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -383,11 +383,11 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 		scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
 		configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 		gnmi.Update(t, dut, configIntf.Config(), schedinterface)
-		configGet := gnmi.GetConfig(t, dut, configIntf.Config())
+		configGet := gnmi.Get(t, dut, configIntf.Config())
 		if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 			t.Errorf("Config Interface fail: \n%v", diff)
 		}
-		ConfigGotQos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+		ConfigGotQos := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotQos, *qos); diff != "" {
 			t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 		}
@@ -412,11 +412,11 @@ func TestMultipeSchedReplaceSchuduler(t *testing.T) {
 		}
 		configScheNonPriorRep := gnmi.OC().Qos().SchedulerPolicy("eg_policy1111").Scheduler(2)
 		gnmi.Replace(t, dut1, configScheNonPriorRep.Config(), schedulenonpriorrep)
-		configGotNonpriorRep := gnmi.GetConfig(t, dut1, configScheNonPriorRep.Config())
+		configGotNonpriorRep := gnmi.Get(t, dut1, configScheNonPriorRep.Config())
 		if diff := cmp.Diff(*configGotNonpriorRep, *schedulenonpriorrep); diff != "" {
 			t.Errorf("Config Schedule fail after replace: \n%v", diff)
 		}
-		ConfigGotQosRep := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+		ConfigGotQosRep := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotQosRep, *qos); diff == "" {
 			t.Errorf("Replace with config at scheduler not working as expected \n%v", diff)
 		}
@@ -457,7 +457,7 @@ func TestMultipeSchedDelSeqtwo(t *testing.T) {
 		ConfigSchedule := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
 		t.Logf("Configuring schduler with sequence one")
 		gnmi.Replace(t, dut, ConfigSchedule.Config(), schedulerpol)
-		ConfigGetSchedule := gnmi.GetConfig(t, dut, ConfigSchedule.Config())
+		ConfigGetSchedule := gnmi.Get(t, dut, ConfigSchedule.Config())
 		if diff := cmp.Diff(*ConfigGetSchedule, *schedulerpol); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
@@ -478,7 +478,7 @@ func TestMultipeSchedDelSeqtwo(t *testing.T) {
 		configScheNonPrior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 		t.Logf("Configuring schduler with sequence two")
 		gnmi.Replace(t, dut, configScheNonPrior.Config(), schedulenonprior)
-		configGotNonprior := gnmi.GetConfig(t, dut, configScheNonPrior.Config())
+		configGotNonprior := gnmi.Get(t, dut, configScheNonPrior.Config())
 		if diff := cmp.Diff(*configGotNonprior, *schedulenonprior); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -494,17 +494,17 @@ func TestMultipeSchedDelSeqtwo(t *testing.T) {
 		scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
 		configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 		gnmi.Update(t, dut, configIntf.Config(), schedinterface)
-		configGet := gnmi.GetConfig(t, dut, configIntf.Config())
+		configGet := gnmi.Get(t, dut, configIntf.Config())
 		if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 			t.Errorf("Config Interface fail: \n%v", diff)
 		}
-		ConfigGotQos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+		ConfigGotQos := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotQos, *qos); diff != "" {
 			t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 		}
 		t.Logf("Deleting Sequence number 2")
 		gnmi.Delete(t, dut, configScheNonPrior.Config())
-		ConfigGotQosAfterDel := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+		ConfigGotQosAfterDel := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotQosAfterDel, *qos); diff == "" {
 			t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 		}
@@ -549,7 +549,7 @@ func TestMultipeSchedDelSeqone(t *testing.T) {
 	ConfigSchedule := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
 	t.Logf("Configuring schduler with sequence one")
 	gnmi.Replace(t, dut, ConfigSchedule.Config(), schedulerpol)
-	ConfigGetSchedule := gnmi.GetConfig(t, dut, ConfigSchedule.Config())
+	ConfigGetSchedule := gnmi.Get(t, dut, ConfigSchedule.Config())
 	if diff := cmp.Diff(*ConfigGetSchedule, *schedulerpol); diff != "" {
 		t.Errorf("Config Input fail: \n%v", diff)
 	}
@@ -569,17 +569,17 @@ func TestMultipeSchedDelSeqone(t *testing.T) {
 	configScheNonPrior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	t.Logf("Configuring schduler with sequence two")
 	gnmi.Replace(t, dut, configScheNonPrior.Config(), schedulenonprior)
-	configGotNonprior := gnmi.GetConfig(t, dut, configScheNonPrior.Config())
+	configGotNonprior := gnmi.Get(t, dut, configScheNonPrior.Config())
 	if diff := cmp.Diff(*configGotNonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	ConfigGotQos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+	ConfigGotQos := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 	if diff := cmp.Diff(*ConfigGotQos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
 	t.Logf("Deleting Sequence number 1")
 	gnmi.Delete(t, dut, ConfigSchedule.Config())
-	ConfigGotQosAfterDel := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+	ConfigGotQosAfterDel := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 	if diff := cmp.Diff(*ConfigGotQosAfterDel, *qos); diff == "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
@@ -654,7 +654,7 @@ func TestMultipeSchedPolDelete(t *testing.T) {
 	}
 	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
 	gnmi.Update(t, dut, configprior.Config(), schedulerpol)
-	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
+	configGotprior := gnmi.Get(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -670,14 +670,14 @@ func TestMultipeSchedPolDelete(t *testing.T) {
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
 	configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 	gnmi.Update(t, dut, configIntf.Config(), schedinterface)
-	configGet := gnmi.GetConfig(t, dut, configIntf.Config())
+	configGet := gnmi.Get(t, dut, configIntf.Config())
 	if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 		t.Errorf("Config Interface fail: \n%v", diff)
 	}
 	t.Run("Delete the queue 5 ", func(t *testing.T) {
 		gnmi.Delete(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input("tc5").Config())
 	})
-	configGotpriorafterDel := gnmi.GetConfig(t, dut, configprior.Config())
+	configGotpriorafterDel := gnmi.Get(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotpriorafterDel, *schedulerpol); diff == "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -740,12 +740,12 @@ func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 		}
 		ConfigSchedPol := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
 		gnmi.Replace(t, dut, ConfigSchedPol.Config(), schedulerpol)
-		ConfigSchedPolGet := gnmi.GetConfig(t, dut, ConfigSchedPol.Config())
+		ConfigSchedPolGet := gnmi.Get(t, dut, ConfigSchedPol.Config())
 		if diff := cmp.Diff(*ConfigSchedPolGet, *schedulerpol); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
-		ConfigGotQosRep := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+		ConfigGotQosRep := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotQosRep, *qos); diff != "" {
 			t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 		}
@@ -770,7 +770,7 @@ func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 		}
 		configScheNonPriorRep := gnmi.OC().Qos().SchedulerPolicy("eg_policy1111")
 		gnmi.Replace(t, dut1, configScheNonPriorRep.Config(), schedulerpolred)
-		configGotNonpriorRep := gnmi.GetConfig(t, dut1, configScheNonPriorRep.Config())
+		configGotNonpriorRep := gnmi.Get(t, dut1, configScheNonPriorRep.Config())
 		if diff := cmp.Diff(*configGotNonpriorRep, *schedulerpolred); diff != "" {
 			t.Errorf("Config Schedule fail after replace: \n%v", diff)
 		}
@@ -796,7 +796,7 @@ func TestMultipeSchedReplaceSchedPol(t *testing.T) {
 				t.Errorf("This update should have failed ")
 			}
 
-			ConfigGotQos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+			ConfigGotQos := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 			if diff := cmp.Diff(*ConfigGotQos, *qos); diff == "" {
 				t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 			}
@@ -852,12 +852,12 @@ func TestMultipeSchedDeleteShedPol(t *testing.T) {
 	}
 	configprior := gnmi.OC().Qos()
 	gnmi.Update(t, dut, configprior.Config(), qos)
-	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
+	configGotprior := gnmi.Get(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
 	gnmi.Delete(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config())
-	configGotpriorAfterDel := gnmi.GetConfig(t, dut, configprior.Config())
+	configGotpriorAfterDel := gnmi.Get(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotpriorAfterDel, *qos); diff == "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -883,7 +883,7 @@ func TestMultipeSchedDeleteShedPol(t *testing.T) {
 		scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
 		configIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 		gnmi.Update(t, dut, configIntf.Config(), schedinterface)
-		configGet := gnmi.GetConfig(t, dut, configIntf.Config())
+		configGet := gnmi.Get(t, dut, configIntf.Config())
 		if diff := cmp.Diff(*configGet, *schedinterface); diff != "" {
 			t.Errorf("Config Interface fail: \n%v", diff)
 		}

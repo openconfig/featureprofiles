@@ -38,7 +38,7 @@ func TestTargetGroupAtContainer(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTermActions)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermActions); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/config/target-group: %v", diff)
 				}
@@ -84,7 +84,7 @@ func TestTargetGroupAtLeaf(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if configGot != *baseConfigClassifierTerm.Actions.TargetGroup {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/config/target-group: got %v, want %v", configGot, input)
 				}
