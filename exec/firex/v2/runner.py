@@ -894,7 +894,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
                 username = dut[s].get('username', dut_username)
                 dut[s].update({
                     'insecure': False,
-                    'skip_verify': False,
+                    'skipVerify': False,
                     'mutual_tls': True,
                     'trust_bundle_file': os.path.join(certs_dir, 'ca.cert'),
                     'cert_file': os.path.join(certs_dir, f'{username}.cert.pem'),
@@ -905,7 +905,6 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     with tempfile.NamedTemporaryFile() as f:
         tmp_binding_file = f.name
         with open(tmp_binding_file, "w") as outfile:
-            logger.print(json.dumps(j))
             outfile.write(json.dumps(j))
             
         cmd = f'{GO_BIN} run ' \
