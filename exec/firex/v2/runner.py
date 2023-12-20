@@ -866,7 +866,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         f'{" ".join(reserved_testbed["baseconf"].values())}'
     logger.print(f'Executing confparser cmd {parser_cmd}')
     logger.print(
-        check_output(parser_cmd)
+        check_output(parser_cmd, cwd=internal_fp_repo_dir)
     )
 
     # convert binding to json
