@@ -30,6 +30,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra/binding"
+	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -60,6 +61,8 @@ type staticDUT struct {
 	dev *bindpb.Device
 }
 
+var _ introspect.Introspector = (*staticDUT)(nil)
+
 type staticATE struct {
 	*binding.AbstractATE
 	r      resolver
@@ -68,7 +71,7 @@ type staticATE struct {
 	ixsess *ixweb.Session
 }
 
-var _ = binding.Binding(&staticBind{})
+var _ binding.Binding = (*staticBind)(nil)
 
 const resvID = "STATIC"
 
@@ -124,6 +127,24 @@ func (b *staticBind) reset(ctx context.Context) error {
 	return nil
 }
 
+func (d *staticDUT) ConnDetails(svc introspect.Service) (*introspect.ConnDetails, error) {
+	params, ok := serviceToParams[svc]
+	if !ok {
+		return nil, fmt.Errorf("no known port for service %v", svc)
+	}
+	bopts := d.r.grpc(d.dev, svc)
+	opts, err := dialOpts(bopts)
+	if err != nil {
+		return nil, err
+	}
+	return &introspect.ConnDetails{
+		DevicePort:      params.port,
+		DefaultDial:     dialConn(bopts),
+		DefaultTarget:   fmt.Sprintf("%s:%d", d.Name(), params.port),
+		DefaultDialOpts: opts,
+	}, nil
+}
+
 func (d *staticDUT) reset(ctx context.Context) error {
 	// Each of the individual reset functions should be no-op if the reset action is not
 	// requested.
@@ -137,8 +158,7 @@ func (d *staticDUT) reset(ctx context.Context) error {
 }
 
 func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
-	bopts := d.r.gnmi(d.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := d.dialDUT(ctx, introspect.GNMI, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +166,7 @@ func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 }
 
 func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoigo.Clients, error) {
-	bopts := d.r.gnoi(d.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := d.dialDUT(ctx, introspect.GNOI, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -155,8 +174,7 @@ func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoi
 }
 
 func (d *staticDUT) DialGNSI(ctx context.Context, opts ...grpc.DialOption) (binding.GNSIClients, error) {
-	bopts := d.r.gnsi(d.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := d.dialDUT(ctx, introspect.GNSI, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -164,8 +182,7 @@ func (d *staticDUT) DialGNSI(ctx context.Context, opts ...grpc.DialOption) (bind
 }
 
 func (d *staticDUT) DialGRIBI(ctx context.Context, opts ...grpc.DialOption) (grpb.GRIBIClient, error) {
-	bopts := d.r.gribi(d.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := d.dialDUT(ctx, introspect.GRIBI, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +190,7 @@ func (d *staticDUT) DialGRIBI(ctx context.Context, opts ...grpc.DialOption) (grp
 }
 
 func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb.P4RuntimeClient, error) {
-	bopts := d.r.p4rt(d.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := d.dialDUT(ctx, introspect.P4RT, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +235,7 @@ func sshInteractive(password string) ssh.KeyboardInteractiveChallenge {
 
 func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
 	bopts := a.r.ateGNMI(a.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := dialATE(ctx, bopts, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -231,11 +247,10 @@ func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosna
 		return nil, fmt.Errorf("otg must be configured in ATE binding to run OTG test")
 	}
 	bopts := a.r.ateOTG(a.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := dialATE(ctx, bopts, opts)
 	if err != nil {
 		return nil, err
 	}
-
 	api := gosnappi.NewApi()
 	grpcTransport := api.NewGrpcTransport().SetClientConnection(conn)
 	if bopts.Timeout != 0 {
@@ -492,7 +507,26 @@ func (a *staticATE) ixSession(ctx context.Context, opts *bindpb.Options) (*ixweb
 	return a.ixsess, nil
 }
 
-func dialGRPC(ctx context.Context, bopts *bindpb.Options, overrideOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
+func (d *staticDUT) dialDUT(ctx context.Context, svc introspect.Service, opts []grpc.DialOption) (*grpc.ClientConn, error) {
+	cd, err := d.ConnDetails(svc)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(cd.DefaultDialOpts, opts...)
+	return cd.DefaultDial(ctx, cd.DefaultTarget, opts...)
+}
+
+func dialATE(ctx context.Context, bopts *bindpb.Options, overrideOpts []grpc.DialOption) (*grpc.ClientConn, error) {
+	opts, err := dialOpts(bopts)
+	if err != nil {
+		return nil, err
+	}
+	dialFn := dialConn(bopts)
+	opts = append(opts, overrideOpts...)
+	return dialFn(ctx, bopts.Target, opts...)
+}
+
+func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
 	opts := []grpc.DialOption{grpc.WithBlock()}
 	switch {
 	case bopts.Insecure:
@@ -526,12 +560,19 @@ func dialGRPC(ctx context.Context, bopts *bindpb.Options, overrideOpts ...grpc.D
 			grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
 			grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
 		)
-		var cancelFunc context.CancelFunc
-		ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
-		defer cancelFunc()
 	}
-	opts = append(opts, overrideOpts...)
-	return grpc.DialContext(ctx, bopts.Target, opts...)
+	return opts, nil
+}
+
+func dialConn(bopts *bindpb.Options) func(context.Context, string, ...grpc.DialOption) (*grpc.ClientConn, error) {
+	return func(ctx context.Context, target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+		if bopts.Timeout != 0 {
+			var cancelFunc context.CancelFunc
+			ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
+			defer cancelFunc()
+		}
+		return grpc.DialContext(ctx, bopts.Target, opts...)
+	}
 }
 
 // load trust bundle and client key and certificate

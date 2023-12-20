@@ -22,6 +22,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	"github.com/openconfig/ondatra/binding/introspect"
 )
 
 func TestMerge(t *testing.T) {
@@ -223,8 +224,10 @@ func TestResolver_Options(t *testing.T) {
 		},
 	}, {
 		test: "gnmi",
-		fn:   r.gnmi,
-		dev:  r.Duts[0],
+		fn: func(d *bindpb.Device) *bindpb.Options {
+			return r.grpc(d, introspect.GNMI)
+		},
+		dev: r.Duts[0],
 		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnmiPort),
 			Username: "global.username",
@@ -232,8 +235,10 @@ func TestResolver_Options(t *testing.T) {
 		},
 	}, {
 		test: "gnoi",
-		fn:   r.gnoi,
-		dev:  r.Duts[0],
+		fn: func(d *bindpb.Device) *bindpb.Options {
+			return r.grpc(d, introspect.GNOI)
+		},
+		dev: r.Duts[0],
 		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnoiPort),
 			Username: "global.username",
@@ -241,8 +246,10 @@ func TestResolver_Options(t *testing.T) {
 		},
 	}, {
 		test: "gnsi",
-		fn:   r.gnsi,
-		dev:  r.Duts[0],
+		fn: func(d *bindpb.Device) *bindpb.Options {
+			return r.grpc(d, introspect.GNSI)
+		},
+		dev: r.Duts[0],
 		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gnsiPort),
 			Username: "global.username",
@@ -250,8 +257,10 @@ func TestResolver_Options(t *testing.T) {
 		},
 	}, {
 		test: "gribi",
-		fn:   r.gribi,
-		dev:  r.Duts[0],
+		fn: func(d *bindpb.Device) *bindpb.Options {
+			return r.grpc(d, introspect.GRIBI)
+		},
+		dev: r.Duts[0],
 		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*gribiPort),
 			Username: "global.username",
@@ -259,8 +268,10 @@ func TestResolver_Options(t *testing.T) {
 		},
 	}, {
 		test: "p4rt",
-		fn:   r.p4rt,
-		dev:  r.Duts[0],
+		fn: func(d *bindpb.Device) *bindpb.Options {
+			return r.grpc(d, introspect.P4RT)
+		},
+		dev: r.Duts[0],
 		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*p4rtPort),
 			Username: "global.username",
