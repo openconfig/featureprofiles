@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "e50991a4-bb40-4162-8a86-717e68e10680"
-plan_id:  "gNMI-1.15"
-description:  "Set Requests"
-testbed:  TESTBED_DUT_ATE_2LINKS
+uuid: "e50991a4-bb40-4162-8a86-717e68e10680"
+plan_id: "gNMI-1.15"
+description: "Set Requests"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
