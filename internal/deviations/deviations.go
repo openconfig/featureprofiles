@@ -720,3 +720,8 @@ func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
 func ISISMetricStyleTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMetricStyleTelemetryUnsupported()
 }
+
+// Skip checking prefix limit telemetry flag.
+func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
+}

@@ -384,6 +384,9 @@ message Metadata {
     // /network-instances/network-instance/protocols/protocol/isis/levels/level/state/metric-style
     // Arista: https://partnerissuetracker.corp.google.com/issues/317064733
     bool isis_metric_style_telemetry_unsupported = 134;
+    // Devices does not support setting prefix limit exceeded flag.
+    // Juniper : b/317181227
+    bool prefix_limit_exceeded_telemetry_unsupported = 135;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
