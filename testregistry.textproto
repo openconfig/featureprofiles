@@ -399,7 +399,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-5.6"
+  id: "RT-9"
   description: "Interface IPv6 ND RA disable"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
   exec: " "
