@@ -888,6 +888,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     #TODO: support multiple ates
     glob_username = j.get('options', {}).get('username', "")    
     for dut in j.get('duts', []):
+        dut_id = dut['id']
         dut_username = dut.get('options', {}).get('username', glob_username)
         for s in ['gnmi', 'gnoi', 'gnsi', 'gribi', 'p4rt']:
             if s in dut:
@@ -896,9 +897,9 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
                     'insecure': False,
                     'skipVerify': False,
                     'mutual_tls': True,
-                    'trust_bundle_file': os.path.join(certs_dir, 'ca.cert'),
-                    'cert_file': os.path.join(certs_dir, f'{username}.cert.pem'),
-                    'key_file': os.path.join(certs_dir, f'{username}.key.pem')
+                    'trust_bundle_file': os.path.join(certs_dir, dut_id, 'ca.cert'),
+                    'cert_file': os.path.join(certs_dir, dut_id, f'{username}.cert.pem'),
+                    'key_file': os.path.join(certs_dir, dut_id, f'{username}.key.pem')
                 })
 
     # convert binding to prototext
