@@ -721,7 +721,7 @@ func ISISMetricStyleTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMetricStyleTelemetryUnsupported()
 }
 
-// Skip checking prefix limit telemetry flag.
+// PrefixLimitExceededTelemetryUnsupported is to skip checking prefix limit telemetry flag.
 func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
 }
