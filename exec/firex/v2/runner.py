@@ -862,7 +862,7 @@ def GenerateCertificates(self, ws, internal_fp_repo_dir, reserved_testbed):
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
-    parser_cmd = f'./exec/utils/confparser/sim_add_mtls_conf.py ' \
+    parser_cmd = f'{PYTHON_BIN} exec/utils/confparser/sim_add_mtls_conf.py ' \
         f'{" ".join(reserved_testbed["baseconf"].values())}'
     logger.print(f'Executing confparser cmd {parser_cmd}')
     logger.print(
