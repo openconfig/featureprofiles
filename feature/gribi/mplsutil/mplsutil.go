@@ -377,23 +377,23 @@ const (
 // type on the ATE device provided.
 func (g *GRIBIMPLSTest) ConfigureFlows(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Helper()
+
+	t.Logf("looking on interface %s_ETH for %s", ATESrc.Name, DUTSrc.IPv4)
+	var dstMAC string
+	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(ATESrc.Name+"_ETH").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		dstMAC, _ = val.Val()
+		return val.IsPresent()
+	}).Await(t)
+	t.Logf("MAC discovered was %s", dstMAC)
+
+	g.otgConfig.Flows().Clear().Items()
+	mplsFlow := g.otgConfig.Flows().Add().SetName(flowName)
+	mplsFlow.Metrics().SetEnable(true)
+	mplsFlow.TxRx().Port().SetTxName(ATESrc.Name).SetRxName(ATEDst.Name)
+
+	mplsFlow.Rate().SetChoice("pps").SetPps(1)
 	switch g.mode {
 	case PushToMPLS:
-		t.Logf("looking on interface %s_ETH for %s", ATESrc.Name, DUTSrc.IPv4)
-		var dstMAC string
-		gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(ATESrc.Name+"_ETH").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-			dstMAC, _ = val.Val()
-			return val.IsPresent()
-		}).Await(t)
-		t.Logf("MAC discovered was %s", dstMAC)
-
-		g.otgConfig.Flows().Clear().Items()
-		mplsFlow := g.otgConfig.Flows().Add().SetName(flowName)
-		mplsFlow.Metrics().SetEnable(true)
-		mplsFlow.TxRx().Port().SetTxName(ATESrc.Name).SetRxName(ATEDst.Name)
-
-		mplsFlow.Rate().SetChoice("pps").SetPps(1)
-
 		// Set up ethernet layer.
 		eth := mplsFlow.Packet().Add().Ethernet()
 		eth.Src().SetChoice("value").SetValue(ATESrc.MAC)
@@ -412,11 +412,22 @@ func (g *GRIBIMPLSTest) ConfigureFlows(t *testing.T, ate *ondatra.ATEDevice) {
 		ip4.Src().SetChoice("value").SetValue("198.18.1.1")
 		ip4.Dst().SetChoice("value").SetValue("198.18.2.1")
 		ip4.Version().SetChoice("value").SetValue(4)
+	case PushToIP:
+		// Set up ethernet layer.
+		eth := mplsFlow.Packet().Add().Ethernet()
+		eth.Src().SetChoice("value").SetValue(ATESrc.MAC)
+		eth.Dst().SetChoice("value").SetValue(dstMAC)
 
-		ate.OTG().PushConfig(t, g.otgConfig)
+		ip4 := mplsFlow.Packet().Add().Ipv4()
+		ip4.Src().SetChoice("value").SetValue("198.18.2.0")
+		ip4.Dst().SetChoice("value").SetValue("198.168.0.1")
+		ip4.Version().SetChoice("value").SetValue(4)
+
 	default:
 		t.Fatalf("unspecified flow for test type %v", g.mode)
 	}
+
+	ate.OTG().PushConfig(t, g.otgConfig)
 }
 
 // RunFlows validates that traffic is forwarded by the DUT by running the
@@ -424,7 +435,7 @@ func (g *GRIBIMPLSTest) ConfigureFlows(t *testing.T, ate *ondatra.ATEDevice) {
 func (g *GRIBIMPLSTest) RunFlows(t *testing.T, ate *ondatra.ATEDevice, runtime time.Duration, tolerableLostPackets uint64) {
 	t.Helper()
 	switch g.mode {
-	case PushToMPLS:
+	case PushToMPLS, PushToIP:
 		t.Logf("Starting MPLS traffic...")
 		ate.OTG().StartTraffic(t)
 		t.Logf("Sleeping for %s...", runtime)

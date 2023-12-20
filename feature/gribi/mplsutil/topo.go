@@ -28,7 +28,7 @@ var (
 	ATESrc = &attrs.Attributes{
 		Name:    "port1",
 		Desc:    "ATE_SRC_PORT",
-		IPv4:    "192.0.2.0",
+		IPv4:    "198.18.2.0",
 		IPv4Len: 31,
 		MAC:     "02:00:01:01:01:01",
 		IPv6:    "2001:db8::0",
@@ -38,7 +38,7 @@ var (
 	// to the ATE src port.
 	DUTSrc = &attrs.Attributes{
 		Desc:    "DUT_SRC_PORT",
-		IPv4:    "192.0.2.1",
+		IPv4:    "198.18.2.1",
 		IPv4Len: 31,
 		IPv6:    "2001:db8::1",
 		IPv6Len: 127,
@@ -48,7 +48,7 @@ var (
 	ATEDst = &attrs.Attributes{
 		Name:    "port2",
 		Desc:    "ATE_DST_PORT",
-		IPv4:    "192.0.2.2",
+		IPv4:    "198.18.2.2",
 		IPv4Len: 31,
 		MAC:     "02:00:02:01:01:01",
 		IPv6:    "2001:db8::2",
@@ -58,7 +58,7 @@ var (
 	// connected to the ate destination port.
 	DUTDst = &attrs.Attributes{
 		Desc:    "DUT_DST_PORT",
-		IPv4:    "192.0.2.3",
+		IPv4:    "198.18.2.3",
 		IPv4Len: 31,
 		IPv6:    "2001:db8::3",
 		IPv6Len: 127,
@@ -68,7 +68,7 @@ var (
 const (
 	// ipv4Prefix is the IPv4 prefix that the test sends packets towards
 	// that results in MPLS labels being pushed to the packets.
-	dutRoutedIPv4Prefix = "198.18.1.0/24"
+	dutRoutedIPv4Prefix = "198.168.0.0/24"
 	// staticMPLSToATE is an MPLS label that the test sends packets towards
 	// that results in packets being routed to the ATE - it is configured
 	// through gRIBI.
