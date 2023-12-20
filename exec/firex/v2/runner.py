@@ -313,6 +313,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         install_image=False,
                         force_install=False,
                         force_reboot=False,
+                        sim_use_mtls=False,
                         smus=None):
     
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
@@ -359,7 +360,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
-    if using_sim:
+    if using_sim and sim_use_mtls:
         c |= GenerateCertificates.s()
         c |= SimEnableMTLS.s()
         
@@ -887,15 +888,18 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     #TODO: support multiple ates
     glob_username = j.get('options', {}).get('username', "")    
     for dut in j.get('duts', []):
-        opts = dut.get('options', {})
-        username = opts.get('username', glob_username)
-        opts['insecure'] = False
-        opts['skip_verify'] = False
-        opts['mutual_tls'] = True
-        opts['trust_bundle_file'] = os.path.join(certs_dir, 'ca.cert')
-        opts['cert_file'] = os.path.join(certs_dir, f'{username}.cert.pem')
-        opts['key_file'] = os.path.join(certs_dir, f'{username}.key.pem')
-        dut['options'] = opts
+        dut_username = dut.get('options', {}).get('username', glob_username)
+        for s in ['gnmi', 'gnoi', 'gnsi', 'gribi', 'p4rt']:
+            if s in dut:
+                username = dut[s].get('username', dut_username)
+                dut[s].update({
+                    'insecure': False,
+                    'skip_verify': False,
+                    'mutual_tls': True,
+                    'trust_bundle_file': os.path.join(certs_dir, 'ca.cert'),
+                    'cert_file': os.path.join(certs_dir, f'{username}.cert.pem'),
+                    'key_file': os.path.join(certs_dir, f'{username}.key.pem')
+                })
 
     # convert binding to prototext
     with tempfile.NamedTemporaryFile() as f:
