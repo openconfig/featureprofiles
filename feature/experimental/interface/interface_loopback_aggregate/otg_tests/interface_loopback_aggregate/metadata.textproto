@@ -23,6 +23,14 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    member_link_loopback_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
   }
   deviations: {

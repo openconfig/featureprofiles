@@ -21,7 +21,7 @@ BGP AFI SAFI OC DEFAULTS TEST
         *   Connect ATE Port1 to DUT port1 (EBGP peering)
         *   Connect ATE Port2 to DUT port2 (IBGP peering)
 
-*   [Test case-1] AFI-SAFI configurations at "neighbor level":
+*   [Test case-1.1] AFI-SAFI configurations at "neighbor level":
     
     *   Push EBGP and IBGP OC configuration to the DUT 
         *   Configuration should include corresponding IPv4 and IPv6 neighbor configurations.
@@ -39,7 +39,7 @@ BGP AFI SAFI OC DEFAULTS TEST
         *   For IPv6 neighbor ensure that the IPv6 neighborship is up and IPv4-unicast capability is 
             not negotiated.
 
-*   [Test case-2] IPv4-unicast and IPv6-Unicast AFI-SAFIs enabled at peer-group level:
+*   [Test case-1.2] IPv4-unicast and IPv6-Unicast AFI-SAFIs enabled at peer-group level:
     
     *   Configuration at the neighbor level is same as in [Test case-1] except for IPv4-unicast and 
         IPv6-unicast being enabled at the peer-group level
@@ -52,7 +52,7 @@ BGP AFI SAFI OC DEFAULTS TEST
             IPv6-unicast capabilities are negotiated.
 
 
-*   [Test case-3] IPv4-unicast and IPv6-Unicast AFI-SAFIs enabled at Global level:
+*   [Test case-1.3] IPv4-unicast and IPv6-Unicast AFI-SAFIs enabled at Global level:
    
     *   Configuration at the neighbor level is same as in [Test case-1] except for IPv4-unicast and 
         IPv6-unicast being enabled at the global level
@@ -62,7 +62,18 @@ BGP AFI SAFI OC DEFAULTS TEST
         *   For IPv4 neighbor, ensure that the IPv4 neighborship is up and both IPv4-unicast and 
             IPv6-unicast capabilities are negotiated.
         *   For IPv6 neighbor ensure that the IPv6 neighborship is up and both IPv4-unicast and 
-            IPv6-unicast capabilities are negotiated.  
+            IPv6-unicast capabilities are negotiated.
+
+*   [Test case-2] IPv4-unicast and IPv6-Unicast AFI-SAFIs set to FALSE at neighbor level:
+
+    *   AFI-SAFI for IPv4-UNICAST is set to false for BGPv4 peers and AFI-SAFI for IPv6-UNICAST is set to
+        false for BGPv6 peers.
+
+    *   Verification:
+        *   For IPv4 neighbor, ensure that the IPv4 neighborship is not ESTABLISHED and
+            IPv4-unicast capabilities are set to FALSE.
+        *   For IPv6 neighbor ensure that the IPv6 neighborship is not ESTABLISHED and
+            IPv6-unicast capabilities are set to FALSE.
 
 ## Config Parameter coverage
 
