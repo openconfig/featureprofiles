@@ -257,7 +257,6 @@ network-instances {
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF) -> {
   {NH#201, DEFAULT VRF, weight:1},
   {NH#202, DEFAULT VRF, weight:3},
-  backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
 }
 NH#201 -> {
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
@@ -276,17 +275,11 @@ NH#202 -> {
   network_instance: "TE_VRF_111"
 }
 
-NHG#200 (Default VRF) {
-  {NH#2000, DEFAULT VRF, weight:1}
-}
-NH#2000 -> {
-    network_instance: "DEFAULT"
-}
 
 IPv4Entry {203.0.113.1/32 (TE_VRF_111)} -> NHG#1 (DEFAULT VRF) -> {
   {NH#1, DEFAULT VRF, weight:1,ip_address=192.0.2.101},
   {NH#2, DEFAULT VRF, weight:3,ip_address=192.0.2.102},
-  backup_next_hop_group: 100 // re-encap to 203.0.113.100
+  backup_next_hop_group: 8 // re-encap to 203.0.113.100
 }
 IPv4Entry {192.0.2.101/32 (DEFAULT VRF)} -> NHG#2 (DEFAULT VRF) -> {
   {NH#10, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-2-interface},
@@ -296,11 +289,10 @@ IPv4Entry {192.0.2.102/32 (DEFAUlT VRF)} -> NHG#3 (DEFAULT VRF) -> {
   {NH#100, DEFAULT VRF, weight:2,mac_address:magic_mac, interface-ref:dut-port-4-interface},
 }
 
-NHG#100 (Default VRF) {
+NHG#8 (Default VRF) {
   {NH#1000, DEFAULT VRF}
 }
 NH#1000 -> {
-  decapsulate_header:   OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
   ip_in_ip {
     dst_ip: "203.0.113.100"
@@ -311,29 +303,21 @@ NH#1000 -> {
 
 IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#7 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
-  backup_next_hop_group: 201 // decap to DEFAULT VRF
 }
 IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#8 (DEFAULT VRF) -> {
   {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
-}
-NHG#201 (Default VRF) {
-  {NH#2001, DEFAULT VRF, weight:1}
-}
-NH#2001 -> {
-    decapsulate_header:   OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
-    network_instance: "DEFAULT"
 }
 
 // 203.10.113.2 is the tunnel IP address. Note that the NHG#4 is different than NHG#1.
 
 IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#4 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.104},
-  backup_next_hop_group: 101 // re-encap to 203.10.113.101
+  backup_next_hop_group: 9 // re-encap to 203.10.113.101
 }
 IPv4Entry {192.0.2.104/32 (DEFAULT VRF)} -> NHG#5 (DEFAULT VRF) -> {
   {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-6-interface},
 }
-NHG#101 (DEFAULT VRF) {
+NHG#9 (DEFAULT VRF) {
   {NH#1001, DEFAULT VRF}
 }
 NH#1001 -> {
@@ -346,7 +330,6 @@ NH#1001 -> {
 }
 IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#9 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
-  backup_next_hop_group: 201 // decap to DEFAULT VRF
 }
 IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#10 (DEFAULT VRF) -> {
   {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-7-interface},
@@ -394,21 +377,21 @@ backup specifies fallback to routing, then the traffic for that tunnel is not
 encapped. Instead, that fraction of traffic should be forwarded according to the
 BGP/IS-IS routes in the DEFAULT VRF.
 
-1.  Update `NHG#100` to the following:
+1.  Update `NHG#8` to the following:
 
-    ```
-    NHG#100 (Default VRF) {
+```
+NHG#8 (Default VRF) {
         {NH#1000, DEFAULT VRF}
-    }
-    NH#1000 -> {
-        decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
-        network_instance: "DEFAULT"
-    }
-    ```
+}
+NH#1000 -> {
+  decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+  network_instance: "DEFAULT"
+}
+```
 
-2.  Validate that all traffic is distributed per the hierarchical weights.
-3.  Shutdown DUT port-2, port-3, and port-4.
-4.  Validate that corresponding traffic (25% of the total traffic) that was
+1.  Validate that all traffic is distributed per the hierarchical weights.
+2.  Shutdown DUT port-2, port-3, and port-4.
+3.  Validate that corresponding traffic (25% of the total traffic) that was
     encapped to 203.0.113.1 are no longer encapped, and forwarded per BGP-ISIS
     routes (in the default VRF) out of DUT port-8.
 
@@ -445,30 +428,16 @@ the double failure handling, and ensures that the fallback to DEFAULT is
 activated through the backup NHGs of the tunnels instead of withdrawing the
 IPv4Entry.
 
-1.  Update `NHG#100` and `NHG#101` to the following:
+1.  Update `NHG#8` and `NHG#9` to the following: ``` NHG#8 (Default VRF) {
+    {NH#1000, DEFAULT VRF} } NH#1000 ->
+    { decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4 network_instance: "DEFAULT" }
 
-    ```
-    NHG#100 (Default VRF) {
-        {NH#1000, DEFAULT VRF}
-    }
-    NH#1000 -> {
-        decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
-        network_instance: "DEFAULT"
-    }
+NHG#9 (Default VRF) { {NH#1001, DEFAULT VRF} } NH#1001 -> { decapsulate_header:
+OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4 network_instance: "DEFAULT" } ```
 
-    NHG#101 (Default VRF) {
-        {NH#1001, DEFAULT VRF}
-    }
-    NH#1001 -> {
-        decapsulate_header:
-        OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
-        network_instance: "DEFAULT"
-    }
-    ```
-
-2.  Validate that all traffic is distributed per the hierarchical weights.
-3.  Shutdown DUT port-2, port-3, and port-4, and port-6.
-4.  Validate that all traffic is no longer encapsulated, and is all egressing
+1.  Validate that all traffic is distributed per the hierarchical weights.
+2.  Shutdown DUT port-2, port-3, and port-4, and port-6.
+3.  Validate that all traffic is no longer encapsulated, and is all egressing
     out of DUT port-8 per the BGP-ISIS routes in the default VRF.
 
 #### Test-7, no match in encap VRF
