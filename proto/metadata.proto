@@ -101,9 +101,6 @@ message Metadata {
     // Skip BGP TestPassword mismatch subtest if value is true.
     // Cisco: partnerissuetracker.corp.google.com/273285907
     bool skip_bgp_test_password_mismatch = 19;
-    // Device does not support interface/physicalchannel leaf.
-    // Cisco: partnerissuetracker.corp.google.com/273287821
-    bool missing_interface_physical_channel = 20;
     // Skip check for
     // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
     // leaf missing case.
@@ -295,10 +292,6 @@ message Metadata {
     // lspLifetimeInterval is configured.
     // Arista: partnerissuetracker.corp.google.com/293667850
     bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
-    // Devices require configuring LoopbackMode on member ports to enable
-    // LoopbackMode on aggregate interface.
-    // Arista: partnerissuetracker.corp.google.com/297391260
-    bool aggregate_loopback_mode_requires_member_port_loopback_mode = 97;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for linecards' CPU card.
     bool linecard_cpu_utilization_unsupported = 98;
@@ -339,9 +332,25 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
+    // Devices do not support forwarding for fib failed routes.
+    bool skip_fib_failed_traffic_forwarding_check = 113;
+    // QOS requires buffer-allocation-profile configuration
+    bool qos_buffer_allocation_config_required = 114;
+    // Devices do not support configuring ExtendedNextHopEncoding at the BGP global level.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/203683090
+    bool bgp_global_extended_next_hop_encoding_unsupported = 115;
+    // OC unsupported for BGP LLGR disable.
+    // Juniper: b/303479602
+    bool bgp_llgr_oc_undefined = 116;
+    // Device does not support tunnel interfaces state paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_state_path_unsupported = 117;
+    // Device does not support tunnel interfaces source and destination address config paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_config_path_unsupported = 118;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 90;
+    reserved 84, 9, 28, 20, 90, 97;
   }
 
   message PlatformExceptions {

@@ -138,9 +138,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
 	sortedAtePorts := sortPorts(ate.Ports())
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 	for i, ap := range sortedAtePorts {
 		t.Logf("OTG AddInterface: ports[%d] = %v", i, ap)
 		in := top.Ports().Add().SetName(ap.ID())
@@ -153,9 +152,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 			SetPrefix(uint32(plen))
 	}
 
-	otg.PushConfig(t, top)
+	ate.OTG().PushConfig(t, top)
 	t.Logf("Start ATE Protocols")
-	otg.StartProtocols(t)
+	ate.OTG().StartProtocols(t)
 	return top
 }
 
