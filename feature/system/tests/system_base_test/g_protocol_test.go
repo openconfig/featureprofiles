@@ -33,11 +33,15 @@ import (
 	p4rtpb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
-func dialConn(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service, wantPort uint32) *grpc.ClientConn {
+func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, wantPort uint32) *grpc.ClientConn {
 	t.Helper()
-	dialer := introspect.DUTDialer(t, dut, service)
+	if svc == introspect.GNOI || svc == introspect.GNSI {
+		// Renaming service name due to gnoi and gnsi always residing on same port as gnmi.
+		svc = introspect.GNMI
+	}
+	dialer := introspect.DUTDialer(t, dut, introspect.GNMI)
 	if dialer.DevicePort != int(wantPort) {
-		t.Fatalf("DUT is not listening on correct port for %q: got %d, want %d", service, dialer.DevicePort, wantPort)
+		t.Fatalf("DUT is not listening on correct port for %q: got %d, want %d", svc, dialer.DevicePort, wantPort)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
