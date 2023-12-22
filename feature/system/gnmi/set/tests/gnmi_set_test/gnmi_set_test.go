@@ -432,6 +432,9 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 
 func TestStaticProtocol(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.StaticRouteNextHopInterfaceRefUnsupported(dut) {
+		t.Skip()
+	}
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
 	staticName := deviations.StaticProtocolName(dut)
 
@@ -644,6 +647,7 @@ func attachInterface(ni *oc.NetworkInstance, name string, sub int) string {
 	id := name // Possibly vendor specific?  May have to use sub.
 	niface := ni.GetOrCreateInterface(id)
 	niface.Interface = ygot.String(name)
+	niface.Subinterface = ygot.Uint32(uint32(sub))
 	return id
 }
 
