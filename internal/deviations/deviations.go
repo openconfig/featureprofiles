@@ -726,7 +726,9 @@ func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteNextHopInterfaceRefUnsupported()
 }
 
+
 // TunnelAclEncapsulationConfigUnsupported returns true for devices that do not support TunnelAclEncapsulationConfig
 func TunnelAclEncapsulationConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelAclEncapsulationConfigUnsupported()
 }
+
