@@ -61,10 +61,9 @@ func TestMain(m *testing.M) {
 //
 //	ate:port1 -> dut:port1 and
 //	dut:port2 -> ate:port2
-//  dut:port3 -> ate:port3
-//  dut:port4 -> ate:port4
 //  Ports2,3 and 4 are used as LAG interface.
-
+//	dut:port3 -> ate:port3
+//	dut:port4 -> ate:port4
 //	* ate:port1 -> dut:port1 subnet 192.0.2.2/30 and 2001:db8::2/126
 //	* ate:port2,3 and 4 -> dut:port2,3 and 4 subnet 192.0.2.6/30 and 2001:db8::6/126
 //
@@ -84,16 +83,16 @@ const (
 	termName         = "t1"
 	encapSrcMatch    = "192.0.2.2"
 	encapDstMatch    = "192.0.2.6"
-	encapV6SrcMatch  = "2001:db8::1:20"
-	encapv6DstMatch  = "2001:db8::2:30"
+	encapV6SrcMatch  = "2001:db8::2"
+	encapv6DstMatch  = "2001:db8::6"
 	countIpv4        = "GreFilterIpv4Count"
 	countIpv6        = "GreFilterIpv6Count"
 	tunnelEndpoint   = "tunnelEncapIpv4"
 	tunnelV6Endpoint = "tunnelEncapIpv6"
 	greSrcAddr       = "198.51.100.1"
-	greV6SrcAddr     = "2001:db8::2"
+	greV6SrcAddr     = "2001:db8:100::1"
 	greDstAddr       = "203.0.113.1/32"
-	greV6DstAddr     = "2001:db8::6"
+	greV6DstAddr     = "2001:db8:113::6/128"
 	GreProtocol      = 47
 	tunnelActionIpv4 = "tunnelEncapIpv4"
 	tunnelActionIpv6 = "tunnelEncapIpv6"
@@ -811,11 +810,11 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	iFace := d1.GetOrCreateAcl().GetOrCreateInterface(ifName)
 	aclConf := configACLInterface(t, iFace, ifName)
 	gnmi.Replace(t, tc.dut, aclConf.Config(), iFace)
-	fptest.LogQuery(t, "ACL config:\n", aclConf.Config(), gnmi.GetConfig(t, tc.dut, aclConf.Config()))
+	fptest.LogQuery(t, "ACL config:\n", aclConf.Config(), gnmi.Get(t, tc.dut, aclConf.Config()))
 
 	aclConfV6 := configACLIpv6Interface(t, iFace, ifName)
 	gnmi.Replace(t, tc.dut, aclConfV6.Config(), iFace)
-	fptest.LogQuery(t, "ACL config:\n", aclConfV6.Config(), gnmi.GetConfig(t, tc.dut, aclConfV6.Config()))
+	fptest.LogQuery(t, "ACL config:\n", aclConfV6.Config(), gnmi.Get(t, tc.dut, aclConfV6.Config()))
 }
 func (tc *testCase) verifyDUT(t *testing.T) {
 	// Wait for LAG negotiation and verify LAG type for the aggregate interface.
