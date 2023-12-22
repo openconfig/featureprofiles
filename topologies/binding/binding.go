@@ -127,7 +127,7 @@ func (b *staticBind) reset(ctx context.Context) error {
 	return nil
 }
 
-func (d *staticDUT) ConnDetails(svc introspect.Service) (*introspect.ConnDetails, error) {
+func (d *staticDUT) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 	params, ok := serviceToParams[svc]
 	if !ok {
 		return nil, fmt.Errorf("no known port for service %v", svc)
@@ -137,11 +137,11 @@ func (d *staticDUT) ConnDetails(svc introspect.Service) (*introspect.ConnDetails
 	if err != nil {
 		return nil, err
 	}
-	return &introspect.ConnDetails{
-		DevicePort:      params.port,
-		DefaultDial:     dialConn(bopts),
-		DefaultTarget:   fmt.Sprintf("%s:%d", d.Name(), params.port),
-		DefaultDialOpts: opts,
+	return &introspect.Dialer{
+		DevicePort: params.port,
+		DialFunc:   dialConn(bopts),
+		Target:     fmt.Sprintf("%s:%d", d.Name(), params.port),
+		DialOpts:   opts,
 	}, nil
 }
 
@@ -508,12 +508,11 @@ func (a *staticATE) ixSession(ctx context.Context, opts *bindpb.Options) (*ixweb
 }
 
 func (d *staticDUT) dialDUT(ctx context.Context, svc introspect.Service, opts []grpc.DialOption) (*grpc.ClientConn, error) {
-	cd, err := d.ConnDetails(svc)
+	dialer, err := d.Dialer(svc)
 	if err != nil {
 		return nil, err
 	}
-	opts = append(cd.DefaultDialOpts, opts...)
-	return cd.DefaultDial(ctx, cd.DefaultTarget, opts...)
+	return dialer.Dial(ctx, opts...)
 }
 
 func dialATE(ctx context.Context, bopts *bindpb.Options, overrideOpts []grpc.DialOption) (*grpc.ClientConn, error) {
