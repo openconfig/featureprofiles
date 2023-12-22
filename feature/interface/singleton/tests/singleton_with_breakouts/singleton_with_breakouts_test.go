@@ -1,0 +1,196 @@
+package singleton_with_breakouts
+
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	gnps "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
+	"github.com/openconfig/ygot/ygot"
+)
+
+const (
+	maxRebootTime   = 900 // Unit is Seconds
+	maxCompWaitTime = 600
+)
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
+// Method to run baseLine test
+func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, rebootCheck bool) {
+	portsConfigured := make(map[string]bool)
+	if !rebootCheck {
+		configureDUT(t, dut, portsConfigured)
+	}
+	verifyConsistentPMD(t, dut, portsConfigured)
+}
+
+// Method to configure DUT interfaces along with breakout configurations
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool) {
+	topo := gnmi.OC()
+	for _, port := range dut.Ports() {
+		portsConfigured[port.Name()] = true
+		i := configureInterfaceDUT(t, dut, port)
+		gnmi.Replace(t, dut, topo.Interface(port.Name()).Config(), i)
+		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+		bmode := &oc.Component_Port_BreakoutMode{}
+		bmp := topo.Component(hardwarePort).Port().BreakoutMode()
+		group := bmode.GetOrCreateGroup(0)
+		if port.PMD() == ondatra.PMD400GBASEFR4 {
+			group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
+			group.NumBreakouts = ygot.Uint8(1)
+		} else if port.PMD() == ondatra.PMD400GBASEDR4 {
+			group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+			group.NumBreakouts = ygot.Uint8(4)
+		} else if port.PMD() == ondatra.PMD100GBASECLR4 {
+			group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+			group.NumBreakouts = ygot.Uint8(1)
+		} else if port.PMD() == ondatra.PMD100GBASEFR {
+			group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+			group.NumBreakouts = ygot.Uint8(1)
+		} else {
+			continue
+		}
+		gnmi.Replace(t, dut, bmp.Config(), bmode)
+		t.Logf("Configured Port=%v with PMD = %v", port.Name(), port.PMD())
+	}
+
+}
+
+// Method to configure the inetrface
+func configureInterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(port.Name())}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, port.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, port)
+	}
+	i.Enabled = ygot.Bool(true)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	return i
+}
+
+// Method to verify if hardwarePort is is populated with a reference to componentName
+func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool) {
+	interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	for _, i := range interfaces {
+		interfaceName := i.GetName()
+		if i.HardwarePort == nil || i.Name == nil {
+			continue
+		}
+		hardwarePort := i.GetHardwarePort()
+		var compName string
+		var compNameFetchError *string
+
+		compNameQuery := gnmi.OC().Component(hardwarePort).Name().State()
+		compNameFetchError = testt.CaptureFatal(t, func(t testing.TB) {
+			compName = gnmi.Get(t, dut, compNameQuery)
+		})
+		_, isConfiguredInterface := portsConfigured[interfaceName]
+
+		if compNameFetchError != nil && isConfiguredInterface {
+			t.Fatalf("HardwarePort = %v of interface = %v is populated with a reference to componentName", hardwarePort, interfaceName)
+		} else if isConfiguredInterface {
+			t.Logf(" HardwarePort = %v of interface = %v is populated with a reference to componentName %v", hardwarePort, interfaceName, compName)
+		}
+
+	}
+}
+
+// Method to reboot the DUT
+func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to connect to gnoi server, err: %v", err)
+	}
+	rebootRequest := &gnps.RebootRequest{
+		Method: gnps.RebootMethod_COLD,
+		Force:  true,
+	}
+	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
+	var currentTime string
+	currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+	t.Logf("Time Before Reboot : %v", currentTime)
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	t.Logf("Got Reboot response: %v, err: %v", rebootResponse, err)
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+	for {
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Log("Reboot is started")
+			break
+		}
+		t.Log("Wait for reboot to be started")
+		time.Sleep(30 * time.Second)
+	}
+	startReboot := time.Now()
+	t.Logf("Waiting for DUT to boot up by polling the telemetry output.")
+	for {
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg == nil {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+		if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	startComp := time.Now()
+	t.Logf("Wait for all the components on DUT to come up")
+
+	for {
+		postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+
+		if len(preRebootCompStatus) == len(postRebootCompStatus) {
+			t.Logf("All components on the DUT are in responsive state")
+			break
+		}
+
+		if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
+			t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
+			t.Fatalf("All the components are not in responsive state post reboot")
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func TestSingletonWithBreakouts(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Run("RT-8.1 - Baseline test", func(tb *testing.T) {
+		baseLineTest(tb, dut, false)
+	})
+
+	t.Run("RT-8.2 - Reboot test", func(tb *testing.T) {
+		rebootDUT(t, dut)
+		baseLineTest(tb, dut, true)
+	})
+
+}
