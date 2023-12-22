@@ -103,16 +103,19 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 				t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
 			}
 
-			subcomponents := gnmi.GetAll[*oc.Component_Subcomponent](t, dut, gnmi.OC().Component(transceiver).SubcomponentAny().State())
+			subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut, gnmi.OC().Component(transceiver).SubcomponentAny().State())
 			sensorComponentChecked := false
 			for _, s := range subcomponents {
-				sensorComponent := gnmi.Get[*oc.Component](t, dut, gnmi.OC().Component(s.GetName()).State())
-				if sensorComponent.GetType() == sensorType {
-					scomponent := gnmi.OC().Component(sensorComponent.GetName())
-					sensorComponentChecked = true
-					v := gnmi.Lookup(t, dut, scomponent.Temperature().Instant().State())
-					if _, ok := v.Val(); !ok {
-						t.Errorf("Sensor %s: Temperature instant is not defined", sensorComponent.GetName())
+				subc, ok := s.Val()
+				if ok {
+					sensorComponent := gnmi.Get[*oc.Component](t, dut, gnmi.OC().Component(subc.GetName()).State())
+					if sensorComponent.GetType() == sensorType {
+						scomponent := gnmi.OC().Component(sensorComponent.GetName())
+						sensorComponentChecked = true
+						v := gnmi.Lookup(t, dut, scomponent.Temperature().Instant().State())
+						if _, ok := v.Val(); !ok {
+							t.Errorf("Sensor %s: Temperature instant is not defined", sensorComponent.GetName())
+						}
 					}
 				}
 			}
