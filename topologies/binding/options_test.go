@@ -231,7 +231,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnmi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.dutGRPC(d, introspect.GNMI)
+			return r.dutGRPC(d, dutSvcParams[introspect.GNMI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -242,7 +242,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnoi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.dutGRPC(d, introspect.GNOI)
+			return r.dutGRPC(d, dutSvcParams[introspect.GNOI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -253,7 +253,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnsi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.dutGRPC(d, introspect.GNSI)
+			return r.dutGRPC(d, dutSvcParams[introspect.GNSI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -264,7 +264,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gribi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.dutGRPC(d, introspect.GRIBI)
+			return r.dutGRPC(d, dutSvcParams[introspect.GRIBI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -275,7 +275,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "p4rt",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.dutGRPC(d, introspect.P4RT)
+			return r.dutGRPC(d, dutSvcParams[introspect.P4RT])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -286,7 +286,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "ate gnmi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.ateGRPC(d, introspect.GNMI)
+			return r.ateGRPC(d, ateSvcParams[introspect.GNMI])
 		},
 		dev: r.Ates[0],
 		want: &bindpb.Options{
@@ -297,7 +297,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "otg",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.ateGRPC(d, introspect.OTG)
+			return r.ateGRPC(d, ateSvcParams[introspect.OTG])
 		},
 		dev: r.Ates[0],
 		want: &bindpb.Options{

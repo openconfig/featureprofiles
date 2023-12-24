@@ -109,14 +109,12 @@ func (r *resolver) ateByID(ateID string) *bindpb.Device {
 	return nil
 }
 
-func (r *resolver) dutGRPC(dev *bindpb.Device, svc introspect.Service) *bindpb.Options {
-	params := dutSvcParams[svc]
+func (r *resolver) dutGRPC(dev *bindpb.Device, params *svcParams) *bindpb.Options {
 	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, params.port)}
 	return merge(targetOpts, r.Options, dev.Options, params.optsFn(dev))
 }
 
-func (r *resolver) ateGRPC(dev *bindpb.Device, svc introspect.Service) *bindpb.Options {
-	params := ateSvcParams[svc]
+func (r *resolver) ateGRPC(dev *bindpb.Device, params *svcParams) *bindpb.Options {
 	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, params.port)}
 	return merge(targetOpts, r.Options, dev.Options, params.optsFn(dev))
 }

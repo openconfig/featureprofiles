@@ -135,7 +135,7 @@ func (d *staticDUT) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 	if !ok {
 		return nil, fmt.Errorf("no known DUT service %v", svc)
 	}
-	bopts := d.r.dutGRPC(d.dev, svc)
+	bopts := d.r.dutGRPC(d.dev, params)
 	return makeDialer(d.Name(), params, bopts)
 }
 
@@ -232,7 +232,7 @@ func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 	if !ok {
 		return nil, fmt.Errorf("no known ATE service %v", svc)
 	}
-	bopts := a.r.ateGRPC(a.dev, svc)
+	bopts := a.r.ateGRPC(a.dev, params)
 	return makeDialer(a.Name(), params, bopts)
 }
 
