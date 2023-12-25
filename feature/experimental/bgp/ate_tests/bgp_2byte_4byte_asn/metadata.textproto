@@ -17,4 +17,13 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+  }
+}
 tags: TAGS_AGGREGATION

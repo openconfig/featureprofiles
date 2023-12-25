@@ -66,6 +66,9 @@ func TestBgpSession(t *testing.T) {
 	dc := gnmi.OC()
 	i1 := dutSrc.NewOCInterface(dut.Port(t, "port1").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 
 	t.Log("Configure Network Instance")
 	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
@@ -224,6 +227,7 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(nbr.globalAS)
 	global.RouterId = ygot.String(dutSrc.IPv4)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
 	pg := bgp.GetOrCreatePeerGroup("ATE")
 	pg.PeerAs = ygot.Uint32(nbr.peerAS)

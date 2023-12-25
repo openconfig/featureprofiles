@@ -29,6 +29,7 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
+    static_route_next_hop_interface_ref_unsupported: true
     static_protocol_name: "static"
     interface_enabled: true
   }

@@ -115,6 +115,12 @@ WCMP width of 16 nexthops:
     *   A tolerance of 0.2% is allowed for each VLAN for now, since we only test
         for 2 mins.
 
+[TODO]: Repeat the above tests with one additional scenario with the following changes, and it should not change the expected test result.
+
+*   Add an empty decap VRF, `DECAP_TE_VRF`.
+*   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`, `ENCAP_TE_VRF_C` and `ENCAP_TE_VRF_D`.
+*   Replace the existing VRF selection policy with `vrf_selection_policy_w` as in <https://github.com/openconfig/featureprofiles/pull/2217>
+
 ## Config Parameter Coverage
 
 N/A

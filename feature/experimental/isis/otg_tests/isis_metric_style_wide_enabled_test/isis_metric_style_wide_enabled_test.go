@@ -117,6 +117,10 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(dutV4Metric)
 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(dutV6Metric)
+	if deviations.MissingIsisInterfaceAfiSafiEnable(ts.DUT) {
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+	}
 }
 
 // configureOTG configures isis and traffic on OTG.
@@ -307,19 +311,25 @@ func TestISISWideMetricEnabled(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SeqNumSkips().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero SeqNumber skips, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ManualAddressDropFromAreas().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero ManualAddressDropFromAreas counter, got %d, want %d", got, 0)
+			if !deviations.ISISCounterManualAddressDropFromAreasUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ManualAddressDropFromAreas().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting non zero ManualAddressDropFromAreas counter, got %d, want %d", got, 0)
+				}
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().PartChanges().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting partition changes, got %d, want %d", got, 0)
+			if !deviations.ISISCounterPartChangesUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().PartChanges().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting partition changes, got %d, want %d", got, 0)
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SpfRuns().State()); got == 0 {
 				t.Errorf("FAIL- Not expecting spf runs counter to be 0, got %d, want non zero", got)
 			}
 		})
 		t.Run("Wide metric checks", func(t *testing.T) {
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).MetricStyle().State()); got != oc.E_Isis_MetricStyle(2) {
-				t.Errorf("FAIL- Expected metric style not found, got %s, want %s", got, oc.E_Isis_MetricStyle(2))
+			if !deviations.ISISMetricStyleTelemetryUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).MetricStyle().State()); got != oc.E_Isis_MetricStyle(2) {
+					t.Errorf("FAIL- Expected metric style not found, got %s, want %s", got, oc.E_Isis_MetricStyle(2))
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(ateV4Route).Prefix().State()); got != ateV4Route {
 				t.Errorf("FAIL- Expected ate v4 route not found, got %v, want %v", got, ateV4Route)
