@@ -93,16 +93,18 @@ a new testbed configuration with the desired port types.
 *   Configure a breakout on Port-1 to 4x100 Gig
     *   /components/component/port/breakout-mode/groups/group/config
 *   Try to set port speed of Port-1 to 100G
+    *   /interfaces/interface/ethernet/config/port-speed
 *   Validate the port-speed is rejected
+    *   Since a breakout port is not expected to support port-speed, verify the gNMI Set operation is rejected
     *   /interfaces/interface/ethernet/state/port-speed
 
 ### RT-5.1.6 [TODO: https://github.com/openconfig/featureprofiles/issues/2338]
 #### Remove breakout and interface config to delete the interface config
 
-*   Remove the interface and breakout config
-*   Ensure the interface configuration is completely removed
-    *   /interfaces/interface/ethernet/config/
-    *   /components/component/port/breakout-mode/groups/group/config
+*   Using a single gNMI Replace, remove the DUT port-1 and its breakout config
+*   Ensure the gNMI Replace is successful and configuration for DUT port-1 including its breakout is removed
+    *   /interfaces/interface/ethernet/state/
+    *   /components/component/port/breakout-mode/groups/group/state
 
 ## Config Parameter Coverage
 
