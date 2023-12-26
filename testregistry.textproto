@@ -260,6 +260,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.26"
+  description: "Basic static route support test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/static_route_support/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.3"
   description: "BGP Route Propagation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/addpath/ate_tests/route_propagation_test/README.md"
