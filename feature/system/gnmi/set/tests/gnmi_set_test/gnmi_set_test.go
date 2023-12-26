@@ -467,7 +467,6 @@ func TestStaticProtocol(t *testing.T) {
 
 	sp := gnmi.OC().NetworkInstance(otherVRF).
 		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticName)
-
 	q1 := sp.Static(prefix1).NextHop("0").InterfaceRef().Interface().State()
 	q2 := sp.Static(prefix2).NextHop("0").InterfaceRef().Interface().State()
 
