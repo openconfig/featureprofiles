@@ -31,9 +31,9 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
 )
 
 var (
@@ -432,6 +432,9 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 
 func TestStaticProtocol(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.StaticRouteNextHopInterfaceRefUnsupported(dut) {
+		t.Skip()
+	}
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
 	staticName := deviations.StaticProtocolName(dut)
 
@@ -644,6 +647,7 @@ func attachInterface(ni *oc.NetworkInstance, name string, sub int) string {
 	id := name // Possibly vendor specific?  May have to use sub.
 	niface := ni.GetOrCreateInterface(id)
 	niface.Interface = ygot.String(name)
+	niface.Subinterface = ygot.Uint32(uint32(sub))
 	return id
 }
 
@@ -743,7 +747,13 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			}
 			// Ethernet config may not contain meaningful values if it wasn't explicitly
 			// configured, so use its current state for the config, but prune non-config leaves.
-			e := gnmi.Get(t, dev, gnmi.OC().Interface(iname).Ethernet().State())
+			intf := gnmi.Get(t, dev, gnmi.OC().Interface(iname).State())
+			breakout := config.GetComponent(intf.GetHardwarePort()).GetPort().GetBreakoutMode()
+			e := intf.GetEthernet()
+			// Set port speed to unknown for non breakout interfaces
+			if breakout.GetGroup(1) == nil && e != nil {
+				e.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN)
+			}
 			ygot.PruneConfigFalse(oc.SchemaTree["Interface_Ethernet"], e)
 			if e.PortSpeed != 0 && e.PortSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
 				iface.Ethernet = e
@@ -889,15 +899,66 @@ var (
 )
 
 func init() {
-	var err error
-	interfacesQuery, err = schemaless.NewConfig[*Interfaces]("/interfaces", "openconfig")
+	// TODO(wenovus): Remove this workaround using ygnmi's Map() API once
+	// SetBatch is fixed for Map() API.
+	interfacesQuery = ygnmi.NewConfigQuery[*Interfaces](
+		"",
+		false,
+		true,
+		true,
+		false,
+		false,
+		false,
+		createPS("/interfaces"),
+		func(vgs ygot.ValidatedGoStruct) (*Interfaces, bool) {
+			return new(Interfaces), true
+		},
+		func() ygot.ValidatedGoStruct {
+			return nil
+		},
+		func() *ytypes.Schema { return nil },
+		nil,
+		nil,
+	)
+	networkInstancesQuery = ygnmi.NewConfigQuery[*NetworkInstances](
+		"",
+		false,
+		true,
+		true,
+		false,
+		false,
+		false,
+		createPS("/network-instances"),
+		func(vgs ygot.ValidatedGoStruct) (*NetworkInstances, bool) {
+			return new(NetworkInstances), true
+		},
+		func() ygot.ValidatedGoStruct {
+			return nil
+		},
+		func() *ytypes.Schema { return nil },
+		nil,
+		nil,
+	)
+}
+
+func createPS(path string) ygnmi.PathStruct {
+	root := ygnmi.NewDeviceRootBase()
+	root.PutCustomData(ygnmi.OriginOverride, "openconfig")
+
+	var ps ygnmi.PathStruct = root
+	protoPath, err := ygot.StringToStructuredPath(path)
 	if err != nil {
 		panic(err)
 	}
-	networkInstancesQuery, err = schemaless.NewConfig[*NetworkInstances]("/network-instances", "openconfig")
-	if err != nil {
-		panic(err)
+	for _, elem := range protoPath.Elem {
+		keys := map[string]interface{}{}
+		for key, val := range elem.Key {
+			keys[key] = val
+		}
+		ps = ygnmi.NewNodePath([]string{elem.Name}, keys, ps)
 	}
+
+	return ps
 }
 
 type Interfaces struct {

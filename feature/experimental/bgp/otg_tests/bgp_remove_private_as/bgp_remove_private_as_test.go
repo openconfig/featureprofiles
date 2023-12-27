@@ -238,7 +238,7 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 // advertising some(faked) networks over BGP.
 func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, asSEQMode bool) gosnappi.Config {
 	t.Helper()
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 	port2 := config.Ports().Add().SetName("port2")
 
@@ -391,7 +391,7 @@ func TestRemovePrivateAS(t *testing.T) {
 		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
 
 	cases := []struct {
