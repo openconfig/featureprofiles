@@ -24,31 +24,51 @@ BGP policy configuration for AS Paths and Community Sets
         routes
 
 * RT-2.2.2 - Validate as-path-set
-  * Configure DUT for each of the following policies
-    * Create an as-path-set/name "my_3_aspaths" as follows
-      * `{ as-path-set-member = [ "100", "200", "300" ] }`
-      * `{ match-set-options=ANY }`
-    * Create an as-path-set/name "my_regex_aspath-1" as follows
-      * `{ as-path-set-member = [ "^100", "20[0-9]", "200$" ] }`
-      * `{ match-set-options=ANY }`
-    * Create an as-path-set/name "my_regex_aspath-2" as follows
-      * `{ as-path-set-member = ["^100", ".*", "300$" ] }`
-      * `{ match-set-options=ANY }`
-    * Create an as-path-set/name "all_3_aspaths" as follows
+  * Configure DUT as below
+    * Create policy-definition named 'any_my_3_aspaths' with the following options
+      * create as-path-set named "my_3_aspaths" with members
+        * `{ as-path-set-member = [ "100", "200", "300" ] }`
+      * conditions/bgp-conditions/match-as-path-set/config `{ match-set-options=ANY }`
+      * with `{ policy-result=ACCEPT_ROUTE }` (note: default-policy action = REJECT)
+    * Create an as-path-set/name "all_my_3_aspaths" as follows
       * `{ as-path-set-member = [ "100", "200", "300" ]}`
       * `{ match-set-options=ALL }`
-    * Create an as-path-set/name "no_3_aspaths" as follows
+      * with `{ policy-result=ACCEPT_ROUTE }`
+    * Create an as-path-set/name "not_any_my_3_aspaths" as follows
       * `{ as-path-set-member = [ "100", "200", "300" ]}`
       * `{ match-set-options=INVERT }`
+      * with `{ policy-result=ACCEPT_ROUTE }`
+    * Create policy-definition named 'any_my_regex_aspath-1' with the following options
+      * matches as-path-set named 'my_regex_aspath-1' with members
+        * `{ as-path-set-member = [ "^100", "20[0-9]", "200$" ] }`
+      * with match option `{ match-set-options=ANY }`
+      * with `{ policy-result=ACCEPT_ROUTE }`
+    * Create an as-path-set/name "any_my_regex_aspath-2" as follows
+      * matches as-path-set `my_regex_aspath-2` `{ as-path-set-member = ["(^100)(.*)+(300$)" ] }`
+      * with match option `{ match-set-options=ANY }`
+      * with `{ policy-result=ACCEPT_ROUTE }`
 
   * Configure ATE to
     * Advertise routes-set-1 with as path `[100, 200, 300]`
     * Advertise routes-set-2 with as path `[100, 400, 300]`
     * Advertise routes-set-3 with as path `[110]`
     * Advertise routes-set-4 with as path `[400]`
-  * For each DUT policy configuration
+    * Advertise routes-set-5 with as path `[100, 300, 200]`
+    * Advertise routes-set-6 with as path `[1, 100, 200, 300, 400]`
+
+  * For each DUT policy-definition configuration
     * Update the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the selected as-path-set
       * Verify prefixes sent, received and installed are as expected
+
+| routes-set   | any_my_3_aspaths | all_my_3_aspaths | not_any_my_3_aspaths | any_my_regex_aspath-1 | any_my_regex_aspath-2 |
+| ------------ | ---------------- | ---------------- | -------------------- | --------------------- | --------------------- |
+| routes-set-1 | accept           | accept           | reject               | accept                | accept                |
+| routes-set-2 | accept           | reject           | reject               | accept                | accept                |
+| routes-set-3 | reject           | reject           | accept               | reject                | reject                |
+| routes-set-4 | reject           | reject           | accept               | reject                | reject                |
+| routes-set-5 | accept           | accept           | reject               | accept                | reject                |
+| routes-set-6 | accept           | reject           | reject               | accept                | reject                |
+
     * Send traffic
       * Verify traffic is forwarded for routes with matching policy
       * Verify traffic is not forwarded for routes without matching policy
@@ -94,3 +114,4 @@ import-policy
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed
+
