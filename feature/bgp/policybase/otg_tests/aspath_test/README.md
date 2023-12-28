@@ -55,7 +55,7 @@ BGP policy configuration for AS Paths and Community Sets
       * Verify traffic is forwarded for prefixes with matching policy
       * Verify traffic is not forwarded for prefixes without matching policy
 
-### Expected prefix matches
+### Expected as-path matches
 
 | prefix-set   | any_my_3_aspaths | all_my_3_aspaths | not_any_my_3_aspaths | any_my_regex_aspath-1 | any_my_regex_aspath-2 |
 | ------------ | ---------------- | ---------------- | -------------------- | --------------------- | --------------------- |
