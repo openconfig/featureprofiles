@@ -22,7 +22,7 @@ BGP policy configuration for AS Paths and Community Sets
         routes
 
 * RT-2.3.2 - Validate community-set
-  * Configure DUT for each of the following policies
+  * Configure DUT with separate policy-definition for for each of the following community-set
     * Create a community-set named `my_3_comms` with members and match options as follows
       * `{ community-member = [ "100:1", "200:2", "300:3" ], match-set-options=ANY }`
     * Create a community-set named `my_regex_comms` with members and match options as follows
