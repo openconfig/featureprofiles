@@ -42,10 +42,10 @@ BGP policy configuration for AS Paths and Community Sets
 
   * For each DUT policy configuration:
     * Update the configuration for BGP neighbor import policy (`.../apply-policy/config/import-policy`) to the selected community set.
-      * Verify prefixes sent, received and installed are as expected.
+      * Verify prefixes received on DUT as expected.
     * Send traffic from ATE port-2 to all prefix-sets.
-      * Verify traffic is forwarded for accepted prefixes.
-      * Verify traffic is not forwarded for rejected prefixes.
+      * Verify traffic is received on ATE port 1 for accepted prefixes.
+      * Verify traffic is not received on ATE port 1 for rejected prefixes.
 
 ### Expected community matches
 
