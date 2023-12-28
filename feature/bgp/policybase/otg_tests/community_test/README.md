@@ -45,7 +45,7 @@ BGP policy configuration for AS Paths and Community Sets
       * Verify traffic is not forwarded for routes without matching policy
 
 * RT-2.3.3 - Validate ext-community-set
-  * Configure DUT for each of the following policies
+  * Configure DUT with separate policy-definition for for each of the following ex-community-set ad reject action. The default-policy action should be accept.
     * Create a community-set named `my_3_ext_comms` with members and match options as follows
       * `{ community-member = [ "100000:100", "200000:200", "300000:300" ], match-set-options=ANY }`
     * Create a community-set named `my_regex_ext_comms` with members and match options as follows
