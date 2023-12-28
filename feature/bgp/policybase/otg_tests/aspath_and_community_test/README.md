@@ -7,32 +7,51 @@ BGP policy configuration for AS Paths and Community Sets
 ## Procedure
 
 * RT-2.4.1 - Test setup
-  * Use cfgLib to generate config for 2 DUT ports
-  * Use cfgLib to generate config for DUT port 1 eBGP session
+  * Generate config for 2 DUT ports, with DUT port 1 eBGP session to ATE port 1.
 
-  * Use helper to configure ATE 2 ports
-  * Use helper to configure ATE port 1 with 1 eBGP session
+  * Generate config for ATE 2 ports, with ATE port 1 eBGP session to DUT port 1.
+
+  * Configure ATE port 1 to advertise ipv4 and ipv6 prefixes using the following aspaths and communities:
+    * prefix-set-1 with as path `[100, 200, 300]` and communities `[100:1, 200:2, 300:3]`
+    * prefix-set-2 with as path `[100, 400, 300]` and communities `[101:1]`
+    * prefix-set-3 with as path `[109]` and communities `[109:1]`
+    * prefix-set-4 with as path `[200]` and communities `[200:1]`
+    * prefix-set-5 with as path `[300]` and communities `[100:1]`
 
   * Establish eBGP sessions between ATE port-1 and DUT port-1
-  * For IPv4 and IPv6 routes:
-    * Advertise IPv4 prefixes over IPv4 neighbor from ATE port-1, observe
-            received prefixes at ATE port-2.
-    * Advertise IPv6 prefixes over IPv6 neighbor from ATE port-1,
-        observe received prefixes at ATE port-2.
-  * Generate traffic from ATE port-2 to ATE port-1
-  * Validate that traffic can be received on ATE port-1 for all installed
-        routes
+  * Generate traffic from ATE port-2 to all prefixes
+  * Validate that traffic is received on ATE port-1 for all prefixes
 
 * RT-2.4.1 - Validate single routing-policy containing as-path-set and ext-community-set
-  * Configure ATE
-    * Use paths and routes from RT-2.2.3 and RT-2.2.4 where each route have both aspath and ext-community set.
-  * Configure DUT
-    * Replace the DUT's bgp import-policy configuration for the bgp neighbor ATE port1 to use as-path-set-name `my_regex_aspaths` and community-set-name `my_regex_comms`
+
+  * Create a as-path-set named `any_my_regex_aspath` with members
+    * `{ as-path-set-member = [ "(10[0-9]]|200)" ] }`
+  * Create a community-set named `any_my_regex_comms` with members and match options as follows:
+    * `{ community-member = [ "10[0-9]:1" ] }`
+
+  * Create a `policy-definition` named 'path_and_community' with the following `statements`
+    * statement[name='match_community']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'any_my_regex_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='match_as']/
+      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'any_my_regex_aspath'
+      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+
   * Send traffic
     * Verify traffic is forwarded for routes with matching policy
     * Verify traffic is not forwarded for routes without matching policy
 
-* TODO: Add coverage for for route-target, route-origin and color in a separate test.
+### Expected prefix matches
+
+| prefix-set   | path_and_community |
+| ------------ | ------------------ |
+| prefix-set-1 | accept             |
+| prefix-set-2 | accept             |
+| prefix-set-3 | accept             |
+| prefix-set-4 | reject             |
+| prefix-set-5 | reject             |
 
 ## Config Parameter Coverage
 
