@@ -386,6 +386,9 @@ message Metadata {
     bool isis_metric_style_telemetry_unsupported = 134;
     // Devices do not support configuring Interface-ref under Static-Route Next-Hop
     bool static_route_next_hop_interface_ref_unsupported = 135;
+    // Devices which does not support nexthop index state
+    // Juniper: b/304729237
+    bool skip_static_nexthop_check = 136;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
