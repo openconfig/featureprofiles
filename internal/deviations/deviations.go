@@ -726,6 +726,11 @@ func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteNextHopInterfaceRefUnsupported()
 }
 
+// SkipStaticNexthopCheck returns if device needs index starting from non zero
+func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
+}
+
 // BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
 func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
