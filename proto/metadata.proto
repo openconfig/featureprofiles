@@ -391,8 +391,7 @@ message Metadata {
     bool skip_static_nexthop_check = 136;
     // Devices are having native telemetry paths for BGP RIB verification.
     // Juniper : b/306144372
-    bool bgp_rib_oc_path_unsupported = 137; 
-    
+    bool bgp_rib_oc_path_unsupported = 137;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
