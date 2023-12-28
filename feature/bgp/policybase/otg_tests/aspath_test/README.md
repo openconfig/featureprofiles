@@ -12,16 +12,16 @@ BGP policy configuration for AS Paths and Community Sets
   * Generate config for ATE 2 ports, with ATE port 1 eBGP session to DUT port 1
   
   * Configure ATE port 1 to advertise ipv4 and ipv6 prefixes using the following as paths
-    * routes-set-1 with as path `[100, 200, 300]`
-    * routes-set-2 with as path `[100, 400, 300]`
-    * routes-set-3 with as path `[110]`
-    * routes-set-4 with as path `[400]`
-    * routes-set-5 with as path `[100, 300, 200]`
-    * routes-set-6 with as path `[1, 100, 200, 300, 400]`
+    * prefix-set-1 with as path `[100, 200, 300]`
+    * prefix-set-2 with as path `[100, 400, 300]`
+    * prefix-set-3 with as path `[110]`
+    * prefix-set-4 with as path `[400]`
+    * prefix-set-5 with as path `[100, 300, 200]`
+    * prefix-set-6 with as path `[1, 100, 200, 300, 400]`
 
   * Establish eBGP sessions between ATE port-1 and DUT port-1
   * Generate traffic from ATE port-2 to all prefixes
-  * Validate that traffic is received on ATE port-1 for all installed routes
+  * Validate that traffic is received on ATE port-1 for all installed prefixes
 
 * RT-2.2.2 - Validate as-path-set
   * Configure DUT with the following routing policies
@@ -52,19 +52,19 @@ BGP policy configuration for AS Paths and Community Sets
     * Update the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the selected as-path-set
       * Verify prefixes sent, received and installed are as expected
     * Send traffic
-      * Verify traffic is forwarded for routes with matching policy
-      * Verify traffic is not forwarded for routes without matching policy
+      * Verify traffic is forwarded for prefixes with matching policy
+      * Verify traffic is not forwarded for prefixes without matching policy
 
 ### Expected prefix matches
 
-| routes-set   | any_my_3_aspaths | all_my_3_aspaths | not_any_my_3_aspaths | any_my_regex_aspath-1 | any_my_regex_aspath-2 |
+| prefix-set   | any_my_3_aspaths | all_my_3_aspaths | not_any_my_3_aspaths | any_my_regex_aspath-1 | any_my_regex_aspath-2 |
 | ------------ | ---------------- | ---------------- | -------------------- | --------------------- | --------------------- |
-| routes-set-1 | accept           | accept           | reject               | accept                | accept                |
-| routes-set-2 | accept           | reject           | reject               | accept                | accept                |
-| routes-set-3 | reject           | reject           | accept               | reject                | reject                |
-| routes-set-4 | reject           | reject           | accept               | reject                | reject                |
-| routes-set-5 | accept           | accept           | reject               | accept                | reject                |
-| routes-set-6 | accept           | reject           | reject               | accept                | reject                |
+| prefix-set-1 | accept           | accept           | reject               | accept                | accept                |
+| prefix-set-2 | accept           | reject           | reject               | accept                | accept                |
+| prefix-set-3 | reject           | reject           | accept               | reject                | reject                |
+| prefix-set-4 | reject           | reject           | accept               | reject                | reject                |
+| prefix-set-5 | accept           | accept           | reject               | accept                | reject                |
+| prefix-set-6 | accept           | reject           | reject               | accept                | reject                |
 
 ## Config Parameter Coverage
 
