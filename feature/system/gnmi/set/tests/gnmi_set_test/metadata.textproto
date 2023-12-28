@@ -1,16 +1,24 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "fe01cad6-6775-45cd-a025-d960ca6c04af"
+uuid: "e50991a4-bb40-4162-8a86-717e68e10680"
 plan_id: "gNMI-1.15"
 description: "Set Requests"
-testbed: TESTBED_DUT
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
     ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    skip_static_nexthop_check: true
   }
 }
 platform_exceptions: {
