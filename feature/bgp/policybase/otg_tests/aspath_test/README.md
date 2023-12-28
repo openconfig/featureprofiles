@@ -7,24 +7,24 @@ BGP policy configuration for AS Paths and Community Sets
 ## Procedure
 
 * RT-2.2.1 - Test setup
-  * Use cfgLib to generate config for 2 DUT ports
-  * Use cfgLib to generate config for DUT port 1 eBGP session
+  * Generate config for 2 DUT ports, with DUT port 1 eBGP session to ATE port 1
 
-  * Use helper to configure ATE 2 ports
-  * Use helper to configure ATE port 1 with 1 eBGP session
+  * Generate config for ATE 2 ports, with ATE port 1 eBGP session to DUT port 1
+  
+  * Configure ATE port 1 to advertise ipv4 and ipv6 prefixes using the following as paths
+    * routes-set-1 with as path `[100, 200, 300]`
+    * routes-set-2 with as path `[100, 400, 300]`
+    * routes-set-3 with as path `[110]`
+    * routes-set-4 with as path `[400]`
+    * routes-set-5 with as path `[100, 300, 200]`
+    * routes-set-6 with as path `[1, 100, 200, 300, 400]`
 
   * Establish eBGP sessions between ATE port-1 and DUT port-1
-  * For IPv4 and IPv6 routes:
-    * Advertise IPv4 prefixes over IPv4 neighbor from ATE port-1, observe
-            received prefixes at ATE port-2.
-    * Advertise IPv6 prefixes over IPv6 neighbor from ATE port-1,
-        observe received prefixes at ATE port-2.
-  * Generate traffic from ATE port-2 to ATE port-1
-  * Validate that traffic can be received on ATE port-1 for all installed
-        routes
+  * Generate traffic from ATE port-2 to all prefixes
+  * Validate that traffic is received on ATE port-1 for all installed routes
 
 * RT-2.2.2 - Validate as-path-set
-  * Configure DUT as below
+  * Configure DUT with the following routing policies
     * Create policy-definition named 'any_my_3_aspaths' with the following options
       * create as-path-set named "my_3_aspaths" with members
         * `{ as-path-set-member = [ "100", "200", "300" ] }`
@@ -48,17 +48,14 @@ BGP policy configuration for AS Paths and Community Sets
       * with match option `{ match-set-options=ANY }`
       * with `{ policy-result=ACCEPT_ROUTE }`
 
-  * Configure ATE to
-    * Advertise routes-set-1 with as path `[100, 200, 300]`
-    * Advertise routes-set-2 with as path `[100, 400, 300]`
-    * Advertise routes-set-3 with as path `[110]`
-    * Advertise routes-set-4 with as path `[400]`
-    * Advertise routes-set-5 with as path `[100, 300, 200]`
-    * Advertise routes-set-6 with as path `[1, 100, 200, 300, 400]`
-
   * For each DUT policy-definition configuration
     * Update the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the selected as-path-set
       * Verify prefixes sent, received and installed are as expected
+    * Send traffic
+      * Verify traffic is forwarded for routes with matching policy
+      * Verify traffic is not forwarded for routes without matching policy
+
+### Expected prefix matches
 
 | routes-set   | any_my_3_aspaths | all_my_3_aspaths | not_any_my_3_aspaths | any_my_regex_aspath-1 | any_my_regex_aspath-2 |
 | ------------ | ---------------- | ---------------- | -------------------- | --------------------- | --------------------- |
@@ -68,10 +65,6 @@ BGP policy configuration for AS Paths and Community Sets
 | routes-set-4 | reject           | reject           | accept               | reject                | reject                |
 | routes-set-5 | accept           | accept           | reject               | accept                | reject                |
 | routes-set-6 | accept           | reject           | reject               | accept                | reject                |
-
-    * Send traffic
-      * Verify traffic is forwarded for routes with matching policy
-      * Verify traffic is not forwarded for routes without matching policy
 
 ## Config Parameter Coverage
 
@@ -114,4 +107,3 @@ import-policy
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed
-
