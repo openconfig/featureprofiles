@@ -22,30 +22,37 @@ BGP policy configuration for AS Paths and Community Sets
         routes.
 
 * RT-2.3.2 - Validate community-set
-  * Configure DUT with a policy-definition for each of the following community-sets.
-    * Create a community-set named `any_my_3_comms` with members and match options as follows:
+  * Configure the following community sets on the DUT.
+    * Create a community-set named `any_my_3_comms` with members as follows:
       * `{ community-member = [ "100:1", "200:2", "300:3" ] }`
-      * `{ match-set-options=ANY }`
-      * with `{ policy-result=ACCEPT_ROUTE }`
     * Create a community-set named `all_3_comms` with members and match options as follows:
       * `{ community-member = [ "100:1", "200:2", "300:3" ] }`
-      * `{ match-set-options=ALL }`
-      * with `{ policy-result=ACCEPT_ROUTE }`
     * Create a community-set named `no_3_comms` with members and match options as follows:
       * `{ community-member = [ "100:1", "200:2", "300:3" ]}`
-      * `{ match-set-options=INVERT }`
-      * with `{ policy-result=ACCEPT_ROUTE }`
     * Create a community-set named `any_my_regex_comms` with members and match options as follows:
       * `{ community-member = [ "10[0-9]:1" ] }`
-      * `{ match-set-options=ANY }`
-      * with `{ policy-result=ACCEPT_ROUTE }`
 
-  * For each DUT policy configuration:
-    * Update the configuration for BGP neighbor import policy (`.../apply-policy/config/import-policy`) to the selected community set.
-      * Verify prefixes received on DUT as expected.
-    * Send traffic from ATE port-2 to all prefix-sets.
-      * Verify traffic is received on ATE port 1 for accepted prefixes.
-      * Verify traffic is not received on ATE port 1 for rejected prefixes.
+  * Create a `policy-definition` named 'community-match' with the following `statements`
+    * statement[name='accept_any_3_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'any_my_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='accept_all_3_comms']/
+      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = ALL
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='accept_no_3_comms']/
+      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'no_3_comms'
+      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = INVERT
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='accept_any_my_regex_comms']/
+      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+
+  * Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes.
+    * Verify traffic is not received on ATE port 1 for rejected prefixes.
 
 ### Expected community matches
 
