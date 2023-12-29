@@ -730,3 +730,13 @@ func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
+
+// TTLCopyUnsupported returns true for devices which does not support TTL copy.
+func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
+}
+
+// Devices does not support mixed prefix length in gribi.
+func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
+}

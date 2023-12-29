@@ -389,6 +389,12 @@ message Metadata {
     // Devices which does not support nexthop index state
     // Juniper: b/304729237
     bool skip_static_nexthop_check = 136;
+    // Devices which does not support copying TTL.
+    // Juniper: b/307258544
+    bool ttl_copy_unsupported = 137;
+    // Devices does not support mixed prefix length in gribi.
+    // Juniper: b/307824407
+    bool gribi_decap_mixed_plen_unsupported = 138;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
