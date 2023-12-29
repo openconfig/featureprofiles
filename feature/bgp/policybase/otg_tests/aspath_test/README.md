@@ -10,7 +10,7 @@ BGP policy configuration for AS Paths and Community Sets
   * Generate config for 2 DUT ports, with DUT port 1 eBGP session to ATE port 1
 
   * Generate config for ATE 2 ports, with ATE port 1 eBGP session to DUT port 1
-  
+
   * Configure ATE port 1 to advertise ipv4 and ipv6 prefixes using the following as paths
     * prefix-set-1 with as path `[100, 200, 300]`
     * prefix-set-2 with as path `[100, 400, 300]`
@@ -26,30 +26,45 @@ BGP policy configuration for AS Paths and Community Sets
 * RT-2.2.2 - Validate as-path-set
   * Configure DUT with the following routing policies
     * Create policy-definition named 'any_my_3_aspaths' with the following options
-      * create as-path-set named "my_3_aspaths" with members
+      * Create as-path-set named "my_3_aspaths" with members
         * `{ as-path-set-member = [ "100", "200", "300" ] }`
-      * conditions/bgp-conditions/match-as-path-set/config `{ match-set-options=ANY }`
-      * with `{ policy-result=ACCEPT_ROUTE }` (note: default-policy action = REJECT)
-    * Create an as-path-set/name "all_my_3_aspaths" as follows
-      * `{ as-path-set-member = [ "100", "200", "300" ]}`
-      * `{ match-set-options=ALL }`
-      * with `{ policy-result=ACCEPT_ROUTE }`
-    * Create an as-path-set/name "not_any_my_3_aspaths" as follows
-      * `{ as-path-set-member = [ "100", "200", "300" ]}`
-      * `{ match-set-options=INVERT }`
-      * with `{ policy-result=ACCEPT_ROUTE }`
-    * Create policy-definition named 'any_my_regex_aspath-1' with the following options
-      * matches as-path-set named 'my_regex_aspath-1' with members
+      * Create an as-path-set/name 'my_regex_aspath-1' with members
         * `{ as-path-set-member = [ "^100", "20[0-9]", "200$" ] }`
-      * with match option `{ match-set-options=ANY }`
-      * with `{ policy-result=ACCEPT_ROUTE }`
-    * Create an as-path-set/name "any_my_regex_aspath-2" as follows
-      * matches as-path-set `my_regex_aspath-2` `{ as-path-set-member = ["(^100)(.*)+(300$)" ] }`
-      * with match option `{ match-set-options=ANY }`
-      * with `{ policy-result=ACCEPT_ROUTE }`
+      * Create an as-path-set/name "my_regex_aspath-2" as follows
+        * matches as-path-set `my_regex_aspath-2` `{ as-path-set-member = ["(^100)(.*)+(300$)" ] }`
 
-  * For each DUT policy-definition configuration
-    * Update the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the selected as-path-set
+    * Create policy-definition named 'match_aspaths' with the following statements
+      * statement[name='accept_any_my_3_aspaths']/
+        * conditions/bgp-conditions/match-community-set/config/community-set = 'my_3_aspaths'
+        * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+        * actions/config/policy-result = ACCEPT_ROUTE
+
+    * Create policy-definition named 'match_all_aspaths' with the following statements
+      * statement[name='accept_all_my_3_aspaths']/
+        * conditions/bgp-conditions/match-community-set/config/community-set = 'my_3_aspaths'
+        * conditions/bgp-conditions/match-community-set/config/match-set-options = ALL
+        * actions/config/policy-result = ACCEPT_ROUTE
+
+    * Create policy-definition named 'match_not_my_3_aspaths' with the following statements
+      * statement[name='accept_not_my_3_aspaths']/
+        * conditions/bgp-conditions/match-community-set/config/community-set = 'my_3_aspaths'
+        * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
+        * actions/config/policy-result = ACCEPT_ROUTE
+
+    * Create policy-definition named 'match_my_regex_aspath-1' with the following statements
+      * statement[name='accept_my_regex_aspath-1']/
+        * conditions/bgp-conditions/match-community-set/config/community-set = 'my_regex_aspath-1'
+        * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+        * actions/config/policy-result = ACCEPT_ROUTE
+
+    * Create policy-definition named 'match_my_regex_aspath-2' with the following statements
+      * statement[name='accept_my_regex_aspath-2']/
+        * conditions/bgp-conditions/match-community-set/config/community-set = 'my_regex_aspath-2'
+        * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+        * actions/config/policy-result = ACCEPT_ROUTE
+
+  * For each DUT policy-definition
+    * Replace the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the currently tested policy
       * Verify prefixes sent, received and installed are as expected
     * Send traffic
       * Verify traffic is forwarded for prefixes with matching policy
