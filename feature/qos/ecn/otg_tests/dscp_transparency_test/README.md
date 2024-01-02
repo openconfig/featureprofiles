@@ -1,5 +1,4 @@
-
-# DP-1.14: DSCP transperency with ECN
+# DP-1.14: DSCP Transparency with ECN
 
 ## Summary
 
@@ -28,10 +27,10 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
     * 7 queues and 7 corresponding forwarding group
     * Scheduler policy with
        * one scheduler of STRICT priority type serving NC1 queue
-       * one scheduler of WRR type serving 6 queues AF4, AF3, AF2, AF1, BE0, BE1 with equal weights 10:10:10:10:10:10 respectivly
+       * one scheduler of WRR type serving 6 queues AF4, AF3, AF2, AF1, BE0, BE1 with equal weights 10:10:10:10:10:10 respectively
     * queue-management profile of WRED type with:
-       * min-treshold: 80KB
-       * max-treshold: 3MB
+       * min-threshold: 80KB
+       * max-threshold: 3MB
        * max-drop-percentage: 100 
        * ecn: enabled
     * attach queue-management profile to queues NC1, AF4, AF3, AF2, AF1, BE0, BE1;
@@ -48,8 +47,9 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
 * Verify using DUTPort3 telemetry that:
     * no drops are seen in any of queues on DUTPort3
     * all queues reports non-zero transmit packets, octets.
-* Verify on ATEPort3 that all flows are recived w/o DSCP modification -all 64 values are observed
-* verify on ATEPort3 that all recived packet has ECT(0) ECN value
+* Verify on ATEPort3 that all flows are received w/o DSCP modification -all 64 values are observed
+* verify on ATEPort3 that all received packet has ECT(0) ECN value
+
 ### Sub Test #2 - Congestion
 * Generate 64 flows of traffic form ATEPort1 and  64 flows of traffic form ATEPort2 toward ATEPort3
     * each flow form ATEPort1 has distinct DSCP value 
@@ -64,10 +64,11 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
 * Verify using DUTPort3 telemetry that:
     * Drops are seen in all queues except NC1 on DUTPort3
     * all queues reports non-zero transmit packets, octets.
-* Verify on ATEPort3 that all flows are recived w/o DSCP modification - all 64 values are observed
+* Verify on ATEPort3 that all flows are received w/o DSCP modification - all 64 values are observed
 * verify on ATEPort3 that:
-    * all recived packets with DSCP 48-63 has ECT(0) value
+    * all received packets with DSCP 48-63 has ECT(0) value
     * vast majority (almost all) packets with DSCP 0-47 has CE ECN value.
+
 ### Sub Test #3 - NC1 congestion
 * Generate 16 flows of traffic form ATEPort1 and  16 flows of traffic form ATEPort2 toward ATEPort3
     * each flow form ATEPort1 has distinct DSCP value from 48-63 range
@@ -81,11 +82,11 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
 * wait 1 minutes; stop traffic generation.
 * Verify using DUTPort3 telemetry that:
     * Drops are seen in NC1 queue on DUTPort3
-    * all queues but NC1 reports nzero transmit packets, octets.
+    * all queues but NC1 reports zero transmit packets, octets.
     * NC1 queue reports non-zero transmit packets, octets.
-* Verify on ATEPort3 that all flows are recived w/o DSCP modification - all 16 values are observed.
+* Verify on ATEPort3 that all flows are received w/o DSCP modification - all 16 values are observed.
 * verify on ATEPort3 that:
-    * all recived packets with DSCP has CE value
+    * all received packets with DSCP has CE value
 
 ## Config Parameter Coverage
 
