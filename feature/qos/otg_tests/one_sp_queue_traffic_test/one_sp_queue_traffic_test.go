@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -135,7 +136,7 @@ func TestOneSPQueueTraffic(t *testing.T) {
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 	ap3 := ate.Port(t, "port3")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	intf1.AddToOTG(top, ap1, &dutPort1)
 	intf2.AddToOTG(top, ap2, &dutPort2)
@@ -144,6 +145,7 @@ func TestOneSPQueueTraffic(t *testing.T) {
 	var tolerance float32 = 2.0
 
 	queues := netutil.CommonTrafficQueues(t, dut)
+
 	if dut.Vendor() == ondatra.JUNIPER {
 		queues.AF4 = "5"
 	}
@@ -649,9 +651,9 @@ func TestOneSPQueueTraffic(t *testing.T) {
 				ipHeader := flow.Packet().Add().Ipv4()
 				ipHeader.Src().SetValue(data.inputIntf.IPv4)
 				ipHeader.Dst().SetValue(intf3.IPv4)
-				ipHeader.Priority().Dscp().Phb().SetValue(int32(data.dscp))
+				ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
 
-				flow.Size().SetFixed(int32(data.frameSize))
+				flow.Size().SetFixed(uint32(data.frameSize))
 				flow.Rate().SetPercentage(float32(data.trafficRate))
 			}
 
@@ -787,6 +789,14 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, intf.intfName, deviations.DefaultNetworkInstance(dut), 0)
+		}
+	}
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+		fptest.SetPortSpeed(t, dp3)
 	}
 }
 
@@ -798,6 +808,16 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
+
+	if deviations.QOSQueueRequiresID(dut) {
+		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
+		for i, queue := range queueNames {
+			q1 := q.GetOrCreateQueue(queue)
+			q1.Name = ygot.String(queue)
+			queueid := len(queueNames) - i
+			q1.QueueId = ygot.Uint8(uint8(queueid))
+		}
+	}
 	if dut.Vendor() == ondatra.JUNIPER {
 		queues.AF4 = "5"
 	}
@@ -1146,6 +1166,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 }
+
 func ConfigureCiscoQos(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")

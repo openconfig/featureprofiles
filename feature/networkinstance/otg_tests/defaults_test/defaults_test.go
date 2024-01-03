@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -110,7 +111,7 @@ var (
 func TestDefaultAddressFamilies(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -160,10 +161,11 @@ func TestDefaultAddressFamilies(t *testing.T) {
 				fptest.SetPortSpeed(t, dutP1)
 				fptest.SetPortSpeed(t, dutP2)
 			}
+
 			if tc.niName == deviations.DefaultNetworkInstance(dut) {
-				dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-				gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+				fptest.ConfigureDefaultNetworkInstance(t, dut)
 			}
+
 			d := &oc.Root{}
 			// Assign two ports into the network instance & unnasign them at the end of the test
 			assignPort(t, d, dutP1.Name(), tc.niName, dutPort1, dut)
@@ -189,8 +191,11 @@ func TestDefaultAddressFamilies(t *testing.T) {
 			// Check that we did not lose any packets for the IPv4 and IPv6 flows.
 			for _, flow := range []string{"ipv4", "ipv6"} {
 				m := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).State())
-				tx := m.GetCounters().GetOutPkts()
-				rx := m.GetCounters().GetInPkts()
+				tx := float32(m.GetCounters().GetOutPkts())
+				rx := float32(m.GetCounters().GetInPkts())
+				if tx == 0 {
+					t.Fatalf("TxPkts == 0, want > 0")
+				}
 				loss := tx - rx
 				lossPct := loss * 100 / tx
 				if got := lossPct; got > 0 {

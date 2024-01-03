@@ -134,7 +134,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	// Configure default NI and forwarding policy
 	t.Logf("*** Configuring default instance forwarding policy on DUT ...")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
@@ -263,10 +263,14 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
+	interfaceID := ingressPort
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = ingressPort + ".0"
+	}
+	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 	gnmi.Delete(t, dut, pfpath.Config())
 
-	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
@@ -275,7 +279,7 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 	}
 
 	// Configure default NI and forwarding policy.
-	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
+	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 	gnmi.Replace(t, dut, intfConfPath.Config(), intf)
 
 	// Restart Protocols after policy change
@@ -294,7 +298,7 @@ type trafficFlows struct {
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	t.Helper()
 	t.Logf("*** Configuring OTG interfaces ...")
-	topo := ate.OTG().NewConfig(t)
+	topo := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -302,26 +306,29 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	topo.Ports().Add().SetName(p1.ID())
 	srcDev := topo.Devices().Add().SetName(ateSrc.Name)
 	ethSrc := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
-	ethSrc.SetPortName(p1.ID()).SetMac(ateSrc.MAC)
-	ethSrc.Ipv4Addresses().Add().SetName(srcDev.Name() + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
-	ethSrc.Ipv6Addresses().Add().SetName(srcDev.Name() + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
+	ethSrc.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p1.ID())
+	ethSrc.SetMac(ateSrc.MAC)
+	ethSrc.Ipv4Addresses().Add().SetName(srcDev.Name() + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
+	ethSrc.Ipv6Addresses().Add().SetName(srcDev.Name() + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
 	topo.Ports().Add().SetName(p2.ID())
 	dstDev := topo.Devices().Add().SetName(ateDst.Name)
 	ethDst := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
 
-	ethDst.SetPortName(p2.ID()).SetMac(ateDst.MAC)
-	ethDst.Vlans().Add().SetName(dstDev.Name() + "-VLAN").SetId(int32(vlan10))
-	ethDst.Ipv4Addresses().Add().SetName(dstDev.Name() + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
-	ethDst.Ipv6Addresses().Add().SetName(dstDev.Name() + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
+	ethDst.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
+	ethDst.SetMac(ateDst.MAC)
+	ethDst.Vlans().Add().SetName(dstDev.Name() + "-VLAN").SetId(uint32(vlan10))
+	ethDst.Ipv4Addresses().Add().SetName(dstDev.Name() + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
+	ethDst.Ipv6Addresses().Add().SetName(dstDev.Name() + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
 
 	dstDev2 := topo.Devices().Add().SetName(ateDst2.Name)
 	ethDst2 := dstDev2.Ethernets().Add().SetName(ateDst2.Name + ".Eth")
 
-	ethDst2.SetPortName(p2.ID()).SetMac(ateDst2.MAC)
-	ethDst2.Vlans().Add().SetName(dstDev2.Name() + "-VLAN").SetId(int32(vlan20))
-	ethDst2.Ipv4Addresses().Add().SetName(dstDev2.Name() + ".IPv4").SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(int32(ateDst2.IPv4Len))
-	ethDst2.Ipv6Addresses().Add().SetName(dstDev2.Name() + ".IPv6").SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(int32(ateDst2.IPv6Len))
+	ethDst2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
+	ethDst2.SetMac(ateDst2.MAC)
+	ethDst2.Vlans().Add().SetName(dstDev2.Name() + "-VLAN").SetId(uint32(vlan20))
+	ethDst2.Ipv4Addresses().Add().SetName(dstDev2.Name() + ".IPv4").SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(uint32(ateDst2.IPv4Len))
+	ethDst2.Ipv6Addresses().Add().SetName(dstDev2.Name() + ".IPv6").SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(uint32(ateDst2.IPv6Len))
 
 	// Create traffic flows
 	t.Logf("*** Configuring OTG flows ...")

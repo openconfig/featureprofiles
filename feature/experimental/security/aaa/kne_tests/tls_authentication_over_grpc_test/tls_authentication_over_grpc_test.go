@@ -24,9 +24,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/knebind/solver"
 	"github.com/openconfig/ygot/ygot"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
@@ -35,10 +35,6 @@ import (
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	tpb "github.com/openconfig/kne/proto/topo"
-)
-
-const (
-	sshPort = 22
 )
 
 func TestMain(m *testing.M) {
@@ -54,19 +50,10 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
 	}
 }
 
-func gnmiClient(ctx context.Context, sshIP string, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
-	// TODO(greg-dennis): Remove hard-coded gNMI port.
-	var gnmiPort int
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		gnmiPort = 9339
-	default:
-		gnmiPort = 6030
-	}
-
+func gnmiClient(ctx context.Context, dut *ondatra.DUTDevice, gnmiAddr string) (gpb.GNMIClient, error) {
 	conn, err := grpc.DialContext(
 		ctx,
-		fmt.Sprintf("%s:%d", sshIP, gnmiPort),
+		gnmiAddr,
 		grpc.WithTransportCredentials(
 			credentials.NewTLS(&tls.Config{
 				InsecureSkipVerify: true, // NOLINT
@@ -78,21 +65,135 @@ func gnmiClient(ctx context.Context, sshIP string, dut *ondatra.DUTDevice) (gpb.
 	return gpb.NewGNMIClient(conn), nil
 }
 
+// helper function for native model;
+// Configure a new user by passing a username and password and assign that user to a role
+// ensure role has write access
+func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass string, role string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		var roleVal = []any{
+			map[string]any{
+				"services": []string{"cli", "gnmi"},
+			},
+		}
+		roleUpdate, err := json.Marshal(roleVal)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		var userDataVal = []any{
+			map[string]any{
+				"password": pass,
+				"role":     []string{"admin"},
+			},
+		}
+		userDataUpdate, err := json.Marshal(userDataVal)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		var ruleVal = []any{
+			map[string]any{
+				"action": "write",
+			},
+		}
+		ruleValUpdate, err := json.Marshal(ruleVal)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		SetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "native",
+			},
+			Replace: []*gpb.Update{
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "system"},
+							{Name: "aaa"},
+							{Name: "authorization"},
+							{Name: "role", Key: map[string]string{"rolename": role}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: roleUpdate,
+						},
+					},
+				},
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "system"},
+							{Name: "aaa"},
+							{Name: "authentication"},
+							{Name: "user", Key: map[string]string{"username": user}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: userDataUpdate,
+						},
+					},
+				},
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "system"},
+							{Name: "configuration"},
+							{Name: "role", Key: map[string]string{"name": "admin"}},
+							{Name: "rule", Key: map[string]string{"path-reference": "/"}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: ruleValUpdate,
+						},
+					},
+				},
+			},
+		}
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
+			t.Fatalf("Unexpected error configuring User: %v", err)
+		}
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
+	}
+}
+
 func TestAuthentication(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	serviceMap := dut.CustomData(solver.KNEServiceMapKey).(map[string]*tpb.Service)
-	sshService, ok := serviceMap["ssh"]
-	if !ok {
-		t.Fatal("No SSH service available on dut")
+	var servDUT interface {
+		Service(string) (*tpb.Service, error)
 	}
-	sshIP := sshService.GetOutsideIp()
+	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &servDUT); err != nil {
+		t.Fatalf("DUT does not support Service function: %v", err)
+	}
+	sshService, err := servDUT.Service("ssh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sshAddr := fmt.Sprintf("%s:%d", sshService.GetOutsideIp(), sshService.GetOutside())
+	gnmiService, err := servDUT.Service("gnmi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Deliberately try to reach gnmi via the DUT (SSH) IP.
+	gnmiAddr := fmt.Sprintf("%s:%d", sshService.GetOutsideIp(), gnmiService.GetOutside())
 
-	gnmi.Replace(t, dut, gnmi.OC().System().Aaa().Authentication().
-		User("alice").Config(), &oc.System_Aaa_Authentication_User{
-		Username: ygot.String("alice"),
-		Password: ygot.String("password"),
-		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
-	})
+	if deviations.SetNativeUser(dut) {
+		createNativeUser(t, dut, "alice", "password", "admin")
+	} else {
+		gnmi.Replace(t, dut, gnmi.OC().System().Aaa().Authentication().
+			User("alice").Config(), &oc.System_Aaa_Authentication_User{
+			Username: ygot.String("alice"),
+			Password: ygot.String("password"),
+			Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
+		})
+	}
 
 	tests := []struct {
 		desc       string
@@ -116,10 +217,11 @@ func TestAuthentication(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Log("Trying SSH credentials")
-			sshClient, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", sshIP, sshPort), &ssh.ClientConfig{
+			sshClient, err := ssh.Dial("tcp", sshAddr, &ssh.ClientConfig{
 				User: tc.user,
 				Auth: []ssh.AuthMethod{
 					ssh.KeyboardInteractive(keyboardInteraction(tc.pass)),
+					ssh.Password(tc.pass),
 				},
 				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 			})
@@ -138,7 +240,7 @@ func TestAuthentication(t *testing.T) {
 				context.Background(),
 				"username", tc.user,
 				"password", tc.pass)
-			gnmi, err := gnmiClient(ctx, sshIP, dut)
+			gnmi, err := gnmiClient(ctx, dut, gnmiAddr)
 			if err != nil {
 				t.Fatal(err)
 			}
