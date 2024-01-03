@@ -720,3 +720,13 @@ func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
 func ISISMetricStyleTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMetricStyleTelemetryUnsupported()
 }
+
+// StaticRouteNextHopInterfaceRefUnsupported returns if device does not support Interface-ref under static-route next-hop
+func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNextHopInterfaceRefUnsupported()
+}
+
+// SkipStaticNexthopCheck returns if device needs index starting from non zero
+func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
+}
