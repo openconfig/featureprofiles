@@ -5,13 +5,17 @@ package debug
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	log "github.com/golang/glog"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
@@ -45,6 +49,10 @@ type targetInfo struct {
 
 type Targets struct {
 	targetInfo map[string]targetInfo
+}
+
+type CoreFiles struct {
+	coreFiles []string `json:"core_files`
 }
 
 var (
@@ -93,7 +101,7 @@ func TestMain(m *testing.M) {
 }
 
 // TestCollectDebugFiles collects debug commands if coreFile flag is set to false, else it Skips the test
-func TestCollectDebugFiles(t *testing.T) string {
+func TestCollectDebugFiles(t *testing.T) {
 	// set up Targets
 	targets := NewTargets(t)
 	if *outDirFlag == "" {
@@ -130,6 +138,13 @@ func TestCollectDebugFiles(t *testing.T) string {
 				if result, err := cli.SendCommand(ctx, cmd); err == nil {
 					t.Logf("> %s", cmd)
 					t.Log(result)
+					checkCoreFiles, err := regexp.Match("core", []byte(cmd))
+					if err != nil {
+						log.Error(fmt.Sprintf("Error regex [%v]", err))
+					}
+					if checkCoreFiles {
+						log.Info(result)
+					}
 				} else {
 					t.Logf("> %s", cmd)
 					t.Log(err.Error())
@@ -140,7 +155,8 @@ func TestCollectDebugFiles(t *testing.T) string {
 
 		copyDebugFiles(t, targetInfo, "CollectDebugFiles")
 	}
-	return "this is a test"
+	// TODO: return list of debug files to python
+	//copyCoreFiles(t,d,)
 }
 
 // copyDebugFiles copies files from the runs to an specified directory with a filename
@@ -172,6 +188,36 @@ func copyDebugFiles(t *testing.T, d targetInfo, filename string) {
 	}); err != nil {
 		t.Errorf("Error copying debug files: %v", err)
 	}
+}
+
+// copyCoreFiles copies core files if found from the runs to an specified directory with a filename corefiles.json
+//
+// d targetInfo - contains the dut info
+// filename - self-explanatory
+func copyCoreFiles(t *testing.T, d targetInfo, corefiles []string) {
+	t.Helper()
+
+	if len(corefiles) == 0 {
+		log.Info("no corefiles were found")
+		return
+	}
+	dutOutDir := filepath.Join(outDir, d.dut, "corefiles")
+	if err := os.MkdirAll(dutOutDir, os.ModePerm); err != nil {
+		t.Errorf("Error creating output directory: %v", err)
+		return
+	}
+	files := &CoreFiles{
+		coreFiles: corefiles,
+	}
+	jsonCore, err := json.Marshal(files)
+	if err != nil {
+		log.Error(fmt.Sprintf("Error marshalling core files slice, [%v]", err))
+	}
+	err = os.WriteFile(dutOutDir, jsonCore, 0644)
+	if err != nil {
+		log.Error(fmt.Sprintf("Error writing to core json file [%v]", err))
+	}
+
 }
 
 // getSSHInfo adds dut ssh info to a slice targetInfo[dut.Id]
