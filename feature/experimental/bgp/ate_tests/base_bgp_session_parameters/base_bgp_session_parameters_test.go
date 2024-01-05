@@ -412,7 +412,7 @@ func TestPassword(t *testing.T) {
 		topo.UpdateBGPPeerStates(t)
 	}
 	t.Log("Verify BGP session state : Should be ESTABLISHED")
-	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*50, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), (dutHoldTime+10)*time.Second, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	// Clear config on DUT and ATE
 	topo.StopProtocols(t)
 	bgpClearConfig(t, dut)
