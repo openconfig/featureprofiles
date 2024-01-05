@@ -41,13 +41,14 @@ import (
 )
 
 const (
-	ipv4PrefixLen = 30
-	ipv6PrefixLen = 126
-	deviceID      = uint64(100)
-	ingressPortId = uint32(2100)
-	egressPortId  = ingressPortId + 1
-	electionId    = uint64(100)
-	dstMAC        = "00:1A:11:00:00:01"
+	ipv4PrefixLen   = 30
+	ipv6PrefixLen   = 126
+	deviceID        = uint64(100)
+	ingressDeviceID = uint64(101)
+	ingressPortId   = uint32(2100)
+	egressPortId    = ingressPortId + 1
+	electionId      = uint64(100)
+	dstMAC          = "00:1A:11:00:00:01"
 )
 
 var (
@@ -147,11 +148,24 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		t.Fatal("Couldn't find P4RT Node for port: port2")
 	}
 	t.Logf("Configuring P4RT Node: %s", p4rtNode)
+	ingressP4RtNode, ok := nodes["port1"]
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port1")
+	}
+	t.Logf("Configuring P4RT Node: %s", ingressP4RtNode)
+
 	c := oc.Component{}
 	c.Name = ygot.String(p4rtNode)
 	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
 	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceID)
 	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
+	if p4rtNode != ingressP4RtNode {
+		c := oc.Component{}
+		c.Name = ygot.String(ingressP4RtNode)
+		c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+		c.IntegratedCircuit.NodeId = ygot.Uint64(ingressDeviceID)
+		gnmi.Replace(t, dut, gnmi.OC().Component(ingressP4RtNode).Config(), &c)
+	}
 }
 
 func setupP4RTClient(ctx context.Context, client *p4rt_client.P4RTClient) error {
