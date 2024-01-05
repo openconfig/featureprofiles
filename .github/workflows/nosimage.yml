@@ -1,0 +1,36 @@
+name: NOSImage validation script
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: stable
+        cache: false
+    - name: Generate Examples
+      run: 
+        cd tools/nosimage
+        go run example/generate_example.go -file-path example/example_nosimageprofile.textproto
+        go run example/generate_example.go -file-path example/example_nosimageprofile_invalid.textproto -invalid
+    - name: Validate Examples
+      run: 
+        cd tools/nosimage
+        go run validate/validate.go -file example/example_nosimageprofile.textproto; rm -rf tmp
+
+        cd tools/nosimage
+        if go run validate/validate.go -file example/example_nosimageprofile_invalid.textproto; then
+          echo "Validation passed, but failure expected"
+          exit 1
+        fi
+        rm -rf tmp
