@@ -983,7 +983,7 @@ def CollectCoreFiles(self, test_log_directory_path,test_logs_dir_in_ws):
     print(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
     try:
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-        arr2 = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+        arr2 = os.listdir(test_logs_dir_in_ws)
         print(arr)
         print(arr2)
         r = re.compile("*core*")
