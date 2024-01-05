@@ -20,7 +20,7 @@
    * If the configuration push is successful, make a gNMI.Get() RPC call and compare the configuration received with the originally pushed configuration for a match. Test is a failure if either the gNMI.Get() operation fails or the configuration do not match with the one that was pushed
   
 * gNOI-5.3.3 - Chassis Component Health Check
-   * Issue Healthz Check RPC to the DUT for Chassis component to trigger the generation of Artifact ID(s) equivalent to 'show tech support'.
+   * Issue Healthz Check RPC to the DUT for Chassis component to trigger the generation of Artifact ID(s). Artifacts returned should be sufficient for vendor tech support teams to determine if any of the field replaceable components are faulty and must be replaced for that device.
    * Verify that the DUT returns the artifact IDs in the Check RPC's response.
    * Invoke ArtifactRequest to transfer the requested Artifact ID(s).
    * Verify that the DUT returns the artifacts requested.
