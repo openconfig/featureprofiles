@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -139,13 +138,8 @@ func TestCollectDebugFiles(t *testing.T) {
 			fmt.Println(fmt.Sprintf("Running current command: [%s]", cmd))
 			testt.CaptureFatal(t, func(t testing.TB) {
 				if result, err := cli.SendCommand(ctx, cmd); err == nil {
-					t.Logf("> %s", cmd)
-					t.Log(result)
-					checkCoreFiles, err := regexp.Match("core", []byte(cmd))
-					if err != nil {
-						log.Error(fmt.Sprintf("Error regex [%v]", err))
-					}
-					if checkCoreFiles {
+					fmt.Printf("result [%s] from cmd [%s]", result, cmd)
+					if cmd == "run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;" {
 						fmt.Printf("checkCoreFiles [%s]", result)
 						log.Info(result)
 						core = result
@@ -205,6 +199,7 @@ func copyCoreFiles(t *testing.T, corefiles string) {
 		log.Info("no corefiles were found")
 		return
 	}
+	// creates /corefiles
 	dutOutDir := filepath.Join(outDir, "corefiles")
 	if err := os.MkdirAll(dutOutDir, os.ModePerm); err != nil {
 		t.Errorf("Error creating output directory: %v", err)
@@ -218,7 +213,7 @@ func copyCoreFiles(t *testing.T, corefiles string) {
 	if err != nil {
 		log.Error(fmt.Sprintf("Error marshalling core files slice, [%v]", err))
 	}
-	err = os.WriteFile(dutOutDir, jsonCore, 0644)
+	err = os.WriteFile("core.json", jsonCore, 0644)
 	if err != nil {
 		log.Error(fmt.Sprintf("Error writing to core json file [%v]", err))
 	}
@@ -260,6 +255,7 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 			if dut.Ssh.Target != "" {
 				sshTarget = strings.Split(dut.Ssh.Target, ":")
 				sshIP = sshTarget[0]
+				sshPort = "25087"
 				if len(sshTarget) > 1 {
 					sshPort = sshTarget[1]
 				}
