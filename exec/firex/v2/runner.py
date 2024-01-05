@@ -961,7 +961,9 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
             check_output(collect_core_files, env=env, cwd=internal_fp_repo_dir)
             # TODO: get the list of core files found and added it to the XML file
             # check if the directory exists
+            
             coredir = os.path.exists(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+            print(f'checking if coredir exists {coredir}')
             # check if it has core files
             if coredir is True:
                 arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
