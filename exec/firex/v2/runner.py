@@ -982,6 +982,9 @@ def CollectCoreFiles(self, test_log_directory_path,test_logs_dir_in_ws):
     # check if the directory exists
     print(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
     try:
+        current_working_directory = os.getcwd()
+        root = os.listdir('.')
+        print(root,current_working_directory)
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
         arr2 = os.listdir(test_logs_dir_in_ws)
         print(arr)
