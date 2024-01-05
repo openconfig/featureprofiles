@@ -316,9 +316,13 @@ func (ti *Targets) GetOndatraCLI(t *testing.T, dutID string) binding.CLIClient {
 	return dut.RawAPIs().CLI(t)
 }
 
+// setCoreFile creates a core file. function to be deleted !!!!!!!!!!
 func (ti *Targets) SetCoreFile(t *testing.T) {
+	fmt.Println("Starting setCoreFile")
 	t.Helper()
+
 	cmd := "dumpcore running 1215"
+
 	for dutID := range ti.targetInfo {
 		t.Logf("Collecting debug files on %s", dutID)
 		ctx := context.Background()
@@ -334,4 +338,5 @@ func (ti *Targets) SetCoreFile(t *testing.T) {
 			t.Logf("\n")
 		})
 	}
+	fmt.Println("Exiting setCoreFile")
 }
