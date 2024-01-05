@@ -594,9 +594,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         if suite: 
             logger.info(f"xml_results_file {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             # print current XML file
-            temp = xml.dom.minidom.parse(suite) 
-            new_xml = temp.toprettyxml() 
-            logger.info(new_xml)
+            print(suite)
 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
             if collect_debug_files and suite.attrib['failures'] != '0':
