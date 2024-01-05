@@ -616,6 +616,11 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     timestamp=start_timestamp,
                     core=True
                 ))
+                print("HHHHHH")
+                self.enqueue_child(CollectCoreFiles.s(
+                    test_log_directory_path=test_log_directory_path
+                ))
+                # TODO: I might need to do task to get the core files and add them to the xml file
         elif test_ignore_aborted or test_skip:
             logger.debug("elif in ")
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
@@ -959,26 +964,27 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         env.update(_get_go_env(ws))
         if core is True :
             check_output(collect_core_files, env=env, cwd=internal_fp_repo_dir)
-            # TODO: get the list of core files found and added it to the XML file
-            # check if the directory exists
-            
-            coredir = os.path.exists(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-            print(f'checking if coredir exists {coredir}, {test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-            # check if it has core files
-            if coredir is True:
-                arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-                r = re.compile("*core*")
-                corefileslist = list(filter(r.match,arr))
-                print(f'CORE FILES FOUND IN DIR : [{corefileslist}]')
-            # add core files into xml
-
-            # print xml to confirm
         else:
             check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:
         os.remove(tmp_binding_file)
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def CollectCoreFiles(self, test_log_directory_path):
+    # TODO: get the list of core files found and added it to the XML file
+    # check if the directory exists
+    print(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+    arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+    print(arr)
+    r = re.compile("*core*")
+    corefileslist = list(filter(r.match,arr))
+    print(f'CORE FILES FOUND IN DIR : [{corefileslist}]')
+    # add core files into xml
+
+    # print xml to confirm
 
 
 # noinspection PyPep8Naming
