@@ -143,6 +143,7 @@ func TestCollectDebugFiles(t *testing.T) {
 						log.Error(fmt.Sprintf("Error regex [%v]", err))
 					}
 					if checkCoreFiles {
+						fmt.Printf("checkCoreFiles [%s]", result)
 						log.Info(result)
 					}
 				} else {
@@ -278,7 +279,19 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 				sshPass: sshPass,
 			}
 		} else {
-			return fmt.Errorf("One or more values are empty  dut.Id, sshIP, sshPort, sshUser, sshPass ")
+			switch {
+			case dut.Id == "":
+				return fmt.Errorf("dut.Id is empty")
+			case sshIP == "":
+				return fmt.Errorf("sshIP is empty")
+			case sshPort == "":
+				return fmt.Errorf("sshPort is empty")
+			case sshUser == "":
+				return fmt.Errorf("sshUser is empty")
+			case sshPass == "":
+				return fmt.Errorf("sshPass is empty")
+
+			}
 		}
 	}
 	return nil
