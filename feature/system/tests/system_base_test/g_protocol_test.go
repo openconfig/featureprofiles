@@ -23,7 +23,6 @@ import (
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding/introspect"
-	"github.com/openconfig/ondatra/knebind/creds"
 	"google.golang.org/grpc"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -50,21 +49,6 @@ func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, want
 		t.Fatalf("grpc.Dial failed to: %q", dialer.DialTarget)
 	}
 	return conn
-}
-
-type rpcCredentials struct {
-	*creds.UserPass
-}
-
-func (r *rpcCredentials) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{
-		"username": "admin",
-		"password": "admin",
-	}, nil
-}
-
-func (r *rpcCredentials) RequireTransportSecurity() bool {
-	return true
 }
 
 // TestGNMIClient validates that the DUT listens on standard gNMI Port.
