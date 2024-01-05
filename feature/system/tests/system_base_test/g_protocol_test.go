@@ -91,7 +91,7 @@ func TestGRIBIClient(t *testing.T) {
 	}
 }
 
-// TestP4RTClient validates that the DUT listens on standard gNMI Port.
+// TestP4RTClient validates that the DUT listens on standard P4RT Port.
 func TestP4RTClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	conn := dialConn(t, dut, introspect.P4RT, 9559)
