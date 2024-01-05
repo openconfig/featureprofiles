@@ -616,10 +616,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     timestamp=start_timestamp,
                     core=True
                 ))
-                print("HHHHHH")
-                self.enqueue_child(CollectCoreFiles.s(
-                    test_log_directory_path=test_log_directory_path
-                ))
+
                 # TODO: I might need to do task to get the core files and add them to the xml file
         elif test_ignore_aborted or test_skip:
             logger.debug("elif in ")
@@ -627,6 +624,13 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
+        
+        print("HHHHHH")
+        self.enqueue_child(CollectCoreFiles.s(
+            test_log_directory_path=test_log_directory_path,
+            test_logs_dir_in_ws=test_logs_dir_in_ws
+        ))
+        
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
@@ -973,15 +977,23 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def CollectCoreFiles(self, test_log_directory_path):
+def CollectCoreFiles(self, test_log_directory_path,test_logs_dir_in_ws):
     # TODO: get the list of core files found and added it to the XML file
     # check if the directory exists
     print(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-    arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-    print(arr)
-    r = re.compile("*core*")
-    corefileslist = list(filter(r.match,arr))
-    print(f'CORE FILES FOUND IN DIR : [{corefileslist}]')
+    try:
+        arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+        arr2 = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+        print(arr)
+        print(arr2)
+        r = re.compile("*core*")
+        corefileslist = list(filter(r.match,arr))
+        print(f'CORE FILES FOUND IN DIR : [{corefileslist}]')
+    except:
+        print("directory not found")
+        logger.warning(f'Failed to collect testbed information. Ignoring...') 
+    
+
     # add core files into xml
 
     # print xml to confirm
