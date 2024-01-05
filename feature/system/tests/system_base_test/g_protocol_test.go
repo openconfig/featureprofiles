@@ -71,7 +71,7 @@ func TestGNOIClient(t *testing.T) {
 	}
 }
 
-// TestGNSIClient validates that the DUT listens on standard gNMI Port.
+// TestGNSIClient validates that the DUT listens on standard gNSI Port.
 func TestGNSIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	conn := dialConn(t, dut, introspect.GNSI, 9339)
