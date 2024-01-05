@@ -941,6 +941,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
                 f'-timestamp {str(timestamp)} ' \
                 f'-core true ' \
                 f'-v 5'
+        
 
 
     collect_debug_cmd = f'{GO_BIN} test -v ' \
@@ -957,9 +958,19 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         env = dict(os.environ)
         env.update(_get_go_env(ws))
         if core is True :
-            gg = check_output(collect_core_files, env=env, cwd=internal_fp_repo_dir)
+            check_output(collect_core_files, env=env, cwd=internal_fp_repo_dir)
             # TODO: get the list of core files found and added it to the XML file
-            print(f'Printing gg {gg}')
+            # check if the directory exists
+            coredir = os.path.exists(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+            # check if it has core files
+            if coredir is True:
+                arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+                r = re.compile("*core*")
+                corefileslist = list(filter(r.match,arr))
+                print(f'CORE FILES FOUND IN DIR : [{corefileslist}]')
+            # add core files into xml
+
+            # print xml to confirm
         else:
             check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
     except:
