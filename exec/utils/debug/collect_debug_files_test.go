@@ -111,6 +111,9 @@ func TestCollectDebugFiles(t *testing.T) {
 		timestamp = *timestampFlag
 	}
 
+	// this generate dummy core files --- remove this
+	targets.SetCoreFile(t)
+
 	commands := []string{
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
@@ -126,7 +129,7 @@ func TestCollectDebugFiles(t *testing.T) {
 			commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
 		}
 	}
-
+	core := ""
 	for dutID, targetInfo := range targets.targetInfo {
 
 		ctx := context.Background()
@@ -145,6 +148,7 @@ func TestCollectDebugFiles(t *testing.T) {
 					if checkCoreFiles {
 						fmt.Printf("checkCoreFiles [%s]", result)
 						log.Info(result)
+						core = result
 					}
 				} else {
 					t.Logf("> %s", cmd)
@@ -157,7 +161,7 @@ func TestCollectDebugFiles(t *testing.T) {
 		copyDebugFiles(t, targetInfo, "CollectDebugFiles")
 	}
 	// TODO: return list of debug files to python
-	//copyCoreFiles(t,d,)
+	copyCoreFiles(t, core)
 }
 
 // copyDebugFiles copies files from the runs to an specified directory with a filename
@@ -193,22 +197,22 @@ func copyDebugFiles(t *testing.T, d targetInfo, filename string) {
 
 // copyCoreFiles copies core files if found from the runs to an specified directory with a filename corefiles.json
 //
-// d targetInfo - contains the dut info
 // filename - self-explanatory
-func copyCoreFiles(t *testing.T, d targetInfo, corefiles []string) {
+func copyCoreFiles(t *testing.T, corefiles string) {
 	t.Helper()
 
 	if len(corefiles) == 0 {
 		log.Info("no corefiles were found")
 		return
 	}
-	dutOutDir := filepath.Join(outDir, d.dut, "corefiles")
+	dutOutDir := filepath.Join(outDir, "corefiles")
 	if err := os.MkdirAll(dutOutDir, os.ModePerm); err != nil {
 		t.Errorf("Error creating output directory: %v", err)
 		return
 	}
 	files := &CoreFiles{
-		coreFiles: corefiles,
+		// TODO: need separate entries
+		coreFiles: []string{corefiles},
 	}
 	jsonCore, err := json.Marshal(files)
 	if err != nil {
@@ -310,4 +314,24 @@ func (ti *Targets) GetOndatraCLI(t *testing.T, dutID string) binding.CLIClient {
 	dut := ondatra.DUT(t, dutID)
 
 	return dut.RawAPIs().CLI(t)
+}
+
+func (ti *Targets) SetCoreFile(t *testing.T) {
+	t.Helper()
+	cmd := "dumpcore running 1215"
+	for dutID := range ti.targetInfo {
+		t.Logf("Collecting debug files on %s", dutID)
+		ctx := context.Background()
+		cli := ti.GetOndatraCLI(t, dutID)
+		testt.CaptureFatal(t, func(t testing.TB) {
+			if result, err := cli.SendCommand(ctx, cmd); err == nil {
+				t.Logf("> %s", cmd)
+				t.Log(result)
+			} else {
+				t.Logf("> %s", cmd)
+				t.Log(err.Error())
+			}
+			t.Logf("\n")
+		})
+	}
 }
