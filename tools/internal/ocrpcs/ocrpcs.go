@@ -21,7 +21,7 @@ func cloneAPIRepo(downloadPath, api string) (string, error) {
 	}
 	repoPath := filepath.Join(downloadPath, api)
 
-	cmd := exec.Command("git", "clone", "--single-branch", "--depth", "1", fmt.Sprintf("git@github.com:openconfig/%s.git", api), repoPath)
+	cmd := exec.Command("git", "clone", "--single-branch", "--depth", "1", fmt.Sprintf("https://github.com/openconfig/%s.git", api), repoPath)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return "", err

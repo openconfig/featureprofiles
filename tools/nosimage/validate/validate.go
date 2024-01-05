@@ -64,7 +64,7 @@ func clonePublicRepo(downloadPath, branch string) (string, error) {
 	}
 	publicPath := filepath.Join(config.DownloadPath, "public")
 
-	cmd := exec.Command("git", "clone", "-b", branch, "--single-branch", "--depth", "1", "git@github.com:openconfig/public.git", publicPath)
+	cmd := exec.Command("git", "clone", "-b", branch, "--single-branch", "--depth", "1", "https://github.com/openconfig/public.git", publicPath)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return "", err
