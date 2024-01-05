@@ -56,7 +56,7 @@ func readAllRPCs(downloadPath, api string) (map[string]struct{}, error) {
 				}
 				got, err := protoparser.Parse(reader)
 				if err != nil {
-					return fmt.Errorf("failed to parse, err %v\n", err)
+					return fmt.Errorf("failed to parse, err %v", err)
 				}
 				visitor := &rpcServiceAccumulator{}
 				got.Accept(visitor)

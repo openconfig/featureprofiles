@@ -16,7 +16,6 @@ type rpcServiceAccumulator struct {
 var _ parser.Visitor = &rpcServiceAccumulator{}
 
 func (v *rpcServiceAccumulator) VisitComment(*parser.Comment) {
-	return
 }
 
 func (v *rpcServiceAccumulator) VisitEmptyStatement(*parser.EmptyStatement) (next bool) {
