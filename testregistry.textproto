@@ -303,6 +303,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.10"
+  description: "BGP multipath ECMP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.6"
   description: "IS-IS Hello-Padding  enabled at interface level"
   readme: ""
