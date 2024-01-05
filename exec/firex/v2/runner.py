@@ -963,7 +963,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
             # check if the directory exists
             
             coredir = os.path.exists(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-            print(f'checking if coredir exists {coredir}')
+            print(f'checking if coredir exists {coredir}, {test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
             # check if it has core files
             if coredir is True:
                 arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
