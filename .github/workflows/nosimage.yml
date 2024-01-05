@@ -28,7 +28,6 @@ jobs:
         cd tools/nosimage
         go run validate/validate.go -file example/example_nosimageprofile.textproto; rm -rf tmp
 
-        cd tools/nosimage
         if go run validate/validate.go -file example/example_nosimageprofile_invalid.textproto; then
           echo "Validation passed, but failure expected"
           exit 1
