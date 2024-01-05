@@ -1,4 +1,4 @@
-# ACCTZ-4.1 - gNSI.acctz.v1 (Accounting) Test Record Respponse Truncation
+# ACCTZ-4.1 - gNSI.acctz.v1 (Accounting) Test Record History Truncation
 
 ## Summary
 Test Record Response Truncation boolean is set
