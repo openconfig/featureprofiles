@@ -61,13 +61,13 @@ func TestGNMIClient(t *testing.T) {
 	}
 }
 
-// TestGNOIClient validates that the DUT listens on standard gNMI Port.
+// TestGNOIClient validates that the DUT listens on standard gNOI Port.
 func TestGNOIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	conn := dialConn(t, dut, introspect.GNOI, 9339)
 	c := spb.NewSystemClient(conn)
 	if _, err := c.Ping(context.Background(), &spb.PingRequest{}); err != nil {
-		t.Fatalf("gnoi.system.Time failed: %v", err)
+		t.Fatalf("gnoi.system.Ping failed: %v", err)
 	}
 }
 
@@ -81,7 +81,7 @@ func TestGNSIClient(t *testing.T) {
 	}
 }
 
-// TestGRIBIClient validates that the DUT listens on standard gNMI Port.
+// TestGRIBIClient validates that the DUT listens on standard gRIBI Port.
 func TestGRIBIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	conn := dialConn(t, dut, introspect.GRIBI, 9340)
