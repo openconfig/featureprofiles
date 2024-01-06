@@ -521,7 +521,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     for name, value in os.environ.items():
         logger.print("{0}: {1}".format(name, value))
     logger.print('----- env end ----')
-    
+    child_promises = []
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
@@ -608,8 +608,9 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     timestamp=start_timestamp,
                     core=False
                 ))
+                child_promises.append(child_promise)
             else:
-                self.enqueue_child(CollectDebugFiles.s(
+                child_promise = self.enqueue_child(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     reserved_testbed=reserved_testbed, 
@@ -617,6 +618,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     timestamp=start_timestamp,
                     core=True
                 ))
+                child_promises.append(child_promise)
 
         elif test_ignore_aborted or test_skip:
             logger.debug("elif in ")
@@ -624,12 +626,11 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
-        
+        self.wait_for_children()
         # TODO: its not waiting for CollectDebugFiles
-        # self.enqueue_child(CollectCoreFiles.s(
-        #     test_log_directory_path=test_log_directory_path,
-        #     test_logs_dir_in_ws=test_logs_dir_in_ws
-        # ))
+        self.enqueue_child(CollectCoreFiles.s(
+            test_log_directory_path=test_log_directory_path
+        ))
         # TODO: modify xml result with core files before copying it to path
 
         shutil.copyfile(xml_results_file, xunit_results_filepath)
@@ -976,10 +977,10 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:
         # collect core files if any
-        if core is True:
-            self.enqueue_child(CollectCoreFiles.s(
-                test_log_directory_path=test_log_directory_path,
-            ))
+        # if core is True:
+        #     self.enqueue_child(CollectCoreFiles.s(
+        #         test_log_directory_path=test_log_directory_path,
+        #     ))
         os.remove(tmp_binding_file)
 
 # noinspection PyPep8Naming
