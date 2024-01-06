@@ -501,6 +501,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
         chain |= TeardownIxiaController.s()
 
     if cflow and testbed:
+        # TODO this might be the place to collect data
         chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
     return chain
 
@@ -594,9 +595,9 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         if suite: 
             logger.info(f"xml_results_file {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             # print current XML file
-            print(suite)
+            print(f"xml_results_file {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
 
-            shutil.copyfile(xml_results_file, xunit_results_filepath)
+            # shutil.copyfile(xml_results_file, xunit_results_filepath)
             if collect_debug_files and suite.attrib['failures'] != '0':
                 # runCoreFileCheck(ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp)
                 self.enqueue_child(CollectDebugFiles.s(
@@ -617,7 +618,6 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     core=True
                 ))
 
-                # TODO: I might need to do task to get the core files and add them to the xml file
         elif test_ignore_aborted or test_skip:
             logger.debug("elif in ")
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
@@ -625,12 +625,14 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
         
-        print("HHHHHH")
-        self.enqueue_child(CollectCoreFiles.s(
-            test_log_directory_path=test_log_directory_path,
-            test_logs_dir_in_ws=test_logs_dir_in_ws
-        ))
-        
+        # TODO: its not waiting for CollectDebugFiles
+        # self.enqueue_child(CollectCoreFiles.s(
+        #     test_log_directory_path=test_log_directory_path,
+        #     test_logs_dir_in_ws=test_logs_dir_in_ws
+        # ))
+        # TODO: modify xml result with core files before copying it to path
+
+        shutil.copyfile(xml_results_file, xunit_results_filepath)
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
@@ -973,11 +975,16 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:
+        # collect core files if any
+        if core is True:
+            self.enqueue_child(CollectCoreFiles.s(
+                test_log_directory_path=test_log_directory_path,
+            ))
         os.remove(tmp_binding_file)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def CollectCoreFiles(self, test_log_directory_path,test_logs_dir_in_ws):
+def CollectCoreFiles(self, test_log_directory_path):
     # TODO: get the list of core files found and added it to the XML file
     # check if the directory exists
     print(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
@@ -986,9 +993,7 @@ def CollectCoreFiles(self, test_log_directory_path,test_logs_dir_in_ws):
         root = os.listdir('.')
         print(root,current_working_directory)
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-        arr2 = os.listdir(test_logs_dir_in_ws)
         print(arr)
-        print(arr2)
         r = re.compile("*core*")
         corefileslist = list(filter(r.match,arr))
         print(f'CORE FILES FOUND IN DIR : [{corefileslist}]')
