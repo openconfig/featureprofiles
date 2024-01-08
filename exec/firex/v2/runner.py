@@ -27,6 +27,8 @@ import yaml
 import git
 import os
 import re
+import lxml.etree as ETL
+
 # print xml, delete after testing
 
 import xml.dom.minidom 
@@ -595,6 +597,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         if suite: 
             # TODO: add shutil here
             shutil.copyfile(xml_results_file, xunit_results_filepath)
+            time.sleep(60)
             logger.info(f"xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             if collect_debug_files and suite.attrib['failures'] != '0':
@@ -988,14 +991,15 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath):
         print(f'xunit_results_filepath: {xunit_results_filepath}')
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
         print(f'Array from {test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-        r = re.compile(r'core',re.IGNORECASE)
+        r = re.compile(r'core\b',re.IGNORECASE)
         corefileslist = list(filter(lambda x: r.search(str(x)),arr))
         print(f'Array of core files if any {corefileslist}')
         
         try:
-            tree = ET.parse(xunit_results_filepath)
-            root = tree.getroot()
+            parser = ET.XMLParser(recover=True)
+            tree = ET.parse(xunit_results_filepath,parser=parser)
             print(f'xml root {ET.dump()}')
+            root = tree.getroot()
             prop = root.find("./testsuite/properties") 
             if len(corefileslist) == 0:
                 nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
@@ -1004,7 +1008,19 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath):
                 nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
                 nsub.set("value",file)
             ET.indent(tree, space="\t", level=0)
-            tree.write(xunit_results_filepath,encoding="utf-8")
+            tree.write("dd.xml",encoding="utf-8")
+            # tree = ET.parse(xunit_results_filepath)
+            # root = tree.getroot()
+            # print(f'xml root {ET.dump()}')
+            # prop = root.find("./testsuite/properties") 
+            # if len(corefileslist) == 0:
+            #     nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
+            #     nsub.set("value","no corefile(s) found")
+            # for file in corefileslist:
+            #     nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
+            #     nsub.set("value",file)
+            # ET.indent(tree, space="\t", level=0)
+            # tree.write(xunit_results_filepath,encoding="utf-8")
         except:
             logger.error("XML find was not able to find './testsuite/properties/'")
     except:
