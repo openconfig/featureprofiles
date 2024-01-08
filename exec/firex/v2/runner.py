@@ -983,10 +983,6 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath):
-    # TODO: get the list of core files found and added it to the XML file
-    # check if the directory exists
-    print('Starting CollectCoreFiles')
-    print(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
     try:
         print(f'xunit_results_filepath: {xunit_results_filepath}')
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
@@ -996,31 +992,37 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath):
         print(f'Array of core files if any {corefileslist}')
         
         try:
-            parser = ET.XMLParser(recover=True)
-            tree = ET.parse(xunit_results_filepath,parser=parser)
-            print(f'xml root {ET.dump()}')
-            root = tree.getroot()
-            prop = root.find("./testsuite/properties") 
-            if len(corefileslist) == 0:
-                nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
-                nsub.set("value","no corefile(s) found")
-            for file in corefileslist:
-                nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
-                nsub.set("value",file)
-            ET.indent(tree, space="\t", level=0)
-            tree.write("dd.xml",encoding="utf-8")
-            # tree = ET.parse(xunit_results_filepath)
-            # root = tree.getroot()
-            # print(f'xml root {ET.dump()}')
-            # prop = root.find("./testsuite/properties") 
-            # if len(corefileslist) == 0:
-            #     nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
-            #     nsub.set("value","no corefile(s) found")
-            # for file in corefileslist:
-            #     nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
-            #     nsub.set("value",file)
-            # ET.indent(tree, space="\t", level=0)
-            # tree.write(xunit_results_filepath,encoding="utf-8")
+            if os.path.exists(xunit_results_filepath) and os.path.getsize(xunit_results_filepath) > 0:
+                # tree = ET.parse(xunit_results_filepath)
+                # root = tree.getroot()
+                # print(f'xml root {ET.dump()}')
+                # prop = root.find("./testsuite/properties") 
+                # if len(corefileslist) == 0:
+                #     nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
+                #     nsub.set("value","no corefile(s) found")
+                # for file in corefileslist:
+                #     nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
+                #     nsub.set("value",file)
+                # ET.indent(tree, space="\t", level=0)
+                # tree.write(xunit_results_filepath,encoding="utf-8")
+                parser = ETL.XMLParser(recover=True)
+                tree = ETL.parse(xunit_results_filepath,parser=parser)
+                print(f'xml root {ETL.dump()}')
+                root = tree.getroot()
+                prop = root.find("./testsuite/properties") 
+                if len(corefileslist) == 0:
+                    nsub = ETL.SubElement(prop, "property",attrib={"name": "corefile"})
+                    nsub.set("value","no corefile(s) found")
+                for file in corefileslist:
+                    nsub = ETL.SubElement(prop, "property",attrib={"name":"corefile"})
+                    nsub.set("value",file)
+                ETL.indent(tree, space="\t", level=0)
+                tree.write(xunit_results_filepath,encoding="utf-8")
+            else:
+                if os.path.exists(xunit_results_filepath) == True:
+                    print("File exists but its empty")
+                else:
+                    print("File does not exists")
         except:
             logger.error("XML find was not able to find './testsuite/properties/'")
     except:
