@@ -982,6 +982,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
 def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath):
     # TODO: get the list of core files found and added it to the XML file
     # check if the directory exists
+    print('Starting CollectCoreFiles')
     print(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
     try:
         current_working_directory = os.getcwd()
@@ -990,9 +991,12 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath):
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
         r = re.compile("*core*")
         corefileslist = list(filter(r.match,arr))
+        print(f'Array of core files if any {corefileslist}')
+        
         try:
             tree = ET.parse(xunit_results_filepath)
             root = tree.getroot()
+            print(f'xml root {ET.dump}')
             prop = root.find("./testsuite/properties") 
             if len(corefileslist) == 0:
                 nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
