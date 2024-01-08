@@ -626,7 +626,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         elif test_ignore_aborted or test_skip:
             logger.debug("elif in ")
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
-
+        time.sleep(30)
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
@@ -981,6 +981,7 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_re
     try:
         print(f'xunit_results_filepath: {xml_results_file}')
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+        print(f'Array from {test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
         r = re.compile(r'core\b',re.IGNORECASE)
         corefileslist = list(filter(lambda x: r.search(str(x)),arr))
         print(f'Array of core files if any {corefileslist}')
@@ -989,16 +990,16 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_re
             if os.path.exists(xml_results_file) and os.path.getsize(xml_results_file) > 0:
                 print(f'file exists and its not empty')
                 tree = ET.parse(xml_results_file)
-                root = tree.getroot()
-                print(ET.dump())
-                prop = root.find("./testsuite/properties") 
+                print(f'xml root {ET.dump()}')
+                testsuite = tree.find("testsuite")
+                prop = testsuite[0] 
                 if len(corefileslist) == 0:
                     nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
                     nsub.set("value","no corefile(s) found")
                 for file in corefileslist:
                     nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
                     nsub.set("value",file)
-                ET.indent(tree, space="\t", level=0)
+                
                 tree.write(xml_results_file,encoding="utf-8")
                 # parser = ETL.XMLParser(recover=True)
                 # tree = ETL.parse(xunit_results_filepath,parser=parser)
@@ -1027,8 +1028,8 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_re
         shutil.copyfile(xml_results_file, xunit_results_filepath)
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
-        # elif not test_show_skipped: 
-        #     check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
+        elif not test_show_skipped: 
+            check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
 
 
 # noinspection PyPep8Naming
