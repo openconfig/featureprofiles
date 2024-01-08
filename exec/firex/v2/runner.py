@@ -981,7 +981,6 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_re
     try:
         print(f'xunit_results_filepath: {xml_results_file}')
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-        print(f'Array from {test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
         r = re.compile(r'core\b',re.IGNORECASE)
         corefileslist = list(filter(lambda x: r.search(str(x)),arr))
         print(f'Array of core files if any {corefileslist}')
@@ -991,7 +990,7 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_re
                 print(f'file exists and its not empty')
                 tree = ET.parse(xml_results_file)
                 root = tree.getroot()
-                print(f'xml root {ET.dump()}')
+                print(ET.dump())
                 prop = root.find("./testsuite/properties") 
                 if len(corefileslist) == 0:
                     nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
