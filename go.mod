@@ -23,7 +23,7 @@ require (
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.4.5
 	github.com/openconfig/gribi v1.0.0
-	github.com/openconfig/gribigo v0.0.0-20231031140438-9a293da13ff9
+	github.com/openconfig/gribigo v0.0.0-20231211221638-48fe45d9284d
 	github.com/openconfig/kne v0.1.14
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
 	github.com/openconfig/ondatra v0.4.8
