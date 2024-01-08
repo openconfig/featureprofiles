@@ -24,7 +24,7 @@ case $1 in
       ;;
   *)
       echo "Building dynamic binary"
-      go build ...
+      go build -ldflags '-s -w -I /lib64/ld-linux-x86-64.so.2 -extldflags=-Wl,--dynamic-linker,/lib64/ld-linux-x86-64.so.2,--strip-all'  ...
       ;;
 esac
 
