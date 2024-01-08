@@ -993,6 +993,7 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath):
         
         try:
             if os.path.exists(xunit_results_filepath) and os.path.getsize(xunit_results_filepath) > 0:
+                print(f'file exists and its not empty')
                 # tree = ET.parse(xunit_results_filepath)
                 # root = tree.getroot()
                 # print(f'xml root {ET.dump()}')
