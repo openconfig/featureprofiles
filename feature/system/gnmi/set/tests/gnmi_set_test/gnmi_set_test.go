@@ -595,7 +595,7 @@ func TestStaticProtocol(t *testing.T) {
 			verifyInterface(t, dut, p1.Name(), &ip1)
 			verifyInterface(t, dut, p2.Name(), &ip2)
 
-			v1, ok := gnmi.Await(t, dut, q1, 60*time.Second, p1.Name()).Val()
+			v1 := gnmi.Lookup(t, dut, q1)
 			if deviations.SkipStaticNexthopCheck(dut) {
 
 				q2 := sp.Static(prefix1).NextHopAny().InterfaceRef().Interface().State()
@@ -606,13 +606,12 @@ func TestStaticProtocol(t *testing.T) {
 					t.Fatalf("Did not receive output for static nexthop lookup")
 				}
 			}
-			if !ok {
+			if got, ok := v1.Val(); !ok || got != p1.Name() {
 				t.Errorf("State got %v, want %v", v1, p1.Name())
 			} else {
 				t.Logf("Verified %v", v1)
 			}
-
-			v2, ok := gnmi.Await(t, dut, q2, 60*time.Second, p2.Name()).Val()
+			v2 := gnmi.Lookup(t, dut, q2)
 			if deviations.SkipStaticNexthopCheck(dut) {
 
 				q3 := sp.Static(prefix2).NextHopAny().InterfaceRef().Interface().State()
@@ -623,7 +622,7 @@ func TestStaticProtocol(t *testing.T) {
 					t.Fatalf("Did not receive output for static nexthop lookup")
 				}
 			}
-			if !ok {
+			if got, ok := v2.Val(); !ok || got != p2.Name() {
 				t.Errorf("State got %v, want %v", v2, p2.Name())
 			} else {
 				t.Logf("Verified %v", v2)
@@ -643,7 +642,7 @@ func TestStaticProtocol(t *testing.T) {
 			verifyInterface(t, dut, p1.Name(), &ip1)
 			verifyInterface(t, dut, p2.Name(), &ip2)
 
-			v1, ok := gnmi.Await(t, dut, q1, 60*time.Second, p2.Name()).Val()
+			v1 := gnmi.Lookup(t, dut, q1)
 			if deviations.SkipStaticNexthopCheck(dut) {
 
 				q2 := sp.Static(prefix1).NextHopAny().InterfaceRef().Interface().State()
@@ -654,13 +653,12 @@ func TestStaticProtocol(t *testing.T) {
 					t.Fatalf("Did not receive output for static nexthop lookup")
 				}
 			}
-			if !ok {
+			if got, ok := v1.Val(); !ok || got != p2.Name() {
 				t.Errorf("State got %v, want %v", v1, p2.Name())
 			} else {
 				t.Logf("Verified %v", v1)
 			}
-
-			v2, ok := gnmi.Await(t, dut, q2, 60*time.Second, p1.Name()).Val()
+			v2 := gnmi.Lookup(t, dut, q2)
 			if deviations.SkipStaticNexthopCheck(dut) {
 
 				q3 := sp.Static(prefix2).NextHopAny().InterfaceRef().Interface().State()
@@ -671,7 +669,7 @@ func TestStaticProtocol(t *testing.T) {
 					t.Fatalf("Did not receive output for static nexthop lookup")
 				}
 			}
-			if !ok {
+			if got, ok := v2.Val(); !ok || got != p1.Name() {
 				t.Errorf("State got %v, want %v", v2, p1.Name())
 			} else {
 				t.Logf("Verified %v", v2)
