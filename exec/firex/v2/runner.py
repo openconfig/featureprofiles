@@ -988,6 +988,7 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath):
         current_working_directory = os.getcwd()
         root = os.listdir('.')
         print(root,current_working_directory)
+        print(f'xunit_results_filepath: {xunit_results_filepath}')
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
         r = re.compile("*core*")
         corefileslist = list(filter(r.match,arr))
