@@ -14,10 +14,10 @@ This test verifies if a large config can be bushed via gNMI SetRequest within 2 
 * Initiate Control Card switchover using gNOI SwitchControlProcessorRequest; store timestamp in "SwitchControlProcessorRequest_time"
 * Wait for `SwitchControlProcessorResponce` but no longer then 120s. If not received, test FAILED.
 * Immediately after receiving `SwitchControlProcessorResponce` for  gNOI switchover, send gNMI `setRequest` with a prepared large config. Store timestamp as "SwitchControlProcessorResponce_time".
-* Wait for `SetResponce` but no longer than 120s.
-  * If not received, the test FAILED.
-  * If received at time <= "SwitchControlProcessorResponce"+110s and ERROR is returned, send gNMI `setRequest` with prepared large config. Reaped form Wait for `SetResponce`
-  * If received at time > "SwitchControlProcessorResponce"+110s and ERROR is returned, test FAILED
+* Wait for `SetResponce` but no longer than 30s.
+  * If not received, the test  wait 10s and send gNMI `setRequest` with prepared large config. Repaet Wait for `SetResponce`.
+  * If received at time <= "SwitchControlProcessorResponce"+110s and a non-zero grpc status code is returned, wait 10s and send gNMI `setRequest` with prepared large config. Repeat Wait for `SetResponce`
+  * If received at time > "SwitchControlProcessorResponce"+110s and a non-zero grpc status code is returned, test FAILED
   * If received at time <= "SwitchControlProcessorResponce"+120s and SUCCESS is returned, proceed
 * Retrieve configuration from DUT DUT using gNMI `GetRequest`.
 * Verify:

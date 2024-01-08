@@ -260,6 +260,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.26"
+  description: "Basic static route support test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/static_route_support/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.3"
   description: "BGP Route Propagation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/addpath/ate_tests/route_propagation_test/README.md"
@@ -294,6 +300,12 @@ test: {
   id: "RT-1.9"
   description: "BGP Transport Parameters test"
   readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-1.10"
+  description: "BGP multipath ECMP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
   exec: " "
 }
 test: {
@@ -345,6 +357,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-4.10"
+  description: "AFTs Route Summary"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/route_summary_counters_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-5.1"
   description: "Singleton Interface"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/singleton_test/README.md"
@@ -393,7 +411,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-5.6"
+  id: "RT-9"
   description: "Interface IPv6 ND RA disable"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
   exec: " "
@@ -407,7 +425,7 @@ test: {
 test: {
   id: "RT-5.8"
   description: "IPv6 link local"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test/README.md"
   exec: " "
 }
 test: {
@@ -655,7 +673,7 @@ test: {
 }
 test: {
   id: "TR-6.2"
-  description: "system logging console vty file"
+  description: "Local logging destinations"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/logging/console_vty_file/tests/README.md"
   exec: " "
 }
@@ -823,6 +841,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNMI-1.20"
+  description: "Telemetry: Optics Thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/optics_thresholds_test/README.md"
+  exec: " "
+}
+test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/ate_tests/telemetry_inventory_test/README.md"
@@ -934,6 +958,24 @@ test: {
   id: "TRANSCEIVER-5"
   description: "400ZR channel frequency and output TX launch power setting"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_tunable_parameters_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-8"
+  description: "400ZR Optics module temperature streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_temperature_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-9"
+  description: "400ZR TX laser bias current telemetry values streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_laser_bias_current_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-10"
+  description: "400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_fec_uncorrectable_frames_test/README.md"
   exec: " "
 }
 test: {
