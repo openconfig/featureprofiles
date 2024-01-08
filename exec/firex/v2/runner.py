@@ -521,7 +521,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     for name, value in os.environ.items():
         logger.print("{0}: {1}".format(name, value))
     logger.print('----- env end ----')
-    child_promises = []
+    
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
@@ -606,19 +606,21 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     reserved_testbed=reserved_testbed, 
                     test_log_directory_path=test_log_directory_path,
                     timestamp=start_timestamp,
-                    core=False
+                    core=False,
+                    xml_results_file = xml_results_file,
+                    xunit_results_filepath=xunit_results_filepath
                 ))
-                child_promises.append(child_promise)
             else:
-                child_promise = self.enqueue_child(CollectDebugFiles.s(
+                self.enqueue_child(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     reserved_testbed=reserved_testbed, 
                     test_log_directory_path=test_log_directory_path,
                     timestamp=start_timestamp,
-                    core=True
+                    core=True,
+                    xml_results_file = xml_results_file,
+                    xunit_results_filepath=xunit_results_filepath
                 ))
-                child_promises.append(child_promise)
 
         elif test_ignore_aborted or test_skip:
             logger.debug("elif in ")
@@ -626,14 +628,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
-        self.wait_for_children()
-        # TODO: its not waiting for CollectDebugFiles
-        self.enqueue_child(CollectCoreFiles.s(
-            test_log_directory_path=test_log_directory_path
-        ))
-        # TODO: modify xml result with core files before copying it to path
 
-        shutil.copyfile(xml_results_file, xunit_results_filepath)
+        # shutil.copyfile(xml_results_file, xunit_results_filepath)
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
@@ -933,7 +929,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core):
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core, xml_results_file,xunit_results_filepath):
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -953,17 +949,17 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
                 f'-timestamp {str(timestamp)} ' \
                 f'-core true ' \
                 f'-v 5'
-        
-
-
-    collect_debug_cmd = f'{GO_BIN} test -v ' \
-            f'./exec/utils/debug ' \
-            f'-timeout 60m ' \
-            f'-args ' \
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
-            f'-binding {tmp_binding_file} ' \
-            f'-outDir {test_log_directory_path}/debug_files ' \
-            f'-timestamp {str(timestamp)}' 
+    else:
+        collect_debug_cmd = f'{GO_BIN} test -v ' \
+                f'./exec/utils/debug ' \
+                f'-timeout 60m ' \
+                f'-args ' \
+                f'-testbed {reserved_testbed["testbed_file"]} ' \
+                f'-binding {tmp_binding_file} ' \
+                f'-outDir {test_log_directory_path}/debug_files ' \
+                f'-timestamp {str(timestamp)}' \
+                f'-core false ' \
+                f'-v 5'
 
 
     try:
@@ -977,15 +973,17 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:
         # collect core files if any
-        # if core is True:
-        #     self.enqueue_child(CollectCoreFiles.s(
-        #         test_log_directory_path=test_log_directory_path,
-        #     ))
+        if core is True:
+            self.enqueue_child(CollectCoreFiles.s(
+                test_log_directory_path=test_log_directory_path,
+                xml_results_file=xml_results_file,
+                xunit_results_filepath=xunit_results_filepath
+            ))
         os.remove(tmp_binding_file)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def CollectCoreFiles(self, test_log_directory_path):
+def CollectCoreFiles(self, test_log_directory_path, xml_results_file,xunit_results_filepath):
     # TODO: get the list of core files found and added it to the XML file
     # check if the directory exists
     print(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
@@ -994,18 +992,30 @@ def CollectCoreFiles(self, test_log_directory_path):
         root = os.listdir('.')
         print(root,current_working_directory)
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-        print(arr)
         r = re.compile("*core*")
         corefileslist = list(filter(r.match,arr))
-        print(f'CORE FILES FOUND IN DIR : [{corefileslist}]')
+        try:
+            tree = ET.parse(xml_results_file)
+            root = tree.getroot()
+            prop = root.find("./testsuite/properties") 
+            if len(corefileslist) == 0:
+                nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
+                nsub.set("value","no corefile(s) found")
+            for file in corefileslist:
+                nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
+                nsub.set("value",file)
+            ET.indent(tree, space="\t", level=0)
+            tree.write("dd.xml",encoding="utf-8")
+        except:
+            logger.error("XML find was not able to find './testsuite/properties/'")
     except:
         print("directory not found")
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
-    
-
     # add core files into xml
-
-    # print xml to confirm
+    try:
+         shutil.copyfile(xml_results_file, xunit_results_filepath)
+    except:
+        logger.error("Couldnt copy xml_results_file into xunit_results_filepath")
 
 
 # noinspection PyPep8Naming
