@@ -27,7 +27,7 @@ import yaml
 import git
 import os
 import re
-import lxml.etree as ETL
+
 
 # print xml, delete after testing
 
@@ -596,40 +596,44 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         logger.info(f"suite: {suite}")
         if suite: 
             # TODO: add shutil here
-            shutil.copyfile(xml_results_file, xunit_results_filepath)
+            # shutil.copyfile(xml_results_file, xunit_results_filepath)
             time.sleep(60)
             logger.info(f"xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
+            child_promises = []
             if collect_debug_files and suite.attrib['failures'] != '0':
                 # runCoreFileCheck(ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp)
-                self.enqueue_child(CollectDebugFiles.s(
+                child_promise = self.enqueue_child(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     reserved_testbed=reserved_testbed, 
                     test_log_directory_path=test_log_directory_path,
                     timestamp=start_timestamp,
                     core=False,
-                    xunit_results_filepath=xunit_results_filepath
+                    xunit_results_filepath=xml_results_file
                 ))
+                child_promises.append(child_promise)
             else:
-                self.enqueue_child(CollectDebugFiles.s(
+                child_promise = self.enqueue_child(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     reserved_testbed=reserved_testbed, 
                     test_log_directory_path=test_log_directory_path,
                     timestamp=start_timestamp,
                     core=True,
-                    xunit_results_filepath=xunit_results_filepath
+                    xunit_results_filepath=xml_results_file
                 ))
-
+                child_promises.append(child_promise)
         elif test_ignore_aborted or test_skip:
             logger.debug("elif in ")
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
 
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
-
-        # shutil.copyfile(xml_results_file, xunit_results_filepath)
+        self.wait_for_children(raise_exception_on_failure=False)
+        if any(promise.failed() for promise in child_promises):
+            print("promise failed")
+        shutil.copyfile(xml_results_file, xunit_results_filepath)
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
@@ -994,41 +998,41 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath):
         try:
             if os.path.exists(xunit_results_filepath) and os.path.getsize(xunit_results_filepath) > 0:
                 print(f'file exists and its not empty')
-                # tree = ET.parse(xunit_results_filepath)
-                # root = tree.getroot()
-                # print(f'xml root {ET.dump()}')
-                # prop = root.find("./testsuite/properties") 
-                # if len(corefileslist) == 0:
-                #     nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
-                #     nsub.set("value","no corefile(s) found")
-                # for file in corefileslist:
-                #     nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
-                #     nsub.set("value",file)
-                # ET.indent(tree, space="\t", level=0)
-                # tree.write(xunit_results_filepath,encoding="utf-8")
-                parser = ETL.XMLParser(recover=True)
-                tree = ETL.parse(xunit_results_filepath,parser=parser)
-                print(f'xml root {ETL.dump()}')
+                tree = ET.parse(xunit_results_filepath)
                 root = tree.getroot()
+                print(f'xml root {ET.dump()}')
                 prop = root.find("./testsuite/properties") 
                 if len(corefileslist) == 0:
-                    nsub = ETL.SubElement(prop, "property",attrib={"name": "corefile"})
+                    nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
                     nsub.set("value","no corefile(s) found")
                 for file in corefileslist:
-                    nsub = ETL.SubElement(prop, "property",attrib={"name":"corefile"})
+                    nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
                     nsub.set("value",file)
-                ETL.indent(tree, space="\t", level=0)
+                ET.indent(tree, space="\t", level=0)
                 tree.write(xunit_results_filepath,encoding="utf-8")
+                # parser = ETL.XMLParser(recover=True)
+                # tree = ETL.parse(xunit_results_filepath,parser=parser)
+                # print(f'xml root {ETL.dump()}')
+                # root = tree.getroot()
+                # prop = root.find("./testsuite/properties") 
+                # if len(corefileslist) == 0:
+                #     nsub = ETL.SubElement(prop, "property",attrib={"name": "corefile"})
+                #     nsub.set("value","no corefile(s) found")
+                # for file in corefileslist:
+                #     nsub = ETL.SubElement(prop, "property",attrib={"name":"corefile"})
+                #     nsub.set("value",file)
+                # ETL.indent(tree, space="\t", level=0)
+                # tree.write(xunit_results_filepath,encoding="utf-8")
             else:
                 if os.path.exists(xunit_results_filepath) == True:
                     print("File exists but its empty")
                 else:
                     print("File does not exists")
-        except:
-            logger.error("XML find was not able to find './testsuite/properties/'")
-    except:
+        except Exception as error:
+            logger.error(f"XML find was not able to find './testsuite/properties/ with the error: {error}'")
+    except Exception as error:
         print("directory not found")
-        logger.warning(f'Failed to collect testbed information. Ignoring...') 
+        logger.warning(f'Failed to collect testbed information. Ignoring... with error: {error}') 
 
 
 # noinspection PyPep8Naming
