@@ -988,8 +988,8 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath):
         print(f'xunit_results_filepath: {xunit_results_filepath}')
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
         print(f'Array from {test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-        r = re.compile(".core.")
-        corefileslist = list(filter(r.match,arr))
+        r = re.compile(r'core',re.IGNORECASE)
+        corefileslist = list(filter(lambda x: r.search(str(x)),arr))
         print(f'Array of core files if any {corefileslist}')
         
         try:
