@@ -596,7 +596,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         logger.info(f"suite: {suite}")
         if suite: 
             # TODO: add shutil here
-            # shutil.copyfile(xml_results_file, xunit_results_filepath)
+            shutil.copyfile(xml_results_file, xunit_results_filepath)
             logger.info(f"xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             time.sleep(60)
