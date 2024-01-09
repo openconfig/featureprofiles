@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -117,7 +117,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
-// configureOTG configures OTG interfaces to send and recieve ipv6 paxckets
+// configureOTG configures OTG interfaces to send and recieve ipv6 packets
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	topo := gosnappi.NewConfig()
 	t.Logf("Configuring OTG port1")

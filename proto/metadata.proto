@@ -382,7 +382,7 @@ message Metadata {
     bool skip_non_bgp_route_export_check = 133;
     // Device doesn't support router advertisement enable and mode config
     // Juniper: b/316173974 
-    bool ipv6_router_advertisement_config_unsupported = 134;
+    bool ipv6_router_advertisement_config_unsupported = 137;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
