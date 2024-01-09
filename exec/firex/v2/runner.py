@@ -1001,7 +1001,7 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath)->str:
                 print(f'file exists and its not empty')
                 tree = ET.parse(xunit_results_filepath)
                 testsuite = tree.find("testsuite")
-                print(f'xml root {ET.dump()}')
+                print(ET.dump(tree))
                 prop = testsuite[0] 
                 if len(corefileslist) == 0:
                     nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
