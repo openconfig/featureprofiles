@@ -48,6 +48,7 @@ var (
 	pruneComponents      = flag.Bool("prune_components", true, "Prune components that are not ports.  Use this to preserve the breakout-mode settings.")
 	pruneLLDP            = flag.Bool("prune_lldp", true, "Prune LLDP config.")
 	setEthernetFromState = flag.Bool("set_ethernet_from_state", true, "Set interface/ethernet config from state, mostly to get the port-speed settings correct.")
+	pruneLACPMembers     = flag.Bool("prune_lacp_members", true, "Prune LACP members.")
 
 	// This has no known effect except to reduce logspam while debugging.
 	pruneQoS = flag.Bool("prune_qos", true, "Prune QoS config.")
@@ -830,6 +831,12 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 
 	if *pruneQoS {
 		config.Qos = nil
+	}
+
+	if *pruneLACPMembers && config.Lacp != nil {
+		for _, intf := range config.Lacp.Interface {
+			intf.Member = nil
+		}
 	}
 
 	pruneUnsupportedPaths(config)
