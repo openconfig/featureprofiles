@@ -285,6 +285,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.51"
+  description: "BGP multipath ECMP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.7"
   description: "Local BGP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/tests/local_bgp_test/README.md"
@@ -300,12 +306,6 @@ test: {
   id: "RT-1.9"
   description: "BGP Transport Parameters test"
   readme: ""
-  exec: " "
-}
-test: {
-  id: "RT-1.10"
-  description: "BGP multipath ECMP"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
   exec: " "
 }
 test: {
