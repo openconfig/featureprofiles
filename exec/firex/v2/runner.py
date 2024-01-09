@@ -599,7 +599,7 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
             # shutil.copyfile(xml_results_file, xunit_results_filepath)
             logger.info(f"xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
-
+            time.sleep(60)
             if collect_debug_files and suite.attrib['failures'] != '0':
                 # runCoreFileCheck(ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp)
                  self.enqueue_child(CollectDebugFiles.s(
@@ -610,7 +610,8 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     timestamp=start_timestamp,
                     core=False,
                     xunit_results_filepath=xunit_results_filepath,
-                    xml_results_file=xml_results_file
+                    xml_results_file=xml_results_file,
+                    test_show_skipped=test_show_skipped
                 ))
             else:
                 self.enqueue_child(CollectDebugFiles.s(
@@ -621,12 +622,13 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
                     timestamp=start_timestamp,
                     core=True,
                     xunit_results_filepath=xunit_results_filepath,
-                    xml_results_file=xml_results_file
+                    xml_results_file=xml_results_file,
+                    test_show_skipped=test_show_skipped
                 ))
         elif test_ignore_aborted or test_skip:
             logger.debug("elif in ")
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
-        time.sleep(30)
+        time.sleep(60)
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
@@ -923,7 +925,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core,xunit_results_filepath,xml_results_file):
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core,xunit_results_filepath,xml_results_file,test_show_skipped):
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -966,18 +968,20 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:
+        time.sleep(60)
         # collect core files if any
         if core is True:
             self.enqueue_child(CollectCoreFiles.s(
                 test_log_directory_path=test_log_directory_path,
                 xunit_results_filepath=xunit_results_filepath,
-                xml_results_file=xml_results_file
+                xml_results_file=xml_results_file,
+                test_show_skipped=test_show_skipped
             ))
         os.remove(tmp_binding_file)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_results_file):
+def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_results_file,test_show_skipped):
     try:
         print(f'xunit_results_filepath: {xml_results_file}')
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
