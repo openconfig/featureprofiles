@@ -110,8 +110,8 @@ func TestCollectDebugFiles(t *testing.T) {
 		timestamp = *timestampFlag
 	}
 
-	// this generate dummy core files --- remove this
-	targets.SetCoreFile(t)
+	// this generate dummy core files --- for testing use only
+	// targets.SetCoreFile(t)
 
 	commands := []string{
 		"run rm -rf /" + techDirectory,
