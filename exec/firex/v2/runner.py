@@ -4,6 +4,7 @@ from celery.utils.log import get_task_logger
 from microservices.workspace_tasks import Warn
 from firexapp.common import silent_mkdir
 from firexapp.firex_subprocess import check_output
+from firexkit.task import FireXTask
 from firexapp.submit.arguments import whitelist_arguments
 from microservices.testbed_tasks import register_testbed_file_generator
 from microservices.runners.go_b4_tasks import copy_test_logs_dir, write_output_from_results_json
@@ -27,7 +28,7 @@ import yaml
 import git
 import os
 import re
-
+import asyncio
 
 # print xml, delete after testing
 
@@ -512,7 +513,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
-def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
+def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
         override_test_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
@@ -597,39 +598,45 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
         if suite: 
             # TODO: add shutil here
             shutil.copyfile(xml_results_file, xunit_results_filepath)
+            time.sleep(60)
             logger.info(f"xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
-            time.sleep(60)
             if collect_debug_files and suite.attrib['failures'] != '0':
                 # runCoreFileCheck(ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp)
-                 self.enqueue_child(CollectDebugFiles.s(
+                res = self.enqueue_child_and_get_results(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     reserved_testbed=reserved_testbed, 
                     test_log_directory_path=test_log_directory_path,
                     timestamp=start_timestamp,
                     core=False,
-                    xunit_results_filepath=xunit_results_filepath,
-                    xml_results_file=xml_results_file,
-                    test_show_skipped=test_show_skipped
+                    xunit_results_filepath=xunit_results_filepath
                 ))
+                print(res)
             else:
-                self.enqueue_child(CollectDebugFiles.s(
+                res = self.enqueue_child_and_get_results(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     reserved_testbed=reserved_testbed, 
                     test_log_directory_path=test_log_directory_path,
                     timestamp=start_timestamp,
                     core=True,
-                    xunit_results_filepath=xunit_results_filepath,
-                    xml_results_file=xml_results_file,
-                    test_show_skipped=test_show_skipped
+                    xunit_results_filepath=xunit_results_filepath
                 ))
+                print(res)
+
         elif test_ignore_aborted or test_skip:
             logger.debug("elif in ")
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
-        time.sleep(60)
+        print("should see this after collectdebug")
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
+        logger.info(f"xunit_results_filepath {xunit_results_filepath}")
+
+        # shutil.copyfile(xml_results_file, xunit_results_filepath)
+        if not Path(xunit_results_filepath).is_file():
+            logger.warn('Test did not produce expected xunit result')
+        elif not test_show_skipped: 
+            check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
 
@@ -925,7 +932,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core,xunit_results_filepath,xml_results_file,test_show_skipped):
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core,xunit_results_filepath) -> str:
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -968,22 +975,21 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:
-        time.sleep(60)
         # collect core files if any
         if core is True:
-            self.enqueue_child(CollectCoreFiles.s(
+            res = self.enqueue_child_and_get_results(CollectCoreFiles.s(
                 test_log_directory_path=test_log_directory_path,
-                xunit_results_filepath=xunit_results_filepath,
-                xml_results_file=xml_results_file,
-                test_show_skipped=test_show_skipped
+                xunit_results_filepath=xunit_results_filepath
             ))
+            print(res)
         os.remove(tmp_binding_file)
+        return "CollectDebugFiles completed successfully"
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_results_file,test_show_skipped):
+def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath)->str:
     try:
-        print(f'xunit_results_filepath: {xml_results_file}')
+        print(f'xunit_results_filepath: {xunit_results_filepath}')
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
         print(f'Array from {test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
         r = re.compile(r'core\b',re.IGNORECASE)
@@ -991,11 +997,11 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_re
         print(f'Array of core files if any {corefileslist}')
         
         try:
-            if os.path.exists(xml_results_file) and os.path.getsize(xml_results_file) > 0:
+            if os.path.exists(xunit_results_filepath) and os.path.getsize(xunit_results_filepath) > 0:
                 print(f'file exists and its not empty')
-                tree = ET.parse(xml_results_file)
-                print(f'xml root {ET.dump()}')
+                tree = ET.parse(xunit_results_filepath)
                 testsuite = tree.find("testsuite")
+                print(f'xml root {ET.dump()}')
                 prop = testsuite[0] 
                 if len(corefileslist) == 0:
                     nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
@@ -1003,8 +1009,8 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_re
                 for file in corefileslist:
                     nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
                     nsub.set("value",file)
-                
-                tree.write(xml_results_file,encoding="utf-8")
+                tree.write(xunit_results_filepath,encoding="utf-8")
+                print(ET.dump(tree))
                 # parser = ETL.XMLParser(recover=True)
                 # tree = ETL.parse(xunit_results_filepath,parser=parser)
                 # print(f'xml root {ETL.dump()}')
@@ -1017,23 +1023,22 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath,xml_re
                 #     nsub = ETL.SubElement(prop, "property",attrib={"name":"corefile"})
                 #     nsub.set("value",file)
                 # ETL.indent(tree, space="\t", level=0)
-                # tree.write(xunit_results_filepath,encoding="utf-8")
+                tree.write(xunit_results_filepath,encoding="utf-8")
+                return "CollectCoreFiles exited"
             else:
-                if os.path.exists(xml_results_file) == True:
+                if os.path.exists(xunit_results_filepath) == True:
                     print("File exists but its empty")
+                    return "CollectCoreFiles exited"
                 else:
                     print("File does not exists")
+                    return "CollectCoreFiles exited"
         except Exception as error:
             logger.error(f"XML find was not able to find './testsuite/properties/ with the error: {error}'")
+            return "CollectCoreFiles exited with exception"
     except Exception as error:
         print("directory not found")
         logger.warning(f'Failed to collect testbed information. Ignoring... with error: {error}') 
-    finally:
-        shutil.copyfile(xml_results_file, xunit_results_filepath)
-        if not Path(xunit_results_filepath).is_file():
-            logger.warn('Test did not produce expected xunit result')
-        elif not test_show_skipped: 
-            check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
+        return "CollectCoreFiles exited with exception"
 
 
 # noinspection PyPep8Naming
