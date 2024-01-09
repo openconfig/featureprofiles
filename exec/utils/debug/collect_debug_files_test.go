@@ -111,7 +111,7 @@ func TestCollectDebugFiles(t *testing.T) {
 	}
 
 	// this generate dummy core files --- for testing use only
-	// targets.SetCoreFile(t)
+	targets.SetCoreFile(t)
 
 	commands := []string{
 		"run rm -rf /" + techDirectory,
