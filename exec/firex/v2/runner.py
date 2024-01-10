@@ -622,7 +622,8 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
-
+        tree = ET.parse(xunit_results_filepath)
+        logger.print(ET.dump(tree))
         # shutil.copyfile(xml_results_file, xunit_results_filepath)
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
@@ -955,8 +956,6 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
                 xunit_results_filepath=xunit_results_filepath
             ))
             logger.info(res)
-            tree = ET.parse(xunit_results_filepath)
-            logger.print(ET.dump(tree))
         os.remove(tmp_binding_file)
         return "CollectDebugFiles completed successfully"
 
