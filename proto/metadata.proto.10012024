@@ -311,7 +311,7 @@ message Metadata {
     // Arista: partnerissuetracker.corp.google.com/299285115
     bool isis_counter_manual_address_drop_from_areas_unsupported = 106;
     // Devices do not support telemetry for isis counter: part-changes.
-    // Arista: partnerissuetracker.corp.google.com/317086576
+    // Arista: partnerissuetracker.corp.google.com/299285991
     bool isis_counter_part_changes_unsupported = 107;
     // Devices do not support threshold container under /components/component/transceiver.
     bool transceiver_thresholds_unsupported = 108;
