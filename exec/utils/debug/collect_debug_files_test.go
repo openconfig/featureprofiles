@@ -111,7 +111,7 @@ func TestCollectDebugFiles(t *testing.T) {
 	}
 
 	// this generate dummy core files --- for testing use only
-	targets.SetCoreFile(t)
+	// targets.SetCoreFile(t)
 
 	commands := []string{
 		"run rm -rf /" + techDirectory,
@@ -140,7 +140,6 @@ func TestCollectDebugFiles(t *testing.T) {
 				if result, err := cli.SendCommand(ctx, cmd); err == nil {
 					fmt.Printf("result [%s] from cmd [%s]", result, cmd)
 					if cmd == "run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;" {
-						fmt.Printf("checkCoreFiles [%s]", result)
 						log.Info(result)
 						core = result
 					}
@@ -154,7 +153,6 @@ func TestCollectDebugFiles(t *testing.T) {
 
 		copyDebugFiles(t, targetInfo, "CollectDebugFiles")
 	}
-	// TODO: return list of debug files to python
 	copyCoreFiles(t, core)
 }
 
@@ -206,7 +204,6 @@ func copyCoreFiles(t *testing.T, corefiles string) {
 		return
 	}
 	files := &CoreFiles{
-		// TODO: need separate entries
 		coreFiles: []string{corefiles},
 	}
 	jsonCore, err := json.Marshal(files)

@@ -622,9 +622,7 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
-        tree = ET.parse(xunit_results_filepath)
-        logger.print(ET.dump(tree))
-        # shutil.copyfile(xml_results_file, xunit_results_filepath)
+       
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
@@ -938,7 +936,6 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
                 f'-core false ' \
                 f'-v 5'
 
-
     try:
         env = dict(os.environ)
         env.update(_get_go_env(ws))
@@ -987,7 +984,6 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath)->str:
                     fe = ET.SubElement(testsuite, "testcase",attrib = {'classname': "",'name':"CoreFileCheck", "time":"1"})
                     ET.SubElement(fe,"failure",attrib={"message":"Failed"}).text = "Core files were found"
                     tree.write(xunit_results_filepath,encoding="utf-8")
-                    logger.print(ET.dump(tree))
                 return "CollectCoreFiles exited"
             else:
                 if os.path.exists(xunit_results_filepath) == True:
