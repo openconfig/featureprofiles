@@ -152,13 +152,17 @@ func TestRouteSummaryWithBGP(t *testing.T) {
 		desc: "propagate IPv4 over IPv4",
 		dut: dutData{
 			routerID: dutPort1.IPv4,
-			neighborPG: map[string]string{
-				otgPort1.IPv4: bgpPeerGroup,
-				otgPort2.IPv4: bgpPeerGroup,
-			},
-			neighborAS: map[string]uint32{
-				otgPort1.IPv4: ateAS1,
-				otgPort2.IPv4: ateAS2,
+			neighborConfig: []*cfgplugins.NeighborConfig{
+				{
+					IPv4Neighbor: otgPort1.IPv4,
+					PeerGroup:    bgpPeerGroup,
+					AS:           ateAS1,
+				},
+				{
+					IPv4Neighbor: otgPort2.IPv4,
+					PeerGroup:    bgpPeerGroup,
+					AS:           ateAS2,
+				},
 			},
 			ipv4: true,
 		},
@@ -173,13 +177,17 @@ func TestRouteSummaryWithBGP(t *testing.T) {
 		desc: "propagate IPv6 over IPv6",
 		dut: dutData{
 			routerID: dutPort1.IPv4,
-			neighborPG: map[string]string{
-				otgPort1.IPv6: bgpPeerGroup,
-				otgPort2.IPv6: bgpPeerGroup,
-			},
-			neighborAS: map[string]uint32{
-				otgPort1.IPv6: ateAS1,
-				otgPort2.IPv6: ateAS2,
+			neighborConfig: []*cfgplugins.NeighborConfig{
+				{
+					IPv6Neighbor: otgPort1.IPv6,
+					PeerGroup:    bgpPeerGroup,
+					AS:           ateAS1,
+				},
+				{
+					IPv6Neighbor: otgPort2.IPv6,
+					PeerGroup:    bgpPeerGroup,
+					AS:           ateAS2,
+				},
 			},
 			ipv4: false,
 		},
@@ -199,7 +207,12 @@ func TestRouteSummaryWithBGP(t *testing.T) {
 			otgConfig := tc.ate.ConfigureOTG(t, ate.OTG(), []string{"port1", "port2"})
 
 			t.Logf("Verify DUT BGP sessions up")
-			tc.dut.AwaitBGPEstablished(t, dut, tc.dut.neighborAS)
+			neighbors := []string{otgPort1.IPv6, otgPort2.IPv6}
+			if tc.dut.ipv4 {
+				neighbors = []string{otgPort1.IPv4, otgPort2.IPv4}
+			}
+			tc.dut.AwaitBGPEstablished(t, dut, neighbors)
+
 			t.Logf("Verify OTG BGP sessions up")
 			verifyOTGBGPTelemetry(t, ate.OTG(), otgConfig, "ESTABLISHED")
 
@@ -305,10 +318,9 @@ func (ad *ateData) ConfigureOTG(t *testing.T, otg *otg.OTG, ateList []string) go
 }
 
 type dutData struct {
-	routerID   string
-	neighborPG map[string]string
-	neighborAS map[string]uint32
-	ipv4       bool
+	routerID       string
+	neighborConfig []*cfgplugins.NeighborConfig
+	ipv4           bool
 }
 
 func configureRoutingPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
@@ -327,7 +339,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	if !d.ipv4 {
 		aftType = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
 	}
-	bgpOC := cfgplugins.BuildBGPOCConfig(t, dut, d.routerID, aftType, d.neighborAS, d.neighborPG)
+	bgpOC := cfgplugins.BuildBGPOCConfig(t, dut, d.routerID, aftType, d.neighborConfig)
 
 	for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 		ocName := dut.Port(t, a.Name).Name()
@@ -363,8 +375,8 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dutProto.Config(), niProtocol)
 }
 
-func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, neighborAS map[string]uint32) {
-	for neighbor := range neighborAS {
+func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, neighbors []string) {
+	for _, neighbor := range neighbors {
 		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
 			Bgp().
