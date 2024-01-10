@@ -33,6 +33,7 @@ require (
 	github.com/openconfig/ygot v0.29.17
 	github.com/p4lang/p4runtime v1.4.0-rc.5.0.20220728214547-13f0d02a521e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
+	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	golang.org/x/crypto v0.17.0
 	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc
 	golang.org/x/text v0.14.0
