@@ -30,6 +30,8 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra/binding"
+	"github.com/openconfig/ondatra/binding/grpcutil"
+	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/binding/ixweb"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -54,11 +56,15 @@ type staticBind struct {
 	pushConfig bool
 }
 
+var _ binding.Binding = (*staticBind)(nil)
+
 type staticDUT struct {
 	*binding.AbstractDUT
 	r   resolver
 	dev *bindpb.Device
 }
+
+var _ introspect.Introspector = (*staticDUT)(nil)
 
 type staticATE struct {
 	*binding.AbstractATE
@@ -68,7 +74,7 @@ type staticATE struct {
 	ixsess *ixweb.Session
 }
 
-var _ = binding.Binding(&staticBind{})
+var _ introspect.Introspector = (*staticATE)(nil)
 
 const resvID = "STATIC"
 
@@ -124,6 +130,15 @@ func (b *staticBind) reset(ctx context.Context) error {
 	return nil
 }
 
+func (d *staticDUT) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
+	params, ok := dutSvcParams[svc]
+	if !ok {
+		return nil, fmt.Errorf("no known DUT service %v", svc)
+	}
+	bopts := d.r.dutGRPC(d.dev, params)
+	return makeDialer(d.Name(), params, bopts)
+}
+
 func (d *staticDUT) reset(ctx context.Context) error {
 	// Each of the individual reset functions should be no-op if the reset action is not
 	// requested.
@@ -137,8 +152,7 @@ func (d *staticDUT) reset(ctx context.Context) error {
 }
 
 func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
-	bopts := d.r.gnmi(d.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := dialConn(ctx, d, introspect.GNMI, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +160,7 @@ func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 }
 
 func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoigo.Clients, error) {
-	bopts := d.r.gnoi(d.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := dialConn(ctx, d, introspect.GNOI, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -155,8 +168,7 @@ func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoi
 }
 
 func (d *staticDUT) DialGNSI(ctx context.Context, opts ...grpc.DialOption) (binding.GNSIClients, error) {
-	bopts := d.r.gnsi(d.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := dialConn(ctx, d, introspect.GNSI, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -164,8 +176,7 @@ func (d *staticDUT) DialGNSI(ctx context.Context, opts ...grpc.DialOption) (bind
 }
 
 func (d *staticDUT) DialGRIBI(ctx context.Context, opts ...grpc.DialOption) (grpb.GRIBIClient, error) {
-	bopts := d.r.gribi(d.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := dialConn(ctx, d, introspect.GRIBI, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +184,7 @@ func (d *staticDUT) DialGRIBI(ctx context.Context, opts ...grpc.DialOption) (grp
 }
 
 func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb.P4RuntimeClient, error) {
-	bopts := d.r.p4rt(d.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := dialConn(ctx, d, introspect.P4RT, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -217,9 +227,17 @@ func sshInteractive(password string) ssh.KeyboardInteractiveChallenge {
 	}
 }
 
+func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
+	params, ok := ateSvcParams[svc]
+	if !ok {
+		return nil, fmt.Errorf("no known ATE service %v", svc)
+	}
+	bopts := a.r.ateGRPC(a.dev, params)
+	return makeDialer(a.Name(), params, bopts)
+}
+
 func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
-	bopts := a.r.ateGNMI(a.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := dialConn(ctx, a, introspect.GNMI, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -230,17 +248,12 @@ func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosna
 	if a.dev.Otg == nil {
 		return nil, fmt.Errorf("otg must be configured in ATE binding to run OTG test")
 	}
-	bopts := a.r.ateOTG(a.dev)
-	conn, err := dialGRPC(ctx, bopts, opts...)
+	conn, err := dialConn(ctx, a, introspect.OTG, opts)
 	if err != nil {
 		return nil, err
 	}
-
 	api := gosnappi.NewApi()
-	grpcTransport := api.NewGrpcTransport().SetClientConnection(conn)
-	if bopts.Timeout != 0 {
-		grpcTransport.SetRequestTimeout(time.Duration(bopts.Timeout) * time.Second)
-	}
+	api.NewGrpcTransport().SetClientConnection(conn)
 	return api, nil
 }
 
@@ -492,7 +505,15 @@ func (a *staticATE) ixSession(ctx context.Context, opts *bindpb.Options) (*ixweb
 	return a.ixsess, nil
 }
 
-func dialGRPC(ctx context.Context, bopts *bindpb.Options, overrideOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
+func dialConn(ctx context.Context, dev introspect.Introspector, svc introspect.Service, opts []grpc.DialOption) (*grpc.ClientConn, error) {
+	dialer, err := dev.Dialer(svc)
+	if err != nil {
+		return nil, err
+	}
+	return dialer.Dial(ctx, opts...)
+}
+
+func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
 	opts := []grpc.DialOption{grpc.WithBlock()}
 	switch {
 	case bopts.Insecure:
@@ -521,17 +542,36 @@ func dialGRPC(ctx context.Context, bopts *bindpb.Options, overrideOpts ...grpc.D
 		opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(bopts.MaxRecvMsgSize))))
 	}
 	if bopts.Timeout != 0 {
-		retryOpt := grpc_retry.WithPerRetryTimeout(time.Duration(bopts.Timeout) * time.Second)
+		timeout := time.Duration(bopts.Timeout) * time.Second
+		retryOpt := grpc_retry.WithPerRetryTimeout(timeout)
 		opts = append(opts,
-			grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
-			grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
+			grpc.WithChainUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
+			grpc.WithChainStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
+			grpcutil.WithUnaryDefaultTimeout(timeout),
+			grpcutil.WithStreamDefaultTimeout(timeout),
 		)
-		var cancelFunc context.CancelFunc
-		ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
-		defer cancelFunc()
 	}
-	opts = append(opts, overrideOpts...)
-	return grpc.DialContext(ctx, bopts.Target, opts...)
+	return opts, nil
+}
+
+func makeDialer(name string, params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, error) {
+	opts, err := dialOpts(bopts)
+	if err != nil {
+		return nil, err
+	}
+	return &introspect.Dialer{
+		DevicePort: params.port,
+		DialFunc: func(ctx context.Context, target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+			if bopts.Timeout != 0 {
+				var cancelFunc context.CancelFunc
+				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
+				defer cancelFunc()
+			}
+			return grpc.DialContext(ctx, bopts.Target, opts...)
+		},
+		DialTarget: fmt.Sprintf("%s:%d", name, params.port),
+		DialOpts:   opts,
+	}, nil
 }
 
 // load trust bundle and client key and certificate
