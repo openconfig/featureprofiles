@@ -109,9 +109,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	paths, err := ocpaths.ValidatePaths(profile.GetOcpaths().GetOcpaths(), publicPath)
+	paths, invalidPaths, err := ocpaths.ValidatePaths(profile.GetOcpaths().GetOcpaths(), publicPath)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("profile contains %d invalid OCPaths:\n%v", len(invalidPaths), err)
 		os.Exit(1)
 	}
 	fmt.Printf("profile contains %d valid OCPaths\n", len(paths))
