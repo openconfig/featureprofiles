@@ -467,11 +467,16 @@ func (tc *testCase) verifyMinLinks(t *testing.T) {
 		t.Run(tf.desc, func(t *testing.T) {
 			for _, port := range tc.atePorts[1 : 1+tf.downCount] {
 				dp := tc.dut.Port(t, port.ID())
-				portStateAction := gosnappi.NewControlState()
-				portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-				tc.ate.OTG().SetControlState(t, portStateAction)
-				portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.UP)
-				defer tc.ate.OTG().SetControlState(t, portStateAction)
+				if deviations.ATEPortLinkStateOperationsUnsupported(tc.ate) {
+					tc.setDutInterfaceWithState(t, dp, false)
+					defer tc.setDutInterfaceWithState(t, dp, true)
+				} else {
+					portStateAction := gosnappi.NewControlState()
+					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+					tc.ate.OTG().SetControlState(t, portStateAction)
+					portStateAction.Port().Link().SetPortNames([]string{port.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+					defer tc.ate.OTG().SetControlState(t, portStateAction)
+				}
 				if tc.lagType == oc.IfAggregate_AggregationType_LACP {
 					time.Sleep(3 * time.Second)
 					otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
