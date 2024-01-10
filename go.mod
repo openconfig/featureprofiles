@@ -35,6 +35,7 @@ require (
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	golang.org/x/crypto v0.18.0
 	golang.org/x/exp v0.0.0-20240110193028-0dcbfd608b1e
+	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	golang.org/x/text v0.14.0
 	google.golang.org/api v0.153.0
 	google.golang.org/grpc v1.60.1
@@ -58,7 +59,7 @@ require (
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.2 // indirect
 	github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
-	github.com/cloudflare/circl v1.3.3 // indirect
+	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/creack/pty v1.1.18 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
