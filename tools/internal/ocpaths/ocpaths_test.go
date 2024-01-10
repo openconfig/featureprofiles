@@ -48,8 +48,8 @@ func TestValidatePath(t *testing.T) {
 		},
 		wantOCPath: &OCPath{
 			Key: OCPathKey{
-				Path:      "/interfaces/interface/config/name",
-				Component: "",
+				Path:         "/interfaces/interface/config/name",
+				PlatformType: "",
 			},
 			FeatureprofileID: "interface_base",
 		},
@@ -69,8 +69,8 @@ func TestValidatePath(t *testing.T) {
 		},
 		wantOCPath: &OCPath{
 			Key: OCPathKey{
-				Path:      "/components/component/state/name",
-				Component: "CPU",
+				Path:         "/components/component/state/name",
+				PlatformType: "CPU",
 			},
 			FeatureprofileID: "interface_base",
 		},
@@ -201,8 +201,8 @@ func TestValidatePaths(t *testing.T) {
 		}},
 		wantOCPaths: map[OCPathKey]*OCPath{
 			{
-				Path:      "/interfaces/interface/config/name",
-				Component: "",
+				Path:         "/interfaces/interface/config/name",
+				PlatformType: "",
 			}: {
 				Key: OCPathKey{
 					Path: "/interfaces/interface/config/name",
@@ -210,22 +210,22 @@ func TestValidatePaths(t *testing.T) {
 				FeatureprofileID: "interface_base",
 			},
 			{
-				Path:      "/components/component/config/description",
-				Component: "CPU",
+				Path:         "/components/component/config/description",
+				PlatformType: "CPU",
 			}: {
 				Key: OCPathKey{
-					Path:      "/components/component/config/description",
-					Component: "CPU",
+					Path:         "/components/component/config/description",
+					PlatformType: "CPU",
 				},
 				FeatureprofileID: "interface_base",
 			},
 			{
-				Path:      "/components/component/config/description",
-				Component: "PORT",
+				Path:         "/components/component/config/description",
+				PlatformType: "PORT",
 			}: {
 				Key: OCPathKey{
-					Path:      "/components/component/config/description",
-					Component: "PORT",
+					Path:         "/components/component/config/description",
+					PlatformType: "PORT",
 				},
 				FeatureprofileID: "interface_basic",
 			},
@@ -238,8 +238,8 @@ func TestValidatePaths(t *testing.T) {
 		}},
 		wantInvalids: map[OCPathKey]*OCPath{
 			{
-				Path:      "/interfaces/interface/config",
-				Component: "",
+				Path:         "/interfaces/interface/config",
+				PlatformType: "",
 			}: {
 				Key: OCPathKey{
 					Path: "/interfaces/interface/config",
@@ -267,8 +267,8 @@ func TestValidatePaths(t *testing.T) {
 		}},
 		wantOCPaths: map[OCPathKey]*OCPath{
 			{
-				Path:      "/interfaces/interface/config/name",
-				Component: "",
+				Path:         "/interfaces/interface/config/name",
+				PlatformType: "",
 			}: {
 				Key: OCPathKey{
 					Path: "/interfaces/interface/config/name",
@@ -276,20 +276,20 @@ func TestValidatePaths(t *testing.T) {
 				FeatureprofileID: "interface_base",
 			},
 			{
-				Path:      "/components/component/config/description",
-				Component: "CPU",
+				Path:         "/components/component/config/description",
+				PlatformType: "CPU",
 			}: {
 				Key: OCPathKey{
-					Path:      "/components/component/config/description",
-					Component: "CPU",
+					Path:         "/components/component/config/description",
+					PlatformType: "CPU",
 				},
 				FeatureprofileID: "interface_base",
 			},
 		},
 		wantInvalids: map[OCPathKey]*OCPath{
 			{
-				Path:      "/interfaces/interface/config",
-				Component: "",
+				Path:         "/interfaces/interface/config",
+				PlatformType: "",
 			}: {
 				Key: OCPathKey{
 					Path: "/interfaces/interface/config",

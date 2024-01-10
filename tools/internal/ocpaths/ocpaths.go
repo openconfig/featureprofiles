@@ -61,8 +61,8 @@ var (
 
 // OCPathKey contains the fields that uniquely identify an OC path.
 type OCPathKey struct {
-	Path      string
-	Component string
+	Path         string
+	PlatformType string
 }
 
 // OCPath is the parsed version of the spreadsheet's paths.
@@ -128,7 +128,7 @@ func validatePath(ocpath *OCPath, root *yang.Entry) error {
 	}
 
 	// Validate component
-	component := ocpath.Key.Component
+	component := ocpath.Key.PlatformType
 	isComponentPath := strings.HasPrefix(path, componentPrefix)
 	switch {
 	case !isComponentPath && component != "":
@@ -138,7 +138,7 @@ func validatePath(ocpath *OCPath, root *yang.Entry) error {
 		if _, ok := validComponentNames[component]; !ok {
 			return fmt.Errorf("path %q has invalid component %q (must be one of %v)", path, component, validComponentNamesSorted)
 		}
-		ocpath.Key.Component = component
+		ocpath.Key.PlatformType = component
 	}
 
 	// featureprofileID is optional. Only validate the string format if it exists.
@@ -168,8 +168,8 @@ func insert(dstMap map[OCPathKey]*OCPath, src *OCPath) error {
 func convertOCPath(ocpathProto *ppb.OCPath) *OCPath {
 	return &OCPath{
 		Key: OCPathKey{
-			Path:      ocpathProto.GetName(),
-			Component: ocpathProto.GetOcpathConstraint().GetPlatformType(),
+			Path:         ocpathProto.GetName(),
+			PlatformType: ocpathProto.GetOcpathConstraint().GetPlatformType(),
 		},
 		FeatureprofileID: ocpathProto.GetFeatureprofileid(),
 	}
