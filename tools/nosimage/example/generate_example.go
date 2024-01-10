@@ -61,11 +61,11 @@ func init() {
 	config = New(nil)
 }
 
-func generateExample(filepath string, invalid bool) error {
+func generateExample(filepath string, valid bool) error {
 	componentPrefix := "/components/component"
 	softwareComponent := "OPERATING_SYSTEM"
 	interfaceLeafName := "name"
-	if invalid {
+	if !valid {
 		componentPrefix = "/componentsssssssssss/component"
 		softwareComponent = "JOVIAN_ATMOSPHERE"
 		interfaceLeafName = "does-not-exist"
@@ -95,31 +95,55 @@ func generateExample(filepath string, invalid bool) error {
 			}},
 		},
 		Ocrpcs: &rpb.OCRPCs{
-			OcProtocols: map[string]*rpb.OCProtocol{
-				"gnmi.gNMI": {
-					Version: "0.10.0",
-					MethodName: []string{
-						"Set",
-						"Subscribe",
+			OcProtocols: func() map[string]*rpb.OCProtocol {
+				if valid {
+					return map[string]*rpb.OCProtocol{
+						"gnmi": {
+							Version: "0.10.0",
+							MethodName: []string{
+								"gnmi.gNMI.Set",
+								"gnmi.gNMI.Subscribe",
+							},
+						},
+						"gnoi": {
+							Version: "0.3.0",
+							MethodName: []string{
+								"gnoi.healthz.Healthz.Get",
+								"gnoi.healthz.Healthz.List",
+								"gnoi.healthz.Healthz.Acknowledge",
+								"gnoi.healthz.Healthz.Artifact",
+								"gnoi.healthz.Healthz.Check",
+								"gnoi.bgp.BGP.ClearBGPNeighbor",
+							},
+						},
+					}
+				}
+				return map[string]*rpb.OCProtocol{
+					"gnmi.gNMI": {
+						Version: "0.10.0",
+						MethodName: []string{
+							"Set",
+							"Subscribe",
+						},
 					},
-				},
-				"gnoi.healthz.Healthz": {
-					Version: "1.3.0",
-					MethodName: []string{
-						"Get",
-						"List",
-						"Acknowledge",
-						"Artifact",
-						"Check",
+					"gnoi.healthz.Healthz": {
+						Version: "1.3.0",
+						MethodName: []string{
+							"Get",
+							"List",
+							"Acknowledge",
+							"Artifact",
+							"Check",
+						},
 					},
-				},
-				"gnoi.bgp.BGP": {
-					Version: "0.1.0",
-					MethodName: []string{
-						"ClearBGPNeighbor",
+					"gnoi.bgp.BGP": {
+						Version: "0.1.0",
+						MethodName: []string{
+							"ClearBGPNeighbor",
+						},
 					},
-				},
-			},
+				}
+			}(),
 		},
 	})
 	if err != nil {
@@ -155,7 +179,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := generateExample(config.FilePath, config.Invalid); err != nil {
+	if err := generateExample(config.FilePath, !config.Invalid); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
