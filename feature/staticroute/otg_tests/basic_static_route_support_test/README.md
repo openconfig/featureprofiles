@@ -24,7 +24,7 @@
 *   Configure one IPv6 destination i.e. `ipv6-network = 2001:db8:128:128::/64`
     connected to ATE port 1 and 2
 
-### RT-1.26.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2489]
+### RT-1.26.1
 
 #### Test to validate static route ECMP
 
@@ -53,7 +53,7 @@
 *   Validate that traffic is received from DUT on both port-1 and port-2 and
     ECMP works
 
-### RT-1.26.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2489]
+### RT-1.26.2
 
 #### Test to validate static route metric
 
@@ -65,7 +65,7 @@
     203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
 *   Validate that traffic is received from DUT on port-1 and not on port-2
 
-### RT-1.26.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2489]
+### RT-1.26.3
 
 #### Test to validate static route preference
 
@@ -77,7 +77,7 @@
     203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
 *   Validate that traffic is now received from DUT on port-2 and not on port-1
 
-### RT-1.26.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2489]
+### RT-1.26.4
 
 #### Test to validate static route tag
 
@@ -86,7 +86,7 @@
 *   Validate the tag is set
     *   /network-instances/network-instance/protocols/protocol/static-routes/static/state/set-tag
 
-### RT-1.26.5 [TODO: https://github.com/openconfig/featureprofiles/issues/2489]
+### RT-1.26.5
 
 #### Test to validate IPv6 static route with IPv4 next-hop
 
@@ -107,7 +107,7 @@
 *   Validate that traffic is received from DUT on both port-1 and port-2 and
     ECMP works
 
-### RT-1.26.6 [TODO: https://github.com/openconfig/featureprofiles/issues/2489]
+### RT-1.26.6
 
 #### Test to validate IPv4 static route with IPv6 next-hop
 
@@ -124,7 +124,7 @@
 *   Validate that traffic is received from DUT on both port-1 and port-2 and
     ECMP works
 
-### RT-1.26.7 [TODO: https://github.com/openconfig/featureprofiles/issues/2489]
+### RT-1.26.7
 
 #### Test to validate disabling of recursive next-hop resolution
 
@@ -139,11 +139,11 @@
     the IPv6 ISIS adjacencies
 *   Configure one IPv4 static route i.e. ipv4-route on the DUT for destination
     `ipv4-network 203.0.113.0/24` with the next hop of `ipv4-loopback
-    198.51.100.100/32`. Remove all other existing next hops for the route. 
+    198.51.100.100/32`. Remove all other existing next hops for the route.
     *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
 *   Configure one IPv6 static route i.e. ipv6-route on the DUT for destination
     `ipv6-network 2001:db8:128:128::/64` with the next hop of `ipv6-loopback =
-    2001:db8::64:64::1/128`. Remove all other existing next hops for the route. 
+    2001:db8::64:64::1/128`. Remove all other existing next hops for the route.
     *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
 *   Initiate traffic from ATE port-3 towards destination `ipv4-network
     203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
