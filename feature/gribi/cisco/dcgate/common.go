@@ -692,8 +692,6 @@ func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice) {
 	configDefaultIPStaticCli(t, dut, []string{vrfEncapA, vrfEncapB})
 	t.Log("Configure DUT Interface")
 	configureDUTInterface(t, dut)
-	// t.Log("Program base gRIBI entries")
-	// baseGribi(t, dut)
 	t.Log("Configure WAN facing VRF selection Policy")
 	wanPBR := createPbrPolicy(dut, wanPolicy, false)
 	defaultNiPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
