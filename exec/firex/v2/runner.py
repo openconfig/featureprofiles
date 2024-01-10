@@ -989,8 +989,10 @@ def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath)->str:
                         nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
                         nsub.set("value",file)
                     logger.print(f"setting corefile failure {str(len(corefileslist))}")
-                    testsuite.set("failures",str(len(corefileslist)))
+                    ts = tree.find("testsuite")
+                    ts.set("failures",str(len(corefileslist)))
                     tree.write(xunit_results_filepath,encoding="utf-8")
+                    logger.print(ET.dump(tree))
                 return "CollectCoreFiles exited"
             else:
                 if os.path.exists(xunit_results_filepath) == True:
