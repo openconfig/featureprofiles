@@ -192,7 +192,6 @@ tests:
       - sprem
     priority: 5
     mustpass: true
-    pr: 2298
     post:
       - name: gribi_flush
         path: topologies/cisco/pretests/gribi_flush_test
@@ -342,6 +341,7 @@ tests:
     mustpass: false
     priority: 37
     skip: false
+    timeout: 4200
   - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace)
     path: feature/system/gnmi/metadata/tests/annotation_test
     owners:
@@ -602,6 +602,7 @@ tests:
     owners:
       - saarvind
     mustpass: true
+    timeout: 4200
   - name: RT-5.4 (Aggregate Forwarding Viable)
     path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
     owners:
@@ -638,7 +639,7 @@ tests:
     mustpass: true
     timeout: 2400
   - name: AUTHZFP (Authz Functional Tests with spiffe id)
-    path: feature/security/gnsi/authz/tests
+    path: feature/security/gnsi/authz/tests/authz
     args:
       - '-test_infra_id="cafyauto"'
     mustpass: true
