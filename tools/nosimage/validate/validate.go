@@ -116,7 +116,7 @@ func main() {
 	var hasErr bool
 	paths, invalidPaths, err := ocpaths.ValidatePaths(profile.GetOcpaths().GetOcpaths(), publicPath)
 	if err != nil {
-    fmt.Printf("profile contains %d invalid OCPaths:\n%v", len(invalidPaths), err)
+		fmt.Printf("profile contains %d invalid OCPaths:\n%v", len(invalidPaths), err)
 		fmt.Println(err)
 		hasErr = true
 	} else {
