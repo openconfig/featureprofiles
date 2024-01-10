@@ -1540,27 +1540,6 @@ func (x *Metadata_Deviations) GetIpv6RouterAdvertisementConfigUnsupported() bool
 	return false
 }
 
-func (x *Metadata_Deviations) GetStaticRouteNextHopInterfaceRefUnsupported() bool {
-	if x != nil {
-		return x.StaticRouteNextHopInterfaceRefUnsupported
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetSkipStaticNexthopCheck() bool {
-	if x != nil {
-		return x.SkipStaticNexthopCheck
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetIpv6RouterAdvertisementConfigUnsupported() bool {
-	if x != nil {
-		return x.Ipv6RouterAdvertisementConfigUnsupported
-  }
-  return false
-}
-
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
