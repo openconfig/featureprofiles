@@ -4,12 +4,12 @@
 
 ```
 cd $GOPATH/src/github.com/openconfig/featureprofiles/tools/nosimage
-go run validate/validate.go -file example/example_nosimageprofile.textproto; rm -rf public
+go run validate/validate.go -file example/example_nosimageprofile.textproto; rm -rf tmp
 ```
 
 ```
 cd $GOPATH/src/github.com/openconfig/featureprofiles/tools/nosimage
-go run validate/validate.go -file example/example_nosimageprofile_invalid.textproto; rm -rf public
+go run validate/validate.go -file example/example_nosimageprofile_invalid.textproto; rm -rf tmp
 ```
 
 ### Re-generating Example Files

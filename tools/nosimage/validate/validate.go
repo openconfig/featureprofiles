@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 
 	"github.com/openconfig/featureprofiles/tools/internal/ocpaths"
+	"github.com/openconfig/featureprofiles/tools/internal/ocrpcs"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	npb "github.com/openconfig/featureprofiles/proto/nosimage_go_proto"
@@ -44,7 +45,7 @@ func New(fs *flag.FlagSet) *Config {
 	}
 	fs.StringVar(&c.FilePath, "file", "", "txtpb file containing an instance of nosimage.proto data")
 	// TODO(wenovus): Consider allowing using a manual location to avoid git clone.
-	fs.StringVar(&c.DownloadPath, "download-path", "./", "path into which to download OpenConfig GitHub repos for validation")
+	fs.StringVar(&c.DownloadPath, "download-path", "./tmp", "path into which to download OpenConfig GitHub repos for validation")
 
 	return c
 }
@@ -63,7 +64,7 @@ func clonePublicRepo(downloadPath, branch string) (string, error) {
 	}
 	publicPath := filepath.Join(config.DownloadPath, "public")
 
-	cmd := exec.Command("git", "clone", "-b", branch, "--single-branch", "--depth", "1", "git@github.com:openconfig/public.git", publicPath)
+	cmd := exec.Command("git", "clone", "-b", branch, "--single-branch", "--depth", "1", "https://github.com/openconfig/public.git", publicPath)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return "", err
@@ -103,16 +104,34 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := os.MkdirAll(config.DownloadPath, 0750); err != nil {
+		fmt.Println(fmt.Errorf("cannot create download path directory: %v", config.DownloadPath))
+	}
 	publicPath, err := clonePublicRepo(config.DownloadPath, "v"+profile.Ocpaths.GetVersion())
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
+	var hasErr bool
 	paths, invalidPaths, err := ocpaths.ValidatePaths(profile.GetOcpaths().GetOcpaths(), publicPath)
 	if err != nil {
 		fmt.Printf("profile contains %d invalid OCPaths:\n%v", len(invalidPaths), err)
+		fmt.Println(err)
+		hasErr = true
+	} else {
+		fmt.Printf("profile contains %d valid OCPaths\n", len(paths))
+	}
+
+	rpcValidCount, err := ocrpcs.ValidateRPCs(config.DownloadPath, profile.GetOcrpcs().GetOcProtocols())
+	if err != nil {
+		fmt.Println(err)
+		hasErr = true
+	} else {
+		fmt.Printf("profile contains %d valid OCRPCs\n", rpcValidCount)
+	}
+
+	if hasErr {
 		os.Exit(1)
 	}
-	fmt.Printf("profile contains %d valid OCPaths\n", len(paths))
 }
