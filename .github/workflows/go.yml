@@ -103,7 +103,7 @@ jobs:
           exit 1
         fi
     - name: Get revive
-      run: go install github.com/mgechev/revive@latest
+      run: go install github.com/mgechev/revive@v1.3.4
     - name: Run revive
       run: revive ./...
     - name: Get staticcheck
