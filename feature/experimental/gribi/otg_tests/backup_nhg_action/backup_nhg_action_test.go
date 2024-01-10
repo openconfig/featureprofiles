@@ -228,8 +228,7 @@ func TestBackupNHGAction(t *testing.T) {
 		configureDUT(t, dut)
 	}
 
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	configureNetworkInstance(t, dut)
 
 	// For interface configuration, Arista prefers config Vrf first then the IP address
