@@ -1513,7 +1513,6 @@ func (x *Metadata_Deviations) GetSkipNonBgpRouteExportCheck() bool {
 }
 
 func (x *Metadata_Deviations) GetIsisMetricStyleTelemetryUnsupported() bool {
-<<<<<<< HEAD
 	if x != nil {
 		return x.IsisMetricStyleTelemetryUnsupported
 	}
