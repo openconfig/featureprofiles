@@ -28,11 +28,6 @@ import yaml
 import git
 import os
 import re
-import asyncio
-
-# print xml, delete after testing
-
-import xml.dom.minidom 
 
 logger = get_task_logger(__name__)
 
@@ -504,7 +499,6 @@ def b4_chain_provider(ws, testsuite_id, cflow,
         chain |= TeardownIxiaController.s()
 
     if cflow and testbed:
-        # TODO this might be the place to collect data
         chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
     return chain
 
@@ -961,6 +955,8 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
                 xunit_results_filepath=xunit_results_filepath
             ))
             logger.info(res)
+            tree = ET.parse(xunit_results_filepath)
+            logger.print(ET.dump(tree))
         os.remove(tmp_binding_file)
         return "CollectDebugFiles completed successfully"
 
