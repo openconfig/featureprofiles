@@ -104,63 +104,63 @@ def _gnmi_set_file_template(conf):
 
 def _otg_docker_compose_template(control_port, gnmi_port):
     return f"""
-    version: "2"
-    services:
-    controller:
-        image: ghcr.io/open-traffic-generator/keng-controller:firex
-        restart: always
-        ports:
-        - "{control_port}:40051"
-        depends_on:
-        layer23-hw-server:
-            condition: service_started
-        command:
-        - "--accept-eula"
-        - "--debug"
-        - "--keng-layer23-hw-server"
-        - "layer23-hw-server:5001"
-        environment:
-        - LICENSE_SERVERS=10.85.70.247
-        logging:
-        driver: "local"
-        options:
-            max-size: "100m"
-            max-file: "10"
-            mode: "non-blocking"
-    layer23-hw-server:
-        image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:firex
-        restart: always
-        command:
-        - "dotnet"
-        - "otg-ixhw.dll"
-        - "--trace"
-        - "--log-level"
-        - "trace"
-        logging:
-        driver: "local"
-        options:
-            max-size: "100m"
-            max-file: "10"
-            mode: "non-blocking"
-    gnmi-server:
-        image: ghcr.io/open-traffic-generator/otg-gnmi-server:firex
-        restart: always
-        ports:
-        - "{gnmi_port}:50051"
-        depends_on:
-        controller:
-            condition: service_started
-        command:
-        - "-http-server"
-        - "https://controller:8443"
-        - "--debug"
-        logging:
-        driver: "local"
-        options:
-            max-size: "100m"
-            max-file: "10"
-            mode: "non-blocking"
-    """
+version: "2"
+services:
+  controller:
+    image: ghcr.io/open-traffic-generator/keng-controller:firex
+    restart: always
+    ports:
+      - "{control_port}:40051"
+    depends_on:
+      layer23-hw-server:
+        condition: service_started
+    command:
+      - "--accept-eula"
+      - "--debug"
+      - "--keng-layer23-hw-server"
+      - "layer23-hw-server:5001"
+    environment:
+      - LICENSE_SERVERS=10.85.70.247
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+  layer23-hw-server:
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:firex
+    restart: always
+    command:
+      - "dotnet"
+      - "otg-ixhw.dll"
+      - "--trace"
+      - "--log-level"
+      - "trace"
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+  gnmi-server:
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:firex
+    restart: always
+    ports:
+      - "{gnmi_port}:50051"
+    depends_on:
+      controller:
+        condition: service_started
+    command:
+      - "-http-server"
+      - "https://controller:8443"
+      - "--debug"
+    logging:
+      driver: "local"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        mode: "non-blocking"
+"""
 
 def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     if not 'otg' in reserved_testbed:
@@ -591,7 +591,6 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
         logger.info(f"suite: {suite}")
         if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
-            time.sleep(60)
             logger.print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
             if collect_debug_files and suite.attrib['failures'] != '0':
                 # runCoreFileCheck(ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp)
@@ -834,7 +833,7 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
     
     if image_url: img = image_url
     else: img = images[0]
-    su_command = f'{GO_BIN} test utils_test.go collect_debug_files_test.go collect_core_files_test.go ' \
+    su_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/software_upgrade ' \
             f'-timeout 60m ' \
             f'-args ' \
@@ -913,7 +912,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
     # create a directory here to send all logs as firex has a line limit
-    if core == True:
+    if core:
         collect_core_files = f'{GO_BIN} test -v ' \
                 f'./exec/utils/debug ' \
                 f'-timeout 60m ' \
@@ -939,7 +938,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
     try:
         env = dict(os.environ)
         env.update(_get_go_env(ws))
-        if core is True :
+        if core:
             check_output(collect_core_files, env=env, cwd=internal_fp_repo_dir)
         else:
             check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
@@ -947,7 +946,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:
         # collect core files if any
-        if core is True:
+        if core:
             res = self.enqueue_child_and_get_results(CollectCoreFiles.s(
                 test_log_directory_path=test_log_directory_path,
                 xunit_results_filepath=xunit_results_filepath
