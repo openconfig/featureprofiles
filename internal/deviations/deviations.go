@@ -730,3 +730,8 @@ func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
+
+// EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
+func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
+}

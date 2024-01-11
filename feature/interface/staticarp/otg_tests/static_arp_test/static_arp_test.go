@@ -127,6 +127,9 @@ func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attribute
 	if me.MAC != "" {
 		e := i.GetOrCreateEthernet()
 		e.MacAddress = ygot.String(me.MAC)
+		if deviations.EnableFlowctrlFlag(dut) {
+			e.EnableFlowControl = ygot.Bool(true)
+		}
 	}
 
 	s := i.GetOrCreateSubinterface(0)
