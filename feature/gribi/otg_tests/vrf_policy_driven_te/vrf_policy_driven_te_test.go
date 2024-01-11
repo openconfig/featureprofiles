@@ -1922,7 +1922,7 @@ func TestGribiDecap(t *testing.T) {
 	})
 
 	t.Run("Test-3: Mixed Prefix Decap gRIBI Entries", func(t *testing.T) {
-		if !deviations.GribiDecapMixedPlenUnsupported(dut) {
+		if deviations.GribiDecapMixedPlenUnsupported(dut) {
 			t.Skip("Gribi route programming with mixed prefix length is not supported.")
 		}
 		testGribiDecapMixedLenPref(ctx, t, dut, args)

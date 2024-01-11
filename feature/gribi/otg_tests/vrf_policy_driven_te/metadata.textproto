@@ -20,6 +20,7 @@ platform_exceptions:  {
   deviations:  {
     isis_level_enabled:  true
     ttl_copy_unsupported:  true
+    gribi_decap_mixed_plen_unsupported: true
   }
 }
 platform_exceptions:  {
