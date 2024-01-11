@@ -652,10 +652,20 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 			innerIpHdr := flow.Packet().Add().Ipv4()
 			innerIpHdr.Src().SetValue(flowValues.InnHdrSrcIP)
 			innerIpHdr.Dst().SetValue(flowValues.InnHdrDstIP)
+			// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
+			// Below code will be uncommented once ixia issue is fixed.
+			// if len(flowValues.inHdrDscp) != 0 {
+			// 	innerIpHdr.Priority().Dscp().Phb().SetValues(flowValues.inHdrDscp)
+			// }
 		} else {
 			innerIpv6Hdr := flow.Packet().Add().Ipv6()
 			innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 			innerIpv6Hdr.Dst().SetValue(flowValues.InnHdrDstIPv6)
+			// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
+			// Below code will be uncommented once ixia issue is fixed.
+			// if len(flowValues.inHdrDscp) != 0 {
+			// 	innerIpv6Hdr.FlowLabel().SetValues(flowValues.inHdrDscp)
+			// }
 		}
 	}
 	return flow
@@ -1413,7 +1423,7 @@ type flowArgs struct {
 	srcPort                      attrs.Attributes
 	dstPortList                  []attrs.Attributes
 	udp, isInnHdrV4              bool
-	outHdrDscp                   []uint32
+	inHdrDscp, outHdrDscp        []uint32
 	proto                        uint32
 }
 
@@ -1619,56 +1629,60 @@ func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DU
 	// Configure GRIBi baseline AFTs.
 	configGribiBaselineAFT(ctx, t, dut, args)
 
-	portList := []string{"port2"}
-	dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
+	// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
+	// Below code will be uncommented once ixia issue is fixed.
+	/*
+		portList := []string{"port2"}
+		dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
 
-	flow1 := createFlow(&flowArgs{flowName: "flow1", srcPort: atePort1, dstPortList: dstPorts,
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: gribiIPv4EntryVRF1111, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapA1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true})
+		flow1 := createFlow(&flowArgs{flowName: "flow1", srcPort: atePort1, dstPortList: dstPorts,
+			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: gribiIPv4EntryVRF1111, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapA1},
+			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true, inHdrDscp: []uint32{dscpEncapA1}})
 
-	flow2 := createFlow(&flowArgs{flowName: "flow2", srcPort: atePort1, dstPortList: dstPorts,
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: gribiIPv4EntryVRF1111, InnHdrSrcIPv6: atePort1.IPv6,
-		InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, udp: true, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapA1}})
+		flow2 := createFlow(&flowArgs{flowName: "flow2", srcPort: atePort1, dstPortList: dstPorts,
+			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: gribiIPv4EntryVRF1111, InnHdrSrcIPv6: atePort1.IPv6, inHdrDscp: []uint32{dscpEncapA1},
+			InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, udp: true, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapA1}})
 
-	sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
-	verifyTraffic(t, args, []string{"flow1", "flow2"}, !wantLoss)
-	//captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
-	//	outDstIP: []string{gribiIPv4EntryVRF1111}, inHdrIP: ipv4InnerDst, validateEncap: true})
+		sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
+		verifyTraffic(t, args, []string{"flow1", "flow2"}, !wantLoss)
+		captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
+			outDstIP: []string{gribiIPv4EntryVRF1111}, inHdrIP: ipv4InnerDst, validateEncap: true})
 
-	wantWeights := []float64{
-		0.0625, // 6.25  Port2
-		0.1875, // 18.75 Port3
-		0.75,   // 75.0  Port4
-		0,      // 0 Port5
-		0,      // 0 Port6
-		0,      // 0 Port7
-		0,      // 0 Port8
-	}
-	validateTrafficDistribution(t, args.ate, wantWeights)
+		wantWeights := []float64{
+			0.0625, // 6.25  Port2
+			0.1875, // 18.75 Port3
+			0.75,   // 75.0  Port4
+			0,      // 0 Port5
+			0,      // 0 Port6
+			0,      // 0 Port7
+			0,      // 0 Port8
+		}
+		validateTrafficDistribution(t, args.ate, wantWeights)
 
-	flow3 := createFlow(&flowArgs{flowName: "flow3", srcPort: atePort1, dstPortList: dstPorts,
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: gribiIPv4EntryVRF2221, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapB1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true})
+		flow3 := createFlow(&flowArgs{flowName: "flow3", srcPort: atePort1, dstPortList: dstPorts,
+			outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: gribiIPv4EntryVRF2221, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapB1},
+			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true})
 
-	flow4 := createFlow(&flowArgs{flowName: "flow4", srcPort: atePort1, dstPortList: dstPorts,
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: gribiIPv4EntryVRF2221, InnHdrSrcIPv6: atePort1.IPv6,
-		InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, udp: true, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapB1}})
+		flow4 := createFlow(&flowArgs{flowName: "flow4", srcPort: atePort1, dstPortList: dstPorts,
+			outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: gribiIPv4EntryVRF2221, InnHdrSrcIPv6: atePort1.IPv6,
+			InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, udp: true, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapB1}})
 
-	sendTraffic(t, args, portList, []gosnappi.Flow{flow3, flow4})
-	verifyTraffic(t, args, []string{"flow3", "flow4"}, !wantLoss)
-	//captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
-	//	outDstIP: []string{gribiIPv4EntryVRF2221}, inHdrIP: ipv4InnerDst, validateEncap: true})
+		sendTraffic(t, args, portList, []gosnappi.Flow{flow3, flow4})
+		verifyTraffic(t, args, []string{"flow3", "flow4"}, !wantLoss)
+		captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
+			outDstIP: []string{gribiIPv4EntryVRF2221}, inHdrIP: ipv4InnerDst, validateEncap: true})
 
-	// Verify received pkts on DUT port-5.
-	outTrafficCounters := gnmi.OTG().Port("port1").State()
-	outPkts := gnmi.Get(t, args.ate.OTG(), outTrafficCounters).GetCounters().GetOutFrames()
+		// Verify received pkts on DUT port-5.
+		outTrafficCounters := gnmi.OTG().Port("port1").State()
+		outPkts := gnmi.Get(t, args.ate.OTG(), outTrafficCounters).GetCounters().GetOutFrames()
 
-	inTrafficCounters := gnmi.OTG().Port("port5").State()
-	inPkts := gnmi.Get(t, args.ate.OTG(), inTrafficCounters).GetCounters().GetInFrames()
+		inTrafficCounters := gnmi.OTG().Port("port5").State()
+		inPkts := gnmi.Get(t, args.ate.OTG(), inTrafficCounters).GetCounters().GetInFrames()
 
-	if (outPkts - inPkts) < tolerancePct {
-		t.Error("Traffic did not egressed through DUT port5")
-	}
+		if (outPkts - inPkts) < tolerancePct {
+			t.Error("Traffic did not egressed through DUT port5")
+		}
+	*/
 }
 
 // testTunnelTrafficMatchDefaultTerm is to validate subtest 5.
@@ -1760,58 +1774,62 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 		configureGribiRoute(ctx, t, dut, args, ipv4OuterDst111+"/32")
 	})
 
-	portList := []string{"port2"}
-	dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
+	// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
+	// Below code will be uncommented once ixia issue is fixed.
+	/*
+		portList := []string{"port2"}
+		dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
 
-	flow1 := createFlow(&flowArgs{flowName: "flow1", srcPort: atePort1, dstPortList: dstPorts,
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true})
+		flow1 := createFlow(&flowArgs{flowName: "flow1", srcPort: atePort1, dstPortList: dstPorts,
+			outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
+			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true, inHdrDscp: []uint32{dscpEncapA1}})
 
-	flow2 := createFlow(&flowArgs{flowName: "flow2", srcPort: atePort1, dstPortList: dstPorts,
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, udp: true})
+		flow2 := createFlow(&flowArgs{flowName: "flow2", srcPort: atePort1, dstPortList: dstPorts,
+			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, udp: true, inHdrDscp: []uint32{dscpEncapA1}})
 
-	sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
-	verifyTraffic(t, args, []string{"flow1", "flow2"}, !wantLoss)
+		sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
+		verifyTraffic(t, args, []string{"flow1", "flow2"}, !wantLoss)
 
-	//captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
-	//	outDstIP: []string{gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, inHdrIP: ipv4InnerDst, validateEncap: true})
+		captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
+			outDstIP: []string{gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, inHdrIP: ipv4InnerDst, validateEncap: true})
 
-	wantWeights := []float64{
-		0.0156, // 1.56 Port2
-		0.0468, // 4.68 Port3
-		0.1875, // 18.75 Port4
-		0,      // 0 Port5
-		0.75,   // 75.0 Port6
-		0,      // 0 Port7
-		0,      // 0 Port8
-	}
-	validateTrafficDistribution(t, args.ate, wantWeights)
+		wantWeights := []float64{
+			0.0156, // 1.56 Port2
+			0.0468, // 4.68 Port3
+			0.1875, // 18.75 Port4
+			0,      // 0 Port5
+			0.75,   // 75.0 Port6
+			0,      // 0 Port7
+			0,      // 0 Port8
+		}
+		validateTrafficDistribution(t, args.ate, wantWeights)
 
-	flow3 := createFlow(&flowArgs{flowName: "flow3", srcPort: atePort1, dstPortList: dstPorts,
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true})
+		flow3 := createFlow(&flowArgs{flowName: "flow3", srcPort: atePort1, dstPortList: dstPorts,
+			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
+			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true, inHdrDscp: []uint32{dscpEncapB1}})
 
-	flow4 := createFlow(&flowArgs{flowName: "flow4", srcPort: atePort1, dstPortList: dstPorts,
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true})
+		flow4 := createFlow(&flowArgs{flowName: "flow4", srcPort: atePort1, dstPortList: dstPorts,
+			outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
+			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true, inHdrDscp: []uint32{dscpEncapB1}})
 
-	sendTraffic(t, args, portList, []gosnappi.Flow{flow3, flow4})
-	verifyTraffic(t, args, []string{"flow3", "flow4"}, !wantLoss)
+		sendTraffic(t, args, portList, []gosnappi.Flow{flow3, flow4})
+		verifyTraffic(t, args, []string{"flow3", "flow4"}, !wantLoss)
 
-	//captureAndValidatePackets(t, args, &packetValidation{portName: args.otgConfig.Ports().Items()[1].Name(),
-	//	outDstIP: []string{gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, inHdrIP: ipv4InnerDst, validateEncap: true})
+		captureAndValidatePackets(t, args, &packetValidation{portName: args.otgConfig.Ports().Items()[1].Name(),
+			outDstIP: []string{gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, inHdrIP: ipv4InnerDst, validateEncap: true})
 
-	wantWeights = []float64{
-		0.0468, // 4.68 Port2
-		0.1406, // 14.06 Port3
-		0.5625, // 56.25 Port4
-		0.25,   // 25 Port5
-		0,      // 0 Port6
-		0,      // 0 Port7
-		0,      // 0 Port8
-	}
-	validateTrafficDistribution(t, args.ate, wantWeights)
+		wantWeights = []float64{
+			0.0468, // 4.68 Port2
+			0.1406, // 14.06 Port3
+			0.5625, // 56.25 Port4
+			0.25,   // 25 Port5
+			0,      // 0 Port6
+			0,      // 0 Port7
+			0,      // 0 Port8
+		}
+		validateTrafficDistribution(t, args.ate, wantWeights)
+	*/
 }
 
 // TestMatchSourceAndProtoNoMatchDSCP is to test support for decap/encap for gRIBI routes.
