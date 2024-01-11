@@ -156,7 +156,7 @@ and
 * Provide incorrect password, but correct username.
   * Authentication must fail.
 
-### Credentialz-2, SSH pasword login disallowed
+### Credentialz-2, SSH password login disallowed
 
 #### Setup
 * Set a username of `testuser`
