@@ -731,6 +731,11 @@ func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
 
+// EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
+func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
+}
+
 // TTLCopyUnsupported returns true for devices which does not support TTL copy.
 func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
@@ -739,8 +744,4 @@ func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
 // Devices does not support mixed prefix length in gribi.
 func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
-}
-  // EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
-func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
 }
