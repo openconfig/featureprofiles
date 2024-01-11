@@ -721,11 +721,7 @@ func ISISMetricStyleTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMetricStyleTelemetryUnsupported()
 }
 
-// PrefixLimitExceededTelemetryUnsupported is to skip checking prefix limit telemetry flag.
-func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
-}
-  // StaticRouteNextHopInterfaceRefUnsupported returns if device does not support Interface-ref under static-route next-hop
+// StaticRouteNextHopInterfaceRefUnsupported returns if device does not support Interface-ref under static-route next-hop
 func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteNextHopInterfaceRefUnsupported()
 }
@@ -738,4 +734,9 @@ func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 // EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
 func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
+}
+
+// PrefixLimitExceededTelemetryUnsupported is to skip checking prefix limit telemetry flag.
+func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
 }
