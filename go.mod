@@ -5,15 +5,15 @@ go 1.21
 require (
 	cloud.google.com/go/pubsub v1.33.0
 	cloud.google.com/go/storage v1.35.1
-	github.com/cisco-open/go-p4 v0.1.1
+	github.com/cisco-open/go-p4 v0.1.2
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/golang/glog v1.2.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v50 v50.1.0
 	github.com/google/gopacket v1.1.19
-	github.com/google/uuid v1.4.0
-	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/google/uuid v1.5.0
+	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/open-traffic-generator/snappi/gosnappi v0.13.3
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
 	github.com/openconfig/gnmi v0.10.0
@@ -23,19 +23,19 @@ require (
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.4.5
 	github.com/openconfig/gribi v1.0.0
-	github.com/openconfig/gribigo v0.0.0-20231211221638-48fe45d9284d
+	github.com/openconfig/gribigo v0.0.0-20231213034307-d0abeba7f432
 	github.com/openconfig/kne v0.1.14
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
 	github.com/openconfig/ondatra v0.4.8
-	github.com/openconfig/replayer v0.0.0-20231031192218-5462382820d4
+	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.11.0
 	github.com/openconfig/ygot v0.29.17
 	github.com/p4lang/p4runtime v1.4.0-rc.5.0.20220728214547-13f0d02a521e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
+	golang.org/x/crypto v0.18.0
+	golang.org/x/exp v0.0.0-20240110193028-0dcbfd608b1e
 	github.com/yoheimuta/go-protoparser/v4 v4.9.0
-	golang.org/x/crypto v0.17.0
-	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc
 	golang.org/x/text v0.14.0
 	google.golang.org/api v0.153.0
 	google.golang.org/grpc v1.60.1
@@ -136,16 +136,16 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
-	golang.org/x/term v0.15.0 // indirect
+	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.16.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto v0.0.0-20231212172506-995d672761c0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20231211222908-989df2bf70f3 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240102182953-50ed04b92917 // indirect
+	google.golang.org/genproto v0.0.0-20240102182953-50ed04b92917 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20231212172506-995d672761c0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240108191215-35c7eff3a6b1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
