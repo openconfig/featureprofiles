@@ -21,9 +21,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -53,11 +53,11 @@ const (
 )
 
 // configureISIS configures isis on DUT.
-func configureISIS(t *testing.T, ts *session.TestSession) {
+func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
 	d := ts.DUTConf
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
-	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, session.ISISName)
+	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
 	prot.Enabled = ygot.Bool(true)
 
 	isis := prot.GetOrCreateIsis()
@@ -114,7 +114,7 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 }
 
 // configureOTG configures isis and traffic on OTG.
-func configureOTG(t *testing.T, ts *session.TestSession) {
+func configureOTG(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
 	ts.ATEIntf1.Isis().RouterAuth().AreaAuth().SetAuthType("md5").SetMd5(password)
 	ts.ATEIntf1.Isis().RouterAuth().DomainAuth().SetAuthType("md5").SetMd5(password)
@@ -123,11 +123,11 @@ func configureOTG(t *testing.T, ts *session.TestSession) {
 
 	// netv4 is a simulated network containing the ipv4 addresses specified by targetNetwork
 	netv4 := ts.ATEIntf1.Isis().V4Routes().Add().SetName(v4NetName).SetLinkMetric(10)
-	netv4.Addresses().Add().SetAddress(v4Route1).SetPrefix(uint32(session.ATEISISAttrs.IPv4Len))
+	netv4.Addresses().Add().SetAddress(v4Route1).SetPrefix(uint32(isissession.ATEISISAttrs.IPv4Len))
 
 	// netv6 is a simulated network containing the ipv6 addresses specified by targetNetwork
 	netv6 := ts.ATEIntf1.Isis().V6Routes().Add().SetName(v6NetName).SetLinkMetric(10)
-	netv6.Addresses().Add().SetAddress(v6Route1).SetPrefix(uint32(session.ATEISISAttrs.IPv6Len))
+	netv6.Addresses().Add().SetAddress(v6Route1).SetPrefix(uint32(isissession.ATEISISAttrs.IPv6Len))
 
 	// We generate traffic entering along port2 and destined for port1
 	srcIpv4 := ts.ATEIntf2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
@@ -144,9 +144,9 @@ func configureOTG(t *testing.T, ts *session.TestSession) {
 	v4Flow.Rate().SetPps(100)
 	v4Flow.Duration().SetChoice("continuous")
 	e1 := v4Flow.Packet().Add().Ethernet()
-	e1.Src().SetValue(session.ATEISISAttrs.MAC)
+	e1.Src().SetValue(isissession.ATEISISAttrs.MAC)
 	v4 := v4Flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(session.ATEISISAttrs.IPv4)
+	v4.Src().SetValue(isissession.ATEISISAttrs.IPv4)
 	v4.Dst().Increment().SetStart(v4IP).SetCount(1)
 
 	t.Log("Configuring v6 traffic flow ")
@@ -160,26 +160,26 @@ func configureOTG(t *testing.T, ts *session.TestSession) {
 	v6Flow.Rate().SetPps(100)
 	v6Flow.Duration().SetChoice("continuous")
 	e2 := v6Flow.Packet().Add().Ethernet()
-	e2.Src().SetValue(session.ATEISISAttrs.MAC)
+	e2.Src().SetValue(isissession.ATEISISAttrs.MAC)
 	v6 := v6Flow.Packet().Add().Ipv6()
-	v6.Src().SetValue(session.ATEISISAttrs.IPv6)
+	v6.Src().SetValue(isissession.ATEISISAttrs.IPv6)
 	v6.Dst().Increment().SetStart(v6IP).SetCount(1)
 }
 
 // TestISISLevelPassive verifies adjacency with passive enabled at interface level hierarchy.
 func TestISISLevelPassive(t *testing.T) {
-	ts := session.MustNew(t).WithISIS()
+	ts := isissession.MustNew(t).WithISIS()
 	configureISIS(t, ts)
 
 	configureOTG(t, ts)
 	otg := ts.ATE.OTG()
 
-	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, session.ISISName)
-	fptest.LogQuery(t, "Protocol ISIS", session.ProtocolPath(ts.DUT).Config(), pcl)
+	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
+	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
 	ts.PushAndStart(t)
 
-	statePath := session.ISISPath(ts.DUT)
+	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		intfName += ".0"
@@ -240,7 +240,7 @@ func TestISISLevelPassive(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, adjPath.SystemId().State()); got != ateSysID {
 				t.Errorf("FAIL- Expected neighbor system id not found, got %s, want %s", got, ateSysID)
 			}
-			want := []string{session.ATEAreaAddress, session.DUTAreaAddress}
+			want := []string{isissession.ATEAreaAddress, isissession.DUTAreaAddress}
 			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
@@ -256,8 +256,8 @@ func TestISISLevelPassive(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborCircuitType().State()); got != oc.Isis_LevelType_LEVEL_2 {
 				t.Errorf("FAIL- Expected value for circuit type not found, got %s, want %s", got, oc.Isis_LevelType_LEVEL_2)
 			}
-			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborIpv4Address().State()); got != session.ATEISISAttrs.IPv4 {
-				t.Errorf("FAIL- Expected value for ipv4 address not found, got %s, want %s", got, session.ATEISISAttrs.IPv4)
+			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborIpv4Address().State()); got != isissession.ATEISISAttrs.IPv4 {
+				t.Errorf("FAIL- Expected value for ipv4 address not found, got %s, want %s", got, isissession.ATEISISAttrs.IPv4)
 			}
 			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborExtendedCircuitId().State()); got == 0 {
 				t.Errorf("FAIL- Expected neighbor extended circuit id not found,expected non-zero value, got %d", got)
