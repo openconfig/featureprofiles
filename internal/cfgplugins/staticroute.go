@@ -26,32 +26,33 @@ import (
 
 // StaticRouteCfg defines commonly used attributes for setting a static route
 type StaticRouteCfg struct {
-	NIName  string
-	Prefix  string
-	Nexthop string
+	NetworkInstance string
+	Prefix          string
+	NextHops        map[string]string
 }
 
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
-// Prefix and nexthop.
+// Prefix and NextHops.
 //
 // Configuration deviations are applied based on the ondatra device passed in.
-func NewStaticRouteCfg(batch *gnmi.SetBatch, newcfg *StaticRouteCfg, d *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol, error) {
-	if newcfg == nil {
-		return nil, errors.New("newcfg must be defined")
+func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol_Static, error) {
+	if cfg == nil {
+		return nil, errors.New("cfg must be defined")
 	}
 
-	niName := normalizeNIName(newcfg.NIName, d)
+	ni := normalizeNIName(cfg.NetworkInstance, d)
 
 	c := &oc.NetworkInstance_Protocol{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 		Name:       ygot.String(deviations.StaticProtocolName(d)),
 	}
-	staticroute := c.GetOrCreateStatic(newcfg.Prefix)
-	nh := staticroute.GetOrCreateNextHop("0")
-	nh.NextHop = oc.UnionString(newcfg.Nexthop)
-	gnmi.BatchReplace(batch,
-		gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d)).Config(),
-		c)
+	s := c.GetOrCreateStatic(cfg.Prefix)
+	for k, v := range cfg.NextHops {
+		nh := s.GetOrCreateNextHop(k)
+		nh.NextHop = oc.UnionString(v)
+	}
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
+	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 
-	return c, nil
+	return s, nil
 }
