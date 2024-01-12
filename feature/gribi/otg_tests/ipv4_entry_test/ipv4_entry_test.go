@@ -445,9 +445,7 @@ func TestIPv4Entry(t *testing.T) {
 					for _, wantResult := range tc.wantOperationResults {
 						chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
 					}
-                                        //newGoodFlows, newBadFlows := createTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
 					validateTrafficFlows(t, ate, newGoodFlows, newBadFlows)
-					//validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
 				})
 			}
 		})
@@ -574,7 +572,6 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
 
-	fmt.Println(newGoodFlows, newBadFlows)
 	otgutils.LogFlowMetrics(t, ate.OTG(), ateTop)
 	otgutils.LogPortMetrics(t, ate.OTG(), ateTop)
 
