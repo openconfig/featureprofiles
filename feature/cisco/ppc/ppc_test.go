@@ -17,16 +17,16 @@ package ppc_test
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/schemaless"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"golang.org/x/exp/slices"
 )
 
@@ -128,47 +128,114 @@ func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
 // 	}
 // )
 
+type SubscriptionType interface {
+	isSubscriptionType()
+}
+
+type SubscriptionModeWrapper struct {
+	Mode gpb.SubscriptionMode
+}
+
+func (s *SubscriptionModeWrapper) isSubscriptionType() {}
+
+// SubscriptionListWrapper is a struct that wraps gnmi.SubscriptionList.
+type SubscriptionListWrapper struct {
+	List *gpb.SubscriptionList
+}
+
+func (s *SubscriptionListWrapper) isSubscriptionType() {}
+
+// Testcase defines testcase structure
+type Testcase struct {
+	name     string
+	desc     string
+	flow     *ondatra.Flow
+	dstPorts *ondatra.Port
+	sub_type SubscriptionType
+}
+
 // to do subscriptions
-// var (
-//
-//	subscriptions = []Testcase{
-//		//subcription mode covers for all leaf, container and root level
-//		{
-//			name: "once",
-//			desc: "validates subscription mode once at the root, container and leaf level",
-//			// fn:   test,
-//		},
-//		{
-//			name: "on-change",
-//			desc: "validates subscription on-change at the root, container and leaf level",
-//			// fn:   test,
-//		},
-//		{
-//			name: "sample",
-//			desc: "validates subscription mode sampling at the root, container and leaf level",
-//			// fn:   test,
-//		},
-//		{
-//			name: "multiple_subcriptions",
-//			desc: "mix various subscription modes and levels",
-//			// fn:   test,
-//		},
-//	}
-//
-// )
+var (
+	subscriptions = []Testcase{
+		//subcription mode covers for all leaf, container and root level
+		// {
+		// 	name:     "once",
+		// 	desc:     "validates subscription mode once at the root, container and leaf level once using gNMI get",
+		// 	sub_type: &SubscriptionListWrapper{List: &gpb.SubscriptionList_ONCE},
+		// },
+		{
+			name:     "on-change",
+			desc:     "validates subscription on-change at the root, container and leaf level",
+			sub_type: &SubscriptionModeWrapper{Mode: gpb.SubscriptionMode_ON_CHANGE},
+		},
+		{
+			name:     "sample",
+			desc:     "validates subscription mode sampling at the root, container and leaf level",
+			sub_type: &SubscriptionModeWrapper{Mode: gpb.SubscriptionMode_SAMPLE},
+		},
+		// {
+		// 	name: "sample",
+		// 	desc: "validates subscription mode sampling at the root, container and leaf level",
+		// 	mode: gpb.SubscriptionMode_TARGET_DEFINED,
+		// },
+		// {
+		// 	name: "multiple_subcriptions",
+		// 	desc: "mix various subscription modes and levels",
+		// },
+	}
+)
+
+func create_gnmi_request(t *testing.T, path, npu string, sub SubscriptionType) *gpb.SubscribeRequest {
+
+	var request *gpb.SubscribeRequest
+
+	switch v := sub.(type) {
+	case *SubscriptionModeWrapper:
+		request = &gpb.SubscribeRequest{
+			Request: &gpb.SubscribeRequest_Subscribe{
+				Subscribe: &gpb.SubscriptionList{
+					Subscription: []*gpb.Subscription{
+						{
+							Path: &gpb.Path{
+								Elem: []*gpb.PathElem{
+									{Name: fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", npu, path)},
+								},
+							},
+							Mode:           v.Mode,
+							SampleInterval: 10000,
+						},
+					},
+				},
+			},
+		}
+		return request
+	// case *SubscriptionListWrapper:
+	// 	request = &gpb.SubscribeRequest{
+	// 		Request: &gpb.SubscribeRequest_Subscribe{
+	// 			Subscribe: &gpb.SubscriptionList{
+	// 				Subscription: []*gpb.Subscription{
+	// 					{
+	// 						Path: &gpb.Path{
+	// 							Elem: []*gpb.PathElem{
+	// 								{Name: path},
+	// 							},
+	// 						},
+	// 						List: v.List,
+	// 					},
+	// 				},
+	// 			},
+	// 		},
+	// 	}
+	default:
+		return request
+	}
+}
 
 func (a *testArgs) testOC_PPC_interface_subsystem(t *testing.T) {
 
-	// Testcase defines testcase structure
-	type Testcase struct {
-		name     string
-		flow     *ondatra.Flow
-		dstPorts *ondatra.Port
-	}
-
 	test := []Testcase{
 		{
-			name:     "packet/interface-block/in-packets/state",
+			name:     "packet/queueing-block/state/in-packets",
 			flow:     a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
 			dstPorts: a.dut.Port(t, "port2"),
 		},
@@ -221,23 +288,50 @@ func (a *testArgs) testOC_PPC_interface_subsystem(t *testing.T) {
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
-			tgn_data := a.validateTrafficFlows(t, tt.flow, false, &TGNoptions{traffic_timer: 120})
+			// tgn_data := a.validateTrafficFlows(t, tt.flow, false, &TGNoptions{traffic_timer: 120})
+			// fmt.Println(tgn_data)
 			npu := a.interfaceToNPU(t, tt.dstPorts)
-			query, _ := schemaless.NewWildcard[uint64](fmt.Sprintf("/components/component[name=%s]/integrated-circuit/%s", npu, tt.name), "openconfig")
-			ygnmi_client, _ := ygnmi.NewClient(a.dut.RawAPIs().GNMI(t), ygnmi.WithTarget(a.dut.ID()))
 
-			ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(2*time.Minute))
-			watcher := ygnmi.WatchAll(ctx, ygnmi_client, query, func(v *ygnmi.Value[uint64]) error {
-				if v.IsPresent() {
-					return nil
+			client := a.dut.RawAPIs().GNMI(t)
+			for _, sub := range subscriptions {
+				request := create_gnmi_request(t, tt.name, npu, sub.sub_type)
+
+				// Create a gNMI Subscribe client stream
+				stream, err := client.Subscribe(context.Background())
+				if err != nil {
+					log.Fatalf("Subscribe failed: %v", err)
 				}
-				vl, _ := v.Val()
-				if vl == tgn_data {
-					return nil
+
+				// Send the SubscribeRequest
+				if err := stream.Send(request); err != nil {
+					log.Fatalf("Failed to send SubscribeRequest: %v", err)
 				}
-				return ygnmi.Continue
-			})
-			watcher.Await()
+
+				// Receive updates from the server
+				for {
+					response, err := stream.Recv()
+					if err != nil {
+						log.Fatalf("Failed to receive response: %v", err)
+					}
+					fmt.Printf("Received gNMI Update: %v\n", response)
+				}
+			}
+			// query, _ := schemaless.NewWildcard[uint64](fmt.Sprintf("/components/component[name=%s]/integrated-circuit/%s", npu, tt.name), "openconfig")
+
+			// ygnmi_client, _ := ygnmi.NewClient(a.dut.RawAPIs().GNMI(t), ygnmi.WithTarget(a.dut.ID()))
+
+			// ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(1*time.Minute))
+			// watcher := ygnmi.WatchAll(ctx, ygnmi_client, query, func(v *ygnmi.Value[uint64]) error {
+			// 	if v.IsPresent() {
+			// 		return nil
+			// 	}
+			// 	vl, _ := v.Val()
+			// 	if vl == tgn_data {
+			// 		return nil
+			// 	}
+			// 	return ygnmi.Continue
+			// })
+			// watcher.Await()
 		})
 	}
 }
