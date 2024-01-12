@@ -18,167 +18,85 @@ package system_base_test
 
 import (
 	"context"
-	"crypto/tls"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/binding"
-	"github.com/openconfig/ondatra/knebind/creds"
+	"github.com/openconfig/ondatra/binding/introspect"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
 	gribipb "github.com/openconfig/gribi/v1/proto/service"
-	tpb "github.com/openconfig/kne/proto/topo"
 	p4rtpb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
-func resolveService(t *testing.T, dut *ondatra.DUTDevice, serviceName string, wantPort uint32) string {
+func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, wantPort uint32) *grpc.ClientConn {
 	t.Helper()
-	var servDUT interface {
-		Service(string) (*tpb.Service, error)
-	}
-	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &servDUT); err != nil {
-		t.Skipf("DUT does not support Service function: %v", err)
-	}
-	if serviceName == "gnoi" || serviceName == "gnsi" {
+	if svc == introspect.GNOI || svc == introspect.GNSI {
 		// Renaming service name due to gnoi and gnsi always residing on same port as gnmi.
-		serviceName = "gnmi"
+		svc = introspect.GNMI
 	}
-	s, err := servDUT.Service(serviceName)
+	dialer := introspect.DUTDialer(t, dut, introspect.GNMI)
+	if dialer.DevicePort != int(wantPort) {
+		t.Fatalf("DUT is not listening on correct port for %q: got %d, want %d", svc, dialer.DevicePort, wantPort)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	conn, err := dialer.Dial(ctx)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("grpc.Dial failed to: %q", dialer.DialTarget)
 	}
-	if s.GetInside() != wantPort {
-		t.Fatalf("DUT is not listening on correct port for %q: got %d, want %d", serviceName, s.GetInside(), wantPort)
-	}
-	return fmt.Sprintf("%s:%d", s.GetOutsideIp(), s.GetOutside())
-
-}
-
-type rpcCredentials struct {
-	*creds.UserPass
-}
-
-func (r *rpcCredentials) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{
-		"username": "admin",
-		"password": "admin",
-	}, nil
-}
-
-func (r *rpcCredentials) RequireTransportSecurity() bool {
-	return true
+	return conn
 }
 
 // TestGNMIClient validates that the DUT listens on standard gNMI Port.
 func TestGNMIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := resolveService(t, dut, "gnmi", 9339)
-	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))} // NOLINT
-	creds := &rpcCredentials{}
-	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
-	t.Logf("gNMI standard port test: %q", target)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
-	if err != nil {
-		t.Fatalf("grpc.Dial failed to: %q", target)
-	}
+	conn := dialConn(t, dut, introspect.GNMI, 9339)
 	c := gpb.NewGNMIClient(conn)
 	if _, err := c.Get(context.Background(), &gpb.GetRequest{}); err != nil {
 		t.Fatalf("gnmi.Get failed: %v", err)
 	}
 }
 
-// TestGNOIClient validates that the DUT listens on standard gNMI Port.
+// TestGNOIClient validates that the DUT listens on standard gNOI Port.
 func TestGNOIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := resolveService(t, dut, "gnoi", 9339)
-	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))} // NOLINT
-	creds := &rpcCredentials{}
-	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
-
-	t.Logf("gNOI standard port test: %q", target)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
-	if err != nil {
-		t.Fatalf("grpc.Dial failed to: %q", target)
-	}
+	conn := dialConn(t, dut, introspect.GNOI, 9339)
 	c := spb.NewSystemClient(conn)
-	_, err = c.Ping(context.Background(), &spb.PingRequest{})
-	if err != nil {
-		t.Fatalf("gnoi.system.Time failed: %v", err)
+	if _, err := c.Ping(context.Background(), &spb.PingRequest{}); err != nil {
+		t.Fatalf("gnoi.system.Ping failed: %v", err)
 	}
 }
 
-// TestGNSIClient validates that the DUT listens on standard gNMI Port.
+// TestGNSIClient validates that the DUT listens on standard gNSI Port.
 func TestGNSIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := resolveService(t, dut, "gnsi", 9339)
-	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))} // NOLINT
-	creds := &rpcCredentials{}
-	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
-
-	t.Logf("gNSI standard port test: %q", target)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
-	if err != nil {
-		t.Fatalf("grpc.Dial failed to: %q", target)
-	}
+	conn := dialConn(t, dut, introspect.GNSI, 9339)
 	c := authzpb.NewAuthzClient(conn)
-	_, err = c.Get(context.Background(), &authzpb.GetRequest{})
-	if err != nil {
+	if _, err := c.Get(context.Background(), &authzpb.GetRequest{}); err != nil {
 		t.Fatalf("gnsi.authz.Get failed: %v", err)
 	}
 }
 
-// TestGRIBIClient validates that the DUT listens on standard gNMI Port.
+// TestGRIBIClient validates that the DUT listens on standard gRIBI Port.
 func TestGRIBIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := resolveService(t, dut, "gribi", 9340)
-	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))} // NOLINT
-	creds := &rpcCredentials{}
-	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
-
-	t.Logf("gRIBI standard port test: %q", target)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
-	if err != nil {
-		t.Fatalf("grpc.Dial failed to: %q", target)
-	}
+	conn := dialConn(t, dut, introspect.GRIBI, 9340)
 	c := gribipb.NewGRIBIClient(conn)
-	_, err = c.Get(context.Background(), &gribipb.GetRequest{})
-	if err != nil {
+	if _, err := c.Get(context.Background(), &gribipb.GetRequest{}); err != nil {
 		t.Fatalf("gribi.Get failed: %v", err)
 	}
 }
 
-// TestP4RTClient validates that the DUT listens on standard gNMI Port.
+// TestP4RTClient validates that the DUT listens on standard P4RT Port.
 func TestP4RTClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := resolveService(t, dut, "p4rt", 9559)
-	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))} // NOLINT
-	creds := &rpcCredentials{}
-	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
-
-	t.Logf("P4RT standard port test: %q", target)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
-	if err != nil {
-		t.Fatalf("grpc.Dial failed to: %q", target)
-	}
+	conn := dialConn(t, dut, introspect.P4RT, 9559)
 	c := p4rtpb.NewP4RuntimeClient(conn)
-	_, err = c.Capabilities(context.Background(), &p4rtpb.CapabilitiesRequest{})
-	if err != nil {
+	if _, err := c.Capabilities(context.Background(), &p4rtpb.CapabilitiesRequest{}); err != nil {
 		t.Fatalf("p4rt.Capabilites failed: %v", err)
 	}
 }
