@@ -5,17 +5,16 @@ uuid: "4ba9a73c-9ed3-46fb-a9be-356542f41a3b"
 plan_id: "TUN-1.4"
 description: "Interface based IPv6 GRE Encapsulation"
 testbed: TESTBED_DUT_ATE_4LINKS
-tags: TAGS_AGGREGATION
- platform_exceptions: {
-   platform: {
-     vendor: JUNIPER
-     hardware_model: "PTX10008"
-     hardware_model: "PTX10001-36MR"
-     hardware_model: "cptx"
-   }
-   deviations: {
-     tunnel_state_path_unsupported: true
-     tunnel_config_path_unsupported: true
-   }
- }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    tunnel_state_path_unsupported: true
+    tunnel_config_path_unsupported: true
+  }
+}
 tags: TAGS_AGGREGATION
