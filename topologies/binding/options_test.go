@@ -134,6 +134,12 @@ var resolverBinding = resolver{&bindpb.Binding{
 		Options: &bindpb.Options{
 			Username: "ate.username",
 		},
+		Gnmi: &bindpb.Options{
+			Password: "gnmi.password",
+		},
+		Otg: &bindpb.Options{
+			Password: "otg.password",
+		},
 		Ixnetwork: &bindpb.Options{
 			Password: "ixnetwork.password",
 		},
@@ -225,7 +231,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnmi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.grpc(d, introspect.GNMI)
+			return r.dutGRPC(d, dutSvcParams[introspect.GNMI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -236,7 +242,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnoi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.grpc(d, introspect.GNOI)
+			return r.dutGRPC(d, dutSvcParams[introspect.GNOI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -247,7 +253,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnsi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.grpc(d, introspect.GNSI)
+			return r.dutGRPC(d, dutSvcParams[introspect.GNSI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -258,7 +264,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gribi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.grpc(d, introspect.GRIBI)
+			return r.dutGRPC(d, dutSvcParams[introspect.GRIBI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -269,13 +275,35 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "p4rt",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.grpc(d, introspect.P4RT)
+			return r.dutGRPC(d, dutSvcParams[introspect.P4RT])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*p4rtPort),
 			Username: "global.username",
 			Password: "p4rt.password",
+		},
+	}, {
+		test: "ate gnmi",
+		fn: func(d *bindpb.Device) *bindpb.Options {
+			return r.ateGRPC(d, ateSvcParams[introspect.GNMI])
+		},
+		dev: r.Ates[0],
+		want: &bindpb.Options{
+			Target:   "ate.name:" + strconv.Itoa(*ateGNMIPort),
+			Username: "ate.username",
+			Password: "gnmi.password",
+		},
+	}, {
+		test: "otg",
+		fn: func(d *bindpb.Device) *bindpb.Options {
+			return r.ateGRPC(d, ateSvcParams[introspect.OTG])
+		},
+		dev: r.Ates[0],
+		want: &bindpb.Options{
+			Target:   "ate.name:" + strconv.Itoa(*ateOTGPort),
+			Username: "ate.username",
+			Password: "otg.password",
 		},
 	}, {
 		test: "ixnetwork",

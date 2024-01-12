@@ -48,8 +48,8 @@ func TestValidatePath(t *testing.T) {
 		},
 		wantOCPath: &OCPath{
 			Key: OCPathKey{
-				Path:      "/interfaces/interface/config/name",
-				Component: "",
+				Path:         "/interfaces/interface/config/name",
+				PlatformType: "",
 			},
 			FeatureprofileID: "interface_base",
 		},
@@ -69,8 +69,8 @@ func TestValidatePath(t *testing.T) {
 		},
 		wantOCPath: &OCPath{
 			Key: OCPathKey{
-				Path:      "/components/component/state/name",
-				Component: "CPU",
+				Path:         "/components/component/state/name",
+				PlatformType: "CPU",
 			},
 			FeatureprofileID: "interface_base",
 		},
@@ -160,12 +160,18 @@ func TestValidatePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			got, err := validatePath(tt.inOcPathProto, root)
+			ocpath := convertOCPath(tt.inOcPathProto)
+
+			err := validatePath(ocpath, root)
 			if diff := errdiff.Substring(err, tt.wantErrSubstr); diff != "" {
 				t.Errorf(diff)
 			}
 
-			if diff := cmp.Diff(tt.wantOCPath, got); diff != "" {
+			if err != nil {
+				return
+			}
+
+			if diff := cmp.Diff(tt.wantOCPath, ocpath); diff != "" {
 				t.Errorf("(-want, +got):\n%s", diff)
 			}
 		})
@@ -177,6 +183,7 @@ func TestValidatePaths(t *testing.T) {
 		desc           string
 		inOcPathsProto []*ppb.OCPath
 		wantOCPaths    map[OCPathKey]*OCPath
+		wantInvalids   map[OCPathKey]*OCPath
 		wantErr        bool
 	}{{
 		desc: "valid",
@@ -194,8 +201,8 @@ func TestValidatePaths(t *testing.T) {
 		}},
 		wantOCPaths: map[OCPathKey]*OCPath{
 			{
-				Path:      "/interfaces/interface/config/name",
-				Component: "",
+				Path:         "/interfaces/interface/config/name",
+				PlatformType: "",
 			}: {
 				Key: OCPathKey{
 					Path: "/interfaces/interface/config/name",
@@ -203,22 +210,22 @@ func TestValidatePaths(t *testing.T) {
 				FeatureprofileID: "interface_base",
 			},
 			{
-				Path:      "/components/component/config/description",
-				Component: "CPU",
+				Path:         "/components/component/config/description",
+				PlatformType: "CPU",
 			}: {
 				Key: OCPathKey{
-					Path:      "/components/component/config/description",
-					Component: "CPU",
+					Path:         "/components/component/config/description",
+					PlatformType: "CPU",
 				},
 				FeatureprofileID: "interface_base",
 			},
 			{
-				Path:      "/components/component/config/description",
-				Component: "PORT",
+				Path:         "/components/component/config/description",
+				PlatformType: "PORT",
 			}: {
 				Key: OCPathKey{
-					Path:      "/components/component/config/description",
-					Component: "PORT",
+					Path:         "/components/component/config/description",
+					PlatformType: "PORT",
 				},
 				FeatureprofileID: "interface_basic",
 			},
@@ -229,9 +236,20 @@ func TestValidatePaths(t *testing.T) {
 			Name:             "/interfaces/interface/config",
 			Featureprofileid: "interface_base",
 		}},
+		wantInvalids: map[OCPathKey]*OCPath{
+			{
+				Path:         "/interfaces/interface/config",
+				PlatformType: "",
+			}: {
+				Key: OCPathKey{
+					Path: "/interfaces/interface/config",
+				},
+				FeatureprofileID: "interface_base",
+			},
+		},
 		wantErr: true,
 	}, {
-		desc: "duplicate",
+		desc: "duplicate-and-invalid",
 		inOcPathsProto: []*ppb.OCPath{{
 			Name:             "/interfaces/interface/config/name",
 			Featureprofileid: "interface_base",
@@ -243,21 +261,57 @@ func TestValidatePaths(t *testing.T) {
 			Name:             "/components/component/config/description",
 			OcpathConstraint: &ppb.OCPathConstraint{Constraint: &ppb.OCPathConstraint_PlatformType{PlatformType: "CPU"}},
 			Featureprofileid: "interface_basic",
+		}, {
+			Name:             "/interfaces/interface/config",
+			Featureprofileid: "interface_base",
 		}},
+		wantOCPaths: map[OCPathKey]*OCPath{
+			{
+				Path:         "/interfaces/interface/config/name",
+				PlatformType: "",
+			}: {
+				Key: OCPathKey{
+					Path: "/interfaces/interface/config/name",
+				},
+				FeatureprofileID: "interface_base",
+			},
+			{
+				Path:         "/components/component/config/description",
+				PlatformType: "CPU",
+			}: {
+				Key: OCPathKey{
+					Path:         "/components/component/config/description",
+					PlatformType: "CPU",
+				},
+				FeatureprofileID: "interface_base",
+			},
+		},
+		wantInvalids: map[OCPathKey]*OCPath{
+			{
+				Path:         "/interfaces/interface/config",
+				PlatformType: "",
+			}: {
+				Key: OCPathKey{
+					Path: "/interfaces/interface/config",
+				},
+				FeatureprofileID: "interface_base",
+			},
+		},
 		wantErr: true,
 	}}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			got, err := ValidatePaths(tt.inOcPathsProto, "testdata/models")
+			got, gotInvalids, err := ValidatePaths(tt.inOcPathsProto, "testdata/models")
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("gotErr: %v, wantErr: %v", err, tt.wantErr)
-			}
-			if err != nil {
-				return
+				t.Errorf("gotErr: %v, wantErr: %v", err, tt.wantErr)
 			}
 
 			if diff := cmp.Diff(tt.wantOCPaths, got); diff != "" {
+				t.Errorf("(-want, +got):\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tt.wantInvalids, gotInvalids); diff != "" {
 				t.Errorf("(-want, +got):\n%s", diff)
 			}
 		})
