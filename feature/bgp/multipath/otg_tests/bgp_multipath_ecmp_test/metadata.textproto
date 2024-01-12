@@ -1,24 +1,16 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "8b86a8fd-3d9d-47a4-b607-79a3acd496ee"
-plan_id: "TE-1.1"
-description: "Static ARP"
-testbed: TESTBED_DUT_ATE_2LINKS
+uuid: "41faf6fd-dcc6-4ebf-8ace-b71fa22d8bf7"
+plan_id: "RT-1.51"
+description: "BGP multipath ECMP"
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
     ipv4_missing_enabled: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    enable_flowctrl_flag: true
   }
 }
 platform_exceptions: {
@@ -36,7 +28,11 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
+    missing_value_for_defaults: true
   }
 }
+
