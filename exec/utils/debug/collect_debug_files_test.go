@@ -89,7 +89,7 @@ func NewTargets(t *testing.T) *Targets {
 
 	err := nt.getSSHInfo(t)
 	if err != nil {
-		t.FailNow()
+		t.Fatalf("%v", err)
 	}
 	return &nt
 }
@@ -104,7 +104,7 @@ func TestCollectDebugFiles(t *testing.T) {
 	// set up Targets
 	targets := NewTargets(t)
 	if *outDirFlag == "" {
-		t.FailNow()
+		t.Fatalf("outDirFlag was not set")
 	} else {
 		outDir = *outDirFlag
 		timestamp = *timestampFlag
@@ -132,7 +132,7 @@ func TestCollectDebugFiles(t *testing.T) {
 	for dutID, targetInfo := range targets.targetInfo {
 
 		ctx := context.Background()
-		cli := targets.GetOndatraCLI(t, dutID)
+		cli := GetOndatraCLI(t, dutID)
 
 		for _, cmd := range commands {
 			fmt.Println(fmt.Sprintf("Running current command: [%s]", cmd))
@@ -252,7 +252,7 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 			if dut.Ssh.Target != "" {
 				sshTarget = strings.Split(dut.Ssh.Target, ":")
 				sshIP = sshTarget[0]
-				sshPort = "25087"
+				sshPort = "22"
 				if len(sshTarget) > 1 {
 					sshPort = sshTarget[1]
 				}
@@ -302,7 +302,7 @@ func getTechFileName(tech string) string {
 // GetOndatraCLI
 //
 // returns a new streaming CLI client for the DUT.
-func (ti *Targets) GetOndatraCLI(t *testing.T, dutID string) binding.CLIClient {
+func GetOndatraCLI(t *testing.T, dutID string) binding.CLIClient {
 	t.Helper()
 	dut := ondatra.DUT(t, dutID)
 
@@ -319,7 +319,7 @@ func (ti *Targets) SetCoreFile(t *testing.T) {
 	for dutID := range ti.targetInfo {
 		t.Logf("Collecting debug files on %s", dutID)
 		ctx := context.Background()
-		cli := ti.GetOndatraCLI(t, dutID)
+		cli := GetOndatraCLI(t, dutID)
 		testt.CaptureFatal(t, func(t testing.TB) {
 			if result, err := cli.SendCommand(ctx, cmd); err == nil {
 				t.Logf("> %s", cmd)
