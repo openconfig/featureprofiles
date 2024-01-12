@@ -1,0 +1,47 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "ef34466c-37da-4133-8d03-40ebe2a5168a"
+plan_id: "RT-4.10"
+description: "AFTs Route Summary"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    isis_multi_topology_unsupported: true
+    isis_interface_level1_disable_required: true
+    missing_isis_interface_afi_safi_enable: true
+    isis_restart_suppress_unsupported: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    missing_value_for_defaults: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    isis_interface_level1_disable_required: true
+    isis_single_topology_required: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    missing_value_for_defaults: true
+    interface_enabled: true
+		default_network_instance: "default"
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    route_policy_under_afi_unsupported: true
+  }
+}
+
