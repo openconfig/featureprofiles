@@ -344,6 +344,7 @@ func TestIPv4Entry(t *testing.T) {
 		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
 
 			for _, tc := range cases {
+                                newGoodFlows, newBadFlows := createTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
 				t.Run(tc.desc, func(t *testing.T) {
 					if tc.gribiMACOverrideWithStaticARPStaticRoute {
 						staticARPWithMagicUniversalIP(t, dut)
@@ -444,8 +445,9 @@ func TestIPv4Entry(t *testing.T) {
 					for _, wantResult := range tc.wantOperationResults {
 						chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
 					}
-
-					validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+                                        //newGoodFlows, newBadFlows := createTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+					validateTrafficFlows(t, ate, newGoodFlows, newBadFlows)
+					//validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
 				})
 			}
 		})
@@ -519,47 +521,60 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	return name
 }
 
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
+func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string)  (newGood, newBad []string) {
+        var newGoodFlows, newBadFlows []string
+	allFlows := append(good, bad...)
 	ateTop := ate.OTG().FetchConfig(t)
+        if len(good) == 0 && len(bad) == 0 {
+                return newGoodFlows, newBadFlows 
+        }
+        ateTop.Flows().Clear().Items()
+        for _, flow := range allFlows {
+                if flow == "port2Flow" {
+                        if elementInSlice(flow, good) {
+                                newGoodFlows = append(newGoodFlows, createFlow(t, "Port1_to_Port2", ate, ateTop, &atePort2))
+                        }
+                        if elementInSlice(flow, bad) {
+                                newBadFlows = append(newBadFlows, createFlow(t, "Port1_to_Port2", ate, ateTop, &atePort2))
+                        }
+                }
+                if flow == "port3Flow" {
+                        if elementInSlice(flow, good) {
+                                newGoodFlows = append(newGoodFlows, createFlow(t, "Port1_to_Port3", ate, ateTop, &atePort3))
+                        }
+                        if elementInSlice(flow, bad) {
+                                newBadFlows = append(newBadFlows, createFlow(t, "Port1_to_Port3", ate, ateTop, &atePort3))
+                        }
+
+                }
+                if flow == "ecmpFlow" {
+                        if elementInSlice(flow, good) {
+                                newGoodFlows = append(newGoodFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
+                        }
+                        if elementInSlice(flow, bad) {
+                                newBadFlows = append(newBadFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
+                        }
+
+                }
+        }
+	return newGoodFlows, newBadFlows
+}
+
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
 	if len(good) == 0 && len(bad) == 0 {
 		return
 	}
 
-	var newGoodFlows, newBadFlows []string
-	allFlows := append(good, bad...)
-	ateTop.Flows().Clear().Items()
-	for _, flow := range allFlows {
-		if flow == "port2Flow" {
-			if elementInSlice(flow, good) {
-				newGoodFlows = append(newGoodFlows, createFlow(t, "Port1_to_Port2", ate, ateTop, &atePort2))
-			}
-			if elementInSlice(flow, bad) {
-				newBadFlows = append(newBadFlows, createFlow(t, "Port1_to_Port2", ate, ateTop, &atePort2))
-			}
-		}
-		if flow == "port3Flow" {
-			if elementInSlice(flow, good) {
-				newGoodFlows = append(newGoodFlows, createFlow(t, "Port1_to_Port3", ate, ateTop, &atePort3))
-			}
-			if elementInSlice(flow, bad) {
-				newBadFlows = append(newBadFlows, createFlow(t, "Port1_to_Port3", ate, ateTop, &atePort3))
-			}
+	newGoodFlows := good
+	newBadFlows := bad
 
-		}
-		if flow == "ecmpFlow" {
-			if elementInSlice(flow, good) {
-				newGoodFlows = append(newGoodFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
-			}
-			if elementInSlice(flow, bad) {
-				newBadFlows = append(newBadFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
-			}
+	ateTop := ate.OTG().FetchConfig(t)
 
-		}
-	}
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
 
+	fmt.Println(newGoodFlows, newBadFlows)
 	otgutils.LogFlowMetrics(t, ate.OTG(), ateTop)
 	otgutils.LogPortMetrics(t, ate.OTG(), ateTop)
 
