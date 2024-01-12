@@ -1,0 +1,41 @@
+name: NOSImage validation script
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron: "49 0 * * *"
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: stable
+        cache: false
+    - name: Generate Examples and Check No Diff
+      run: |
+        cd tools/nosimage
+        go run example/generate_example.go -file-path example/example_nosimageprofile.textproto
+        go run example/generate_example.go -file-path example/example_nosimageprofile_invalid.textproto -invalid
+
+        git diff --exit-code --ignore-all-space --ignore-blank-lines
+
+    - name: Validate Good Example
+      run: |
+        cd tools/nosimage
+        go run validate/validate.go -file example/example_nosimageprofile.textproto; rm -rf tmp
+
+    - name: Validate Bad Example
+      run: |
+        cd tools/nosimage
+        if go run validate/validate.go -file example/example_nosimageprofile_invalid.textproto; then
+          echo "Validation passed, but failure expected"
+          exit 1
+        fi
+        rm -rf tmp
