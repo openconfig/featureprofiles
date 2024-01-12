@@ -252,8 +252,12 @@ func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosna
 	if err != nil {
 		return nil, err
 	}
+
 	api := gosnappi.NewApi()
-	api.NewGrpcTransport().SetClientConnection(conn)
+	transport := api.NewGrpcTransport().SetClientConnection(conn)
+	if timeout := a.r.dutGRPC(a.dev, dutSvcParams[introspect.OTG]).Timeout; timeout != 0 {
+		transport.SetRequestTimeout(time.Duration(timeout) * time.Second)
+	}
 	return api, nil
 }
 
