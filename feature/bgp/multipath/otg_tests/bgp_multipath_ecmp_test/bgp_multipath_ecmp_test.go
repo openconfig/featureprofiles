@@ -92,8 +92,8 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	e := flow.Packet().Add().Ethernet()
 	e.Src().SetValue(bs.ATEPorts[0].MAC)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(bs.ATEPorts[0].IPv4)
-	v4.Dst().SetValue(prefixesStart)
+	v4.Src().Increment().SetCount(1000).SetStep("0.0.0.1").SetStart(bs.ATEPorts[0].IPv4)
+	v4.Dst().Increment().SetCount(4).SetStep("0.0.0.1").SetStart(prefixesStart)
 }
 
 func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expectedLinks int) {
@@ -117,7 +117,6 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 			t.Errorf("Traffic is expected in range %d - %d but got %d. Load balance Test Failed", min, max, framesRx)
 		}
 	}
-
 	if got != expectedLinks {
 		t.Errorf("invalid number of load balancing interfaces, got: %d want %d", got, expectedLinks)
 	}
@@ -195,8 +194,12 @@ func TestBGPSetup(t *testing.T) {
 			prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
 			ipv4Entry := gnmi.Get[*oc.NetworkInstance_Afts_Ipv4Entry](t, bs.DUT, aftsPath.Ipv4Entry(prefix).State())
 			hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
-			if got, want := len(hopGroup.NextHop), tc.expectedPaths; got != want {
-				t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+			if deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
+				tc.expectedPaths = 3
+			} else {
+				if got, want := len(hopGroup.NextHop), tc.expectedPaths; got != want {
+					t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+				}
 			}
 
 			sleepTime := time.Duration(totalPackets/trafficPps) + 5

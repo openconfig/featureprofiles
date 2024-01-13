@@ -735,3 +735,8 @@ func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
 }
+
+// Devices does not support bgp max multipaths.
+func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
+}
