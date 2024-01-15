@@ -192,7 +192,6 @@ tests:
       - sprem
     priority: 5
     mustpass: true
-    pr: 2298
     post:
       - name: gribi_flush
         path: topologies/cisco/pretests/gribi_flush_test
@@ -603,6 +602,7 @@ tests:
     owners:
       - saarvind
     mustpass: true
+    timeout: 4200
   - name: RT-5.4 (Aggregate Forwarding Viable)
     path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
     owners:
