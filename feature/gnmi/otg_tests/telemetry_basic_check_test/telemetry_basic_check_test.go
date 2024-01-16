@@ -749,7 +749,10 @@ func TestP4rtNodeID(t *testing.T) {
 				t.Fatalf("Couldn't find P4RT Node for port: %s", "port1")
 			}
 			t.Logf("Configuring P4RT Node: %s", nodes["port1"])
-			gnmi.Replace(t, dut, gnmi.OC().Component(nodes["port1"]).IntegratedCircuit().Config(), ic)
+			gnmi.Replace(t, dut, gnmi.OC().Component(nodes["port1"]).Config(), &oc.Component{
+				Name:              ygot.String(nodes["port1"]),
+				IntegratedCircuit: ic,
+			})
 			// Check path /components/component/integrated-circuit/state/node-id.
 			nodeID := gnmi.Lookup(t, dut, gnmi.OC().Component(nodes["port1"]).IntegratedCircuit().NodeId().State())
 			nodeIDVal, present := nodeID.Val()
