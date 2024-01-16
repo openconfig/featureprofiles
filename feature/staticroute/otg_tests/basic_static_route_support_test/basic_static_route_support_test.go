@@ -364,8 +364,6 @@ func (td *testData) testRecursiveNextHopResolutionDisabled(t *testing.T) {
 }
 
 func (td *testData) testStaticRouteECMP(t *testing.T) {
-	// root := &oc.Root{}
-	// ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(td.dut))
 	b := &gnmi.SetBatch{}
 	// Configure IPv4 static routes:
 	//   *   Configure one IPv4 static route i.e. ipv4-route-a on the DUT for
