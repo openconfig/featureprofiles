@@ -14,6 +14,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -132,6 +133,10 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	default:
 		t.Fatalf("Unknown component type: %s", cType.String())
 	}
+
+	gnmi.Update(t, dut, c.Config(), &oc.Component{
+		Name: ygot.String(name),
+	})
 
 	start := time.Now()
 	t.Logf("Starting %s POWER_DISABLE", name)
