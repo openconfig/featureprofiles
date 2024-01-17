@@ -109,7 +109,7 @@ func (r *resolver) ateByID(ateID string) *bindpb.Device {
 	return nil
 }
 
-func (r *resolver) dutGRPC(dev *bindpb.Device, params *svcParams) *bindpb.Options {
+func (r *resolver) grpc(dev *bindpb.Device, params *svcParams) *bindpb.Options {
 	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, params.port)}
 	return merge(targetOpts, r.Options, dev.Options, params.optsFn(dev))
 }
@@ -117,10 +117,6 @@ func (r *resolver) dutGRPC(dev *bindpb.Device, params *svcParams) *bindpb.Option
 func (r *resolver) ssh(dev *bindpb.Device) *bindpb.Options {
 	targetOpts := &bindpb.Options{Target: dev.Name}
 	return merge(targetOpts, r.Options, dev.Options, dev.Ssh)
-}
-func (r *resolver) ateGRPC(dev *bindpb.Device, params *svcParams) *bindpb.Options {
-	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, params.port)}
-	return merge(targetOpts, r.Options, dev.Options, params.optsFn(dev))
 }
 
 func (r *resolver) ixnetwork(dev *bindpb.Device) *bindpb.Options {
